@@ -24,6 +24,16 @@
 Changelog
 ---------
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* The hook class  :class:`airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook` not inherit from
+  :class:`airflow.providers.http.hooks.http.HttpHook` anymore. In practice the only impact on
+  user-defined classes based on **SlackWebhookHook** and you use attributes from **HttpHook**.
+* Drop support deprecated ``webhook_token`` parameter in
+  :ref:`Slack Incoming Webhook Connection <howto/connection:slack-incoming-webhook>` Extra.
+
+
 5.1.0
 .....
 

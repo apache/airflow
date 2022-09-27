@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 import requests
 
@@ -43,7 +44,7 @@ class PlexusJobOperator(BaseOperator):
 
     """
 
-    def __init__(self, job_params: Dict, **kwargs) -> None:
+    def __init__(self, job_params: dict, **kwargs) -> None:
         super().__init__(**kwargs)
 
         self.job_params = job_params
@@ -128,7 +129,7 @@ class PlexusJobOperator(BaseOperator):
 
         return v
 
-    def construct_job_params(self, hook: Any) -> Dict[Any, Optional[Any]]:
+    def construct_job_params(self, hook: Any) -> dict[Any, Any | None]:
         """
         Creates job_params dict for api call to
         launch a Plexus job.

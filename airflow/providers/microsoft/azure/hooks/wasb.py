@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """
 This module contains integration with Azure Blob Storage.
 
@@ -23,12 +22,12 @@ It communicate via the Window Azure Storage Blob protocol. Make sure that a
 Airflow connection of type `wasb` exists. Authorization can be done by supplying a
 login (=Storage account name) and password (=KEY), or login and SAS token in the extra
 field (see connection `wasb_default` for an example).
-
 """
+from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
@@ -61,7 +60,7 @@ class WasbHook(BaseHook):
     hook_name = 'Azure Blob Storage'
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -83,7 +82,7 @@ class WasbHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema', 'port'],
@@ -219,11 +218,11 @@ class WasbHook(BaseHook):
     def get_blobs_list(
         self,
         container_name: str,
-        prefix: Optional[str] = None,
-        include: Optional[List[str]] = None,
-        delimiter: Optional[str] = '/',
+        prefix: str | None = None,
+        include: list[str] | None = None,
+        delimiter: str | None = '/',
         **kwargs,
-    ) -> List:
+    ) -> list:
         """
         List blobs in a given container
 
@@ -325,10 +324,10 @@ class WasbHook(BaseHook):
         blob_name: str,
         data: Any,
         blob_type: str = 'BlockBlob',
-        length: Optional[int] = None,
+        length: int | None = None,
         create_container: bool = False,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Creates a new blob from a data source with automatic chunking.
 
@@ -349,7 +348,7 @@ class WasbHook(BaseHook):
         return blob_client.upload_blob(data, blob_type, length=length, **kwargs)
 
     def download(
-        self, container_name, blob_name, offset: Optional[int] = None, length: Optional[int] = None, **kwargs
+        self, container_name, blob_name, offset: int | None = None, length: int | None = None, **kwargs
     ) -> StorageStreamDownloader:
         """
         Downloads a blob to the StorageStreamDownloader

@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import operator
-from typing import TYPE_CHECKING, Any, Collection, Dict, Optional
+from typing import TYPE_CHECKING, Any, Collection
 
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 
@@ -36,7 +37,7 @@ class _TrivialTimetable(Timetable):
     run_ordering = ("execution_date",)
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> "Timetable":
+    def deserialize(cls, data: dict[str, Any]) -> Timetable:
         return cls()
 
     def __eq__(self, other: Any) -> bool:
@@ -48,10 +49,10 @@ class _TrivialTimetable(Timetable):
             return NotImplemented
         return True
 
-    def serialize(self) -> Dict[str, Any]:
+    def serialize(self) -> dict[str, Any]:
         return {}
 
-    def infer_manual_data_interval(self, *, run_after: "DateTime") -> DataInterval:
+    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         return DataInterval.exact(run_after)
 
 
@@ -70,9 +71,9 @@ class NullTimetable(_TrivialTimetable):
     def next_dagrun_info(
         self,
         *,
-        last_automated_data_interval: Optional[DataInterval],
+        last_automated_data_interval: DataInterval | None,
         restriction: TimeRestriction,
-    ) -> Optional[DagRunInfo]:
+    ) -> DagRunInfo | None:
         return None
 
 
@@ -91,9 +92,9 @@ class OnceTimetable(_TrivialTimetable):
     def next_dagrun_info(
         self,
         *,
-        last_automated_data_interval: Optional[DataInterval],
+        last_automated_data_interval: DataInterval | None,
         restriction: TimeRestriction,
-    ) -> Optional[DagRunInfo]:
+    ) -> DagRunInfo | None:
         if last_automated_data_interval is not None:
             return None  # Already run, no more scheduling.
         if restriction.earliest is None:  # No start date, won't run.
@@ -124,11 +125,11 @@ class DatasetTriggeredTimetable(NullTimetable):
     def generate_run_id(
         self,
         *,
-        run_type: "DagRunType",
-        logical_date: "DateTime",
-        data_interval: Optional[DataInterval],
-        session: Optional["Session"] = None,
-        events: Optional[Collection["DatasetEvent"]] = None,
+        run_type: DagRunType,
+        logical_date: DateTime,
+        data_interval: DataInterval | None,
+        session: Session | None = None,
+        events: Collection[DatasetEvent] | None = None,
         **extra,
     ) -> str:
         from airflow.models.dagrun import DagRun
@@ -137,8 +138,8 @@ class DatasetTriggeredTimetable(NullTimetable):
 
     def data_interval_for_events(
         self,
-        logical_date: "DateTime",
-        events: Collection["DatasetEvent"],
+        logical_date: DateTime,
+        events: Collection[DatasetEvent],
     ) -> DataInterval:
 
         if not events:

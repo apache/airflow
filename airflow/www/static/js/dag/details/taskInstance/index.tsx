@@ -161,7 +161,7 @@ const TaskInstance = ({
                   mapIndexes={actionsMapIndexes}
                 />
               )}
-              <Details instance={instance} group={group} />
+              <Details instance={instance} group={group} dagId={dagId} />
               {!isMapped && (
                 <ExtraLinks
                   taskId={taskId}
@@ -190,14 +190,14 @@ const TaskInstance = ({
           {/* Mapped Task Instances Tab */}
           {
             isMappedTaskSummary && (
-            <TabPanel>
-              <MappedInstances
-                dagId={dagId}
-                runId={runId}
-                taskId={taskId}
-                onRowClicked={(row) => onSelect({ runId, taskId, mapIndex: row.values.mapIndex })}
-              />
-            </TabPanel>
+              <TabPanel>
+                <MappedInstances
+                  dagId={dagId}
+                  runId={runId}
+                  taskId={taskId}
+                  onRowClicked={(row) => onSelect({ runId, taskId, mapIndex: row.values.mapIndex })}
+                />
+              </TabPanel>
             )
           }
         </TabPanels>

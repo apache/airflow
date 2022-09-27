@@ -14,8 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from http import HTTPStatus
-from typing import Any, Dict, Optional
+from typing import Any
 
 import flask
 import werkzeug
@@ -76,8 +78,8 @@ class NotFound(ProblemException):
     def __init__(
         self,
         title: str = 'Not Found',
-        detail: Optional[str] = None,
-        headers: Optional[Dict] = None,
+        detail: str | None = None,
+        headers: dict | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -96,8 +98,8 @@ class BadRequest(ProblemException):
     def __init__(
         self,
         title: str = "Bad Request",
-        detail: Optional[str] = None,
-        headers: Optional[Dict] = None,
+        detail: str | None = None,
+        headers: dict | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -116,8 +118,8 @@ class Unauthenticated(ProblemException):
     def __init__(
         self,
         title: str = "Unauthorized",
-        detail: Optional[str] = None,
-        headers: Optional[Dict] = None,
+        detail: str | None = None,
+        headers: dict | None = None,
         **kwargs: Any,
     ):
         super().__init__(
@@ -136,8 +138,8 @@ class PermissionDenied(ProblemException):
     def __init__(
         self,
         title: str = "Forbidden",
-        detail: Optional[str] = None,
-        headers: Optional[Dict] = None,
+        detail: str | None = None,
+        headers: dict | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -156,8 +158,8 @@ class AlreadyExists(ProblemException):
     def __init__(
         self,
         title="Conflict",
-        detail: Optional[str] = None,
-        headers: Optional[Dict] = None,
+        detail: str | None = None,
+        headers: dict | None = None,
         **kwargs: Any,
     ):
         super().__init__(
@@ -176,8 +178,8 @@ class Unknown(ProblemException):
     def __init__(
         self,
         title: str = "Internal Server Error",
-        detail: Optional[str] = None,
-        headers: Optional[Dict] = None,
+        detail: str | None = None,
+        headers: dict | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(

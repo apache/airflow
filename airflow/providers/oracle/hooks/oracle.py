@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import math
 import warnings
 from datetime import datetime
-from typing import Dict, List, Optional, Union
 
 import oracledb
 
@@ -157,10 +157,10 @@ class OracleHook(DbApiHook):
     def insert_rows(
         self,
         table: str,
-        rows: List[tuple],
+        rows: list[tuple],
         target_fields=None,
         commit_every: int = 1000,
-        replace: Optional[bool] = False,
+        replace: bool | None = False,
         **kwargs,
     ) -> None:
         """
@@ -224,8 +224,8 @@ class OracleHook(DbApiHook):
     def bulk_insert_rows(
         self,
         table: str,
-        rows: List[tuple],
-        target_fields: Optional[List[str]] = None,
+        rows: list[tuple],
+        target_fields: list[str] | None = None,
         commit_every: int = 5000,
     ):
         """
@@ -278,8 +278,8 @@ class OracleHook(DbApiHook):
         self,
         identifier: str,
         autocommit: bool = False,
-        parameters: Optional[Union[List, Dict]] = None,
-    ) -> Optional[Union[List, Dict]]:
+        parameters: list | dict | None = None,
+    ) -> list | dict | None:
         """
         Call the stored procedure identified by the provided string.
 

@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for sending or receiving data from PagerDuty as well as creating PagerDuty incidents."""
+from __future__ import annotations
+
 import warnings
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pdpyras
 
@@ -49,7 +51,7 @@ class PagerdutyHook(BaseHook):
     hook_name = "Pagerduty"
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['port', 'login', 'schema', 'host'],
@@ -58,7 +60,7 @@ class PagerdutyHook(BaseHook):
             },
         }
 
-    def __init__(self, token: Optional[str] = None, pagerduty_conn_id: Optional[str] = None) -> None:
+    def __init__(self, token: str | None = None, pagerduty_conn_id: str | None = None) -> None:
         super().__init__()
         self.routing_key = None
         self._session = None
@@ -96,15 +98,15 @@ class PagerdutyHook(BaseHook):
         severity: str,
         source: str = "airflow",
         action: str = "trigger",
-        routing_key: Optional[str] = None,
-        dedup_key: Optional[str] = None,
-        custom_details: Optional[Any] = None,
-        group: Optional[str] = None,
-        component: Optional[str] = None,
-        class_type: Optional[str] = None,
-        images: Optional[List[Any]] = None,
-        links: Optional[List[Any]] = None,
-    ) -> Dict:
+        routing_key: str | None = None,
+        dedup_key: str | None = None,
+        custom_details: Any | None = None,
+        group: str | None = None,
+        component: str | None = None,
+        class_type: str | None = None,
+        images: list[Any] | None = None,
+        links: list[Any] | None = None,
+    ) -> dict:
         """
         Create event for service integration.
 

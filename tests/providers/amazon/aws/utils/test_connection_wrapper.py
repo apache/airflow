@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from dataclasses import fields
-from typing import Optional
 from unittest import mock
 
 import pytest
@@ -31,7 +31,7 @@ MOCK_ROLE_ARN = "arn:aws:iam::222222222222:role/awesome-role"
 
 
 def mock_connection_factory(
-    conn_id: Optional[str] = MOCK_AWS_CONN_ID, conn_type: Optional[str] = MOCK_CONN_TYPE, **kwargs
+    conn_id: str | None = MOCK_AWS_CONN_ID, conn_type: str | None = MOCK_CONN_TYPE, **kwargs
 ) -> Connection:
     return Connection(conn_id=conn_id, conn_type=conn_type, **kwargs)
 
@@ -77,10 +77,20 @@ class TestAwsConnectionWrapper:
         wrap_conn = AwsConnectionWrapper(conn=mock_connection_factory(conn_type=conn_type))
         assert wrap_conn.conn_type == "aws"
 
-    @pytest.mark.parametrize("conn_type", ["AWS", "boto3", "s3", "emr", "google", "google-cloud-platform"])
+    @pytest.mark.parametrize("conn_type", ["AWS", "boto3", "emr", "google", "google-cloud-platform"])
     def test_unexpected_aws_connection_type(self, conn_type):
         warning_message = f"expected connection type 'aws', got '{conn_type}'"
         with pytest.warns(UserWarning, match=warning_message):
+            wrap_conn = AwsConnectionWrapper(conn=mock_connection_factory(conn_type=conn_type))
+            assert wrap_conn.conn_type == conn_type
+
+    @pytest.mark.parametrize("conn_type", ["s3", "S3"])
+    def test_deprecated_s3_connection_type(self, conn_type):
+        warning_message = (
+            r".* has connection type 's3', which has been replaced by connection type 'aws'\. "
+            r"Please update your connection to have `conn_type='aws'`."
+        )
+        with pytest.warns(DeprecationWarning, match=warning_message):
             wrap_conn = AwsConnectionWrapper(conn=mock_connection_factory(conn_type=conn_type))
             assert wrap_conn.conn_type == conn_type
 

@@ -20,6 +20,7 @@ Classes for interacting with Kubernetes API.
 This module is deprecated. Please use :mod:`kubernetes.client.models.V1ResourceRequirements`
 and :mod:`kubernetes.client.models.V1ContainerPort`.
 """
+from __future__ import annotations
 
 import warnings
 

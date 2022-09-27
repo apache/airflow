@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import sys
 from subprocess import DEVNULL
-from typing import Optional, Tuple
 
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -27,12 +28,12 @@ from airflow_breeze.utils.run_utils import run_command
 def verify_an_image(
     image_name: str,
     image_type: str,
-    output: Optional[Output],
+    output: Output | None,
     dry_run: bool,
     verbose: bool,
     slim_image: bool,
-    extra_pytest_args: Tuple,
-) -> Tuple[int, str]:
+    extra_pytest_args: tuple,
+) -> tuple[int, str]:
     command_result = run_command(
         ["docker", "inspect", image_name],
         dry_run=dry_run,
@@ -66,8 +67,8 @@ def verify_an_image(
 
 
 def run_docker_compose_tests(
-    image_name: str, dry_run: bool, verbose: bool, extra_pytest_args: Tuple
-) -> Tuple[int, str]:
+    image_name: str, dry_run: bool, verbose: bool, extra_pytest_args: tuple
+) -> tuple[int, str]:
     command_result = run_command(
         ["docker", "inspect", image_name], dry_run=dry_run, verbose=verbose, check=False, stdout=DEVNULL
     )

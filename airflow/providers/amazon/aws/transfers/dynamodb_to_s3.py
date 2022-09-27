@@ -15,17 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
 """
 This module contains operators to replicate records from
 DynamoDB table to S3.
 """
+from __future__ import annotations
+
 import json
 from copy import copy
 from os.path import getsize
 from tempfile import NamedTemporaryFile
-from typing import IO, TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence
+from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
 from uuid import uuid4
 
 from airflow.models import BaseOperator
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-def _convert_item_to_json_bytes(item: Dict[str, Any]) -> bytes:
+def _convert_item_to_json_bytes(item: dict[str, Any]) -> bytes:
     return (json.dumps(item) + '\n').encode('utf-8')
 
 
@@ -93,9 +93,9 @@ class DynamoDBToS3Operator(BaseOperator):
         dynamodb_table_name: str,
         s3_bucket_name: str,
         file_size: int,
-        dynamodb_scan_kwargs: Optional[Dict[str, Any]] = None,
+        dynamodb_scan_kwargs: dict[str, Any] | None = None,
         s3_key_prefix: str = '',
-        process_func: Callable[[Dict[str, Any]], bytes] = _convert_item_to_json_bytes,
+        process_func: Callable[[dict[str, Any]], bytes] = _convert_item_to_json_bytes,
         aws_conn_id: str = 'aws_default',
         **kwargs,
     ) -> None:
@@ -108,7 +108,7 @@ class DynamoDBToS3Operator(BaseOperator):
         self.s3_key_prefix = s3_key_prefix
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = DynamoDBHook(aws_conn_id=self.aws_conn_id)
         table = hook.get_conn().Table(self.dynamodb_table_name)
 

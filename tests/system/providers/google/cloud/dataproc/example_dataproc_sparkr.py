@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for DataprocSubmitJobOperator with sparkr job.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime

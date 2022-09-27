@@ -17,7 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Renderer DAG (tasks and dependencies) to the graphviz object."""
-from typing import Any, Dict, List, Optional, Union
+from __future__ import annotations
+
+from typing import Any
 
 import graphviz
 
@@ -50,9 +52,9 @@ def _refine_color(color: str):
 
 
 def _draw_task(
-    task: Union[MappedOperator, BaseOperator],
+    task: MappedOperator | BaseOperator,
     parent_graph: graphviz.Digraph,
-    states_by_task_id: Optional[Dict[Any, Any]],
+    states_by_task_id: dict[Any, Any] | None,
 ) -> None:
     """Draw a single task on the given parent_graph"""
     if states_by_task_id:
@@ -76,7 +78,7 @@ def _draw_task(
 
 
 def _draw_task_group(
-    task_group: TaskGroup, parent_graph: graphviz.Digraph, states_by_task_id: Optional[Dict[str, str]]
+    task_group: TaskGroup, parent_graph: graphviz.Digraph, states_by_task_id: dict[str, str] | None
 ) -> None:
     """Draw the given task_group and its children on the given parent_graph"""
     # Draw joins
@@ -114,7 +116,7 @@ def _draw_task_group(
 
 
 def _draw_nodes(
-    node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: Optional[Dict[str, str]]
+    node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: dict[str, str] | None
 ) -> None:
     """Draw the node and its children on the given parent_graph recursively."""
     if isinstance(node, BaseOperator) or isinstance(node, MappedOperator):
@@ -139,7 +141,7 @@ def _draw_nodes(
                 _draw_task_group(node, sub, states_by_task_id)
 
 
-def render_dag_dependencies(deps: Dict[str, List['DagDependency']]) -> graphviz.Digraph:
+def render_dag_dependencies(deps: dict[str, list[DagDependency]]) -> graphviz.Digraph:
     """
     Renders the DAG dependency to the DOT object.
 
@@ -165,7 +167,7 @@ def render_dag_dependencies(deps: Dict[str, List['DagDependency']]) -> graphviz.
     return dot
 
 
-def render_dag(dag: DAG, tis: Optional[List[TaskInstance]] = None) -> graphviz.Digraph:
+def render_dag(dag: DAG, tis: list[TaskInstance] | None = None) -> graphviz.Digraph:
     """
     Renders the DAG object to the DOT object.
 

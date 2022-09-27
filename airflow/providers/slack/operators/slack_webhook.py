@@ -15,9 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from typing import TYPE_CHECKING, Optional, Sequence
+from __future__ import annotations
 
+from typing import TYPE_CHECKING, Sequence
+
+from airflow.compat.functools import cached_property
 from airflow.providers.http.operators.http import SimpleHttpOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 
@@ -65,21 +67,22 @@ class SlackWebhookOperator(SimpleHttpOperator):
         self,
         *,
         http_conn_id: str,
-        webhook_token: Optional[str] = None,
+        webhook_token: str | None = None,
         message: str = "",
-        attachments: Optional[list] = None,
-        blocks: Optional[list] = None,
-        channel: Optional[str] = None,
-        username: Optional[str] = None,
-        icon_emoji: Optional[str] = None,
-        icon_url: Optional[str] = None,
+        attachments: list | None = None,
+        blocks: list | None = None,
+        channel: str | None = None,
+        username: str | None = None,
+        icon_emoji: str | None = None,
+        icon_url: str | None = None,
         link_names: bool = False,
-        proxy: Optional[str] = None,
+        proxy: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(endpoint=webhook_token, **kwargs)
         self.http_conn_id = http_conn_id
         self.webhook_token = webhook_token
+        self.proxy = proxy
         self.message = message
         self.attachments = attachments
         self.blocks = blocks
@@ -88,22 +91,27 @@ class SlackWebhookOperator(SimpleHttpOperator):
         self.icon_emoji = icon_emoji
         self.icon_url = icon_url
         self.link_names = link_names
-        self.proxy = proxy
-        self.hook: Optional[SlackWebhookHook] = None
 
-    def execute(self, context: 'Context') -> None:
-        """Call the SlackWebhookHook to post the provided Slack message"""
-        self.hook = SlackWebhookHook(
-            self.http_conn_id,
-            self.webhook_token,
-            self.message,
-            self.attachments,
-            self.blocks,
-            self.channel,
-            self.username,
-            self.icon_emoji,
-            self.icon_url,
-            self.link_names,
-            self.proxy,
+    @cached_property
+    def hook(self) -> SlackWebhookHook:
+        return SlackWebhookHook(
+            http_conn_id=self.http_conn_id,
+            webhook_token=self.webhook_token,
+            proxy=self.proxy,
         )
-        self.hook.execute()
+
+    def execute(self, context: Context) -> None:
+        """Call the SlackWebhookHook to post the provided Slack message"""
+        self.hook.send(
+            text=self.message,
+            attachments=self.attachments,
+            blocks=self.blocks,
+            # Parameters below use for compatibility with previous version of Operator and warn user if it set
+            # Legacy Integration Parameters
+            channel=self.channel,
+            username=self.username,
+            icon_emoji=self.icon_emoji,
+            icon_url=self.icon_url,
+            # Unused Parameters, if not None than warn user
+            link_names=self.link_names,
+        )

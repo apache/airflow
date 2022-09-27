@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery to BigQuery operator."""
+from __future__ import annotations
+
 import warnings
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
@@ -80,16 +82,16 @@ class BigQueryToBigQueryOperator(BaseOperator):
     def __init__(
         self,
         *,
-        source_project_dataset_tables: Union[List[str], str],
+        source_project_dataset_tables: list[str] | str,
         destination_project_dataset_table: str,
         write_disposition: str = 'WRITE_EMPTY',
         create_disposition: str = 'CREATE_IF_NEEDED',
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        labels: Optional[Dict] = None,
-        encryption_configuration: Optional[Dict] = None,
-        location: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        labels: dict | None = None,
+        encryption_configuration: dict | None = None,
+        location: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -105,7 +107,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         self.log.info(
             'Executing copy of %s into: %s',
             self.source_project_dataset_tables,

@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
@@ -69,7 +70,7 @@ class PoolSchema(SQLAlchemySchema):
 class PoolCollection(NamedTuple):
     """List of Pools with metadata"""
 
-    pools: List[Pool]
+    pools: list[Pool]
     total_entries: int
 
 

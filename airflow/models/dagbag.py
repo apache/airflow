@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import hashlib
 import importlib
@@ -27,7 +28,7 @@ import traceback
 import warnings
 import zipfile
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Dict, List, NamedTuple, Optional, Union
+from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
@@ -53,6 +54,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     import pathlib
@@ -90,17 +92,26 @@ class DagBag(LoggingMixin):
 
     def __init__(
         self,
-        dag_folder: Union[str, "pathlib.Path", None] = None,
-        include_examples: bool = conf.getboolean('core', 'LOAD_EXAMPLES'),
-        safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+        dag_folder: str | pathlib.Path | None = None,
+        include_examples: bool | ArgNotSet = NOTSET,
+        safe_mode: bool | ArgNotSet = NOTSET,
         read_dags_from_db: bool = False,
-        store_serialized_dags: Optional[bool] = None,
+        store_serialized_dags: bool | None = None,
         load_op_links: bool = True,
     ):
         # Avoid circular import
         from airflow.models.dag import DAG
 
         super().__init__()
+
+        include_examples = (
+            include_examples
+            if isinstance(include_examples, bool)
+            else conf.getboolean('core', 'LOAD_EXAMPLES')
+        )
+        safe_mode = (
+            safe_mode if isinstance(safe_mode, bool) else conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')
+        )
 
         if store_serialized_dags:
             warnings.warn(
@@ -113,16 +124,16 @@ class DagBag(LoggingMixin):
 
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
-        self.dags: Dict[str, DAG] = {}
+        self.dags: dict[str, DAG] = {}
         # the file's last modified timestamp when we last read it
-        self.file_last_changed: Dict[str, datetime] = {}
-        self.import_errors: Dict[str, str] = {}
+        self.file_last_changed: dict[str, datetime] = {}
+        self.import_errors: dict[str, str] = {}
         self.has_logged = False
         self.read_dags_from_db = read_dags_from_db
         # Only used by read_dags_from_db=True
-        self.dags_last_fetched: Dict[str, datetime] = {}
+        self.dags_last_fetched: dict[str, datetime] = {}
         # Only used by SchedulerJob to compare the dag_hash to identify change in DAGs
-        self.dags_hash: Dict[str, str] = {}
+        self.dags_hash: dict[str, str] = {}
 
         self.dagbag_import_error_tracebacks = conf.getboolean('core', 'dagbag_import_error_tracebacks')
         self.dagbag_import_error_traceback_depth = conf.getint('core', 'dagbag_import_error_traceback_depth')
@@ -150,7 +161,7 @@ class DagBag(LoggingMixin):
         return self.read_dags_from_db
 
     @property
-    def dag_ids(self) -> List[str]:
+    def dag_ids(self) -> list[str]:
         """
         :return: a list of DAG IDs in this bag
         :rtype: List[unicode]
@@ -325,6 +336,7 @@ class DagBag(LoggingMixin):
                 loader.exec_module(new_module)
                 return [new_module]
             except Exception as e:
+                DagContext.autoregistered_dags.clear()
                 self.log.exception("Failed to import: %s", filepath)
                 if self.dagbag_import_error_tracebacks:
                     self.import_errors[filepath] = traceback.format_exc(
@@ -390,6 +402,7 @@ class DagBag(LoggingMixin):
                     current_module = importlib.import_module(mod_name)
                     mods.append(current_module)
                 except Exception as e:
+                    DagContext.autoregistered_dags.clear()
                     fileloc = os.path.join(filepath, zip_info.filename)
                     self.log.exception("Failed to import: %s", fileloc)
                     if self.dagbag_import_error_tracebacks:
@@ -498,7 +511,7 @@ class DagBag(LoggingMixin):
 
     def collect_dags(
         self,
-        dag_folder: Union[str, "pathlib.Path", None] = None,
+        dag_folder: str | pathlib.Path | None = None,
         only_if_updated: bool = True,
         include_examples: bool = conf.getboolean('core', 'LOAD_EXAMPLES'),
         safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
@@ -593,7 +606,7 @@ class DagBag(LoggingMixin):
         return report
 
     @provide_session
-    def sync_to_db(self, processor_subdir: Optional[str] = None, session: Session = None):
+    def sync_to_db(self, processor_subdir: str | None = None, session: Session = None):
         """Save attributes about list of DAG to the DB."""
         # To avoid circular import - airflow.models.dagbag -> airflow.models.dag -> airflow.models.dagbag
         from airflow.models.dag import DAG

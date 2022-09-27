@@ -96,8 +96,7 @@ In case  they are dictionaries, subsequent component names key of the field, in 
 arrays - the sanitizer iterates through all dictionaries in the array and searches
 components in all elements of the array.
 """
-
-from typing import List
+from __future__ import annotations
 
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -116,7 +115,7 @@ class GcpBodyFieldSanitizer(LoggingMixin):
 
     """
 
-    def __init__(self, sanitize_specs: List[str]) -> None:
+    def __init__(self, sanitize_specs: list[str]) -> None:
         super().__init__()
         self._sanitize_specs = sanitize_specs
 

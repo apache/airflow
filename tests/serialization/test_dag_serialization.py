@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Unit tests for stringified DAGs."""
+from __future__ import annotations
 
 import copy
 import importlib
@@ -27,7 +27,6 @@ import os
 import pickle
 from datetime import datetime, timedelta
 from glob import glob
-from typing import Optional
 from unittest import mock
 
 import pendulum
@@ -83,7 +82,7 @@ class CustomDependencyDetector(DependencyDetector):
     """
 
     @staticmethod
-    def detect_task_dependencies(task: Operator) -> Optional[DagDependency]:  # type: ignore
+    def detect_task_dependencies(task: Operator) -> DagDependency | None:  # type: ignore
         if isinstance(task, CustomDepOperator):
             return DagDependency(
                 source=task.dag_id,
@@ -407,7 +406,9 @@ class TestStringifiedDAGs:
         message = (
             "Failed to serialize DAG 'simple_dag': Timetable class "
             "'tests.test_utils.timetables.CustomSerializationTimetable' "
-            "is not registered"
+            "is not registered or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
         )
         assert str(ctx.value) == message
 
@@ -713,7 +714,9 @@ class TestStringifiedDAGs:
         message = (
             "Timetable class "
             "'tests.test_utils.timetables.CustomSerializationTimetable' "
-            "is not registered"
+            "is not registered or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
         )
         assert str(ctx.value) == message
 
@@ -1962,7 +1965,62 @@ def test_operator_expand_xcomarg_serde():
 
 
 @pytest.mark.parametrize("strict", [True, False])
-def test_operator_expand_kwargs_serde(strict):
+def test_operator_expand_kwargs_literal_serde(strict):
+    from airflow.models.xcom_arg import PlainXComArg, XComArg
+    from airflow.serialization.serialized_objects import _XComRef
+
+    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+        task1 = BaseOperator(task_id="op1")
+        mapped = MockOperator.partial(task_id='task_2').expand_kwargs(
+            [{"a": "x"}, {"a": XComArg(task1)}],
+            strict=strict,
+        )
+
+    serialized = SerializedBaseOperator.serialize(mapped)
+    assert serialized == {
+        '_is_empty': False,
+        '_is_mapped': True,
+        '_task_module': 'tests.test_utils.mock_operators',
+        '_task_type': 'MockOperator',
+        'downstream_task_ids': [],
+        'expand_input': {
+            "type": "list-of-dicts",
+            "value": [
+                {"__type": "dict", "__var": {"a": "x"}},
+                {
+                    "__type": "dict",
+                    "__var": {"a": {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'return_value'}}},
+                },
+            ],
+        },
+        'partial_kwargs': {},
+        'task_id': 'task_2',
+        'template_fields': ['arg1', 'arg2'],
+        'template_ext': [],
+        'template_fields_renderers': {},
+        'operator_extra_links': [],
+        'ui_color': '#fff',
+        'ui_fgcolor': '#000',
+        "_disallow_kwargs_override": strict,
+        '_expand_input_attr': 'expand_input',
+    }
+
+    op = SerializedBaseOperator.deserialize_operator(serialized)
+    assert op.deps is MappedOperator.deps_for(BaseOperator)
+    assert op._disallow_kwargs_override == strict
+
+    # The XComArg can't be deserialized before the DAG is.
+    expand_value = op.expand_input.value
+    assert expand_value == [{"a": "x"}, {"a": _XComRef({"task_id": "op1", "key": XCOM_RETURN_KEY})}]
+
+    serialized_dag: DAG = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+    resolved_expand_value = serialized_dag.task_dict['task_2'].expand_input.value
+    resolved_expand_value == [{"a": "x"}, {"a": PlainXComArg(serialized_dag.task_dict['op1'])}]
+
+
+@pytest.mark.parametrize("strict", [True, False])
+def test_operator_expand_kwargs_xcomarg_serde(strict):
     from airflow.models.xcom_arg import PlainXComArg, XComArg
     from airflow.serialization.serialized_objects import _XComRef
 
@@ -2097,8 +2155,8 @@ def test_taskflow_expand_serde():
         'ui_fgcolor': '#000',
         'task_id': 'x',
         'template_ext': [],
-        'template_fields': ['op_args', 'op_kwargs'],
-        'template_fields_renderers': {"op_args": "py", "op_kwargs": "py"},
+        'template_fields': ['templates_dict', 'op_args', 'op_kwargs'],
+        'template_fields_renderers': {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"},
         "_disallow_kwargs_override": False,
         '_expand_input_attr': 'op_kwargs_expand_input',
     }
@@ -2180,8 +2238,8 @@ def test_taskflow_expand_kwargs_serde(strict):
         'ui_fgcolor': '#000',
         'task_id': 'x',
         'template_ext': [],
-        'template_fields': ['op_args', 'op_kwargs'],
-        'template_fields_renderers': {"op_args": "py", "op_kwargs": "py"},
+        'template_fields': ['templates_dict', 'op_args', 'op_kwargs'],
+        'template_fields_renderers': {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"},
         "_disallow_kwargs_override": strict,
         '_expand_input_attr': 'op_kwargs_expand_input',
     }

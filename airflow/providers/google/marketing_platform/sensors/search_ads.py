@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Search Ads sensor."""
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsHook
 from airflow.sensors.base import BaseSensorOperator
@@ -64,10 +66,10 @@ class GoogleSearchAdsReportSensor(BaseSensorOperator):
         report_id: str,
         api_version: str = "v2",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         mode: str = "reschedule",
         poke_interval: int = 5 * 60,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(mode=mode, poke_interval=poke_interval, **kwargs)
@@ -77,7 +79,7 @@ class GoogleSearchAdsReportSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         hook = GoogleSearchAdsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

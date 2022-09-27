@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Remove ``dag_stat`` table
 
 Revision ID: a56c9515abdc
@@ -23,6 +22,7 @@ Revises: c8ffec048a3b
 Create Date: 2018-12-27 10:27:59.715872
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

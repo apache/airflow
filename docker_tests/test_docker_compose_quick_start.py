@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import contextlib
 import os
@@ -23,7 +24,6 @@ from pathlib import Path
 from pprint import pprint
 from shutil import copyfile
 from time import monotonic, sleep
-from typing import Dict
 from unittest import mock
 
 import requests
@@ -38,7 +38,7 @@ DAG_ID = "example_bash_operator"
 DAG_RUN_ID = "test_dag_run_id"
 
 
-def api_request(method: str, path: str, base_url: str = "http://localhost:8080/api/v1", **kwargs) -> Dict:
+def api_request(method: str, path: str, base_url: str = "http://localhost:8080/api/v1", **kwargs) -> dict:
     response = requests.request(
         method=method,
         url=f"{base_url}/{path}",
