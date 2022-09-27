@@ -18,7 +18,7 @@
 ################################
 ## Airflow StatsD ConfigMap
 #################################
-{{- if and .Values.statsd.enabled .Values.statsd.extraMappings }}
+{{- if and .Values.statsd.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -34,6 +34,13 @@ metadata:
 {{- end }}
 data:
   mappings.yml: |-
-{{ .Files.Get "dockerfiles/statsd-exporter/mappings.yml" | indent 4 }}
+{{- if .Values.statsd.overrideMappings }}
+    mappings:
+{{ toYaml .Values.statsd.overrideMappings | indent 6 }}
+{{- else }}
+{{ .Files.Get "files/statsd-mappings.yml" | indent 4 }}
+{{- if .Values.statsd.extraMappings }}
 {{ toYaml .Values.statsd.extraMappings | indent 6 }}
+{{- end }}
+{{- end }}
 {{- end }}
