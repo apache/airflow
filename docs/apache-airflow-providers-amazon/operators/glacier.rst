@@ -57,8 +57,8 @@ use :class:`~airflow.providers.amazon.aws.transfers.glacier_to_gcs.GlacierUpload
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_glacier_to_gcs.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_glacier_upload_data]
-    :end-before: [END howto_operator_glacier_upload_data]
+    :start-after: [START howto_operator_glacier_upload_archive]
+    :end-before: [END howto_operator_glacier_upload_archive]
 
 Sensors
 -------

@@ -65,7 +65,7 @@ class GlacierUploadArchiveOperator(BaseOperator):
         :ref:`howto/operator:GlacierUploadArchiveOperator`
 
     :param account_id: The AWS account ID of the account that owns the vault.
-        You can either specify an AWS account ID or optionally a single `- ` (hyphen),
+        You can either specify an AWS account ID or optionally a single `-` (hyphen),
         in which case Amazon S3 Glacier uses the AWS account ID associated with
         the credentials used to sign the request
     :param vault_name: The name of the vault
@@ -85,7 +85,7 @@ class GlacierUploadArchiveOperator(BaseOperator):
         archive: object,
         checksum: str | None = None,
         description: str | None = None,
-        account_id: str = "_",
+        account_id: str = "-",
         aws_conn_id="aws_default",
         **kwargs,
     ):
@@ -99,7 +99,7 @@ class GlacierUploadArchiveOperator(BaseOperator):
 
     def execute(self, context: Context):
         hook = GlacierHook(aws_conn_id=self.aws_conn_id)
-        hook.get_conn().upload_archive(
+        return hook.get_conn().upload_archive(
             accountId=self.account_id,
             vaultName=self.vault_name,
             archiveDescription=self.description,
