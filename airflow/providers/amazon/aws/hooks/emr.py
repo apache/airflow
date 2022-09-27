@@ -131,7 +131,7 @@ class EmrHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook`,
         otherwise it will try to test connection to AWS STS by use default boto3 credential strategy.
         """
-        return False, "Amazon Elastic MapReduce Connection cannot be tested."
+        return False, f"{self.hook_name} Connection cannot be tested."
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
