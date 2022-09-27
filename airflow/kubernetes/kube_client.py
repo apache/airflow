@@ -19,25 +19,18 @@ from __future__ import annotations
 
 import logging
 
+import urllib3
+
 from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
 
 try:
     from kubernetes import client, config
-    from kubernetes.client import Configuration
+    from kubernetes.client import ApiClient, Configuration
     from kubernetes.client.rest import ApiException
 
     has_kubernetes = True
-
-    def _disable_verify_ssl() -> None:
-        if hasattr(Configuration, 'get_default_copy'):
-            configuration = Configuration.get_default_copy()
-        else:
-            configuration = Configuration()
-        configuration.verify_ssl = False
-        Configuration.set_default(configuration)
-
 except ImportError as e:
     # We need an exception class to be able to use it in ``except`` elsewhere
     # in the code base
@@ -104,16 +97,25 @@ def get_kube_client(
     if conf.getboolean('kubernetes', 'enable_tcp_keepalive'):
         _enable_tcp_keepalive()
 
+    client_config = Configuration.get_default_copy()
+
+    retryparams = conf.getjson('kubernetes', 'client_retry_configuration_kwargs', fallback={})
+    if retryparams != {}:
+        client_config.retries = urllib3.util.Retry(**retryparams)
+
+    if not conf.getboolean('kubernetes', 'verify_ssl'):
+        client_config.verify_ssl = False
+
     if in_cluster:
-        config.load_incluster_config()
+        config.load_incluster_config(client_config)
     else:
         if cluster_context is None:
             cluster_context = conf.get('kubernetes', 'cluster_context', fallback=None)
         if config_file is None:
             config_file = conf.get('kubernetes', 'config_file', fallback=None)
-        config.load_kube_config(config_file=config_file, context=cluster_context)
+        config.load_kube_config(
+            config_file=config_file, context=cluster_context, client_configuration=client_config
+        )
 
-    if not conf.getboolean('kubernetes', 'verify_ssl'):
-        _disable_verify_ssl()
-
-    return client.CoreV1Api()
+    api_client = ApiClient(client_config)
+    return client.CoreV1Api(api_client)
