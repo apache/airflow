@@ -28,10 +28,9 @@ import {
 import type { Row } from 'react-table';
 
 import { useDatasets } from 'src/api';
-import { Table } from 'src/components/Table';
+import { Table, TimeCell } from 'src/components/Table';
 import type { API } from 'src/types';
 import { getMetaValue } from 'src/utils';
-import Time from 'src/components/Time';
 
 interface Props {
   onSelect: (datasetId: string) => void;
@@ -47,22 +46,15 @@ interface CellProps {
 }
 
 const DetailCell = ({ cell: { row } }: CellProps) => {
-  const { lastDatasetUpdate, totalUpdates, uri } = row.original;
+  const { totalUpdates, uri } = row.original;
   return (
     <Box>
       <Text>{uri}</Text>
-      <Flex justifyContent="space-between" fontSize="sm" mt={2}>
-        <Text>
-          Last Update:
-          {' '}
-          <Time dateTime={lastDatasetUpdate} />
-        </Text>
-        <Text>
-          Total Updates:
-          {' '}
-          {totalUpdates}
-        </Text>
-      </Flex>
+      <Text fontSize="sm" mt={2}>
+        Total Updates:
+        {' '}
+        {totalUpdates}
+      </Text>
     </Box>
   );
 };
@@ -82,6 +74,11 @@ const DatasetsList = ({ onSelect }: Props) => {
         Header: 'URI',
         accessor: 'uri',
         Cell: DetailCell,
+      },
+      {
+        Header: 'Last Update',
+        accessor: 'lastDatasetUpdate',
+        Cell: TimeCell,
       },
     ],
     [],
