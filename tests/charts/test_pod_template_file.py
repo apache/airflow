@@ -280,7 +280,11 @@ class PodTemplateFileTest(unittest.TestCase):
 
     def test_should_set_a_custom_image_in_pod_template(self):
         docs = render_chart(
-            values={"images": {"pod_template": {"repository": "dummy_image", "tag": "latest", "pullPolicy": "Always"}}},
+            values={
+                "images": {
+                    "pod_template": {"repository": "dummy_image", "tag": "latest", "pullPolicy": "Always"}
+                }
+            },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
