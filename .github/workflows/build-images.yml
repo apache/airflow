@@ -17,6 +17,8 @@
 #
 ---
 name: "Build Images"
+run-name: >
+  Build images for ${{ github.event.pull_request.title }} ${{ github.event.pull_request._links.html.href }}
 on:  # yamllint disable-line rule:truthy
   pull_request_target:
 permissions:
