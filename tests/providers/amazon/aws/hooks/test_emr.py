@@ -108,6 +108,15 @@ class TestEmrHook:
                 hook.create_job_flow(job_flow_overrides)
             mock_run_job_flow.assert_called_once_with(**job_flow_overrides)
 
+    @pytest.mark.parametrize("aws_conn_id", ["aws_default", None])
+    @pytest.mark.parametrize("emr_conn_id", ["emr_default", None])
+    def test_emr_connection(self, aws_conn_id, emr_conn_id):
+        """Test that ``EmrHook`` always return False state."""
+        hook = EmrHook(aws_conn_id=aws_conn_id, emr_conn_id=emr_conn_id)
+        result, message = hook.test_connection()
+        assert not result
+        assert message == "Amazon Elastic MapReduce Connection cannot be tested."
+
     @mock_emr
     def test_get_cluster_id_by_name(self):
         """

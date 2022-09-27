@@ -123,6 +123,16 @@ class EmrHook(AwsBaseHook):
 
         return response
 
+    def test_connection(self):
+        """
+        Return failed state for test Amazon Elastic MapReduce Connection (untestable)
+
+        We need to overwrite this method because this hook based on
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook`,
+        otherwise it will try to test connection to AWS STS by use default boto3 credential strategy.
+        """
+        return False, "Amazon Elastic MapReduce Connection cannot be tested."
+
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom UI field behaviour for Amazon Elastic MapReduce Connection."""
