@@ -305,12 +305,14 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
 
     mapped_ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session)
     mapped_ti.map_index = 0
-    op = mapped.render_template_fields(context=mapped_ti.get_template_context(session=session))
-    assert isinstance(op, MyOperator)
 
-    assert op.value == "{{ ds }}", "Should not be templated!"
-    assert op.arg1 == "{{ ds }}", "Should not be templated!"
-    assert op.arg2 == "a"
+    assert isinstance(mapped_ti.task, MappedOperator)
+    mapped.render_template_fields(context=mapped_ti.get_template_context(session=session))
+    assert isinstance(mapped_ti.task, MyOperator)
+
+    assert mapped_ti.task.value == "{{ ds }}", "Should not be templated!"
+    assert mapped_ti.task.arg1 == "{{ ds }}", "Should not be templated!"
+    assert mapped_ti.task.arg2 == "a"
 
 
 def test_mapped_render_nested_template_fields(dag_maker, session):
@@ -430,10 +432,11 @@ def test_expand_kwargs_render_template_fields_validating_operator(dag_maker, ses
     ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session)
     ti.refresh_from_task(mapped)
     ti.map_index = map_index
-    op = mapped.render_template_fields(context=ti.get_template_context(session=session))
-    assert isinstance(op, MockOperator)
-    assert op.arg1 == expected
-    assert op.arg2 == "a"
+    assert isinstance(ti.task, MappedOperator)
+    mapped.render_template_fields(context=ti.get_template_context(session=session))
+    assert isinstance(ti.task, MockOperator)
+    assert ti.task.arg1 == expected
+    assert ti.task.arg2 == "a"
 
 
 def test_xcomarg_property_of_mapped_operator(dag_maker):

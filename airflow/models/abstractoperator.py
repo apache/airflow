@@ -373,15 +373,15 @@ class AbstractOperator(LoggingMixin, DAGNode):
         self,
         context: Context,
         jinja_env: jinja2.Environment | None = None,
-    ) -> BaseOperator | None:
+    ) -> None:
         """Template all attributes listed in template_fields.
 
         If the operator is mapped, this should return the unmapped, fully
         rendered, and map-expanded operator. The mapped operator should not be
-        modified.
+        modified. However, ``context`` will be modified in-place to reference
+        the unmapped operator for template rendering.
 
-        If the operator is not mapped, this should modify the operator in-place
-        and return either *None* (for backwards compatibility) or *self*.
+        If the operator is not mapped, this should modify the operator in-place.
         """
         raise NotImplementedError()
 

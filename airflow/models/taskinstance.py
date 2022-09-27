@@ -2185,10 +2185,14 @@ class TaskInstance(Base, LoggingMixin):
         """
         if not context:
             context = self.get_template_context()
-        rendered_task = self.task.render_template_fields(context)
-        if rendered_task is None:  # Compatibility -- custom renderer, assume unmapped.
-            return self.task
-        original_task, self.task = self.task, rendered_task
+        original_task = self.task
+
+        # If self.task is mapped, this call replaces self.task to point to the
+        # unmapped BaseOperator created by this function! This is because the
+        # MappedOperator is useless for template rendering, and we need to be
+        # able to access the unmapped task instead.
+        original_task.render_template_fields(context)
+
         return original_task
 
     def render_k8s_pod_yaml(self) -> dict | None:

@@ -58,7 +58,7 @@ from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
 from airflow.typing_compat import Literal
-from airflow.utils.context import Context
+from airflow.utils.context import Context, context_update_for_unmapped
 from airflow.utils.helpers import is_container
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import State, TaskInstanceState
@@ -748,7 +748,7 @@ class MappedOperator(AbstractOperator):
         self,
         context: Context,
         jinja_env: jinja2.Environment | None = None,
-    ) -> BaseOperator | None:
+    ) -> None:
         if not jinja_env:
             jinja_env = self.get_template_env()
 
@@ -761,6 +761,8 @@ class MappedOperator(AbstractOperator):
 
         mapped_kwargs, seen_oids = self._expand_mapped_kwargs(context, session)
         unmapped_task = self.unmap(mapped_kwargs)
+        context_update_for_unmapped(context, unmapped_task)
+
         self._do_render_template_fields(
             parent=unmapped_task,
             template_fields=self.template_fields,
@@ -769,4 +771,3 @@ class MappedOperator(AbstractOperator):
             seen_oids=seen_oids,
             session=session,
         )
-        return unmapped_task
