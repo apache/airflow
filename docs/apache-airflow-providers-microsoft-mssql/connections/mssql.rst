@@ -34,7 +34,7 @@ Host (required)
     The host to connect to.
 
 Schema (optional)
-    Specify the schema name to be used in the database.
+    Specify the database name to be used
 
 Login (required)
     Specify the user name to connect.
