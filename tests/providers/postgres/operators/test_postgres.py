@@ -79,14 +79,14 @@ class TestPostgres(unittest.TestCase):
         op = PostgresOperator(task_id='postgres_operator_test_vacuum', sql=sql, dag=self.dag, autocommit=True)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    def test_overwrite_database(self):
+    def test_overwrite_schema(self):
         """
-        Verifies option to overwrite connection database
+        Verifies option to overwrite connection schema
         """
 
         sql = "SELECT 1;"
         op = PostgresOperator(
-            task_id='postgres_operator_test_database_overwrite',
+            task_id='postgres_operator_test_schema_overwrite',
             sql=sql,
             dag=self.dag,
             autocommit=True,
