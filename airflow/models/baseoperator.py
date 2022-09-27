@@ -1179,7 +1179,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self,
         context: Context,
         jinja_env: jinja2.Environment | None = None,
-    ) -> BaseOperator | None:
+    ) -> None:
         """Template all attributes listed in template_fields.
 
         This mutates the attributes in-place and is irreversible.
@@ -1190,7 +1190,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if not jinja_env:
             jinja_env = self.get_template_env()
         self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
-        return self
 
     @provide_session
     def clear(
