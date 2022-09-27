@@ -205,7 +205,7 @@ class GlueJobHook(AwsBaseHook):
         finished_states = ['SUCCEEDED', 'STOPPED']
         next_log_token = None
         glue_client = self.get_conn()
-        cw_logs = AwsLogsHook()
+        cw_logs = AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
         while True:
             try:
