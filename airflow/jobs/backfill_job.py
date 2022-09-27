@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Iterator, List, Optional, Sequence, Set, Tuple
+from typing import TYPE_CHECKING, Any, Iterable, Iterator, Sequence
 
 import attr
 import pendulum
@@ -88,15 +88,15 @@ class BackfillJob(BaseJob):
         :param total_runs: Number of total dag runs able to run
         """
 
-        to_run: Dict[TaskInstanceKey, TaskInstance] = attr.ib(factory=dict)
-        running: Dict[TaskInstanceKey, TaskInstance] = attr.ib(factory=dict)
-        skipped: Set[TaskInstanceKey] = attr.ib(factory=set)
-        succeeded: Set[TaskInstanceKey] = attr.ib(factory=set)
-        failed: Set[TaskInstanceKey] = attr.ib(factory=set)
-        not_ready: Set[TaskInstanceKey] = attr.ib(factory=set)
-        deadlocked: Set[TaskInstance] = attr.ib(factory=set)
-        active_runs: List[DagRun] = attr.ib(factory=list)
-        executed_dag_run_dates: Set[pendulum.DateTime] = attr.ib(factory=set)
+        to_run: dict[TaskInstanceKey, TaskInstance] = attr.ib(factory=dict)
+        running: dict[TaskInstanceKey, TaskInstance] = attr.ib(factory=dict)
+        skipped: set[TaskInstanceKey] = attr.ib(factory=set)
+        succeeded: set[TaskInstanceKey] = attr.ib(factory=set)
+        failed: set[TaskInstanceKey] = attr.ib(factory=set)
+        not_ready: set[TaskInstanceKey] = attr.ib(factory=set)
+        deadlocked: set[TaskInstance] = attr.ib(factory=set)
+        active_runs: list[DagRun] = attr.ib(factory=list)
+        executed_dag_run_dates: set[pendulum.DateTime] = attr.ib(factory=set)
         finished_runs: int = 0
         total_runs: int = 0
 
@@ -217,6 +217,12 @@ class BackfillJob(BaseJob):
                 tis_to_be_scheduled.append(ti)
                 ti_status.running.pop(reduced_key)
                 ti_status.to_run[ti.key] = ti
+            # special case: Deferrable task can go from DEFERRED to SCHEDULED;
+            # when that happens, we need to put it back as in UP_FOR_RESCHEDULE
+            elif ti.state == TaskInstanceState.SCHEDULED:
+                self.log.debug("Task instance %s is resumed from deferred state", ti)
+                ti_status.running.pop(ti.key)
+                ti_status.to_run[ti.key] = ti
 
         # Batch schedule of task instances
         if tis_to_be_scheduled:
@@ -228,7 +234,7 @@ class BackfillJob(BaseJob):
 
     def _manage_executor_state(
         self, running, session
-    ) -> Iterator[Tuple["MappedOperator", str, Sequence[TaskInstance], int]]:
+    ) -> Iterator[tuple[MappedOperator, str, Sequence[TaskInstance], int]]:
         """
         Checks if the executor agrees with the state of task instances
         that are running.
@@ -292,7 +298,7 @@ class BackfillJob(BaseJob):
         # check if we are scheduling on top of a already existing dag_run
         # we could find a "scheduled" run instead of a "backfill"
         runs = DagRun.find(dag_id=dag.dag_id, execution_date=run_date, session=session)
-        run: Optional[DagRun]
+        run: DagRun | None
         if runs:
             run = runs[0]
             if run.state == DagRunState.RUNNING:
@@ -703,7 +709,7 @@ class BackfillJob(BaseJob):
 
         return err
 
-    def _get_dag_with_subdags(self) -> List[DAG]:
+    def _get_dag_with_subdags(self) -> list[DAG]:
         return [self.dag] + self.dag.subdags
 
     @provide_session

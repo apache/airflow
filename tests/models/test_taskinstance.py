@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 import operator
@@ -24,7 +25,7 @@ import signal
 import sys
 import urllib
 from traceback import format_exception
-from typing import List, Optional, Union, cast
+from typing import cast
 from unittest import mock
 from unittest.mock import call, mock_open, patch
 from uuid import uuid4
@@ -102,10 +103,10 @@ def test_pool():
 
 
 class CallbackWrapper:
-    task_id: Optional[str] = None
-    dag_id: Optional[str] = None
-    execution_date: Optional[datetime.datetime] = None
-    task_state_in_callback: Optional[str] = None
+    task_id: str | None = None
+    dag_id: str | None = None
+    execution_date: datetime.datetime | None = None
+    task_state_in_callback: str | None = None
     callback_ran = False
 
     def wrap_task_instance(self, ti):
@@ -1064,55 +1065,55 @@ class TestTaskInstance:
     # Parameterized tests to check for the correct firing
     # of the trigger_rule under various circumstances
     # Numeric fields are in order:
-    #   successes, skipped, failed, upstream_failed, done
+    #   successes, skipped, failed, upstream_failed, done, removed
     @pytest.mark.parametrize(
-        "trigger_rule,successes,skipped,failed,upstream_failed,done,"
+        "trigger_rule,successes,skipped,failed,upstream_failed,done,removed,"
         "flag_upstream_failed,expect_state,expect_completed",
         [
             #
             # Tests for all_success
             #
-            ['all_success', 5, 0, 0, 0, 0, True, None, True],
-            ['all_success', 2, 0, 0, 0, 0, True, None, False],
-            ['all_success', 2, 0, 1, 0, 0, True, State.UPSTREAM_FAILED, False],
-            ['all_success', 2, 1, 0, 0, 0, True, State.SKIPPED, False],
+            ['all_success', 5, 0, 0, 0, 0, 0, True, None, True],
+            ['all_success', 2, 0, 0, 0, 0, 0, True, None, False],
+            ['all_success', 2, 0, 1, 0, 0, 0, True, State.UPSTREAM_FAILED, False],
+            ['all_success', 2, 1, 0, 0, 0, 0, True, State.SKIPPED, False],
             #
             # Tests for one_success
             #
-            ['one_success', 5, 0, 0, 0, 5, True, None, True],
-            ['one_success', 2, 0, 0, 0, 2, True, None, True],
-            ['one_success', 2, 0, 1, 0, 3, True, None, True],
-            ['one_success', 2, 1, 0, 0, 3, True, None, True],
-            ['one_success', 0, 5, 0, 0, 5, True, State.SKIPPED, False],
-            ['one_success', 0, 4, 1, 0, 5, True, State.UPSTREAM_FAILED, False],
-            ['one_success', 0, 3, 1, 1, 5, True, State.UPSTREAM_FAILED, False],
-            ['one_success', 0, 4, 0, 1, 5, True, State.UPSTREAM_FAILED, False],
-            ['one_success', 0, 0, 5, 0, 5, True, State.UPSTREAM_FAILED, False],
-            ['one_success', 0, 0, 4, 1, 5, True, State.UPSTREAM_FAILED, False],
-            ['one_success', 0, 0, 0, 5, 5, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 5, 0, 0, 0, 5, 0, True, None, True],
+            ['one_success', 2, 0, 0, 0, 2, 0, True, None, True],
+            ['one_success', 2, 0, 1, 0, 3, 0, True, None, True],
+            ['one_success', 2, 1, 0, 0, 3, 0, True, None, True],
+            ['one_success', 0, 5, 0, 0, 5, 0, True, State.SKIPPED, False],
+            ['one_success', 0, 4, 1, 0, 5, 0, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 3, 1, 1, 5, 0, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 4, 0, 1, 5, 0, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 0, 5, 0, 5, 0, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 0, 4, 1, 5, 0, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 0, 0, 5, 5, 0, True, State.UPSTREAM_FAILED, False],
             #
             # Tests for all_failed
             #
-            ['all_failed', 5, 0, 0, 0, 5, True, State.SKIPPED, False],
-            ['all_failed', 0, 0, 5, 0, 5, True, None, True],
-            ['all_failed', 2, 0, 0, 0, 2, True, State.SKIPPED, False],
-            ['all_failed', 2, 0, 1, 0, 3, True, State.SKIPPED, False],
-            ['all_failed', 2, 1, 0, 0, 3, True, State.SKIPPED, False],
+            ['all_failed', 5, 0, 0, 0, 5, 0, True, State.SKIPPED, False],
+            ['all_failed', 0, 0, 5, 0, 5, 0, True, None, True],
+            ['all_failed', 2, 0, 0, 0, 2, 0, True, State.SKIPPED, False],
+            ['all_failed', 2, 0, 1, 0, 3, 0, True, State.SKIPPED, False],
+            ['all_failed', 2, 1, 0, 0, 3, 0, True, State.SKIPPED, False],
             #
             # Tests for one_failed
             #
-            ['one_failed', 5, 0, 0, 0, 0, True, None, False],
-            ['one_failed', 2, 0, 0, 0, 0, True, None, False],
-            ['one_failed', 2, 0, 1, 0, 0, True, None, True],
-            ['one_failed', 2, 1, 0, 0, 3, True, None, False],
-            ['one_failed', 2, 3, 0, 0, 5, True, State.SKIPPED, False],
+            ['one_failed', 5, 0, 0, 0, 0, 0, True, None, False],
+            ['one_failed', 2, 0, 0, 0, 0, 0, True, None, False],
+            ['one_failed', 2, 0, 1, 0, 0, 0, True, None, True],
+            ['one_failed', 2, 1, 0, 0, 3, 0, True, None, False],
+            ['one_failed', 2, 3, 0, 0, 5, 0, True, State.SKIPPED, False],
             #
             # Tests for done
             #
-            ['all_done', 5, 0, 0, 0, 5, True, None, True],
-            ['all_done', 2, 0, 0, 0, 2, True, None, False],
-            ['all_done', 2, 0, 1, 0, 3, True, None, False],
-            ['all_done', 2, 1, 0, 0, 3, True, None, False],
+            ['all_done', 5, 0, 0, 0, 5, 0, True, None, True],
+            ['all_done', 2, 0, 0, 0, 2, 0, True, None, False],
+            ['all_done', 2, 0, 1, 0, 3, 0, True, None, False],
+            ['all_done', 2, 1, 0, 0, 3, 0, True, None, False],
         ],
     )
     def test_check_task_dependencies(
@@ -1121,6 +1122,7 @@ class TestTaskInstance:
         successes: int,
         skipped: int,
         failed: int,
+        removed: int,
         upstream_failed: int,
         done: int,
         flag_upstream_failed: bool,
@@ -1143,6 +1145,121 @@ class TestTaskInstance:
             successes=successes,
             skipped=skipped,
             failed=failed,
+            removed=removed,
+            upstream_failed=upstream_failed,
+            done=done,
+            dep_context=DepContext(),
+            flag_upstream_failed=flag_upstream_failed,
+        )
+        completed = all(dep.passed for dep in dep_results)
+
+        assert completed == expect_completed
+        assert ti.state == expect_state
+
+    # Parameterized tests to check for the correct firing
+    # of the trigger_rule under various circumstances of mapped task
+    # Numeric fields are in order:
+    #   successes, skipped, failed, upstream_failed, done,removed
+    @pytest.mark.parametrize(
+        "trigger_rule,successes,skipped,failed,upstream_failed,done,removed,"
+        "flag_upstream_failed,expect_state,expect_completed",
+        [
+            #
+            # Tests for all_success
+            #
+            ['all_success', 5, 0, 0, 0, 0, 0, True, None, True],
+            ['all_success', 2, 0, 0, 0, 0, 0, True, None, False],
+            ['all_success', 2, 0, 1, 0, 0, 0, True, State.UPSTREAM_FAILED, False],
+            ['all_success', 2, 1, 0, 0, 0, 0, True, State.SKIPPED, False],
+            ['all_success', 3, 0, 0, 0, 0, 2, True, State.REMOVED, True],  # ti.map_index >=successes
+            #
+            # Tests for one_success
+            #
+            ['one_success', 5, 0, 0, 0, 5, 0, True, None, True],
+            ['one_success', 2, 0, 0, 0, 2, 0, True, None, True],
+            ['one_success', 2, 0, 1, 0, 3, 0, True, None, True],
+            ['one_success', 2, 1, 0, 0, 3, 0, True, None, True],
+            ['one_success', 0, 5, 0, 0, 5, 0, True, State.SKIPPED, False],
+            ['one_success', 0, 4, 1, 0, 5, 0, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 3, 1, 1, 5, 0, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 4, 0, 1, 5, 0, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 0, 5, 0, 5, 0, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 0, 4, 1, 5, 0, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 0, 0, 5, 5, 0, True, State.UPSTREAM_FAILED, False],
+            #
+            # Tests for all_failed
+            #
+            ['all_failed', 5, 0, 0, 0, 5, 0, True, State.SKIPPED, False],
+            ['all_failed', 0, 0, 5, 0, 5, 0, True, None, True],
+            ['all_failed', 2, 0, 0, 0, 2, 0, True, State.SKIPPED, False],
+            ['all_failed', 2, 0, 1, 0, 3, 0, True, State.SKIPPED, False],
+            ['all_failed', 2, 1, 0, 0, 3, 0, True, State.SKIPPED, False],
+            ['all_failed', 2, 1, 0, 0, 4, 1, True, State.SKIPPED, False],  # One removed
+            #
+            # Tests for one_failed
+            #
+            ['one_failed', 5, 0, 0, 0, 0, 0, True, None, False],
+            ['one_failed', 2, 0, 0, 0, 0, 0, True, None, False],
+            ['one_failed', 2, 0, 1, 0, 0, 0, True, None, True],
+            ['one_failed', 2, 1, 0, 0, 3, 0, True, None, False],
+            ['one_failed', 2, 3, 0, 0, 5, 0, True, State.SKIPPED, False],
+            ['one_failed', 2, 2, 0, 0, 5, 1, True, State.SKIPPED, False],  # One removed
+            #
+            # Tests for done
+            #
+            ['all_done', 5, 0, 0, 0, 5, 0, True, None, True],
+            ['all_done', 2, 0, 0, 0, 2, 0, True, None, False],
+            ['all_done', 2, 0, 1, 0, 3, 0, True, None, False],
+            ['all_done', 2, 1, 0, 0, 3, 0, True, None, False],
+        ],
+    )
+    def test_check_task_dependencies_for_mapped(
+        self,
+        trigger_rule: str,
+        successes: int,
+        skipped: int,
+        failed: int,
+        removed: int,
+        upstream_failed: int,
+        done: int,
+        flag_upstream_failed: bool,
+        expect_state: State,
+        expect_completed: bool,
+        dag_maker,
+        session,
+    ):
+        from airflow.decorators import task
+
+        @task
+        def do_something(i):
+            return 1
+
+        @task(trigger_rule=trigger_rule)
+        def do_something_else(i):
+            return 1
+
+        with dag_maker(dag_id='test_dag'):
+            nums = do_something.expand(i=[i + 1 for i in range(5)])
+            do_something_else.expand(i=nums)
+
+        dr = dag_maker.create_dagrun()
+
+        ti = dr.get_task_instance('do_something_else', session=session)
+        ti.map_index = 0
+        for map_index in range(1, 5):
+            ti = TaskInstance(ti.task, run_id=dr.run_id, map_index=map_index)
+            ti.dag_run = dr
+            session.add(ti)
+        session.flush()
+        downstream = ti.task
+        ti = dr.get_task_instance(task_id='do_something_else', map_index=3, session=session)
+        ti.task = downstream
+        dep_results = TriggerRuleDep()._evaluate_trigger_rule(
+            ti=ti,
+            successes=successes,
+            skipped=skipped,
+            failed=failed,
+            removed=removed,
             upstream_failed=upstream_failed,
             done=done,
             dep_context=DepContext(),
@@ -1732,6 +1849,12 @@ class TestTaskInstance:
             DatasetEvent.source_task_instance == ti
         ).one() == ('s3://dag1/output_1.txt',)
 
+        # check that the dataset event has an earlier timestamp than the DDRQ's
+        ddrq_timestamps = (
+            session.query(DatasetDagRunQueue.created_at).filter_by(dataset_id=event.dataset.id).all()
+        )
+        assert all([event.timestamp < ddrq_timestamp for (ddrq_timestamp,) in ddrq_timestamps])
+
     def test_outlet_datasets_failed(self, create_task_instance):
         """
         Verify that when we have an outlet dataset on a task, and the task
@@ -1795,9 +1918,9 @@ class TestTaskInstance:
 
     @staticmethod
     def _test_previous_dates_setup(
-        schedule_interval: Union[str, datetime.timedelta, None],
+        schedule_interval: str | datetime.timedelta | None,
         catchup: bool,
-        scenario: List[TaskInstanceState],
+        scenario: list[TaskInstanceState],
         dag_maker,
     ) -> list:
         dag_id = 'test_previous_dates'
@@ -2640,6 +2763,7 @@ class TestTaskInstance:
             "trigger_id": None,
             "next_kwargs": None,
             "next_method": None,
+            "updated_at": None,
         }
         # Make sure we aren't missing any new value in our expected_values list.
         expected_keys = {f"task_instance.{key.lstrip('_')}" for key in expected_values}

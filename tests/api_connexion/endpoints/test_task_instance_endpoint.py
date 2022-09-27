@@ -14,14 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import datetime as dt
 from unittest import mock
 
+import pendulum
 import pytest
 from parameterized import parameterized
 from sqlalchemy.orm import contains_eager
 
-from airflow.models import DagRun, SlaMiss, TaskInstance
+from airflow.jobs.triggerer_job import TriggererJob
+from airflow.models import DagRun, SlaMiss, TaskInstance, Trigger
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.security import permissions
 from airflow.utils.platform import getuser
@@ -165,6 +169,12 @@ class TestTaskInstanceEndpoint:
 
 
 class TestGetTaskInstance(TestTaskInstanceEndpoint):
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
     @parameterized.expand(["test", "test_dag_read_only", "test_task_read_only"])
     @provide_session
     def test_should_respond_200(self, username, session):
@@ -194,7 +204,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
-            "priority_weight": 8,
+            "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
             "sla_miss": None,
@@ -205,6 +215,71 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "rendered_fields": {},
+            "trigger": None,
+            "triggerer_job": None,
+        }
+
+    def test_should_respond_200_with_task_state_in_deferred(self, session):
+        now = pendulum.now('UTC')
+        ti = self.create_task_instances(
+            session, task_instances=[{"state": State.DEFERRED}], update_extras=True
+        )[0]
+        ti.trigger = Trigger('none', {})
+        ti.trigger.created_date = now
+        ti.triggerer_job = TriggererJob()
+        ti.triggerer_job.state = 'running'
+        session.commit()
+        response = self.client.get(
+            "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        data = response.json
+
+        # this logic in effect replicates mock.ANY for these values
+        values_to_ignore = {
+            'trigger': ['created_date', 'id', 'triggerer_id'],
+            'triggerer_job': ['executor_class', 'hostname', 'id', 'latest_heartbeat', 'start_date'],
+        }
+        for k, v in values_to_ignore.items():
+            for elem in v:
+                del data[k][elem]
+
+        assert response.status_code == 200
+        assert data == {
+            "dag_id": "example_python_operator",
+            "duration": 10000.0,
+            "end_date": "2020-01-03T00:00:00+00:00",
+            "execution_date": "2020-01-01T00:00:00+00:00",
+            "executor_config": "{}",
+            "hostname": "",
+            "map_index": -1,
+            "max_tries": 0,
+            "operator": "_PythonDecoratedOperator",
+            "pid": 100,
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "priority_weight": 9,
+            "queue": "default_queue",
+            "queued_when": None,
+            "sla_miss": None,
+            "start_date": "2020-01-02T00:00:00+00:00",
+            "state": "deferred",
+            "task_id": "print_the_context",
+            "try_number": 0,
+            "unixname": getuser(),
+            "dag_run_id": "TEST_DAG_RUN_ID",
+            "rendered_fields": {},
+            'trigger': {
+                'classpath': 'none',
+                'kwargs': '{}',
+            },
+            'triggerer_job': {
+                'dag_id': None,
+                'end_date': None,
+                'job_type': 'TriggererJob',
+                'state': 'running',
+                'unixname': getuser(),
+            },
         }
 
     def test_should_respond_200_with_task_state_in_removed(self, session):
@@ -227,7 +302,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
-            "priority_weight": 8,
+            "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
             "sla_miss": None,
@@ -238,6 +313,8 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "rendered_fields": {},
+            "trigger": None,
+            "triggerer_job": None,
         }
 
     def test_should_respond_200_task_instance_with_sla_and_rendered(self, session):
@@ -272,7 +349,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
-            "priority_weight": 8,
+            "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
             "sla_miss": {
@@ -290,7 +367,9 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
-            "rendered_fields": {'op_args': [], 'op_kwargs': {}},
+            "rendered_fields": {'op_args': [], 'op_kwargs': {}, 'templates_dict': None},
+            "trigger": None,
+            "triggerer_job": None,
         }
 
     def test_should_respond_200_mapped_task_instance_with_rtif(self, session):
@@ -332,7 +411,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "pid": 100,
                 "pool": "default_pool",
                 "pool_slots": 1,
-                "priority_weight": 8,
+                "priority_weight": 9,
                 "queue": "default_queue",
                 "queued_when": None,
                 'sla_miss': None,
@@ -342,7 +421,9 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "try_number": 0,
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
-                "rendered_fields": {'op_args': [], 'op_kwargs': {}},
+                "rendered_fields": {'op_args': [], 'op_kwargs': {}, 'templates_dict': None},
+                "trigger": None,
+                "triggerer_job": None,
             }
 
     def test_should_raises_401_unauthenticated(self):
@@ -751,8 +832,8 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
             (
                 "with dag filter",
                 {"dag_ids": ["example_python_operator", "example_skip_dag"]},
-                16,
-                16,
+                17,
+                17,
             ),
         ],
     )
@@ -1073,6 +1154,10 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=4),
                 "state": State.RUNNING,
             },
+            {
+                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=5),
+                "state": State.RUNNING,
+            },
         ]
 
         self.create_task_instances(
@@ -1101,30 +1186,36 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 'dag_id': 'example_python_operator',
                 'dag_run_id': 'TEST_DAG_RUN_ID_1',
                 'execution_date': '2020-01-02T00:00:00+00:00',
-                'task_id': 'sleep_for_0',
+                'task_id': 'log_sql_query',
             },
             {
                 'dag_id': 'example_python_operator',
                 'dag_run_id': 'TEST_DAG_RUN_ID_2',
                 'execution_date': '2020-01-03T00:00:00+00:00',
-                'task_id': 'sleep_for_1',
+                'task_id': 'sleep_for_0',
             },
             {
                 'dag_id': 'example_python_operator',
                 'dag_run_id': 'TEST_DAG_RUN_ID_3',
                 'execution_date': '2020-01-04T00:00:00+00:00',
-                'task_id': 'sleep_for_2',
+                'task_id': 'sleep_for_1',
             },
             {
                 'dag_id': 'example_python_operator',
                 'dag_run_id': 'TEST_DAG_RUN_ID_4',
                 'execution_date': '2020-01-05T00:00:00+00:00',
+                'task_id': 'sleep_for_2',
+            },
+            {
+                'dag_id': 'example_python_operator',
+                'dag_run_id': 'TEST_DAG_RUN_ID_5',
+                'execution_date': '2020-01-06T00:00:00+00:00',
                 'task_id': 'sleep_for_3',
             },
         ]
         for task_instance in expected_response:
             assert task_instance in response.json["task_instances"]
-        assert 5 == len(response.json["task_instances"])
+        assert 6 == len(response.json["task_instances"])
         assert 0 == failed_dag_runs, 0
 
     def test_should_raises_401_unauthenticated(self):

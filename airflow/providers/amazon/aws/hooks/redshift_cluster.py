@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Sequence
 
 from botocore.exceptions import ClientError
 
@@ -35,6 +36,8 @@ class RedshiftHook(AwsBaseHook):
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     """
 
+    template_fields: Sequence[str] = ('cluster_identifier',)
+
     def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = "redshift"
         super().__init__(*args, **kwargs)
@@ -45,8 +48,8 @@ class RedshiftHook(AwsBaseHook):
         node_type: str,
         master_username: str,
         master_user_password: str,
-        params: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
         """
         Creates a new cluster with the specified parameters
 
@@ -92,7 +95,7 @@ class RedshiftHook(AwsBaseHook):
         self,
         cluster_identifier: str,
         skip_final_cluster_snapshot: bool = True,
-        final_cluster_snapshot_identifier: Optional[str] = None,
+        final_cluster_snapshot_identifier: str | None = None,
     ):
         """
         Delete a cluster and optionally create a snapshot
@@ -110,7 +113,7 @@ class RedshiftHook(AwsBaseHook):
         )
         return response['Cluster'] if response['Cluster'] else None
 
-    def describe_cluster_snapshots(self, cluster_identifier: str) -> Optional[List[str]]:
+    def describe_cluster_snapshots(self, cluster_identifier: str) -> list[str] | None:
         """
         Gets a list of snapshots for a cluster
 

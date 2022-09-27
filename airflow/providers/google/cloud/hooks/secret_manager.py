@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Secrets Manager service"""
-from typing import Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import Sequence
 
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -48,8 +50,8 @@ class SecretsManagerHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -69,8 +71,8 @@ class SecretsManagerHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_secret(
-        self, secret_id: str, secret_version: str = 'latest', project_id: Optional[str] = None
-    ) -> Optional[str]:
+        self, secret_id: str, secret_version: str = 'latest', project_id: str | None = None
+    ) -> str | None:
         """
         Get secret value from the Secret Manager.
 

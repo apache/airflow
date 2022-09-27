@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime
-from typing import List, Optional, Tuple
 
 import boto3
 from botocore.client import BaseClient
@@ -75,7 +76,7 @@ def delete_logs(job_id: str, crawler_name: str) -> None:
     """
     Glue generates four Cloudwatch log groups and multiple log streams and leaves them.
     """
-    generated_log_groups: List[Tuple[str, Optional[str]]] = [
+    generated_log_groups: list[tuple[str, str | None]] = [
         # Format: ('log group name', 'log stream prefix')
         ('/aws-glue/crawlers', crawler_name),
         ('/aws-glue/jobs/logs-v2', job_id),
@@ -144,10 +145,11 @@ with DAG(
     crawl_s3 = GlueCrawlerOperator(
         task_id='crawl_s3',
         config=glue_crawler_config,
-        # Waits by default, set False to test the Sensor below
-        wait_for_completion=False,
     )
     # [END howto_operator_glue_crawler]
+
+    # GlueCrawlerOperator waits by default, setting as False to test the Sensor below.
+    crawl_s3.wait_for_completion = False
 
     # [START howto_sensor_glue_crawler]
     wait_for_crawl = GlueCrawlerSensor(
@@ -164,10 +166,11 @@ with DAG(
         s3_bucket=bucket_name,
         iam_role_name=role_name,
         create_job_kwargs={'GlueVersion': '3.0', 'NumberOfWorkers': 2, 'WorkerType': 'G.1X'},
-        # Waits by default, set False to test the Sensor below
-        wait_for_completion=False,
     )
     # [END howto_operator_glue]
+
+    # GlueJobOperator waits by default, setting as False to test the Sensor below.
+    submit_glue_job.wait_for_completion - False
 
     # [START howto_sensor_glue]
     wait_for_job = GlueJobSensor(

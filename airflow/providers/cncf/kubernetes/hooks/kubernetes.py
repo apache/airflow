@@ -14,9 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import tempfile
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Generator
 
 from kubernetes import client, config, watch
 from kubernetes.config import ConfigException
@@ -71,7 +73,7 @@ class KubernetesHook(BaseHook):
     hook_name = 'Kubernetes Cluster Connection'
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -96,7 +98,7 @@ class KubernetesHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
@@ -105,13 +107,13 @@ class KubernetesHook(BaseHook):
 
     def __init__(
         self,
-        conn_id: Optional[str] = default_conn_name,
-        client_configuration: Optional[client.Configuration] = None,
-        cluster_context: Optional[str] = None,
-        config_file: Optional[str] = None,
-        in_cluster: Optional[bool] = None,
-        disable_verify_ssl: Optional[bool] = None,
-        disable_tcp_keepalive: Optional[bool] = None,
+        conn_id: str | None = default_conn_name,
+        client_configuration: client.Configuration | None = None,
+        cluster_context: str | None = None,
+        config_file: str | None = None,
+        in_cluster: bool | None = None,
+        disable_verify_ssl: bool | None = None,
+        disable_tcp_keepalive: bool | None = None,
     ) -> None:
         super().__init__()
         self.conn_id = conn_id
@@ -122,15 +124,15 @@ class KubernetesHook(BaseHook):
         self.disable_verify_ssl = disable_verify_ssl
         self.disable_tcp_keepalive = disable_tcp_keepalive
 
-        self._is_in_cluster: Optional[bool] = None
+        self._is_in_cluster: bool | None = None
 
         # these params used for transition in KPO to K8s hook
         # for a deprecation period we will continue to consider k8s settings from airflow.cfg
-        self._deprecated_core_disable_tcp_keepalive: Optional[bool] = None
-        self._deprecated_core_disable_verify_ssl: Optional[bool] = None
-        self._deprecated_core_in_cluster: Optional[bool] = None
-        self._deprecated_core_cluster_context: Optional[str] = None
-        self._deprecated_core_config_file: Optional[str] = None
+        self._deprecated_core_disable_tcp_keepalive: bool | None = None
+        self._deprecated_core_disable_verify_ssl: bool | None = None
+        self._deprecated_core_in_cluster: bool | None = None
+        self._deprecated_core_cluster_context: str | None = None
+        self._deprecated_core_config_file: str | None = None
 
     @staticmethod
     def _coalesce_param(*params):
@@ -200,7 +202,7 @@ class KubernetesHook(BaseHook):
 
         # BEGIN apply settings from core kubernetes configuration
         # this section should be removed in next major release
-        deprecation_warnings: List[Tuple[str, Any]] = []
+        deprecation_warnings: list[tuple[str, Any]] = []
         if disable_verify_ssl is None and self._deprecated_core_disable_verify_ssl is True:
             deprecation_warnings.append(('verify_ssl', False))
             disable_verify_ssl = self._deprecated_core_disable_verify_ssl
@@ -258,7 +260,7 @@ class KubernetesHook(BaseHook):
 
         return self._get_default_client(cluster_context=cluster_context)
 
-    def _get_default_client(self, *, cluster_context: Optional[str] = None) -> client.ApiClient:
+    def _get_default_client(self, *, cluster_context: str | None = None) -> client.ApiClient:
         # if we get here, then no configuration has been supplied
         # we should try in_cluster since that's most likely
         # but failing that just load assuming a kubeconfig file
@@ -295,7 +297,7 @@ class KubernetesHook(BaseHook):
         return client.CoreV1Api(api_client=self.api_client)
 
     def create_custom_object(
-        self, group: str, version: str, plural: str, body: Union[str, dict], namespace: Optional[str] = None
+        self, group: str, version: str, plural: str, body: str | dict, namespace: str | None = None
     ):
         """
         Creates custom resource definition object in Kubernetes
@@ -335,7 +337,7 @@ class KubernetesHook(BaseHook):
             raise AirflowException(f"Exception when calling -> create_custom_object: {e}\n")
 
     def get_custom_object(
-        self, group: str, version: str, plural: str, name: str, namespace: Optional[str] = None
+        self, group: str, version: str, plural: str, name: str, namespace: str | None = None
     ):
         """
         Get custom resource definition object from Kubernetes
@@ -357,7 +359,7 @@ class KubernetesHook(BaseHook):
         except client.rest.ApiException as e:
             raise AirflowException(f"Exception when calling -> get_custom_object: {e}\n")
 
-    def get_namespace(self) -> Optional[str]:
+    def get_namespace(self) -> str | None:
         """Returns the namespace that defined in the connection"""
         if self.conn_id:
             connection = self.get_connection(self.conn_id)
@@ -369,9 +371,9 @@ class KubernetesHook(BaseHook):
     def get_pod_log_stream(
         self,
         pod_name: str,
-        container: Optional[str] = "",
-        namespace: Optional[str] = None,
-    ) -> Tuple[watch.Watch, Generator[str, None, None]]:
+        container: str | None = "",
+        namespace: str | None = None,
+    ) -> tuple[watch.Watch, Generator[str, None, None]]:
         """
         Retrieves a log stream for a container in a kubernetes pod.
 
@@ -393,8 +395,8 @@ class KubernetesHook(BaseHook):
     def get_pod_logs(
         self,
         pod_name: str,
-        container: Optional[str] = "",
-        namespace: Optional[str] = None,
+        container: str | None = "",
+        namespace: str | None = None,
     ):
         """
         Retrieves a container's log from the specified pod.
@@ -411,7 +413,7 @@ class KubernetesHook(BaseHook):
         )
 
 
-def _get_bool(val) -> Optional[bool]:
+def _get_bool(val) -> bool | None:
     """
     Converts val to bool if can be done with certainty.
     If we cannot infer intention we return None.

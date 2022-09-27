@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
 """
 A DAG with subdag for testing purpose.
 """
+from __future__ import annotations
 
 import warnings
 from datetime import datetime, timedelta

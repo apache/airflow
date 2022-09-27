@@ -14,10 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from __future__ import annotations
 
 import json
-from typing import Type
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
@@ -120,6 +119,7 @@ def hook():
             "pipeline_runs",
             "triggers",
             "trigger_runs",
+            "data_flows",
         ]
     )
 
@@ -169,7 +169,7 @@ def test_provide_targeted_factory():
         (DEFAULT_CONNECTION_DEFAULT_CREDENTIAL, DefaultAzureCredential),
     ],
 )
-def test_get_connection_by_credential_client_secret(connection_id: str, credential_type: Type):
+def test_get_connection_by_credential_client_secret(connection_id: str, credential_type: type):
     hook = AzureDataFactoryHook(connection_id)
 
     with patch.object(hook, "_create_client") as mock_create_client:
@@ -341,6 +341,67 @@ def test_delete_dataset(hook: AzureDataFactoryHook, user_args, sdk_args):
     hook.delete_dataset(*user_args)
 
     hook._conn.datasets.delete.assert_called_with(*sdk_args)
+
+
+@parametrize(
+    explicit_factory=((NAME, RESOURCE_GROUP, FACTORY), (RESOURCE_GROUP, FACTORY, NAME)),
+    implicit_factory=((NAME,), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME)),
+)
+def test_get_dataflow(hook: AzureDataFactoryHook, user_args, sdk_args):
+    hook.get_dataflow(*user_args)
+
+    hook._conn.data_flows.get.assert_called_with(*sdk_args)
+
+
+@parametrize(
+    explicit_factory=((NAME, MODEL, RESOURCE_GROUP, FACTORY), (RESOURCE_GROUP, FACTORY, NAME, MODEL)),
+    implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
+)
+def test_create_dataflow(hook: AzureDataFactoryHook, user_args, sdk_args):
+    hook.create_dataflow(*user_args)
+
+    hook._conn.data_flows.create_or_update.assert_called_with(*sdk_args)
+
+
+@parametrize(
+    explicit_factory=((NAME, MODEL, RESOURCE_GROUP, FACTORY), (RESOURCE_GROUP, FACTORY, NAME, MODEL)),
+    implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
+)
+def test_update_dataflow(hook: AzureDataFactoryHook, user_args, sdk_args):
+    with patch.object(hook, "_dataflow_exists") as mock_dataflow_exists:
+        mock_dataflow_exists.return_value = True
+        hook.update_dataflow(*user_args)
+
+    hook._conn.data_flows.create_or_update.assert_called_with(*sdk_args)
+
+
+@parametrize(
+    explicit_factory=((NAME, MODEL, RESOURCE_GROUP, FACTORY), (RESOURCE_GROUP, FACTORY, NAME, MODEL)),
+    implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
+)
+def test_update_dataflow_non_existent(hook: AzureDataFactoryHook, user_args, sdk_args):
+    with patch.object(hook, "_dataflow_exists") as mock_dataflow_exists:
+        mock_dataflow_exists.return_value = False
+
+    with pytest.raises(AirflowException, match=r"Dataflow .+ does not exist"):
+        hook.update_dataflow(*user_args)
+
+
+@parametrize(
+    explicit_factory=((NAME, RESOURCE_GROUP, FACTORY), (RESOURCE_GROUP, FACTORY, NAME)),
+    implicit_factory=(
+        (NAME,),
+        (
+            DEFAULT_RESOURCE_GROUP,
+            DEFAULT_FACTORY,
+            NAME,
+        ),
+    ),
+)
+def test_delete_dataflow(hook: AzureDataFactoryHook, user_args, sdk_args):
+    hook.delete_dataflow(*user_args)
+
+    hook._conn.data_flows.delete.assert_called_with(*sdk_args)
 
 
 @parametrize(

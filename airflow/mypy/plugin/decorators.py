@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import copy
 import functools
-from typing import List
 
 from mypy.nodes import ARG_NAMED_OPT
 from mypy.plugin import FunctionContext, Plugin
@@ -45,7 +45,7 @@ class TypedDecoratorPlugin(Plugin):
         return None
 
 
-def _analyze_decorator(function_ctx: FunctionContext, provided_arguments: List[str]):
+def _analyze_decorator(function_ctx: FunctionContext, provided_arguments: list[str]):
     if not isinstance(function_ctx.arg_types[0][0], CallableType):
         return function_ctx.default_return_type
     if not isinstance(function_ctx.default_return_type, CallableType):
@@ -60,7 +60,7 @@ def _analyze_decorator(function_ctx: FunctionContext, provided_arguments: List[s
 def _change_decorator_function_type(
     decorated: CallableType,
     decorator: CallableType,
-    provided_arguments: List[str],
+    provided_arguments: list[str],
 ) -> CallableType:
     decorator.arg_kinds = decorated.arg_kinds
     decorator.arg_names = decorated.arg_names

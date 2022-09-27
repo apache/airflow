@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``dag_id``/``state`` index on ``dag_run`` table
 
 Revision ID: 127d2bf2dfa7
@@ -23,6 +22,8 @@ Revises: 5e7d17757c7a
 Create Date: 2017-01-25 11:43:51.635667
 
 """
+from __future__ import annotations
+
 from alembic import op
 
 # revision identifiers, used by Alembic.

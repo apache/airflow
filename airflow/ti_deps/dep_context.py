@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING
 
 import attr
 from sqlalchemy.orm.session import Session
@@ -71,12 +72,12 @@ class DepContext:
     ignore_task_deps: bool = False
     ignore_ti_state: bool = False
     ignore_unmapped_tasks: bool = False
-    finished_tis: Optional[List["TaskInstance"]] = None
+    finished_tis: list[TaskInstance] | None = None
 
     have_changed_ti_states: bool = False
     """Have any of the TIs state's been changed as a result of evaluating dependencies"""
 
-    def ensure_finished_tis(self, dag_run: "DagRun", session: Session) -> List["TaskInstance"]:
+    def ensure_finished_tis(self, dag_run: DagRun, session: Session) -> list[TaskInstance]:
         """
         This method makes sure finished_tis is populated if it's currently None.
         This is for the strange feature of running tasks without dag_run.

@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 from unittest import TestCase
 from unittest.mock import MagicMock
 
@@ -160,7 +160,7 @@ class MockStdOut:
 class MockSubProcess:
     PIPE = -1
     STDOUT = -2
-    returncode: Optional[int] = None
+    returncode: int | None = None
 
     def __init__(self, *args, **kwargs):
         self.stdout = MockStdOut(*args, **kwargs)

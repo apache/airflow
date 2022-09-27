@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.exasol.hooks.exasol import ExasolHook
@@ -46,11 +48,11 @@ class ExasolOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql: Union[str, Iterable[str]],
+        sql: str | Iterable[str],
         exasol_conn_id: str = 'exasol_default',
         autocommit: bool = False,
-        parameters: Optional[Union[Iterable, Mapping]] = None,
-        schema: Optional[str] = None,
+        parameters: Iterable | Mapping | None = None,
+        schema: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -60,7 +62,7 @@ class ExasolOperator(BaseOperator):
         self.parameters = parameters
         self.schema = schema
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         self.log.info('Executing: %s', self.sql)
         hook = ExasolHook(exasol_conn_id=self.exasol_conn_id, schema=self.schema)
         hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)

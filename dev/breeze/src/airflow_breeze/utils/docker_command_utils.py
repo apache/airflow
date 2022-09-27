@@ -15,13 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """Various utils to prepare docker and docker compose commands."""
+from __future__ import annotations
+
 import os
 import re
 import sys
 from copy import deepcopy
 from random import randint
 from subprocess import CalledProcessError, CompletedProcess
-from typing import Dict, List, Optional, Union
 
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -106,7 +107,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
 ]
 
 
-def get_extra_docker_flags(mount_sources: str, include_mypy_volume: bool = False) -> List[str]:
+def get_extra_docker_flags(mount_sources: str, include_mypy_volume: bool = False) -> list[str]:
     """
     Returns extra docker flags based on the type of mounting we want to do for sources.
 
@@ -362,7 +363,7 @@ def check_docker_context(verbose: bool):
         sys.exit(1)
 
 
-def get_env_variable_value(arg_name: str, params: Union[CommonBuildParams, ShellParams]):
+def get_env_variable_value(arg_name: str, params: CommonBuildParams | ShellParams):
     raw_value = getattr(params, arg_name, None)
     value = str(raw_value) if raw_value is not None else ''
     value = "true" if raw_value is True else value
@@ -372,7 +373,7 @@ def get_env_variable_value(arg_name: str, params: Union[CommonBuildParams, Shell
     return value
 
 
-def prepare_arguments_for_docker_build_command(image_params: CommonBuildParams) -> List[str]:
+def prepare_arguments_for_docker_build_command(image_params: CommonBuildParams) -> list[str]:
     """
     Constructs docker compose command arguments list based on parameters passed. Maps arguments to
     argument values.
@@ -403,7 +404,7 @@ def prepare_arguments_for_docker_build_command(image_params: CommonBuildParams) 
 
 def prepare_docker_build_cache_command(
     image_params: CommonBuildParams,
-) -> List[str]:
+) -> list[str]:
     """
     Constructs docker build_cache command based on the parameters passed.
     :param image_params: parameters of the image
@@ -430,7 +431,7 @@ def prepare_docker_build_cache_command(
     return final_command
 
 
-def prepare_base_build_command(image_params: CommonBuildParams, verbose: bool) -> List[str]:
+def prepare_base_build_command(image_params: CommonBuildParams, verbose: bool) -> list[str]:
     """
     Prepare build command for docker build. Depending on whether we have buildx plugin installed or not,
     and whether we run cache preparation, there might be different results:
@@ -464,7 +465,7 @@ def prepare_base_build_command(image_params: CommonBuildParams, verbose: bool) -
 def prepare_docker_build_command(
     image_params: CommonBuildParams,
     verbose: bool,
-) -> List[str]:
+) -> list[str]:
     """
     Constructs docker build command based on the parameters passed.
     :param image_params: parameters of the image
@@ -490,7 +491,7 @@ def prepare_docker_build_command(
 
 def construct_docker_push_command(
     image_params: CommonBuildParams,
-) -> List[str]:
+) -> list[str]:
     """
     Constructs docker push command based on the parameters passed.
     :param image_params: parameters of the image
@@ -501,7 +502,7 @@ def construct_docker_push_command(
 
 def prepare_docker_build_from_input(
     image_params: CommonBuildParams,
-) -> List[str]:
+) -> list[str]:
     """
     Constructs docker build empty image command based on the parameters passed.
     :param image_params: parameters of the image
@@ -511,11 +512,9 @@ def prepare_docker_build_from_input(
 
 
 def build_cache(
-    image_params: CommonBuildParams, output: Optional[Output], dry_run: bool, verbose: bool
+    image_params: CommonBuildParams, output: Output | None, dry_run: bool, verbose: bool
 ) -> RunCommandResult:
-    build_command_result: Union[CompletedProcess, CalledProcessError] = CompletedProcess(
-        args=[], returncode=0
-    )
+    build_command_result: CompletedProcess | CalledProcessError = CompletedProcess(args=[], returncode=0)
     for platform in image_params.platforms:
         platform_image_params = deepcopy(image_params)
         # override the platform in the copied params to only be single platform per run
@@ -545,7 +544,7 @@ def make_sure_builder_configured(params: CommonBuildParams, dry_run: bool, verbo
             run_command(next_cmd, verbose=verbose, text=True, check=False)
 
 
-def set_value_to_default_if_not_set(env: Dict[str, str], name: str, default: str):
+def set_value_to_default_if_not_set(env: dict[str, str], name: str, default: str):
     """
     Set value of name parameter to default (indexed by name) if not set.
     :param env: dictionary where to set the parameter
@@ -557,7 +556,7 @@ def set_value_to_default_if_not_set(env: Dict[str, str], name: str, default: str
         env[name] = os.environ.get(name, default)
 
 
-def update_expected_environment_variables(env: Dict[str, str]) -> None:
+def update_expected_environment_variables(env: dict[str, str]) -> None:
     """
     Updates default values for unset environment variables.
 
@@ -580,7 +579,6 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'DEFAULT_BRANCH', AIRFLOW_BRANCH)
     set_value_to_default_if_not_set(env, 'ENABLED_SYSTEMS', "")
     set_value_to_default_if_not_set(env, 'ENABLE_TEST_COVERAGE', "false")
-    set_value_to_default_if_not_set(env, 'GITHUB_REGISTRY_PULL_IMAGE_TAG', "latest")
     set_value_to_default_if_not_set(env, 'HOST_GROUP_ID', get_host_group_id())
     set_value_to_default_if_not_set(env, 'HOST_OS', get_host_os())
     set_value_to_default_if_not_set(env, 'HOST_USER_ID', get_host_user_id())
@@ -611,10 +609,9 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
 DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "AIRFLOW_CI_IMAGE": "airflow_image_name",
     "AIRFLOW_CI_IMAGE_WITH_TAG": "airflow_image_name_with_tag",
-    "AIRFLOW_EXTRAS": "airflow_extras",
-    "DEFAULT_CONSTRAINTS_BRANCH": "default-constraints-branch",
     "AIRFLOW_CONSTRAINTS_MODE": "airflow_constraints_mode",
     "AIRFLOW_CONSTRAINTS_REFERENCE": "airflow_constraints_reference",
+    "AIRFLOW_EXTRAS": "airflow_extras",
     "AIRFLOW_IMAGE_KUBERNETES": "airflow_image_kubernetes",
     "AIRFLOW_PROD_IMAGE": "airflow_image_name",
     "AIRFLOW_SOURCES": "airflow_sources",
@@ -623,23 +620,25 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "BACKEND": "backend",
     "COMPOSE_FILE": "compose_files",
     "DB_RESET": 'db_reset',
+    "DEV_MODE": 'dev_mode',
+    "DEFAULT_CONSTRAINTS_BRANCH": "default_constraints_branch",
     "ENABLED_INTEGRATIONS": "enabled_integrations",
     "GITHUB_ACTIONS": "github_actions",
     "INSTALL_AIRFLOW_VERSION": "install_airflow_version",
     "INSTALL_PROVIDERS_FROM_SOURCES": "install_providers_from_sources",
     "ISSUE_ID": "issue_id",
-    "LOAD_EXAMPLES": "load_example_dags",
     "LOAD_DEFAULT_CONNECTIONS": "load_default_connections",
-    "MYSQL_VERSION": "mysql_version",
+    "LOAD_EXAMPLES": "load_example_dags",
     "MSSQL_VERSION": "mssql_version",
+    "MYSQL_VERSION": "mysql_version",
     "NUM_RUNS": "num_runs",
     "PACKAGE_FORMAT": "package_format",
-    "PYTHON_MAJOR_MINOR_VERSION": "python",
     "POSTGRES_VERSION": "postgres_version",
-    "SQLITE_URL": "sqlite_url",
-    "START_AIRFLOW": "start_airflow",
+    "PYTHON_MAJOR_MINOR_VERSION": "python",
     "SKIP_CONSTRAINTS": "skip_constraints",
     "SKIP_ENVIRONMENT_INITIALIZATION": "skip_environment_initialization",
+    "SQLITE_URL": "sqlite_url",
+    "START_AIRFLOW": "start_airflow",
     "USE_AIRFLOW_VERSION": "use_airflow_version",
     "USE_PACKAGES_FROM_DIST": "use_packages_from_dist",
     "VERSION_SUFFIX_FOR_PYPI": "version_suffix_for_pypi",
@@ -656,7 +655,7 @@ DOCKER_VARIABLE_CONSTANTS = {
 }
 
 
-def get_env_variables_for_docker_commands(params: Union[ShellParams, BuildCiParams]) -> Dict[str, str]:
+def get_env_variables_for_docker_commands(params: ShellParams | BuildCiParams) -> dict[str, str]:
     """
     Constructs environment variables needed by the docker-compose command, based on Shell parameters
     passed to it.
@@ -670,7 +669,7 @@ def get_env_variables_for_docker_commands(params: Union[ShellParams, BuildCiPara
     :param params: shell parameters passed.
     :return: dictionary of env variables to set
     """
-    env_variables: Dict[str, str] = os.environ.copy()
+    env_variables: dict[str, str] = os.environ.copy()
     for variable in DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES:
         param_name = DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES[variable]
         param_value = get_env_variable_value(param_name, params=params)

@@ -19,6 +19,7 @@
 Example Airflow DAG for DataprocSubmitJobOperator with spark job
 in deferrable mode.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime

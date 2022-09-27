@@ -15,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains an operator to move data from Vertica to Hive."""
+from __future__ import annotations
 
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 import unicodecsv as csv
 
@@ -72,7 +72,7 @@ class VerticaToHiveOperator(BaseOperator):
         hive_table: str,
         create: bool = True,
         recreate: bool = False,
-        partition: Optional[Dict] = None,
+        partition: dict | None = None,
         delimiter: str = chr(1),
         vertica_conn_id: str = 'vertica_default',
         hive_cli_conn_id: str = 'hive_cli_default',
@@ -106,7 +106,7 @@ class VerticaToHiveOperator(BaseOperator):
         }
         return type_map.get(vertica_type, 'STRING')
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         vertica = VerticaHook(vertica_conn_id=self.vertica_conn_id)
 

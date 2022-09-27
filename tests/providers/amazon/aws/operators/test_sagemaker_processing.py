@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
-from typing import Dict, List
 from unittest import mock
 
 import pytest
@@ -26,7 +26,7 @@ from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerProcessingOperator
 
-CREATE_PROCESSING_PARAMS: Dict = {
+CREATE_PROCESSING_PARAMS: dict = {
     'AppSpecification': {
         'ContainerArguments': ['container_arg'],
         'ContainerEntrypoint': ['container_entrypoint'],
@@ -77,14 +77,14 @@ CREATE_PROCESSING_PARAMS: Dict = {
     'Tags': [{'key': 'value'}],
 }
 
-CREATE_PROCESSING_PARAMS_WITH_STOPPING_CONDITION: Dict = CREATE_PROCESSING_PARAMS.copy()
+CREATE_PROCESSING_PARAMS_WITH_STOPPING_CONDITION: dict = CREATE_PROCESSING_PARAMS.copy()
 CREATE_PROCESSING_PARAMS_WITH_STOPPING_CONDITION.update(StoppingCondition={'MaxRuntimeInSeconds': '3600'})
 
-EXPECTED_INTEGER_FIELDS: List[List[str]] = [
+EXPECTED_INTEGER_FIELDS: list[list[str]] = [
     ['ProcessingResources', 'ClusterConfig', 'InstanceCount'],
     ['ProcessingResources', 'ClusterConfig', 'VolumeSizeInGB'],
 ]
-EXPECTED_STOPPING_CONDITION_INTEGER_FIELDS: List[List[str]] = [['StoppingCondition', 'MaxRuntimeInSeconds']]
+EXPECTED_STOPPING_CONDITION_INTEGER_FIELDS: list[list[str]] = [['StoppingCondition', 'MaxRuntimeInSeconds']]
 
 
 class TestSageMakerProcessingOperator(unittest.TestCase):

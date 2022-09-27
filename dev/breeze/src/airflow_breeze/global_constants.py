@@ -14,11 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+import json
+
 """
 Global constants that are used by all other Breeze components.
 """
-from __future__ import annotations
-
 import platform
 from enum import Enum
 from functools import lru_cache
@@ -29,13 +31,7 @@ from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 RUNS_ON_PUBLIC_RUNNER = "ubuntu-20.04"
 RUNS_ON_SELF_HOSTED_RUNNER = "self-hosted"
 
-# Commented this out as we are using buildkit and this vars became irrelevant
-# FORCE_PULL_IMAGES = False
-# CHECK_IF_BASE_PYTHON_IMAGE_UPDATED = False
-FORCE_BUILD_IMAGES = False
 ANSWER = ""
-SKIP_CHECK_REMOTE_IMAGE = False
-# PUSH_PYTHON_BASE_IMAGE = False
 
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
@@ -114,27 +110,23 @@ SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
 ALLOWED_USE_AIRFLOW_VERSIONS = ['none', 'wheel', 'sdist']
 
-EXCLUDE_DOCS_PACKAGE_FOLDER = [
-    'exts',
-    'integration-logos',
-    'rtd-deprecation',
-    '_build',
-    '_doctrees',
-    '_inventory_cache',
-]
+PROVIDER_PACKAGE_JSON_FILE = AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json"
 
 
-def get_available_packages(short_version=False) -> list[str]:
-    docs_path_content = (AIRFLOW_SOURCES_ROOT / 'docs').glob('*/')
-    available_packages = [x.name for x in docs_path_content if x.is_dir()]
-    package_list = list(set(available_packages) - set(EXCLUDE_DOCS_PACKAGE_FOLDER))
-    package_list.sort()
+def get_available_documentation_packages(short_version=False) -> list[str]:
+    provider_names: list[str] = list(json.loads(PROVIDER_PACKAGE_JSON_FILE.read_text()).keys())
+    doc_provider_names = [provider_name.replace('.', '-') for provider_name in provider_names]
+    available_packages = [f"apache-airflow-providers-{doc_provider}" for doc_provider in doc_provider_names]
+    available_packages.extend(["apache-airflow", "docker-stack", "helm-chart"])
+    available_packages.sort()
     if short_version:
         prefix_len = len("apache-airflow-providers-")
-        package_list = [
-            package[prefix_len:].replace("-", ".") for package in package_list if len(package) > prefix_len
+        available_packages = [
+            package[prefix_len:].replace("-", ".")
+            for package in available_packages
+            if len(package) > prefix_len
         ]
-    return package_list
+    return available_packages
 
 
 def get_default_platform_machine() -> str:

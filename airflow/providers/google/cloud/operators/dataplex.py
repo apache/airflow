@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains Google Dataplex operators."""
+from __future__ import annotations
+
 from time import sleep
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -81,16 +82,16 @@ class DataplexCreateTaskOperator(BaseOperator):
         project_id: str,
         region: str,
         lake_id: str,
-        body: Dict[str, Any],
+        body: dict[str, Any],
         dataplex_task_id: str,
-        validate_only: Optional[bool] = None,
+        validate_only: bool | None = None,
         api_version: str = "v1",
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         asynchronous: bool = False,
         *args,
         **kwargs,
@@ -111,7 +112,7 @@ class DataplexCreateTaskOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.asynchronous = asynchronous
 
-    def execute(self, context: "Context") -> dict:
+    def execute(self, context: Context) -> dict:
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -199,12 +200,12 @@ class DataplexDeleteTaskOperator(BaseOperator):
         lake_id: str,
         dataplex_task_id: str,
         api_version: str = "v1",
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -221,7 +222,7 @@ class DataplexDeleteTaskOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -293,17 +294,17 @@ class DataplexListTasksOperator(BaseOperator):
         project_id: str,
         region: str,
         lake_id: str,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        filter: Optional[str] = None,
-        order_by: Optional[str] = None,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        filter: str | None = None,
+        order_by: str | None = None,
         api_version: str = "v1",
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -323,7 +324,7 @@ class DataplexListTasksOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: "Context") -> List[dict]:
+    def execute(self, context: Context) -> list[dict]:
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -385,12 +386,12 @@ class DataplexGetTaskOperator(BaseOperator):
         lake_id: str,
         dataplex_task_id: str,
         api_version: str = "v1",
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -407,7 +408,7 @@ class DataplexGetTaskOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: "Context") -> dict:
+    def execute(self, context: Context) -> dict:
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
