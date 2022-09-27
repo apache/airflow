@@ -607,13 +607,7 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
             partition_clause_statement = f"WHERE {self.partition_clause}" if self.partition_clause else ""
             self.sql = f"SELECT {checks_sql} FROM {self.table} {partition_clause_statement};"
 
-            job_id = hook.generate_job_id(
-                dag_id=self.dag_id,
-                task_id=self.task_id,
-                logical_date=context["logical_date"],
-                configuration=self.configuration,
-            )
-            job = self._submit_job(hook, job_id=job_id)
+            job = self._submit_job(hook, job_id="")
             context["ti"].xcom_push(key="job_id", value=job.job_id)
             records = list(job.result().to_dataframe().values.flatten())
 
@@ -727,13 +721,7 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
         self.sql = f"SELECT check_name, check_result FROM ({checks_sql}) "
         f"AS check_table {partition_clause_statement};"
 
-        job_id = hook.generate_job_id(
-            dag_id=self.dag_id,
-            task_id=self.task_id,
-            logical_date=context["logical_date"],
-            configuration=self.configuration,
-        )
-        job = self._submit_job(hook, job_id=job_id)
+        job = self._submit_job(hook, job_id="")
         context["ti"].xcom_push(key="job_id", value=job.job_id)
         records = job.result().to_dataframe()
 
