@@ -55,13 +55,13 @@ CREDENTIALS = "bq-credentials"
 DATASET_ID = "bq_dataset"
 TABLE_ID = "bq_table"
 PARTITION_ID = "20200101"
-VIEW_ID = 'bq_view'
+VIEW_ID = "bq_view"
 JOB_ID = "1234"
-LOCATION = 'europe-north1'
+LOCATION = "europe-north1"
 TABLE_REFERENCE_REPR = {
-    'tableId': TABLE_ID,
-    'datasetId': DATASET_ID,
-    'projectId': PROJECT_ID,
+    "tableId": TABLE_ID,
+    "datasetId": DATASET_ID,
+    "projectId": PROJECT_ID,
 }
 TABLE_REFERENCE = TableReference.from_api_repr(TABLE_REFERENCE_REPR)
 
@@ -890,7 +890,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         _, kwargs = mock_insert.call_args
         assert kwargs["configuration"]['labels'] == {'label1': 'test1', 'label2': 'test2'}
 
-    @pytest.mark.parametrize('nowait', [True, False])
+    @pytest.mark.parametrize("nowait", [True, False])
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.QueryJob")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
     def test_insert_job(self, mock_client, mock_query_job, nowait):
@@ -913,8 +913,8 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
 
         mock_query_job.from_api_repr.assert_called_once_with(
             {
-                'configuration': job_conf,
-                'jobReference': {'jobId': JOB_ID, 'projectId': PROJECT_ID, 'location': LOCATION},
+                "configuration": job_conf,
+                "jobReference": {"jobId": JOB_ID, "projectId": PROJECT_ID, "location": LOCATION},
             },
             mock_client.return_value,
         )

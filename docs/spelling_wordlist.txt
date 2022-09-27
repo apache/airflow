@@ -223,6 +223,7 @@ ClassifyTextResponse
 classname
 classpath
 classpaths
+cleartext
 cli
 clientId
 Cloudant
@@ -924,6 +925,7 @@ namespace
 namespaced
 namespaces
 NaN
+nat
 natively
 navbar
 nd
@@ -1556,6 +1558,7 @@ virtualenv
 vm
 VolumeMount
 volumeMounts
+vpc
 WaiterModel
 warmup
 Wasb
@@ -1564,6 +1567,7 @@ WebClient
 webhdfs
 Webhook
 webhook
+WebhookClient
 webhooks
 webpage
 webProperty

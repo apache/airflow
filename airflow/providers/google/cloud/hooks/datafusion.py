@@ -152,6 +152,16 @@ class DataFusionHook(GoogleBaseHook):
         response = request(method=method, url=url, headers=headers, body=payload)
         return response
 
+    @staticmethod
+    def _check_response_status_and_data(response, message: str) -> None:
+        if response.status != 200:
+            raise AirflowException(message)
+        if response.data is None:
+            raise AirflowException(
+                "Empty response received. Please, check for possible root "
+                "causes of this behavior either in DAG code or on Cloud Datafusion side"
+            )
+
     def get_conn(self) -> Resource:
         """Retrieves connection to DataFusion."""
         if not self._conn:
@@ -311,10 +321,9 @@ class DataFusionHook(GoogleBaseHook):
         """
         url = os.path.join(self._base_url(instance_url, namespace), quote(pipeline_name))
         response = self._cdap_request(url=url, method="PUT", body=pipeline)
-        if response.status != 200:
-            raise AirflowException(
-                f"Creating a pipeline failed with code {response.status} while calling {url}"
-            )
+        self._check_response_status_and_data(
+            response, f"Creating a pipeline failed with code {response.status} while calling {url}"
+        )
 
     def delete_pipeline(
         self,
@@ -338,8 +347,9 @@ class DataFusionHook(GoogleBaseHook):
             url = os.path.join(url, "versions", version_id)
 
         response = self._cdap_request(url=url, method="DELETE", body=None)
-        if response.status != 200:
-            raise AirflowException(f"Deleting a pipeline failed with code {response.status}")
+        self._check_response_status_and_data(
+            response, f"Deleting a pipeline failed with code {response.status}"
+        )
 
     def list_pipelines(
         self,
@@ -368,8 +378,9 @@ class DataFusionHook(GoogleBaseHook):
             url = os.path.join(url, urlencode(query))
 
         response = self._cdap_request(url=url, method="GET", body=None)
-        if response.status != 200:
-            raise AirflowException(f"Listing pipelines failed with code {response.status}")
+        self._check_response_status_and_data(
+            response, f"Listing pipelines failed with code {response.status}"
+        )
         return json.loads(response.data)
 
     def get_pipeline_workflow(
@@ -388,8 +399,9 @@ class DataFusionHook(GoogleBaseHook):
             quote(pipeline_id),
         )
         response = self._cdap_request(url=url, method="GET")
-        if response.status != 200:
-            raise AirflowException(f"Retrieving a pipeline state failed with code {response.status}")
+        self._check_response_status_and_data(
+            response, f"Retrieving a pipeline state failed with code {response.status}"
+        )
         workflow = json.loads(response.data)
         return workflow
 
@@ -430,9 +442,9 @@ class DataFusionHook(GoogleBaseHook):
             }
         ]
         response = self._cdap_request(url=url, method="POST", body=body)
-        if response.status != 200:
-            raise AirflowException(f"Starting a pipeline failed with code {response.status}")
-
+        self._check_response_status_and_data(
+            response, f"Starting a pipeline failed with code {response.status}"
+        )
         response_json = json.loads(response.data)
         return response_json[0]["runId"]
 
@@ -454,5 +466,6 @@ class DataFusionHook(GoogleBaseHook):
             "stop",
         )
         response = self._cdap_request(url=url, method="POST")
-        if response.status != 200:
-            raise AirflowException(f"Stopping a pipeline failed with code {response.status}")
+        self._check_response_status_and_data(
+            response, f"Stopping a pipeline failed with code {response.status}"
+        )

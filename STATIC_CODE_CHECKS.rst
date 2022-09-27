@@ -157,8 +157,6 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-core-deprecation-classes                         | Verify using of dedicated Airflow deprecation classes in core    |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| check-dag-init-decorator-arguments                     | Check DAG and @dag arguments                                     |         |
-+--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-daysago-import-from-utils                        | Make sure days_ago is imported from airflow.utils.dates          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-decorated-operator-implements-custom-name        | Check @task decorator implements custom_operator_name            |         |
@@ -178,6 +176,8 @@ require Breeze Docker image to be build locally.
 | check-hooks-apply                                      | Check if all hooks apply to the repository                       |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-incorrect-use-of-LoggingMixin                    | Make sure LoggingMixin is not used alone                         |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-init-decorator-arguments                         | Check model __init__ and decorator arguments are in sync         |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-lazy-logging                                     | Check that all logging methods are lazy                          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -301,7 +301,7 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | ts-compile-and-lint-javascript                         | TS types generation and ESLint against current UI files          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| update-breeze-cmd-output                               | Update output of breeze commands in BREEZE.rst                   | *       |
+| update-breeze-cmd-output                               | Update output of breeze commands in BREEZE.rst                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-breeze-readme-config-hash                       | Update Breeze README.md with config files hash                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -318,8 +318,6 @@ require Breeze Docker image to be build locally.
 | update-migration-references                            | Update migration ref doc                                         | *       |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-providers-dependencies                          | Update cross-dependencies for providers packages                 |         |
-+--------------------------------------------------------+------------------------------------------------------------------+---------+
-| update-setup-cfg-file                                  | Update setup.cfg file with all licenses                          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-spelling-wordlist-to-be-sorted                  | Sort alphabetically and uniquify spelling_wordlist.txt           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+

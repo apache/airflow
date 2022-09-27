@@ -27,9 +27,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from alembic import op
-from sqlalchemy import Column, Integer
-
-from airflow.compat.sqlalchemy import inspect
+from sqlalchemy import Column, Integer, inspect
 
 # revision identifiers, used by Alembic.
 revision = 'bbf4a7ad0465'

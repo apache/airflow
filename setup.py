@@ -49,7 +49,7 @@ PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
-version = '2.4.0b1'
+version = '2.5.0.dev0'
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parent.resolve()
 PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
@@ -270,7 +270,11 @@ doc = [
     'sphinx-copybutton',
     'sphinx-jinja>=2.0',
     'sphinx-rtd-theme>=0.1.6',
-    'sphinx>=4.4.0',
+    # Spinx 5.2.0 introduced deprecation for property documentation and autoapi 1.9.0 generates
+    # documentation that uses the old way of documenting it. This is tracked in
+    # https://github.com/readthedocs/sphinx-autoapi/issues/352 of autoapi and until it is solved
+    # we need to limit Sphinx to <5.2.0
+    'sphinx>=4.4.0,<5.2.0',
     'sphinxcontrib-httpdomain>=1.7.0',
     'sphinxcontrib-redoc>=1.6.0',
     'sphinxcontrib-spelling>=7.3',
@@ -372,6 +376,7 @@ devel_only = [
     'freezegun',
     'gitpython',
     'ipdb',
+    'isort',
     'jira',
     'jsondiff',
     'mongomock',

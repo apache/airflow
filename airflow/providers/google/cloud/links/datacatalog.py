@@ -26,7 +26,7 @@ from airflow.providers.google.cloud.links.base import BaseGoogleLink
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-DATACATALOG_BASE_LINK = "https://console.cloud.google.com/datacatalog"
+DATACATALOG_BASE_LINK = "/datacatalog"
 ENTRY_GROUP_LINK = (
     DATACATALOG_BASE_LINK
     + "/groups/{entry_group_id};container={project_id};location={location_id}?project={project_id}"

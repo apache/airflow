@@ -103,6 +103,7 @@ jobs:
             "milton0825",
             "mistercrunch",
             "msumit",
+            "pierrejeambrun",
             "pingzh",
             "potiuk",
             "r39132",
@@ -392,9 +393,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: >
           needs.build-info.outputs.in-workflow-build == 'true' &&
           needs.build-info.outputs.default-branch == 'main'
-      - name: Compile www assets
-        run: breeze compile-www-assets
-        if: needs.build-info.outputs.in-workflow-build == 'true'
       - name: >
           Build & Push CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
@@ -604,6 +602,18 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: >
           python -m pip install -r ./docker_tests/requirements.txt &&
           python -m pytest docker_tests/test_examples_of_prod_image_building.py -n auto --color=yes
+
+  test-git-clone-on-windows:
+    timeout-minutes: 5
+    name: "Test git clone on Windows"
+    runs-on: windows-latest
+    needs: [build-info]
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+          persist-credentials: false
 
   wait-for-ci-images:
     timeout-minutes: 120
@@ -889,7 +899,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     env:
       RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.default-python-version }}
-    if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
+    if: >
+      needs.build-info.outputs.image-build == 'true' &&
+      needs.build-info.outputs.default-branch == 'main' &&
+      needs.build-info.outputs.canary-run == 'true'
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"

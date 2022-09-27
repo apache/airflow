@@ -165,7 +165,11 @@ class _TimetableNotRegistered(ValueError):
         self.type_string = type_string
 
     def __str__(self) -> str:
-        return f"Timetable class {self.type_string!r} is not registered"
+        return (
+            f"Timetable class {self.type_string!r} is not registered or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
+        )
 
 
 def _encode_timetable(var: Timetable) -> dict[str, Any]:
@@ -399,7 +403,7 @@ class BaseSerialization:
             return cls._encode({str(k): cls.serialize(v) for k, v in var.items()}, type_=DAT.DICT)
         elif isinstance(var, list):
             return [cls.serialize(v) for v in var]
-        elif _has_kubernetes() and isinstance(var, k8s.V1Pod):
+        elif var.__class__.__name__ == 'V1Pod' and _has_kubernetes() and isinstance(var, k8s.V1Pod):
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
         elif isinstance(var, DAG):
