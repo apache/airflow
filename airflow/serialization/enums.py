@@ -28,6 +28,7 @@ class Encoding(str, Enum):
 
     TYPE = '__type'
     VAR = '__var'
+    IMPORT_PATH = '__path'
 
 
 # Supported types for encoding. primitives and list are not encoded.
@@ -50,3 +51,4 @@ class DagAttributeTypes(str, Enum):
     PARAM = 'param'
     XCOM_REF = 'xcomref'
     DATASET = 'dataset'
+    CUSTOM = 'custom'

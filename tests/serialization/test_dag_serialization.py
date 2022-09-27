@@ -25,6 +25,7 @@ import json
 import multiprocessing
 import os
 import pickle
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from glob import glob
 from unittest import mock
@@ -48,6 +49,7 @@ from airflow.security import permissions
 from airflow.sensors.bash import BashSensor
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
+    BaseSerialization,
     DagDependency,
     DependencyDetector,
     SerializedBaseOperator,
@@ -2275,3 +2277,34 @@ def test_taskflow_expand_kwargs_serde(strict):
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
     }
+
+
+@dataclass
+class CustomSerializableObject:
+    hello: str
+    goodbye: str
+
+    @property
+    def import_path(self):
+        return 'tests.serialization.test_dag_serialization.CustomSerializableObject'
+
+    def airflow_serialize(self):
+        return self.__dict__, self.import_path
+
+    @classmethod
+    def airflow_deserialize(cls, val):
+        return cls(**val)
+
+
+def test_serialize_custom_obj():
+    obj = CustomSerializableObject('hi', 'bye')
+    serialized = BaseSerialization.serialize([obj])
+    assert serialized == [
+        {
+            '__var': dict(hello='hi', goodbye='bye'),
+            '__type': 'custom',
+            '__path': 'tests.serialization.test_dag_serialization.CustomSerializableObject',
+        }
+    ]
+    deserialized = BaseSerialization.deserialize(serialized)
+    assert deserialized == [obj]

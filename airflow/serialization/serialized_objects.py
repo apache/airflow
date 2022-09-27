@@ -328,9 +328,12 @@ class BaseSerialization:
             raise TypeError("Invalid type: Only dict and str are supported.")
 
     @staticmethod
-    def _encode(x: Any, type_: Any) -> dict[Encoding, Any]:
+    def _encode(x: Any, type_: Any, import_path: str | None = None) -> dict[Encoding, Any]:
         """Encode data by a JSON dict."""
-        return {Encoding.VAR: x, Encoding.TYPE: type_}
+        if import_path:
+            return {Encoding.VAR: x, Encoding.TYPE: type_, Encoding.IMPORT_PATH: import_path}
+        else:
+            return {Encoding.VAR: x, Encoding.TYPE: type_}
 
     @classmethod
     def _is_primitive(cls, var: Any) -> bool:
@@ -399,6 +402,9 @@ class BaseSerialization:
             if isinstance(var, enum.Enum):
                 return var.value
             return var
+        elif hasattr(var, 'airflow_serialize'):
+            serialized, import_path = var.airflow_serialize()
+            return cls._encode(serialized, DAT.CUSTOM, import_path)
         elif isinstance(var, dict):
             return cls._encode({str(k): cls.serialize(v) for k, v in var.items()}, type_=DAT.DICT)
         elif isinstance(var, list):
@@ -454,6 +460,7 @@ class BaseSerialization:
         # JSON primitives (except for dict) are not encoded.
         if cls._is_primitive(encoded_var):
             return encoded_var
+
         elif isinstance(encoded_var, list):
             return [cls.deserialize(v) for v in encoded_var]
 
@@ -461,9 +468,13 @@ class BaseSerialization:
             raise ValueError(f"The encoded_var should be dict and is {type(encoded_var)}")
         var = encoded_var[Encoding.VAR]
         type_ = encoded_var[Encoding.TYPE]
+        import_path_ = encoded_var.get(Encoding.IMPORT_PATH)
 
         if type_ == DAT.DICT:
             return {k: cls.deserialize(v) for k, v in var.items()}
+        elif type_ == DAT.CUSTOM:
+            obj_cls = import_string(import_path_)
+            return obj_cls.airflow_deserialize(var)
         elif type_ == DAT.DAG:
             return SerializedDAG.deserialize_dag(var)
         elif type_ == DAT.OP:
