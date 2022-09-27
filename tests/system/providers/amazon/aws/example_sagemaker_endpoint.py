@@ -45,9 +45,7 @@ DAG_ID = 'example_sagemaker_endpoint'
 # Externally fetched variables:
 ROLE_ARN_KEY = 'ROLE_ARN'
 
-sys_test_context_task = (
-    SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
-)
+sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
 
 # The URI of a Docker image for handling KNN model training.
 # To find the URI of a free Amazon-provided image that can be used, substitute your
@@ -116,9 +114,11 @@ def set_up(env_id, role_arn, ti=None):
     try:
         knn_image_uri = KNN_IMAGES_BY_REGION[region]
     except KeyError:
-        raise KeyError(f'Region name {region} does not have a known KNN '
-                       f'Image URI.  Please add the region and URI following '
-                       f'the directions at the top of the system testfile ')
+        raise KeyError(
+            f'Region name {region} does not have a known KNN '
+            f'Image URI.  Please add the region and URI following '
+            f'the directions at the top of the system testfile '
+        )
 
     training_config = {
         'TrainingJobName': training_job_name,

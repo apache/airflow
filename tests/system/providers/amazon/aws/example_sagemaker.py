@@ -211,9 +211,11 @@ def set_up(env_id, role_arn):
     try:
         knn_image_uri = KNN_IMAGES_BY_REGION[region]
     except KeyError:
-        raise KeyError(f'Region name {region} does not have a known KNN '
-                       f'Image URI.  Please add the region and URI following '
-                       f'the directions at the top of the system testfile ')
+        raise KeyError(
+            f'Region name {region} does not have a known KNN '
+            f'Image URI.  Please add the region and URI following '
+            f'the directions at the top of the system testfile '
+        )
 
     resource_config = {
         'InstanceCount': 1,
