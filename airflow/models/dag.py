@@ -587,8 +587,7 @@ class DAG(LoggingMixin):
             )
 
         # this will only be set at serialization time
-        # it is exposed through property `dag_processor_dags_folder`
-        # and that property's only use is for determining the relative
+        # it's only use is for determining the relative
         # fileloc based only on the serialize dag
         self._processor_dags_folder = None
 
@@ -1197,7 +1196,7 @@ class DAG(LoggingMixin):
         """File location of the importable dag 'file' relative to the configured DAGs folder."""
         path = pathlib.Path(self.fileloc)
         try:
-            rel_path = path.relative_to(self.dag_processor_dags_folder or settings.DAGS_FOLDER)
+            rel_path = path.relative_to(self._processor_dags_folder or settings.DAGS_FOLDER)
             if rel_path == pathlib.Path('.'):
                 return path
             else:
@@ -1205,16 +1204,6 @@ class DAG(LoggingMixin):
         except ValueError:
             # Not relative to DAGS_FOLDER.
             return path
-
-    @property
-    def dag_processor_dags_folder(self):
-        """
-        The dags_folder as configured in the serializing process.
-
-        This property is only meant to be used for determining the relative
-        fileloc from a deserialized dag.
-        """
-        return self._processor_dags_folder
 
     @property
     def folder(self) -> str:

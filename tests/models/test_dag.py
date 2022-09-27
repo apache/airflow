@@ -2399,13 +2399,13 @@ class TestDagModel:
         with conf_vars({('core', 'dags_folder'): reader_dags_folder}):
             assert dag.relative_fileloc == expected_relative
 
-    def test_dag_processor_dags_folder(self, session):
+    def test__processor_dags_folder(self, session):
         """Only populated after deserializtion"""
         dag = DAG(dag_id='test')
         dag.fileloc = '/abc/test.py'
-        assert dag.dag_processor_dags_folder is None
+        assert dag._processor_dags_folder is None
         sdm = SerializedDagModel(dag)
-        assert sdm.dag.dag_processor_dags_folder == settings.DAGS_FOLDER
+        assert sdm.dag._processor_dags_folder == settings.DAGS_FOLDER
 
     @pytest.mark.need_serialized_dag
     def test_dags_needing_dagruns_dataset_triggered_dag_info_queued_times(self, session, dag_maker):
