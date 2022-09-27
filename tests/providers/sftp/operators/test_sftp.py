@@ -43,6 +43,9 @@ class TestSFTPOperator:
         hook = SSHHook(ssh_conn_id='ssh_default')
         hook.no_host_key_check = True
         self.hook = hook
+        sftp_hook = SFTPHook(ssh_conn_id='ssh_default')
+        sftp_hook.no_host_key_check = True
+        self.sftp_hook = sftp_hook
         self.test_dir = "/tmp"
         self.test_local_dir = "/tmp/tmp2"
         self.test_remote_dir = "/tmp/tmp1"
@@ -386,3 +389,71 @@ class TestSFTPOperator:
         except Exception:
             pass
         assert task_6.sftp_hook.remote_host == 'remotehost'
+
+    def test_unequal_local_remote_file_paths(self):
+        with pytest.raises(ValueError):
+            SFTPOperator(
+                task_id='test_sftp_unequal_paths',
+                local_filepath='/tmp/test',
+                remote_filepath=['/tmp/test1', '/tmp/test2'],
+            )
+
+    def test_str_filepaths_converted_to_lists(self):
+        local_filepath = '/tmp/test'
+        remote_filepath = '/tmp/remotetest'
+        sftp_op = SFTPOperator(
+            task_id='test_str_to_list', local_filepath=local_filepath, remote_filepath=remote_filepath
+        )
+        assert sftp_op.local_filepath == [local_filepath]
+        assert sftp_op.remote_filepath == [remote_filepath]
+
+    @mock.patch('airflow.providers.sftp.operators.sftp.SFTPHook.retrieve_file')
+    def test_multiple_paths_get(self, mock_get):
+        local_filepath = ['/tmp/ltest1', '/tmp/ltest2']
+        remote_filepath = ['/tmp/rtest1', '/tmp/rtest2']
+        sftp_op = SFTPOperator(
+            task_id='test_multiple_paths_get',
+            sftp_hook=self.sftp_hook,
+            local_filepath=local_filepath,
+            remote_filepath=remote_filepath,
+            operation=SFTPOperation.GET,
+        )
+        sftp_op.execute(None)
+        assert mock_get.call_count == 2
+        args0, _ = mock_get.call_args_list[0]
+        args1, _ = mock_get.call_args_list[1]
+        assert args0 == (remote_filepath[0], local_filepath[0])
+        assert args1 == (remote_filepath[1], local_filepath[1])
+
+    @mock.patch('airflow.providers.sftp.operators.sftp.SFTPHook.store_file')
+    def test_multiple_paths_put(self, mock_put):
+        local_filepath = ['/tmp/ltest1', '/tmp/ltest2']
+        remote_filepath = ['/tmp/rtest1', '/tmp/rtest2']
+        sftp_op = SFTPOperator(
+            task_id='test_multiple_paths_get',
+            sftp_hook=self.sftp_hook,
+            local_filepath=local_filepath,
+            remote_filepath=remote_filepath,
+            operation=SFTPOperation.PUT,
+        )
+        sftp_op.execute(None)
+        assert mock_put.call_count == 2
+        args0, _ = mock_put.call_args_list[0]
+        args1, _ = mock_put.call_args_list[1]
+        assert args0 == (remote_filepath[0], local_filepath[0])
+        assert args1 == (remote_filepath[1], local_filepath[1])
+
+    @mock.patch('airflow.providers.sftp.operators.sftp.SFTPHook.retrieve_file')
+    def test_return_str_when_local_filepath_was_str(self, mock_get):
+        local_filepath = '/tmp/ltest1'
+        remote_filepath = '/tmp/rtest1'
+        sftp_op = SFTPOperator(
+            task_id='test_returns_str',
+            sftp_hook=self.sftp_hook,
+            local_filepath=local_filepath,
+            remote_filepath=remote_filepath,
+            operation=SFTPOperation.GET,
+        )
+        return_value = sftp_op.execute(None)
+        assert isinstance(return_value, str)
+        assert return_value == local_filepath
