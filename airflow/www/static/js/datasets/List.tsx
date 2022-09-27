@@ -25,12 +25,13 @@ import {
   Text,
   Link,
 } from '@chakra-ui/react';
-import type { Row } from 'react-table';
+import type { Row, SortingRule } from 'react-table';
 
 import { useDatasets } from 'src/api';
 import { Table, TimeCell } from 'src/components/Table';
 import type { API } from 'src/types';
 import { getMetaValue } from 'src/utils';
+import { snakeCase } from 'lodash';
 
 interface Props {
   onSelect: (datasetId: string) => void;
@@ -62,11 +63,16 @@ const DetailCell = ({ cell: { row } }: CellProps) => {
 const DatasetsList = ({ onSelect }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
+  const [sortBy, setSortBy] = useState<SortingRule<object>[]>([{ id: 'lastDatasetUpdate', desc: true }]);
 
-  // default to descending by latest update
-  const order = '-last_dataset_update';
+  const sort = sortBy[0];
+  const order = sort ? `${sort.desc ? '-' : ''}${snakeCase(sort.id)}` : '';
 
-  const { data: { datasets, totalEntries }, isLoading } = useDatasets({ limit, offset, order });
+  const { data: { datasets, totalEntries }, isLoading } = useDatasets({
+    limit,
+    offset,
+    order,
+  });
 
   const columns = useMemo(
     () => [
@@ -88,6 +94,7 @@ const DatasetsList = ({ onSelect }: Props) => {
     () => datasets,
     [datasets],
   );
+  const memoSort = useMemo(() => sortBy, [sortBy]);
 
   const onDatasetSelect = (row: Row<API.Dataset>) => {
     if (row.original.uri) onSelect(row.original.uri);
@@ -120,6 +127,11 @@ const DatasetsList = ({ onSelect }: Props) => {
             offset,
             setOffset,
             totalEntries,
+          }}
+          manualSort={{
+            setSortBy,
+            sortBy,
+            initialSortBy: memoSort,
           }}
           pageSize={limit}
           onRowClicked={onDatasetSelect}
