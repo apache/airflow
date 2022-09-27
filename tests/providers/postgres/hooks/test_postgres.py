@@ -33,7 +33,7 @@ from airflow.utils.types import NOTSET
 class TestPostgresHookConn:
     @pytest.fixture(autouse=True)
     def setup(self):
-        self.connection = Connection(login='login', password='password', host='host', schema='schema')
+        self.connection = Connection(login='login', password='password', host='host', schema='database')
 
         class UnitTestPostgresHook(PostgresHook):
             conn_name_attr = 'test_conn_id'
@@ -47,7 +47,7 @@ class TestPostgresHookConn:
         self.db_hook.test_conn_id = 'non_default'
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(
-            user='login', password='password', host='host', dbname='schema', port=None
+            user='login', password='password', host='host', dbname='database', port=None
         )
         self.db_hook.get_connection.assert_called_once_with('non_default')
 
@@ -55,7 +55,7 @@ class TestPostgresHookConn:
     def test_get_conn(self, mock_connect):
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(
-            user='login', password='password', host='host', dbname='schema', port=None
+            user='login', password='password', host='host', dbname='database', port=None
         )
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
@@ -64,7 +64,7 @@ class TestPostgresHookConn:
         self.connection.conn_type = 'postgres'
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
-        assert self.db_hook.get_uri() == "postgresql://login:password@host/schema?client_encoding=utf-8"
+        assert self.db_hook.get_uri() == "postgresql://login:password@host/database?client_encoding=utf-8"
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn_cursor(self, mock_connect):
@@ -75,7 +75,7 @@ class TestPostgresHookConn:
             user='login',
             password='password',
             host='host',
-            dbname='schema',
+            dbname='database',
             port=None,
         )
 
@@ -87,20 +87,20 @@ class TestPostgresHookConn:
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn_from_connection(self, mock_connect):
-        conn = Connection(login='login-conn', password='password-conn', host='host', schema='schema')
+        conn = Connection(login='login-conn', password='password-conn', host='host', schema='database')
         hook = PostgresHook(connection=conn)
         hook.get_conn()
         mock_connect.assert_called_once_with(
-            user='login-conn', password='password-conn', host='host', dbname='schema', port=None
+            user='login-conn', password='password-conn', host='host', dbname='database', port=None
         )
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
-    def test_get_conn_from_connection_with_schema(self, mock_connect):
-        conn = Connection(login='login-conn', password='password-conn', host='host', schema='schema')
-        hook = PostgresHook(connection=conn, schema='schema-override')
+    def test_get_conn_from_connection_with_database(self, mock_connect):
+        conn = Connection(login='login-conn', password='password-conn', host='host', schema="database")
+        hook = PostgresHook(connection=conn, database='database-override')
         hook.get_conn()
         mock_connect.assert_called_once_with(
-            user='login-conn', password='password-conn', host='host', dbname='schema-override', port=None
+            user='login-conn', password='password-conn', host='host', dbname='database-override', port=None
         )
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
@@ -146,7 +146,7 @@ class TestPostgresHookConn:
         self.connection.extra = '{"connect_timeout": 3}'
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(
-            user='login', password='password', host='host', dbname='schema', port=None, connect_timeout=3
+            user='login', password='password', host='host', dbname='database', port=None, connect_timeout=3
         )
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
@@ -225,32 +225,37 @@ class TestPostgresHookConn:
             port=(port or 5439),
         )
 
-    def test_get_uri_from_connection_without_schema_override(self):
+    def test_get_uri_from_connection_without_database_override(self):
         self.db_hook.get_connection = mock.MagicMock(
             return_value=Connection(
                 conn_type="postgres",
                 host="host",
                 login="login",
                 password="password",
-                schema="schema",
+                schema="database",
                 port=1,
             )
         )
-        assert "postgresql://login:password@host:1/schema" == self.db_hook.get_uri()
+        assert "postgresql://login:password@host:1/database" == self.db_hook.get_uri()
 
-    def test_get_uri_from_connection_with_schema_override(self):
-        hook = PostgresHook(schema='schema-override')
+    def test_get_uri_from_connection_with_database_override(self):
+        hook = PostgresHook(database='database-override')
         hook.get_connection = mock.MagicMock(
             return_value=Connection(
                 conn_type="postgres",
                 host="host",
                 login="login",
                 password="password",
-                schema="schema",
+                schema="database",
                 port=1,
             )
         )
-        assert "postgresql://login:password@host:1/schema-override" == hook.get_uri()
+        assert "postgresql://login:password@host:1/database-override" == hook.get_uri()
+
+    def test_schema_kwarg_database_kwarg_compatibility(self):
+        database = 'database-override'
+        hook = PostgresHook(schema=database)
+        assert hook.database == database
 
 
 class TestPostgresHook(unittest.TestCase):
