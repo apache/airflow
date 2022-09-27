@@ -36,9 +36,11 @@ versions:
 dependencies:
   - apache-airflow>=2.2.0
   - apache-airflow-providers-common-sql>=1.1.0
-  # pinotdb v0.1.1 may still work with older versions of Apache Pinot, but we've confirmed that it
-  # causes a problem with newer versions.
   - pinotdb>0.1.2
+  # Pinotdb 0.4.7 lacks ciso8601 as install_requires dependency, yet it has implicit dependency on it
+  # Until https://github.com/python-pinot-dbapi/pinot-dbapi/issues/47 is fixed we add the dependency in
+  # the provider dependency
+  - ciso8601
 
 integrations:
   - integration-name: Apache Pinot
