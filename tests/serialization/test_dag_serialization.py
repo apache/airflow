@@ -406,7 +406,9 @@ class TestStringifiedDAGs:
         message = (
             "Failed to serialize DAG 'simple_dag': Timetable class "
             "'tests.test_utils.timetables.CustomSerializationTimetable' "
-            "is not registered"
+            "is not registered or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
         )
         assert str(ctx.value) == message
 
@@ -712,7 +714,9 @@ class TestStringifiedDAGs:
         message = (
             "Timetable class "
             "'tests.test_utils.timetables.CustomSerializationTimetable' "
-            "is not registered"
+            "is not registered or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
         )
         assert str(ctx.value) == message
 
