@@ -184,21 +184,22 @@ def get_dag_by_file_location(dag_id: str):
     return dagbag.dags[dag_id]
 
 
-def _search_for_dag_file(fileloc: str | None) -> str | None:
+def _search_for_dag_file(val: str | None) -> str | None:
     """
-    Try to correct the path to the dag file in question.
+    Search for the file referenced at fileloc.
 
-    If for the purpose of loading the DagBag we are given a path to a file, this likely means that
-    the serializing process had a dags_folder equal to only the dag file in question.
-    This prevents us from determining the relative location.  And if the paths are different between
-    worker and dag processor / scheduler, then we won't find the dag at the given location.
-    So we do our best here to figure out the path, by looking for a file with the same name
-    in the dags folder (this avoids the unnecessary dag parsing that would occur if we just
-    parsed the dags folder).  If we can't find such a file, or if we find more than one, we
-    just parse the dags folder as a fallback.
+    By the time we get to this function, we've already run this `val` through `process_subdir`
+    and loaded the DagBag there and came up empty.  So here, if `val` is a file path, we make
+    a last ditch effort to try and find a dag file with the same name in our dags folder. (This
+    avoids the unnecessary dag parsing that would occur if we just parsed the dags folder).
+
+    If `val` is a path to a file, this likely means that the serializing process had a dags_folder
+    equal to only the dag file in question. This prevents us from determining the relative location.
+    And if the paths are different between worker and dag processor / scheduler, then we won't find
+    the dag at the given location.
     """
-    if fileloc and Path(fileloc).suffix in ('.zip', '.py'):
-        matches = list(Path(settings.DAGS_FOLDER).rglob(Path(fileloc).name))
+    if val and Path(val).suffix in ('.zip', '.py'):
+        matches = list(Path(settings.DAGS_FOLDER).rglob(Path(val).name))
         if len(matches) == 1:
             return matches[0].as_posix()
 
