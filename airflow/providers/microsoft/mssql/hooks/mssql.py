@@ -18,7 +18,7 @@
 """Microsoft SQLServer hook module"""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Dict
 
 import pymssql
 
@@ -50,6 +50,15 @@ class MsSqlHook(DbApiHook):
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
         self._sqlalchemy_scheme = sqlalchemy_scheme
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict[str, Any]:
+        """Returns custom UI field behaviour for MSSQL Connection."""
+        return {
+            "relabeling": {
+                "schema": "Database",
+            },
+        }
 
     @property
     def connection_extra_lower(self) -> dict:

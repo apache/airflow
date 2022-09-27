@@ -33,7 +33,7 @@ Configuring the Connection
 Host (required)
     The host to connect to.
 
-Schema (optional)
+Database (optional)
     Specify the database name to be used
 
 Login (required)
