@@ -52,8 +52,8 @@ class SFTPOperator(BaseOperator):
     :param remote_host: remote host to connect (templated)
         Nullable. If provided, it will replace the `remote_host` which was
         defined in `sftp_hook`/`ssh_hook` or predefined in the connection of `ssh_conn_id`.
-    :param local_filepath: local file path to get or put. (templated)
-    :param remote_filepath: remote file path to get or put. (templated)
+    :param local_filepath: local file path or list of local file paths to get or put. (templated)
+    :param remote_filepath: remote file path or list of remote file paths to get or put. (templated)
     :param operation: specify operation 'get' or 'put', defaults to put
     :param confirm: specify if the SFTP operation should be confirmed, defaults to True
     :param create_intermediate_dirs: create missing intermediate directories when
@@ -85,8 +85,8 @@ class SFTPOperator(BaseOperator):
         sftp_hook: SFTPHook | None = None,
         ssh_conn_id: str | None = None,
         remote_host: str | None = None,
-        local_filepath: str,
-        remote_filepath: str,
+        local_filepath: str | list[str],
+        remote_filepath: str | list[str],
         operation: str = SFTPOperation.PUT,
         confirm: bool = True,
         create_intermediate_dirs: bool = False,
@@ -97,11 +97,27 @@ class SFTPOperator(BaseOperator):
         self.sftp_hook = sftp_hook
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
-        self.local_filepath = local_filepath
-        self.remote_filepath = remote_filepath
         self.operation = operation
         self.confirm = confirm
         self.create_intermediate_dirs = create_intermediate_dirs
+
+        self.local_filepath_was_str = False
+        if isinstance(local_filepath, str):
+            self.local_filepath = [local_filepath]
+            self.local_filepath_was_str = True
+        else:
+            self.local_filepath = local_filepath
+
+        if isinstance(remote_filepath, str):
+            self.remote_filepath = [remote_filepath]
+        else:
+            self.remote_filepath = remote_filepath
+
+        if len(self.local_filepath) != len(self.remote_filepath):
+            raise ValueError(
+                f'{len(self.local_filepath)} paths in local_filepath '
+                f'!= {len(self.remote_filepath)} paths in remote_filepath'
+            )
 
         if not (self.operation.lower() == SFTPOperation.GET or self.operation.lower() == SFTPOperation.PUT):
             raise TypeError(
@@ -129,7 +145,7 @@ class SFTPOperator(BaseOperator):
                 )
                 self.sftp_hook = SFTPHook(ssh_hook=self.ssh_hook)
 
-    def execute(self, context: Any) -> str | None:
+    def execute(self, context: Any) -> str | list[str] | None:
         file_msg = None
         try:
             if self.ssh_conn_id:
@@ -152,22 +168,23 @@ class SFTPOperator(BaseOperator):
                 )
                 self.sftp_hook.remote_host = self.remote_host
 
-            if self.operation.lower() == SFTPOperation.GET:
-                local_folder = os.path.dirname(self.local_filepath)
-                if self.create_intermediate_dirs:
-                    Path(local_folder).mkdir(parents=True, exist_ok=True)
-                file_msg = f"from {self.remote_filepath} to {self.local_filepath}"
-                self.log.info("Starting to transfer %s", file_msg)
-                self.sftp_hook.retrieve_file(self.remote_filepath, self.local_filepath)
-            else:
-                remote_folder = os.path.dirname(self.remote_filepath)
-                if self.create_intermediate_dirs:
-                    self.sftp_hook.create_directory(remote_folder)
-                file_msg = f"from {self.local_filepath} to {self.remote_filepath}"
-                self.log.info("Starting to transfer file %s", file_msg)
-                self.sftp_hook.store_file(self.remote_filepath, self.local_filepath, confirm=self.confirm)
+            for local_filepath, remote_filepath in zip(self.local_filepath, self.remote_filepath):
+                if self.operation.lower() == SFTPOperation.GET:
+                    local_folder = os.path.dirname(local_filepath)
+                    if self.create_intermediate_dirs:
+                        Path(local_folder).mkdir(parents=True, exist_ok=True)
+                    file_msg = f"from {remote_filepath} to {local_filepath}"
+                    self.log.info("Starting to transfer %s", file_msg)
+                    self.sftp_hook.retrieve_file(remote_filepath, local_filepath)
+                else:
+                    remote_folder = os.path.dirname(remote_filepath)
+                    if self.create_intermediate_dirs:
+                        self.sftp_hook.create_directory(remote_folder)
+                    file_msg = f"from {local_filepath} to {remote_filepath}"
+                    self.log.info("Starting to transfer file %s", file_msg)
+                    self.sftp_hook.store_file(remote_filepath, local_filepath, confirm=self.confirm)
 
         except Exception as e:
             raise AirflowException(f"Error while transferring {file_msg}, error: {str(e)}")
 
-        return self.local_filepath
+        return self.local_filepath[0] if self.local_filepath_was_str else self.local_filepath
