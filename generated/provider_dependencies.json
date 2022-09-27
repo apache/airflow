@@ -133,6 +133,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.1.0",
       "apache-airflow>=2.2.0",
+      "ciso8601",
       "pinotdb>0.1.2"
     ],
     "cross-providers-deps": [
@@ -653,13 +654,11 @@
   "slack": {
     "deps": [
       "apache-airflow-providers-common-sql>=1.1.0",
-      "apache-airflow-providers-http",
       "apache-airflow>=2.2.0",
       "slack_sdk>=3.0.0"
     ],
     "cross-providers-deps": [
-      "common.sql",
-      "http"
+      "common.sql"
     ]
   },
   "snowflake": {

@@ -15,6 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
+.. _howto/operators:postgres:
+
 How-to Guide for PostgresOperator
 =================================
 
