@@ -29,14 +29,7 @@ Host (required)
     The host to connect to.
 
 Schema (optional)
-    Specify the name of the database to connect to.
-
-    .. note::
-
-        If you want to define a default database schema:
-
-        * using ``PostgresOperator`` see :ref:`Passing Server Configuration Parameters into PostgresOperator <howto/operators:postgres>`
-        * using ``PostgresHook`` see `search_path <https://www.postgresql.org/docs/current/ddl-schemas.html#DDL-SCHEMAS-PATH>_`
+    Specify the schema name to be used in the database.
 
 Login (required)
     Specify the user name to connect.

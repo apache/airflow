@@ -42,8 +42,6 @@ class PostgresOperator(BaseOperator):
         (default value: False)
     :param parameters: (optional) the parameters to render the SQL query with.
     :param database: name of database which overwrite defined one in connection
-    :param runtime_parameters: a mapping of runtime params added to the final sql being executed.
-        For example, you could set the schema via `{"search_path": "CUSTOM_SCHEMA"}`.
     """
 
     template_fields: Sequence[str] = ('sql',)
@@ -75,7 +73,7 @@ class PostgresOperator(BaseOperator):
         self.hook: PostgresHook | None = None
 
     def execute(self, context: Context):
-        self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id, database=self.database)
+        self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id, schema=self.database)
         if self.runtime_parameters:
             final_sql = []
             sql_param = {}
