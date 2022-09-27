@@ -218,6 +218,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
     ```shell script
     git checkout v${VERSION_BRANCH}-test
+    git reset --hard origin/v${VERSION_BRANCH}-test
     ```
 
 - Set your version in `setup.py` (without the RC tag)
@@ -241,12 +242,14 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
     ```shell script
     git checkout v${VERSION_BRANCH}-stable
+    git reset --hard origin/v${VERSION_BRANCH}-stable
     ```
 
 - PR from the 'test' branch to the 'stable' branch, and manually merge it once approved. Here's how to manually merge the PR:
 
     ```shell script
     git merge --ff-only v${VERSION_BRANCH}-test
+    git push origin v${VERSION_BRANCH}-stable
     ```
 
 - Tag your release
@@ -276,7 +279,6 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Tarball the repo
 
     ```shell script
-    mkdir dist
     git archive --format=tar.gz ${VERSION} \
         --prefix=apache-airflow-${VERSION_WITHOUT_RC}/ \
         -o dist/apache-airflow-${VERSION_WITHOUT_RC}-source.tar.gz
@@ -307,7 +309,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     ```shell script
     git checkout origin/constraints-${VERSION_BRANCH}
     git tag -s "constraints-${VERSION}" -m "Constraints for Apache Airflow ${VERSION}"
-    git push origin "constraints-${VERSION}"
+    git push origin tag "constraints-${VERSION}"
     ```
 
 - Push the artifacts to ASF dev dist repo
@@ -327,6 +329,8 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     cd ${VERSION}
     svn add *
     svn commit -m "Add artifacts for Airflow ${VERSION}"
+    cd ${AIRFLOW_REPO_ROOT}
+    rm -rf asf-dist
     ```
 
 ## Prepare new release branches and cache - optional when first minor version is released
