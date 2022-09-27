@@ -34,7 +34,7 @@ from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.models.log import Log
 from airflow.utils import cli, cli_action_loggers, timezone
-from airflow.utils.cli import _try_to_find_path
+from airflow.utils.cli import _search_for_dag_file
 
 repo_root = Path(airflow.__file__).parent.parent
 
@@ -196,15 +196,17 @@ def success_func(_):
     pass
 
 
-def test__try_to_find_path():
+def test__search_for_dags_file():
     dags_folder = settings.DAGS_FOLDER
-    assert _try_to_find_path('') == dags_folder
-    assert _try_to_find_path(None) == dags_folder
+    assert _search_for_dag_file('') == None
+    assert _search_for_dag_file(None) == None
     # if it's a file, and one can be find in subdir, should return full path
-    assert _try_to_find_path('any/hi/test_dags_folder.py') == str(Path(dags_folder) / 'test_dags_folder.py')
+    assert _search_for_dag_file('any/hi/test_dags_folder.py') == str(
+        Path(dags_folder) / 'test_dags_folder.py'
+    )
     # if a folder, even if exists, should return dags folder
     existing_folder = Path(settings.DAGS_FOLDER, 'subdir1')
     assert existing_folder.exists()
-    assert _try_to_find_path(existing_folder.as_posix()) == dags_folder
+    assert _search_for_dag_file(existing_folder.as_posix()) == None
     # when multiple files found, default to the dags folder
-    assert _try_to_find_path('any/hi/__init__.py') == dags_folder
+    assert _search_for_dag_file('any/hi/__init__.py') == None

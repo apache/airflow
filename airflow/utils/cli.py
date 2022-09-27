@@ -184,7 +184,7 @@ def get_dag_by_file_location(dag_id: str):
     return dagbag.dags[dag_id]
 
 
-def _try_to_find_path(val: str | None):
+def _search_for_dag_file(fileloc: str | None) -> str | None:
     """
     Try to correct the path to the dag file in question.
 
@@ -197,11 +197,10 @@ def _try_to_find_path(val: str | None):
     parsed the dags folder).  If we can't find such a file, or if we find more than one, we
     just parse the dags folder as a fallback.
     """
-    if val and Path(val).suffix in ('.zip', '.py'):
-        matches = list(Path(settings.DAGS_FOLDER).rglob(Path(val).name))
+    if fileloc and Path(fileloc).suffix in ('.zip', '.py'):
+        matches = list(Path(settings.DAGS_FOLDER).rglob(Path(fileloc).name))
         if len(matches) == 1:
             return matches[0].as_posix()
-    return settings.DAGS_FOLDER
 
 
 def get_dag(subdir: str | None, dag_id: str) -> DAG:
@@ -217,7 +216,7 @@ def get_dag(subdir: str | None, dag_id: str) -> DAG:
     first_path = process_subdir(subdir)
     dagbag = DagBag(first_path)
     if dag_id not in dagbag.dags:
-        fallback_path = _try_to_find_path(subdir)
+        fallback_path = _search_for_dag_file(subdir) or settings.DAGS_FOLDER
         logger.warning("Dag %r not found in path %s; trying path %s", dag_id, first_path, fallback_path)
         dagbag = DagBag(dag_folder=fallback_path)
         if dag_id not in dagbag.dags:
