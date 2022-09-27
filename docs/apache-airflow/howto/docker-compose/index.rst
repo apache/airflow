@@ -54,7 +54,7 @@ Older versions of ``docker-compose`` do not support all the features required by
 Fetching ``docker-compose.yaml``
 ================================
 
-To deploy Airflow on Docker Compose, you should fetch `docker-compose.yaml <../docker-compose.yaml>`__.
+To deploy Airflow on Docker Compose, you should fetch `docker-compose.yaml <docker-compose.yaml>`__.
 
 .. jinja:: quick_start_ctx
 
