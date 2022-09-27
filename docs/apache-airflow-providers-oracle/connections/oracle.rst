@@ -60,9 +60,9 @@ Extra (optional)
     * ``thick_mode_config_dir`` (str) - Path to use to find the Oracle Client library configuration files when using thick mode.
       If not specified, defaults to the standard way of locating the Oracle Client library configuration files on the OS.
       See `oracledb docs<https://python-oracledb.readthedocs.io/en/latest/user_guide/initialization.html#optional-oracle-net-configuration-files>` for more info.
-    * ``fetch_decimals`` (bool) - Specify whether numbers should be fetched as ``decimal.Decimal`` values.  Defaults to False.
+    * ``fetch_decimals`` (bool) - Specify whether numbers should be fetched as ``decimal.Decimal`` values.
       See `defaults.fetch_decimals<https://python-oracledb.readthedocs.io/en/latest/api_manual/defaults.html#defaults.fetch_decimals>` for more info.
-    * ``fetch_lobs`` (bool) - Specify whether to fetch strings/bytes for CLOBs or BLOBs instead of locators.  Defaults to True.
+    * ``fetch_lobs`` (bool) - Specify whether to fetch strings/bytes for CLOBs or BLOBs instead of locators.
       See `defaults.fetch_lobs<https://python-oracledb.readthedocs.io/en/latest/api_manual/defaults.html#defaults.fetch_decimals>` for more info.
 
 
