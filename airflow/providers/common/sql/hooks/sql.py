@@ -19,7 +19,7 @@ from __future__ import annotations
 import warnings
 from contextlib import closing
 from datetime import datetime
-from typing import Any, Callable, Iterable, Mapping, Optional
+from typing import Any, Callable, Iterable, Mapping, Optional, Dict
 
 import sqlparse
 from packaging.version import Version
@@ -130,6 +130,15 @@ class DbApiHook(BaseForDbApiHook):
         # Hook deriving from the DBApiHook to still have access to the field in it's constructor
         self.__schema = schema
         self.log_sql = log_sql
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict[str, Any]:
+        """Returns custom UI field behaviour for Database Connections."""
+        return {
+            "relabeling": {
+                "schema": "Database",
+            },
+        }
 
     def get_conn(self):
         """Returns a connection object"""
