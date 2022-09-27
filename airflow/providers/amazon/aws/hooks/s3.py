@@ -539,7 +539,7 @@ class S3Hook(AwsBaseHook):
 
         .. seealso::
             For more details about S3 Select parameters:
-            http://boto3.readthedocs.io/en/latest/reference/services/s3.html#S3.Client.select_object_content
+            https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.select_object_content
         """
         expression = expression or 'SELECT * FROM S3Object'
         expression_type = expression_type or 'SQL'
