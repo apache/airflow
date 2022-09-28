@@ -19,6 +19,7 @@ from __future__ import annotations
 import unittest
 
 import jmespath
+import yaml
 from parameterized import parameterized
 
 from tests.charts.helm_template_generator import render_chart
@@ -32,6 +33,16 @@ class StatsdTest(unittest.TestCase):
 
         assert "statsd" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
 
+        assert {"name": "config", "configMap": {"name": "release-name-statsd"}} in jmespath.search(
+            "spec.template.spec.volumes", docs[0]
+        )
+
+        assert {
+            "name": "config",
+            "mountPath": "/etc/statsd-exporter/mappings.yml",
+            "subPath": "mappings.yml",
+        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
     def test_should_add_volume_and_volume_mount_when_exist_extra_mappings(self):
         extra_mapping = {
             "match": "airflow.pool.queued_slots.*",
@@ -40,6 +51,27 @@ class StatsdTest(unittest.TestCase):
         }
         docs = render_chart(
             values={"statsd": {"enabled": True, "extraMappings": [extra_mapping]}},
+            show_only=["templates/statsd/statsd-deployment.yaml"],
+        )
+
+        assert {"name": "config", "configMap": {"name": "release-name-statsd"}} in jmespath.search(
+            "spec.template.spec.volumes", docs[0]
+        )
+
+        assert {
+            "name": "config",
+            "mountPath": "/etc/statsd-exporter/mappings.yml",
+            "subPath": "mappings.yml",
+        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+    def test_should_add_volume_and_volume_mount_when_exist_override_mappings(self):
+        override_mapping = {
+            "match": "airflow.pool.queued_slots.*",
+            "name": "airflow_pool_queued_slots",
+            "labels": {"pool": "$1"},
+        }
+        docs = render_chart(
+            values={"statsd": {"enabled": True, "overrideMappings": [override_mapping]}},
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
 
@@ -134,3 +166,46 @@ class StatsdTest(unittest.TestCase):
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+
+    def test_statsd_configmap_by_default(self):
+        docs = render_chart(show_only=["templates/configmaps/statsd-configmap.yaml"])
+
+        mappings_yml = jmespath.search('data."mappings.yml"', docs[0])
+        mappings_yml_obj = yaml.safe_load(mappings_yml)
+
+        assert "airflow_dagrun_dependency_check" == mappings_yml_obj["mappings"][0]["name"]
+        assert "airflow_pool_starving_tasks" == mappings_yml_obj["mappings"][-1]["name"]
+
+    def test_statsd_configmap_when_exist_extra_mappings(self):
+        extra_mapping = {
+            "match": "airflow.pool.queued_slots.*",
+            "name": "airflow_pool_queued_slots",
+            "labels": {"pool": "$1"},
+        }
+        docs = render_chart(
+            values={"statsd": {"enabled": True, "extraMappings": [extra_mapping]}},
+            show_only=["templates/configmaps/statsd-configmap.yaml"],
+        )
+
+        mappings_yml = jmespath.search('data."mappings.yml"', docs[0])
+        mappings_yml_obj = yaml.safe_load(mappings_yml)
+
+        assert "airflow_dagrun_dependency_check" == mappings_yml_obj["mappings"][0]["name"]
+        assert "airflow_pool_queued_slots" == mappings_yml_obj["mappings"][-1]["name"]
+
+    def test_statsd_configmap_when_exist_override_mappings(self):
+        override_mapping = {
+            "match": "airflow.pool.queued_slots.*",
+            "name": "airflow_pool_queued_slots",
+            "labels": {"pool": "$1"},
+        }
+        docs = render_chart(
+            values={"statsd": {"enabled": True, "overrideMappings": [override_mapping]}},
+            show_only=["templates/configmaps/statsd-configmap.yaml"],
+        )
+
+        mappings_yml = jmespath.search('data."mappings.yml"', docs[0])
+        mappings_yml_obj = yaml.safe_load(mappings_yml)
+
+        assert 1 == len(mappings_yml_obj["mappings"])
+        assert "airflow_pool_queued_slots" == mappings_yml_obj["mappings"][0]["name"]
