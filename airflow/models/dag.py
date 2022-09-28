@@ -2454,7 +2454,6 @@ class DAG(LoggingMixin):
         :param conn_file_path: file path to a connection file in either yaml or json
         :param variable_file_path: file path to a variable file in either yaml or json
         :param session: database connection (optional)
-        :return:
         """
 
         def add_logger_if_needed(ti: TaskInstance):
