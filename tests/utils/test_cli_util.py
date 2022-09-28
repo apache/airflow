@@ -198,8 +198,8 @@ def success_func(_):
 
 def test__search_for_dags_file():
     dags_folder = settings.DAGS_FOLDER
-    assert _search_for_dag_file('') == None
-    assert _search_for_dag_file(None) == None
+    assert _search_for_dag_file('') is None
+    assert _search_for_dag_file(None) is None
     # if it's a file, and one can be find in subdir, should return full path
     assert _search_for_dag_file('any/hi/test_dags_folder.py') == str(
         Path(dags_folder) / 'test_dags_folder.py'
@@ -207,6 +207,6 @@ def test__search_for_dags_file():
     # if a folder, even if exists, should return dags folder
     existing_folder = Path(settings.DAGS_FOLDER, 'subdir1')
     assert existing_folder.exists()
-    assert _search_for_dag_file(existing_folder.as_posix()) == None
+    assert _search_for_dag_file(existing_folder.as_posix()) is None
     # when multiple files found, default to the dags folder
-    assert _search_for_dag_file('any/hi/__init__.py') == None
+    assert _search_for_dag_file('any/hi/__init__.py') is None
