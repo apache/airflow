@@ -24,14 +24,19 @@ import sys
 from argparse import Namespace
 from contextlib import contextmanager
 from datetime import datetime
+from pathlib import Path
 from unittest import mock
 
 import pytest
 
+import airflow
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.models.log import Log
 from airflow.utils import cli, cli_action_loggers, timezone
+from airflow.utils.cli import _search_for_dag_file
+
+repo_root = Path(airflow.__file__).parent.parent
 
 
 class TestCliUtil:
@@ -189,3 +194,19 @@ def fail_func(_):
 @cli.action_cli(check_db=False)
 def success_func(_):
     pass
+
+
+def test__search_for_dags_file():
+    dags_folder = settings.DAGS_FOLDER
+    assert _search_for_dag_file('') is None
+    assert _search_for_dag_file(None) is None
+    # if it's a file, and one can be find in subdir, should return full path
+    assert _search_for_dag_file('any/hi/test_dags_folder.py') == str(
+        Path(dags_folder) / 'test_dags_folder.py'
+    )
+    # if a folder, even if exists, should return dags folder
+    existing_folder = Path(settings.DAGS_FOLDER, 'subdir1')
+    assert existing_folder.exists()
+    assert _search_for_dag_file(existing_folder.as_posix()) is None
+    # when multiple files found, default to the dags folder
+    assert _search_for_dag_file('any/hi/__init__.py') is None

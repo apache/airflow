@@ -133,7 +133,13 @@
         "catchup": { "type": "boolean" },
         "is_subdag": { "type": "boolean" },
         "fileloc": { "type" : "string"},
-        "orientation": { "type" : "string"},
+        "_processor_dags_folder": {
+            "anyOf": [
+                { "type": "null" },
+                {"type": "string"}
+            ]
+        },
+         "orientation": { "type" : "string"},
         "_description": { "type" : "string"},
         "_concurrency": { "type" : "number"},
         "_max_active_tasks": { "type" : "number"},

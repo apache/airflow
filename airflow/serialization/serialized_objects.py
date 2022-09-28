@@ -50,7 +50,7 @@ from airflow.providers_manager import ProvidersManager
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import Validator, load_dag_schema
-from airflow.settings import json
+from airflow.settings import DAGS_FOLDER, json
 from airflow.timetables.base import Timetable
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.docs import get_docs_url
@@ -1123,6 +1123,8 @@ class SerializedDAG(DAG, BaseSerialization):
         """Serializes a DAG into a JSON object."""
         try:
             serialized_dag = cls.serialize_to_json(dag, cls._decorated_fields)
+
+            serialized_dag['_processor_dags_folder'] = DAGS_FOLDER
 
             # If schedule_interval is backed by timetable, serialize only
             # timetable; vice versa for a timetable backed by schedule_interval.
