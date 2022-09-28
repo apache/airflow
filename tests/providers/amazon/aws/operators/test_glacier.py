@@ -51,5 +51,5 @@ class TestGlacierUploadArchiveOperator(TestCase):
         )
         op.execute(mock.MagicMock())
         hook_mock.return_value.upload_archive.assert_called_once_with(
-            accountId='_', vaultName=VAULT_NAME, archiveDescription=None, body=b'Test Data', checksum=None
+            accountId='-', vaultName=VAULT_NAME, archiveDescription=None, body=b'Test Data', checksum=None
         )
