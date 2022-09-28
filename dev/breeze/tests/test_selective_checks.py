@@ -153,8 +153,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], output: str):
                     "docs-build": "true",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "Always Providers[airbyte,apache.livy,"
-                    "dbt.cloud,dingding,discord,http,slack]",
+                    "test-types": "Always Providers[airbyte,apache.livy,dbt.cloud,dingding,discord,http]",
                 },
                 id="Helm tests, http and all relevant providers, kubernetes tests and "
                 "docs should run even if unimportant files were added",

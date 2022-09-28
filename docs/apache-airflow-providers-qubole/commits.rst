@@ -28,14 +28,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.2.1
+.....
+
+Latest change: 2022-09-13
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+`5066844513 <https://github.com/apache/airflow/commit/50668445137e4037bb4a3b652bec22e53d1eddd7>`_  2022-09-09   ``D400 first line should end with period batch02 (#25268)``
+=================================================================================================  ===========  ====================================================================================
+
 3.2.0
 .....
 
-Latest change: 2022-08-05
+Latest change: 2022-08-10
 
 =================================================================================================  ===========  ============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================
+`e5ac6c7cfb <https://github.com/apache/airflow/commit/e5ac6c7cfb189c33e3b247f7d5aec59fe5e89a00>`_  2022-08-10   ``Prepare docs for new providers release (August 2022) (#25618)``
 `d9e924c058 <https://github.com/apache/airflow/commit/d9e924c058f5da9eba5bb5b85a04bfea6fb2471a>`_  2022-08-05   ``Make extra link work in UI (#25500)``
 `44a1cdc1e1 <https://github.com/apache/airflow/commit/44a1cdc1e15c818d5c899dedf2b4367e4a97df20>`_  2022-08-04   ``Correctly render 'results_parser_callable' param in Qubole docs (#25514)``
 `acab8f52dd <https://github.com/apache/airflow/commit/acab8f52dd8d90fd6583779127895dd343780f79>`_  2022-07-29   ``Move all "old" SQL operators to common.sql providers (#25350)``
