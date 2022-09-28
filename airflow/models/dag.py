@@ -2446,7 +2446,15 @@ class DAG(LoggingMixin):
         variable_file_path: str | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
-        """Execute one single DagRun for a given DAG and execution date."""
+        """
+        Execute one single DagRun for a given DAG and execution date.
+
+        :param execution_date: execution date for the DAG run
+        :param run_conf: configuration to pass to newly created dagrun
+        :param conn_file_path: file path to a connection file in either yaml or json
+        :param variable_file_path: file path to a variable file in either yaml or json
+        :param session: database connection (optional)
+        """
 
         def add_logger_if_needed(ti: TaskInstance):
             """
