@@ -210,12 +210,17 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
     template_fields = ("partition_clause",)
 
+    sql_check_template = """
+        SELECT '{column}' AS col_name, '{check}' AS check_type, {column}_{check} AS check_result
+        FROM (SELECT {check_statment} AS {column}_{check} FROM {table}) AS sq
+    """
+
     column_checks = {
-        "null_check": "SUM(CASE WHEN column IS NULL THEN 1 ELSE 0 END) AS column_null_check",
-        "distinct_check": "COUNT(DISTINCT(column)) AS column_distinct_check",
-        "unique_check": "COUNT(column) - COUNT(DISTINCT(column)) AS column_unique_check",
-        "min": "MIN(column) AS column_min",
-        "max": "MAX(column) AS column_max",
+        "null_check": "SUM(CASE WHEN {column} IS NULL THEN 1 ELSE 0 END)",
+        "distinct_check": "COUNT(DISTINCT({column}))",
+        "unique_check": "COUNT({column}) - COUNT(DISTINCT({column}))",
+        "min": "MIN({column})",
+        "max": "MAX({column})",
     }
 
     def __init__(
@@ -229,38 +234,50 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         **kwargs,
     ):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
-        for checks in column_mapping.values():
-            for check, check_values in checks.items():
-                self._column_mapping_validation(check, check_values)
 
         self.table = table
         self.column_mapping = column_mapping
+        checks_sql = ""
+        for column, checks in self.column_mapping.items():
+            for check, check_values in checks.items():
+                self._column_mapping_validation(check, check_values)
+            checks_list = [*checks]
+            checks_sql = checks_sql + " UNION ALL ".join(
+                [
+                    self.sql_check_template.format(
+                        check_statement=self.column_checks[check].format(column=column),
+                        check=check,
+                        table=self.table,
+                        column=column,
+                    )
+                    for check in checks_list
+                ]
+            )
         self.partition_clause = partition_clause
-        # OpenLineage needs a valid SQL query with the input/output table(s) to parse
-        self.sql = f"SELECT * FROM {self.table};"
+        partition_clause_statement = f"WHERE {self.partition_clause}" if self.partition_clause else ""
+        self.sql = f"""
+            SELECT col_name, check_type, check_result FROM ({checks_sql})
+            AS check_columns {partition_clause_statement}
+        """
 
     def execute(self, context: Context):
         hook = self.get_db_hook()
         failed_tests = []
-        for column in self.column_mapping:
-            checks = [*self.column_mapping[column]]
-            checks_sql = ",".join([self.column_checks[check].replace("column", column) for check in checks])
-            partition_clause_statement = f"WHERE {self.partition_clause}" if self.partition_clause else ""
-            self.sql = f"SELECT {checks_sql} FROM {self.table} {partition_clause_statement};"
-            records = hook.get_first(self.sql)
+        records = hook.get_records(self.sql)
 
-            if not records:
-                raise AirflowException(f"The following query returned zero rows: {self.sql}")
+        if not records:
+            raise AirflowException(f"The following query returned zero rows: {self.sql}")
 
-            self.log.info("Record: %s", records)
+        self.log.info("Record: %s", records)
 
-            for idx, result in enumerate(records):
-                tolerance = self.column_mapping[column][checks[idx]].get("tolerance")
+        for row in records:
+            column, check, result = row
+            tolerance = self.column_mapping[column][check].get("tolerance")
 
-                self.column_mapping[column][checks[idx]]["result"] = result
-                self.column_mapping[column][checks[idx]]["success"] = self._get_match(
-                    self.column_mapping[column][checks[idx]], result, tolerance
-                )
+            self.column_mapping[column][check]["result"] = result
+            self.column_mapping[column][check]["success"] = self._get_match(
+                self.column_mapping[column][check], result, tolerance
+            )
 
             failed_tests.extend(_get_failed_checks(self.column_mapping[column], column))
         if failed_tests:
@@ -399,8 +416,8 @@ class SQLTableCheckOperator(BaseSQLOperator):
     template_fields = ("partition_clause",)
 
     sql_check_template = """
-        SELECT '_check_name' AS check_name, MIN(_check_name) AS check_result
-        FROM (SELECT CASE WHEN check_statement THEN 1 ELSE 0 END AS _check_name FROM table) AS sq
+        SELECT {check_name} AS check_name, MIN({check_name}) AS check_result
+        FROM (SELECT CASE WHEN {check_statement} THEN 1 ELSE 0 END AS {check_name} FROM {table}) AS sq
     """
 
     def __init__(
@@ -418,16 +435,11 @@ class SQLTableCheckOperator(BaseSQLOperator):
         self.table = table
         self.checks = checks
         self.partition_clause = partition_clause
-        # OpenLineage needs a valid SQL query with the input/output table(s) to parse
-        self.sql = f"SELECT * FROM {self.table};"
-
-    def execute(self, context: Context):
-        hook = self.get_db_hook()
         checks_sql = " UNION ALL ".join(
             [
-                self.sql_check_template.replace("check_statement", value["check_statement"])
-                .replace("_check_name", check_name)
-                .replace("table", self.table)
+                self.sql_check_template.format(
+                    check_statement=value["check_statement"], check_name=check_name, table=self.table
+                )
                 for check_name, value in self.checks.items()
             ]
         )
@@ -437,6 +449,8 @@ class SQLTableCheckOperator(BaseSQLOperator):
             AS check_table {partition_clause_statement}
         """
 
+    def execute(self, context: Context):
+        hook = self.get_db_hook()
         records = hook.get_records(self.sql)
 
         if not records:

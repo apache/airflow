@@ -601,28 +601,27 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
         """Perform checks on the given columns."""
         hook = self.get_db_hook()
         failed_tests = []
-        for column in self.column_mapping:
-            checks = [*self.column_mapping[column]]
-            checks_sql = ",".join([self.column_checks[check].replace("column", column) for check in checks])
-            partition_clause_statement = f"WHERE {self.partition_clause}" if self.partition_clause else ""
-            self.sql = f"SELECT {checks_sql} FROM {self.table} {partition_clause_statement};"
 
-            job = self._submit_job(hook, job_id="")
-            context["ti"].xcom_push(key="job_id", value=job.job_id)
-            records = list(job.result().to_dataframe().values.flatten())
+        job = self._submit_job(hook, job_id="")
+        context["ti"].xcom_push(key="job_id", value=job.job_id)
+        records = job.result().to_dataframe()
 
-            if not records:
-                raise AirflowException(f"The following query returned zero rows: {self.sql}")
+        if records.empty:
+            raise AirflowException(f"The following query returned zero rows: {self.sql}")
 
-            self.log.info("Record: %s", records)
+        records.columns = records.columns.str.lower()
+        self.log.info("Record: %s", records)
 
-            for idx, result in enumerate(records):
-                tolerance = self.column_mapping[column][checks[idx]].get("tolerance")
+        for row in records.iterrows():
+            column = row[1].get("col_name")
+            check = row[1].get("check_type")
+            result = row[1].get("check_result")
+            tolerance = self.column_mapping[column][check].get("tolerance")
 
-                self.column_mapping[column][checks[idx]]["result"] = result
-                self.column_mapping[column][checks[idx]]["success"] = self._get_match(
-                    self.column_mapping[column][checks[idx]], result, tolerance
-                )
+            self.column_mapping[column][check]["result"] = result
+            self.column_mapping[column][check]["success"] = self._get_match(
+                self.column_mapping[column][check], result, tolerance
+            )
 
             failed_tests.extend(_get_failed_checks(self.column_mapping[column], column))
         if failed_tests:
@@ -709,18 +708,6 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
     def execute(self, context=None):
         """Execute the given checks on the table."""
         hook = self.get_db_hook()
-        checks_sql = " UNION ALL ".join(
-            [
-                self.sql_check_template.replace("check_statement", value["check_statement"])
-                .replace("_check_name", check_name)
-                .replace("table", self.table)
-                for check_name, value in self.checks.items()
-            ]
-        )
-        partition_clause_statement = f"WHERE {self.partition_clause}" if self.partition_clause else ""
-        self.sql = f"SELECT check_name, check_result FROM ({checks_sql}) "
-        f"AS check_table {partition_clause_statement};"
-
         job = self._submit_job(hook, job_id="")
         context["ti"].xcom_push(key="job_id", value=job.job_id)
         records = job.result().to_dataframe()
