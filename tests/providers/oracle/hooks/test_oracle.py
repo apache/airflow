@@ -144,6 +144,126 @@ class TestOracleHookConn(unittest.TestCase):
         self.connection.extra = json.dumps({'service_name': 'service_name'})
         assert self.db_hook.get_conn().current_schema == self.connection.schema
 
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.init_oracle_client')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
+    def test_set_thick_mode_extra(self, mock_connect, mock_init_client):
+        thick_mode_test = {
+            'thick_mode': True,
+            'thick_mode_lib_dir': '/opt/oracle/instantclient',
+            'thick_mode_config_dir': '/opt/oracle/config',
+        }
+        self.connection.extra = json.dumps(thick_mode_test)
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        assert mock_init_client.call_count == 1
+        args, kwargs = mock_init_client.call_args
+        assert args == ()
+        assert kwargs['lib_dir'] == thick_mode_test['thick_mode_lib_dir']
+        assert kwargs['config_dir'] == thick_mode_test['thick_mode_config_dir']
+
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.init_oracle_client')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
+    def test_set_thick_mode_extra_str(self, mock_connect, mock_init_client):
+        thick_mode_test = {'thick_mode': 'True'}
+        self.connection.extra = json.dumps(thick_mode_test)
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        assert mock_init_client.call_count == 1
+
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.init_oracle_client')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
+    def test_set_thick_mode_params(self, mock_connect, mock_init_client):
+        # Verify params overrides connection config extra
+        thick_mode_test = {
+            'thick_mode': False,
+            'thick_mode_lib_dir': '/opt/oracle/instantclient',
+            'thick_mode_config_dir': '/opt/oracle/config',
+        }
+        self.connection.extra = json.dumps(thick_mode_test)
+        db_hook = OracleHook(thick_mode=True, thick_mode_lib_dir='/test', thick_mode_config_dir='/test_conf')
+        db_hook.get_connection = mock.Mock()
+        db_hook.get_connection.return_value = self.connection
+        db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        assert mock_init_client.call_count == 1
+        args, kwargs = mock_init_client.call_args
+        assert args == ()
+        assert kwargs['lib_dir'] == '/test'
+        assert kwargs['config_dir'] == '/test_conf'
+
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.init_oracle_client')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
+    def test_thick_mode_defaults_to_false(self, mock_connect, mock_init_client):
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        assert mock_init_client.call_count == 0
+
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.init_oracle_client')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
+    def test_thick_mode_dirs_defaults(self, mock_connect, mock_init_client):
+        thick_mode_test = {'thick_mode': True}
+        self.connection.extra = json.dumps(thick_mode_test)
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        assert mock_init_client.call_count == 1
+        args, kwargs = mock_init_client.call_args
+        assert args == ()
+        assert kwargs['lib_dir'] is None
+        assert kwargs['config_dir'] is None
+
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
+    def test_oracledb_defaults_attributes_default_values(self, mock_connect):
+        default_fetch_decimals = oracledb.defaults.fetch_decimals
+        default_fetch_lobs = oracledb.defaults.fetch_lobs
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        # Check that OracleHook.get_conn() doesn't try to set defaults if not provided
+        assert oracledb.defaults.fetch_decimals == default_fetch_decimals
+        assert oracledb.defaults.fetch_lobs == default_fetch_lobs
+
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
+    def test_set_oracledb_defaults_attributes_extra(self, mock_connect):
+        defaults_test = {'fetch_decimals': True, 'fetch_lobs': False}
+        self.connection.extra = json.dumps(defaults_test)
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        assert oracledb.defaults.fetch_decimals == defaults_test['fetch_decimals']
+        assert oracledb.defaults.fetch_lobs == defaults_test['fetch_lobs']
+
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
+    def test_set_oracledb_defaults_attributes_extra_str(self, mock_connect):
+        defaults_test = {'fetch_decimals': 'True', 'fetch_lobs': 'False'}
+        self.connection.extra = json.dumps(defaults_test)
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        assert oracledb.defaults.fetch_decimals is True
+        assert oracledb.defaults.fetch_lobs is False
+
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
+    def test_set_oracledb_defaults_attributes_params(self, mock_connect):
+        # Verify params overrides connection config extra
+        defaults_test = {'fetch_decimals': False, 'fetch_lobs': True}
+        self.connection.extra = json.dumps(defaults_test)
+        db_hook = OracleHook(fetch_decimals=True, fetch_lobs=False)
+        db_hook.get_connection = mock.Mock()
+        db_hook.get_connection.return_value = self.connection
+        db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        assert oracledb.defaults.fetch_decimals is True
+        assert oracledb.defaults.fetch_lobs is False
+
+    def test_type_checking_thick_mode_lib_dir(self):
+        with pytest.raises(TypeError, match=r"thick_mode_lib_dir expected str or None, got.*"):
+            thick_mode_lib_dir_test = {'thick_mode': True, 'thick_mode_lib_dir': 1}
+            self.connection.extra = json.dumps(thick_mode_lib_dir_test)
+            self.db_hook.get_conn()
+
+    def test_type_checking_thick_mode_config_dir(self):
+        with pytest.raises(TypeError, match=r"thick_mode_config_dir expected str or None, got.*"):
+            thick_mode_config_dir_test = {'thick_mode': True, 'thick_mode_config_dir': 1}
+            self.connection.extra = json.dumps(thick_mode_config_dir_test)
+            self.db_hook.get_conn()
+
 
 @unittest.skipIf(oracledb is None, 'oracledb package not present')
 class TestOracleHook(unittest.TestCase):
