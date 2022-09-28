@@ -47,6 +47,26 @@ FILE_NAME = "example_upload.txt"
 UPLOAD_FILE_PATH = str(Path(__file__).parent / "resources" / FILE_NAME)
 
 
+def workaround_in_debug_executor(cls):
+    """
+    DebugExecutor change sensor mode from poke to reschedule. Some sensors don't work correctly
+    in reschedule mode. They are decorated with `poke_mode_only` decorator to fail when mode is changed.
+    This method creates dummy property to overwrite it and force poke method to always return True.
+    """
+    cls.mode = dummy_mode_property()
+    cls.poke = lambda self, ctx: True
+
+
+def dummy_mode_property():
+    def mode_getter(self):
+        return self._mode
+
+    def mode_setter(self, value):
+        self._mode = value
+
+    return property(mode_getter, mode_setter)
+
+
 with models.DAG(
     DAG_ID,
     schedule='@once',
@@ -58,11 +78,14 @@ with models.DAG(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
     )
 
+    workaround_in_debug_executor(GCSUploadSessionCompleteSensor)
+
     # [START howto_sensor_gcs_upload_session_complete_task]
     gcs_upload_session_complete = GCSUploadSessionCompleteSensor(
         bucket=BUCKET_NAME,
         prefix=FILE_NAME,
         inactivity_period=15,
+        timeout=60,
         min_objects=1,
         allow_delete=True,
         previous_objects=set(),
@@ -89,7 +112,6 @@ with models.DAG(
     gcs_object_exists = GCSObjectExistenceSensor(
         bucket=BUCKET_NAME,
         object=FILE_NAME,
-        mode='poke',
         task_id="gcs_object_exists_task",
     )
     # [END howto_sensor_object_exists_task]
@@ -98,7 +120,6 @@ with models.DAG(
     gcs_object_with_prefix_exists = GCSObjectsWithPrefixExistenceSensor(
         bucket=BUCKET_NAME,
         prefix=FILE_NAME[:5],
-        mode='poke',
         task_id="gcs_object_with_prefix_exists_task",
     )
     # [END howto_sensor_object_with_prefix_exists_task]
