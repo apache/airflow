@@ -168,7 +168,11 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         :param secret_id: Name of the secret
         :param sep: Separator used to concatenate path_prefix and secret_id
         """
-        path = f'{path_prefix}{sep}{secret_id}'
+        # when no prefix is given by default it adds sep for the key
+        if path_prefix == "":
+            path = f'{secret_id}'    
+        else:
+            path = f'{path_prefix}{sep}{secret_id}'
         return path.replace('_', sep)
 
     def _get_secret(self, path_prefix: str, secret_id: str) -> str | None:
