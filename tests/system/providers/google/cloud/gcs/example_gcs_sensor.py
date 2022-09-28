@@ -85,7 +85,6 @@ with models.DAG(
         bucket=BUCKET_NAME,
         prefix=FILE_NAME,
         inactivity_period=15,
-        timeout=60,
         min_objects=1,
         allow_delete=True,
         previous_objects=set(),
