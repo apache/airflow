@@ -22,9 +22,10 @@ import json
 import logging
 import os
 import re
+import tempfile
 import unittest
 from argparse import ArgumentParser
-from contextlib import redirect_stdout
+from contextlib import contextmanager, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
@@ -58,6 +59,13 @@ def reset(dag_id):
         tis.delete()
         runs = session.query(DagRun).filter_by(dag_id=dag_id)
         runs.delete()
+
+
+@contextmanager
+def move_back(old_path, new_path):
+    os.rename(old_path, new_path)
+    yield
+    os.rename(new_path, old_path)
 
 
 # TODO: Check if tests needs side effects - locally there's missing DAG
@@ -182,6 +190,80 @@ class TestCliTasks:
             external_executor_id=None,
         )
         mock_get_dag_by_deserialization.assert_called_once_with(self.dag_id)
+
+    def test_cli_test_different_path(self, session):
+        """
+        When thedag processor has a different dags folder
+        from the worker, ``airflow tasks run --local`` should still work.
+        """
+        repo_root = Path(__file__).parent.parent.parent.parent
+        orig_file_path = repo_root / 'tests/dags/test_dags_folder.py'
+        orig_dags_folder = orig_file_path.parent
+
+        # parse dag in original path
+        with conf_vars({('core', 'dags_folder'): orig_dags_folder.as_posix()}):
+            dagbag = DagBag(include_examples=False)
+            dag = dagbag.get_dag('test_dags_folder')
+            dagbag.sync_to_db(session=session)
+
+        dag.create_dagrun(
+            state=State.NONE,
+            run_id='abc123',
+            run_type=DagRunType.MANUAL,
+            execution_date=pendulum.now('UTC'),
+            session=session,
+        )
+        session.commit()
+
+        # now let's move the file
+        # additionally let's update the dags folder to be the new path
+        # ideally since dags_folder points correctly to the file, airflow
+        # should be able to find the dag.
+        with tempfile.TemporaryDirectory() as td:
+            new_file_path = Path(td) / Path(orig_file_path).name
+            new_dags_folder = new_file_path.parent
+            with move_back(orig_file_path, new_file_path), conf_vars(
+                {('core', 'dags_folder'): new_dags_folder.as_posix()}
+            ):
+                ser_dag = (
+                    session.query(SerializedDagModel)
+                    .filter(SerializedDagModel.dag_id == 'test_dags_folder')
+                    .one()
+                )
+                # confirm that the serialized dag location has not been updated
+                assert ser_dag.fileloc == orig_file_path.as_posix()
+                assert ser_dag.data['dag']['_processor_dags_folder'] == orig_dags_folder.as_posix()
+                assert ser_dag.data['dag']['fileloc'] == orig_file_path.as_posix()
+                assert ser_dag.dag._processor_dags_folder == orig_dags_folder.as_posix()
+                from airflow.settings import DAGS_FOLDER
+
+                assert DAGS_FOLDER == new_dags_folder.as_posix() != orig_dags_folder.as_posix()
+                task_command.task_run(
+                    self.parser.parse_args(
+                        [
+                            'tasks',
+                            'run',
+                            '--ignore-all-dependencies',
+                            '--local',
+                            'test_dags_folder',
+                            'task',
+                            'abc123',
+                        ]
+                    )
+                )
+            ti = (
+                session.query(TaskInstance)
+                .filter(
+                    TaskInstance.task_id == 'task',
+                    TaskInstance.dag_id == 'test_dags_folder',
+                    TaskInstance.run_id == 'abc123',
+                    TaskInstance.map_index == -1,
+                )
+                .one()
+            )
+            assert ti.state == 'success'
+            # verify that the file was in different location when run
+            assert ti.xcom_pull(ti.task_id) == new_file_path.as_posix()
 
     @mock.patch("airflow.cli.commands.task_command.get_dag_by_deserialization")
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
