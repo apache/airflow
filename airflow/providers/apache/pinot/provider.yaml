@@ -22,6 +22,7 @@ description: |
     `Apache Pinot <https://pinot.apache.org/>`__
 
 versions:
+  - 3.2.1
   - 3.2.0
   - 3.1.0
   - 3.0.0
@@ -35,7 +36,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.2.0
-  - apache-airflow-providers-common-sql>=1.1.0
+  - apache-airflow-providers-common-sql>=1.2.0
   - pinotdb>0.1.2
   # Pinotdb 0.4.7 lacks ciso8601 as install_requires dependency, yet it has implicit dependency on it
   # Until https://github.com/python-pinot-dbapi/pinot-dbapi/issues/47 is fixed we add the dependency in

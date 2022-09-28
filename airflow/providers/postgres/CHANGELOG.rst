@@ -24,6 +24,19 @@
 Changelog
 ---------
 
+5.2.2
+.....
+
+Misc
+~~~~
+
+* ``Add common-sql lower bound for common-sql (#25789)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Rename schema to database in 'PostgresHook' (#26436)``
+   * ``Revert "Rename schema to database in 'PostgresHook' (#26436)" (#26734)``
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+
 5.2.1
 .....
 
@@ -35,7 +48,6 @@ Bug Fixes
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``postgres provider: use non-binary psycopg2 (#25710)``
-   * ``Add common-sql lower bound for common-sql (#25789)``
 
 5.2.0
 .....

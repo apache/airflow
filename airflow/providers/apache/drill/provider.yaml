@@ -22,6 +22,7 @@ description: |
     `Apache Drill <https://drill.apache.org/>`__.
 
 versions:
+  - 2.2.1
   - 2.2.0
   - 2.1.0
   - 2.0.0
@@ -33,7 +34,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.2.0
-  - apache-airflow-providers-common-sql>=1.1.0
+  - apache-airflow-providers-common-sql>=1.2.0
   - sqlalchemy-drill>=1.1.0
 
 integrations:

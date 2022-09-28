@@ -28,6 +28,19 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.2.2
+.....
+
+Latest change: 2022-09-27
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`685f523044 <https://github.com/apache/airflow/commit/685f5230440d5d1c538acd80cdb0622f2791fad6>`_  2022-09-27   ``Revert "Rename schema to database in 'PostgresHook' (#26436)" (#26734)``
+`642375f97d <https://github.com/apache/airflow/commit/642375f97de133edba1a6c1fa9397d840e8b5936>`_  2022-09-27   ``Rename schema to database in 'PostgresHook' (#26436)``
+`06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+=================================================================================================  ===========  ====================================================================================
+
 5.2.1
 .....
 
@@ -36,6 +49,7 @@ Latest change: 2022-09-05
 =================================================================================================  ===========  ===========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================
+`25d0baa4ee <https://github.com/apache/airflow/commit/25d0baa4ee69769ff339931f76ebace28c4315f2>`_  2022-09-05   ``Prepare bug-fix release of providers out of band (#26109)``
 `54e7d20176 <https://github.com/apache/airflow/commit/54e7d20176a08ecee659cdd9844c75f4f7570a11>`_  2022-09-05   ``Bump dep on common-sql to fix issue with SQLTableCheckOperator (#26143)``
 `14d56a5a9e <https://github.com/apache/airflow/commit/14d56a5a9e78580c53cf85db504464daccffe21c>`_  2022-08-23   ``postgres provider: use non-binary psycopg2 (#25710)``
 `ca9229b6fe <https://github.com/apache/airflow/commit/ca9229b6fe7eda198c7ce32da13afb97ab9f3e28>`_  2022-08-18   ``Add common-sql lower bound for common-sql (#25789)``

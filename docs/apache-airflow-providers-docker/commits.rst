@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.2.0
+.....
+
+Latest change: 2022-09-27
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`19d6f54704 <https://github.com/apache/airflow/commit/19d6f54704949d017b028e644bbcf45f5b53120b>`_  2022-09-27   ``Add logging options to docker operator (#26653)``
+`06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+`55928b9da6 <https://github.com/apache/airflow/commit/55928b9da60cab415adba90831e14c5b77b52714>`_  2022-09-06   ``Implement ExternalPythonOperator (#25780)``
+`762235fd77 <https://github.com/apache/airflow/commit/762235fd775da5a421c740a5c7be36c5f3c76d07>`_  2022-08-19   ``Add pre-commit hook for custom_operator_name (#25786)``
+=================================================================================================  ===========  ====================================================================================
+
 3.1.0
 .....
 
-Latest change: 2022-07-05
+Latest change: 2022-07-13
 
 =================================================================================================  ===========  ===================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================
+`d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
 `cc6a44bdc3 <https://github.com/apache/airflow/commit/cc6a44bdc396a305fd53c7236427c578e9d4d0b7>`_  2022-07-05   ``'DockerOperator' fix cli.logs giving character array instead of string (#24726)``
 `237d2225d6 <https://github.com/apache/airflow/commit/237d2225d6b92a5012a025ece93cd062382470ed>`_  2022-07-02   ``Force-remove container after DockerOperator execution (#23160)``
 `0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``

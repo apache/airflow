@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 4.4.0
 .....
 
-Latest change: 2022-09-14
+Latest change: 2022-09-22
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`1a07cbe423 <https://github.com/apache/airflow/commit/1a07cbe423dde2558c2a148a54bac1e902000e07>`_  2022-09-22   ``Prepare to release cncf.kubernetes provider (#26588)``
 `e60a459d56 <https://github.com/apache/airflow/commit/e60a459d560e6f9caa83392a1901963c4bc7e15d>`_  2022-09-14   ``Avoid calculating all elements when one item is needed (#26377)``
 `06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
 `4b26c8c541 <https://github.com/apache/airflow/commit/4b26c8c541a720044fa96475620fc70f3ac6ccab>`_  2022-09-09   ``feat(KubernetesPodOperator): Add support of container_security_context (#25530)``

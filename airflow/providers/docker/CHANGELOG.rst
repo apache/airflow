@@ -24,6 +24,23 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add logging options to docker operator (#26653)``
+* ``Add pre-commit hook for custom_operator_name (#25786)``
+* ``Implement ExternalPythonOperator (#25780)``
+
+Bug Fixes
+~~~~~~~~~
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+
 3.1.0
 .....
 

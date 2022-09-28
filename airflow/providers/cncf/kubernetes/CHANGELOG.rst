@@ -44,6 +44,9 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
     * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare to release cncf.kubernetes provider (#26588)``
+
 4.3.0
 .....
 

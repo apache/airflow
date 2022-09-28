@@ -22,6 +22,7 @@ description: |
     `Snowflake <https://www.snowflake.com/>`__
 
 versions:
+  - 3.3.0
   - 3.2.0
   - 3.1.0
   - 3.0.0
@@ -45,7 +46,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.2.0
-  - apache-airflow-providers-common-sql>=1.1.0
+  - apache-airflow-providers-common-sql>=1.2.0
   - snowflake-connector-python>=2.4.1
   - snowflake-sqlalchemy>=1.1.0
 

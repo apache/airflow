@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.3.0
+.....
+
+Latest change: 2022-09-13
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+`6a615ee477 <https://github.com/apache/airflow/commit/6a615ee47755e851854970d7042ee00d0040c8dc>`_  2022-08-30   ``Fix wrong deprecation warning for 'S3ToSnowflakeOperator' (#26047)``
+`9e12d483bc <https://github.com/apache/airflow/commit/9e12d483bcde714ca4225c94df182c4eacd36f7c>`_  2022-08-27   ``Add custom handler param in SnowflakeOperator (#25983)``
+`5c52bbf32d <https://github.com/apache/airflow/commit/5c52bbf32d81291b57d051ccbd1a2479ff706efc>`_  2022-08-27   ``copy into snowflake from external stage (#25541)``
+=================================================================================================  ===========  ====================================================================================
+
 3.2.0
 .....
 
-Latest change: 2022-07-29
+Latest change: 2022-08-10
 
 =================================================================================================  ===========  ============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================
+`e5ac6c7cfb <https://github.com/apache/airflow/commit/e5ac6c7cfb189c33e3b247f7d5aec59fe5e89a00>`_  2022-08-10   ``Prepare docs for new providers release (August 2022) (#25618)``
 `acab8f52dd <https://github.com/apache/airflow/commit/acab8f52dd8d90fd6583779127895dd343780f79>`_  2022-07-29   ``Move all "old" SQL operators to common.sql providers (#25350)``
 `df00436569 <https://github.com/apache/airflow/commit/df00436569bb6fb79ce8c0b7ca71dddf02b854ef>`_  2022-07-22   ``Unify DbApiHook.run() method with the methods which override it (#23971)``
 =================================================================================================  ===========  ============================================================================

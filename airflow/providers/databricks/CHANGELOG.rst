@@ -24,6 +24,30 @@
 Changelog
 ---------
 
+3.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``DatabricksSubmitRunOperator dbt task support (#25623)``
+
+Misc
+~~~~
+
+* ``Add common-sql lower bound for common-sql (#25789)``
+* ``Remove duplicated connection-type within the provider (#26628)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Databricks: fix provider name in the User-Agent string (#25873)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+   * ``D400 first line should end with period batch02 (#25268)``
+
 3.2.0
 .....
 

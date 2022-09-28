@@ -28,14 +28,48 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.0.0
+.....
+
+Latest change: 2022-09-27
+
+=================================================================================================  ===========  ===========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================================================
+`4970bccfa6 <https://github.com/apache/airflow/commit/4970bccfa6a0e4748061d3d1a6b25805d648f299>`_  2022-09-27   ``Change links to 'boto3' documentation (#26708)``
+`89e44c46ad <https://github.com/apache/airflow/commit/89e44c46add19b37e82d0769ce08d57885732856>`_  2022-09-27   ``Remove duplicated connection-type within the provider (#26628)``
+`9b232846b3 <https://github.com/apache/airflow/commit/9b232846b3aef2f5819e467e4cc582aa44883460>`_  2022-09-26   ``Redshift to S3 and S3 to Redshift System test (AIP-47) (#26613)``
+`0c7b4cbf62 <https://github.com/apache/airflow/commit/0c7b4cbf62925cf359648eff146f9f4b0c6e7775>`_  2022-09-22   ``Fix SageMakerEndpointConfigOperator's return value (#26541)``
+`d0951366d7 <https://github.com/apache/airflow/commit/d0951366d735c404f595e0a5610aa33241fdae4b>`_  2022-09-21   ``Convert example_eks_with_fargate_in_one_step.py and example_eks_with_fargate_profile to AIP-47 (#26537)``
+`cf73cb79d7 <https://github.com/apache/airflow/commit/cf73cb79d7aba49d3934864acdd9ce1599836d0f>`_  2022-09-21   ``Remove Amazon S3 Connection Type (#25980)``
+`956ea7c40e <https://github.com/apache/airflow/commit/956ea7c40ebaa66963c2b5e7ed7eb290c5f392d8>`_  2022-09-21   ``Redshift System Test (AIP-47) (#26187)``
+`5b2d0e02c6 <https://github.com/apache/airflow/commit/5b2d0e02c648cffc41468ae2202737b5860c774c>`_  2022-09-21   ``GoogleAPIToS3Operator System Test (AIP-47) (#26370)``
+`23d4f632d7 <https://github.com/apache/airflow/commit/23d4f632d7bb3c96660de617755bdf9ba5940a47>`_  2022-09-21   ``Convert EKS with Nodegroups sample DAG to a system test (AIP-47) (#26539)``
+`156fbd0c67 <https://github.com/apache/airflow/commit/156fbd0c67a97379107aab2bae69432a40827cc4>`_  2022-09-21   ``Convert EC2 sample DAG to system test (#26540)``
+`0751b77048 <https://github.com/apache/airflow/commit/0751b7704841fee83d2f3f65dcde62c095a5dd13>`_  2022-09-21   ``Convert S3 example DAG to System test (AIP-47) (#26535)``
+`8f1c78f6e0 <https://github.com/apache/airflow/commit/8f1c78f6e08b184004b5b4f1f4b0eafa1d08aef3>`_  2022-09-19   ``EMR Serverless Fix for Jobs marked as success even on failure (#26218)``
+`a2b186a152 <https://github.com/apache/airflow/commit/a2b186a152ade5b2932c5d01b437f5549f250a89>`_  2022-09-19   ``Fix AWS Connection warn condition for invalid 'profile_name' argument (#26464)``
+`f51587e85e <https://github.com/apache/airflow/commit/f51587e85e3e54cf0ebb4c35fda6ed43caae284e>`_  2022-09-19   ``Remove redundand catch exception in Amazon Log Task Handlers (#26442)``
+`13892883cf <https://github.com/apache/airflow/commit/13892883cf368f19b1a0b06c03891e0b3ba09ecb>`_  2022-09-19   ``Convert 'example_eks_with_nodegroup_in_one_step' sample DAG to system test (AIP-47) (#26410)``
+`3783be420c <https://github.com/apache/airflow/commit/3783be420c965eb0ec8b19cad98ed6ad636febcf>`_  2022-09-19   ``Migrate DMS sample dag to system test (#26270)``
+`1f7b296227 <https://github.com/apache/airflow/commit/1f7b296227fee772de9ba15af6ce107937ef9b9b>`_  2022-09-18   ``Auto tail file logs in Web UI (#26169)``
+`06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+`d5820a77e8 <https://github.com/apache/airflow/commit/d5820a77e896a1a3ceb671eddddb9c8e3bcfb649>`_  2022-09-12   ``Athena and EMR operator max_retries mix-up fix (#25971)``
+`a45ab47d7a <https://github.com/apache/airflow/commit/a45ab47d7afa97ba6b03471b1dd8816a48cb9689>`_  2022-09-09   ``Add RdsDbSensor to amazon provider package (#26003)``
+`5066844513 <https://github.com/apache/airflow/commit/50668445137e4037bb4a3b652bec22e53d1eddd7>`_  2022-09-09   ``D400 first line should end with period batch02 (#25268)``
+`1573ab9014 <https://github.com/apache/airflow/commit/1573ab9014391bc2973afc8144982348950ae6d0>`_  2022-09-06   ``Fixes SageMaker operator return values (#23628)``
+`751cb9a826 <https://github.com/apache/airflow/commit/751cb9a8268cc4c6b73f0f69acb85432a673d722>`_  2022-09-05   ``Set template_fields on RDS operators (#26005)``
+=================================================================================================  ===========  ===========================================================================================================
+
 5.1.0
 .....
 
-Latest change: 2022-08-31
+Latest change: 2022-09-05
 
 =================================================================================================  ===========  ======================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================================
+`25d0baa4ee <https://github.com/apache/airflow/commit/25d0baa4ee69769ff339931f76ebace28c4315f2>`_  2022-09-05   ``Prepare bug-fix release of providers out of band (#26109)``
 `6c57acc654 <https://github.com/apache/airflow/commit/6c57acc6545e467c27913d54239cab2de47daae1>`_  2022-08-31   ``Additional mask aws credentials (#26014)``
 `6d703dd9e1 <https://github.com/apache/airflow/commit/6d703dd9e13a68863faa211cbfdc24ddfb3bdcf0>`_  2022-08-31   ``Fix display aws connection info (#26025)``
 `8acdc2a834 <https://github.com/apache/airflow/commit/8acdc2a834b9c4e287fe612ed56ab8908d777609>`_  2022-08-30   ``Replace SQL with Common SQL in pre commit (#26058)``

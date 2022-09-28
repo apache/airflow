@@ -18,15 +18,24 @@
 
 
 Package apache-airflow-providers-atlassian-jira
------------------------------------------------
+------------------------------------------------------
 
 `Atlassian Jira <https://www.atlassian.com/>`__
 
 
-This is detailed commit list of changes for versions provider package: ``atlassian-jira``.
+This is detailed commit list of changes for versions provider package: ``atlassian.jira``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
 
 
 
 1.0.0
 .....
+
+Latest change: 2022-09-13
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+`836fe8acc5 <https://github.com/apache/airflow/commit/836fe8acc50b9d47a35ca5c504ddc5c4deb9dee5>`_  2022-08-31   ``Deprecate jira provider in favor of atlassian.jira provider (#25930)``
+=================================================================================================  ===========  ====================================================================================
