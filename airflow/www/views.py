@@ -3175,9 +3175,7 @@ class Airflow(AirflowBaseView):
                 x=x_points[task_id],
                 y=scale_time_units(y_points[task_id], y_unit),
             )
-
-        dates = sorted({ti.execution_date for ti in tis})
-        max_date = max(ti.execution_date for ti in tis) if dates else None
+        max_date = max(ti.execution_date for ti in tis) if tis else None
 
         session.commit()
 
