@@ -130,7 +130,9 @@ will not start as the migrations will not be run:
 
 .. code-block:: yaml
 
-   createUserJob.useHelmHooks: false
-   migrateDatabaseJob.useHelmHooks: false
+    createUserJob:
+      useHelmHooks: false
+    migrateDatabaseJob:
+      useHelmHooks: false
 
 This also applies if you install the chart using ``--wait`` in your ``helm install`` command.
