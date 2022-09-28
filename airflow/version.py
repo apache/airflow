@@ -18,4 +18,4 @@
 # under the License.
 #
 
-version = '1.10.15post1'
+version = '1.10.15.post1'
