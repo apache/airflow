@@ -38,8 +38,8 @@ from airflow.providers.common.sql.operators.sql import (
     SQLTableCheckOperator,
     SQLValueCheckOperator,
     _get_failed_checks,
+    _parse_boolean,
     _raise_exception,
-    parse_boolean,
 )
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
@@ -704,7 +704,7 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
         for row in records.iterrows():
             check = row[1].get("check_name")
             result = row[1].get("check_result")
-            self.checks[check]["success"] = parse_boolean(str(result))
+            self.checks[check]["success"] = _parse_boolean(str(result))
 
         failed_tests = _get_failed_checks(self.checks)
         if failed_tests:
