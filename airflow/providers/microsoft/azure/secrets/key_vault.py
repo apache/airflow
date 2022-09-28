@@ -170,7 +170,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         """
         # when no prefix is given by default it adds sep for the key
         if path_prefix == "":
-            path = f'{secret_id}'    
+            path = f'{secret_id}'
         else:
             path = f'{path_prefix}{sep}{secret_id}'
         return path.replace('_', sep)
