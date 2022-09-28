@@ -33,7 +33,21 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-def parse_boolean(val: str) -> str | bool:
+def _convert_to_float_if_possible(s):
+    """
+    A small helper function to convert a string to a numeric value
+    if appropriate
+
+    :param s: the string to be converted
+    """
+    try:
+        ret = float(s)
+    except (ValueError, TypeError):
+        ret = s
+    return ret
+
+
+def _parse_boolean(val: str) -> str | bool:
     """Try to parse a string into boolean.
 
     Raises ValueError if the input is not a valid true- or false-like string value.
@@ -220,7 +234,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
     sql_check_template = """
         SELECT '{column}' AS col_name, '{check}' AS check_type, {column}_{check} AS check_result
-        FROM (SELECT {check_statment} AS {column}_{check} FROM {table}) AS sq
+        FROM (SELECT {check_statement} AS {column}_{check} FROM {table}) AS sq
     """
 
     column_checks = {
@@ -468,7 +482,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
         for row in records:
             check, result = row
-            self.checks[check]["success"] = parse_boolean(str(result))
+            self.checks[check]["success"] = _parse_boolean(str(result))
 
         failed_tests = _get_failed_checks(self.checks)
         if failed_tests:
@@ -930,7 +944,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
                     follow_branch = self.follow_task_ids_if_true
             elif isinstance(query_result, str):
                 # return result is not Boolean, try to convert from String to Boolean
-                if parse_boolean(query_result):
+                if _parse_boolean(query_result):
                     follow_branch = self.follow_task_ids_if_true
             elif isinstance(query_result, int):
                 if bool(query_result):
@@ -948,17 +962,3 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
             )
 
         self.skip_all_except(context["ti"], follow_branch)
-
-
-def _convert_to_float_if_possible(s):
-    """
-    A small helper function to convert a string to a numeric value
-    if appropriate
-
-    :param s: the string to be converted
-    """
-    try:
-        ret = float(s)
-    except (ValueError, TypeError):
-        ret = s
-    return ret
