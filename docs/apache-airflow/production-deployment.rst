@@ -226,7 +226,7 @@ For more information, see: :ref:`howto/connection:aws:gcp-federation`
 Applying patches from ``main``
 ==============================
 
-On occasion, a user may want to apply a patch from ``main`` which has not yet made it into a release.  Assuming you want to apply a specific PR to one of the official airflow images, you can apply roughly as follows.  It's also possible to apply a specific commit.
+On occasion, you may want to apply a patch from ``main`` which has not yet made it into a release.  Assuming you want to apply a specific PR to one of the official Airflow images, you can apply roughly as follows.  It's also possible to apply a specific commit.
 
 .. code-block:: docker
 
