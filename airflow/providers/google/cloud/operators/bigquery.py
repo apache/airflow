@@ -578,8 +578,6 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.labels = labels
-        # OpenLineage needs a valid SQL query with the input/output table(s) to parse
-        self.sql = ""
 
     def _submit_job(
         self,
@@ -686,8 +684,6 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.labels = labels
-        # OpenLineage needs a valid SQL query with the input/output table(s) to parse
-        self.sql = ""
 
     def _submit_job(
         self,
