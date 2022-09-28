@@ -39,6 +39,7 @@ from airflow.providers.common.sql.operators.sql import (
     SQLTableCheckOperator,
     SQLValueCheckOperator,
     _get_failed_checks,
+    _raise_exception,
     parse_boolean,
 )
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
@@ -264,7 +265,9 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         if not records:
             raise AirflowException("The query returned empty results")
         elif not all(bool(r) for r in records):
-            raise AirflowException(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
+            _raise_exception(
+                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}", self.retry_on_failure
+            )
         self.log.info("Record: %s", event["records"])
         self.log.info("Success.")
 
@@ -623,11 +626,11 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
 
             failed_tests.extend(_get_failed_checks(self.column_mapping[column], column))
         if failed_tests:
-            raise AirflowException(
-                f"Test failed.\nResults:\n{records!s}\n"
-                "The following tests have failed:"
-                f"\n{''.join(failed_tests)}"
-            )
+            exception_string = f"""
+                Test failed.\nResults:\n{records!s}\n
+                The following tests have failed:
+                \n{''.join(failed_tests)}"""
+            _raise_exception(exception_string, self.retry_on_failure)
 
         self.log.info("All tests have passed")
 
@@ -721,11 +724,12 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
 
         failed_tests = _get_failed_checks(self.checks)
         if failed_tests:
-            raise AirflowException(
-                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n"
-                "The following tests have failed:"
-                f"\n{', '.join(failed_tests)}"
-            )
+            exception_string = f"""
+                Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n
+                The following tests have failed:
+                \n{', '.join(failed_tests)}
+            """
+            _raise_exception(exception_string, self.retry_on_failure)
 
         self.log.info("All tests have passed")
 
