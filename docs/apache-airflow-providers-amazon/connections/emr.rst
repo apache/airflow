@@ -21,7 +21,7 @@ Amazon Elastic MapReduce (EMR) Connection
 =========================================
 
 .. note::
-  This connection type only use for store parameters for Start EMR Cluster.
+  This connection type is only used to store parameters to Start EMR Cluster (`run_job_flow` boto3 EMR client method).
 
   This connection not intend to store any credentials for ``boto3`` client, if you try to pass any
   parameters not listed in `RunJobFlow API <https://docs.aws.amazon.com/emr/latest/APIReference/API_RunJobFlow.html>`_
@@ -37,7 +37,7 @@ Configuring the Connection
 --------------------------
 
 Extra (optional)
-    Specify the parameters (as json dictionary) that can be used as initial configuration
-    in :meth:`airflow.providers.amazon.aws.hooks.emr.EmrHook.create_job_flow` for propagate to
+    Specify the parameters (as a `json` dictionary) that can be used as an initial configuration
+    in :meth:`airflow.providers.amazon.aws.hooks.emr.EmrHook.create_job_flow` to propagate to
     `RunJobFlow API <https://docs.aws.amazon.com/emr/latest/APIReference/API_RunJobFlow.html>`_.
     All parameters are optional.

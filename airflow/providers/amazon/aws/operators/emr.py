@@ -333,9 +333,10 @@ class EmrCreateJobFlowOperator(BaseOperator):
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node)
     :param emr_conn_id: :ref:`Amazon Elastic MapReduce Connection <howto/connection:emr>`.
-        Use for receive initial Amazon EMR cluster configuration:
+        Use to receive an initial Amazon EMR cluster configuration:
         ``boto3.client('emr').run_job_flow`` request body.
-        If this is None or empty or connection not exists then empty initial configuration is used.
+        If this is None or empty or the connection does not exist,
+        then an empty initial configuration is used.
     :param job_flow_overrides: boto3 style arguments or reference to an arguments file
         (must be '.json') to override specific ``emr_conn_id`` extra parameters. (templated)
     :param region_name: Region named passed to EmrHook

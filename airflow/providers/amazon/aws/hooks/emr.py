@@ -34,7 +34,7 @@ class EmrHook(AwsBaseHook):
     Interact with Amazon Elastic MapReduce Service.
 
     :param emr_conn_id: :ref:`Amazon Elastic MapReduce Connection <howto/connection:emr>`.
-        This attribute only necessary for using in
+        This attribute is only necessary when using
         the :meth:`~airflow.providers.amazon.aws.hooks.emr.EmrHook.create_job_flow` method.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -83,11 +83,12 @@ class EmrHook(AwsBaseHook):
         """
         Create and start running a new cluster (job flow).
 
-        This method use ``EmrHook.emr_conn_id`` for receive initial Amazon EMR cluster configuration.
-        If ``EmrHook.emr_conn_id`` is empty or connection not exists than empty initial configuration is used.
+        This method uses ``EmrHook.emr_conn_id`` to receive the initial Amazon EMR cluster configuration.
+        If ``EmrHook.emr_conn_id`` is empty or the connection does not exist, then an empty initial
+        configuration is used.
 
-        :param job_flow_overrides: Uses for overwrite parameters in initial Amazon EMR configuration cluster.
-            The resulting configuration will be used in the boto3 emr client run_job_flow method.
+        :param job_flow_overrides: Is used to overwrite the parameters in the initial Amazon EMR configuration
+            cluster. The resulting configuration will be used in the boto3 emr client run_job_flow method.
 
         .. seealso::
             - :ref:`Amazon Elastic MapReduce Connection <howto/connection:emr>`
@@ -102,8 +103,8 @@ class EmrHook(AwsBaseHook):
             except AirflowNotFoundException:
                 warnings.warn(
                     f"Unable to find Amazon Elastic MapReduce Connection ID {self.emr_conn_id!r}, "
-                    "use empty initial configuration. If you want to get rid of this warning "
-                    "message please set `emr_conn_id` to None.",
+                    "using an empty initial configuration. If you want to get rid of this warning "
+                    "message please provide a valid `emr_conn_id` or set it to None.",
                     UserWarning,
                     stacklevel=2,
                 )
@@ -127,9 +128,9 @@ class EmrHook(AwsBaseHook):
         """
         Return failed state for test Amazon Elastic MapReduce Connection (untestable)
 
-        We need to overwrite this method because this hook based on
+        We need to overwrite this method because this hook is based on
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook`,
-        otherwise it will try to test connection to AWS STS by use default boto3 credential strategy.
+        otherwise it will try to test connection to AWS STS by using the default boto3 credential strategy.
         """
         return False, f"{self.hook_name} Connection cannot be tested."
 
