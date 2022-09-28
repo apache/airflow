@@ -66,7 +66,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], output: str):
             pytest.param(
                 (
                     "airflow/api/file.py",
-                    "tests/providers/google/file.py",
+                    "tests/providers/postgres/file.py",
                 ),
                 {
                     "all-python-versions": "['3.7']",
@@ -76,8 +76,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], output: str):
                     "run-tests": "true",
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "API Always Providers[amazon,apache.beam,google,hashicorp,"
-                    "microsoft.azure,presto,trino]",
+                    "test-types": "API Always Providers[amazon,common.sql,google,postgres]",
                 },
                 id="API and providers tests and docs should run",
             )
@@ -120,7 +119,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], output: str):
             pytest.param(
                 (
                     "chart/aaaa.txt",
-                    "tests/providers/google/file.py",
+                    "tests/providers/postgres/file.py",
                 ),
                 {
                     "all-python-versions": "['3.7']",
@@ -131,10 +130,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], output: str):
                     "docs-build": "true",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "Always Providers[amazon,apache.beam,google,"
-                    "hashicorp,microsoft.azure,presto,trino]",
+                    "test-types": "Always Providers[amazon,common.sql,google,postgres]",
                 },
-                id="Helm tests, providers, kubernetes tests and docs should run",
+                id="Helm tests, providers (both upstream and downstream),"
+                "kubernetes tests and docs should run",
             )
         ),
         (
@@ -175,9 +174,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], output: str):
                     "docs-build": "true",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "Always Providers[airbyte]",
+                    "test-types": "Always Providers[airbyte,http]",
                 },
-                id="Helm tests, airbyte providers, kubernetes tests and "
+                id="Helm tests, airbyte/http providers, kubernetes tests and "
                 "docs should run even if unimportant files were added",
             )
         ),
