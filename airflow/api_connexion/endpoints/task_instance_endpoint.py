@@ -34,6 +34,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceReferenceCollection,
     clear_task_instance_form,
     set_single_task_instance_state_form,
+    set_task_instance_note_form_schema,
     set_task_instance_state_form,
     task_instance_batch_form,
     task_instance_collection_schema,
@@ -610,3 +611,55 @@ def patch_mapped_task_instance(
     return patch_task_instance(
         dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index, session=session
     )
+
+
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+    ],
+)
+@provide_session
+def set_task_instance_note(
+    *, dag_id: str, dag_run_id: str, task_id: str, session: Session = NEW_SESSION
+) -> APIResponse:
+    """Set the note for a dag run."""
+    try:
+        post_body = set_task_instance_note_form_schema.load(get_json_request_dict())
+        new_value_for_notes = post_body["notes"]
+        # Note: We can't add map_index to the url as subpaths can't start with dashes.
+        map_index = post_body["map_index"]
+    except ValidationError as err:
+        raise BadRequest(detail=str(err))
+
+    query = (
+        session.query(TI)
+        .filter(TI.dag_id == dag_id)
+        .filter(TI.run_id == dag_run_id)
+        .filter(TI.task_id == task_id)
+    )
+    if map_index == -1:
+        query = query.filter(or_(TI.map_index == -1, TI.map_index is None))
+    else:
+        query = query.filter(TI.map_index == map_index)
+
+    try:
+        ti: TI | None = query.one_or_none()
+    except MultipleResultsFound:
+        raise NotFound(
+            "Task instance not found", detail="Task instance is mapped, add the map_index value to the URL"
+        )
+    if ti is None:
+        error_message = f'Task Instance not found for dag_id={dag_id}, run_id={dag_run_id}, task_id={task_id}'
+        raise NotFound(error_message)
+
+    ti.notes = new_value_for_notes
+    session.commit()
+
+    if map_index == -1:
+        return get_task_instance(dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id)
+    else:
+        return get_mapped_task_instance(
+            dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index
+        )

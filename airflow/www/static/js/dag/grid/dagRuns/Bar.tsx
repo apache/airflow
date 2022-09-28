@@ -110,7 +110,11 @@ const DagRunBar = ({
             width="10px"
             height={`${(duration / max) * BAR_HEIGHT}px`}
             minHeight="14px"
-            backgroundColor={stateColors[state]}
+            background={
+              run.notes != null && run.notes !== ''
+                ? `linear-gradient(-135deg,#000 8px, ${stateColors[state]} 0);`
+                : stateColors[state]
+            }
             borderRadius={2}
             cursor="pointer"
             pb="2px"

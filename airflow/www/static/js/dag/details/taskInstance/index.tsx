@@ -28,6 +28,7 @@ import {
   Tab,
   TabPanels,
   TabPanel,
+  Divider,
 } from '@chakra-ui/react';
 
 import { useGridData, useTaskInstance } from 'src/api';
@@ -35,6 +36,7 @@ import { getMetaValue, getTask } from 'src/utils';
 import type { DagRun, TaskInstance as TaskInstanceType } from 'src/types';
 
 import type { SelectionProps } from 'src/dag/useSelection';
+import SetDagTaskNotes from 'src/dag/details/SetDagTaskNotes';
 import ExtraLinks from './ExtraLinks';
 import Logs from './Logs';
 import TaskNav from './Nav';
@@ -160,6 +162,19 @@ const TaskInstance = ({
                   executionDate={executionDate}
                   mapIndexes={actionsMapIndexes}
                 />
+              )}
+              {!isGroupOrMappedTaskSummary && (
+                <Box mt={6}>
+                  <SetDagTaskNotes
+                    dagId={dagId}
+                    runId={runId}
+                    taskId={taskId}
+                    mapIndex={instance.mapIndex}
+                    initialValue={instance.notes}
+                    key={dagId + runId + taskId + instance.mapIndex + instance.notes}
+                  />
+                  <Divider my={3} />
+                </Box>
               )}
               <Details instance={instance} group={group} dagId={dagId} />
               {!isMapped && (
