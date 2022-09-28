@@ -144,6 +144,36 @@ def container_is_terminated(pod: V1Pod, container_name: str) -> bool:
     return container_status.state.terminated is not None
 
 
+def container_is_completed(pod: V1Pod, container_name: str) -> bool:
+    """
+    Examines V1Pod ``pod`` to determine whether ``container_name`` is completed.
+    If that container is present and completed, returns True.  Returns False otherwise.
+    """
+    container_statuses = pod.status.container_statuses if pod and pod.status else None
+    if not container_statuses:
+        return False
+    container_status = next(iter([x for x in container_statuses if x.name == container_name]), None)
+    if not container_status:
+        return False
+    return container_status.state.terminated is not None
+
+
+def container_is_succeeded(pod: V1Pod, container_name: str) -> bool:
+    """
+    Examines V1Pod ``pod`` to determine whether ``container_name`` is completed and succeeded.
+    If that container is present and completed and succeeded, returns True.  Returns False otherwise.
+    """
+    if not container_is_completed(pod, container_name):
+        return False
+    container_statuses = pod.status.container_statuses if pod and pod.status else None
+    if not container_statuses:
+        return False
+    container_status = next(iter([x for x in container_statuses if x.name == container_name]), None)
+    if not container_status:
+        return False
+    return container_status.state.terminated.exit_code == 0
+
+
 def get_container_termination_message(pod: V1Pod, container_name: str):
     with suppress(AttributeError, TypeError):
         container_statuses = pod.status.container_statuses
