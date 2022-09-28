@@ -222,6 +222,29 @@ you can exchange the Google Cloud Platform identity to the Amazon Web Service id
 which effectively means access to Amazon Web Service platform.
 For more information, see: :ref:`howto/connection:aws:gcp-federation`
 
+
+Applying patches from ``main``
+==============================
+
+On occasion, a user may want to apply a patch from ``main`` which has not yet made it into a release.  Assuming you want to apply a specific PR to one of the official airflow images, you can apply roughly as follows.  It's also possible to apply a specific commit.
+
+.. code-block:: docker
+
+    FROM apache/airflow:2.4.0-python3.8
+
+    USER root
+
+    RUN apt-get update && apt-get install -y patch patchutils
+
+    RUN set -ex; \
+        curl -o /tmp/12345.patch https://patch-diff.githubusercontent.com/raw/apache/airflow/pull/12345.patch; \
+        cd /home/airflow/.local/lib/python3.8/site-packages/airflow; \
+        filterdiff -p1 -i 'airflow*' /tmp/12345.patch | patch -u -p 2; \
+        rm /tmp/12345.patch
+
+    USER airflow
+
+
 .. spelling::
 
     nsswitch
