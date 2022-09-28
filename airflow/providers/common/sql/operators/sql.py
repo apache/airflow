@@ -22,7 +22,7 @@ import re
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Sequence, SupportsAbs
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, SkipMixin
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
@@ -58,7 +58,13 @@ def _get_failed_checks(checks, col=None):
     ]
 
 
-_PROVIDERS_MATCHER = re.compile(r"airflow\.providers\.(.*)\.hooks.*")
+def _raise_exception(exception_string, retry_on_failure):
+    if retry_on_failure:
+        raise AirflowException(exception_string)
+    raise AirflowFailException(exception_string)
+
+
+_PROVIDERS_MATCHER = re.compile(r'airflow\.providers\.(.*)\.hooks.*')
 
 _MIN_SUPPORTED_PROVIDERS_VERSION = {
     "amazon": "4.1.0",
@@ -103,12 +109,14 @@ class BaseSQLOperator(BaseOperator):
         conn_id: str | None = None,
         database: str | None = None,
         hook_params: dict | None = None,
+        retry_on_failure: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.conn_id = conn_id
         self.database = database
         self.hook_params = {} if hook_params is None else hook_params
+        self.retry_on_failure = retry_on_failure
 
     @cached_property
     def _hook(self):
@@ -347,11 +355,11 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
             failed_tests.extend(_get_failed_checks(self.column_mapping[column], column))
         if failed_tests:
-            raise AirflowException(
-                f"Test failed.\nResults:\n{records!s}\n"
-                "The following tests have failed:"
-                f"\n{''.join(failed_tests)}"
-            )
+            exception_string = f"""
+                Test failed.\nResults:\n{records!s}\n
+                The following tests have failed:
+                \n{''.join(failed_tests)}"""
+            _raise_exception(exception_string, self.retry_on_failure)
 
         self.log.info("All tests have passed")
 
@@ -530,11 +538,12 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
         failed_tests = _get_failed_checks(self.checks)
         if failed_tests:
-            raise AirflowException(
-                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n"
-                "The following tests have failed:"
-                f"\n{', '.join(failed_tests)}"
-            )
+            exception_string = f"""
+                Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n
+                The following tests have failed:
+                \n{', '.join(failed_tests)}
+            """
+            _raise_exception(exception_string, self.retry_on_failure)
 
         self.log.info("All tests have passed")
 
@@ -594,7 +603,9 @@ class SQLCheckOperator(BaseSQLOperator):
         if not records:
             raise AirflowException("The query returned None")
         elif not all(bool(r) for r in records):
-            raise AirflowException(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
+            _raise_exception(
+                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}", self.retry_on_failure
+            )
 
         self.log.info("Success.")
 
@@ -671,7 +682,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
             tests = []
 
         if not all(tests):
-            raise AirflowException(error_msg)
+            _raise_exception(error_msg, self.retry_on_failure)
 
     def _to_float(self, records):
         return [float(record) for record in records]
@@ -823,7 +834,9 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
                     ratios[k],
                     self.metrics_thresholds[k],
                 )
-            raise AirflowException(f"The following tests have failed:\n {', '.join(sorted(failed_tests))}")
+            _raise_exception(
+                f"The following tests have failed:\n {', '.join(sorted(failed_tests))}", self.retry_on_failure
+            )
 
         self.log.info("All tests have passed")
 
@@ -900,7 +913,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
                 f"Result: {result} is not within thresholds "
                 f'{meta_data.get("min_threshold")} and {meta_data.get("max_threshold")}'
             )
-            raise AirflowException(error_msg)
+            _raise_exception(error_msg, self.retry_on_failure)
 
         self.log.info("Test %s Successful.", self.task_id)
 
