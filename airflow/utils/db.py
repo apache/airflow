@@ -423,6 +423,18 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="oracle_default",
+            conn_type="oracle",
+            host="localhost",
+            login="root",
+            password="password",
+            schema="schema",
+            port=1521,
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="oss_default",
             conn_type="oss",
             extra='''{

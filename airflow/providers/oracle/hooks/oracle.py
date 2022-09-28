@@ -42,12 +42,56 @@ def _map_param(value):
     return value
 
 
+def _get_bool(val):
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, str):
+        val = val.lower().strip()
+        if val == 'true':
+            return True
+        if val == 'false':
+            return False
+    return None
+
+
+def _get_first_bool(*vals):
+    for val in vals:
+        converted = _get_bool(val)
+        if isinstance(converted, bool):
+            return converted
+    return None
+
+
 class OracleHook(DbApiHook):
     """
     Interact with Oracle SQL.
 
     :param oracle_conn_id: The :ref:`Oracle connection id <howto/connection:oracle>`
         used for Oracle credentials.
+    :param thick_mode: Specify whether to use python-oracledb in thick mode. Defaults to False.
+        If set to True, you must have the Oracle Client libraries installed.
+        See `oracledb docs<https://python-oracledb.readthedocs.io/en/latest/user_guide/initialization.html>`
+        for more info.
+    :param thick_mode_lib_dir: Path to use to find the Oracle Client libraries when using thick mode.
+        If not specified, defaults to the standard way of locating the Oracle Client library on the OS.
+        See `oracledb docs
+        <https://python-oracledb.readthedocs.io/en/latest/user_guide/initialization.html#setting-the-oracle-client-library-directory>`
+        for more info.
+    :param thick_mode_config_dir: Path to use to find the Oracle Client library
+        configuration files when using thick mode.
+        If not specified, defaults to the standard way of locating the Oracle Client
+        library configuration files on the OS.
+        See `oracledb docs
+        <https://python-oracledb.readthedocs.io/en/latest/user_guide/initialization.html#optional-oracle-net-configuration-files>`
+        for more info.
+    :param fetch_decimals: Specify whether numbers should be fetched as ``decimal.Decimal`` values.
+        See `defaults.fetch_decimals
+        <https://python-oracledb.readthedocs.io/en/latest/api_manual/defaults.html#defaults.fetch_decimals>`
+        for more info.
+    :param fetch_lobs: Specify whether to fetch strings/bytes for CLOBs or BLOBs instead of locators.
+        See `defaults.fetch_lobs
+        <https://python-oracledb.readthedocs.io/en/latest/api_manual/defaults.html#defaults.fetch_decimals>`
+        for more info.
     """
 
     conn_name_attr = 'oracle_conn_id'
@@ -56,6 +100,24 @@ class OracleHook(DbApiHook):
     hook_name = 'Oracle'
 
     supports_autocommit = True
+
+    def __init__(
+        self,
+        *args,
+        thick_mode: bool | None = None,
+        thick_mode_lib_dir: str | None = None,
+        thick_mode_config_dir: str | None = None,
+        fetch_decimals: bool | None = None,
+        fetch_lobs: bool | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.thick_mode = thick_mode
+        self.thick_mode_lib_dir = thick_mode_lib_dir
+        self.thick_mode_config_dir = thick_mode_config_dir
+        self.fetch_decimals = fetch_decimals
+        self.fetch_lobs = fetch_lobs
 
     def get_conn(self) -> oracledb.Connection:
         """
@@ -90,6 +152,40 @@ class OracleHook(DbApiHook):
         mod = conn.extra_dejson.get('module')
         schema = conn.schema
 
+        # Enable oracledb thick mode if thick_mode is set to True
+        # Parameters take precedence over connection config extra
+        # Defaults to use thin mode if not provided in params or connection config extra
+        thick_mode = _get_first_bool(self.thick_mode, conn.extra_dejson.get('thick_mode'))
+        if thick_mode is True:
+            if self.thick_mode_lib_dir is None:
+                self.thick_mode_lib_dir = conn.extra_dejson.get('thick_mode_lib_dir')
+                if not isinstance(self.thick_mode_lib_dir, (str, type(None))):
+                    raise TypeError(
+                        f'thick_mode_lib_dir expected str or None, '
+                        f'got {type(self.thick_mode_lib_dir).__name__}'
+                    )
+            if self.thick_mode_config_dir is None:
+                self.thick_mode_config_dir = conn.extra_dejson.get('thick_mode_config_dir')
+                if not isinstance(self.thick_mode_config_dir, (str, type(None))):
+                    raise TypeError(
+                        f'thick_mode_config_dir expected str or None, '
+                        f'got {type(self.thick_mode_config_dir).__name__}'
+                    )
+            oracledb.init_oracle_client(
+                lib_dir=self.thick_mode_lib_dir, config_dir=self.thick_mode_config_dir
+            )
+
+        # Set oracledb Defaults Attributes if provided
+        # (https://python-oracledb.readthedocs.io/en/latest/api_manual/defaults.html)
+        fetch_decimals = _get_first_bool(self.fetch_decimals, conn.extra_dejson.get('fetch_decimals'))
+        if isinstance(fetch_decimals, bool):
+            oracledb.defaults.fetch_decimals = fetch_decimals
+
+        fetch_lobs = _get_first_bool(self.fetch_lobs, conn.extra_dejson.get('fetch_lobs'))
+        if isinstance(fetch_lobs, bool):
+            oracledb.defaults.fetch_lobs = fetch_lobs
+
+        # Set up DSN
         service_name = conn.extra_dejson.get('service_name')
         port = conn.port if conn.port else 1521
         if conn.host and sid and not service_name:
