@@ -196,11 +196,12 @@ popd
 
 ```shell script
 # First clone the repo if you do not have it
+cd ..
 [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
 svn update --set-depth=infinity asf-dist/dev/airflow
 
 # Create a new folder for the release.
-cd asf-dist/dev/providers
+cd asf-dist/dev/airflow/providers
 
 # Remove previously released providers
 rm -rf *
