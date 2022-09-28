@@ -202,6 +202,7 @@ def _search_for_dag_file(val: str | None) -> str | None:
         matches = list(Path(settings.DAGS_FOLDER).rglob(Path(val).name))
         if len(matches) == 1:
             return matches[0].as_posix()
+    return None
 
 
 def get_dag(subdir: str | None, dag_id: str) -> DAG:
