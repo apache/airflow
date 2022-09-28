@@ -256,8 +256,8 @@ class DataprocHook(GoogleBaseHook):
     def wait_for_operation(
         self,
         operation: Operation,
-        result_retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
+        result_retry: Retry | _MethodDefault = DEFAULT,
     ):
         """Waits for long-lasting operation to complete."""
         try:

@@ -2072,11 +2072,11 @@ class DataprocCreateBatchOperator(BaseOperator):
         batch_id: str | None = None,
         request_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
-        result_retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        result_retry: Retry | _MethodDefault = DEFAULT,
         **kwargs,
     ):
         super().__init__(**kwargs)
