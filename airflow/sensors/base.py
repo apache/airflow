@@ -81,7 +81,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
     :param soft_fail: Set to true to mark the task as SKIPPED on failure
     :param poke_interval: Time in seconds that the job should wait in
-        between each tries
+        between each try
     :param timeout: Time, in seconds before the task times out and fails.
     :param mode: How the sensor operates.
         Options are: ``{ poke | reschedule }``, default is ``poke``.
