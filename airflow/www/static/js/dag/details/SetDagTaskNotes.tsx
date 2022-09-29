@@ -70,7 +70,8 @@ const SetDagTaskNotes = ({
   };
 
   return (
-    <Accordion defaultIndex={[0]} allowMultiple>
+    // use initialValue here so we don't re-render when notes changes.
+    <Accordion defaultIndex={(initialValue === '' || initialValue == null ? [] : [0])} allowToggle>
       <AccordionItem style={{ border: 0 }}>
         <AccordionButton style={{ padding: 0, paddingBottom: '10px', fontSize: 'inherit' }}>
           <Box flex="1" textAlign="left">
