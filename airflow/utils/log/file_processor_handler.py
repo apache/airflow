@@ -24,6 +24,7 @@ from pathlib import Path
 
 from airflow import settings
 from airflow.utils.helpers import parse_template_string
+from airflow.utils.log.logging_mixin import DISABLE_PROPOGATE
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 
 
@@ -63,6 +64,8 @@ class FileProcessorHandler(logging.Handler):
         if self._cur_date < datetime.today():
             self._symlink_latest_log_directory()
             self._cur_date = datetime.today()
+
+        return DISABLE_PROPOGATE
 
     def emit(self, record):
         if self.handler is not None:
