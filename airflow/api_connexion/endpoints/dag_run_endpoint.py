@@ -433,9 +433,10 @@ def set_dag_run_notes(*, dag_id: str, dag_run_id: str, session: Session = NEW_SE
         raise NotFound(error_message)
     try:
         post_body = set_dagrun_note_form_schema.load(get_json_request_dict())
+        new_value_for_notes = post_body["notes"]
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
-    dag_run.notes = post_body["notes"]
+    dag_run.notes = new_value_for_notes or None
     session.commit()
     return dagrun_schema.dump(dag_run)

@@ -671,7 +671,7 @@ def set_task_instance_notes(
         raise NotFound(error_message)
 
     ti, sla_miss = result
-    ti.notes = new_value_for_notes
+    ti.notes = new_value_for_notes or None
     session.commit()
 
     return task_instance_schema.dump((ti, sla_miss))
