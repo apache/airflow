@@ -187,7 +187,7 @@ def set_context(logger, value):
             # Not all handlers need to have context passed in so we ignore
             # the error when handlers do not have set_context defined.
             set_context = getattr(handler, 'set_context', None)
-            if set_context:
+            if set_context and set_context(value) is DISABLE_PROPOGATE:
                 if set_context(value) is DISABLE_PROPOGATE:
                     logger.propagate = False
         if logger.propagate is True:
