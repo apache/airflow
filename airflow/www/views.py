@@ -98,13 +98,7 @@ from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.dataset import (
-    DagScheduleDatasetReference,
-    DatasetDagRunQueue,
-    DatasetEvent,
-    DatasetModel,
-    TaskOutletDatasetReference,
-)
+from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.operator import Operator
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -3610,12 +3604,6 @@ class Airflow(AirflowBaseView):
                     func.count(distinct(DatasetEvent.id)).label("total_updates"),
                 )
                 .outerjoin(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
-                .outerjoin(
-                    DagScheduleDatasetReference, DagScheduleDatasetReference.dataset_id == DatasetModel.id
-                )
-                .outerjoin(
-                    TaskOutletDatasetReference, TaskOutletDatasetReference.dataset_id == DatasetModel.id
-                )
                 .group_by(
                     DatasetModel.id,
                     DatasetModel.uri,
