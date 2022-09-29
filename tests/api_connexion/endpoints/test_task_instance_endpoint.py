@@ -158,6 +158,7 @@ class TestTaskInstanceEndpoint:
                 session.add(dr)
             ti = TaskInstance(task=tasks[i], **self.ti_init)
             ti.dag_run = dr
+            ti.notes = "placeholder-note"
 
             for key, value in self.ti_extras.items():
                 setattr(ti, key, value)
@@ -200,6 +201,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
+            "notes": "placeholder-note",
             "operator": None,
             "pid": 100,
             "pool": "default_pool",
@@ -254,6 +256,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
+            "notes": "placeholder-note",
             "operator": "_PythonDecoratedOperator",
             "pid": 100,
             "pool": "default_pool",
@@ -298,6 +301,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
+            "notes": "placeholder-note",
             "operator": "_PythonDecoratedOperator",
             "pid": 100,
             "pool": "default_pool",
@@ -345,6 +349,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
+            "notes": "placeholder-note",
             "operator": "_PythonDecoratedOperator",
             "pid": 100,
             "pool": "default_pool",
@@ -407,6 +412,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "hostname": "",
                 "map_index": map_index,
                 "max_tries": 0,
+                "notes": None,
                 "operator": "_PythonDecoratedOperator",
                 "pid": 100,
                 "pool": "default_pool",
