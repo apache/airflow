@@ -102,16 +102,16 @@ class EmrHook(AwsBaseHook):
                 emr_conn = self.get_connection(self.emr_conn_id)
             except AirflowNotFoundException:
                 warnings.warn(
-                    f"Unable to find Amazon Elastic MapReduce Connection ID {self.emr_conn_id!r}, "
+                    f"Unable to find {self.hook_name} Connection ID {self.emr_conn_id!r}, "
                     "using an empty initial configuration. If you want to get rid of this warning "
                     "message please provide a valid `emr_conn_id` or set it to None.",
                     UserWarning,
                     stacklevel=2,
                 )
             else:
-                if emr_conn.conn_type and emr_conn.conn_type != "emr":
+                if emr_conn.conn_type and emr_conn.conn_type != self.conn_type:
                     warnings.warn(
-                        "Amazon Elastic MapReduce Connection expected connection type 'emr', "
+                        f"{self.hook_name} Connection expected connection type {self.conn_type!r}, "
                         f"Connection {self.emr_conn_id!r} has conn_type={emr_conn.conn_type!r}. "
                         f"This connection might not work correctly.",
                         UserWarning,
@@ -126,13 +126,15 @@ class EmrHook(AwsBaseHook):
 
     def test_connection(self):
         """
-        Return failed state for test Amazon Elastic MapReduce Connection (untestable)
+        Return failed state for test Amazon Elastic MapReduce Connection (untestable).
+
+        EMR Connection use only for store initial Amazon EMR cluster configuration.
 
         We need to overwrite this method because this hook is based on
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook`,
         otherwise it will try to test connection to AWS STS by using the default boto3 credential strategy.
         """
-        return False, f"{self.hook_name} Connection cannot be tested."
+        return False, f"{self.hook_name!r} Airflow Connection cannot be tested by design."
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
