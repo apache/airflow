@@ -74,7 +74,7 @@ def _get_failed_checks(checks, col=None):
     ]
 
 
-def _raise_exception(exception_string, retry_on_failure):
+def _raise_exception(exception_string: str, retry_on_failure: bool) -> NoReturn:
     if retry_on_failure:
         raise AirflowException(exception_string)
     raise AirflowFailException(exception_string)
