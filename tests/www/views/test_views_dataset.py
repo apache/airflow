@@ -50,7 +50,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert session.query(DatasetModel).count() == 2
 
         with assert_queries_count(8):
-            response = admin_client.get("/object/list_datasets")
+            response = admin_client.get("/object/datasets_summary")
 
         assert response.status_code == 200
         response_data = response.json
@@ -83,7 +83,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         session.commit()
         assert session.query(DatasetModel).count() == 2
 
-        response = admin_client.get("/object/list_datasets?order_by=fake")
+        response = admin_client.get("/object/datasets_summary?order_by=fake")
 
         assert response.status_code == 400
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
@@ -125,7 +125,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         session.commit()
         assert session.query(DatasetModel).count() == len(ordered_dataset_ids)
 
-        response = admin_client.get(f"/object/list_datasets?order_by={order_by}")
+        response = admin_client.get(f"/object/datasets_summary?order_by={order_by}")
 
         assert response.status_code == 200
         assert ordered_dataset_ids == [json_dict['id'] for json_dict in response.json['datasets']]
@@ -227,7 +227,7 @@ class TestGetDatasets(TestDatasetEndpoint):
             )
             session.commit()
 
-            response = admin_client.get("/object/list_datasets")
+            response = admin_client.get("/object/datasets_summary")
 
         assert response.status_code == 200
         response_data = response.json
@@ -273,13 +273,13 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         "url, expected_dataset_uris",
         [
             # Limit test data
-            ("/object/list_datasets?limit=1", ["s3://bucket/key/1"]),
-            ("/object/list_datasets?limit=5", [f"s3://bucket/key/{i}" for i in range(1, 6)]),
+            ("/object/datasets_summary?limit=1", ["s3://bucket/key/1"]),
+            ("/object/datasets_summary?limit=5", [f"s3://bucket/key/{i}" for i in range(1, 6)]),
             # Offset test data
-            ("/object/list_datasets?offset=1", [f"s3://bucket/key/{i}" for i in range(2, 10)]),
-            ("/object/list_datasets?offset=3", [f"s3://bucket/key/{i}" for i in range(4, 10)]),
+            ("/object/datasets_summary?offset=1", [f"s3://bucket/key/{i}" for i in range(2, 10)]),
+            ("/object/datasets_summary?offset=3", [f"s3://bucket/key/{i}" for i in range(4, 10)]),
             # Limit and offset test data
-            ("/object/list_datasets?offset=3&limit=3", [f"s3://bucket/key/{i}" for i in [4, 5, 6]]),
+            ("/object/datasets_summary?offset=3&limit=3", [f"s3://bucket/key/{i}" for i in [4, 5, 6]]),
         ],
     )
     def test_limit_and_offset(self, admin_client, session, url, expected_dataset_uris):
@@ -310,7 +310,7 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         session.add_all(datasets)
         session.commit()
 
-        response = admin_client.get("/object/list_datasets")
+        response = admin_client.get("/object/datasets_summary")
 
         assert response.status_code == 200
         assert len(response.json['datasets']) == 25
@@ -326,7 +326,7 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         session.add_all(datasets)
         session.commit()
 
-        response = admin_client.get("/object/list_datasets?limit=180")
+        response = admin_client.get("/object/datasets_summary?limit=180")
 
         assert response.status_code == 200
         assert len(response.json['datasets']) == 50
