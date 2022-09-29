@@ -15,6 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Example DAG using GoogleDriveToLocalOperator.
+
+Using this operator requires the following additional scopes:
+https://www.googleapis.com/auth/drive
+"""
 from __future__ import annotations
 
 import os
@@ -39,14 +45,6 @@ DAG_ID = "example_gdrive_to_local"
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
 LOCAL_PATH = str(Path(__file__).parent / "resources" / FILE_NAME)
-
-CLOUD_PLATFORM_SCOPE = 'https://www.googleapis.com/auth/cloud-platform'
-GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive'
-
-os.environ["AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT"] = (
-    "google-cloud-platform://?extra__google_cloud_platform__scope="
-    f"{CLOUD_PLATFORM_SCOPE},{GOOGLE_DRIVE_SCOPE}"
-)
 
 
 with models.DAG(
