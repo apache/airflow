@@ -28,6 +28,7 @@ import re
 import uuid
 
 from kubernetes.client import models as k8s
+from airflow.configuration import conf
 
 MAX_POD_ID_LEN = 253
 
@@ -236,7 +237,10 @@ class PodGenerator:
         pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
         pod_cp.spec.containers[0].volume_mounts = pod_cp.spec.containers[0].volume_mounts or []
         pod_cp.spec.containers[0].volume_mounts.insert(0, PodDefaults.VOLUME_MOUNT)
-        pod_cp.spec.containers.append(PodDefaults.SIDECAR_CONTAINER)
+        
+        sidecar = copy.deepcopy(PodDefaults.SIDECAR_CONTAINER)
+        sidecar.image = conf.get('kubernetes', 'sidecar_container_image', fallback=sidecar.image)
+        pod_cp.spec.containers.append(sidecar)
 
         return pod_cp
 
