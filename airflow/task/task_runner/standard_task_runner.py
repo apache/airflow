@@ -36,6 +36,7 @@ class StandardTaskRunner(BaseTaskRunner):
     def __init__(self, local_task_job):
         super().__init__(local_task_job)
         self._rc = None
+        self.dag = local_task_job.task_instance.task.dag
 
     def start(self):
         if CAN_FORK and not self.run_as_user:
@@ -64,7 +65,6 @@ class StandardTaskRunner(BaseTaskRunner):
             from airflow import settings
             from airflow.cli.cli_parser import get_parser
             from airflow.sentry import Sentry
-            from airflow.utils.cli import get_dag
 
             # Force a new SQLAlchemy session. We can't share open DB handles
             # between process. The cli code will re-create this as part of its
@@ -92,10 +92,8 @@ class StandardTaskRunner(BaseTaskRunner):
                     dag_id=self._task_instance.dag_id,
                     task_id=self._task_instance.task_id,
                 ):
-                    # parse dag file since `airflow tasks run --local` does not parse dag file
-                    dag = get_dag(args.subdir, args.dag_id)
-                    args.func(args, dag=dag)
-                return_code = 0
+                    args.func(args, dag=self.dag)
+                    return_code = 0
             except Exception as exc:
                 return_code = 1
 
