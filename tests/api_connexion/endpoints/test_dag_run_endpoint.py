@@ -1582,3 +1582,61 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamDatasetEvents")
 
         assert_401(response)
+
+
+class TestSetDagRunNote(TestDagRunEndpoint):
+    def test_should_respond_200(self, dag_maker, session):
+        dag_runs: list[DagRun] = self._create_test_dag_run("success")
+        session.add_all(dag_runs)
+        session.commit()
+        created_dr: DagRun = dag_runs[0]
+
+        new_notes_value = "My super cool DagRun notes"
+        response = self.client.patch(
+            f"api/v1/dags/{created_dr.dag_id}/dagRuns/{created_dr.run_id}/setNote",
+            json={"notes": new_notes_value},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+
+        dr = session.query(DagRun).filter(DagRun.run_id == created_dr.run_id).first()
+        assert response.status_code == 200, response.text
+        assert dr.notes == new_notes_value
+        assert response.json == {
+            "conf": {},
+            "dag_id": dr.dag_id,
+            "dag_run_id": dr.run_id,
+            "end_date": dr.end_date.isoformat(),
+            "execution_date": self.default_time,
+            "external_trigger": True,
+            "logical_date": self.default_time,
+            "start_date": self.default_time,
+            "state": "success",
+            "data_interval_start": None,
+            "data_interval_end": None,
+            "last_scheduling_decision": None,
+            "run_type": dr.run_type,
+            "notes": new_notes_value,
+        }
+
+    def test_should_raises_401_unauthenticated(self, session):
+        response = self.client.patch(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/setNote",
+            json={"notes": "I am setting a note while being unauthenticated."},
+        )
+        assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        response = self.client.patch(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/setNote",
+            json={"notes": "I am setting a note without the proper permissions."},
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+        )
+        assert response.status_code == 403
+
+    def test_should_respond_404(self):
+        response = self.client.patch(
+            "api/v1/dags/INVALID_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/setNote",
+            json={"notes": "I am setting a note on a DAG that doesn't exist."},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 404
