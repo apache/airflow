@@ -321,14 +321,13 @@ class GCSToBigQueryOperator(BaseOperator):
                 )
             result = bq_hook.get_job(job_id=job_id, location=self.location).result()
             row = next(iter(result), None)
-            if row is not None:
-                max_id = row[0]
-                self.log.info(
-                    'Loaded BQ data with max %s.%s=%s',
-                    self.destination_project_dataset_table,
-                    self.max_id_key,
-                    max_id,
-                )
-                return max_id
-            else:
+            if row is None:
                 raise RuntimeError(f"The {select_command} returned no rows!")
+            max_id = row[0]
+            self.log.info(
+                'Loaded BQ data with max %s.%s=%s',
+                self.destination_project_dataset_table,
+                self.max_id_key,
+                max_id,
+            )
+            return max_id
