@@ -388,7 +388,7 @@ def main(
                 )
                 continue
 
-            if pr.created_at < date_start:
+            if pr.merged_at < date_start:
                 console.print("[bright_blue]Completed selecting candidates")
                 break
 
