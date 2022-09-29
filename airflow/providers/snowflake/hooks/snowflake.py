@@ -33,12 +33,25 @@ from sqlalchemy import create_engine
 from airflow import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.strings import to_boolean
+from airflow.version import version
 
 
 def _try_to_boolean(value: Any):
     if isinstance(value, (str, type(None))):
         return to_boolean(value)
     return value
+
+
+def _maybe_add_prefix(val):
+    """
+    From Airflow 2.3 onward, there is no longer a need to add the `extra__<conn type>__`
+    prefix for connection extras.  Once this provider's min Airflow version is >= 2.3,
+    we may remove this function.
+    """
+    if version < (2, 3):
+        return f"extra__snowflake__{val}"
+    else:
+        return val
 
 
 class SnowflakeHook(DbApiHook):
@@ -92,20 +105,20 @@ class SnowflakeHook(DbApiHook):
         from wtforms import BooleanField, StringField
 
         return {
-            "extra__snowflake__account": StringField(lazy_gettext('Account'), widget=BS3TextFieldWidget()),
-            "extra__snowflake__warehouse": StringField(
+            _maybe_add_prefix("account"): StringField(lazy_gettext('Account'), widget=BS3TextFieldWidget()),
+            _maybe_add_prefix("warehouse"): StringField(
                 lazy_gettext('Warehouse'), widget=BS3TextFieldWidget()
             ),
-            "extra__snowflake__database": StringField(lazy_gettext('Database'), widget=BS3TextFieldWidget()),
-            "extra__snowflake__region": StringField(lazy_gettext('Region'), widget=BS3TextFieldWidget()),
-            "extra__snowflake__role": StringField(lazy_gettext('Role'), widget=BS3TextFieldWidget()),
-            "extra__snowflake__private_key_file": StringField(
+            _maybe_add_prefix("database"): StringField(lazy_gettext('Database'), widget=BS3TextFieldWidget()),
+            _maybe_add_prefix("region"): StringField(lazy_gettext('Region'), widget=BS3TextFieldWidget()),
+            _maybe_add_prefix("role"): StringField(lazy_gettext('Role'), widget=BS3TextFieldWidget()),
+            _maybe_add_prefix("private_key_file"): StringField(
                 lazy_gettext('Private key (Path)'), widget=BS3TextFieldWidget()
             ),
-            "extra__snowflake__private_key_content": StringField(
+            _maybe_add_prefix("private_key_content"): StringField(
                 lazy_gettext('Private key (Text)'), widget=BS3TextAreaFieldWidget()
             ),
-            "extra__snowflake__insecure_mode": BooleanField(
+            _maybe_add_prefix("insecure_mode"): BooleanField(
                 label=lazy_gettext('Insecure mode'), description="Turns off OCSP certificate checks"
             ),
         }
@@ -153,31 +166,35 @@ class SnowflakeHook(DbApiHook):
         self.session_parameters = kwargs.pop("session_parameters", None)
         self.query_ids: list[str] = []
 
+    def _get_field(self, extra_dict, field_name):
+        prefix = 'extra__snowflake__'
+        if field_name.startswith('extra_'):
+            raise ValueError(
+                f"Got prefixed name {field_name}; please remove the '{prefix}' prefix "
+                f"when using this method."
+            )
+        if field_name in extra_dict:
+            return extra_dict[field_name] or None
+        return extra_dict.get(f"{prefix}{field_name}") or None
+
     def _get_conn_params(self) -> dict[str, str | None]:
         """
         One method to fetch connection params as a dict
         used in get_uri() and get_connection()
         """
         conn = self.get_connection(self.snowflake_conn_id)  # type: ignore[attr-defined]
-        account = conn.extra_dejson.get('extra__snowflake__account', '') or conn.extra_dejson.get(
-            'account', ''
-        )
-        warehouse = conn.extra_dejson.get('extra__snowflake__warehouse', '') or conn.extra_dejson.get(
-            'warehouse', ''
-        )
-        database = conn.extra_dejson.get('extra__snowflake__database', '') or conn.extra_dejson.get(
-            'database', ''
-        )
-        region = conn.extra_dejson.get('extra__snowflake__region', '') or conn.extra_dejson.get('region', '')
-        role = conn.extra_dejson.get('extra__snowflake__role', '') or conn.extra_dejson.get('role', '')
+        extra_dict = conn.extra_dejson
+        account = self._get_field(extra_dict, 'account') or ''
+        warehouse = self._get_field(extra_dict, 'warehouse') or ''
+        database = self._get_field(extra_dict, 'database') or ''
+        region = self._get_field(extra_dict, 'region') or ''
+        role = self._get_field(extra_dict, 'role') or ''
+        insecure_mode = _try_to_boolean(self._get_field(extra_dict, 'insecure_mode'))
         schema = conn.schema or ''
-        authenticator = conn.extra_dejson.get('authenticator', 'snowflake')
-        session_parameters = conn.extra_dejson.get('session_parameters')
-        insecure_mode = _try_to_boolean(
-            conn.extra_dejson.get(
-                'extra__snowflake__insecure_mode', conn.extra_dejson.get('insecure_mode', None)
-            )
-        )
+
+        # authenticator and session_parameters never supported long name so we don't use _get_field
+        authenticator = extra_dict.get('authenticator', 'snowflake')
+        session_parameters = extra_dict.get('session_parameters')
 
         conn_config = {
             "user": conn.login,
@@ -202,12 +219,8 @@ class SnowflakeHook(DbApiHook):
         # The connection password then becomes the passphrase for the private key.
         # If your private key is not encrypted (not recommended), then leave the password empty.
 
-        private_key_file = conn.extra_dejson.get(
-            'extra__snowflake__private_key_file'
-        ) or conn.extra_dejson.get('private_key_file')
-        private_key_content = conn.extra_dejson.get(
-            'extra__snowflake__private_key_content'
-        ) or conn.extra_dejson.get('private_key_content')
+        private_key_file = self._get_field(extra_dict, 'private_key_file')
+        private_key_content = self._get_field(extra_dict, 'private_key_content')
 
         private_key_pem = None
         if private_key_content and private_key_file:
