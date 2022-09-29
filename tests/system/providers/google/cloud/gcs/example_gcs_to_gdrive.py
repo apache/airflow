@@ -17,6 +17,9 @@
 # under the License.
 """
 Example DAG using GoogleCloudStorageToGoogleDriveOperator.
+
+Using this operator requires the following additional scopes:
+https://www.googleapis.com/auth/drive
 """
 from __future__ import annotations
 
@@ -25,7 +28,6 @@ from datetime import datetime
 from pathlib import Path
 
 from airflow import models
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.providers.google.suite.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator
@@ -39,24 +41,15 @@ DAG_ID = "example_gcs_to_gdrive"
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
 TMP_PATH = "tmp"
-DIR = "tests_dir"
-SUBDIR = "subdir"
-
-OBJECT_SRC_1 = "6.txt"
 
 CURRENT_FOLDER = Path(__file__).parent
 LOCAL_PATH = str(Path(CURRENT_FOLDER) / "resources")
 
-FILE_LOCAL_PATH = str(Path(LOCAL_PATH) / TMP_PATH / DIR)
-FILE_NAME = "tmp.tar.gz"
+FILE_LOCAL_PATH = str(Path(LOCAL_PATH))
+FILE_NAME = "example_upload.txt"
 
 CLOUD_PLATFORM_SCOPE = 'https://www.googleapis.com/auth/cloud-platform'
 GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive'
-
-os.environ["AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT"] = (
-    "google-cloud-platform://?extra__google_cloud_platform__scope="
-    f"{CLOUD_PLATFORM_SCOPE},{GOOGLE_DRIVE_SCOPE}"
-)
 
 
 with models.DAG(
@@ -69,22 +62,26 @@ with models.DAG(
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
     )
-    unzip_file = BashOperator(
-        task_id="unzip_data_file", bash_command=f"tar xvf {LOCAL_PATH}/{FILE_NAME} -C {LOCAL_PATH}"
-    )
+
     upload_file = LocalFilesystemToGCSOperator(
         task_id="upload_file",
-        src=f"{FILE_LOCAL_PATH}/{SUBDIR}/*",
-        dst=f"{TMP_PATH}/",
+        src=f"{FILE_LOCAL_PATH}/{FILE_NAME}",
+        dst=f"{TMP_PATH}/{FILE_NAME}",
         bucket=BUCKET_NAME,
     )
 
+    upload_file_2 = LocalFilesystemToGCSOperator(
+        task_id="upload_fil_2",
+        src=f"{FILE_LOCAL_PATH}/{FILE_NAME}",
+        dst=f"{TMP_PATH}/2_{FILE_NAME}",
+        bucket=BUCKET_NAME,
+    )
     # [START howto_operator_gcs_to_gdrive_copy_single_file]
     copy_single_file = GCSToGoogleDriveOperator(
         task_id="copy_single_file",
         source_bucket=BUCKET_NAME,
-        source_object=f"{TMP_PATH}/{OBJECT_SRC_1}",
-        destination_object="copied_tmp/copied_object_1.txt",
+        source_object=f"{TMP_PATH}/{FILE_NAME}",
+        destination_object=f"copied_tmp/copied_{FILE_NAME}",
     )
     # [END howto_operator_gcs_to_gdrive_copy_single_file]
 
@@ -101,7 +98,7 @@ with models.DAG(
     move_files = GCSToGoogleDriveOperator(
         task_id="move_files",
         source_bucket=BUCKET_NAME,
-        source_object=f"{TMP_PATH}/*.bin",
+        source_object=f"{TMP_PATH}/*.txt",
         move_object=True,
     )
     # [END howto_operator_gcs_to_gdrive_move_files]
@@ -113,7 +110,6 @@ with models.DAG(
     (
         # TEST SETUP
         create_bucket
-        >> unzip_file
         >> upload_file
         # TEST BODY
         >> copy_single_file
