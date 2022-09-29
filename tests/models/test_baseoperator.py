@@ -685,6 +685,8 @@ class TestBaseOperator:
         op = BaseOperator(task_id="test_task", weight_rule="upstream")
         assert WeightRule.UPSTREAM == op.weight_rule
 
+    # ensure the default logging config is used for this test, no matter what ran before
+    @pytest.mark.usefixtures('reset_logging_config')
     def test_logging_propogated_by_default(self, caplog):
         """Test that when set_context hasn't been called that log records are emitted"""
         BaseOperator(task_id="test").log.warning("test")
