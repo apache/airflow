@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence, SupportsAbs
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
 
 from packaging.version import Version
 
@@ -33,18 +33,11 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-def _convert_to_float_if_possible(s):
-    """
-    A small helper function to convert a string to a numeric value
-    if appropriate
-
-    :param s: the string to be converted
-    """
+def _convert_to_float_if_possible(s: str) -> float | str:
     try:
-        ret = float(s)
+        return float(s)
     except (ValueError, TypeError):
-        ret = s
-    return ret
+        return s
 
 
 def _parse_boolean(val: str) -> str | bool:
@@ -60,7 +53,7 @@ def _parse_boolean(val: str) -> str | bool:
     raise ValueError(f"{val!r} is not a boolean-like string value")
 
 
-def _get_failed_checks(checks, col=None):
+def _get_failed_checks(checks: dict[str, Any], col: str | None = None):
     if col:
         return [
             f"Column: {col}\nCheck: {check},\nCheck Values: {check_values}\n"
