@@ -594,11 +594,51 @@ paths:
     patch:
       summary: Update the TaskInstance note.
       description: |
-        Update the manual user note of a Task Instance.
+        Update the manual user note of a non-mapped Task Instance.
 
         *New in version 2.5.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
       operationId: set_task_instance_notes
+      tags: [DAG]
+      requestBody:
+        description: Parameters of set Task Instance note.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetTaskInstanceNote'
+
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstance'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/setNote:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
+      - $ref: '#/components/parameters/TaskID'
+      - $ref: '#/components/parameters/MapIndex'
+
+    patch:
+      summary: Update the TaskInstance note.
+      description: |
+        Update the manual user note of a mapped Task Instance.
+
+        *New in version 2.5.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: set_mapped_task_instance_notes
       tags: [DAG]
       requestBody:
         description: Parameters of set Task Instance note.
@@ -4134,9 +4174,6 @@ components:
     SetTaskInstanceNote:
       type: object
       properties:
-        map_index:
-          description: The map_index of the TaskInstance.
-          type: integer
         notes:
           description: The custom note to set for this Task Instance.
           type: string

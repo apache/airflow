@@ -50,12 +50,15 @@ const SetDagTaskNotes = ({
   const [noteBeforeEdit, setNoteBeforeEdit] = useState('');
   const [editMode, setEditMode] = useState(false);
   const tiStr = (taskId != null ? taskId : '');
+  const mapIndexInt = (mapIndex != null ? mapIndex : -1);
   const {
     mutateAsync: apiCallToSetDagRunNote, isLoading: dagRunIsLoading,
   } = useSetDagRunNotes({ dagId, dagRunId: runId, notes });
   const {
     mutateAsync: apiCallToSetTINote, isLoading: tiIsLoading,
-  } = useSetTaskInstanceNotes(dagId, runId, tiStr, (mapIndex != null ? mapIndex : -1), notes);
+  } = useSetTaskInstanceNotes({
+    dagId, dagRunId: runId, taskId: tiStr, mapIndex: mapIndexInt, notes,
+  });
 
   const objectIdentifier = (taskId == null) ? 'DAG Run' : 'Task Instance';
 

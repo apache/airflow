@@ -550,6 +550,13 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
     return task_instance_reference_collection_schema.dump(TaskInstanceReferenceCollection(task_instances=tis))
 
 
+def set_mapped_task_instance_notes(
+    *, dag_id: str, dag_run_id: str, task_id: str, map_index: int
+) -> APIResponse:
+    """Set the note for a Mapped Task instance."""
+    return set_task_instance_notes(dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index)
+
+
 @security.requires_access(
     [
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
@@ -624,22 +631,29 @@ def patch_mapped_task_instance(
 )
 @provide_session
 def set_task_instance_notes(
-    *, dag_id: str, dag_run_id: str, task_id: str, session: Session = NEW_SESSION
+    *, dag_id: str, dag_run_id: str, task_id: str, map_index: int = -1, session: Session = NEW_SESSION
 ) -> APIResponse:
-    """Set the note for a dag run."""
+    """Set the note for a Task instance. This supports both Mapped and non-Mapped Task instances."""
     try:
         post_body = set_task_instance_notes_form_schema.load(get_json_request_dict())
         new_value_for_notes = post_body["notes"]
-        # Note: We can't add map_index to the url as subpaths can't start with dashes.
-        map_index = post_body["map_index"]
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
     query = (
         session.query(TI)
-        .filter(TI.dag_id == dag_id)
-        .filter(TI.run_id == dag_run_id)
-        .filter(TI.task_id == task_id)
+        .filter(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
+        .join(TI.dag_run)
+        .outerjoin(
+            SlaMiss,
+            and_(
+                SlaMiss.dag_id == TI.dag_id,
+                SlaMiss.execution_date == DR.execution_date,
+                SlaMiss.task_id == TI.task_id,
+            ),
+        )
+        .add_entity(SlaMiss)
+        .options(joinedload(TI.rendered_task_instance_fields))
     )
     if map_index == -1:
         query = query.filter(or_(TI.map_index == -1, TI.map_index is None))
@@ -647,21 +661,17 @@ def set_task_instance_notes(
         query = query.filter(TI.map_index == map_index)
 
     try:
-        ti: TI | None = query.one_or_none()
+        result = query.one_or_none()
     except MultipleResultsFound:
         raise NotFound(
             "Task instance not found", detail="Task instance is mapped, add the map_index value to the URL"
         )
-    if ti is None:
+    if result is None:
         error_message = f'Task Instance not found for dag_id={dag_id}, run_id={dag_run_id}, task_id={task_id}'
         raise NotFound(error_message)
 
+    ti, sla_miss = result
     ti.notes = new_value_for_notes
     session.commit()
 
-    if map_index == -1:
-        return get_task_instance(dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id)
-    else:
-        return get_mapped_task_instance(
-            dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index
-        )
+    return task_instance_schema.dump((ti, sla_miss))

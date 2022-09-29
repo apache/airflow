@@ -26,32 +26,32 @@ import type { API } from 'src/types';
 import useErrorToast from '../utils/useErrorToast';
 
 const setTaskInstancesNotesURI = getMetaValue('set_task_instance_notes');
+const setMappedTaskInstancesNotesURI = getMetaValue('set_mapped_task_instance_notes');
 
-// Note: Not using API.SetTaskInstanceNotesVariables because the parameters in the body
-// are interpreted as optional due to `openapi-typescript` (which they are not..).
-export default function useSetTaskInstanceNotes(
-  dagId: string,
-  runId: string,
-  taskId: string,
-  mapIndex: number,
-  newNotesValue: string,
-) {
+export default function useSetTaskInstanceNotes({
+  dagId, dagRunId, taskId, mapIndex, notes: nullableNotes,
+}: API.SetMappedTaskInstanceNotesVariables) {
+  // Note: `openapi-typescript` thinks all body parameters are optional, this also includes notes
+  // in API.SetTaskInstanceNotesVariables. Hence, the renaming and changing here.
+  const notes = (nullableNotes == null) ? '' : nullableNotes;
+
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   // Note: Werkzeug does not like the META URL with an integer. It can not put _MAP_INDEX_ there
   // as it interprets that as the integer. Hence, we pass -1 as the integer. To avoid we replace
   // other stuff, we add _TASK_ID_ to the replacement query.
-  const url = setTaskInstancesNotesURI
-    .replace('_DAG_RUN_ID_', runId)
+  const url = (mapIndex >= 0 ? setMappedTaskInstancesNotesURI : setTaskInstancesNotesURI)
+    .replace('_DAG_RUN_ID_', dagRunId)
+    .replace('_TASK_ID_/0/setNote', `_TASK_ID_/${mapIndex}/setNote`)
     .replace('_TASK_ID_', taskId);
 
   const updateGridDataResult = (oldValue: GridData | undefined) => {
     if (oldValue == null) return emptyGridData;
     if (mapIndex !== undefined && mapIndex >= 0) return oldValue;
     const group = getTask({ taskId, task: oldValue.groups });
-    const instance = group?.instances.find((ti) => ti.runId === runId);
+    const instance = group?.instances.find((ti) => ti.runId === dagRunId);
     if (instance) {
-      instance.notes = newNotesValue;
+      instance.notes = notes;
     }
     return oldValue;
   };
@@ -66,29 +66,28 @@ export default function useSetTaskInstanceNotes(
     if (mapIndex === undefined || mapIndex < 0) return oldValue;
     const instance = oldValue?.taskInstances?.find(
       (ti) => (
-        ti.dagRunId === runId && ti.taskId === taskId && ti.mapIndex === mapIndex
+        ti.dagRunId === dagRunId && ti.taskId === taskId && ti.mapIndex === mapIndex
       ),
     );
     if (instance) {
-      instance.notes = newNotesValue;
+      instance.notes = notes;
     }
     return oldValue;
   };
 
   const updateTaskInstanceResult = (oldValue: API.TaskInstance | undefined) => {
     if (oldValue == null) throw new Error('Unknown value..');
-    if (oldValue.dagRunId === runId && oldValue.taskId === taskId) {
+    if (oldValue.dagRunId === dagRunId && oldValue.taskId === taskId) {
       if ((oldValue.mapIndex == null && mapIndex < 0) || oldValue.mapIndex === mapIndex) {
-        oldValue.notes = newNotesValue;
+        oldValue.notes = notes;
       }
     }
     return oldValue;
   };
 
-  const params = { map_index: mapIndex, notes: newNotesValue };
   return useMutation(
-    ['setTaskInstanceNotes', dagId, runId],
-    () => axios.patch(url, params),
+    ['setTaskInstanceNotes', dagId, dagRunId],
+    () => axios.patch(url, { notes }),
     {
       onSuccess: async () => {
         await queryClient.cancelQueries('gridData');
@@ -99,7 +98,7 @@ export default function useSetTaskInstanceNotes(
 
         await queryClient.cancelQueries('taskInstance');
         queryClient.setQueriesData(
-          ['taskInstance', dagId, runId, taskId, mapIndex],
+          ['taskInstance', dagId, dagRunId, taskId, mapIndex],
           updateTaskInstanceResult,
         );
       },
