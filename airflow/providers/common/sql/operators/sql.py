@@ -53,20 +53,6 @@ def _parse_boolean(val: str) -> str | bool:
     raise ValueError(f"{val!r} is not a boolean-like string value")
 
 
-def _get_failed_checks(checks: dict[str, Any], col: str | None = None):
-    if col:
-        return [
-            f"Column: {col}\nCheck: {check},\nCheck Values: {check_values}\n"
-            for check, check_values in checks.items()
-            if not check_values["success"]
-        ]
-    return [
-        f"\tCheck: {check},\n\tCheck Values: {check_values}\n"
-        for check, check_values in checks.items()
-        if not check_values["success"]
-    ]
-
-
 def _raise_exception(exception_string: str, retry_on_failure: bool) -> NoReturn:
     if retry_on_failure:
         raise AirflowException(exception_string)
@@ -276,8 +262,8 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         """
 
     def execute(self, context: Context):
-        hook = self.get_db_hook()
         failed_tests = []
+        hook = self.get_db_hook()
         records = hook.get_records(self.sql)
 
         if not records:
@@ -294,7 +280,14 @@ class SQLColumnCheckOperator(BaseSQLOperator):
                 self.column_mapping[column][check], result, tolerance
             )
 
-            failed_tests.extend(_get_failed_checks(self.column_mapping[column], column))
+        for col, checks in self.column_mapping.items():
+            failed_tests.extend(
+                [
+                    f"Column: {col}\n\tCheck: {check},\n\tCheck Values: {check_values}\n"
+                    for check, check_values in checks.items()
+                    if not check_values["success"]
+                ]
+            )
         if failed_tests:
             exception_string = f"""
                 Test failed.\nResults:\n{records!s}\n
@@ -477,7 +470,11 @@ class SQLTableCheckOperator(BaseSQLOperator):
             check, result = row
             self.checks[check]["success"] = _parse_boolean(str(result))
 
-        failed_tests = _get_failed_checks(self.checks)
+        failed_tests = [
+            f"\tCheck: {check},\n\tCheck Values: {check_values}\n"
+            for check, check_values in self.checks.items()
+            if not check_values["success"]
+        ]
         if failed_tests:
             exception_string = f"""
                 Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n
