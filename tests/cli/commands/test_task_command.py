@@ -159,38 +159,6 @@ class TestCliTasks:
             task_command.task_test(args)
         assert capsys.readouterr().out.endswith(f"{not_password}\n")
 
-    @mock.patch("airflow.cli.commands.task_command.get_dag_by_deserialization")
-    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
-    def test_run_get_serialized_dag(self, mock_local_job, mock_get_dag_by_deserialization):
-        """
-        Test using serialized dag for local task_run
-        """
-        task_id = self.dag.task_ids[0]
-        args = [
-            'tasks',
-            'run',
-            '--ignore-all-dependencies',
-            '--local',
-            self.dag_id,
-            task_id,
-            self.run_id,
-        ]
-        mock_get_dag_by_deserialization.return_value = SerializedDagModel.get(self.dag_id).dag
-
-        task_command.task_run(self.parser.parse_args(args))
-        mock_local_job.assert_called_once_with(
-            task_instance=mock.ANY,
-            mark_success=False,
-            ignore_all_deps=True,
-            ignore_depends_on_past=False,
-            ignore_task_deps=False,
-            ignore_ti_state=False,
-            pickle_id=None,
-            pool=None,
-            external_executor_id=None,
-        )
-        mock_get_dag_by_deserialization.assert_called_once_with(self.dag_id)
-
     def test_cli_test_different_path(self, session):
         """
         When thedag processor has a different dags folder
@@ -264,38 +232,6 @@ class TestCliTasks:
             assert ti.state == 'success'
             # verify that the file was in different location when run
             assert ti.xcom_pull(ti.task_id) == new_file_path.as_posix()
-
-    @mock.patch("airflow.cli.commands.task_command.get_dag_by_deserialization")
-    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
-    def test_run_get_serialized_dag_fallback(self, mock_local_job, mock_get_dag_by_deserialization):
-        """
-        Fallback to parse dag_file when serialized dag does not exist in the db
-        """
-        task_id = self.dag.task_ids[0]
-        args = [
-            'tasks',
-            'run',
-            '--ignore-all-dependencies',
-            '--local',
-            self.dag_id,
-            task_id,
-            self.run_id,
-        ]
-        mock_get_dag_by_deserialization.side_effect = mock.Mock(side_effect=AirflowException('Not found'))
-
-        task_command.task_run(self.parser.parse_args(args))
-        mock_local_job.assert_called_once_with(
-            task_instance=mock.ANY,
-            mark_success=False,
-            ignore_all_deps=True,
-            ignore_depends_on_past=False,
-            ignore_task_deps=False,
-            ignore_ti_state=False,
-            pickle_id=None,
-            pool=None,
-            external_executor_id=None,
-        )
-        mock_get_dag_by_deserialization.assert_called_once_with(self.dag_id)
 
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
     def test_run_with_existing_dag_run_id(self, mock_local_job):
