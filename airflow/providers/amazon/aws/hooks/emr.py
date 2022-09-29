@@ -128,13 +128,15 @@ class EmrHook(AwsBaseHook):
         """
         Return failed state for test Amazon Elastic MapReduce Connection (untestable).
 
-        EMR Connection use only for store initial Amazon EMR cluster configuration.
-
         We need to overwrite this method because this hook is based on
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook`,
         otherwise it will try to test connection to AWS STS by using the default boto3 credential strategy.
         """
-        return False, f"{self.hook_name!r} Airflow Connection cannot be tested by design."
+        msg = (
+            f"{self.hook_name!r} Airflow Connection cannot be tested, by design it stores "
+            f"only key/value pairs and does not make a connection to an external resource."
+        )
+        return False, msg
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
