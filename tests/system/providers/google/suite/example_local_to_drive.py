@@ -17,10 +17,12 @@
 # under the License.
 """
 Example DAG using LocalFilesystemToGoogleDriveOperator.
+
+Using this operator requires the following additional scopes:
+https://www.googleapis.com/auth/drive
 """
 from __future__ import annotations
 
-import os
 from datetime import datetime
 from pathlib import Path
 
@@ -39,9 +41,6 @@ MULTIPLE_FILES_LOCAL_PATHS = [str(Path(LOCAL_PATH) / FILE_NAME_1), str(Path(LOCA
 
 DRIVE_FOLDER = "test-folder"
 
-os.environ[
-    "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT"
-] = "google-cloud-platform://?extra__google_cloud_platform__scope=https://www.googleapis.com/auth/drive"
 
 with models.DAG(
     DAG_ID,
