@@ -38,7 +38,6 @@ from airflow.providers.common.sql.operators.sql import (
     SQLIntervalCheckOperator,
     SQLTableCheckOperator,
     SQLValueCheckOperator,
-    _get_failed_checks,
     _parse_boolean,
     _raise_exception,
 )
@@ -624,7 +623,14 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
                 self.column_mapping[column][check], result, tolerance
             )
 
-            failed_tests.extend(_get_failed_checks(self.column_mapping[column], column))
+        for col, checks in self.column_mapping.items():
+            failed_tests.extend(
+                [
+                    f"Column: {col}\n\tCheck: {check},\n\tCheck Values: {check_values}\n"
+                    for check, check_values in checks.items()
+                    if not check_values["success"]
+                ]
+            )
         if failed_tests:
             exception_string = f"""
                 Test failed.\nResults:\n{records!s}\n
@@ -722,7 +728,11 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
             result = row[1].get("check_result")
             self.checks[check]["success"] = _parse_boolean(str(result))
 
-        failed_tests = _get_failed_checks(self.checks)
+        failed_tests = [
+            f"\tCheck: {check},\n\tCheck Values: {check_values}\n"
+            for check, check_values in self.checks.items()
+            if not check_values["success"]
+        ]
         if failed_tests:
             exception_string = f"""
                 Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n
