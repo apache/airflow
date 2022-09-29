@@ -87,6 +87,7 @@ const SetDagTaskNotes = ({
             <form onSubmit={handleSubmit}>
               <div>
                 <Textarea
+                  autoFocus
                   minH="unset"
                   overflow="hidden"
                   w="100%"
