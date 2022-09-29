@@ -1928,6 +1928,7 @@ export interface components {
      * *Changed in version 2.2.0*&#58; 'deferred' is added as a possible value.
      *
      * *Changed in version 2.4.0*&#58; 'sensing' state has been removed.
+     * *Changed in version 2.4.2*&#58; 'restarting' is added as a possible value
      *
      * @enum {string}
      */
@@ -1943,7 +1944,8 @@ export interface components {
       | "none"
       | "scheduled"
       | "deferred"
-      | "removed";
+      | "removed"
+      | "restarting";
     /**
      * @description DAG State.
      *
