@@ -319,9 +319,9 @@ class GCSToBigQueryOperator(BaseOperator):
                     location=self.location,
                     use_legacy_sql=False,
                 )
-            result = list(bq_hook.get_job(job_id=job_id, location=self.location).result())
-            if result and len(result) > 0:
-                row = result[0]
+            result = bq_hook.get_job(job_id=job_id, location=self.location).result()
+            row = next(iter(result), None)
+            if row is not None:
                 max_id = row[0]
                 self.log.info(
                     'Loaded BQ data with max %s.%s=%s',
