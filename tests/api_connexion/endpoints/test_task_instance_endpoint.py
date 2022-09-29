@@ -387,7 +387,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         session.add(rendered_fields)
         session.commit()
         new_ti = TaskInstance(task=ti.task, run_id=ti.run_id, map_index=2)
-        for attr in ["duration", "end_date", "pid", "start_date", "state", "queue"]:
+        for attr in ['duration', 'end_date', 'pid', 'start_date', 'state', 'queue', 'notes']:
             setattr(new_ti, attr, getattr(ti, attr))
         session.add(new_ti)
         rendered_fields = RTIF(new_ti, render_templates=False)
@@ -412,7 +412,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "hostname": "",
                 "map_index": map_index,
                 "max_tries": 0,
-                "notes": None,
+                "notes": "placeholder-note",
                 "operator": "_PythonDecoratedOperator",
                 "pid": 100,
                 "pool": "default_pool",
