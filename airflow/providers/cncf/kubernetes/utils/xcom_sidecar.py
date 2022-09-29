@@ -24,6 +24,7 @@ from __future__ import annotations
 import copy
 
 from kubernetes.client import models as k8s
+
 from airflow.configuration import conf
 
 
