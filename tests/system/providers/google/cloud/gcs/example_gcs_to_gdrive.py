@@ -48,9 +48,6 @@ LOCAL_PATH = str(Path(CURRENT_FOLDER) / "resources")
 FILE_LOCAL_PATH = str(Path(LOCAL_PATH))
 FILE_NAME = "example_upload.txt"
 
-CLOUD_PLATFORM_SCOPE = 'https://www.googleapis.com/auth/cloud-platform'
-GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive'
-
 
 with models.DAG(
     DAG_ID,
