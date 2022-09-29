@@ -108,6 +108,7 @@ with models.DAG(
         # TEST SETUP
         create_bucket
         >> upload_file
+        >> upload_file_2
         # TEST BODY
         >> copy_single_file
         >> copy_files
