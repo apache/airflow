@@ -40,7 +40,7 @@ class WinRMHook(BaseHook):
 
     :param ssh_conn_id: connection id from airflow Connections from where
         all the required parameters can be fetched like username and password.
-        Thought the priority is given to the param passed during init
+        Though the priority is given to the param passed during init
     :param endpoint: When not set, endpoint will be constructed like this:
         'http://{remote_host}:{remote_port}/wsman'
     :param remote_host: Remote host to connect to. Ignored if `endpoint` is set.
