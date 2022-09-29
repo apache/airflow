@@ -34,7 +34,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceReferenceCollection,
     clear_task_instance_form,
     set_single_task_instance_state_form,
-    set_task_instance_note_form_schema,
+    set_task_instance_notes_form_schema,
     set_task_instance_state_form,
     task_instance_batch_form,
     task_instance_collection_schema,
@@ -617,16 +617,18 @@ def patch_mapped_task_instance(
     [
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
     ],
 )
 @provide_session
-def set_task_instance_note(
+def set_task_instance_notes(
     *, dag_id: str, dag_run_id: str, task_id: str, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Set the note for a dag run."""
     try:
-        post_body = set_task_instance_note_form_schema.load(get_json_request_dict())
+        post_body = set_task_instance_notes_form_schema.load(get_json_request_dict())
         new_value_for_notes = post_body["notes"]
         # Note: We can't add map_index to the url as subpaths can't start with dashes.
         map_index = post_body["map_index"]

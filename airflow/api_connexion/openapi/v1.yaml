@@ -598,7 +598,7 @@ paths:
 
         *New in version 2.5.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
-      operationId: set_task_instance_note
+      operationId: set_task_instance_notes
       tags: [DAG]
       requestBody:
         description: Parameters of set Task Instance note.
@@ -895,7 +895,7 @@ paths:
 
         *New in version 2.5.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
-      operationId: set_dag_run_note
+      operationId: set_dag_run_notes
       tags: [DAGRun]
       requestBody:
         description: Parameters of set DagRun note.

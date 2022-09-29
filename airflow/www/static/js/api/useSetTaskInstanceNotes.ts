@@ -25,7 +25,7 @@ import { emptyGridData } from 'src/api/useGridData';
 import type { API } from 'src/types';
 import useErrorToast from '../utils/useErrorToast';
 
-const setTaskInstancesNotesURI = getMetaValue('set_task_instance_note');
+const setTaskInstancesNotesURI = getMetaValue('set_task_instance_notes');
 
 export default function useSetTaskInstanceNotes(
   dagId: string,

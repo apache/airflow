@@ -24,7 +24,7 @@ import useErrorToast from '../utils/useErrorToast';
 import type { GridData } from './useGridData';
 import { emptyGridData } from './useGridData';
 
-const setDagRunNotesURI = getMetaValue('set_dag_run_note');
+const setDagRunNotesURI = getMetaValue('set_dag_run_notes');
 
 export default function useSetDagRunNotes(
   dagId: string,
