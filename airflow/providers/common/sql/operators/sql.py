@@ -281,7 +281,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         records = hook.get_records(self.sql)
 
         if not records:
-            raise AirflowException(f"The following query returned zero rows: {self.sql}")
+            _raise_exception(f"The following query returned zero rows: {self.sql}", self.retry_on_failure)
 
         self.log.info("Record: %s", records)
 
@@ -469,7 +469,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         records = hook.get_records(self.sql)
 
         if not records:
-            raise AirflowException(f"The following query returned zero rows: {self.sql}")
+            _raise_exception(f"The following query returned zero rows: {self.sql}", self.retry_on_failure)
 
         self.log.info("Record:\n%s", records)
 
@@ -542,7 +542,7 @@ class SQLCheckOperator(BaseSQLOperator):
 
         self.log.info("Record: %s", records)
         if not records:
-            raise AirflowException("The query returned None")
+            _raise_exception(f"The following query returned zero rows: {self.sql}", self.retry_on_failure)
         elif not all(bool(r) for r in records):
             _raise_exception(
                 f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}", self.retry_on_failure
@@ -594,7 +594,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
         records = self.get_db_hook().get_first(self.sql)
 
         if not records:
-            raise AirflowException("The query returned None")
+            _raise_exception(f"The following query returned zero rows: {self.sql}", self.retry_on_failure)
 
         pass_value_conv = _convert_to_float_if_possible(self.pass_value)
         is_numeric_value_check = isinstance(pass_value_conv, float)
@@ -695,7 +695,7 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         if ratio_formula not in self.ratio_formulas:
             msg_template = "Invalid diff_method: {diff_method}. Supported diff methods are: {diff_methods}"
 
-            raise AirflowException(
+            raise AirflowFailException(
                 msg_template.format(diff_method=ratio_formula, diff_methods=self.ratio_formulas)
             )
         self.ratio_formula = ratio_formula
@@ -720,9 +720,9 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         row1 = hook.get_first(self.sql1)
 
         if not row2:
-            raise AirflowException(f"The query {self.sql2} returned None")
+            _raise_exception(f"The following query returned zero rows: {self.sql2}", self.retry_on_failure)
         if not row1:
-            raise AirflowException(f"The query {self.sql1} returned None")
+            _raise_exception(f"The following query returned zero rows: {self.sql1}", self.retry_on_failure)
 
         current = dict(zip(self.metrics_sorted, row1))
         reference = dict(zip(self.metrics_sorted, row2))
@@ -820,6 +820,8 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
     def execute(self, context: Context):
         hook = self.get_db_hook()
         result = hook.get_first(self.sql)[0]
+        if not result:
+            _raise_exception(f"The following query returned zero rows: {self.sql}", self.retry_on_failure)
 
         if isinstance(self.min_threshold, float):
             lower_bound = self.min_threshold
