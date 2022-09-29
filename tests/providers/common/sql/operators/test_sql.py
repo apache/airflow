@@ -47,9 +47,6 @@ from tests.providers.apache.hive import TestHiveEnvironment
 
 
 class MockHook:
-    def get_first(self):
-        return
-
     def get_records(self):
         return
 
@@ -110,15 +107,15 @@ class TestColumnCheckOperator:
 
     invalid_column_mapping = {"Y": {"invalid_check_name": {"expectation": 5}}}
 
-    def _construct_operator(self, monkeypatch, column_mapping, return_vals):
-        def get_first_return(*arg):
-            return return_vals
+    def _construct_operator(self, monkeypatch, column_mapping, records):
+        def get_records(*arg):
+            return records
 
         operator = SQLColumnCheckOperator(
             task_id="test_task", table="test_table", column_mapping=column_mapping
         )
         monkeypatch.setattr(operator, "get_db_hook", _get_mock_db_hook)
-        monkeypatch.setattr(MockHook, "get_first", get_first_return)
+        monkeypatch.setattr(MockHook, "get_records", get_records)
         return operator
 
     def test_check_not_in_column_checks(self, monkeypatch):
@@ -126,29 +123,62 @@ class TestColumnCheckOperator:
             self._construct_operator(monkeypatch, self.invalid_column_mapping, ())
 
     def test_pass_all_checks_exact_check(self, monkeypatch):
-        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, (0, 10, 10, 1, 19))
+        records = [
+            ('X', 'null_check', 0),
+            ('X', 'distinct_check', 10),
+            ('X', 'unique_check', 10),
+            ('X', 'min', 1),
+            ('X', 'max', 19),
+        ]
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
         operator.execute(context=MagicMock())
 
     def test_max_less_than_fails_check(self, monkeypatch):
         with pytest.raises(AirflowException):
-            operator = self._construct_operator(monkeypatch, self.valid_column_mapping, (0, 10, 10, 1, 21))
+            records = [
+                ('X', 'null_check', 1),
+                ('X', 'distinct_check', 10),
+                ('X', 'unique_check', 10),
+                ('X', 'min', 1),
+                ('X', 'max', 21),
+            ]
+            operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
             operator.execute(context=MagicMock())
             assert operator.column_mapping["X"]["max"]["success"] is False
 
     def test_max_greater_than_fails_check(self, monkeypatch):
         with pytest.raises(AirflowException):
-            operator = self._construct_operator(monkeypatch, self.valid_column_mapping, (0, 10, 10, 1, 9))
+            records = [
+                ('X', 'null_check', 1),
+                ('X', 'distinct_check', 10),
+                ('X', 'unique_check', 10),
+                ('X', 'min', 1),
+                ('X', 'max', 9),
+            ]
+            operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
             operator.execute(context=MagicMock())
             assert operator.column_mapping["X"]["max"]["success"] is False
 
     def test_pass_all_checks_inexact_check(self, monkeypatch):
-        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, (0, 9, 12, 0, 15))
+        records = [
+            ('X', 'null_check', 0),
+            ('X', 'distinct_check', 9),
+            ('X', 'unique_check', 12),
+            ('X', 'min', 0),
+            ('X', 'max', 15),
+        ]
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
         operator.execute(context=MagicMock())
 
     def test_fail_all_checks_check(self, monkeypatch):
-        operator = operator = self._construct_operator(
-            monkeypatch, self.valid_column_mapping, (1, 12, 11, -1, 20)
-        )
+        records = [
+            ('X', 'null_check', 1),
+            ('X', 'distinct_check', 12),
+            ('X', 'unique_check', 11),
+            ('X', 'min', -1),
+            ('X', 'max', 20),
+        ]
+        operator = operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
         with pytest.raises(AirflowException):
             operator.execute(context=MagicMock())
 
@@ -160,9 +190,9 @@ class TestTableCheckOperator:
         "column_sum_check": {"check_statement": "col_a + col_b < col_c"},
     }
 
-    def _construct_operator(self, monkeypatch, checks, return_df):
+    def _construct_operator(self, monkeypatch, checks, records):
         def get_records(*arg):
-            return return_df
+            return records
 
         operator = SQLTableCheckOperator(task_id="test_task", table="test_table", checks=checks)
         monkeypatch.setattr(operator, "get_db_hook", _get_mock_db_hook)
@@ -303,7 +333,7 @@ class TestCheckOperator(unittest.TestCase):
     def test_execute_no_records(self, mock_get_db_hook):
         mock_get_db_hook.return_value.get_first.return_value = []
 
-        with pytest.raises(AirflowException, match=r"The query returned None"):
+        with pytest.raises(AirflowException, match=r"The following query returned zero rows: sql"):
             self._operator.execute({})
 
     @mock.patch.object(SQLCheckOperator, "get_db_hook")
