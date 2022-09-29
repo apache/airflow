@@ -19,11 +19,11 @@
 
 import axios from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
-import { getMetaValue, getTask } from 'src/utils';
-import type { GridData } from 'src/api/useGridData';
-import { emptyGridData } from 'src/api/useGridData';
+
+import { getMetaValue } from 'src/utils';
+import useErrorToast from 'src/utils/useErrorToast';
+
 import type { API } from 'src/types';
-import useErrorToast from '../utils/useErrorToast';
 
 const setTaskInstancesNotesURI = getMetaValue('set_task_instance_notes');
 const setMappedTaskInstancesNotesURI = getMetaValue('set_mapped_task_instance_notes');
@@ -41,44 +41,40 @@ export default function useSetTaskInstanceNotes({
     .replace('_TASK_ID_/0/setNote', `_TASK_ID_/${mapIndex}/setNote`)
     .replace('_TASK_ID_', taskId);
 
-  const updateGridDataResult = (oldValue: GridData | undefined) => {
-    if (oldValue == null) return emptyGridData;
-    if (mapIndex !== undefined && mapIndex >= 0) return oldValue;
-    const group = getTask({ taskId, task: oldValue.groups });
-    const instance = group?.instances.find((ti) => ti.runId === dagRunId);
-    if (instance) {
-      instance.notes = notes;
-    }
-    return oldValue;
-  };
-
-  const updateMappedInstancesResult = (oldValue: API.TaskInstanceCollection | undefined) => {
-    if (oldValue == null) {
+  const updateMappedInstancesResult = (oldMappedInstances?: API.TaskInstanceCollection) => {
+    if (!oldMappedInstances) {
       return {
-        taskInstances: undefined,
+        taskInstances: [],
         totalEntries: 0,
       };
     }
-    if (mapIndex === undefined || mapIndex < 0) return oldValue;
-    const instance = oldValue?.taskInstances?.find(
-      (ti) => (
+    if (mapIndex === undefined || mapIndex < 0) return oldMappedInstances;
+    return {
+      ...oldMappedInstances,
+      taskInstances: oldMappedInstances.taskInstances?.map((ti) => (
         ti.dagRunId === dagRunId && ti.taskId === taskId && ti.mapIndex === mapIndex
-      ),
-    );
-    if (instance) {
-      instance.notes = notes;
-    }
-    return oldValue;
+          ? { ...ti, notes }
+          : ti
+      )),
+    };
   };
 
-  const updateTaskInstanceResult = (oldValue: API.TaskInstance | undefined) => {
-    if (oldValue == null) throw new Error('Unknown value..');
-    if (oldValue.dagRunId === dagRunId && oldValue.taskId === taskId) {
-      if ((oldValue.mapIndex == null && mapIndex < 0) || oldValue.mapIndex === mapIndex) {
-        oldValue.notes = notes;
-      }
+  const updateTaskInstanceResult = (oldTaskInstance?: API.TaskInstance) => {
+    if (!oldTaskInstance) throw new Error('Unknown value...');
+    if (
+      oldTaskInstance.dagRunId === dagRunId
+      && oldTaskInstance.taskId === taskId
+      && (
+        (oldTaskInstance.mapIndex == null && mapIndex < 0)
+        || oldTaskInstance.mapIndex === mapIndex
+      )
+    ) {
+      return {
+        ...oldTaskInstance,
+        notes,
+      };
     }
-    return oldValue;
+    return oldTaskInstance;
   };
 
   return useMutation(
@@ -86,11 +82,17 @@ export default function useSetTaskInstanceNotes({
     () => axios.patch(url, { notes }),
     {
       onSuccess: async () => {
-        await queryClient.cancelQueries('gridData');
-        queryClient.setQueriesData('gridData', updateGridDataResult);
+        /*
+          This will force a refetch of gridData.
+          Mutating the nested object is quite complicated,
+          we should simplify the gridData API object first
+        */
+        await queryClient.invalidateQueries('gridData');
 
-        await queryClient.cancelQueries('mappedInstances');
-        queryClient.setQueriesData('mappedInstances', updateMappedInstancesResult);
+        if (mapIndex >= 0) {
+          await queryClient.cancelQueries('mappedInstances');
+          queryClient.setQueriesData('mappedInstances', updateMappedInstancesResult);
+        }
 
         await queryClient.cancelQueries('taskInstance');
         queryClient.setQueriesData(
