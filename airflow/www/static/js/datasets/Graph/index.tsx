@@ -18,15 +18,16 @@
  */
 
 import React, { useState, useEffect, RefObject } from 'react';
-import { Box, IconButton, Spinner } from '@chakra-ui/react';
+import { Box, Spinner } from '@chakra-ui/react';
 import { Zoom } from '@visx/zoom';
-import { MdOutlineZoomOutMap, MdFilterCenterFocus } from 'react-icons/md';
+import { Group } from '@visx/group';
 import { debounce } from 'lodash';
 
 import { useDatasetDependencies } from 'src/api';
 
 import Node from './Node';
 import Edge from './Edge';
+import Legend from './Legend';
 
 interface Props {
   onSelect: (datasetId: string) => void;
@@ -117,28 +118,18 @@ const Graph = ({ onSelect, selectedUri }: Props) => {
                   ))}
                 </g>
               </g>
+              <Group top={height - 50} left={0} height={50} width={width}>
+                <foreignObject width={width} height={50}>
+                  <Legend
+                    zoom={zoom}
+                    center={() => zoom.translateTo({
+                      x: (width - (data.width ?? 0)) / 2,
+                      y: (height - (data.height ?? 0)) / 2,
+                    })}
+                  />
+                </foreignObject>
+              </Group>
             </svg>
-            <Box>
-              <IconButton
-                onClick={zoom.reset}
-                fontSize="2xl"
-                m={2}
-                title="Reset zoom"
-                aria-label="Reset zoom"
-                icon={<MdOutlineZoomOutMap />}
-              />
-              <IconButton
-                onClick={() => zoom.translateTo({
-                  x: (width - (data.width ?? 0)) / 2,
-                  y: (height - (data.height ?? 0)) / 2,
-                })}
-                fontSize="2xl"
-                m={2}
-                title="Center"
-                aria-label="Center"
-                icon={<MdFilterCenterFocus />}
-              />
-            </Box>
           </Box>
         )}
       </Zoom>
