@@ -22,14 +22,42 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from pathlib import Path
 
 from airflow import models
+from airflow.operators.bash import BashOperator
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.providers.google.suite.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator
+from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+
 DAG_ID = "example_gcs_to_gdrive"
 
-GCS_TO_GDRIVE_BUCKET = os.environ.get("GCS_TO_DRIVE_BUCKET", "example-object")
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+
+TMP_PATH = "tmp"
+DIR = "tests_dir"
+SUBDIR = "subdir"
+
+OBJECT_SRC_1 = "6.txt"
+
+CURRENT_FOLDER = Path(__file__).parent
+LOCAL_PATH = str(Path(CURRENT_FOLDER) / "resources")
+
+FILE_LOCAL_PATH = str(Path(LOCAL_PATH) / TMP_PATH / DIR)
+FILE_NAME = "tmp.tar.gz"
+
+CLOUD_PLATFORM_SCOPE = 'https://www.googleapis.com/auth/cloud-platform'
+GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive'
+
+os.environ["AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT"] = (
+    "google-cloud-platform://?extra__google_cloud_platform__scope="
+    f"{CLOUD_PLATFORM_SCOPE},{GOOGLE_DRIVE_SCOPE}"
+)
+
 
 with models.DAG(
     DAG_ID,
@@ -38,31 +66,68 @@ with models.DAG(
     catchup=False,
     tags=['example', 'gcs'],
 ) as dag:
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
+    )
+    unzip_file = BashOperator(
+        task_id="unzip_data_file", bash_command=f"tar xvf {LOCAL_PATH}/{FILE_NAME} -C {LOCAL_PATH}"
+    )
+    upload_file = LocalFilesystemToGCSOperator(
+        task_id="upload_file",
+        src=f"{FILE_LOCAL_PATH}/{SUBDIR}/*",
+        dst=f"{TMP_PATH}/",
+        bucket=BUCKET_NAME,
+    )
+
     # [START howto_operator_gcs_to_gdrive_copy_single_file]
     copy_single_file = GCSToGoogleDriveOperator(
         task_id="copy_single_file",
-        source_bucket=GCS_TO_GDRIVE_BUCKET,
-        source_object="sales/january.avro",
-        destination_object="copied_sales/january-backup.avro",
+        source_bucket=BUCKET_NAME,
+        source_object=f"{TMP_PATH}/{OBJECT_SRC_1}",
+        destination_object="copied_tmp/copied_object_1.txt",
     )
     # [END howto_operator_gcs_to_gdrive_copy_single_file]
+
     # [START howto_operator_gcs_to_gdrive_copy_files]
     copy_files = GCSToGoogleDriveOperator(
         task_id="copy_files",
-        source_bucket=GCS_TO_GDRIVE_BUCKET,
-        source_object="sales/*",
-        destination_object="copied_sales/",
+        source_bucket=BUCKET_NAME,
+        source_object=f"{TMP_PATH}/*",
+        destination_object="copied_tmp/",
     )
     # [END howto_operator_gcs_to_gdrive_copy_files]
+
     # [START howto_operator_gcs_to_gdrive_move_files]
     move_files = GCSToGoogleDriveOperator(
         task_id="move_files",
-        source_bucket=GCS_TO_GDRIVE_BUCKET,
-        source_object="sales/*.avro",
+        source_bucket=BUCKET_NAME,
+        source_object=f"{TMP_PATH}/*.bin",
         move_object=True,
     )
     # [END howto_operator_gcs_to_gdrive_move_files]
 
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+    )
+
+    (
+        # TEST SETUP
+        create_bucket
+        >> unzip_file
+        >> upload_file
+        # TEST BODY
+        >> copy_single_file
+        >> copy_files
+        >> move_files
+        # TEST TEARDOWN
+        >> delete_bucket
+    )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
 from tests.system.utils import get_test_run  # noqa: E402
 
