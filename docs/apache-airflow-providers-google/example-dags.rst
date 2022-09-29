@@ -17,7 +17,6 @@
 
 Example DAGs
 ============
-docs/apache-airflow-providers-google/example-dags.rst
 You can learn how to use Google integrations by analyzing the source code of the example DAGs:
 
 * `Google Ads <https://github.com/apache/airflow/tree/providers-google/8.1.0/tests/system/providers/google/ads>`__
