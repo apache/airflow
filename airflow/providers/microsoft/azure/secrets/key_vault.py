@@ -168,7 +168,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         :param secret_id: Name of the secret
         :param sep: Separator used to concatenate path_prefix and secret_id
         """
-        # when no prefix is given by default it adds sep for the key
+        # When an empty prefix is given, do not add a separator to the secret name
         if path_prefix == "":
             path = f'{secret_id}'
         else:
