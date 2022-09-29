@@ -40,6 +40,15 @@ BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
 LOCAL_PATH = str(Path(__file__).parent / "resources" / FILE_NAME)
 
+CLOUD_PLATFORM_SCOPE = 'https://www.googleapis.com/auth/cloud-platform'
+GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive'
+
+os.environ["AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT"] = (
+    "google-cloud-platform://?extra__google_cloud_platform__scope="
+    f"{CLOUD_PLATFORM_SCOPE},{GOOGLE_DRIVE_SCOPE}"
+)
+
+
 with models.DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
