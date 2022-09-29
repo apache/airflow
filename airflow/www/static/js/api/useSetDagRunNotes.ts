@@ -20,33 +20,32 @@
 import axios from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
 import { getMetaValue } from 'src/utils';
+import type { API } from 'src/types';
 import useErrorToast from '../utils/useErrorToast';
 import type { GridData } from './useGridData';
 import { emptyGridData } from './useGridData';
 
 const setDagRunNotesURI = getMetaValue('set_dag_run_notes');
 
-export default function useSetDagRunNotes(
-  dagId: string,
-  runId: string,
-  newNotesValue: string,
-) {
+export default function useSetDagRunNotes({
+  dagId, dagRunId, notes,
+}: API.SetDagRunNotesVariables) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
-  const setDagRunNotes = setDagRunNotesURI.replace('_DAG_RUN_ID_', runId);
+  const setDagRunNotes = setDagRunNotesURI.replace('_DAG_RUN_ID_', dagRunId);
 
   const updateGridData = (oldValue: GridData | undefined) => {
     if (oldValue == null) return emptyGridData;
-    const run = oldValue.dagRuns.find((dr) => dr.runId === runId);
+    const run = oldValue.dagRuns.find((dr) => dr.runId === dagRunId);
     if (run) {
-      run.notes = newNotesValue;
+      run.notes = (notes === undefined ? null : notes);
     }
     return oldValue;
   };
 
   return useMutation(
-    ['setDagRunNotes', dagId, runId],
-    () => axios.patch(setDagRunNotes, { notes: newNotesValue }),
+    ['setDagRunNotes', dagId, dagRunId],
+    () => axios.patch(setDagRunNotes, { notes }),
     {
 
       onSuccess: async () => {

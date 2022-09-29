@@ -103,7 +103,7 @@ const DagRun = ({ runId }: Props) => {
         </Flex>
         <Divider my={3} />
       </Box>
-      <Box p={4}>
+      <Box px={4} py={2}>
         <SetDagTaskNotes
           dagId={dagId}
           runId={runId}

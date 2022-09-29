@@ -27,6 +27,8 @@ import useErrorToast from '../utils/useErrorToast';
 
 const setTaskInstancesNotesURI = getMetaValue('set_task_instance_notes');
 
+// Note: Not using API.SetTaskInstanceNotesVariables because the parameters in the body
+// are interpreted as optional due to `openapi-typescript` (which they are not..).
 export default function useSetTaskInstanceNotes(
   dagId: string,
   runId: string,

@@ -48,11 +48,11 @@ const SetDagTaskNotes = ({
 }: Props) => {
   const [notes, setNotes] = useState(initialValue == null ? '' : initialValue);
   const [noteBeforeEdit, setNoteBeforeEdit] = useState('');
-  const [editMode, changeEditMode] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const tiStr = (taskId != null ? taskId : '');
   const {
     mutateAsync: apiCallToSetDagRunNote, isLoading: dagRunIsLoading,
-  } = useSetDagRunNotes(dagId, runId, notes);
+  } = useSetDagRunNotes({ dagId, dagRunId: runId, notes });
   const {
     mutateAsync: apiCallToSetTINote, isLoading: tiIsLoading,
   } = useSetTaskInstanceNotes(dagId, runId, tiStr, (mapIndex != null ? mapIndex : -1), notes);
@@ -66,7 +66,7 @@ const SetDagTaskNotes = ({
     } else {
       await apiCallToSetTINote();
     }
-    changeEditMode(false);
+    setEditMode(false);
   };
 
   return (
@@ -103,14 +103,14 @@ const SetDagTaskNotes = ({
               </div>
               <div style={{ marginTop: '10px' }}>
                 <Button type="submit" isLoading={dagRunIsLoading || tiIsLoading}>
-                  Update user notes
+                  Update User Notes
                 </Button>
                 <Button
-                  onClick={() => { setNotes(noteBeforeEdit); changeEditMode(false); }}
+                  onClick={() => { setNotes(noteBeforeEdit); setEditMode(false); }}
                   isLoading={dagRunIsLoading || tiIsLoading}
                   style={{ marginLeft: '15px' }}
                 >
-                  Discard edit
+                  Discard Edit
                 </Button>
               </div>
             </form>
@@ -118,12 +118,12 @@ const SetDagTaskNotes = ({
             <>
               <p style={{ whiteSpace: 'pre-line' }}>{notes}</p>
               <Button
-                onClick={() => { setNoteBeforeEdit(notes); changeEditMode(true); }}
+                onClick={() => { setNoteBeforeEdit(notes); setEditMode(true); }}
                 isDisabled={!canEdit}
                 isLoading={dagRunIsLoading || tiIsLoading}
                 style={{ marginTop: '10px' }}
               >
-                {notes === '' ? 'Set a note' : 'Change notes'}
+                {notes === '' ? 'Set Notes' : 'Change Notes'}
               </Button>
             </>
           )}

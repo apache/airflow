@@ -153,18 +153,8 @@ const TaskInstance = ({
           {/* Details Tab */}
           <TabPanel pt={isMapIndexDefined ? '0px' : undefined}>
             <Box py="4px">
-              {!isGroup && (
-                <TaskActions
-                  title={taskActionsTitle}
-                  runId={runId}
-                  taskId={taskId}
-                  dagId={dagId}
-                  executionDate={executionDate}
-                  mapIndexes={actionsMapIndexes}
-                />
-              )}
               {!isGroupOrMappedTaskSummary && (
-                <Box mt={6}>
+                <Box>
                   <SetDagTaskNotes
                     dagId={dagId}
                     runId={runId}
@@ -173,7 +163,19 @@ const TaskInstance = ({
                     initialValue={instance.notes}
                     key={dagId + runId + taskId + instance.mapIndex + instance.notes}
                   />
-                  <Divider my={3} />
+                  <Divider mb={8} />
+                </Box>
+              )}
+              {!isGroup && (
+                <Box mb={8}>
+                  <TaskActions
+                    title={taskActionsTitle}
+                    runId={runId}
+                    taskId={taskId}
+                    dagId={dagId}
+                    executionDate={executionDate}
+                    mapIndexes={actionsMapIndexes}
+                  />
                 </Box>
               )}
               <Details instance={instance} group={group} dagId={dagId} />
