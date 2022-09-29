@@ -2425,6 +2425,14 @@
       type: string
       example: '{"grace_period_seconds": 10}'
       default: ""
+    - name: sidecar_container_image
+      description: |
+        Define the ``image`` used by the ``PodDefaults.SIDECAR_CONTAINER`` to allow private repositories,
+        as well as custom image overrides.
+      version_added: 2.4.1
+      type: string
+      example: ~
+      default: "alpine"
     - name: enable_tcp_keepalive
       description: |
         Enables TCP keepalive mechanism. This prevents Kubernetes API requests to hang indefinitely
