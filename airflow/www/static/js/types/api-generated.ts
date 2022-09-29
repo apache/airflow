@@ -1829,7 +1829,7 @@ export interface components {
     };
     SetTaskInstanceNote: {
       /** @description The custom note to set for this Task Instance. */
-      notes?: string;
+      notes: string;
     };
     ListDagRunsForm: {
       /**

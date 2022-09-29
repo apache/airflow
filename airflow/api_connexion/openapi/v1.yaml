@@ -4173,6 +4173,8 @@ components:
             - failed
     SetTaskInstanceNote:
       type: object
+      required:
+        - notes
       properties:
         notes:
           description: The custom note to set for this Task Instance.

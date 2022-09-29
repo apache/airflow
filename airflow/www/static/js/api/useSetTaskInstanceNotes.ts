@@ -29,17 +29,13 @@ const setTaskInstancesNotesURI = getMetaValue('set_task_instance_notes');
 const setMappedTaskInstancesNotesURI = getMetaValue('set_mapped_task_instance_notes');
 
 export default function useSetTaskInstanceNotes({
-  dagId, dagRunId, taskId, mapIndex, notes: nullableNotes,
+  dagId, dagRunId, taskId, mapIndex, notes,
 }: API.SetMappedTaskInstanceNotesVariables) {
-  // Note: `openapi-typescript` thinks all body parameters are optional, this also includes notes
-  // in API.SetTaskInstanceNotesVariables. Hence, the renaming and changing here.
-  const notes = (nullableNotes == null) ? '' : nullableNotes;
-
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
-  // Note: Werkzeug does not like the META URL with an integer. It can not put _MAP_INDEX_ there
-  // as it interprets that as the integer. Hence, we pass -1 as the integer. To avoid we replace
-  // other stuff, we add _TASK_ID_ to the replacement query.
+  // Note: Werkzeug does not like the META URL on dag.html with an integer. It can not put
+  // _MAP_INDEX_ there as it interprets that as the integer. Hence, we pass 0 as the integer.
+  // To avoid we replace other stuff, we add the surrounding strings to the replacement query.
   const url = (mapIndex >= 0 ? setMappedTaskInstancesNotesURI : setTaskInstancesNotesURI)
     .replace('_DAG_RUN_ID_', dagRunId)
     .replace('_TASK_ID_/0/setNote', `_TASK_ID_/${mapIndex}/setNote`)
