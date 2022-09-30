@@ -817,3 +817,18 @@ def test_upstream_exception_produces_none_xcom(dag_maker, session):
     assert len(decision.schedulable_tis) == 1  # "down"
     decision.schedulable_tis[0].run(session=session)
     assert result == "'example' None"
+
+
+@pytest.mark.filterwarnings("error")
+def test_no_warnings(reset_logging_config, caplog):
+    @task_decorator
+    def some_task():
+        return 1
+
+    @task_decorator
+    def other(x):
+        ...
+
+    with DAG(dag_id='test', start_date=DEFAULT_DATE, schedule=None):
+        other(some_task())
+    assert caplog.messages == []
