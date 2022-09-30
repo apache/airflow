@@ -72,6 +72,7 @@ REVISION_HEADS_MAP = {
     "2.3.3": "f5fcbda3e651",
     "2.3.4": "f5fcbda3e651",
     "2.4.0": "ecb43d2a1842",
+    "2.4.1": "ecb43d2a1842",
 }
 
 
