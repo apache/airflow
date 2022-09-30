@@ -95,6 +95,9 @@ class KubernetesHook(BaseHook):
             ),
             "extra__kubernetes__disable_verify_ssl": BooleanField(lazy_gettext('Disable SSL')),
             "extra__kubernetes__disable_tcp_keepalive": BooleanField(lazy_gettext('Disable TCP keepalive')),
+            "extra__kubernetes__sidecar_container_image": StringField(
+                lazy_gettext('Xcom sidecar image'), widget=BS3TextFieldWidget()
+            ),
         }
 
     @staticmethod
@@ -367,6 +370,11 @@ class KubernetesHook(BaseHook):
             namespace = extras.get("extra__kubernetes__namespace", "default")
             return namespace
         return None
+
+    def get_sidecar_container_image(self):
+        """Returns the xcom sidecar image that defined in the connection"""
+        image = self._get_field("sidecar_container_image")
+        return image if image else "alpine"
 
     def get_pod_log_stream(
         self,
