@@ -29,6 +29,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
+from airflow.compat.functools import cached_property
 from airflow.models import Connection
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
@@ -585,3 +586,19 @@ class TestPytestSnowflakeHook:
             with pytest.raises(ValueError) as err:
                 hook.run(sql=empty_statement)
             assert err.value.args[0] == "List of SQL statements is empty"
+
+    @cached_property
+    def provider_min_airflow_version(self):
+        from airflow.providers_manager import ProvidersManager
+
+        p = ProvidersManager()
+        deps = p.providers['apache-airflow-providers-snowflake'].data['dependencies']
+        airflow_dep = [x for x in deps if x.startswith('apache-airflow')][0]
+        min_airflow_version = tuple(map(int, airflow_dep.split('>=')[1].split('.')))
+        return min_airflow_version
+
+    def test_maybe_add_prefix_removal(self):
+        if self.provider_min_airflow_version >= (2, 3):
+            raise Exception(
+                'Helper function _maybe_add_prefix should be removed when min airflow version is >= 2.3'
+            )
