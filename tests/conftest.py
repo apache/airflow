@@ -840,3 +840,14 @@ def create_log_template(request):
         request.addfinalizer(_delete_log_template)
 
     return _create_log_template
+
+
+@pytest.fixture()
+def reset_logging_config():
+    import logging.config
+
+    from airflow import settings
+    from airflow.utils.module_loading import import_string
+
+    logging_config = import_string(settings.LOGGING_CLASS_PATH)
+    logging.config.dictConfig(logging_config)
