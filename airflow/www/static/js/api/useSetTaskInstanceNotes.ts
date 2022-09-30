@@ -28,60 +28,68 @@ import type { API } from 'src/types';
 const setTaskInstancesNotesURI = getMetaValue('set_task_instance_notes');
 const setMappedTaskInstancesNotesURI = getMetaValue('set_mapped_task_instance_notes');
 
+interface Props {
+  dagId: string;
+  runId: string;
+  taskId: string;
+  mapIndex?: number;
+}
+
 export default function useSetTaskInstanceNotes({
-  dagId, dagRunId, taskId, mapIndex, notes,
-}: API.SetMappedTaskInstanceNotesVariables) {
+  dagId, runId, taskId, mapIndex = -1,
+}: Props) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   // Note: Werkzeug does not like the META URL on dag.html with an integer. It can not put
   // _MAP_INDEX_ there as it interprets that as the integer. Hence, we pass 0 as the integer.
   // To avoid we replace other stuff, we add the surrounding strings to the replacement query.
   const url = (mapIndex >= 0 ? setMappedTaskInstancesNotesURI : setTaskInstancesNotesURI)
-    .replace('_DAG_RUN_ID_', dagRunId)
+    .replace('_DAG_RUN_ID_', runId)
     .replace('_TASK_ID_/0/setNote', `_TASK_ID_/${mapIndex}/setNote`)
     .replace('_TASK_ID_', taskId);
 
-  const updateMappedInstancesResult = (oldMappedInstances?: API.TaskInstanceCollection) => {
-    if (!oldMappedInstances) {
-      return {
-        taskInstances: [],
-        totalEntries: 0,
-      };
-    }
-    if (mapIndex === undefined || mapIndex < 0) return oldMappedInstances;
-    return {
-      ...oldMappedInstances,
-      taskInstances: oldMappedInstances.taskInstances?.map((ti) => (
-        ti.dagRunId === dagRunId && ti.taskId === taskId && ti.mapIndex === mapIndex
-          ? { ...ti, notes }
-          : ti
-      )),
-    };
-  };
-
-  const updateTaskInstanceResult = (oldTaskInstance?: API.TaskInstance) => {
-    if (!oldTaskInstance) throw new Error('Unknown value...');
-    if (
-      oldTaskInstance.dagRunId === dagRunId
-      && oldTaskInstance.taskId === taskId
-      && (
-        (oldTaskInstance.mapIndex == null && mapIndex < 0)
-        || oldTaskInstance.mapIndex === mapIndex
-      )
-    ) {
-      return {
-        ...oldTaskInstance,
-        notes,
-      };
-    }
-    return oldTaskInstance;
-  };
-
   return useMutation(
-    ['setTaskInstanceNotes', dagId, dagRunId],
-    () => axios.patch(url, { notes }),
+    ['setTaskInstanceNotes', dagId, runId, taskId, mapIndex],
+    (notes: string | null) => axios.patch(url, { notes }),
     {
-      onSuccess: async () => {
+      onSuccess: async (data) => {
+        const notes = (data as API.TaskInstance).notes ?? null;
+
+        const updateMappedInstancesResult = (oldMappedInstances?: API.TaskInstanceCollection) => {
+          if (!oldMappedInstances) {
+            return {
+              taskInstances: [],
+              totalEntries: 0,
+            };
+          }
+          if (mapIndex === undefined || mapIndex < 0) return oldMappedInstances;
+          return {
+            ...oldMappedInstances,
+            taskInstances: oldMappedInstances.taskInstances?.map((ti) => (
+              ti.dagRunId === runId && ti.taskId === taskId && ti.mapIndex === mapIndex
+                ? { ...ti, notes }
+                : ti
+            )),
+          };
+        };
+
+        const updateTaskInstanceResult = (oldTaskInstance?: API.TaskInstance) => {
+          if (!oldTaskInstance) throw new Error('Unknown value...');
+          if (
+            oldTaskInstance.dagRunId === runId
+            && oldTaskInstance.taskId === taskId
+            && (
+              (oldTaskInstance.mapIndex == null && mapIndex < 0)
+              || oldTaskInstance.mapIndex === mapIndex
+            )
+          ) {
+            return {
+              ...oldTaskInstance,
+              notes,
+            };
+          }
+          return oldTaskInstance;
+        };
         /*
           This will force a refetch of gridData.
           Mutating the nested object is quite complicated,
@@ -96,7 +104,7 @@ export default function useSetTaskInstanceNotes({
 
         await queryClient.cancelQueries('taskInstance');
         queryClient.setQueriesData(
-          ['taskInstance', dagId, dagRunId, taskId, mapIndex],
+          ['taskInstance', dagId, runId, taskId, mapIndex],
           updateTaskInstanceResult,
         );
       },

@@ -26,57 +26,60 @@ import {
   AccordionIcon,
   Box,
   Button,
+  Flex,
   Text,
   Textarea,
 } from '@chakra-ui/react';
 import ResizeTextarea from 'react-textarea-autosize';
-import { getMetaValue } from '../../utils';
-import { useSetDagRunNotes, useSetTaskInstanceNotes } from '../../api';
+
+import { getMetaValue } from 'src/utils';
+import { useSetDagRunNotes, useSetTaskInstanceNotes } from 'src/api';
 
 interface Props {
   dagId: string;
   runId: string;
-  taskId: string | undefined;
-  mapIndex: number | undefined;
-  initialValue: string | undefined | null;
+  taskId?: string;
+  mapIndex?: number;
+  initialValue?: string | null;
 }
 
-const canEdit = getMetaValue('can_edit') === 'True';
-
-const SetDagTaskNotes = ({
+const NotesAccordion = ({
   dagId, runId, taskId, mapIndex, initialValue,
 }: Props) => {
-  const [notes, setNotes] = useState(initialValue == null ? '' : initialValue);
-  const [noteBeforeEdit, setNoteBeforeEdit] = useState('');
+  const canEdit = getMetaValue('can_edit') === 'True';
+  const [notes, setNotes] = useState(initialValue ?? '');
   const [editMode, setEditMode] = useState(false);
-  const tiStr = (taskId != null ? taskId : '');
-  const mapIndexInt = (mapIndex != null ? mapIndex : -1);
+
   const {
     mutateAsync: apiCallToSetDagRunNote, isLoading: dagRunIsLoading,
-  } = useSetDagRunNotes({ dagId, dagRunId: runId, notes });
+  } = useSetDagRunNotes({ dagId, runId });
   const {
     mutateAsync: apiCallToSetTINote, isLoading: tiIsLoading,
   } = useSetTaskInstanceNotes({
-    dagId, dagRunId: runId, taskId: tiStr, mapIndex: mapIndexInt, notes,
+    dagId,
+    runId,
+    taskId: taskId ?? '',
+    mapIndex,
   });
+  const isLoading = dagRunIsLoading || tiIsLoading;
 
   const objectIdentifier = (taskId == null) ? 'DAG Run' : 'Task Instance';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (taskId == null) {
-      await apiCallToSetDagRunNote();
+      await apiCallToSetDagRunNote(notes);
     } else {
-      await apiCallToSetTINote();
+      await apiCallToSetTINote(notes);
     }
     setEditMode(false);
   };
 
   return (
     // use initialValue here so we don't re-render when notes changes.
-    <Accordion defaultIndex={(initialValue === '' || initialValue == null ? [] : [0])} allowToggle>
-      <AccordionItem style={{ border: 0 }}>
-        <AccordionButton style={{ padding: 0, paddingBottom: '10px', fontSize: 'inherit' }}>
+    <Accordion defaultIndex={!initialValue ? [] : [0]} allowToggle>
+      <AccordionItem border="0">
+        <AccordionButton p={0} pb={2} fontSize="inherit">
           <Box flex="1" textAlign="left">
             <Text as="strong" size="lg">
               {objectIdentifier}
@@ -86,45 +89,45 @@ const SetDagTaskNotes = ({
           </Box>
           <AccordionIcon />
         </AccordionButton>
-        <AccordionPanel style={{ padding: '0 0 15px 0' }}>
+        <AccordionPanel pl={3}>
           {editMode ? (
             <form onSubmit={handleSubmit}>
-              <div>
+              <Box>
                 <Textarea
                   autoFocus
                   minH="unset"
                   overflow="hidden"
-                  w="100%"
+                  width="100%"
                   resize="none"
                   minRows={3}
                   maxRows={10}
                   as={ResizeTextarea}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  style={{ width: '100%' }}
+                  data-testid="notes-input"
                 />
-              </div>
-              <div style={{ marginTop: '10px' }}>
-                <Button type="submit" isLoading={dagRunIsLoading || tiIsLoading}>
+              </Box>
+              <Flex mt={3}>
+                <Button type="submit" isLoading={isLoading}>
                   Update User Notes
                 </Button>
                 <Button
-                  onClick={() => { setNotes(noteBeforeEdit); setEditMode(false); }}
-                  isLoading={dagRunIsLoading || tiIsLoading}
-                  style={{ marginLeft: '15px' }}
+                  onClick={() => { setNotes(initialValue ?? ''); setEditMode(false); }}
+                  isLoading={isLoading}
+                  ml={3}
                 >
                   Discard Edit
                 </Button>
-              </div>
+              </Flex>
             </form>
           ) : (
             <>
-              <p style={{ whiteSpace: 'pre-line' }}>{notes}</p>
+              <Text whiteSpace="pre-line">{notes}</Text>
               <Button
-                onClick={() => { setNoteBeforeEdit(notes); setEditMode(true); }}
+                onClick={() => setEditMode(true)}
                 isDisabled={!canEdit}
-                isLoading={dagRunIsLoading || tiIsLoading}
-                style={{ marginTop: '10px' }}
+                isLoading={isLoading}
+                mt={2}
               >
                 {notes === '' ? 'Set Notes' : 'Change Notes'}
               </Button>
@@ -136,4 +139,4 @@ const SetDagTaskNotes = ({
   );
 };
 
-export default SetDagTaskNotes;
+export default NotesAccordion;

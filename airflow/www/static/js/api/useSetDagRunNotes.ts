@@ -29,31 +29,35 @@ import type { GridData } from './useGridData';
 
 const setDagRunNotesURI = getMetaValue('set_dag_run_notes');
 
+interface Props {
+  dagId: string;
+  runId: string;
+}
+
 export default function useSetDagRunNotes({
-  dagId, dagRunId, notes,
-}: API.SetDagRunNotesVariables) {
+  dagId, runId,
+}: Props) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
-  const setDagRunNotes = setDagRunNotesURI.replace('_DAG_RUN_ID_', dagRunId);
-
-  const updateGridData = (oldGridData: GridData | undefined) => (
-    !oldGridData
-      ? emptyGridData
-      : {
-        ...oldGridData,
-        dagRuns: oldGridData.dagRuns.map((dr) => {
-          // gridData doesn't allow notes to be undefined, so we'll set it to null instead
-          if (dr.runId === dagRunId) return { ...dr, notes: notes || null };
-          return dr;
-        }),
-      }
-  );
+  const setDagRunNotes = setDagRunNotesURI.replace('_DAG_RUN_ID_', runId);
 
   return useMutation(
-    ['setDagRunNotes', dagId, dagRunId],
-    () => axios.patch(setDagRunNotes, { notes }),
+    ['setDagRunNotes', dagId, runId],
+    (notes: string | null) => axios.patch(setDagRunNotes, { notes }),
     {
-      onSuccess: async () => {
+      onSuccess: async (data) => {
+        const notes = (data as API.DAGRun).notes ?? null;
+
+        const updateGridData = (oldGridData: GridData | undefined) => (
+          !oldGridData
+            ? emptyGridData
+            : {
+              ...oldGridData,
+              dagRuns: oldGridData.dagRuns.map((dr) => (
+                dr.runId === runId ? { ...dr, notes } : dr)),
+            }
+        );
+
         await queryClient.cancelQueries('gridData');
         queryClient.setQueriesData('gridData', updateGridData);
       },

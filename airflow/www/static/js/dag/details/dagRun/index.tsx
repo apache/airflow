@@ -46,7 +46,7 @@ import Time from 'src/components/Time';
 import RunTypeIcon from 'src/components/RunTypeIcon';
 
 import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
-import SetDagTaskNotes from 'src/dag/details/SetDagTaskNotes';
+import NotesAccordion from 'src/dag/details/NotesAccordion';
 import MarkFailedRun from './MarkFailedRun';
 import MarkSuccessRun from './MarkSuccessRun';
 import QueueRun from './QueueRun';
@@ -104,11 +104,9 @@ const DagRun = ({ runId }: Props) => {
         <Divider my={3} />
       </Box>
       <Box px={4} py={2}>
-        <SetDagTaskNotes
+        <NotesAccordion
           dagId={dagId}
           runId={runId}
-          taskId={undefined}
-          mapIndex={undefined}
           initialValue={notes}
           key={dagId + runId}
         />

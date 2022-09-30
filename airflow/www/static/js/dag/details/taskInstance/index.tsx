@@ -36,7 +36,7 @@ import { getMetaValue, getTask } from 'src/utils';
 import type { DagRun, TaskInstance as TaskInstanceType } from 'src/types';
 
 import type { SelectionProps } from 'src/dag/useSelection';
-import SetDagTaskNotes from 'src/dag/details/SetDagTaskNotes';
+import NotesAccordion from 'src/dag/details/NotesAccordion';
 import ExtraLinks from './ExtraLinks';
 import Logs from './Logs';
 import TaskNav from './Nav';
@@ -155,13 +155,13 @@ const TaskInstance = ({
             <Box py="4px">
               {!isGroupOrMappedTaskSummary && (
                 <Box>
-                  <SetDagTaskNotes
+                  <NotesAccordion
                     dagId={dagId}
                     runId={runId}
                     taskId={taskId}
                     mapIndex={instance.mapIndex}
                     initialValue={instance.notes}
-                    key={dagId + runId + taskId + instance.mapIndex + instance.notes}
+                    key={dagId + runId + taskId + instance.mapIndex}
                   />
                   <Divider mb={8} />
                 </Box>
