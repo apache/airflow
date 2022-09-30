@@ -271,6 +271,7 @@ class RedactedIO(TextIO):
 
     def __init__(self):
         self.target = sys.stdout
+        self.fileno = sys.stdout.fileno
 
     def write(self, s: str) -> int:
         s = redact(s)
