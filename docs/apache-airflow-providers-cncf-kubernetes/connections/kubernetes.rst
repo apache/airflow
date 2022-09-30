@@ -69,7 +69,7 @@ Disable TCP keepalive
   alive. Set this parameter to True to disable this feature.
 
 Xcom sidecar image
-  Define the ``image`` used by the ``PodDefaults.SIDECAR_CONTAINER`` to allow private
+  Define the ``image`` used by the ``PodDefaults.SIDECAR_CONTAINER`` (defaults to ``"alpine"``) to allow private
   repositories, as well as custom image overrides.
 
 Example storing connection in env var using URI format:
