@@ -28,6 +28,9 @@ from typing import IO
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
 
+# Private: A sentinel object
+DISABLE_PROPOGATE = object()
+
 
 def remove_escape_codes(text: str) -> str:
     """
@@ -179,15 +182,14 @@ def set_context(logger, value):
     :param logger: logger
     :param value: value to set
     """
-    _logger = logger
-    while _logger:
-        for handler in _logger.handlers:
+    while logger:
+        for handler in logger.handlers:
             # Not all handlers need to have context passed in so we ignore
             # the error when handlers do not have set_context defined.
             set_context = getattr(handler, 'set_context', None)
-            if set_context:
-                set_context(value)
-        if _logger.propagate is True:
-            _logger = _logger.parent
+            if set_context and set_context(value) is DISABLE_PROPOGATE:
+                logger.propagate = False
+        if logger.propagate is True:
+            logger = logger.parent
         else:
-            _logger = None
+            break
