@@ -492,7 +492,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
     template_fields = ("partition_clause",)
 
     sql_check_template = """
-        SELECT {check_name} AS check_name, MIN({check_name}) AS check_result
+        SELECT '{check_name}' AS check_name, MIN({check_name}) AS check_result
         FROM (SELECT CASE WHEN {check_statement} THEN 1 ELSE 0 END AS {check_name} FROM {table}) AS sq
     """
 
