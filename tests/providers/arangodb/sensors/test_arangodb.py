@@ -26,7 +26,7 @@ from airflow.providers.arangodb.sensors.arangodb import AQLSensor
 from airflow.utils import db, timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
-arangodb_client_mock = Mock(name="arangodb_client_for_test")
+arangodb_hook_mock = Mock(name="arangodb_hook_for_test", **{'query.return_value.count.return_value': 1})
 
 
 class TestAQLSensor(unittest.TestCase):
@@ -46,9 +46,9 @@ class TestAQLSensor(unittest.TestCase):
         )
 
     @patch(
-        "airflow.providers.arangodb.hooks.arangodb.ArangoDBClient",
+        "airflow.providers.arangodb.sensors.arangodb.ArangoDBHook",
         autospec=True,
-        return_value=arangodb_client_mock,
+        return_value=arangodb_hook_mock,
     )
     def test_arangodb_document_created(self, arangodb_mock):
         query = "FOR doc IN students FILTER doc.name == 'judy' RETURN doc"
@@ -62,4 +62,4 @@ class TestAQLSensor(unittest.TestCase):
         )
 
         arangodb_tag_sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        assert arangodb_mock.return_value.db.called
+        assert arangodb_hook_mock.query.return_value.count.called
