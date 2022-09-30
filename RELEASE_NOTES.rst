@@ -21,6 +21,49 @@
 
 .. towncrier release notes start
 
+Airflow 2.4.1 (2022-09-30)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+^^^^^^^^^
+
+- When rendering template, unmap task in context (#26702)
+- Fix scroll overflow for ConfirmDialog (#26681)
+- Resolve deprecation warning re ``Table.exists()`` (#26616)
+- Fix XComArg zip bug (#26636)
+- Use COALESCE when ordering runs to handle NULL (#26626)
+- Check user is active (#26635)
+- No missing user warning for public admin (#26611)
+- Allow MapXComArg to resolve after serialization  (#26591)
+- Resolve warning about DISTINCT ON query on dags view (#26608)
+- Log warning when secret backend kwargs is invalid (#26580)
+- Fix grid view log try numbers (#26556)
+- Template rendering issue in passing ``templates_dict`` to task decorator (#26390)
+- Fix Deferrable stuck as ``scheduled`` during backfill (#26205)
+- Suppress SQLALCHEMY_TRACK_MODIFICATIONS warning in db init (#26617)
+- Correctly set ``json_provider_class`` on Flask app so it uses our encoder (#26554)
+- Fix WSGI root app (#26549)
+- Fix deadlock when mapped task with removed upstream is rerun (#26518)
+- ExecutorConfigType should be ``cacheable`` (#26498)
+- Fix proper joining of the path for logs retrieved from celery workers (#26493)
+- DAG Deps extends ``base_template`` (#26439)
+- Don't update backfill run from the scheduler (#26342)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+
+- Clarify owner links document (#26515)
+- Fix invalid RST in dataset concepts doc (#26434)
+- Document the ``non-sensitive-only`` option for ``expose_config`` (#26507)
+- Fix ``example_datasets`` dag names (#26495)
+- Zip-like effect is now possible in task mapping (#26435)
+- Use task decorator in docs instead of classic operators (#25711)
+
 Airflow 2.4.0 (2022-09-19)
 --------------------------
 
@@ -423,6 +466,7 @@ Doc only changes
 - Fix ``task-generated mapping`` example (#23424)
 - Add note on subtle logical date change in ``2.2.0`` (#24413)
 - Add missing import in best-practices code example (#25391)
+
 
 
 Airflow 2.3.4 (2022-08-23)
