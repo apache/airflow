@@ -233,6 +233,8 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | end-of-file-fixer                                      | Make sure that there is an empty line at the end                 |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
+| ensure-min-airflow-version                             | Validate providers.yaml files                                    |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
 | fix-encoding-pragma                                    | Remove encoding header from python files                         |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | flynt                                                  | Run flynt string format converter for Python                     |         |
@@ -318,6 +320,8 @@ require Breeze Docker image to be build locally.
 | update-migration-references                            | Update migration ref doc                                         | *       |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-providers-dependencies                          | Update cross-dependencies for providers packages                 |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-providers-min-airflow-version                   | Update min airflow version                                       |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-spelling-wordlist-to-be-sorted                  | Sort alphabetically and uniquify spelling_wordlist.txt           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+

@@ -44,3 +44,5 @@ if sys.version_info < (3, 7):
     if logging.Logger not in copyreg.dispatch_table:
         copyreg.pickle(logging.Logger, _reduce_Logger)
         copyreg.pickle(logging.RootLogger, _reduce_RootLogger)
+
+MIN_AIRFLOW_VERSION = (2, 3, 0)

@@ -363,6 +363,13 @@ repos:
         files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$|^airflow/providers/.*/provider.yaml$
         pass_filenames: false
         additional_dependencies: ['setuptools', 'rich>=12.4.4', 'pyyaml']
+      - id: update-providers-min-airflow-version
+        name: Update min airflow version
+        entry: ./scripts/ci/pre_commit/pre_commit_build_providers_dependencies.py
+        language: python
+        files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$|^airflow/providers/.*/provider.yaml$
+        pass_filenames: false
+        additional_dependencies: ['setuptools', 'rich>=12.4.4', 'pyyaml']
       - id: update-extras
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/pre_commit_insert_extras.py
@@ -638,6 +645,16 @@ repos:
           - 'jsonschema>=3.2.0,<5.0.0'
           - 'tabulate==0.8.8'
           - 'jsonpath-ng==1.5.3'
+          - 'rich>=12.4.4'
+      - id: ensure-min-airflow-version
+        name: Validate providers.yaml files
+        pass_filenames: false
+        entry: ./scripts/ci/pre_commit/pre_commit_check_provider_min_airflow_version.py
+        language: python
+        require_serial: true
+        files: ^docs/|provider\.yaml$|^scripts/ci/pre_commit/pre_commit_check_provider_min_airflow_version\.py$
+        additional_dependencies:
+          - 'PyYAML==5.3.1'
           - 'rich>=12.4.4'
       - id: check-pre-commit-information-consistent
         name: Update information re pre-commit hooks and verify ids and names

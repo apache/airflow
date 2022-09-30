@@ -38,3 +38,5 @@ if PROVIDERS_GOOGLE_VERBOSE_LOGGING:
     import httplib2
 
     httplib2.debuglevel = 4
+
+MIN_AIRFLOW_VERSION = (2, 2, 0)
