@@ -25,6 +25,8 @@ import copy
 
 from kubernetes.client import models as k8s
 
+from airflow.configuration import conf
+
 
 class PodDefaults:
     """Static defaults for Pods"""

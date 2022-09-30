@@ -38,6 +38,7 @@ from airflow.kubernetes.pod_generator import (
     merge_objects,
 )
 from airflow.kubernetes.secret import Secret
+from tests.test_utils.config import conf_vars
 
 
 class TestPodGenerator:
@@ -777,3 +778,11 @@ class TestPodGenerator:
             PodGenerator()
         PodGenerator(pod_template_file='tests/kubernetes/pod.yaml')
         PodGenerator(pod=k8s.V1Pod())
+
+    @conf_vars({('kubernetes', 'sidecar_container_image'): 'private.repo.com/alpine:3.16.2'})
+    def test_customize_sidecar_container_image(self):
+        pod = PodGenerator.add_xcom_sidecar(
+            PodGenerator(pod_template_file='tests/kubernetes/pod.yaml').gen_pod()
+        )
+
+        assert pod.spec.containers[-1].image == 'private.repo.com/alpine:3.16.2'

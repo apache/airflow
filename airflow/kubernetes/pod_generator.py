@@ -36,6 +36,7 @@ from dateutil import parser
 from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, PodReconciliationError, RemovedInAirflow3Warning
 from airflow.kubernetes.pod_generator_deprecated import PodDefaults, PodGenerator as PodGeneratorDeprecated
 from airflow.utils import yaml
@@ -146,7 +147,10 @@ class PodGenerator:
         pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
         pod_cp.spec.containers[0].volume_mounts = pod_cp.spec.containers[0].volume_mounts or []
         pod_cp.spec.containers[0].volume_mounts.insert(0, PodDefaults.VOLUME_MOUNT)
-        pod_cp.spec.containers.append(PodDefaults.SIDECAR_CONTAINER)
+
+        sidecar = copy.deepcopy(PodDefaults.SIDECAR_CONTAINER)
+        sidecar.image = conf.get('kubernetes', 'sidecar_container_image', fallback=sidecar.image)
+        pod_cp.spec.containers.append(sidecar)
 
         return pod_cp
 
