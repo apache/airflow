@@ -93,10 +93,10 @@ priority = [
     TaskInstanceState.RUNNING,
     TaskInstanceState.SHUTDOWN,
     TaskInstanceState.RESTARTING,
-    TaskInstanceState.REMOVED,
     None,
     TaskInstanceState.SUCCESS,
     TaskInstanceState.SKIPPED,
+    TaskInstanceState.REMOVED,
 ]
 
 

@@ -2810,6 +2810,8 @@ class Airflow(AirflowBaseView):
         else:
             external_log_name = None
 
+        state_priority = ['no_status' if p is None else p for p in wwwutils.priority]
+
         return self.render_template(
             'airflow/graph.html',
             dag=dag,
@@ -2832,6 +2834,7 @@ class Airflow(AirflowBaseView):
             dag_run_state=dt_nr_dr_data['dr_state'],
             dag_model=dag_model,
             auto_refresh_interval=conf.getint('webserver', 'auto_refresh_interval'),
+            state_priority=state_priority,
         )
 
     @expose('/duration')
