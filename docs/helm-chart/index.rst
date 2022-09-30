@@ -90,6 +90,10 @@ To install this chart using Helm 3, run the following commands:
     helm repo add apache-airflow https://airflow.apache.org
     helm upgrade --install airflow apache-airflow/airflow --namespace airflow --create-namespace
 
+**Explanation**:
+`helm repo add apache-airflow https://airflow.apache.org`
+- `helm repo add` is a command to add a chart repository
+
 The command deploys Airflow on the Kubernetes cluster in the default configuration. The :doc:`parameters-ref`
 section lists the parameters that can be configured during installation.
 
@@ -105,6 +109,13 @@ To upgrade the chart with the release name ``airflow``:
 
     helm upgrade airflow apache-airflow/airflow --namespace airflow
 
+**Explanation**
+- `helm upgrade` is a command to upgrade a release
+- the first 'airflow' argument is the release name
+- 'apache-airflow/airflow' is the Helm Chart
+- the second 'airflow' argument is the namespace
+
+
 .. note::
   To upgrade to a new version of the chart, run ``helm repo update`` first.
 
@@ -116,6 +127,12 @@ To uninstall/delete the ``airflow`` deployment:
 .. code-block:: bash
 
     helm delete airflow --namespace airflow
+
+**Explanation**
+- `helm delete` is a command to delete a release (it was renamed to `helm uninstall`)
+- the first 'airflow' argument is the release name
+- the second 'airflow' argument is the namespace
+
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
 
