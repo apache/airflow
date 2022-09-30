@@ -57,9 +57,10 @@ class TestKubernetesHook:
             ('disable_verify_ssl_empty', {'extra__kubernetes__disable_verify_ssl': ''}),
             ('disable_tcp_keepalive', {'extra__kubernetes__disable_tcp_keepalive': True}),
             ('disable_tcp_keepalive_empty', {'extra__kubernetes__disable_tcp_keepalive': ''}),
-            ('sidecar_container_image', {
-                'extra__kubernetes__sidecar_container_image': 'private.repo.com/alpine:3.16'
-            }),
+            (
+                'sidecar_container_image',
+                {'extra__kubernetes__sidecar_container_image': 'private.repo.com/alpine:3.16'},
+            ),
             ('sidecar_container_image_empty', {'extra__kubernetes__sidecar_container_image': ''}),
         ]:
             db.merge_conn(Connection(conn_type='kubernetes', conn_id=conn_id, extra=json.dumps(extra)))
