@@ -113,6 +113,7 @@ as this is the only environment that is supported. The only distro that is used 
 is used in the [Community managed DockerHub image](https://hub.docker.com/p/apache/airflow) is
 `Debian Bullseye`.
 
+
 ## Getting started
 
 Visit the official Airflow website documentation (latest **stable** release) for help with
