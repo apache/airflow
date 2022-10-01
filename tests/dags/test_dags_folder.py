@@ -15,42 +15,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
----
-package-name: apache-airflow-providers-odbc
-name: ODBC
-description: |
-    `ODBC <https://github.com/mkleehammer/pyodbc/wiki>`__
+from __future__ import annotations
 
-versions:
-  - 3.1.2
-  - 3.1.1
-  - 3.1.0
-  - 3.0.0
-  - 2.0.4
-  - 2.0.3
-  - 2.0.2
-  - 2.0.1
-  - 2.0.0
-  - 1.0.1
-  - 1.0.0
+import pendulum
 
-dependencies:
-  - apache-airflow>=2.2.0
-  - apache-airflow-providers-common-sql>=1.2.0
-  - pyodbc
+from airflow import DAG
+from airflow.decorators import task
 
-integrations:
-  - integration-name: ODBC
-    external-doc-url: https://github.com/mkleehammer/pyodbc/wiki
-    logo: /integration-logos/odbc/ODBC.png
-    tags: [protocol]
+with DAG(
+    dag_id='test_dags_folder',
+    schedule=None,
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    catchup=False,
+) as dag:
 
-hooks:
-  - integration-name: ODBC
-    python-modules:
-      - airflow.providers.odbc.hooks.odbc
+    @task(task_id="task")
+    def return_file_path():
+        """Print the Airflow context and ds variable from the context."""
+        print(f"dag file location: {__file__}")
+        return __file__
 
-
-connection-types:
-  - hook-class-name: airflow.providers.odbc.hooks.odbc.OdbcHook
-    connection-type: odbc
+    return_file_path()
