@@ -39,8 +39,8 @@ class WinRMHook(BaseHook):
     :seealso: https://github.com/diyan/pywinrm/blob/master/winrm/protocol.py
 
     :param ssh_conn_id: connection id from airflow Connections from where
-        all the required parameters can be fetched like username and password.
-        Thought the priority is given to the param passed during init
+        all the required parameters can be fetched like username and password,
+        though priority is given to the params passed during init.
     :param endpoint: When not set, endpoint will be constructed like this:
         'http://{remote_host}:{remote_port}/wsman'
     :param remote_host: Remote host to connect to. Ignored if `endpoint` is set.

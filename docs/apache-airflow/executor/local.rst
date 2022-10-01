@@ -43,7 +43,7 @@ The following strategies are implemented:
   | LocalExecutor receives the call to shutdown the executor a poison token is sent to the
   | workers to terminate them. Processes used in this strategy are of class :class:`~airflow.executors.local_executor.QueuedLocalWorker`.
 
-Arguably, :class:`~airflow.executors.sequential_executor.SequentialExecutor` could be thought as a ``LocalExecutor`` with limited
+Arguably, :class:`~airflow.executors.sequential_executor.SequentialExecutor` could be thought of as a ``LocalExecutor`` with limited
 parallelism of just 1 worker, i.e. ``self.parallelism = 1``.
 This option could lead to the unification of the executor implementations, running
 locally, into just one :class:`~airflow.executors.local_executor.LocalExecutor` with multiple modes.
