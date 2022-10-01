@@ -3552,8 +3552,10 @@ class Airflow(AirflowBaseView):
 
     @expose('/object/datasets_summary')
     @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
-    def get_datasets(self):
-        """Get datasets"""
+    def datasets_summary(self):
+        """Get a summary of datasets, including the datetime they were last updated and how many updates
+        they've ever had
+        """
         allowed_attrs = ['uri', 'last_dataset_update']
 
         limit = int(request.args.get("limit", 25))
