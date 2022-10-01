@@ -371,9 +371,9 @@ class KubernetesHook(BaseHook):
             return namespace
         return None
 
-    def get_sidecar_container_image(self):
+    def get_xcom_sidecar_container_image(self):
         """Returns the xcom sidecar image that defined in the connection"""
-        image = self._get_field("sidecar_container_image")
+        image = self._get_field("xcom_sidecar_container_image")
         return image if image else "alpine"
 
     def get_pod_log_stream(
