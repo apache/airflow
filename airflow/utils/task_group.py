@@ -477,16 +477,17 @@ class TaskGroup(DAGNode):
     def get_task_dict(self) -> dict[str, AbstractOperator]:
         """Returns a flat dictionary of task_id: AbstractOperator"""
         task_map = {}
+        groups_to_visit = [self]
 
-        def build_map(dag_node):
-            if not isinstance(dag_node, TaskGroup):
-                task_map[dag_node.task_id] = dag_node
-                return
+        while groups_to_visit:
+            visiting = groups_to_visit.pop(0)
 
-            for child in dag_node.children.values():
-                build_map(child)
+            for child in visiting.children.values():
+                if isinstance(child, AbstractOperator):
+                    task_map[child.task_id] = child
+                elif isinstance(child, TaskGroup):
+                    groups_to_visit.append(child)
 
-        build_map(self)
         return task_map
 
 
