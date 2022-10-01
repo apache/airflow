@@ -30,16 +30,9 @@ import { useClearTask } from 'src/api';
 import { getMetaValue } from 'src/utils';
 
 import ActionButton from './ActionButton';
+import type { CommonActionProps } from './types';
 
 const canEdit = getMetaValue('can_edit') === 'True';
-
-interface Props {
-  dagId: string;
-  runId: string;
-  taskId: string;
-  executionDate: string;
-  mapIndexes: number[];
-}
 
 const Run = ({
   dagId,
@@ -47,7 +40,8 @@ const Run = ({
   taskId,
   executionDate,
   mapIndexes,
-}: Props) => {
+  isGroup,
+}: CommonActionProps) => {
   const [affectedTasks, setAffectedTasks] = useState('');
 
   // Options check/unchecked
@@ -73,7 +67,7 @@ const Run = ({
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   const { mutateAsync: clearTask, isLoading } = useClearTask({
-    dagId, runId, taskId, executionDate,
+    dagId, runId, taskId, executionDate, isGroup: !!isGroup,
   });
 
   const onClick = async () => {
@@ -130,7 +124,7 @@ const Run = ({
         onClose={onClose}
         onConfirm={onConfirm}
         isLoading={isLoading}
-        description="Task instances you are about to clear:"
+        description={`Task instances you are about to clear (${affectedTasks.length}):`}
         body={affectedTasks}
       />
     </Flex>

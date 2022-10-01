@@ -111,7 +111,7 @@ const TaskInstance = ({
 
   const { executionDate } = run;
 
-  let taskActionsTitle = 'Task Actions';
+  let taskActionsTitle = `${isGroup ? 'Task Group' : 'Task'} Actions`;
   if (isMapped) {
     taskActionsTitle += ` for ${actionsMapIndexes.length || 'all'} mapped task${actionsMapIndexes.length !== 1 ? 's' : ''}`;
   }
@@ -187,6 +187,7 @@ const TaskInstance = ({
                     dagId={dagId}
                     executionDate={executionDate}
                     mapIndexes={actionsMapIndexes}
+                    isGroup={isGroup}
                   />
                 </Box>
               )}
