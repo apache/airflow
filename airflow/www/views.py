@@ -2028,7 +2028,7 @@ class Airflow(AirflowBaseView):
     )
     @action_logging
     def clear(self):
-        """Clears the dag tasks."""
+        """Clears DAG tasks."""
         dag_id = request.form.get("dag_id")
         task_id = request.form.get("task_id")
         origin = get_safe_url(request.form.get("origin"))

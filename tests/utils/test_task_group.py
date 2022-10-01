@@ -1263,3 +1263,41 @@ def test_mapped_task_group_id_prefix_task_id():
 
     dag.get_task("t1") == t1
     dag.get_task("g.t2") == t2
+
+
+def test_get_task_dict():
+    with DAG("test_dag", start_date=pendulum.parse("20200101")) as dag:
+        with TaskGroup("section_1") as tg1:
+            EmptyOperator(task_id='task1')
+
+        with TaskGroup("section_2") as tg2:
+            task2 = EmptyOperator(task_id="task2")
+            task3 = EmptyOperator(task_id="task3")
+            mapped_bash_operator = BashOperator.partial(task_id="get_tag_template_result").expand(
+                bash_command=[
+                    "echo get_tag_template_result",
+                    "echo get_tag_template_result",
+                    "echo get_tag_template_result",
+                ]
+            )
+            task2 >> task3 >> mapped_bash_operator
+
+    tg1 >> tg2
+    root_group = dag.task_group
+    root_group_task_mapping = root_group.get_task_dict()
+    assert list(root_group_task_mapping.keys()) == [
+        'section_1.task1',
+        'section_2.task2',
+        'section_2.task3',
+        'section_2.get_tag_template_result',
+    ]
+    section_1_task_mapping = tg1.get_task_dict()
+    assert list(section_1_task_mapping.keys()) == [
+        'section_1.task1',
+    ]
+    section_2_task_mapping = tg2.get_task_dict()
+    assert list(section_2_task_mapping.keys()) == [
+        'section_2.task2',
+        'section_2.task3',
+        'section_2.get_tag_template_result',
+    ]
