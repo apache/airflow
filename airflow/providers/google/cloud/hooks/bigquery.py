@@ -2999,6 +2999,7 @@ def _format_schema_for_description(schema: dict) -> list:
     """
     description = []
     for field in schema["fields"]:
+        mode = field.get("mode", "NULLABLE")
         field_description = (
             field["name"],
             field["type"],
@@ -3006,7 +3007,7 @@ def _format_schema_for_description(schema: dict) -> list:
             None,
             None,
             None,
-            field["mode"] == "NULLABLE",
+            mode == "NULLABLE",
         )
         description.append(field_description)
     return description
