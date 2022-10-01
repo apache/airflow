@@ -39,6 +39,7 @@ within the Amazon provider package.
 
 * Keep it Self-Contained
 * Keep it DAMP
+* Keep it Clean
 * Use the Helpers
 
 ## Keep it Self-Contained
@@ -61,6 +62,26 @@ Similarly, whenever possible, a variable should be defined in the module instead
 checking for it in external locations.  For example, if you create and break down an
 S3 bucket, the bucket name should be defined in the file rather than setting it with
 an environment variable.
+
+## Keep it Clean
+
+Code snippets in the system tests are embedded in the [documentation pages](
+https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/operators/index.html).
+In order to minimize confusion for new users looking at those doc pages, the code
+snippets should be concise and not include parameters which are not needed for the
+Operator to function.  Any parameters which are not needed for the Operator but are
+needed for the system test (`wait_for_completion` or `trigger_rule` as two examples)
+should be added outside the snippet.  For example:
+
+```
+# [START howto_operator_cloudformation_delete_stack]
+delete_stack = CloudFormationDeleteStackOperator(
+    task_id='delete_stack',
+    stack_name=cloudformation_stack_name,
+)
+# [END howto_operator_cloudformation_delete_stack]
+delete_stack.trigger_rule = TriggerRule.ALL_DONE
+```
 
 ## Use the Helpers
 
