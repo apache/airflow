@@ -47,7 +47,7 @@ def warn_non_editable():
         "\n[error]Breeze is installed in a wrong way.[/]\n"
         "\n[error]It should only be installed in editable mode[/]\n\n"
         "[info]Please go to Airflow sources and run[/]\n\n"
-        f"     {NAME} self-upgrade --force --use-current-airflow-sources\n"
+        f"     {NAME} setup self-upgrade --force --use-current-airflow-sources\n"
     )
 
 
@@ -56,6 +56,6 @@ def warn_dependencies_changed():
         f"\n[warning]Breeze dependencies changed since the installation![/]\n\n"
         f"[warning]This might cause various problems!![/]\n\n"
         f"If you experience problems - reinstall Breeze with:\n\n"
-        f"    {NAME} self-upgrade --force\n"
+        f"    {NAME} setup self-upgrade --force\n"
         "\nThis should usually take couple of seconds.\n"
     )
