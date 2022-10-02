@@ -47,7 +47,7 @@ class PodDefaults:
     )
 
 
-def add_xcom_sidecar(pod: k8s.V1Pod, image: str) -> k8s.V1Pod:
+def add_xcom_sidecar(pod: k8s.V1Pod, **kwargs) -> k8s.V1Pod:
     """Adds sidecar"""
     pod_cp = copy.deepcopy(pod)
     pod_cp.spec.volumes = pod.spec.volumes or []
@@ -55,7 +55,7 @@ def add_xcom_sidecar(pod: k8s.V1Pod, image: str) -> k8s.V1Pod:
     pod_cp.spec.containers[0].volume_mounts = pod_cp.spec.containers[0].volume_mounts or []
     pod_cp.spec.containers[0].volume_mounts.insert(0, PodDefaults.VOLUME_MOUNT)
     sidecar = copy.deepcopy(PodDefaults.SIDECAR_CONTAINER)
-    sidecar.image = image
+    sidecar.image = kwargs.get('image', 'alpine')
     pod_cp.spec.containers.append(sidecar)
 
     return pod_cp
