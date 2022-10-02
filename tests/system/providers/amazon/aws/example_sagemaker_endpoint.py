@@ -44,16 +44,18 @@ DAG_ID = 'example_sagemaker_endpoint'
 
 # Externally fetched variables:
 ROLE_ARN_KEY = 'ROLE_ARN'
+
+sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
+
 # The URI of a Docker image for handling KNN model training.
 # To find the URI of a free Amazon-provided image that can be used, substitute your
 # desired region in the following link and find the URI under "Registry Path".
 # https://docs.aws.amazon.com/sagemaker/latest/dg/ecr-us-east-1.html#knn-us-east-1.title
 # This URI should be in the format of {12-digits}.dkr.ecr.{region}.amazonaws.com/knn
-KNN_IMAGE_URI_KEY = 'KNN_IMAGE_URI'
-
-sys_test_context_task = (
-    SystemTestContextBuilder().add_variable(KNN_IMAGE_URI_KEY).add_variable(ROLE_ARN_KEY).build()
-)
+KNN_IMAGES_BY_REGION = {
+    'us-east-1': '382416733822.dkr.ecr.us-east-1.amazonaws.com/knn:1',
+    'us-west-2': '174872318107.dkr.ecr.us-west-2.amazonaws.com/knn:1',
+}
 
 # For an example of how to obtain the following train and test data, please see
 # https://github.com/apache/airflow/blob/main/airflow/providers/amazon/aws/example_dags/example_sagemaker.py
@@ -98,7 +100,7 @@ def delete_logs(env_id, endpoint_name):
 
 
 @task
-def set_up(env_id, knn_image_uri, role_arn, ti=None):
+def set_up(env_id, role_arn, ti=None):
     bucket_name = f'{env_id}-sagemaker'
     input_data_s3_key = f'{env_id}/input-data'
     training_output_s3_key = f'{env_id}/results'
@@ -107,6 +109,16 @@ def set_up(env_id, knn_image_uri, role_arn, ti=None):
     endpoint_name = f'{env_id}-endpoint'
     model_name = f'{env_id}-KNN-model'
     training_job_name = f'{env_id}-train'
+
+    region = boto3.session.Session().region_name
+    try:
+        knn_image_uri = KNN_IMAGES_BY_REGION[region]
+    except KeyError:
+        raise KeyError(
+            f'Region name {region} does not have a known KNN '
+            f'Image URI.  Please add the region and URI following '
+            f'the directions at the top of the system testfile '
+        )
 
     training_config = {
         'TrainingJobName': training_job_name,
@@ -193,7 +205,6 @@ with DAG(
 
     test_setup = set_up(
         env_id=test_context[ENV_ID_KEY],
-        knn_image_uri=test_context[KNN_IMAGE_URI_KEY],
         role_arn=test_context[ROLE_ARN_KEY],
     )
 
@@ -230,10 +241,11 @@ with DAG(
     deploy_endpoint = SageMakerEndpointOperator(
         task_id='deploy_endpoint',
         config=test_setup['deploy_endpoint_config'],
-        # Waits by default, setting as False to demonstrate the Sensor below.
-        wait_for_completion=False,
     )
     # [END howto_operator_sagemaker_endpoint]
+
+    # SageMakerEndpointOperator waits by default, setting as False to test the Sensor below.
+    deploy_endpoint.wait_for_completion = False
 
     # [START howto_sensor_sagemaker_endpoint]
     await_endpoint = SageMakerEndpointSensor(
