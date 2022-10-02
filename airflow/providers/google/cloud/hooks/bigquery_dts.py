@@ -169,7 +169,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         client = self.get_conn()
         project = f"projects/{project_id}"
         if self.location:
-            project = f"/{project}/locations/{self.location}"
+            project = f"{project}/locations/{self.location}"
 
         name = f"{project}/transferConfigs/{transfer_config_id}"
         return client.delete_transfer_config(
