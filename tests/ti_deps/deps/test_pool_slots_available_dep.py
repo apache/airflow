@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import Mock, patch
 
 from airflow.models import Pool
@@ -27,15 +26,15 @@ from airflow.utils.session import create_session
 from tests.test_utils import db
 
 
-class TestPoolSlotsAvailableDep(unittest.TestCase):
-    def setUp(self):
+class TestPoolSlotsAvailableDep:
+    def setup_method(self):
         db.clear_db_pools()
         with create_session() as session:
             test_pool = Pool(pool='test_pool')
             session.add(test_pool)
             session.commit()
 
-    def tearDown(self):
+    def teardown_method(self):
         db.clear_db_pools()
 
     @patch('airflow.models.Pool.open_slots', return_value=0)
