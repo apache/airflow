@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import warnings
 from time import sleep
 from typing import Any, Callable
@@ -30,8 +31,11 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 class EmrHook(AwsBaseHook):
     """
-    Interact with AWS EMR. emr_conn_id is only necessary for using the
-    create_job_flow method.
+    Interact with Amazon Elastic MapReduce Service.
+
+    :param emr_conn_id: :ref:`Amazon Elastic MapReduce Connection <howto/connection:emr>`.
+        This attribute is only necessary when using
+        the :meth:`~airflow.providers.amazon.aws.hooks.emr.EmrHook.create_job_flow` method.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
@@ -45,8 +49,8 @@ class EmrHook(AwsBaseHook):
     conn_type = 'emr'
     hook_name = 'Amazon Elastic MapReduce'
 
-    def __init__(self, emr_conn_id: str = default_conn_name, *args, **kwargs) -> None:
-        self.emr_conn_id: str = emr_conn_id
+    def __init__(self, emr_conn_id: str | None = default_conn_name, *args, **kwargs) -> None:
+        self.emr_conn_id = emr_conn_id
         kwargs["client_type"] = "emr"
         super().__init__(*args, **kwargs)
 
@@ -77,21 +81,96 @@ class EmrHook(AwsBaseHook):
 
     def create_job_flow(self, job_flow_overrides: dict[str, Any]) -> dict[str, Any]:
         """
-        Creates a job flow using the config from the EMR connection.
-        Keys of the json extra hash may have the arguments of the boto3
-        run_job_flow method.
-        Overrides for this config may be passed as the job_flow_overrides.
+        Create and start running a new cluster (job flow).
+
+        This method uses ``EmrHook.emr_conn_id`` to receive the initial Amazon EMR cluster configuration.
+        If ``EmrHook.emr_conn_id`` is empty or the connection does not exist, then an empty initial
+        configuration is used.
+
+        :param job_flow_overrides: Is used to overwrite the parameters in the initial Amazon EMR configuration
+            cluster. The resulting configuration will be used in the boto3 emr client run_job_flow method.
+
+        .. seealso::
+            - :ref:`Amazon Elastic MapReduce Connection <howto/connection:emr>`
+            - `API RunJobFlow <https://docs.aws.amazon.com/emr/latest/APIReference/API_RunJobFlow.html>`_
+            - `boto3 emr client run_job_flow method <https://boto3.amazonaws.com/v1/documentation/\
+               api/latest/reference/services/emr.html#EMR.Client.run_job_flow>`_.
         """
-        try:
-            emr_conn = self.get_connection(self.emr_conn_id)
-            config = emr_conn.extra_dejson.copy()
-        except AirflowNotFoundException:
-            config = {}
+        config = {}
+        if self.emr_conn_id:
+            try:
+                emr_conn = self.get_connection(self.emr_conn_id)
+            except AirflowNotFoundException:
+                warnings.warn(
+                    f"Unable to find {self.hook_name} Connection ID {self.emr_conn_id!r}, "
+                    "using an empty initial configuration. If you want to get rid of this warning "
+                    "message please provide a valid `emr_conn_id` or set it to None.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            else:
+                if emr_conn.conn_type and emr_conn.conn_type != self.conn_type:
+                    warnings.warn(
+                        f"{self.hook_name} Connection expected connection type {self.conn_type!r}, "
+                        f"Connection {self.emr_conn_id!r} has conn_type={emr_conn.conn_type!r}. "
+                        f"This connection might not work correctly.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                config = emr_conn.extra_dejson.copy()
         config.update(job_flow_overrides)
 
         response = self.get_conn().run_job_flow(**config)
 
         return response
+
+    def test_connection(self):
+        """
+        Return failed state for test Amazon Elastic MapReduce Connection (untestable).
+
+        We need to overwrite this method because this hook is based on
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook`,
+        otherwise it will try to test connection to AWS STS by using the default boto3 credential strategy.
+        """
+        msg = (
+            f"{self.hook_name!r} Airflow Connection cannot be tested, by design it stores "
+            f"only key/value pairs and does not make a connection to an external resource."
+        )
+        return False, msg
+
+    @staticmethod
+    def get_ui_field_behaviour() -> dict[str, Any]:
+        """Returns custom UI field behaviour for Amazon Elastic MapReduce Connection."""
+        return {
+            "hidden_fields": ["host", "schema", "port", "login", "password"],
+            "relabeling": {
+                "extra": "Run Job Flow Configuration",
+            },
+            "placeholders": {
+                "extra": json.dumps(
+                    {
+                        "Name": "MyClusterName",
+                        "ReleaseLabel": "emr-5.36.0",
+                        "Applications": [{"Name": "Spark"}],
+                        "Instances": {
+                            "InstanceGroups": [
+                                {
+                                    "Name": "Primary node",
+                                    "Market": "SPOT",
+                                    "InstanceRole": "MASTER",
+                                    "InstanceType": "m5.large",
+                                    "InstanceCount": 1,
+                                },
+                            ],
+                            "KeepJobFlowAliveWhenNoSteps": False,
+                            "TerminationProtected": False,
+                        },
+                        "StepConcurrencyLevel": 2,
+                    },
+                    indent=2,
+                ),
+            },
+        }
 
 
 class EmrServerlessHook(AwsBaseHook):
