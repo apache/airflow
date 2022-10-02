@@ -514,7 +514,7 @@ TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``defau
     ):
         @task_group(default_args={'retries': 3}):
         def group1():
-            """This docstring will become the tooltip for the TaskGroup."
+            """This docstring will become the tooltip for the TaskGroup."""
             task1 = EmptyOperator(task_id='task1')
             task2 = BashOperator(task_id='task2', bash_command='echo Hello World!', retries=2)
             print(task1.retries) # 3
