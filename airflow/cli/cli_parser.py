@@ -577,7 +577,7 @@ ARG_DB_FROM_REVISION = Arg(
 ARG_DB_SQL_ONLY = Arg(
     ("-s", "--show-sql-only"),
     help="Don't actually run migrations; just print out sql scripts for offline migration. "
-    "Required if using either `--from-version` or `--from-version`.",
+    "Required if using either `--from-revision` or `--from-version`.",
     action="store_true",
     default=False,
 )
