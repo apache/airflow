@@ -59,7 +59,7 @@ This policy checks if each DAG has at least one tag defined:
     DAG policies are applied after the DAG has been completely loaded, so overriding the ``default_args`` parameter has no effect. If you want to override the default operator settings, use task policies instead.
 
 Task policies
--------------
+~~~~~~~~~~~~~
 
 Here's an example of enforcing a maximum timeout policy on every task:
 
@@ -86,7 +86,7 @@ For example, your ``airflow_local_settings.py`` might follow this pattern:
 
 
 Task instance mutation
-----------------------
+~~~~~~~~~~~~~~~~~~~~~~
 
 Here's an example of re-routing tasks that are on their second (or greater) retry to a different queue:
 
