@@ -17,9 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
+from unittest import mock
 
 import boto3
+import pytest
 
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
 
@@ -29,8 +30,8 @@ except ImportError:
     mock_emr = None
 
 
-@unittest.skipIf(mock_emr is None, 'moto package not present')
-class TestEmrHook(unittest.TestCase):
+@pytest.mark.skipif(mock_emr is None, reason='moto package not present')
+class TestEmrHook:
     @mock_emr
     def test_get_conn_returns_a_boto3_connection(self):
         hook = EmrHook(aws_conn_id='aws_default', region_name='ap-southeast-2')
@@ -59,12 +60,62 @@ class TestEmrHook(unittest.TestCase):
         # AmiVersion is really old and almost no one will use it anymore, but
         # it's one of the "optional" request params that moto supports - it's
         # coverage of EMR isn't 100% it turns out.
-        cluster = hook.create_job_flow({'Name': 'test_cluster', 'ReleaseLabel': '', 'AmiVersion': '3.2'})
-
+        with pytest.warns(None):  # Expected no warnings if ``emr_conn_id`` exists with correct conn_type
+            cluster = hook.create_job_flow({'Name': 'test_cluster', 'ReleaseLabel': '', 'AmiVersion': '3.2'})
         cluster = client.describe_cluster(ClusterId=cluster['JobFlowId'])['Cluster']
 
         # The AmiVersion comes back as {Requested,Running}AmiVersion fields.
         assert cluster['RequestedAmiVersion'] == '3.2'
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_conn")
+    def test_empty_emr_conn_id(self, mock_boto3_client):
+        """Test empty ``emr_conn_id``."""
+        mock_run_job_flow = mock.MagicMock()
+        mock_boto3_client.return_value.run_job_flow = mock_run_job_flow
+        job_flow_overrides = {"foo": "bar"}
+
+        hook = EmrHook(aws_conn_id="aws_default", emr_conn_id=None)
+        hook.create_job_flow(job_flow_overrides)
+        mock_run_job_flow.assert_called_once_with(**job_flow_overrides)
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_conn")
+    def test_missing_emr_conn_id(self, mock_boto3_client):
+        """Test not exists ``emr_conn_id``."""
+        mock_run_job_flow = mock.MagicMock()
+        mock_boto3_client.return_value.run_job_flow = mock_run_job_flow
+        job_flow_overrides = {"foo": "bar"}
+
+        hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="not-exists-emr-conn-id")
+        warning_message = r"Unable to find Amazon Elastic MapReduce Connection ID 'not-exists-emr-conn-id',.*"
+        with pytest.warns(UserWarning, match=warning_message):
+            hook.create_job_flow(job_flow_overrides)
+        mock_run_job_flow.assert_called_once_with(**job_flow_overrides)
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_conn")
+    def test_emr_conn_id_wrong_conn_type(self, mock_boto3_client):
+        """Test exists ``emr_conn_id`` have unexpected ``conn_type``."""
+        mock_run_job_flow = mock.MagicMock()
+        mock_boto3_client.return_value.run_job_flow = mock_run_job_flow
+        job_flow_overrides = {"foo": "bar"}
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_WRONG_TYPE_CONN="aws://"):
+            hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="wrong_type_conn")
+            warning_message = (
+                r"Amazon Elastic MapReduce Connection expected connection type 'emr'"
+                r".* This connection might not work correctly."
+            )
+            with pytest.warns(UserWarning, match=warning_message):
+                hook.create_job_flow(job_flow_overrides)
+            mock_run_job_flow.assert_called_once_with(**job_flow_overrides)
+
+    @pytest.mark.parametrize("aws_conn_id", ["aws_default", None])
+    @pytest.mark.parametrize("emr_conn_id", ["emr_default", None])
+    def test_emr_connection(self, aws_conn_id, emr_conn_id):
+        """Test that ``EmrHook`` always return False state."""
+        hook = EmrHook(aws_conn_id=aws_conn_id, emr_conn_id=emr_conn_id)
+        result, message = hook.test_connection()
+        assert not result
+        assert message.startswith("'Amazon Elastic MapReduce' Airflow Connection cannot be tested")
 
     @mock_emr
     def test_get_cluster_id_by_name(self):

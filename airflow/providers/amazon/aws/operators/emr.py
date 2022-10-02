@@ -332,10 +332,13 @@ class EmrCreateJobFlowOperator(BaseOperator):
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node)
-    :param emr_conn_id: emr connection to use for run_job_flow request body.
-        This will be overridden by the job_flow_overrides param
+    :param emr_conn_id: :ref:`Amazon Elastic MapReduce Connection <howto/connection:emr>`.
+        Use to receive an initial Amazon EMR cluster configuration:
+        ``boto3.client('emr').run_job_flow`` request body.
+        If this is None or empty or the connection does not exist,
+        then an empty initial configuration is used.
     :param job_flow_overrides: boto3 style arguments or reference to an arguments file
-        (must be '.json') to override emr_connection extra. (templated)
+        (must be '.json') to override specific ``emr_conn_id`` extra parameters. (templated)
     :param region_name: Region named passed to EmrHook
     """
 
@@ -349,7 +352,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         self,
         *,
         aws_conn_id: str = 'aws_default',
-        emr_conn_id: str = 'emr_default',
+        emr_conn_id: str | None = 'emr_default',
         job_flow_overrides: str | dict[str, Any] | None = None,
         region_name: str | None = None,
         **kwargs,
@@ -357,9 +360,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.emr_conn_id = emr_conn_id
-        if job_flow_overrides is None:
-            job_flow_overrides = {}
-        self.job_flow_overrides = job_flow_overrides
+        self.job_flow_overrides = job_flow_overrides or {}
         self.region_name = region_name
 
     def execute(self, context: Context) -> str:
