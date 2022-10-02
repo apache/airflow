@@ -58,7 +58,7 @@ DAG_ID = "example_gcp_cloud_build"
 BUCKET_NAME_SRC = f"bucket-src-{DAG_ID}-{ENV_ID}"
 
 GCP_SOURCE_ARCHIVE_URL = os.environ.get("GCP_CLOUD_BUILD_ARCHIVE_URL", f"gs://{BUCKET_NAME_SRC}/file.tar.gz")
-GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repository"
+GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repo"
 
 GCP_SOURCE_ARCHIVE_URL_PARTS = urlparse(GCP_SOURCE_ARCHIVE_URL)
 GCP_SOURCE_BUCKET_NAME = GCP_SOURCE_ARCHIVE_URL_PARTS.netloc
