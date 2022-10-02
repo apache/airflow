@@ -23,6 +23,7 @@ from unittest import mock
 
 import pandas as pd
 import pytest
+from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
@@ -145,7 +146,13 @@ class TestSqlToS3Operator(unittest.TestCase):
                 replace=True,
             )
 
-    def test_fix_dtypes(self):
+    @parameterized.expand(
+        [
+            ("with-csv", {"file_format": "csv", "null_string_result": None}),
+            ("with-parquet", {"file_format": "parquet", "null_string_result": "None"}),
+        ]
+    )
+    def test_fix_dtypes(self, _, params):
         op = SqlToS3Operator(
             query="query",
             s3_bucket="s3_bucket",
@@ -153,8 +160,9 @@ class TestSqlToS3Operator(unittest.TestCase):
             task_id="task_id",
             sql_conn_id="mysql_conn_id",
         )
-        dirty_df = pd.DataFrame({"strings": ["a", "b", "c"], "ints": [1, 2, None]})
-        op._fix_dtypes(df=dirty_df)
+        dirty_df = pd.DataFrame({"strings": ["a", "b", None], "ints": [1, 2, None]})
+        op._fix_dtypes(df=dirty_df, file_format=params["file_format"])
+        assert dirty_df["strings"].values[2] == params["null_string_result"]
         assert dirty_df["ints"].dtype.kind == "i"
 
     def test_invalid_file_format(self):
