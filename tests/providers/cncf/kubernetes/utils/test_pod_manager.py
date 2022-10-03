@@ -331,6 +331,24 @@ class TestPodManager:
         assert ret.last_log_time == DateTime(2021, 1, 1, tzinfo=Timezone('UTC'))
         assert ret.running is exp_running
 
+    def test_pod_manager_get_client_call_deprecation(self):
+        """Ensure that kube_client.get_kube_client is removed from pod manager in provider 6.0."""
+        try:
+            from airflow.providers.cncf.kubernetes.utils.pod_manager import get_kube_client  # noqa
+        except ImportError:
+            raise Exception(
+                "You must remove this test. It only exists to remind us to remove `get_kube_client`."
+            )
+        from airflow.providers_manager import ProvidersManager
+
+        version = ProvidersManager().providers['apache-airflow-providers-cncf-kubernetes'].version
+        version_tup = tuple(map(int, version.split('.')))
+        if version_tup >= (6, 0):
+            raise Exception(
+                "You must now remove `get_kube_client` from PodManager "
+                "and make kube_client a required argument."
+            )
+
 
 def params_for_test_container_is_running():
     """The `container_is_running` method is designed to handle an assortment of bad objects
