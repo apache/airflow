@@ -31,7 +31,7 @@ DEFAULT_COLUMNS = 129
 
 
 def generating_command_images() -> bool:
-    return "regenerate-command-images" in sys.argv
+    return 'RECORD_BREEZE_TITLE' in os.environ or "regenerate-command-images" in sys.argv
 
 
 def enable_recording_of_help_output(path: str, title: str | None, width: str | None):

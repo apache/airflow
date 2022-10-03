@@ -571,12 +571,12 @@
                         "repository": {
                             "description": "The StatsD image repository.",
                             "type": "string",
-                            "default": "apache/airflow"
+                            "default": "quay.io/prometheus/statsd-exporter"
                         },
                         "tag": {
                             "description": "The StatsD image tag.",
                             "type": "string",
-                            "default": "airflow-statsd-exporter-2021.04.28-v0.17.0"
+                            "default": "v0.22.8"
                         },
                         "pullPolicy": {
                             "description": "The StatsD image pull policy.",
@@ -4117,7 +4117,12 @@
                     }
                 },
                 "extraMappings": {
-                    "description": "Additional mappings for StatsD exporter.",
+                    "description": "Additional mappings for StatsD exporter.If set, will merge default mapping and extra mappings, default mapping has higher priority. So, if you want to change some default mapping, please use `overrideMappings`",
+                    "type": "array",
+                    "default": []
+                },
+                "overrideMappings": {
+                    "description": "Override mappings for StatsD exporter.If set, will ignore setting item in default and `extraMappings`. So, If you use it, ensure all mapping item contains in it.",
                     "type": "array",
                     "default": []
                 },

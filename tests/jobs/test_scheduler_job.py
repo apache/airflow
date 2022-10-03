@@ -104,6 +104,12 @@ def dagbag():
     return DagBag(read_dags_from_db=True)
 
 
+@pytest.fixture
+def load_examples():
+    with conf_vars({('core', 'load_examples'): 'True'}):
+        yield
+
+
 @pytest.mark.usefixtures("disable_load_example")
 @pytest.mark.need_serialized_dag
 class TestSchedulerJob:
@@ -4014,7 +4020,7 @@ class TestSchedulerJob:
 
             self.scheduler_job.executor.callback_sink.send.assert_not_called()
 
-    def test_find_zombies(self):
+    def test_find_zombies(self, load_examples):
         dagbag = DagBag(TEST_DAG_FOLDER, read_dags_from_db=False)
         with create_session() as session:
             session.query(LocalTaskJob).delete()
@@ -4072,7 +4078,7 @@ class TestSchedulerJob:
             session.query(TaskInstance).delete()
             session.query(LocalTaskJob).delete()
 
-    def test_zombie_message(self):
+    def test_zombie_message(self, load_examples):
         """
         Check that the zombie message comes out as expected
         """
@@ -4438,6 +4444,49 @@ class TestSchedulerJob:
             .filter(DagRun.execution_date != DEFAULT_DATE)  # exclude the first run
             .scalar()
         ) > (timezone.utcnow() - timedelta(days=2))
+
+    def test_update_dagrun_state_for_paused_dag_not_for_backfill(self, dag_maker, session):
+        """Test that the _update_dagrun_state_for_paused_dag does not affect backfilled dagruns"""
+
+        with dag_maker('testdag') as dag:
+            EmptyOperator(task_id='task1')
+
+        # Backfill run
+        backfill_run = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
+        ti = backfill_run.get_task_instances()[0]
+        ti.set_state(TaskInstanceState.SUCCESS)
+        dm = DagModel.get_dagmodel(dag.dag_id)
+        dm.is_paused = True
+        session.merge(dm)
+        session.merge(ti)
+        session.flush()
+
+        # scheduled run
+        scheduled_run = dag_maker.create_dagrun(
+            execution_date=datetime.datetime(2022, 1, 1), run_type=DagRunType.SCHEDULED
+        )
+        ti = scheduled_run.get_task_instances()[0]
+        ti.set_state(TaskInstanceState.SUCCESS)
+        dm = DagModel.get_dagmodel(dag.dag_id)
+        dm.is_paused = True
+        session.merge(dm)
+        session.merge(ti)
+        session.flush()
+
+        assert dag.dag_id in DagModel.get_all_paused_dag_ids()
+        assert backfill_run.state == State.RUNNING
+        assert scheduled_run.state == State.RUNNING
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.executor = MockExecutor()
+        self.scheduler_job._update_dag_run_state_for_paused_dags()
+        session.flush()
+
+        (backfill_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.BACKFILL_JOB, session=session)
+        assert backfill_run.state == State.RUNNING
+
+        (scheduled_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.SCHEDULED, session=session)
+        assert scheduled_run.state == State.SUCCESS
 
 
 @pytest.mark.need_serialized_dag

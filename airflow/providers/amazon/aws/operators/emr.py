@@ -26,7 +26,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink
-from airflow.providers.amazon.aws.sensors.emr import EmrServerlessApplicationSensor, EmrServerlessJobSensor
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -333,10 +332,13 @@ class EmrCreateJobFlowOperator(BaseOperator):
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node)
-    :param emr_conn_id: emr connection to use for run_job_flow request body.
-        This will be overridden by the job_flow_overrides param
+    :param emr_conn_id: :ref:`Amazon Elastic MapReduce Connection <howto/connection:emr>`.
+        Use to receive an initial Amazon EMR cluster configuration:
+        ``boto3.client('emr').run_job_flow`` request body.
+        If this is None or empty or the connection does not exist,
+        then an empty initial configuration is used.
     :param job_flow_overrides: boto3 style arguments or reference to an arguments file
-        (must be '.json') to override emr_connection extra. (templated)
+        (must be '.json') to override specific ``emr_conn_id`` extra parameters. (templated)
     :param region_name: Region named passed to EmrHook
     """
 
@@ -350,7 +352,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         self,
         *,
         aws_conn_id: str = 'aws_default',
-        emr_conn_id: str = 'emr_default',
+        emr_conn_id: str | None = 'emr_default',
         job_flow_overrides: str | dict[str, Any] | None = None,
         region_name: str | None = None,
         **kwargs,
@@ -358,9 +360,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.emr_conn_id = emr_conn_id
-        if job_flow_overrides is None:
-            job_flow_overrides = {}
-        self.job_flow_overrides = job_flow_overrides
+        self.job_flow_overrides = job_flow_overrides or {}
         self.region_name = region_name
 
     def execute(self, context: Context) -> str:
@@ -552,7 +552,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
             get_state_args={'applicationId': application_id},
             parse_response=['application', 'state'],
             desired_state={'CREATED'},
-            failure_states=EmrServerlessApplicationSensor.FAILURE_STATES,
+            failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
             object_type='application',
             action='created',
         )
@@ -567,7 +567,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
                 get_state_args={'applicationId': application_id},
                 parse_response=['application', 'state'],
                 desired_state={'STARTED'},
-                failure_states=EmrServerlessApplicationSensor.FAILURE_STATES,
+                failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
                 object_type='application',
                 action='started',
             )
@@ -633,7 +633,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.log.info('Starting job on Application: %s', self.application_id)
 
         app_state = self.hook.conn.get_application(applicationId=self.application_id)['application']['state']
-        if app_state not in EmrServerlessApplicationSensor.SUCCESS_STATES:
+        if app_state not in EmrServerlessHook.APPLICATION_SUCCESS_STATES:
             self.hook.conn.start_application(applicationId=self.application_id)
 
             self.hook.waiter(
@@ -641,7 +641,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 get_state_args={'applicationId': self.application_id},
                 parse_response=['application', 'state'],
                 desired_state={'STARTED'},
-                failure_states=EmrServerlessApplicationSensor.FAILURE_STATES,
+                failure_states=EmrServerlessHook.JOB_FAILURE_STATES,
                 object_type='application',
                 action='started',
             )
@@ -668,8 +668,8 @@ class EmrServerlessStartJobOperator(BaseOperator):
                     'jobRunId': response['jobRunId'],
                 },
                 parse_response=['jobRun', 'state'],
-                desired_state=EmrServerlessJobSensor.TERMINAL_STATES,
-                failure_states=EmrServerlessJobSensor.FAILURE_STATES,
+                desired_state=EmrServerlessHook.JOB_SUCCESS_STATES,
+                failure_states=EmrServerlessHook.JOB_FAILURE_STATES,
                 object_type='job',
                 action='run',
             )
@@ -719,7 +719,7 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
                 'applicationId': self.application_id,
             },
             parse_response=['application', 'state'],
-            desired_state=EmrServerlessApplicationSensor.FAILURE_STATES,
+            desired_state=EmrServerlessHook.APPLICATION_FAILURE_STATES,
             failure_states=set(),
             object_type='application',
             action='stopped',
@@ -738,7 +738,7 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
                 get_state_args={'applicationId': self.application_id},
                 parse_response=['application', 'state'],
                 desired_state={'TERMINATED'},
-                failure_states=EmrServerlessApplicationSensor.FAILURE_STATES,
+                failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
                 object_type='application',
                 action='deleted',
             )

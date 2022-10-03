@@ -37,6 +37,7 @@ from dateutil.relativedelta import relativedelta
 from freezegun import freeze_time
 from sqlalchemy import inspect
 
+import airflow
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.datasets import Dataset
@@ -47,6 +48,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DagOwnerAttributes, dag as dag_decorator, get_dataset_triggered_next_run_info
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel, TaskOutletDatasetReference
 from airflow.models.param import DagParam, Param, ParamsDict
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
@@ -65,11 +67,23 @@ from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs
+from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, clear_db_serialized_dags
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.timetables import cron_timetable, delta_timetable
 
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
+
+repo_root = Path(airflow.__file__).parent.parent
+
+
+@pytest.fixture
+def clear_dags():
+    clear_db_dags()
+    clear_db_serialized_dags()
+    yield
+    clear_db_dags()
+    clear_db_serialized_dags()
 
 
 class TestDag:
@@ -1604,6 +1618,85 @@ class TestDag:
         dagrun = dagruns[0]  # type: DagRun
         assert dagrun.state == dag_run_state
 
+    def test_dag_test_basic(self):
+        dag = DAG(dag_id="test_local_testing_conn_file", start_date=DEFAULT_DATE)
+        mock_object = mock.MagicMock()
+
+        @task_decorator
+        def check_task():
+            # we call a mock object to ensure that this task actually ran.
+            mock_object()
+
+        with dag:
+            check_task()
+
+        dag.test()
+        mock_object.assert_called_once()
+
+    def test_dag_test_with_dependencies(self):
+        dag = DAG(dag_id="test_local_testing_conn_file", start_date=DEFAULT_DATE)
+        mock_object = mock.MagicMock()
+
+        @task_decorator
+        def check_task():
+            return "output of first task"
+
+        @task_decorator
+        def check_task_2(my_input):
+            # we call a mock object to ensure that this task actually ran.
+            mock_object(my_input)
+
+        with dag:
+            check_task_2(check_task())
+
+        dag.test()
+        mock_object.assert_called_with("output of first task")
+
+    def test_dag_test_with_task_mapping(self):
+        dag = DAG(dag_id="test_local_testing_conn_file", start_date=DEFAULT_DATE)
+        mock_object = mock.MagicMock()
+
+        @task_decorator()
+        def get_index(current_val, ti=None):
+            return ti.map_index
+
+        @task_decorator
+        def check_task(my_input):
+            # we call a mock object with the combined map to ensure all expected indexes are called
+            mock_object(list(my_input))
+
+        with dag:
+            mapped_task = get_index.expand(current_val=[1, 1, 1, 1, 1])
+            check_task(mapped_task)
+
+        dag.test()
+        mock_object.assert_called_with([0, 1, 2, 3, 4])
+
+    def test_dag_connection_file(self):
+        test_connections_string = """
+---
+my_postgres_conn:
+  - conn_id: my_postgres_conn
+    conn_type: postgres
+        """
+        dag = DAG(dag_id="test_local_testing_conn_file", start_date=DEFAULT_DATE)
+
+        @task_decorator
+        def check_task():
+            from airflow.configuration import secrets_backend_list
+            from airflow.secrets.local_filesystem import LocalFilesystemBackend
+
+            assert isinstance(secrets_backend_list[0], LocalFilesystemBackend)
+            local_secrets: LocalFilesystemBackend = secrets_backend_list[0]
+            assert local_secrets.get_connection("my_postgres_conn").conn_id == "my_postgres_conn"
+
+        with dag:
+            check_task()
+        with NamedTemporaryFile(suffix=".yaml") as tmp:
+            with open(tmp.name, 'w') as f:
+                f.write(test_connections_string)
+            dag.test(conn_file_path=tmp.name)
+
     def _make_test_subdag(self, session):
         dag_id = 'test_subdag'
         self._clean_up(dag_id)
@@ -2272,6 +2365,47 @@ class TestDagModel:
         dag.fileloc = fileloc
 
         assert dag.relative_fileloc == expected_relative
+
+    @pytest.mark.parametrize(
+        'reader_dags_folder', [settings.DAGS_FOLDER, str(repo_root / 'airflow/example_dags')]
+    )
+    @pytest.mark.parametrize(
+        ('fileloc', 'expected_relative'),
+        [
+            (str(Path(settings.DAGS_FOLDER, 'a.py')), Path('a.py')),
+            ('/tmp/foo.py', Path('/tmp/foo.py')),
+        ],
+    )
+    def test_relative_fileloc_serialized(
+        self, fileloc, expected_relative, session, clear_dags, reader_dags_folder
+    ):
+        """
+        The serialized dag model includes the dags folder as configured on the thing serializing
+        the dag.  On the thing deserializing the dag, when determining relative fileloc,
+        we should use the dags folder of the processor.  So even if the dags folder of
+        the deserializer is different (meaning that the full path is no longer relative to
+        the dags folder) then we should still get the relative fileloc as it existed on the
+        serializer process.  When the full path is not relative to the configured dags folder,
+        then relative fileloc should just be the full path.
+        """
+        dag = DAG(dag_id='test')
+        dag.fileloc = fileloc
+        sdm = SerializedDagModel(dag)
+        session.add(sdm)
+        session.commit()
+        session.expunge_all()
+        sdm = SerializedDagModel.get(dag.dag_id, session)
+        dag = sdm.dag
+        with conf_vars({('core', 'dags_folder'): reader_dags_folder}):
+            assert dag.relative_fileloc == expected_relative
+
+    def test__processor_dags_folder(self, session):
+        """Only populated after deserializtion"""
+        dag = DAG(dag_id='test')
+        dag.fileloc = '/abc/test.py'
+        assert dag._processor_dags_folder is None
+        sdm = SerializedDagModel(dag)
+        assert sdm.dag._processor_dags_folder == settings.DAGS_FOLDER
 
     @pytest.mark.need_serialized_dag
     def test_dags_needing_dagruns_dataset_triggered_dag_info_queued_times(self, session, dag_maker):

@@ -820,7 +820,7 @@ class BaseSecurityManager:
         if self.auth_role_admin not in self.builtin_roles:
             self.add_role(self.auth_role_admin)
         self.add_role(self.auth_role_public)
-        if self.count_users() == 0:
+        if self.count_users() == 0 and self.auth_role_public != self.auth_role_admin:
             log.warning(LOGMSG_WAR_SEC_NO_USER)
 
     def reset_password(self, userid, password):

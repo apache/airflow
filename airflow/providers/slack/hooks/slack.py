@@ -49,7 +49,7 @@ class SlackHook(BaseHook):
 
     .. warning::
         This hook intend to use `Slack API` connection
-        and might not work correctly with `Slack Webhook` and `HTTP` connections.
+        and might not work correctly with `Slack Incoming Webhook` and `HTTP` connections.
 
     Takes both Slack API token directly and connection that has Slack API token. If both are
     supplied, Slack API token will be used. Also exposes the rest of slack.WebClient args.
@@ -74,8 +74,8 @@ class SlackHook(BaseHook):
         and receive a response from Slack. If not set than default WebClient value will use.
     :param base_url: A string representing the Slack API base URL.
         If not set than default WebClient BASE_URL will use (``https://www.slack.com/api/``).
-    :param proxy: Proxy to make the Slack Incoming Webhook call.
-    :param retry_handlers: List of handlers to customize retry logic in WebClient.
+    :param proxy: Proxy to make the Slack API call.
+    :param retry_handlers: List of handlers to customize retry logic in ``slack_sdk.WebClient``.
     :param token: (deprecated) Slack API Token.
     """
 
@@ -293,11 +293,13 @@ class SlackHook(BaseHook):
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import IntegerField, StringField
+        from wtforms.validators import NumberRange, Optional
 
         return {
             prefixed_extra_field("timeout", cls.conn_type): IntegerField(
                 lazy_gettext("Timeout"),
                 widget=BS3TextFieldWidget(),
+                validators=[Optional(strip_whitespace=True), NumberRange(min=1)],
                 description="Optional. The maximum number of seconds the client will wait to connect "
                 "and receive a response from Slack API.",
             ),

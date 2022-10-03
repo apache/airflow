@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Iterable, Sequence
 from docker import APIClient, tls  # type: ignore[attr-defined]
 from docker.constants import DEFAULT_TIMEOUT_SECONDS  # type: ignore[attr-defined]
 from docker.errors import APIError  # type: ignore[attr-defined]
-from docker.types import DeviceRequest, Mount  # type: ignore[attr-defined]
+from docker.types import DeviceRequest, LogConfig, Mount  # type: ignore[attr-defined]
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -140,6 +140,12 @@ class DockerOperator(BaseOperator):
         output that is not posted to logs
     :param retrieve_output_path: path for output file that will be retrieved and passed to xcom
     :param device_requests: Expose host resources such as GPUs to the container.
+    :param log_opts_max_size: The maximum size of the log before it is rolled.
+        A positive integer plus a modifier representing the unit of measure (k, m, or g).
+        Eg: 10m or 1g Defaults to -1 (unlimited).
+    :param log_opts_max_file: The maximum number of log files that can be present.
+        If rolling the logs creates excess files, the oldest file is removed.
+        Only effective when max-size is also set. A positive integer. Defaults to 1.
     """
 
     template_fields: Sequence[str] = ('image', 'command', 'environment', 'container_name')
@@ -188,6 +194,8 @@ class DockerOperator(BaseOperator):
         retrieve_output_path: str | None = None,
         timeout: int = DEFAULT_TIMEOUT_SECONDS,
         device_requests: list[DeviceRequest] | None = None,
+        log_opts_max_size: str | None = None,
+        log_opts_max_file: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -244,6 +252,8 @@ class DockerOperator(BaseOperator):
         self.retrieve_output_path = retrieve_output_path
         self.timeout = timeout
         self.device_requests = device_requests
+        self.log_opts_max_size = log_opts_max_size
+        self.log_opts_max_file = log_opts_max_file
 
     def get_hook(self) -> DockerHook:
         """
@@ -289,6 +299,11 @@ class DockerOperator(BaseOperator):
             self.environment.pop('AIRFLOW_TMP_DIR', None)
         if not self.cli:
             raise Exception("The 'cli' should be initialized before!")
+        docker_log_config = {}
+        if self.log_opts_max_size is not None:
+            docker_log_config['max-size'] = self.log_opts_max_size
+        if self.log_opts_max_file is not None:
+            docker_log_config['max-file'] = self.log_opts_max_file
         self.container = self.cli.create_container(
             command=self.format_command(self.command),
             name=self.container_name,
@@ -306,6 +321,7 @@ class DockerOperator(BaseOperator):
                 extra_hosts=self.extra_hosts,
                 privileged=self.privileged,
                 device_requests=self.device_requests,
+                log_config=LogConfig(config=docker_log_config),
             ),
             image=self.image,
             user=self.user,

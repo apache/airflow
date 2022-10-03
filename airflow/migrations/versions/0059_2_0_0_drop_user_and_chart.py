@@ -25,9 +25,8 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import inspect
 from sqlalchemy.dialects import mysql
-
-from airflow.compat.sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
 revision = 'cf5dc11e79ad'
