@@ -15,9 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
-
 if [[ ${GITHUB_REF} == 'refs/heads/main' ]]; then
   echo "::set-output name=branch::constraints-main"
 elif [[ ${GITHUB_REF} =~ refs/heads/v([0-9\-]*)\-(test|stable) ]]; then

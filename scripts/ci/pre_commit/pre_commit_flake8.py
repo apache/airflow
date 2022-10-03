@@ -50,8 +50,6 @@ if __name__ == '__main__':
             "-e",
             "SKIP_ENVIRONMENT_INITIALIZATION=true",
             "-e",
-            "PRINT_INFO_FROM_SCRIPTS=false",
-            "-e",
             "BACKEND=sqlite",
             "--pull",
             "never",

@@ -26,7 +26,6 @@ permissions:
   contents: read
   pull-requests: read
 env:
-  MOUNT_SELECTED_LOCAL_SOURCES: "false"
   ANSWER: "yes"
   DB_RESET: "true"
   VERBOSE: "true"
