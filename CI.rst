@@ -487,7 +487,8 @@ the sources are not mapped from your host machine.
 Depending whether the scripts are run locally via `Breeze <BREEZE.rst>`_ or whether they
 are run in ``Build Images`` or ``Tests`` workflows they can take different values.
 
-You can use those variables when you try to reproduce the build locally.
+You can use those variables when you try to reproduce the build locally (alternatively you can pass
+those via command line flags passed to ``breeze`` command.
 
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | Variable                                | Local       | Build Images | CI         | Comment                                         |
@@ -505,29 +506,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |              |            | it requires to perform manual init/reset        |
 |                                         |             |              |            | if you stop the environment.                    |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-|                                                           Mount variables                                                           |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``MOUNT_SELECTED_LOCAL_SOURCES``        |     true    |    false     |    false   | Determines whether local sources are            |
-|                                         |             |              |            | mounted to inside the container. Useful for     |
-|                                         |             |              |            | local development, as changes you make          |
-|                                         |             |              |            | locally can be immediately tested in            |
-|                                         |             |              |            | the container. We mount only selected,          |
-|                                         |             |              |            | important folders. We do not mount the whole    |
-|                                         |             |              |            | project folder in order to avoid accidental     |
-|                                         |             |              |            | use of artifacts (such as ``egg-info``          |
-|                                         |             |              |            | directories) generated locally on the           |
-|                                         |             |              |            | host during development.                        |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``MOUNT_ALL_LOCAL_SOURCES``             |     false   |    false     |    false   | Determines whether all local sources are        |
-|                                         |             |              |            | mounted to inside the container. Useful for     |
-|                                         |             |              |            | local development when you need to access .git  |
-|                                         |             |              |            | folders and other folders excluded when         |
-|                                         |             |              |            | ``MOUNT_SELECTED_LOCAL_SOURCES`` is true.       |
-|                                         |             |              |            | You might need to manually delete egg-info      |
-|                                         |             |              |            | folder when you enter breeze and the folder was |
-|                                         |             |              |            | generated using different Python versions.      |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-|                                                           Force variables                                                           |
+|                                                      Forcing answer                                                                 |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | ``ANSWER``                              |             |     yes      |     yes    | This variable determines if answer to questions |
 |                                         |             |              |            | during the build process should be              |
@@ -550,7 +529,7 @@ You can use those variables when you try to reproduce the build locally.
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | ``COMMIT_SHA``                          |             | GITHUB_SHA   | GITHUB_SHA | SHA of the commit of the build is run           |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-|                                                         Initialization                                                              |
+|                                             In container environment initialization                                                 |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | ``SKIP_ENVIRONMENT_INITIALIZATION``     |   false\*   |    false\*   |   false\*  | Skip initialization of test environment         |
 |                                         |             |              |            |                                                 |
@@ -560,35 +539,12 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |              |            |                                                 |
 |                                         |             |              |            | \* set to true in GitHub CodeSpaces             |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-|                                                         Verbosity variables                                                         |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``PRINT_INFO_FROM_SCRIPTS``             |   true\*    |    true\*    |    true\*  | Allows to print output to terminal from running |
-|                                         |             |              |            | scripts. It prints some extra outputs if true   |
-|                                         |             |              |            | including what the commands do, results of some |
-|                                         |             |              |            | operations, summary of variable values, exit    |
-|                                         |             |              |            | status from the scripts, outputs of failing     |
-|                                         |             |              |            | commands. If verbose is on it also prints the   |
-|                                         |             |              |            | commands executed by docker, kind, helm,        |
-|                                         |             |              |            | kubectl. Disabled in pre-commit checks.         |
-|                                         |             |              |            |                                                 |
-|                                         |             |              |            | \* set to false in pre-commits                  |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``VERBOSE``                             |    false    |     true     |    true    | Determines whether docker, helm, kind,          |
-|                                         |             |              |            | kubectl commands should be printed before       |
-|                                         |             |              |            | execution. This is useful to determine          |
-|                                         |             |              |            | what exact commands were executed for           |
-|                                         |             |              |            | debugging purpose as well as allows             |
-|                                         |             |              |            | to replicate those commands easily by           |
-|                                         |             |              |            | copy&pasting them from the output.              |
-|                                         |             |              |            | requires ``PRINT_INFO_FROM_SCRIPTS`` set to     |
-|                                         |             |              |            | true.                                           |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | ``VERBOSE_COMMANDS``                    |    false    |    false     |    false   | Determines whether every command                |
-|                                         |             |              |            | executed in bash should also be printed         |
+|                                         |             |              |            | executed in docker should also be printed       |
 |                                         |             |              |            | before execution. This is a low-level           |
-|                                         |             |              |            | debugging feature of bash (set -x) and          |
-|                                         |             |              |            | it should only be used if you are lost          |
-|                                         |             |              |            | at where the script failed.                     |
+|                                         |             |              |            | debugging feature of bash (set -x) enabled in   |
+|                                         |             |              |            | entrypoint and it should only be used if you    |
+|                                         |             |              |            | need to debug the bash scripts in container.    |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 |                                                        Image build variables                                                        |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
