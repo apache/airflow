@@ -28,14 +28,35 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.0.0
+.....
+
+Latest change: 2022-09-27
+
+=================================================================================================  ===========  ==============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================================
+`fd27584b3d <https://github.com/apache/airflow/commit/fd27584b3dc355eaf0c0cd7a4cd65e0e580fcf6d>`_  2022-09-27   ``Refactor 'SlackWebhookOperator': Get rid of mandatory http-provider dependency (#26648)``
+`95a5fc7ec9 <https://github.com/apache/airflow/commit/95a5fc7ec9a637337af9446f11d7f90a6e47e006>`_  2022-09-22   ``Refactor SlackWebhookHook in order to use 'slack_sdk' instead of HttpHook methods (#26452)``
+`7d5e8cce6c <https://github.com/apache/airflow/commit/7d5e8cce6c3e27bc7b9bf28823e9adc6cdb458e2>`_  2022-09-19   ``Remove unsafe imports in Slack API Connection (#26459)``
+`06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+`675bb6c0e8 <https://github.com/apache/airflow/commit/675bb6c0e88c380e39d242e04543e11950ea1141>`_  2022-09-09   ``Move send_file method into SlackHook (#26118)``
+`214873cc60 <https://github.com/apache/airflow/commit/214873cc60200ff6f070bacd31b1b21012703c3e>`_  2022-08-31   ``Refactor Slack API Hook and add Connection (#25852)``
+`8acdc2a834 <https://github.com/apache/airflow/commit/8acdc2a834b9c4e287fe612ed56ab8908d777609>`_  2022-08-30   ``Replace SQL with Common SQL in pre commit (#26058)``
+`ca9229b6fe <https://github.com/apache/airflow/commit/ca9229b6fe7eda198c7ce32da13afb97ab9f3e28>`_  2022-08-18   ``Add common-sql lower bound for common-sql (#25789)``
+`e5ac6c7cfb <https://github.com/apache/airflow/commit/e5ac6c7cfb189c33e3b247f7d5aec59fe5e89a00>`_  2022-08-10   ``Prepare docs for new providers release (August 2022) (#25618)``
+`808035e00a <https://github.com/apache/airflow/commit/808035e00aaf59a8012c50903a09d3f50bd92ca4>`_  2022-07-18   ``AIP-47 - Migrate Slack DAG to new design (#25137)``
+=================================================================================================  ===========  ==============================================================================================
+
 5.1.0
 .....
 
-Latest change: 2022-07-07
+Latest change: 2022-07-13
 
 =================================================================================================  ===========  ==================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================
+`d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
 `46bbfdade0 <https://github.com/apache/airflow/commit/46bbfdade0638cb8a5d187e47034b84e68ddf762>`_  2022-07-07   ``Move all SQL classes to common-sql provider (#24836)``
 `69565ddfa0 <https://github.com/apache/airflow/commit/69565ddfa0371d83596b295e9c711074dd273f5f>`_  2022-07-01   ``Update docstring in 'SqlToSlackOperator' (#24759)``
 `0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``

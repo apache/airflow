@@ -47,7 +47,6 @@ from airflow.typing_compat import Literal
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
     get_dag,
-    get_dag_by_deserialization,
     get_dag_by_file_location,
     get_dag_by_pickle,
     get_dags,
@@ -364,14 +363,7 @@ def task_run(args, dag=None):
         print(f'Loading pickle id: {args.pickle}')
         dag = get_dag_by_pickle(args.pickle)
     elif not dag:
-        if args.local:
-            try:
-                dag = get_dag_by_deserialization(args.dag_id)
-            except AirflowException:
-                print(f'DAG {args.dag_id} does not exist in the database, trying to parse the dag_file')
-                dag = get_dag(args.subdir, args.dag_id)
-        else:
-            dag = get_dag(args.subdir, args.dag_id)
+        dag = get_dag(args.subdir, args.dag_id, include_examples=False)
     else:
         # Use DAG from parameter
         pass
