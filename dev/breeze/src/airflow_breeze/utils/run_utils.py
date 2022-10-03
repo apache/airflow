@@ -226,7 +226,7 @@ def assert_pre_commit_installed(verbose: bool):
         sys.exit(1)
 
 
-def get_filesystem_type(filepath):
+def get_filesystem_type(filepath: str):
     """
     Determine the type of filesystem used - we might want to use different parameters if tmpfs is used.
     :param filepath: path to check
@@ -236,7 +236,7 @@ def get_filesystem_type(filepath):
     import psutil
 
     root_type = "unknown"
-    for part in psutil.disk_partitions():
+    for part in psutil.disk_partitions(all=True):
         if part.mountpoint == '/':
             root_type = part.fstype
             continue

@@ -80,8 +80,10 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--run-in-parallel",
                 "--parallelism",
-                "--skip-cleanup",
                 "--python-versions",
+                "--skip-cleanup",
+                "--debug-resources",
+                "--include-success-outputs",
             ],
         },
     ],

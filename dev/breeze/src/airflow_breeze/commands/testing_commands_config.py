@@ -37,9 +37,19 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
+            "name": "Options for parallel test commands",
+            "options": [
+                "--run-in-parallel",
+                "--parallelism",
+                "--test-types",
+                "--skip-cleanup",
+                "--debug-resources",
+                "--include-success-outputs",
+            ],
+        },
+        {
             "name": "Advanced flag for tests command",
             "options": [
-                "--limit-progress-output",
                 "--image-tag",
                 "--mount-sources",
             ],

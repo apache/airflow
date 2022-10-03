@@ -40,6 +40,7 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_reference_build,
     option_answer,
     option_builder,
+    option_debug_resources,
     option_dev_apt_command,
     option_dev_apt_deps,
     option_docker_cache,
@@ -98,6 +99,7 @@ def run_build_in_parallel(
     parallelism: int,
     include_success_outputs: bool,
     skip_cleanup: bool,
+    debug_resources: bool,
     dry_run: bool,
     verbose: bool,
 ) -> None:
@@ -105,7 +107,10 @@ def run_build_in_parallel(
     with ci_group(f"Building for {python_version_list}"):
         all_params = [f"PROD {image_params.python}" for image_params in image_params_list]
         with run_with_pool(
-            parallelism=parallelism, all_params=all_params, progress_matcher=DockerBuildxProgressMatcher()
+            parallelism=parallelism,
+            all_params=all_params,
+            debug_resources=debug_resources,
+            progress_matcher=DockerBuildxProgressMatcher(),
         ) as (pool, outputs):
             results = [
                 pool.apply_async(
@@ -154,6 +159,7 @@ def prod_image():
 @option_run_in_parallel
 @option_parallelism
 @option_skip_cleanup
+@option_debug_resources
 @option_include_success_outputs
 @option_python_versions
 @option_upgrade_to_newer_dependencies
@@ -228,6 +234,7 @@ def build(
     run_in_parallel: bool,
     parallelism: int,
     skip_cleanup: bool,
+    debug_resources: bool,
     include_success_outputs: bool,
     python_versions: str,
     answer: str | None,
@@ -263,6 +270,7 @@ def build(
             python_version_list=python_version_list,
             parallelism=parallelism,
             skip_cleanup=skip_cleanup,
+            debug_resources=debug_resources,
             include_success_outputs=include_success_outputs,
             dry_run=dry_run,
             verbose=verbose,
@@ -281,6 +289,7 @@ def build(
 @option_run_in_parallel
 @option_parallelism
 @option_skip_cleanup
+@option_debug_resources
 @option_include_success_outputs
 @option_python_versions
 @option_github_token
@@ -297,6 +306,7 @@ def pull_prod_image(
     run_in_parallel: bool,
     parallelism: int,
     skip_cleanup: bool,
+    debug_resources: bool,
     include_success_outputs,
     python_versions: str,
     github_token: str,
@@ -323,6 +333,7 @@ def pull_prod_image(
             dry_run=dry_run,
             parallelism=parallelism,
             skip_cleanup=skip_cleanup,
+            debug_resources=debug_resources,
             include_success_outputs=include_success_outputs,
             image_params_list=prod_image_params_list,
             python_version_list=python_version_list,

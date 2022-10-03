@@ -689,8 +689,24 @@ API, Providers. This how our CI runs them - running each group in parallel to ot
 replicate this behaviour.
 
 Another interesting use of the ``breeze testing tests`` command is that you can easily specify sub-set of the
-tests for Providers. ``breeze testing tests --test-type "Providers[airbyte,http]`` for example will only run
-tests for airbyte and http providers.
+tests for Providers.
+
+For example this will only run provider tests for airbyte and http providers:
+
+.. code-block:: bash
+
+   breeze testing tests --test-type "Providers[airbyte,http]``
+
+You can also run parallel tests with ``--run-in-parallel`` flag - by default it will run all tests types
+in parallel, but you can specify the test type that you want to run with space separated list of test
+types passed to ``--test-types`` flag.
+
+For example this will run API and WWW tests in parallel:
+
+.. code-block:: bash
+
+    breeze testing tests --test-types "API WWW" --run-in-parallel
+
 
 Here is the detailed set of options for the ``breeze testing tests`` command.
 
@@ -747,7 +763,6 @@ You can:
 * Enter the interactive kubernetes test environment with ``breeze k8s shell`` and ``breeze k8s k9s`` command
 * Run multi-cluster-operations ``breeze k8s list-all-clusters`` and
   ``breeze k8s delete-all-clusters`` commands as well as running complete tests in parallel
-  via ``breeze k8s run-complete-tests`` and export logs from all clusters to a temp directory
   via ``breeze k8s dump-logs`` command
 
 This is described in detail in `Testing Kubernetes <TESTING.rst#running-tests-with-kubernetes>`_.

@@ -32,12 +32,14 @@ from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
+    option_debug_resources,
     option_dry_run,
     option_include_success_outputs,
     option_parallelism,
     option_python,
     option_python_versions,
     option_run_in_parallel,
+    option_skip_cleanup,
     option_verbose,
 )
 from airflow_breeze.utils.console import Output, get_console
@@ -94,7 +96,7 @@ option_kubernetes_version = click.option(
 option_image_tag = click.option(
     '-t',
     '--image-tag',
-    help='Image tag used to build K8S image from',
+    help='Image tag used to build K8S image from.',
     default='latest',
     show_default=True,
     envvar='IMAGE_TAG',
@@ -147,8 +149,7 @@ K8S_UPLOAD_PROGRESS_REGEXP = r'.*airflow-python-[0-9.]+-v[0-9.].*'
 K8S_CONFIGURE_CLUSTER_PROGRESS_REGEXP = r'.*airflow-python-[0-9.]+-v[0-9.].*'
 K8S_DEPLOY_PROGRESS_REGEXP = r'.*airflow-python-[0-9.]+-v[0-9.].*'
 K8S_TEST_PROGRESS_REGEXP = r'.*airflow-python-[0-9.]+-v[0-9.].*|^kubernetes_tests/.*'
-PERCENT_K8S_TEST_PROGRESS_REGEXP = r'^kubernetes_tests/.*\[[ \d*%]*\].*'
-K8S_SKIP_TRUNCATION_REGEXP = r'^kubernetes_tests/.*'
+PERCENT_K8S_TEST_PROGRESS_REGEXP = r'^kubernetes_tests/.*\[[ \d%]*\].*'
 
 
 @kubernetes_group.command(name="setup-env", help="Setup shared Kubernetes virtual environment and tools.")
@@ -251,9 +252,11 @@ def _create_cluster(
 @option_kubernetes_version
 @option_run_in_parallel
 @option_parallelism
+@option_skip_cleanup
+@option_debug_resources
+@option_include_success_outputs
 @option_kubernetes_versions
 @option_python_versions
-@option_include_success_outputs
 @option_verbose
 @option_dry_run
 def create_cluster(
@@ -261,10 +264,12 @@ def create_cluster(
     python: str,
     kubernetes_version: str,
     run_in_parallel: bool,
+    skip_cleanup: bool,
+    debug_resources: bool,
+    include_success_outputs: bool,
     parallelism: int,
     kubernetes_versions: str,
     python_versions: str,
-    include_success_outputs: bool,
     verbose: bool,
     dry_run: bool,
 ):
@@ -282,8 +287,9 @@ def create_cluster(
             with run_with_pool(
                 parallelism=parallelism,
                 all_params=combo_titles,
+                debug_resources=debug_resources,
                 progress_matcher=GenericRegexpProgressMatcher(
-                    K8S_CLUSTER_CREATE_PROGRESS_REGEXP, lines_to_search=15
+                    regexp=K8S_CLUSTER_CREATE_PROGRESS_REGEXP, lines_to_search=15
                 ),
             ) as (pool, outputs):
                 results = [
@@ -305,6 +311,7 @@ def create_cluster(
             results=results,
             success="All clusters created.",
             outputs=outputs,
+            skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
         )
     else:
@@ -632,8 +639,10 @@ def _upload_k8s_image(
 @option_rebuild_base_image
 @option_run_in_parallel
 @option_parallelism
-@option_python_versions
+@option_skip_cleanup
+@option_debug_resources
 @option_include_success_outputs
+@option_python_versions
 @option_verbose
 @option_dry_run
 def build_k8s_image(
@@ -642,8 +651,10 @@ def build_k8s_image(
     rebuild_base_image: bool,
     run_in_parallel: bool,
     parallelism: int,
-    python_versions: str,
+    skip_cleanup: bool,
+    debug_resources: bool,
     include_success_outputs: bool,
+    python_versions: str,
     verbose: bool,
     dry_run: bool,
 ):
@@ -657,6 +668,7 @@ def build_k8s_image(
             with run_with_pool(
                 parallelism=parallelism,
                 all_params=[f"Image {python}" for python in python_version_array],
+                debug_resources=debug_resources,
                 progress_matcher=DockerBuildxProgressMatcher(),
             ) as (pool, outputs):
                 results = [
@@ -677,6 +689,7 @@ def build_k8s_image(
             results=results,
             success="All K8S images built correctly.",
             outputs=outputs,
+            skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
         )
     else:
@@ -702,9 +715,11 @@ def build_k8s_image(
 @option_kubernetes_version
 @option_run_in_parallel
 @option_parallelism
+@option_skip_cleanup
+@option_debug_resources
+@option_include_success_outputs
 @option_python_versions
 @option_kubernetes_versions
-@option_include_success_outputs
 @option_verbose
 @option_dry_run
 def upload_k8s_image(
@@ -712,9 +727,11 @@ def upload_k8s_image(
     kubernetes_version: str,
     run_in_parallel: bool,
     parallelism: int,
+    skip_cleanup: bool,
+    debug_resources: bool,
+    include_success_outputs: bool,
     python_versions: str,
     kubernetes_versions: str,
-    include_success_outputs: bool,
     verbose: bool,
     dry_run: bool,
 ):
@@ -732,6 +749,7 @@ def upload_k8s_image(
             with run_with_pool(
                 parallelism=parallelism,
                 all_params=combo_titles,
+                debug_resources=debug_resources,
                 progress_matcher=GenericRegexpProgressMatcher(
                     regexp=K8S_UPLOAD_PROGRESS_REGEXP, lines_to_search=2
                 ),
@@ -753,6 +771,7 @@ def upload_k8s_image(
             results=results,
             success="All K8S images uploaded correctly.",
             outputs=outputs,
+            skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
         )
     else:
@@ -899,9 +918,11 @@ def _configure_k8s_cluster(
 @option_kubernetes_version
 @option_run_in_parallel
 @option_parallelism
+@option_skip_cleanup
+@option_debug_resources
+@option_include_success_outputs
 @option_python_versions
 @option_kubernetes_versions
-@option_include_success_outputs
 @option_verbose
 @option_dry_run
 def configure_cluster(
@@ -909,9 +930,11 @@ def configure_cluster(
     kubernetes_version: str,
     run_in_parallel: bool,
     parallelism: int,
+    skip_cleanup: bool,
+    debug_resources: bool,
+    include_success_outputs: bool,
     python_versions: str,
     kubernetes_versions: str,
-    include_success_outputs: bool,
     verbose: bool,
     dry_run: bool,
 ):
@@ -929,6 +952,7 @@ def configure_cluster(
             with run_with_pool(
                 parallelism=parallelism,
                 all_params=combo_titles,
+                debug_resources=debug_resources,
                 progress_matcher=GenericRegexpProgressMatcher(
                     regexp=K8S_CONFIGURE_CLUSTER_PROGRESS_REGEXP, lines_to_search=10
                 ),
@@ -950,6 +974,7 @@ def configure_cluster(
             results=results,
             success="All clusters configured correctly.",
             outputs=outputs,
+            skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
         )
     else:
@@ -1096,9 +1121,11 @@ def _deploy_airflow(
 @option_wait_time_in_seconds
 @option_run_in_parallel
 @option_parallelism
+@option_skip_cleanup
+@option_debug_resources
+@option_include_success_outputs
 @option_python_versions
 @option_kubernetes_versions
-@option_include_success_outputs
 @option_verbose
 @option_dry_run
 @click.argument('extra_options', nargs=-1, type=click.UNPROCESSED)
@@ -1110,9 +1137,11 @@ def deploy_airflow(
     wait_time_in_seconds: int,
     run_in_parallel: bool,
     parallelism: int,
+    skip_cleanup: bool,
+    debug_resources: bool,
+    include_success_outputs: bool,
     python_versions: str,
     kubernetes_versions: str,
-    include_success_outputs: bool,
     verbose: bool,
     dry_run: bool,
     extra_options: tuple[str, ...] | None = None,
@@ -1127,7 +1156,10 @@ def deploy_airflow(
             with run_with_pool(
                 parallelism=parallelism,
                 all_params=combo_titles,
-                progress_matcher=GenericRegexpProgressMatcher(K8S_DEPLOY_PROGRESS_REGEXP, lines_to_search=15),
+                debug_resources=debug_resources,
+                progress_matcher=GenericRegexpProgressMatcher(
+                    regexp=K8S_DEPLOY_PROGRESS_REGEXP, lines_to_search=15
+                ),
             ) as (pool, outputs):
                 results = [
                     pool.apply_async(
@@ -1150,6 +1182,7 @@ def deploy_airflow(
             results=results,
             success="All Airflow charts successfully deployed.",
             outputs=outputs,
+            skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
         )
     else:
@@ -1369,9 +1402,11 @@ def _run_tests(
 @option_force_venv_setup
 @option_run_in_parallel
 @option_parallelism
+@option_skip_cleanup
+@option_debug_resources
+@option_include_success_outputs
 @option_python_versions
 @option_kubernetes_versions
-@option_include_success_outputs
 @option_verbose
 @option_dry_run
 @click.argument('test_args', nargs=-1, type=click.Path())
@@ -1382,9 +1417,11 @@ def tests(
     force_venv_setup: bool,
     run_in_parallel: bool,
     parallelism: int,
+    skip_cleanup: bool,
+    debug_resources: bool,
+    include_success_outputs: bool,
     python_versions: str,
     kubernetes_versions: str,
-    include_success_outputs: bool,
     verbose: bool,
     dry_run: bool,
     test_args: tuple[str, ...],
@@ -1427,11 +1464,11 @@ def tests(
             with run_with_pool(
                 parallelism=parallelism,
                 all_params=combo_titles,
+                debug_resources=debug_resources,
                 progress_matcher=GenericRegexpProgressMatcher(
-                    K8S_TEST_PROGRESS_REGEXP,
-                    lines_to_search=15,
+                    regexp=K8S_TEST_PROGRESS_REGEXP,
                     regexp_for_joined_line=PERCENT_K8S_TEST_PROGRESS_REGEXP,
-                    regexp_to_skip_truncation=K8S_SKIP_TRUNCATION_REGEXP,
+                    lines_to_search=15,
                 ),
             ) as (pool, outputs):
                 results = [
@@ -1454,6 +1491,7 @@ def tests(
             success="All K8S tests successfully completed.",
             outputs=outputs,
             include_success_outputs=include_success_outputs,
+            skip_cleanup=skip_cleanup,
         )
     else:
         result, _ = _run_tests(
