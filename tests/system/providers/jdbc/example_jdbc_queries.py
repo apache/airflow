@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Example DAG demonstrating the usage of the JdbcOperator."""
+from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta
@@ -27,6 +27,7 @@ try:
     from airflow.operators.empty import EmptyOperator
 except ModuleNotFoundError:
     from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
+
 from airflow.providers.jdbc.operators.jdbc import JdbcOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")

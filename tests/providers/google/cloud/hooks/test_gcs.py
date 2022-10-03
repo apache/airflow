@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import copy
 import io
@@ -123,7 +124,7 @@ class TestGCSHook(unittest.TestCase):
             self.gcs_hook = gcs.GCSHook(gcp_conn_id='test')
 
     @mock.patch(
-        BASE_STRING.format("GoogleBaseHook._get_credentials_and_project_id"),
+        BASE_STRING.format("GoogleBaseHook.get_credentials_and_project_id"),
         return_value=("CREDENTIALS", "PROJECT_ID"),
     )
     @mock.patch(GCS_STRING.format('GoogleBaseHook.get_connection'))

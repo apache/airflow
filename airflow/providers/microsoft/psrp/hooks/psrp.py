@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from contextlib import contextmanager
 from copy import copy
 from logging import DEBUG, ERROR, INFO, WARNING
-from typing import Any, Callable, Dict, Generator, Optional
+from typing import Any, Callable, Generator
 from weakref import WeakKeyDictionary
 
 from pypsrp.host import PSHost
@@ -75,18 +76,18 @@ class PsrpHook(BaseHook):
 
     _conn = None
     _configuration_name = None
-    _wsman_ref: "WeakKeyDictionary[RunspacePool, WSMan]" = WeakKeyDictionary()
+    _wsman_ref: WeakKeyDictionary[RunspacePool, WSMan] = WeakKeyDictionary()
 
     def __init__(
         self,
         psrp_conn_id: str,
         logging_level: int = DEBUG,
-        operation_timeout: Optional[int] = None,
-        runspace_options: Optional[Dict[str, Any]] = None,
-        wsman_options: Optional[Dict[str, Any]] = None,
-        on_output_callback: Optional[OutputCallback] = None,
+        operation_timeout: int | None = None,
+        runspace_options: dict[str, Any] | None = None,
+        wsman_options: dict[str, Any] | None = None,
+        on_output_callback: OutputCallback | None = None,
         exchange_keys: bool = True,
-        host: Optional[PSHost] = None,
+        host: PSHost | None = None,
     ):
         self.conn_id = psrp_conn_id
         self._logging_level = logging_level
@@ -214,7 +215,7 @@ class PsrpHook(BaseHook):
             if local_context:
                 self.__exit__(None, None, None)
 
-    def invoke_cmdlet(self, name: str, use_local_scope=None, **parameters: Dict[str, str]) -> PowerShell:
+    def invoke_cmdlet(self, name: str, use_local_scope=None, **parameters: dict[str, str]) -> PowerShell:
         """Invoke a PowerShell cmdlet and return session."""
         with self.invoke() as ps:
             ps.add_cmdlet(name, use_local_scope=use_local_scope)

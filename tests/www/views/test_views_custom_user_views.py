@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 
@@ -24,7 +25,6 @@ from parameterized import parameterized
 from airflow import settings
 from airflow.security import permissions
 from airflow.www import app as application
-from airflow.www.views import CustomUserDBModelView
 from tests.test_utils.api_connexion_utils import create_user, delete_role
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 
@@ -46,7 +46,7 @@ class TestSecurity(unittest.TestCase):
         self.security_manager = self.appbuilder.sm
         self.delete_roles()
         self.db = SQLA(self.app)
-        self.appbuilder.add_view(CustomUserDBModelView, "CustomUserDBModelView", category="ModelViews")
+
         self.client = self.app.test_client()  # type:ignore
 
     def delete_roles(self):

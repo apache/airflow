@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
 from packaging.version import Version
 from pandas import DataFrame
@@ -69,13 +71,13 @@ class SqlToSlackOperator(BaseOperator):
         *,
         sql: str,
         sql_conn_id: str,
-        sql_hook_params: Optional[dict] = None,
-        slack_conn_id: Optional[str] = None,
-        slack_webhook_token: Optional[str] = None,
-        slack_channel: Optional[str] = None,
+        sql_hook_params: dict | None = None,
+        slack_conn_id: str | None = None,
+        slack_webhook_token: str | None = None,
+        slack_channel: str | None = None,
         slack_message: str,
         results_df_name: str = 'results_df',
-        parameters: Optional[Union[Iterable, Mapping]] = None,
+        parameters: Iterable | Mapping | None = None,
         **kwargs,
     ) -> None:
 
@@ -127,14 +129,11 @@ class SqlToSlackOperator(BaseOperator):
 
         slack_hook = self._get_slack_hook()
         self.log.info('Sending slack message: %s', self.slack_message)
-        slack_hook.execute()
+        slack_hook.send(text=self.slack_message, channel=self.slack_channel)
 
     def _get_slack_hook(self) -> SlackWebhookHook:
         return SlackWebhookHook(
-            http_conn_id=self.slack_conn_id,
-            message=self.slack_message,
-            channel=self.slack_channel,
-            webhook_token=self.slack_webhook_token,
+            slack_webhook_conn_id=self.slack_conn_id, webhook_token=self.slack_webhook_token
         )
 
     def render_template_fields(self, context, jinja_env=None) -> None:
@@ -154,7 +153,7 @@ class SqlToSlackOperator(BaseOperator):
         self._do_render_template_fields(self, fields_to_render, context, jinja_env, set())
         self.times_rendered += 1
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         if not isinstance(self.sql, str):
             raise AirflowException("Expected 'sql' parameter should be a string.")
         if self.sql is None or self.sql.strip() == "":

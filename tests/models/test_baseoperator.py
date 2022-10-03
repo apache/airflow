@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import copy
 import logging
 import uuid
@@ -26,7 +28,7 @@ import jinja2
 import pytest
 
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.lineage.entities import File
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator, BaseOperatorMeta, chain, cross_downstream
@@ -143,7 +145,7 @@ class TestBaseOperator:
         """
         msg = r'Invalid arguments were passed to BaseOperator \(task_id: test_illegal_args\)'
         with conf_vars({('operators', 'allow_illegal_arguments'): 'True'}):
-            with pytest.warns(PendingDeprecationWarning, match=msg):
+            with pytest.warns(RemovedInAirflow3Warning, match=msg):
                 BaseOperator(
                     task_id='test_illegal_args',
                     illegal_argument_1234='hello?',
@@ -683,6 +685,16 @@ class TestBaseOperator:
         op = BaseOperator(task_id="test_task", weight_rule="upstream")
         assert WeightRule.UPSTREAM == op.weight_rule
 
+    # ensure the default logging config is used for this test, no matter what ran before
+    @pytest.mark.usefixtures('reset_logging_config')
+    def test_logging_propogated_by_default(self, caplog):
+        """Test that when set_context hasn't been called that log records are emitted"""
+        BaseOperator(task_id="test").log.warning("test")
+        # This looks like "how could it fail" but this actually checks that the handler called `emit`. Testing
+        # the other case (that when we have set_context it goes to the file is harder to achieve without
+        # leaking a lot of state)
+        assert caplog.messages == ["test"]
+
 
 def test_init_subclass_args():
     class InitSubclassOp(BaseOperator):
@@ -833,3 +845,24 @@ def test_render_template_fields_logging(
         assert expected_log in caplog.text
     if not_expected_log:
         assert not_expected_log not in caplog.text
+
+
+def test_find_mapped_dependants_in_another_group(dag_maker):
+    from airflow.utils.task_group import TaskGroup
+
+    @task_decorator
+    def gen(x):
+        return list(range(x))
+
+    @task_decorator
+    def add(x, y):
+        return x + y
+
+    with dag_maker():
+        with TaskGroup(group_id="g1"):
+            gen_result = gen(3)
+        with TaskGroup(group_id="g2"):
+            add_result = add.partial(y=1).expand(x=gen_result)
+
+    dependants = list(gen_result.operator.iter_mapped_dependants())
+    assert dependants == [add_result.operator]

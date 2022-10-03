@@ -16,18 +16,20 @@
 # specific language governing permissions and limitations
 # under the License.
 """Implements Docker operator"""
+from __future__ import annotations
+
 import ast
 import io
 import pickle
 import tarfile
 import warnings
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, Sequence
 
 from docker import APIClient, tls  # type: ignore[attr-defined]
 from docker.constants import DEFAULT_TIMEOUT_SECONDS  # type: ignore[attr-defined]
 from docker.errors import APIError  # type: ignore[attr-defined]
-from docker.types import DeviceRequest, Mount  # type: ignore[attr-defined]
+from docker.types import DeviceRequest, LogConfig, Mount  # type: ignore[attr-defined]
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -37,7 +39,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-def stringify(line: Union[str, bytes]):
+def stringify(line: str | bytes):
     """Make sure string is returned even if bytes are passed. Docker stream can return bytes."""
     decode_method = getattr(line, 'decode', None)
     if decode_method:
@@ -138,6 +140,12 @@ class DockerOperator(BaseOperator):
         output that is not posted to logs
     :param retrieve_output_path: path for output file that will be retrieved and passed to xcom
     :param device_requests: Expose host resources such as GPUs to the container.
+    :param log_opts_max_size: The maximum size of the log before it is rolled.
+        A positive integer plus a modifier representing the unit of measure (k, m, or g).
+        Eg: 10m or 1g Defaults to -1 (unlimited).
+    :param log_opts_max_file: The maximum number of log files that can be present.
+        If rolling the logs creates excess files, the oldest file is removed.
+        Only effective when max-size is also set. A positive integer. Defaults to 1.
     """
 
     template_fields: Sequence[str] = ('image', 'command', 'environment', 'container_name')
@@ -150,42 +158,44 @@ class DockerOperator(BaseOperator):
         self,
         *,
         image: str,
-        api_version: Optional[str] = None,
-        command: Optional[Union[str, List[str]]] = None,
-        container_name: Optional[str] = None,
+        api_version: str | None = None,
+        command: str | list[str] | None = None,
+        container_name: str | None = None,
         cpus: float = 1.0,
         docker_url: str = 'unix://var/run/docker.sock',
-        environment: Optional[Dict] = None,
-        private_environment: Optional[Dict] = None,
+        environment: dict | None = None,
+        private_environment: dict | None = None,
         force_pull: bool = False,
-        mem_limit: Optional[Union[float, str]] = None,
-        host_tmp_dir: Optional[str] = None,
-        network_mode: Optional[str] = None,
-        tls_ca_cert: Optional[str] = None,
-        tls_client_cert: Optional[str] = None,
-        tls_client_key: Optional[str] = None,
-        tls_hostname: Optional[Union[str, bool]] = None,
-        tls_ssl_version: Optional[str] = None,
+        mem_limit: float | str | None = None,
+        host_tmp_dir: str | None = None,
+        network_mode: str | None = None,
+        tls_ca_cert: str | None = None,
+        tls_client_cert: str | None = None,
+        tls_client_key: str | None = None,
+        tls_hostname: str | bool | None = None,
+        tls_ssl_version: str | None = None,
         mount_tmp_dir: bool = True,
         tmp_dir: str = '/tmp/airflow',
-        user: Optional[Union[str, int]] = None,
-        mounts: Optional[List[Mount]] = None,
-        entrypoint: Optional[Union[str, List[str]]] = None,
-        working_dir: Optional[str] = None,
+        user: str | int | None = None,
+        mounts: list[Mount] | None = None,
+        entrypoint: str | list[str] | None = None,
+        working_dir: str | None = None,
         xcom_all: bool = False,
-        docker_conn_id: Optional[str] = None,
-        dns: Optional[List[str]] = None,
-        dns_search: Optional[List[str]] = None,
+        docker_conn_id: str | None = None,
+        dns: list[str] | None = None,
+        dns_search: list[str] | None = None,
         auto_remove: str = "never",
-        shm_size: Optional[int] = None,
+        shm_size: int | None = None,
         tty: bool = False,
         privileged: bool = False,
-        cap_add: Optional[Iterable[str]] = None,
-        extra_hosts: Optional[Dict[str, str]] = None,
+        cap_add: Iterable[str] | None = None,
+        extra_hosts: dict[str, str] | None = None,
         retrieve_output: bool = False,
-        retrieve_output_path: Optional[str] = None,
+        retrieve_output_path: str | None = None,
         timeout: int = DEFAULT_TIMEOUT_SECONDS,
-        device_requests: Optional[List[DeviceRequest]] = None,
+        device_requests: list[DeviceRequest] | None = None,
+        log_opts_max_size: str | None = None,
+        log_opts_max_file: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -242,6 +252,8 @@ class DockerOperator(BaseOperator):
         self.retrieve_output_path = retrieve_output_path
         self.timeout = timeout
         self.device_requests = device_requests
+        self.log_opts_max_size = log_opts_max_size
+        self.log_opts_max_file = log_opts_max_file
 
     def get_hook(self) -> DockerHook:
         """
@@ -257,7 +269,7 @@ class DockerOperator(BaseOperator):
             timeout=self.timeout,
         )
 
-    def _run_image(self) -> Optional[Union[List[str], str]]:
+    def _run_image(self) -> list[str] | str | None:
         """Run a Docker container with the provided image"""
         self.log.info('Starting docker container from image %s', self.image)
         if not self.cli:
@@ -280,15 +292,18 @@ class DockerOperator(BaseOperator):
         else:
             return self._run_image_with_mounts(self.mounts, add_tmp_variable=False)
 
-    def _run_image_with_mounts(
-        self, target_mounts, add_tmp_variable: bool
-    ) -> Optional[Union[List[str], str]]:
+    def _run_image_with_mounts(self, target_mounts, add_tmp_variable: bool) -> list[str] | str | None:
         if add_tmp_variable:
             self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
         else:
             self.environment.pop('AIRFLOW_TMP_DIR', None)
         if not self.cli:
             raise Exception("The 'cli' should be initialized before!")
+        docker_log_config = {}
+        if self.log_opts_max_size is not None:
+            docker_log_config['max-size'] = self.log_opts_max_size
+        if self.log_opts_max_file is not None:
+            docker_log_config['max-file'] = self.log_opts_max_file
         self.container = self.cli.create_container(
             command=self.format_command(self.command),
             name=self.container_name,
@@ -306,6 +321,7 @@ class DockerOperator(BaseOperator):
                 extra_hosts=self.extra_hosts,
                 privileged=self.privileged,
                 device_requests=self.device_requests,
+                log_config=LogConfig(config=docker_log_config),
             ),
             image=self.image,
             user=self.user,
@@ -373,7 +389,7 @@ class DockerOperator(BaseOperator):
         except APIError:
             return None
 
-    def execute(self, context: 'Context') -> Optional[str]:
+    def execute(self, context: Context) -> str | None:
         self.cli = self._get_cli()
         if not self.cli:
             raise Exception("The 'cli' should be initialized before!")
@@ -409,7 +425,7 @@ class DockerOperator(BaseOperator):
             )
 
     @staticmethod
-    def format_command(command: Union[str, List[str]]) -> Union[List[str], str]:
+    def format_command(command: str | list[str]) -> list[str] | str:
         """
         Retrieve command(s). if command string starts with [, it returns the command list)
 
@@ -430,7 +446,7 @@ class DockerOperator(BaseOperator):
                 return
             self.cli.stop(self.container['Id'])
 
-    def __get_tls_config(self) -> Optional[tls.TLSConfig]:
+    def __get_tls_config(self) -> tls.TLSConfig | None:
         tls_config = None
         if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
             # Ignore type error on SSL version here - it is deprecated and type annotation is wrong

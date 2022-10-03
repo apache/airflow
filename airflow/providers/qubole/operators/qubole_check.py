@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from typing import Callable, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import Callable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.operators.sql import SQLCheckOperator, SQLValueCheckOperator
@@ -28,7 +29,7 @@ class _QuboleCheckOperatorMixin:
     """This is a Mixin for Qubole related check operators"""
 
     kwargs: dict
-    results_parser_callable: Optional[Callable]
+    results_parser_callable: Callable | None
 
     def execute(self, context=None) -> None:
         """Execute a check operation against Qubole"""
@@ -110,7 +111,7 @@ class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOpe
         self,
         *,
         qubole_conn_id: str = "qubole_default",
-        results_parser_callable: Optional[Callable] = None,
+        results_parser_callable: Callable | None = None,
         **kwargs,
     ) -> None:
         sql = get_sql_from_qbol_cmd(kwargs)
@@ -158,9 +159,9 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
     def __init__(
         self,
         *,
-        pass_value: Union[str, int, float],
-        tolerance: Optional[Union[int, float]] = None,
-        results_parser_callable: Optional[Callable] = None,
+        pass_value: str | int | float,
+        tolerance: int | float | None = None,
+        results_parser_callable: Callable | None = None,
         qubole_conn_id: str = "qubole_default",
         **kwargs,
     ) -> None:

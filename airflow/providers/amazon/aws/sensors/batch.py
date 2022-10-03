@@ -14,14 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
 else:
     from cached_property import cached_property
+
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.sensors.base import BaseSensorOperator
@@ -53,16 +55,16 @@ class BatchSensor(BaseSensorOperator):
         *,
         job_id: str,
         aws_conn_id: str = 'aws_default',
-        region_name: Optional[str] = None,
+        region_name: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.job_id = job_id
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
-        self.hook: Optional[BatchClientHook] = None
+        self.hook: BatchClientHook | None = None
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         job_description = self.get_hook().get_job_description(self.job_id)
         state = job_description['status']
 
@@ -113,7 +115,7 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
         self,
         compute_environment: str,
         aws_conn_id: str = 'aws_default',
-        region_name: Optional[str] = None,
+        region_name: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -129,7 +131,7 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
             region_name=self.region_name,
         )
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         response = self.hook.client.describe_compute_environments(
             computeEnvironments=[self.compute_environment]
         )
@@ -178,7 +180,7 @@ class BatchJobQueueSensor(BaseSensorOperator):
         job_queue: str,
         treat_non_existing_as_deleted: bool = False,
         aws_conn_id: str = 'aws_default',
-        region_name: Optional[str] = None,
+        region_name: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -195,7 +197,7 @@ class BatchJobQueueSensor(BaseSensorOperator):
             region_name=self.region_name,
         )
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         response = self.hook.client.describe_job_queues(jobQueues=[self.job_queue])
 
         if len(response['jobQueues']) == 0:

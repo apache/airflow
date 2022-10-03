@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime
 from unittest.mock import Mock
 
@@ -23,11 +25,13 @@ import pytest
 from airflow import settings
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
+from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.db import clear_db_runs
@@ -48,6 +52,46 @@ def get_task_instance(session, dag_maker):
         return ti
 
     return _get_task_instance
+
+
+@pytest.fixture
+def get_mapped_task_dagrun(session, dag_maker):
+    def _get_dagrun(trigger_rule=TriggerRule.ALL_SUCCESS, state=State.SUCCESS):
+        from airflow.decorators import task
+
+        @task
+        def do_something(i):
+            return 1
+
+        @task(trigger_rule=trigger_rule)
+        def do_something_else(i):
+            return 1
+
+        with dag_maker(dag_id='test_dag'):
+            nums = do_something.expand(i=[i + 1 for i in range(5)])
+            do_something_else.expand(i=nums)
+
+        dr = dag_maker.create_dagrun()
+
+        ti = dr.get_task_instance('do_something_else', session=session)
+        ti.map_index = 0
+        for map_index in range(1, 5):
+            ti = TaskInstance(ti.task, run_id=dr.run_id, map_index=map_index)
+            ti.dag_run = dr
+            session.add(ti)
+        session.flush()
+        tis = dr.get_task_instances()
+        for ti in tis:
+            if ti.task_id == 'do_something':
+                if ti.map_index > 2:
+                    ti.state = TaskInstanceState.REMOVED
+                else:
+                    ti.state = state
+                session.merge(ti)
+        session.commit()
+        return dr, ti.task
+
+    return _get_dagrun
 
 
 class TestTriggerRuleDep:
@@ -76,9 +120,11 @@ class TestTriggerRuleDep:
                 successes=1,
                 skipped=2,
                 failed=2,
+                removed=0,
                 upstream_failed=2,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -95,9 +141,11 @@ class TestTriggerRuleDep:
                 successes=0,
                 skipped=2,
                 failed=2,
+                removed=0,
                 upstream_failed=2,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -115,9 +163,11 @@ class TestTriggerRuleDep:
                 successes=2,
                 skipped=0,
                 failed=0,
+                removed=0,
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -135,9 +185,11 @@ class TestTriggerRuleDep:
                 successes=0,
                 skipped=2,
                 failed=2,
+                removed=0,
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -149,13 +201,96 @@ class TestTriggerRuleDep:
                 successes=0,
                 skipped=2,
                 failed=0,
+                removed=0,
                 upstream_failed=2,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
         assert len(dep_statuses) == 0
+
+    def test_one_done_tr_success(self, get_task_instance):
+        """
+        One-done trigger rule success
+        """
+        ti = get_task_instance(TriggerRule.ONE_DONE)
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti,
+                successes=2,
+                skipped=0,
+                failed=0,
+                removed=0,
+                upstream_failed=0,
+                done=2,
+                flag_upstream_failed=False,
+                dep_context=DepContext(),
+                session="Fake Session",
+            )
+        )
+        assert len(dep_statuses) == 0
+
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti,
+                successes=0,
+                skipped=0,
+                failed=2,
+                removed=0,
+                upstream_failed=0,
+                done=2,
+                flag_upstream_failed=False,
+                dep_context=DepContext(),
+                session="Fake Session",
+            )
+        )
+        assert len(dep_statuses) == 0
+
+    def test_one_done_tr_skip(self, get_task_instance):
+        """
+        One-done trigger rule skip
+        """
+        ti = get_task_instance(TriggerRule.ONE_DONE)
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti,
+                successes=0,
+                skipped=2,
+                failed=0,
+                removed=0,
+                upstream_failed=0,
+                done=2,
+                flag_upstream_failed=False,
+                dep_context=DepContext(),
+                session="Fake Session",
+            )
+        )
+        assert len(dep_statuses) == 1
+        assert not dep_statuses[0].passed
+
+    def test_one_done_tr_upstream_failed(self, get_task_instance):
+        """
+        One-done trigger rule upstream_failed
+        """
+        ti = get_task_instance(TriggerRule.ONE_DONE)
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti,
+                successes=0,
+                skipped=0,
+                failed=0,
+                removed=0,
+                upstream_failed=2,
+                done=2,
+                flag_upstream_failed=False,
+                dep_context=DepContext(),
+                session="Fake Session",
+            )
+        )
+        assert len(dep_statuses) == 1
+        assert not dep_statuses[0].passed
 
     def test_all_success_tr_success(self, get_task_instance):
         """
@@ -168,9 +303,11 @@ class TestTriggerRuleDep:
                 successes=1,
                 skipped=0,
                 failed=0,
+                removed=0,
                 upstream_failed=0,
                 done=1,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -187,9 +324,11 @@ class TestTriggerRuleDep:
                 successes=1,
                 skipped=0,
                 failed=1,
+                removed=0,
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -207,9 +346,11 @@ class TestTriggerRuleDep:
                 successes=1,
                 skipped=1,
                 failed=0,
+                removed=0,
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -228,9 +369,11 @@ class TestTriggerRuleDep:
                 successes=1,
                 skipped=1,
                 failed=0,
+                removed=0,
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=True,
+                dep_context=DepContext(),
                 session=Mock(),
             )
         )
@@ -249,9 +392,11 @@ class TestTriggerRuleDep:
                 successes=1,
                 skipped=1,
                 failed=0,
+                removed=0,
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -268,9 +413,11 @@ class TestTriggerRuleDep:
                 successes=0,
                 skipped=2,
                 failed=0,
+                removed=0,
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=True,
+                dep_context=DepContext(),
                 session=Mock(),
             )
         )
@@ -290,9 +437,11 @@ class TestTriggerRuleDep:
                 successes=1,
                 skipped=1,
                 failed=1,
+                removed=0,
                 upstream_failed=0,
                 done=3,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -312,9 +461,11 @@ class TestTriggerRuleDep:
                 successes=1,
                 skipped=1,
                 failed=0,
+                removed=0,
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -333,9 +484,11 @@ class TestTriggerRuleDep:
                 successes=0,
                 skipped=2,
                 failed=0,
+                removed=0,
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=True,
+                dep_context=DepContext(),
                 session=Mock(),
             )
         )
@@ -356,9 +509,11 @@ class TestTriggerRuleDep:
                 successes=1,
                 skipped=1,
                 failed=1,
+                removed=0,
                 upstream_failed=0,
                 done=3,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -376,9 +531,11 @@ class TestTriggerRuleDep:
                 successes=0,
                 skipped=0,
                 failed=2,
+                removed=0,
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -395,9 +552,11 @@ class TestTriggerRuleDep:
                 successes=2,
                 skipped=0,
                 failed=0,
+                removed=0,
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -415,9 +574,11 @@ class TestTriggerRuleDep:
                 successes=2,
                 skipped=0,
                 failed=0,
+                removed=0,
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -434,9 +595,11 @@ class TestTriggerRuleDep:
                 successes=1,
                 skipped=0,
                 failed=0,
+                removed=0,
                 upstream_failed=0,
                 done=1,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -457,9 +620,11 @@ class TestTriggerRuleDep:
                     successes=0,
                     skipped=3,
                     failed=0,
+                    removed=0,
                     upstream_failed=0,
                     done=3,
                     flag_upstream_failed=False,
+                    dep_context=DepContext(),
                     session=session,
                 )
             )
@@ -472,9 +637,11 @@ class TestTriggerRuleDep:
                     successes=0,
                     skipped=3,
                     failed=0,
+                    removed=0,
                     upstream_failed=0,
                     done=3,
                     flag_upstream_failed=True,
+                    dep_context=DepContext(),
                     session=session,
                 )
             )
@@ -491,9 +658,11 @@ class TestTriggerRuleDep:
                 successes=1,
                 skipped=0,
                 failed=0,
+                removed=0,
                 upstream_failed=0,
                 done=1,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -514,9 +683,11 @@ class TestTriggerRuleDep:
                     successes=2,
                     skipped=0,
                     failed=1,
+                    removed=0,
                     upstream_failed=0,
                     done=3,
                     flag_upstream_failed=False,
+                    dep_context=DepContext(),
                     session=session,
                 )
             )
@@ -529,9 +700,11 @@ class TestTriggerRuleDep:
                     successes=0,
                     skipped=0,
                     failed=3,
+                    removed=0,
                     upstream_failed=0,
                     done=3,
                     flag_upstream_failed=True,
+                    dep_context=DepContext(),
                     session=session,
                 )
             )
@@ -550,9 +723,11 @@ class TestTriggerRuleDep:
                     successes=1,
                     skipped=1,
                     failed=0,
+                    removed=0,
                     upstream_failed=0,
                     done=2,
                     flag_upstream_failed=False,
+                    dep_context=DepContext(),
                     session=session,
                 )
             )
@@ -566,9 +741,11 @@ class TestTriggerRuleDep:
                     successes=1,
                     skipped=1,
                     failed=0,
+                    removed=0,
                     upstream_failed=0,
                     done=2,
                     flag_upstream_failed=True,
+                    dep_context=DepContext(),
                     session=session,
                 )
             )
@@ -582,9 +759,11 @@ class TestTriggerRuleDep:
                     successes=0,
                     skipped=0,
                     failed=0,
+                    removed=0,
                     upstream_failed=0,
                     done=0,
                     flag_upstream_failed=False,
+                    dep_context=DepContext(),
                     session=session,
                 )
             )
@@ -603,9 +782,11 @@ class TestTriggerRuleDep:
                 successes=1,
                 skipped=0,
                 failed=0,
+                removed=0,
                 upstream_failed=0,
                 done=1,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -662,10 +843,128 @@ class TestTriggerRuleDep:
 
         # check handling with cases that tasks are triggered from backfill with no finished tasks
         finished_tis = DepContext().ensure_finished_tis(ti_op2.dag_run, session)
-        assert get_states_count_upstream_ti(finished_tis=finished_tis, task=op2) == (1, 0, 0, 0, 1)
+        assert get_states_count_upstream_ti(finished_tis=finished_tis, task=op2) == (1, 0, 0, 0, 0, 1)
         finished_tis = dr.get_task_instances(state=State.finished, session=session)
-        assert get_states_count_upstream_ti(finished_tis=finished_tis, task=op4) == (1, 0, 1, 0, 2)
-        assert get_states_count_upstream_ti(finished_tis=finished_tis, task=op5) == (2, 0, 1, 0, 3)
+        assert get_states_count_upstream_ti(finished_tis=finished_tis, task=op4) == (1, 0, 1, 0, 0, 2)
+        assert get_states_count_upstream_ti(finished_tis=finished_tis, task=op5) == (2, 0, 1, 0, 0, 3)
 
         dr.update_state()
         assert State.SUCCESS == dr.state
+
+    def test_mapped_task_upstream_removed_with_all_success_trigger_rules(
+        self, session, get_mapped_task_dagrun
+    ):
+        """
+        Test ALL_SUCCESS trigger rule with mapped task upstream removed
+        """
+        dr, task = get_mapped_task_dagrun()
+
+        # ti with removed upstream ti
+        ti = dr.get_task_instance(task_id='do_something_else', map_index=3, session=session)
+        ti.task = task
+
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti,
+                successes=3,
+                skipped=0,
+                failed=0,
+                removed=2,
+                upstream_failed=0,
+                done=5,
+                flag_upstream_failed=True,  # marks the task as removed if upstream is removed
+                dep_context=DepContext(),
+                session=session,
+            )
+        )
+
+        assert len(dep_statuses) == 0
+        assert ti.state == TaskInstanceState.REMOVED
+
+    def test_mapped_task_upstream_removed_with_all_failed_trigger_rules(
+        self, session, get_mapped_task_dagrun
+    ):
+        """
+        Test ALL_FAILED trigger rule with mapped task upstream removed
+        """
+
+        dr, task = get_mapped_task_dagrun(trigger_rule=TriggerRule.ALL_FAILED, state=State.FAILED)
+
+        # ti with removed upstream ti
+        ti = dr.get_task_instance(task_id='do_something_else', map_index=3, session=session)
+        ti.task = task
+
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti,
+                successes=0,
+                skipped=0,
+                failed=3,
+                removed=2,
+                upstream_failed=0,
+                done=5,
+                flag_upstream_failed=False,
+                dep_context=DepContext(),
+                session=session,
+            )
+        )
+
+        assert len(dep_statuses) == 0
+
+    def test_mapped_task_upstream_removed_with_none_failed_trigger_rules(
+        self, session, get_mapped_task_dagrun
+    ):
+        """
+        Test NONE_FAILED trigger rule with mapped task upstream removed
+        """
+        dr, task = get_mapped_task_dagrun(trigger_rule=TriggerRule.NONE_FAILED)
+
+        # ti with removed upstream ti
+        ti = dr.get_task_instance(task_id='do_something_else', map_index=3, session=session)
+        ti.task = task
+
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti,
+                successes=3,
+                skipped=0,
+                failed=0,
+                removed=2,
+                upstream_failed=0,
+                done=5,
+                flag_upstream_failed=False,
+                dep_context=DepContext(),
+                session=session,
+            )
+        )
+
+        assert len(dep_statuses) == 0
+
+    def test_mapped_task_upstream_removed_with_none_failed_min_one_success_trigger_rules(
+        self, session, get_mapped_task_dagrun
+    ):
+        """
+        Test NONE_FAILED_MIN_ONE_SUCCESS trigger rule with mapped task upstream removed
+        """
+        dr, task = get_mapped_task_dagrun(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+
+        # ti with removed upstream ti
+        ti = dr.get_task_instance(task_id='do_something_else', map_index=3, session=session)
+        ti.task = task
+
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti,
+                successes=3,
+                skipped=0,
+                failed=0,
+                removed=2,
+                upstream_failed=0,
+                done=5,
+                flag_upstream_failed=False,
+                dep_context=DepContext(),
+                session=session,
+            )
+        )
+
+        assert len(dep_statuses) == 0

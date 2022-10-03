@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
-import subprocess
-from typing import Optional, Tuple
 
 from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.utils.console import Output, get_console
@@ -24,8 +24,8 @@ from airflow_breeze.utils.run_utils import run_command
 
 
 def login_to_github_docker_registry(
-    image_params: CommonBuildParams, output: Optional[Output], dry_run: bool, verbose: bool
-) -> Tuple[int, str]:
+    image_params: CommonBuildParams, output: Output | None, dry_run: bool, verbose: bool
+) -> tuple[int, str]:
     """
     In case of CI environment, we need to login to GitHub Registry.
 
@@ -44,8 +44,7 @@ def login_to_github_docker_registry(
                 ['docker', 'logout', 'ghcr.io'],
                 dry_run=dry_run,
                 verbose=verbose,
-                stdout=output.file if output else None,
-                stderr=subprocess.STDOUT,
+                output=output,
                 text=False,
                 check=False,
             )
@@ -59,8 +58,7 @@ def login_to_github_docker_registry(
                     'ghcr.io',
                 ],
                 verbose=verbose,
-                stdout=output.file if output else None,
-                stderr=subprocess.STDOUT,
+                output=output,
                 text=True,
                 input=image_params.github_token,
                 check=False,

@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import pytest
 from parameterized import parameterized
@@ -78,6 +79,7 @@ class TestGetPools(TestBasePoolEndpoints):
                     "occupied_slots": 0,
                     "running_slots": 0,
                     "queued_slots": 0,
+                    "scheduled_slots": 0,
                     "open_slots": 128,
                     "description": "Default pool",
                 },
@@ -87,6 +89,7 @@ class TestGetPools(TestBasePoolEndpoints):
                     "occupied_slots": 0,
                     "running_slots": 0,
                     "queued_slots": 0,
+                    "scheduled_slots": 0,
                     "open_slots": 3,
                     "description": None,
                 },
@@ -110,6 +113,7 @@ class TestGetPools(TestBasePoolEndpoints):
                     "occupied_slots": 0,
                     "running_slots": 0,
                     "queued_slots": 0,
+                    "scheduled_slots": 0,
                     "open_slots": 3,
                     "description": None,
                 },
@@ -119,6 +123,7 @@ class TestGetPools(TestBasePoolEndpoints):
                     "occupied_slots": 0,
                     "running_slots": 0,
                     "queued_slots": 0,
+                    "scheduled_slots": 0,
                     "open_slots": 128,
                     "description": "Default pool",
                 },
@@ -217,6 +222,7 @@ class TestGetPool(TestBasePoolEndpoints):
             "occupied_slots": 0,
             "running_slots": 0,
             "queued_slots": 0,
+            "scheduled_slots": 0,
             "open_slots": 3,
             "description": None,
         } == response.json
@@ -289,6 +295,7 @@ class TestPostPool(TestBasePoolEndpoints):
             "occupied_slots": 0,
             "running_slots": 0,
             "queued_slots": 0,
+            "scheduled_slots": 0,
             "open_slots": 3,
             "description": "test pool",
         } == response.json
@@ -371,6 +378,7 @@ class TestPatchPool(TestBasePoolEndpoints):
             "name": "test_pool_a",
             "open_slots": 3,
             "running_slots": 0,
+            "scheduled_slots": 0,
             "slots": 3,
             "description": None,
         } == response.json
@@ -465,6 +473,7 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
                     "name": "default_pool",
                     "open_slots": 3,
                     "running_slots": 0,
+                    "scheduled_slots": 0,
                     "slots": 3,
                     "description": "Default pool",
                 },
@@ -480,6 +489,7 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
                     "name": "default_pool",
                     "open_slots": 3,
                     "running_slots": 0,
+                    "scheduled_slots": 0,
                     "slots": 3,
                     "description": "Default pool",
                 },
@@ -498,6 +508,7 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
                     "name": "default_pool",
                     "open_slots": 3,
                     "running_slots": 0,
+                    "scheduled_slots": 0,
                     "slots": 3,
                     "description": "Default pool",
                 },
@@ -553,6 +564,7 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
             "occupied_slots": 0,
             "running_slots": 0,
             "queued_slots": 0,
+            "scheduled_slots": 0,
             "open_slots": expected_slots,
             "description": None,
         } == response.json

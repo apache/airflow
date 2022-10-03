@@ -16,9 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Web HDFS"""
+from __future__ import annotations
+
 import logging
 import socket
-from typing import Any, Optional
+from typing import Any
 
 import requests
 from hdfs import HdfsError, InsecureClient
@@ -50,7 +52,7 @@ class WebHDFSHook(BaseHook):
     :param proxy_user: The user used to authenticate.
     """
 
-    def __init__(self, webhdfs_conn_id: str = 'webhdfs_default', proxy_user: Optional[str] = None):
+    def __init__(self, webhdfs_conn_id: str = 'webhdfs_default', proxy_user: str | None = None):
         super().__init__()
         self.webhdfs_conn_id = webhdfs_conn_id
         self.proxy_user = proxy_user
@@ -95,7 +97,7 @@ class WebHDFSHook(BaseHook):
         return None
 
     def _get_client(
-        self, namenode: str, port: int, login: str, password: Optional[str], schema: str, extra_dejson: dict
+        self, namenode: str, port: int, login: str, password: str | None, schema: str, extra_dejson: dict
     ) -> Any:
         connection_str = f'http://{namenode}'
         session = requests.Session()

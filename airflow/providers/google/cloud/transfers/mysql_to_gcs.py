@@ -16,11 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """MySQL to GCS operator."""
+from __future__ import annotations
 
 import base64
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from typing import Dict
 
 from MySQLdb.constants import FIELD_TYPE
 
@@ -29,7 +29,7 @@ from airflow.providers.mysql.hooks.mysql import MySqlHook
 
 
 class MySQLToGCSOperator(BaseSQLToGCSOperator):
-    """Copy data from MySQL to Google Cloud Storage in JSON or CSV format.
+    """Copy data from MySQL to Google Cloud Storage in JSON, CSV or Parquet format.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -80,7 +80,7 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         cursor.execute(self.sql)
         return cursor
 
-    def field_to_bigquery(self, field) -> Dict[str, str]:
+    def field_to_bigquery(self, field) -> dict[str, str]:
         field_type = self.type_map.get(field[1], "STRING")
         # Always allow TIMESTAMP to be nullable. MySQLdb returns None types
         # for required fields because some MySQL timestamps can't be

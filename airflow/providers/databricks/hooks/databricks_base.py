@@ -22,10 +22,12 @@ This hook enable the submitting and running of jobs to the Databricks platform. 
 operators talk to the ``api/2.0/jobs/runs/submit``
 `endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
 """
+from __future__ import annotations
+
 import copy
 import platform
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 from urllib.parse import urlparse
 
 import aiohttp
@@ -95,7 +97,7 @@ class BaseDatabricksHook(BaseHook):
         timeout_seconds: int = 180,
         retry_limit: int = 3,
         retry_delay: float = 1.0,
-        retry_args: Optional[Dict[Any, Any]] = None,
+        retry_args: dict[Any, Any] | None = None,
         caller: str = "Unknown",
     ) -> None:
         super().__init__()
@@ -105,7 +107,7 @@ class BaseDatabricksHook(BaseHook):
             raise ValueError('Retry limit must be greater than or equal to 1')
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
-        self.aad_tokens: Dict[str, dict] = {}
+        self.aad_tokens: dict[str, dict] = {}
         self.aad_timeout_seconds = 10
         self.caller = caller
 
@@ -132,7 +134,7 @@ class BaseDatabricksHook(BaseHook):
         return self.databricks_conn
 
     @cached_property
-    def user_agent_header(self) -> Dict[str, str]:
+    def user_agent_header(self) -> dict[str, str]:
         return {'user-agent': self.user_agent_value}
 
     @cached_property
@@ -144,7 +146,7 @@ class BaseDatabricksHook(BaseHook):
         python_version = platform.python_version()
         system = platform.system().lower()
         ua_string = (
-            f"databricks-aiflow/{version} _/0.0.0 python/{python_version} os/{system} "
+            f"databricks-airflow/{version} _/0.0.0 python/{python_version} os/{system} "
             f"airflow/{__version__} operator/{self.caller}"
         )
         return ua_string
@@ -169,8 +171,7 @@ class BaseDatabricksHook(BaseHook):
     @staticmethod
     def _parse_host(host: str) -> str:
         """
-        The purpose of this function is to be robust to improper connections
-        settings provided by users, specifically in the host field.
+        This function is resistant to incorrect connection settings provided by users, in the host field.
 
         For example -- when users supply ``https://xx.cloud.databricks.com`` as the
         host, we must strip out the protocol to get the host.::
@@ -195,21 +196,23 @@ class BaseDatabricksHook(BaseHook):
 
     def _get_retry_object(self) -> Retrying:
         """
-        Instantiates a retry object
+        Instantiate a retry object.
         :return: instance of Retrying class
         """
         return Retrying(**self.retry_args)
 
     def _a_get_retry_object(self) -> AsyncRetrying:
         """
-        Instantiates an async retry object
+        Instantiate an async retry object.
         :return: instance of AsyncRetrying class
         """
         return AsyncRetrying(**self.retry_args)
 
     def _get_aad_token(self, resource: str) -> str:
         """
-        Function to get AAD token for given resource. Supports managed identity or service principal auth
+        Function to get AAD token for given resource.
+
+        Supports managed identity or service principal auth.
         :param resource: resource to issue token to
         :return: AAD token, or raise an exception
         """
@@ -340,7 +343,7 @@ class BaseDatabricksHook(BaseHook):
 
     def _get_aad_headers(self) -> dict:
         """
-        Fills AAD headers if necessary (SPN is outside of the workspace)
+        Fill AAD headers if necessary (SPN is outside of the workspace).
         :return: dictionary with filled AAD headers
         """
         headers = {}
@@ -369,7 +372,8 @@ class BaseDatabricksHook(BaseHook):
     @staticmethod
     def _is_aad_token_valid(aad_token: dict) -> bool:
         """
-        Utility function to check AAD token hasn't expired yet
+        Utility function to check AAD token hasn't expired yet.
+
         :param aad_token: dict with properties of AAD token
         :return: true if token is valid, false otherwise
         :rtype: bool
@@ -382,7 +386,7 @@ class BaseDatabricksHook(BaseHook):
     @staticmethod
     def _check_azure_metadata_service() -> None:
         """
-        Check for Azure Metadata Service
+        Check for Azure Metadata Service.
         https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service
         """
         try:
@@ -416,7 +420,7 @@ class BaseDatabricksHook(BaseHook):
         except (requests_exceptions.RequestException, ValueError) as e:
             raise AirflowException(f"Can't reach Azure Metadata Service: {e}")
 
-    def _get_token(self, raise_error: bool = False) -> Optional[str]:
+    def _get_token(self, raise_error: bool = False) -> str | None:
         if 'token' in self.databricks_conn.extra_dejson:
             self.log.info(
                 'Using token auth. For security reasons, please set token in Password field instead of extra'
@@ -439,7 +443,7 @@ class BaseDatabricksHook(BaseHook):
 
         return None
 
-    async def _a_get_token(self, raise_error: bool = False) -> Optional[str]:
+    async def _a_get_token(self, raise_error: bool = False) -> str | None:
         if 'token' in self.databricks_conn.extra_dejson:
             self.log.info(
                 'Using token auth. For security reasons, please set token in Password field instead of extra'
@@ -467,12 +471,12 @@ class BaseDatabricksHook(BaseHook):
 
     def _do_api_call(
         self,
-        endpoint_info: Tuple[str, str],
-        json: Optional[Dict[str, Any]] = None,
+        endpoint_info: tuple[str, str],
+        json: dict[str, Any] | None = None,
         wrap_http_errors: bool = True,
     ):
         """
-        Utility function to perform an API call with retries
+        Utility function to perform an API call with retries.
 
         :param endpoint_info: Tuple of method and endpoint
         :param json: Parameters for this API call.
@@ -532,7 +536,7 @@ class BaseDatabricksHook(BaseHook):
             else:
                 raise e
 
-    async def _a_do_api_call(self, endpoint_info: Tuple[str, str], json: Optional[Dict[str, Any]] = None):
+    async def _a_do_api_call(self, endpoint_info: tuple[str, str], json: dict[str, Any] | None = None):
         """
         Async version of `_do_api_call()`.
         :param endpoint_info: Tuple of method and endpoint
@@ -617,7 +621,9 @@ class BaseDatabricksHook(BaseHook):
 
 class _TokenAuth(AuthBase):
     """
-    Helper class for requests Auth field. AuthBase requires you to implement the __call__
+    Helper class for requests Auth field.
+
+    AuthBase requires you to implement the ``__call__``
     magic function.
     """
 
@@ -632,7 +638,7 @@ class _TokenAuth(AuthBase):
 class BearerAuth(aiohttp.BasicAuth):
     """aiohttp only ships BasicAuth, for Bearer auth we need a subclass of BasicAuth."""
 
-    def __new__(cls, token: str) -> 'BearerAuth':
+    def __new__(cls, token: str) -> BearerAuth:
         return super().__new__(cls, token)  # type: ignore
 
     def __init__(self, token: str) -> None:

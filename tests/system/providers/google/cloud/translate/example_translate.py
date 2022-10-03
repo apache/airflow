@@ -15,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that translates text in Google Cloud Translate
 service in the Google Cloud.
-
 """
+from __future__ import annotations
+
 from datetime import datetime
 
 from airflow import models

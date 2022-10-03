@@ -14,15 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 import sys
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-from airflow_breeze.global_constants import DOCKER_DEFAULT_PLATFORM
+from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY, DOCKER_DEFAULT_PLATFORM
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.platforms import get_real_platform
 
@@ -38,39 +38,34 @@ class CommonBuildParams:
     additional_dev_apt_deps: str = ""
     additional_dev_apt_env: str = ""
     additional_python_deps: str = ""
-    additional_runtime_apt_command: str = ""
-    additional_runtime_apt_deps: str = ""
-    additional_runtime_apt_env: str = ""
     additional_pip_install_flags: str = ""
     airflow_branch: str = os.environ.get('DEFAULT_BRANCH', AIRFLOW_BRANCH)
     default_constraints_branch: str = os.environ.get(
         'DEFAULT_CONSTRAINTS_BRANCH', DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     )
     airflow_constraints_location: str = ""
-    answer: Optional[str] = None
+    answer: str | None = None
     build_id: int = 0
     builder: str = "default"
-    constraints_github_repository: str = "apache/airflow"
-    debian_version: str = os.environ.get('DEBIAN_VERSION', "bullseye")
+    constraints_github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     dev_apt_command: str = ""
     dev_apt_deps: str = ""
     docker_cache: str = "registry"
     empty_image: bool = False
     github_actions: str = os.environ.get('GITHUB_ACTIONS', "false")
-    github_repository: str = "apache/airflow"
+    github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get('GITHUB_TOKEN', "")
     github_username: str = ""
-    image_tag: Optional[str] = None
+    image_tag: str | None = None
     install_providers_from_sources: bool = False
     platform: str = DOCKER_DEFAULT_PLATFORM
     prepare_buildx_cache: bool = False
-    python_image: Optional[str] = None
+    python_image: str | None = None
     push: bool = False
     python: str = "3.7"
-    runtime_apt_command: str = ""
-    runtime_apt_deps: str = ""
     tag_as_latest: bool = False
     upgrade_to_newer_dependencies: bool = False
+    upgrade_on_failure: bool = False
 
     @property
     def airflow_version(self):
@@ -99,11 +94,11 @@ class CommonBuildParams:
         return image
 
     @property
-    def extra_docker_build_flags(self) -> List[str]:
+    def extra_docker_build_flags(self) -> list[str]:
         raise NotImplementedError()
 
     @property
-    def docker_cache_directive(self) -> List[str]:
+    def docker_cache_directive(self) -> list[str]:
         docker_cache_directive = []
         if self.docker_cache == "registry":
             for platform in self.platforms:
@@ -119,7 +114,7 @@ class CommonBuildParams:
         """Construct Python Base Image"""
         if self.python_image is not None:
             return self.python_image
-        return f'python:{self.python}-slim-{self.debian_version}'
+        return f'python:{self.python}-slim-bullseye'
 
     @property
     def airflow_image_repository(self):
@@ -156,18 +151,22 @@ class CommonBuildParams:
         return "," in self.platform
 
     def preparing_latest_image(self) -> bool:
-        return self.tag_as_latest or self.airflow_image_name == self.airflow_image_name_with_tag
+        return (
+            self.tag_as_latest
+            or self.airflow_image_name == self.airflow_image_name_with_tag
+            or self.airflow_image_name_with_tag.endswith("latest")
+        )
 
     @property
-    def platforms(self) -> List[str]:
+    def platforms(self) -> list[str]:
         return self.platform.split(",")
 
     @property
-    def required_image_args(self) -> List[str]:
+    def required_image_args(self) -> list[str]:
         raise NotImplementedError()
 
     @property
-    def optional_image_args(self) -> List[str]:
+    def optional_image_args(self) -> list[str]:
         raise NotImplementedError()
 
     def __post_init__(self):

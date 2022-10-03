@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Create FAB Tables
 
 Revision ID: 92c57b58940d
@@ -23,11 +22,11 @@ Revises: da3f683c3a5a
 Create Date: 2020-11-13 19:27:10.161814
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-
-from airflow.compat.sqlalchemy import inspect
+from sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
 revision = '92c57b58940d'

@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
@@ -89,14 +90,14 @@ class DbtCloudRunJobOperator(BaseOperator):
         *,
         dbt_cloud_conn_id: str = DbtCloudHook.default_conn_name,
         job_id: int,
-        account_id: Optional[int] = None,
-        trigger_reason: Optional[str] = None,
-        steps_override: Optional[List[str]] = None,
-        schema_override: Optional[str] = None,
+        account_id: int | None = None,
+        trigger_reason: str | None = None,
+        steps_override: list[str] | None = None,
+        schema_override: str | None = None,
         wait_for_termination: bool = True,
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,
-        additional_run_config: Optional[Dict[str, Any]] = None,
+        additional_run_config: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -113,7 +114,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         self.hook: DbtCloudHook
         self.run_id: int
 
-    def execute(self, context: "Context") -> int:
+    def execute(self, context: Context) -> int:
         if self.trigger_reason is None:
             self.trigger_reason = (
                 f"Triggered via Apache Airflow by task {self.task_id!r} in the {self.dag.dag_id} DAG."
@@ -193,9 +194,9 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         dbt_cloud_conn_id: str = DbtCloudHook.default_conn_name,
         run_id: int,
         path: str,
-        account_id: Optional[int] = None,
-        step: Optional[int] = None,
-        output_file_name: Optional[str] = None,
+        account_id: int | None = None,
+        step: int | None = None,
+        output_file_name: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -206,7 +207,7 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         self.step = step
         self.output_file_name = output_file_name or f"{self.run_id}_{self.path}".replace("/", "-")
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         hook = DbtCloudHook(self.dbt_cloud_conn_id)
         response = hook.get_job_run_artifact(
             run_id=self.run_id, path=self.path, account_id=self.account_id, step=self.step
@@ -217,3 +218,54 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
                 json.dump(response.json(), file)
             else:
                 file.write(response.text)
+
+
+class DbtCloudListJobsOperator(BaseOperator):
+    """
+    List jobs in a dbt Cloud project.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DbtCloudListJobsOperator`
+
+    Retrieves metadata for all jobs tied to a specified dbt Cloud account. If a ``project_id`` is
+    supplied, only jobs pertaining to this project id will be retrieved.
+
+    :param account_id: Optional. If an account ID is not provided explicitly,
+        the account ID from the dbt Cloud connection will be used.
+    :param order_by: Optional. Field to order the result by. Use '-' to indicate reverse order.
+        For example, to use reverse order by the run ID use ``order_by=-id``.
+    :param project_id: Optional. The ID of a dbt Cloud project.
+    """
+
+    template_fields = (
+        "account_id",
+        "project_id",
+    )
+
+    def __init__(
+        self,
+        *,
+        dbt_cloud_conn_id: str = DbtCloudHook.default_conn_name,
+        account_id: int | None = None,
+        project_id: int | None = None,
+        order_by: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.dbt_cloud_conn_id = dbt_cloud_conn_id
+        self.account_id = account_id
+        self.project_id = project_id
+        self.order_by = order_by
+
+    def execute(self, context: Context) -> list:
+        hook = DbtCloudHook(self.dbt_cloud_conn_id)
+        list_jobs_response = hook.list_jobs(
+            account_id=self.account_id, order_by=self.order_by, project_id=self.project_id
+        )
+        buffer = []
+        for job_metadata in list_jobs_response:
+            for job in job_metadata.json()['data']:
+                buffer.append(job["id"])
+        self.log.info("Jobs in the specified dbt Cloud account are: %s", ", ".join(map(str, buffer)))
+        return buffer

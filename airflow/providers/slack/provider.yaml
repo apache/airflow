@@ -22,6 +22,7 @@ description: |
     `Slack <https://slack.com/>`__
 
 versions:
+  - 6.0.0
   - 5.1.0
   - 5.0.0
   - 4.2.3
@@ -37,8 +38,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.2.0
-  - apache-airflow-providers-common-sql
-  - apache-airflow-providers-http
+  - apache-airflow-providers-common-sql>=1.2.0
   - slack_sdk>=3.0.0
 
 integrations:
@@ -62,11 +62,13 @@ hooks:
       - airflow.providers.slack.hooks.slack_webhook
 
 transfers:
-  - source-integration-name: SQL
+  - source-integration-name: Common SQL
     target-integration-name: Slack
     python-module: airflow.providers.slack.transfers.sql_to_slack
     how-to-guide: /docs/apache-airflow-providers-slack/operators/sql_to_slack.rst
 
 connection-types:
+  - hook-class-name: airflow.providers.slack.hooks.slack.SlackHook
+    connection-type: slack
   - hook-class-name: airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook
     connection-type: slackwebhook

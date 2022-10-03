@@ -15,12 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Launches PODs"""
+from __future__ import annotations
+
 import json
 import math
 import time
 import warnings
 from datetime import datetime as dt
-from typing import Optional, Tuple
 
 import pendulum
 import tenacity
@@ -30,7 +31,7 @@ from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from requests.exceptions import HTTPError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.settings import pod_mutation_hook
@@ -46,7 +47,7 @@ warnings.warn(
     https://pypi.org/project/apache-airflow-providers-cncf-kubernetes/
 
     """,
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )
 
@@ -69,7 +70,7 @@ class PodLauncher(LoggingMixin):
         self,
         kube_client: client.CoreV1Api = None,
         in_cluster: bool = True,
-        cluster_context: Optional[str] = None,
+        cluster_context: str | None = None,
         extract_xcom: bool = False,
     ):
         """
@@ -134,7 +135,7 @@ class PodLauncher(LoggingMixin):
                     raise AirflowException("Pod took too long to start")
                 time.sleep(1)
 
-    def monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[State, Optional[str]]:
+    def monitor_pod(self, pod: V1Pod, get_logs: bool) -> tuple[State, str | None]:
         """
         Monitors a pod and returns the final state
 
@@ -175,7 +176,7 @@ class PodLauncher(LoggingMixin):
             time.sleep(2)
         return self._task_status(self.read_pod(pod)), result
 
-    def parse_log_line(self, line: str) -> Tuple[Optional[str], str]:
+    def parse_log_line(self, line: str) -> tuple[str | None, str]:
         """
         Parse K8s log line and returns the final state
 
@@ -213,7 +214,7 @@ class PodLauncher(LoggingMixin):
     def base_container_is_running(self, pod: V1Pod):
         """Tests if base container is running"""
         event = self.read_pod(pod)
-        status = next(iter(filter(lambda s: s.name == 'base', event.status.container_statuses)), None)
+        status = next((s for s in event.status.container_statuses if s.name == 'base'), None)
         if not status:
             return False
         return status.state.running is not None
@@ -222,9 +223,9 @@ class PodLauncher(LoggingMixin):
     def read_pod_logs(
         self,
         pod: V1Pod,
-        tail_lines: Optional[int] = None,
+        tail_lines: int | None = None,
         timestamps: bool = False,
-        since_seconds: Optional[int] = None,
+        since_seconds: int | None = None,
     ):
         """Reads log from the POD"""
         additional_kwargs = {}

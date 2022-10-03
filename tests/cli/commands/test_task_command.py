@@ -15,17 +15,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import io
 import json
 import logging
 import os
 import re
+import tempfile
 import unittest
 from argparse import ArgumentParser
-from contextlib import redirect_stdout
+from contextlib import contextmanager, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
+import pendulum
 import pytest
 from parameterized import parameterized
 
@@ -57,6 +61,13 @@ def reset(dag_id):
         runs.delete()
 
 
+@contextmanager
+def move_back(old_path, new_path):
+    os.rename(old_path, new_path)
+    yield
+    os.rename(new_path, old_path)
+
+
 # TODO: Check if tests needs side effects - locally there's missing DAG
 class TestCliTasks:
     run_id = 'TEST_RUN_ID'
@@ -73,6 +84,7 @@ class TestCliTasks:
         clear_db_runs()
 
         cls.dag = cls.dagbag.get_dag(cls.dag_id)
+        cls.dagbag.sync_to_db()
         cls.dag_run = cls.dag.create_dagrun(
             state=State.NONE, run_id=cls.run_id, run_type=DagRunType.MANUAL, execution_date=DEFAULT_DATE
         )
@@ -101,6 +113,21 @@ class TestCliTasks:
 
         # Check that prints, and log messages, are shown
         assert "'example_python_operator__print_the_context__20180101'" in stdout.getvalue()
+
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
+    @mock.patch('airflow.utils.timezone.utcnow')
+    def test_test_no_execution_date(self, mock_utcnow):
+        """Test the `airflow test` command"""
+        now = pendulum.now('UTC')
+        mock_utcnow.return_value = now
+        ds = now.strftime("%Y%m%d")
+        args = self.parser.parse_args(["tasks", "test", "example_python_operator", 'print_the_context'])
+
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_test(args)
+
+        # Check that prints, and log messages, are shown
+        assert f"'example_python_operator__print_the_context__{ds}'" in stdout.getvalue()
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test_with_existing_dag_run(self, caplog):
@@ -132,69 +159,79 @@ class TestCliTasks:
             task_command.task_test(args)
         assert capsys.readouterr().out.endswith(f"{not_password}\n")
 
-    @mock.patch("airflow.cli.commands.task_command.get_dag_by_deserialization")
-    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
-    def test_run_get_serialized_dag(self, mock_local_job, mock_get_dag_by_deserialization):
+    def test_cli_test_different_path(self, session):
         """
-        Test using serialized dag for local task_run
+        When thedag processor has a different dags folder
+        from the worker, ``airflow tasks run --local`` should still work.
         """
-        task_id = self.dag.task_ids[0]
-        args = [
-            'tasks',
-            'run',
-            '--ignore-all-dependencies',
-            '--local',
-            self.dag_id,
-            task_id,
-            self.run_id,
-        ]
-        mock_get_dag_by_deserialization.return_value = SerializedDagModel.get(self.dag_id).dag
+        repo_root = Path(__file__).parent.parent.parent.parent
+        orig_file_path = repo_root / 'tests/dags/test_dags_folder.py'
+        orig_dags_folder = orig_file_path.parent
 
-        task_command.task_run(self.parser.parse_args(args))
-        mock_local_job.assert_called_once_with(
-            task_instance=mock.ANY,
-            mark_success=False,
-            ignore_all_deps=True,
-            ignore_depends_on_past=False,
-            ignore_task_deps=False,
-            ignore_ti_state=False,
-            pickle_id=None,
-            pool=None,
-            external_executor_id=None,
+        # parse dag in original path
+        with conf_vars({('core', 'dags_folder'): orig_dags_folder.as_posix()}):
+            dagbag = DagBag(include_examples=False)
+            dag = dagbag.get_dag('test_dags_folder')
+            dagbag.sync_to_db(session=session)
+
+        dag.create_dagrun(
+            state=State.NONE,
+            run_id='abc123',
+            run_type=DagRunType.MANUAL,
+            execution_date=pendulum.now('UTC'),
+            session=session,
         )
-        mock_get_dag_by_deserialization.assert_called_once_with(self.dag_id)
+        session.commit()
 
-    @mock.patch("airflow.cli.commands.task_command.get_dag_by_deserialization")
-    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
-    def test_run_get_serialized_dag_fallback(self, mock_local_job, mock_get_dag_by_deserialization):
-        """
-        Fallback to parse dag_file when serialized dag does not exist in the db
-        """
-        task_id = self.dag.task_ids[0]
-        args = [
-            'tasks',
-            'run',
-            '--ignore-all-dependencies',
-            '--local',
-            self.dag_id,
-            task_id,
-            self.run_id,
-        ]
-        mock_get_dag_by_deserialization.side_effect = mock.Mock(side_effect=AirflowException('Not found'))
+        # now let's move the file
+        # additionally let's update the dags folder to be the new path
+        # ideally since dags_folder points correctly to the file, airflow
+        # should be able to find the dag.
+        with tempfile.TemporaryDirectory() as td:
+            new_file_path = Path(td) / Path(orig_file_path).name
+            new_dags_folder = new_file_path.parent
+            with move_back(orig_file_path, new_file_path), conf_vars(
+                {('core', 'dags_folder'): new_dags_folder.as_posix()}
+            ):
+                ser_dag = (
+                    session.query(SerializedDagModel)
+                    .filter(SerializedDagModel.dag_id == 'test_dags_folder')
+                    .one()
+                )
+                # confirm that the serialized dag location has not been updated
+                assert ser_dag.fileloc == orig_file_path.as_posix()
+                assert ser_dag.data['dag']['_processor_dags_folder'] == orig_dags_folder.as_posix()
+                assert ser_dag.data['dag']['fileloc'] == orig_file_path.as_posix()
+                assert ser_dag.dag._processor_dags_folder == orig_dags_folder.as_posix()
+                from airflow.settings import DAGS_FOLDER
 
-        task_command.task_run(self.parser.parse_args(args))
-        mock_local_job.assert_called_once_with(
-            task_instance=mock.ANY,
-            mark_success=False,
-            ignore_all_deps=True,
-            ignore_depends_on_past=False,
-            ignore_task_deps=False,
-            ignore_ti_state=False,
-            pickle_id=None,
-            pool=None,
-            external_executor_id=None,
-        )
-        mock_get_dag_by_deserialization.assert_called_once_with(self.dag_id)
+                assert DAGS_FOLDER == new_dags_folder.as_posix() != orig_dags_folder.as_posix()
+                task_command.task_run(
+                    self.parser.parse_args(
+                        [
+                            'tasks',
+                            'run',
+                            '--ignore-all-dependencies',
+                            '--local',
+                            'test_dags_folder',
+                            'task',
+                            'abc123',
+                        ]
+                    )
+                )
+            ti = (
+                session.query(TaskInstance)
+                .filter(
+                    TaskInstance.task_id == 'task',
+                    TaskInstance.dag_id == 'test_dags_folder',
+                    TaskInstance.run_id == 'abc123',
+                    TaskInstance.map_index == -1,
+                )
+                .one()
+            )
+            assert ti.state == 'success'
+            # verify that the file was in different location when run
+            assert ti.xcom_pull(ti.task_id) == new_file_path.as_posix()
 
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
     def test_run_with_existing_dag_run_id(self, mock_local_job):
@@ -254,9 +291,9 @@ class TestCliTasks:
                     'test',
                     'example_passing_params_via_test_command',
                     'run_this',
+                    DEFAULT_DATE.isoformat(),
                     '--task-params',
                     '{"foo":"bar"}',
-                    DEFAULT_DATE.isoformat(),
                 ]
             )
         )
@@ -267,9 +304,9 @@ class TestCliTasks:
                     'test',
                     'example_passing_params_via_test_command',
                     'also_run_this',
+                    DEFAULT_DATE.isoformat(),
                     '--task-params',
                     '{"foo":"bar"}',
-                    DEFAULT_DATE.isoformat(),
                 ]
             )
         )
@@ -283,9 +320,9 @@ class TestCliTasks:
                         'test',
                         'example_passing_params_via_test_command',
                         'env_var_test_task',
+                        DEFAULT_DATE.isoformat(),
                         '--env-vars',
                         '{"foo":"bar"}',
-                        DEFAULT_DATE.isoformat(),
                     ]
                 )
             )

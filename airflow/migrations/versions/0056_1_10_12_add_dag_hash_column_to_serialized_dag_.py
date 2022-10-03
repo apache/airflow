@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``dag_hash`` Column to ``serialized_dag`` table
 
 Revision ID: da3f683c3a5a
@@ -23,6 +22,7 @@ Revises: a66efa278eea
 Create Date: 2020-08-07 20:52:09.178296
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

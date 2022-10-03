@@ -18,3 +18,23 @@
 line-length = 110
 target-version = ['py37', 'py38', 'py39', 'py310']
 skip-string-normalization = true
+# The build system section is needed in order to workaround the side-effect introduced by recent
+# setup tools version. The recent setuptools version update (64.0.0) broke paths of editable installations
+# and we have to pin it to 63.4.3 version
+# The problem is tracked (and this limitation might be removed if it is solved) in:
+# https://github.com/pypa/setuptools/issues/3548
+[build-system]
+requires = ['setuptools==63.4.3']
+build-backend = "setuptools.build_meta"
+[tool.isort]
+add_imports = ["from __future__ import annotations"]
+append_only = true
+line_length = 110
+combine_as_imports = true
+default_section = "THIRDPARTY"
+known_first_party = ["airflow", "airflow_breeze", "docker_tests", "docs", "kubernetes_tests", "tests"]
+# The test_python.py is needed because adding __future__.annotations breaks runtime checks that are
+# needed for the test to work
+skip = ["build", ".tox", "venv", "tests/decorators/test_python.py"]
+skip_glob = ["*.pyi"]
+profile = "black"

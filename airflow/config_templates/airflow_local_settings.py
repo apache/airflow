@@ -16,10 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow logging settings"""
+from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 from urllib.parse import urlparse
 
 from airflow.configuration import conf
@@ -37,6 +38,7 @@ LOG_LEVEL: str = conf.get_mandatory_value('logging', 'LOGGING_LEVEL').upper()
 FAB_LOG_LEVEL: str = conf.get_mandatory_value('logging', 'FAB_LOGGING_LEVEL').upper()
 
 LOG_FORMAT: str = conf.get_mandatory_value('logging', 'LOG_FORMAT')
+DAG_PROCESSOR_LOG_FORMAT: str = conf.get_mandatory_value('logging', 'DAG_PROCESSOR_LOG_FORMAT')
 
 LOG_FORMATTER_CLASS: str = conf.get_mandatory_value(
     'logging', 'LOG_FORMATTER_CLASS', fallback='airflow.utils.log.timezone_aware.TimezoneAware'
@@ -48,6 +50,8 @@ COLORED_LOG: bool = conf.getboolean('logging', 'COLORED_CONSOLE_LOG')
 
 COLORED_FORMATTER_CLASS: str = conf.get_mandatory_value('logging', 'COLORED_FORMATTER_CLASS')
 
+DAG_PROCESSOR_LOG_TARGET: str = conf.get_mandatory_value('logging', 'DAG_PROCESSOR_LOG_TARGET')
+
 BASE_LOG_FOLDER: str = conf.get_mandatory_value('logging', 'BASE_LOG_FOLDER')
 
 PROCESSOR_LOG_FOLDER: str = conf.get_mandatory_value('scheduler', 'CHILD_PROCESS_LOG_DIRECTORY')
@@ -56,11 +60,14 @@ DAG_PROCESSOR_MANAGER_LOG_LOCATION: str = conf.get_mandatory_value(
     'logging', 'DAG_PROCESSOR_MANAGER_LOG_LOCATION'
 )
 
-FILENAME_TEMPLATE: str = conf.get_mandatory_value('logging', 'LOG_FILENAME_TEMPLATE')
+# FILENAME_TEMPLATE only uses in Remote Logging Handlers since Airflow 2.3.3
+# All of these handlers inherited from FileTaskHandler and providing any value rather than None
+# would raise deprecation warning.
+FILENAME_TEMPLATE: str | None = None
 
 PROCESSOR_FILENAME_TEMPLATE: str = conf.get_mandatory_value('logging', 'LOG_PROCESSOR_FILENAME_TEMPLATE')
 
-DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
+DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
@@ -71,6 +78,10 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
         'airflow_coloured': {
             'format': COLORED_LOG_FORMAT if COLORED_LOG else LOG_FORMAT,
             'class': COLORED_FORMATTER_CLASS if COLORED_LOG else LOG_FORMATTER_CLASS,
+        },
+        'source_processor': {
+            'format': DAG_PROCESSOR_LOG_FORMAT,
+            'class': LOG_FORMATTER_CLASS,
         },
     },
     'filters': {
@@ -98,17 +109,25 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
             'filename_template': PROCESSOR_FILENAME_TEMPLATE,
             'filters': ['mask_secrets'],
         },
+        'processor_to_stdout': {
+            'class': 'airflow.utils.log.logging_mixin.RedirectStdHandler',
+            'formatter': 'source_processor',
+            'stream': 'sys.stdout',
+            'filters': ['mask_secrets'],
+        },
     },
     'loggers': {
         'airflow.processor': {
-            'handlers': ['processor'],
+            'handlers': ['processor_to_stdout' if DAG_PROCESSOR_LOG_TARGET == "stdout" else 'processor'],
             'level': LOG_LEVEL,
-            'propagate': False,
+            # Set to true here (and reset via set_context) so that if no file is configured we still get logs!
+            'propagate': True,
         },
         'airflow.task': {
             'handlers': ['task'],
             'level': LOG_LEVEL,
-            'propagate': False,
+            # Set to true here (and reset via set_context) so that if no file is configured we still get logs!
+            'propagate': True,
             'filters': ['mask_secrets'],
         },
         'flask_appbuilder': {
@@ -124,7 +143,7 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
     },
 }
 
-EXTRA_LOGGER_NAMES: Optional[str] = conf.get('logging', 'EXTRA_LOGGER_NAMES', fallback=None)
+EXTRA_LOGGER_NAMES: str | None = conf.get('logging', 'EXTRA_LOGGER_NAMES', fallback=None)
 if EXTRA_LOGGER_NAMES:
     new_loggers = {
         logger_name.strip(): {
@@ -136,7 +155,7 @@ if EXTRA_LOGGER_NAMES:
     }
     DEFAULT_LOGGING_CONFIG['loggers'].update(new_loggers)
 
-DEFAULT_DAG_PARSING_LOGGING_CONFIG: Dict[str, Dict[str, Dict[str, Any]]] = {
+DEFAULT_DAG_PARSING_LOGGING_CONFIG: dict[str, dict[str, dict[str, Any]]] = {
     'handlers': {
         'processor_manager': {
             'class': 'logging.handlers.RotatingFileHandler',
@@ -165,7 +184,7 @@ if os.environ.get('CONFIG_PROCESSOR_MANAGER_LOGGER') == 'True':
 
     # Manually create log directory for processor_manager handler as RotatingFileHandler
     # will only create file but not the directory.
-    processor_manager_handler_config: Dict[str, Any] = DEFAULT_DAG_PARSING_LOGGING_CONFIG['handlers'][
+    processor_manager_handler_config: dict[str, Any] = DEFAULT_DAG_PARSING_LOGGING_CONFIG['handlers'][
         'processor_manager'
     ]
     directory: str = os.path.dirname(processor_manager_handler_config['filename'])
@@ -179,7 +198,7 @@ REMOTE_LOGGING: bool = conf.getboolean('logging', 'remote_logging')
 
 if REMOTE_LOGGING:
 
-    ELASTICSEARCH_HOST: Optional[str] = conf.get('elasticsearch', 'HOST')
+    ELASTICSEARCH_HOST: str | None = conf.get('elasticsearch', 'HOST')
 
     # Storage bucket URL for remote logging
     # S3 buckets should start with "s3://"
@@ -190,7 +209,7 @@ if REMOTE_LOGGING:
     REMOTE_BASE_LOG_FOLDER: str = conf.get_mandatory_value('logging', 'REMOTE_BASE_LOG_FOLDER')
 
     if REMOTE_BASE_LOG_FOLDER.startswith('s3://'):
-        S3_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
+        S3_REMOTE_HANDLERS: dict[str, dict[str, str | None]] = {
             'task': {
                 'class': 'airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler',
                 'formatter': 'airflow',
@@ -203,7 +222,7 @@ if REMOTE_LOGGING:
         DEFAULT_LOGGING_CONFIG['handlers'].update(S3_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith('cloudwatch://'):
         url_parts = urlparse(REMOTE_BASE_LOG_FOLDER)
-        CLOUDWATCH_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
+        CLOUDWATCH_REMOTE_HANDLERS: dict[str, dict[str, str | None]] = {
             'task': {
                 'class': 'airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler',
                 'formatter': 'airflow',
@@ -216,7 +235,7 @@ if REMOTE_LOGGING:
         DEFAULT_LOGGING_CONFIG['handlers'].update(CLOUDWATCH_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith('gs://'):
         key_path = conf.get_mandatory_value('logging', 'GOOGLE_KEY_PATH', fallback=None)
-        GCS_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
+        GCS_REMOTE_HANDLERS: dict[str, dict[str, str | None]] = {
             'task': {
                 'class': 'airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler',
                 'formatter': 'airflow',
@@ -229,7 +248,7 @@ if REMOTE_LOGGING:
 
         DEFAULT_LOGGING_CONFIG['handlers'].update(GCS_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith('wasb'):
-        WASB_REMOTE_HANDLERS: Dict[str, Dict[str, Union[str, bool]]] = {
+        WASB_REMOTE_HANDLERS: dict[str, dict[str, str | bool | None]] = {
             'task': {
                 'class': 'airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler',
                 'formatter': 'airflow',
@@ -277,7 +296,7 @@ if REMOTE_LOGGING:
         ELASTICSEARCH_HOST_FIELD: str = conf.get_mandatory_value('elasticsearch', 'HOST_FIELD')
         ELASTICSEARCH_OFFSET_FIELD: str = conf.get_mandatory_value('elasticsearch', 'OFFSET_FIELD')
 
-        ELASTIC_REMOTE_HANDLERS: Dict[str, Dict[str, Union[str, bool]]] = {
+        ELASTIC_REMOTE_HANDLERS: dict[str, dict[str, str | bool | None]] = {
             'task': {
                 'class': 'airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler',
                 'formatter': 'airflow',
