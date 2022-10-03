@@ -101,11 +101,16 @@ class TestBatchOperator(unittest.TestCase):
 
     def test_template_fields_overrides(self):
         assert self.batch.template_fields == (
+            "job_id",
             "job_name",
-            "job_queue",
             "job_definition",
+            "job_queue",
             "overrides",
+            "array_properties",
             "parameters",
+            "waiters",
+            "tags",
+            "wait_for_completion",
         )
 
     @mock.patch.object(BatchClientHook, "get_job_description")

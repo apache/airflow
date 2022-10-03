@@ -50,8 +50,8 @@ class SSHHook(BaseHook):
 
     :param ssh_conn_id: :ref:`ssh connection id<howto/connection:ssh>` from airflow
         Connections from where all the required parameters can be fetched like
-        username, password or key_file. Thought the priority is given to the
-        param passed during init
+        username, password or key_file, though priority is given to the
+        params passed during init.
     :param remote_host: remote host to connect
     :param username: username to connect to the remote_host
     :param password: password of the username to connect to the remote_host

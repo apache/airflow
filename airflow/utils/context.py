@@ -22,12 +22,25 @@ import contextlib
 import copy
 import functools
 import warnings
-from typing import Any, Container, ItemsView, Iterator, KeysView, Mapping, MutableMapping, ValuesView
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Container,
+    ItemsView,
+    Iterator,
+    KeysView,
+    Mapping,
+    MutableMapping,
+    ValuesView,
+)
 
 import lazy_object_proxy
 
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.types import NOTSET
+
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator
 
 # NOTE: Please keep this in sync with Context in airflow/utils/context.pyi.
 KNOWN_CONTEXT_KEYS = {
@@ -291,3 +304,15 @@ def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
         return lazy_object_proxy.Proxy(factory)
 
     return {k: _create_value(k, v) for k, v in source._context.items()}
+
+
+def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
+    """Update context after task unmapping.
+
+    Since ``get_template_context()`` is called before unmapping, the context
+    contains information about the mapped task. We need to do some in-place
+    updates to ensure the template context reflects the unmapped task instead.
+
+    :meta private:
+    """
+    context["task"] = context["ti"].task = task

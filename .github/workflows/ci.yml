@@ -861,6 +861,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           --use-airflow-version wheel --use-packages-from-dist --package-format wheel
         env:
           SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
+      - name: "Verify packages with twine"
+        run: |
+          pipx install twine
+          twine check dist/*.whl
       - name: "Remove airflow package and replace providers with 2.2-compliant versions"
         run: |
           rm -vf dist/apache_airflow-*.whl \
