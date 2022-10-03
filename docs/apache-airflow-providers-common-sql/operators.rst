@@ -49,6 +49,7 @@ mapping is a set of three nested dictionaries and looks like:
 
 Where col_name is the name of the column to run checks on, and each entry in its dictionary is a check.
 The valid checks are:
+
 - null_check: checks the number of NULL values in the column
 - distinct_check: checks the COUNT of values in the column that are distinct
 - unique_check: checks the number of distinct values in a column against the number of rows
@@ -57,6 +58,7 @@ The valid checks are:
 
 Each entry in the check's dictionary is either a condition for success of the check or the tolerance. The
 conditions for success are:
+
 - greater_than
 - geq_to
 - less_than

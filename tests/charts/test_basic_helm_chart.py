@@ -27,7 +27,7 @@ from parameterized import parameterized
 
 from tests.charts.helm_template_generator import render_chart
 
-OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 34
+OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 35
 
 
 class TestBaseChartTest(unittest.TestCase):
@@ -81,6 +81,7 @@ class TestBaseChartTest(unittest.TestCase):
             ('Secret', 'test-basic-postgresql'),
             ('Secret', 'test-basic-redis-password'),
             ('ConfigMap', 'test-basic-airflow-config'),
+            ('ConfigMap', 'test-basic-statsd'),
             ('Role', 'test-basic-pod-launcher-role'),
             ('Role', 'test-basic-pod-log-reader-role'),
             ('RoleBinding', 'test-basic-pod-launcher-rolebinding'),
@@ -158,6 +159,7 @@ class TestBaseChartTest(unittest.TestCase):
             ('Secret', 'test-basic-postgresql'),
             ('Secret', 'test-basic-redis-password'),
             ('ConfigMap', 'test-basic-airflow-config'),
+            ('ConfigMap', 'test-basic-statsd'),
             ('Role', 'test-basic-pod-launcher-role'),
             ('Role', 'test-basic-pod-log-reader-role'),
             ('RoleBinding', 'test-basic-pod-launcher-rolebinding'),
@@ -207,6 +209,23 @@ class TestBaseChartTest(unittest.TestCase):
         ]
         assert ('Job', 'test-basic-create-user') not in list_of_kind_names_tuples
         assert expected_object_count_in_basic_deployment - 2 == len(k8s_objects)
+
+    @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    def test_basic_deployment_without_statsd(self, version):
+        expected_object_count_in_basic_deployment = self._get_object_count(version)
+        k8s_objects = render_chart(
+            "test-basic",
+            values=self._get_values_with_version(values={"statsd": {'enabled': False}}, version=version),
+        )
+        list_of_kind_names_tuples = [
+            (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
+        ]
+        assert ('ServiceAccount', 'test-basic-statsd') not in list_of_kind_names_tuples
+        assert ('ConfigMap', 'test-basic-statsd') not in list_of_kind_names_tuples
+        assert ('Service', 'test-basic-statsd') not in list_of_kind_names_tuples
+        assert ('Deployment', 'test-basic-statsd') not in list_of_kind_names_tuples
+
+        assert expected_object_count_in_basic_deployment - 4 == len(k8s_objects)
 
     def test_network_policies_are_valid(self):
         k8s_objects = render_chart(

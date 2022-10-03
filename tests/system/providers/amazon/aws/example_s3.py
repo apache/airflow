@@ -20,6 +20,7 @@ from datetime import datetime
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
+from airflow.operators.python import BranchPythonOperator
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CopyObjectOperator,
     S3CreateBucketOperator,
@@ -202,6 +203,12 @@ with DAG(
     )
     # [END howto_operator_s3_file_transform]
 
+    # This task skips the `sensor_keys_unchanged` task because the S3KeysUnchangedSensor
+    # runs in poke mode only, which is not supported by the DebugExecutor, causing system tests to fail.
+    branching = BranchPythonOperator(
+        task_id='branch_to_delete_objects', python_callable=lambda: 'delete_objects'
+    )
+
     # [START howto_sensor_s3_keys_unchanged]
     sensor_keys_unchanged = S3KeysUnchangedSensor(
         task_id="sensor_keys_unchanged",
@@ -218,6 +225,7 @@ with DAG(
         keys=key_2,
     )
     # [END howto_operator_s3_delete_objects]
+    delete_objects.trigger_rule = TriggerRule.ALL_DONE
 
     # [START howto_operator_s3_delete_bucket]
     delete_bucket = S3DeleteBucketOperator(
@@ -251,6 +259,7 @@ with DAG(
         [sensor_one_key, sensor_two_keys, sensor_key_with_function],
         copy_object,
         file_transform,
+        branching,
         sensor_keys_unchanged,
         # TEST TEARDOWN
         delete_objects,

@@ -212,7 +212,7 @@ option_github_username = click.option(
 option_image_tag_for_pulling = click.option(
     '-t',
     '--image-tag',
-    help='Tag of the image which is used to pull the image',
+    help='Tag of the image which is used to pull the image.',
     show_default=True,
     default="latest",
     envvar='IMAGE_TAG',
@@ -220,7 +220,7 @@ option_image_tag_for_pulling = click.option(
 option_image_tag_for_building = click.option(
     '-t',
     '--image-tag',
-    help='Tag the image after building it',
+    help='Tag the image after building it.',
     show_default=True,
     default="latest",
     envvar='IMAGE_TAG',
@@ -228,7 +228,7 @@ option_image_tag_for_building = click.option(
 option_image_tag_for_running = click.option(
     '-t',
     '--image-tag',
-    help='Tag of the image which is used to run the image (implies --mount-sources=skip)',
+    help='Tag of the image which is used to run the image (implies --mount-sources=skip).',
     show_default=True,
     default="latest",
     envvar='IMAGE_TAG',
@@ -236,7 +236,7 @@ option_image_tag_for_running = click.option(
 option_image_tag_for_verifying = click.option(
     '-t',
     '--image-tag',
-    help='Tag of the image when verifying it',
+    help='Tag of the image when verifying it.',
     show_default=True,
     default="latest",
     envvar='IMAGE_TAG',
@@ -446,18 +446,18 @@ option_timezone = click.option(
     "--timezone",
     default="UTC",
     type=str,
-    help="Timezone to use during the check",
+    help="Timezone to use during the check.",
 )
 option_updated_on_or_after = click.option(
     "--updated-on-or-after",
     type=str,
-    help="Date when the release was updated after",
+    help="Date when the release was updated after.",
 )
 option_max_age = click.option(
     "--max-age",
     type=int,
     default=3,
-    help="Max age of the last release (used if no updated-on-or-after if specified)",
+    help="Max age of the last release (used if no updated-on-or-after if specified).",
 )
 option_airflow_constraints_reference = click.option(
     "--airflow-constraints-reference",
@@ -478,14 +478,14 @@ option_airflow_constraints_mode_ci = click.option(
     type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_CI),
     default=ALLOWED_CONSTRAINTS_MODES_CI[0],
     show_default=True,
-    help='Mode of constraints for CI image building',
+    help='Mode of constraints for CI image building.',
 )
 option_airflow_constraints_mode_prod = click.option(
     '--airflow-constraints-mode',
     type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_PROD),
     default=ALLOWED_CONSTRAINTS_MODES_PROD[0],
     show_default=True,
-    help='Mode of constraints for PROD image building',
+    help='Mode of constraints for PROD image building.',
 )
 option_pull = click.option(
     '--pull',
@@ -496,24 +496,24 @@ option_pull = click.option(
 option_python_image = click.option(
     '--python-image',
     help="If specified this is the base python image used to build the image. "
-    "Should be something like: python:VERSION-slim-bullseye",
+    "Should be something like: python:VERSION-slim-bullseye.",
     envvar='PYTHON_IMAGE',
 )
 option_builder = click.option(
     '--builder',
-    help="Buildx builder used to perform `docker buildx build` commands",
+    help="Buildx builder used to perform `docker buildx build` commands.",
     envvar='BUILDER',
     default='default',
 )
 option_include_success_outputs = click.option(
     '--include-success-outputs',
-    help="Whether to include outputs of successful parallel runs (by default they are not printed).",
+    help="Whether to include outputs of successful parallel runs (skipped by default).",
     is_flag=True,
     envvar='INCLUDE_SUCCESS_OUTPUTS',
 )
 option_skip_cleanup = click.option(
     '--skip-cleanup',
-    help="Skip cleanup of temporary files created during parallel run",
+    help="Skip cleanup of temporary files created during parallel run.",
     is_flag=True,
     envvar='SKIP_CLEANUP',
 )
@@ -529,4 +529,10 @@ option_max_time = click.option(
     type=click.IntRange(min=1),
     envvar='MAX_TIME',
     callback=_set_default_from_parent,
+)
+option_debug_resources = click.option(
+    '--debug-resources',
+    is_flag=True,
+    help="Whether to show resource information while running in parallel.",
+    envvar='DEBUG_RESOURCES',
 )

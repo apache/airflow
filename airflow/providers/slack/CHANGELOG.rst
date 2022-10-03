@@ -24,15 +24,34 @@
 Changelog
 ---------
 
+6.0.0
+.....
+
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* The hook class  :class:`airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook` not inherit from
-  :class:`airflow.providers.http.hooks.http.HttpHook` anymore. In practice the only impact on
-  user-defined classes based on **SlackWebhookHook** and you use attributes from **HttpHook**.
-* Drop support deprecated ``webhook_token`` parameter in
-  :ref:`Slack Incoming Webhook Connection <howto/connection:slack-incoming-webhook>` Extra.
+* The hook class  ``SlackWebhookHook`` dies not inherit from ``HttpHook`` anymore. In practice the
+  only impact on user-defined classes based on **SlackWebhookHook** and you use attributes
+  from **HttpHook**.
+* Drop support deprecated ``webhook_token`` parameter in ``slack-incoming-webhook`` extra.
 
+* ``Refactor 'SlackWebhookOperator': Get rid of mandatory http-provider dependency (#26648)``
+* ``Refactor SlackWebhookHook in order to use 'slack_sdk' instead of HttpHook methods (#26452)``
+
+Features
+~~~~~~~~
+
+* ``Move send_file method into SlackHook (#26118)``
+* ``Refactor Slack API Hook and add Connection (#25852)``
+* ``Remove unsafe imports in Slack API Connection (#26459)``
+* ``Add common-sql lower bound for common-sql (#25789)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+   * ``Replace SQL with Common SQL in pre commit (#26058)``
+   * ``Prepare docs for new providers release (August 2022) (#25618)``
+   * ``AIP-47 - Migrate Slack DAG to new design (#25137)``
 
 5.1.0
 .....

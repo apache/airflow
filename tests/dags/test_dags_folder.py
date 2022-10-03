@@ -14,15 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-version: "3.7"
-services:
-  mssql:
-    volumes:
-      # In case of tmpfs backend for docker, mssql fails because TMPFS does not support
-      # O_DIRECT parameter for direct writing to the filesystem
-      # https://github.com/microsoft/mssql-docker/issues/13
-      # so we need to mount an external volume for its db location
-      # the external db must allow for parallel testing so external volume is mapped
-      # to the data volume
-      - ${MSSQL_DATA_VOLUME}:/var/opt/mssql
+
+from __future__ import annotations
+
+import pendulum
+
+from airflow import DAG
+from airflow.decorators import task
+
+with DAG(
+    dag_id='test_dags_folder',
+    schedule=None,
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    catchup=False,
+) as dag:
+
+    @task(task_id="task")
+    def return_file_path():
+        """Print the Airflow context and ds variable from the context."""
+        print(f"dag file location: {__file__}")
+        return __file__
+
+    return_file_path()

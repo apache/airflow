@@ -30,16 +30,17 @@ def only_client_type(func):
         if self._api_type == "client_type":
             return func(self, *args, **kwargs)
 
+        ec2_doc_link = "https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html"
         raise AirflowException(
-            """
+            f"""
             This method is only callable when using client_type API for interacting with EC2.
             Create the EC2Hook object as follows to use this method
 
             ec2 = EC2Hook(api_type="client_type")
 
             Read following for details on client_type and resource_type APIs:
-            1. https://boto3.amazonaws.com/v1/documentation/api/1.9.42/reference/services/ec2.html#client
-            2. https://boto3.amazonaws.com/v1/documentation/api/1.9.42/reference/services/ec2.html#service-resource # noqa
+            1. {ec2_doc_link}#client
+            2. {ec2_doc_link}#service-resource
             """
         )
 
