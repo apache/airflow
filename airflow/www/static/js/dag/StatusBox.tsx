@@ -41,12 +41,16 @@ interface StatusWithNotesProps extends BoxProps {
   containsNotes?: boolean;
 }
 export const StatusWithNotes = ({ state, containsNotes, ...rest }: StatusWithNotesProps) => {
-  const theColor = state && stateColors[state] ? stateColors[state] : 'white';
+  const backgroundColor = state && stateColors[state] ? stateColors[state] : 'white';
   return (
     <Box
       width={boxSizePx}
       height={boxSizePx}
-      background={containsNotes ? `linear-gradient(-135deg,#000 6px, ${theColor} 0);` : theColor}
+      background={
+        containsNotes
+          ? `linear-gradient(-135deg,#00000000 6px, ${backgroundColor} 0);`
+          : backgroundColor
+      }
       borderRadius="2px"
       borderWidth={state ? 0 : 1}
       {...rest}

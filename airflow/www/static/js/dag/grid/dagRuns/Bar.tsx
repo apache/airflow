@@ -112,7 +112,7 @@ const DagRunBar = ({
             minHeight="14px"
             background={
               run.notes != null && run.notes !== ''
-                ? `linear-gradient(-135deg,#000 8px, ${stateColors[state]} 0);`
+                ? `linear-gradient(-135deg,#00000000 8px, ${stateColors[state]} 0);`
                 : stateColors[state]
             }
             borderRadius={2}
