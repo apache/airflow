@@ -24,6 +24,17 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+.. warning:: This is the last release for jira provider. The provider is discontinued.
+   Please switch to atlassian.jira provider
+
+* ``Deprecate jira provider in favor of atlassian.jira provider  (#25930)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+
 3.0.1
 .....
 

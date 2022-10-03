@@ -65,6 +65,18 @@ interface TaskInstance {
   },
   mapIndex?: number;
   tryNumber?: number;
+  triggererJob?: Job;
+  trigger?: Trigger;
+}
+
+interface Trigger {
+  classpath: string | null;
+  createdDate: string | null;
+}
+
+interface Job {
+  latestHeartbeat: string | null;
+  hostname: string | null;
 }
 
 interface Task {
@@ -79,6 +91,24 @@ interface Task {
   hasOutletDatasets?: boolean;
 }
 
+type RunOrdering = ('dataIntervalStart' | 'executionDate' | 'dataIntervalEnd')[];
+
+interface DepNode {
+  id: string;
+  value: {
+    id?: string;
+    class: 'dag' | 'dataset' | 'trigger' | 'sensor';
+    label: string;
+    rx: number;
+    ry: number;
+  }
+}
+
+interface DepEdge {
+  u: string;
+  v: string;
+}
+
 export type {
   Dag,
   DagRun,
@@ -86,5 +116,8 @@ export type {
   TaskState,
   TaskInstance,
   Task,
+  DepNode,
+  DepEdge,
   API,
+  RunOrdering,
 };

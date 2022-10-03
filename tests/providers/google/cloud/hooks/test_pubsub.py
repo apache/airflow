@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
-from typing import List
 from unittest import mock
 from uuid import UUID
 
@@ -66,7 +66,7 @@ class TestPubSubHook(unittest.TestCase):
         with mock.patch(BASE_STRING.format('GoogleBaseHook.__init__'), new=mock_init):
             self.pubsub_hook = PubSubHook(gcp_conn_id='test')
 
-    def _generate_messages(self, count) -> List[ReceivedMessage]:
+    def _generate_messages(self, count) -> list[ReceivedMessage]:
         return [
             ReceivedMessage(
                 ack_id=str(i),
@@ -78,7 +78,7 @@ class TestPubSubHook(unittest.TestCase):
             for i in range(1, count + 1)
         ]
 
-    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook._get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PublisherClient")
     def test_publisher_client_creation(self, mock_client, mock_get_creds):
         assert self.pubsub_hook._client is None
@@ -87,7 +87,7 @@ class TestPubSubHook(unittest.TestCase):
         assert mock_client.return_value == result
         assert self.pubsub_hook._client == result
 
-    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook._get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.SubscriberClient")
     def test_subscriber_client_creation(self, mock_client, mock_get_creds):
         assert self.pubsub_hook._client is None

@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import contextlib
 import os
-import subprocess
 import sys
-from typing import List, Optional, Tuple
 
 import click
 
@@ -40,7 +40,6 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_reference_build,
     option_answer,
     option_builder,
-    option_debian_version,
     option_dev_apt_command,
     option_dev_apt_deps,
     option_docker_cache,
@@ -53,6 +52,7 @@ from airflow_breeze.utils.common_options import (
     option_image_tag_for_building,
     option_image_tag_for_pulling,
     option_image_tag_for_verifying,
+    option_include_success_outputs,
     option_install_providers_from_sources,
     option_parallelism,
     option_platform_multiple,
@@ -65,7 +65,9 @@ from airflow_breeze.utils.common_options import (
     option_run_in_parallel,
     option_runtime_apt_command,
     option_runtime_apt_deps,
+    option_skip_cleanup,
     option_tag_as_latest,
+    option_upgrade_on_failure,
     option_upgrade_to_newer_dependencies,
     option_verbose,
     option_verify,
@@ -82,11 +84,7 @@ from airflow_breeze.utils.docker_command_utils import (
     warm_up_docker_builder,
 )
 from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
-from airflow_breeze.utils.parallel import (
-    check_async_run_results,
-    progress_method_docker_buildx,
-    run_with_pool,
-)
+from airflow_breeze.utils.parallel import DockerBuildxProgressMatcher, check_async_run_results, run_with_pool
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCKER_CONTEXT_DIR
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.registry import login_to_github_docker_registry
@@ -94,21 +92,12 @@ from airflow_breeze.utils.run_tests import verify_an_image
 from airflow_breeze.utils.run_utils import filter_out_none, fix_group_permissions, run_command
 
 
-def start_building(prod_image_params: BuildProdParams, dry_run: bool, verbose: bool):
-    make_sure_builder_configured(params=prod_image_params, dry_run=dry_run, verbose=verbose)
-    if prod_image_params.cleanup_context:
-        clean_docker_context_files(verbose=verbose, dry_run=dry_run)
-    check_docker_context_files(prod_image_params.install_packages_from_context)
-    if prod_image_params.prepare_buildx_cache or prod_image_params.push:
-        login_to_github_docker_registry(
-            image_params=prod_image_params, output=None, dry_run=dry_run, verbose=verbose
-        )
-
-
 def run_build_in_parallel(
-    image_params_list: List[BuildProdParams],
-    python_version_list: List[str],
+    image_params_list: list[BuildProdParams],
+    python_version_list: list[str],
     parallelism: int,
+    include_success_outputs: bool,
+    skip_cleanup: bool,
     dry_run: bool,
     verbose: bool,
 ) -> None:
@@ -116,7 +105,7 @@ def run_build_in_parallel(
     with ci_group(f"Building for {python_version_list}"):
         all_params = [f"PROD {image_params.python}" for image_params in image_params_list]
         with run_with_pool(
-            parallelism=parallelism, all_params=all_params, progress_method=progress_method_docker_buildx
+            parallelism=parallelism, all_params=all_params, progress_matcher=DockerBuildxProgressMatcher()
         ) as (pool, outputs):
             results = [
                 pool.apply_async(
@@ -130,7 +119,24 @@ def run_build_in_parallel(
                 )
                 for index, image_params in enumerate(image_params_list)
             ]
-    check_async_run_results(results, outputs)
+    check_async_run_results(
+        results=results,
+        success="All images built correctly",
+        outputs=outputs,
+        include_success_outputs=include_success_outputs,
+        skip_cleanup=skip_cleanup,
+    )
+
+
+def start_building(prod_image_params: BuildProdParams, dry_run: bool, verbose: bool):
+    make_sure_builder_configured(params=prod_image_params, dry_run=dry_run, verbose=verbose)
+    if prod_image_params.cleanup_context:
+        clean_docker_context_files(verbose=verbose, dry_run=dry_run)
+    check_docker_context_files(prod_image_params.install_packages_from_context)
+    if prod_image_params.prepare_buildx_cache or prod_image_params.push:
+        login_to_github_docker_registry(
+            image_params=prod_image_params, output=None, dry_run=dry_run, verbose=verbose
+        )
 
 
 @click.group(
@@ -147,10 +153,12 @@ def prod_image():
 @option_python
 @option_run_in_parallel
 @option_parallelism
+@option_skip_cleanup
+@option_include_success_outputs
 @option_python_versions
 @option_upgrade_to_newer_dependencies
+@option_upgrade_on_failure
 @option_platform_multiple
-@option_debian_version
 @option_github_repository
 @option_github_token
 @option_github_username
@@ -219,8 +227,10 @@ def build(
     dry_run: bool,
     run_in_parallel: bool,
     parallelism: int,
+    skip_cleanup: bool,
+    include_success_outputs: bool,
     python_versions: str,
-    answer: Optional[str],
+    answer: str | None,
     **kwargs,
 ):
     """
@@ -241,7 +251,7 @@ def build(
     fix_group_permissions(verbose=verbose)
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
-        params_list: List[BuildProdParams] = []
+        params_list: list[BuildProdParams] = []
         for python in python_version_list:
             params = BuildProdParams(**parameters_passed)
             params.python = python
@@ -252,6 +262,8 @@ def build(
             image_params_list=params_list,
             python_version_list=python_version_list,
             parallelism=parallelism,
+            skip_cleanup=skip_cleanup,
+            include_success_outputs=include_success_outputs,
             dry_run=dry_run,
             verbose=verbose,
         )
@@ -268,6 +280,8 @@ def build(
 @option_github_repository
 @option_run_in_parallel
 @option_parallelism
+@option_skip_cleanup
+@option_include_success_outputs
 @option_python_versions
 @option_github_token
 @option_image_tag_for_pulling
@@ -282,22 +296,17 @@ def pull_prod_image(
     github_repository: str,
     run_in_parallel: bool,
     parallelism: int,
+    skip_cleanup: bool,
+    include_success_outputs,
     python_versions: str,
     github_token: str,
     image_tag: str,
     wait_for_image: bool,
     tag_as_latest: bool,
     verify: bool,
-    extra_pytest_args: Tuple,
+    extra_pytest_args: tuple,
 ):
     """Pull and optionally verify Production images - possibly in parallel for all Python versions."""
-    if image_tag == "latest":
-        get_console().print("[red]You cannot pull latest images because they are not published any more!\n")
-        get_console().print(
-            "[yellow]You need to specify commit tag to pull and image. If you wish to get"
-            " the latest image, you need to run `breeze ci-image build` command\n"
-        )
-        sys.exit(1)
     perform_environment_checks(verbose=verbose)
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
@@ -313,6 +322,8 @@ def pull_prod_image(
         run_pull_in_parallel(
             dry_run=dry_run,
             parallelism=parallelism,
+            skip_cleanup=skip_cleanup,
+            include_success_outputs=include_success_outputs,
             image_params_list=prod_image_params_list,
             python_version_list=python_version_list,
             verbose=verbose,
@@ -365,10 +376,10 @@ def verify(
     python: str,
     github_repository: str,
     image_name: str,
-    image_tag: Optional[str],
+    image_tag: str | None,
     pull: bool,
     slim_image: bool,
-    extra_pytest_args: Tuple,
+    extra_pytest_args: tuple,
 ):
     """Verify Production image."""
     perform_environment_checks(verbose=verbose)
@@ -435,10 +446,7 @@ def check_docker_context_files(install_packages_from_context: bool):
             get_console().print(
                 '[warning]\nThis might result in unnecessary cache invalidation and long build times'
             )
-            get_console().print(
-                '[warning]\nExiting now \
-                    - please restart the command with --cleanup-context switch'
-            )
+            get_console().print('[warning]Please restart the command with --cleanup-context switch\n')
             sys.exit(1)
 
 
@@ -446,8 +454,8 @@ def run_build_production_image(
     verbose: bool,
     dry_run: bool,
     prod_image_params: BuildProdParams,
-    output: Optional[Output],
-) -> Tuple[int, str]:
+    output: Output | None,
+) -> tuple[int, str]:
     """
     Builds PROD image:
 
@@ -499,8 +507,7 @@ def run_build_production_image(
                 check=False,
                 text=True,
                 env=env,
-                stdout=output.file if output else None,
-                stderr=subprocess.STDOUT,
+                output=output,
             )
         else:
             build_command_result = run_command(
@@ -513,9 +520,29 @@ def run_build_production_image(
                 cwd=AIRFLOW_SOURCES_ROOT,
                 check=False,
                 text=True,
-                stdout=output.file if output else None,
-                stderr=subprocess.STDOUT,
+                output=output,
             )
+            if (
+                build_command_result.returncode != 0
+                and prod_image_params.upgrade_on_failure
+                and not prod_image_params.upgrade_to_newer_dependencies
+            ):
+                prod_image_params.upgrade_to_newer_dependencies = True
+                get_console().print(
+                    "[warning]Attempting to build with upgrade_to_newer_dependencies on failure"
+                )
+                build_command_result = run_command(
+                    prepare_docker_build_command(
+                        image_params=prod_image_params,
+                        verbose=verbose,
+                    ),
+                    verbose=verbose,
+                    dry_run=dry_run,
+                    cwd=AIRFLOW_SOURCES_ROOT,
+                    check=False,
+                    text=True,
+                    output=output,
+                )
             if build_command_result.returncode == 0:
                 if prod_image_params.tag_as_latest:
                     build_command_result = tag_image_as_latest(

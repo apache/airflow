@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 import sys
@@ -35,6 +36,7 @@ KNOWN_INVALID_TYPES = {
     "$['properties']['ingress']['properties']['web']['properties']['succeedingPaths']",
     # The value of this parameter is passed to statsd_exporter, which does not have a strict type definition.
     "$['properties']['statsd']['properties']['extraMappings']",
+    "$['properties']['statsd']['properties']['overrideMappings']",
 }
 VENDORED_PATHS = {
     # We don't want to check the upstream k8s definitions

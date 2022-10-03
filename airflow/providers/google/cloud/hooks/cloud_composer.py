@@ -15,14 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
+from google.api_core.operation_async import AsyncOperation
 from google.api_core.retry import Retry
-from google.cloud.orchestration.airflow.service_v1 import EnvironmentsClient, ImageVersionsClient
+from google.cloud.orchestration.airflow.service_v1 import (
+    EnvironmentsAsyncClient,
+    EnvironmentsClient,
+    ImageVersionsClient,
+)
 from google.cloud.orchestration.airflow.service_v1.services.environments.pagers import ListEnvironmentsPager
 from google.cloud.orchestration.airflow.service_v1.services.image_versions.pagers import (
     ListImageVersionsPager,
@@ -43,7 +49,7 @@ class CloudComposerHook(GoogleBaseHook):
     def get_environment_client(self) -> EnvironmentsClient:
         """Retrieves client library object that allow access Environments service."""
         return EnvironmentsClient(
-            credentials=self._get_credentials(),
+            credentials=self.get_credentials(),
             client_info=CLIENT_INFO,
             client_options=self.client_options,
         )
@@ -53,12 +59,12 @@ class CloudComposerHook(GoogleBaseHook):
     ) -> ImageVersionsClient:
         """Retrieves client library object that allow access Image Versions service."""
         return ImageVersionsClient(
-            credentials=self._get_credentials(),
+            credentials=self.get_credentials(),
             client_info=CLIENT_INFO,
             client_options=self.client_options,
         )
 
-    def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):
+    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
         """Waits for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
@@ -80,10 +86,10 @@ class CloudComposerHook(GoogleBaseHook):
         self,
         project_id: str,
         region: str,
-        environment: Union[Environment, Dict],
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        environment: Environment | dict,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
         Create a new environment.
@@ -111,9 +117,9 @@ class CloudComposerHook(GoogleBaseHook):
         project_id: str,
         region: str,
         environment_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
         Delete an environment.
@@ -138,9 +144,9 @@ class CloudComposerHook(GoogleBaseHook):
         project_id: str,
         region: str,
         environment_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Environment:
         """
         Get an existing environment.
@@ -165,11 +171,11 @@ class CloudComposerHook(GoogleBaseHook):
         self,
         project_id: str,
         region: str,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        page_size: int | None = None,
+        page_token: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> ListEnvironmentsPager:
         """
         List environments.
@@ -202,11 +208,11 @@ class CloudComposerHook(GoogleBaseHook):
         project_id: str,
         region: str,
         environment_id: str,
-        environment: Union[Environment, Dict],
-        update_mask: Union[Dict, FieldMask],
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        environment: Environment | dict,
+        update_mask: dict | FieldMask,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         r"""
         Update an environment.
@@ -242,12 +248,12 @@ class CloudComposerHook(GoogleBaseHook):
         self,
         project_id: str,
         region: str,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
+        page_size: int | None = None,
+        page_token: str | None = None,
         include_past_releases: bool = False,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> ListImageVersionsPager:
         """
         List ImageVersions for provided location.
@@ -275,3 +281,123 @@ class CloudComposerHook(GoogleBaseHook):
             metadata=metadata,
         )
         return result
+
+
+class CloudComposerAsyncHook(GoogleBaseHook):
+    """Hook for Google Cloud Composer async APIs."""
+
+    client_options = ClientOptions(api_endpoint='composer.googleapis.com:443')
+
+    def get_environment_client(self) -> EnvironmentsAsyncClient:
+        """Retrieves client library object that allow access Environments service."""
+        return EnvironmentsAsyncClient(
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.client_options,
+        )
+
+    def get_environment_name(self, project_id, region, environment_id):
+        return f'projects/{project_id}/locations/{region}/environments/{environment_id}'
+
+    def get_parent(self, project_id, region):
+        return f'projects/{project_id}/locations/{region}'
+
+    async def get_operation(self, operation_name):
+        return await self.get_environment_client().transport.operations_client.get_operation(
+            name=operation_name
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    async def create_environment(
+        self,
+        project_id: str,
+        region: str,
+        environment: Environment | dict,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> AsyncOperation:
+        """
+        Create a new environment.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param region: Required. The ID of the Google Cloud region that the service belongs to.
+        :param environment:  The environment to create. This corresponds to the ``environment`` field on the
+            ``request`` instance; if ``request`` is provided, this should not be set.
+        :param retry: Designation of what errors, if any, should be retried.
+        :param timeout: The timeout for this request.
+        :param metadata: Strings which should be sent along with the request as metadata.
+        """
+        client = self.get_environment_client()
+        return await client.create_environment(
+            request={'parent': self.get_parent(project_id, region), 'environment': environment},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    async def delete_environment(
+        self,
+        project_id: str,
+        region: str,
+        environment_id: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> AsyncOperation:
+        """
+        Delete an environment.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param region: Required. The ID of the Google Cloud region that the service belongs to.
+        :param environment_id: Required. The ID of the Google Cloud environment that the service belongs to.
+        :param retry: Designation of what errors, if any, should be retried.
+        :param timeout: The timeout for this request.
+        :param metadata: Strings which should be sent along with the request as metadata.
+        """
+        client = self.get_environment_client()
+        name = self.get_environment_name(project_id, region, environment_id)
+        return await client.delete_environment(
+            request={"name": name}, retry=retry, timeout=timeout, metadata=metadata
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    async def update_environment(
+        self,
+        project_id: str,
+        region: str,
+        environment_id: str,
+        environment: Environment | dict,
+        update_mask: dict | FieldMask,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> AsyncOperation:
+        r"""
+        Update an environment.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param region: Required. The ID of the Google Cloud region that the service belongs to.
+        :param environment_id: Required. The ID of the Google Cloud environment that the service belongs to.
+        :param environment:  A patch environment. Fields specified by the ``updateMask`` will be copied from
+            the patch environment into the environment under update.
+
+            This corresponds to the ``environment`` field on the ``request`` instance; if ``request`` is
+            provided, this should not be set.
+        :param update_mask:  Required. A comma-separated list of paths, relative to ``Environment``, of fields
+            to update. If a dict is provided, it must be of the same form as the protobuf message
+            :class:`~google.protobuf.field_mask_pb2.FieldMask`
+        :param retry: Designation of what errors, if any, should be retried.
+        :param timeout: The timeout for this request.
+        :param metadata: Strings which should be sent along with the request as metadata.
+        """
+        client = self.get_environment_client()
+        name = self.get_environment_name(project_id, region, environment_id)
+
+        return await client.update_environment(
+            request={"name": name, "environment": environment, "update_mask": update_mask},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )

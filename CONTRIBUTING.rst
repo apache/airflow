@@ -545,13 +545,6 @@ All details about using and running Airflow Breeze can be found in
 The Airflow Breeze solution is intended to ease your local development as "*It's
 a Breeze to develop Airflow*".
 
-.. note::
-
-   We are in a process of switching to the new Python-based Breeze from a legacy Bash
-   Breeze. Not all functionality has been ported yet and the old Breeze is still available
-   until then as ``./breeze-legacy`` script. The documentation mentions when the old ./breeze-legacy
-   should be still used.
-
 Benefits:
 
 -   Breeze is a complete environment that includes external components, such as
@@ -619,16 +612,16 @@ This is the full list of those extras:
   .. START EXTRAS HERE
 airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.drill,
 apache.druid, apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot,
-apache.spark, apache.sqoop, apache.webhdfs, arangodb, asana, async, atlas, aws, azure, cassandra,
-celery, cgroups, cloudant, cncf.kubernetes, common.sql, crypto, dask, databricks, datadog,
-dbt.cloud, deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, docker,
-druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise, google,
-google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, jira, kerberos,
-kubernetes, ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo,
-mssql, mysql, neo4j, odbc, openfaas, opsgenie, oracle, pagerduty, pandas, papermill, password,
-pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment,
-sendgrid, sentry, sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau, tabular,
-telegram, trino, vertica, virtualenv, webhdfs, winrm, yandex, zendesk
+apache.spark, apache.sqoop, apache.webhdfs, arangodb, asana, async, atlas, atlassian.jira, aws,
+azure, cassandra, celery, cgroups, cloudant, cncf.kubernetes, common.sql, crypto, dask, databricks,
+datadog, dbt.cloud, deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord,
+doc, docker, druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise,
+google, google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, jira,
+kerberos, kubernetes, ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp,
+microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openfaas, opsgenie, oracle, pagerduty, pandas,
+papermill, password, pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce,
+samba, segment, sendgrid, sentry, sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd,
+tableau, tabular, telegram, trino, vertica, virtualenv, webhdfs, winrm, yandex, zendesk
   .. END EXTRAS HERE
 
 Provider packages
@@ -1210,10 +1203,10 @@ commands:
 React, JSX and Chakra
 -----------------------------
 
-In order to create a more modern UI, we have started to include [React](https://reactjs.org/) in the ``airflow/www/`` project.
+In order to create a more modern UI, we have started to include `React <https://reactjs.org/>`__ in the ``airflow/www/`` project.
 If you are unfamiliar with React then it is recommended to check out their documentation to understand components and jsx syntax.
 
-We are using [Chakra UI](https://chakra-ui.com/) as a component and styling library. Notably, all styling is done in a theme file or
+We are using `Chakra UI <https://chakra-ui.com/>`__ as a component and styling library. Notably, all styling is done in a theme file or
 inline when defining a component. There are a few shorthand style props like ``px`` instead of ``padding-right, padding-left``.
 To make this work, all Chakra styling and css styling are completely separate. It is best to think of the React components as a separate app
 that lives inside of the main app.

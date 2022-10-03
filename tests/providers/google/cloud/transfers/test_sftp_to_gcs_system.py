@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """System tests for Google Cloud Build operators"""
+from __future__ import annotations
+
 import os
 
 import pytest

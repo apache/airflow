@@ -14,13 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from airflow_breeze.global_constants import get_available_packages
+from airflow_breeze.global_constants import get_available_documentation_packages
 
 AVAILABLE_PACKAGES_STARTING_LIST = ("apache-airflow", "helm-chart", "docker-stack")
 
 
 def test_get_available_packages():
-    assert len(get_available_packages()) > 70
-    for package in get_available_packages():
+    assert len(get_available_documentation_packages()) > 70
+    for package in get_available_documentation_packages():
         assert package.startswith(AVAILABLE_PACKAGES_STARTING_LIST)

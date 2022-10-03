@@ -14,14 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import inspect
 from textwrap import dedent
-from typing import Callable, Optional, Sequence
+from typing import Callable, Sequence
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.operators.python import BranchPythonOperator
-from airflow.utils.python_virtualenv import remove_task_decorator
+from airflow.utils.decorators import remove_task_decorator
 
 
 class _BranchPythonDecoratedOperator(DecoratedOperator, BranchPythonOperator):
@@ -66,7 +67,7 @@ class _BranchPythonDecoratedOperator(DecoratedOperator, BranchPythonOperator):
 
 
 def branch_task(
-    python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
+    python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs
 ) -> TaskDecorator:
     """
     Wraps a python function into a BranchPythonOperator

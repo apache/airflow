@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from datetime import datetime
 
@@ -46,6 +47,7 @@ class TestCallbackRequest:
                 TaskCallbackRequest(
                     full_filepath="filepath",
                     simple_task_instance=SimpleTaskInstance.from_ti(ti=TI),
+                    processor_subdir='/test_dir',
                     is_failure_callback=True,
                 ),
                 TaskCallbackRequest,
@@ -55,11 +57,19 @@ class TestCallbackRequest:
                     full_filepath="filepath",
                     dag_id="fake_dag",
                     run_id="fake_run",
+                    processor_subdir='/test_dir',
                     is_failure_callback=False,
                 ),
                 DagCallbackRequest,
             ),
-            (SlaCallbackRequest(full_filepath="filepath", dag_id="fake_dag"), SlaCallbackRequest),
+            (
+                SlaCallbackRequest(
+                    full_filepath="filepath",
+                    dag_id="fake_dag",
+                    processor_subdir='/test_dir',
+                ),
+                SlaCallbackRequest,
+            ),
         ]
     )
     def test_from_json(self, input, request_class):
@@ -76,6 +86,7 @@ class TestCallbackRequest:
         input = TaskCallbackRequest(
             full_filepath="filepath",
             simple_task_instance=SimpleTaskInstance.from_ti(ti),
+            processor_subdir='/test_dir',
             is_failure_callback=True,
         )
         json_str = input.to_json()

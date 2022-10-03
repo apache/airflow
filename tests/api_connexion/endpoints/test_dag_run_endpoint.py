@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import timedelta
 from unittest import mock
 
@@ -23,8 +25,8 @@ from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.datasets import Dataset
-from airflow.models import DAG, DagModel, DagRun, DatasetModel
-from airflow.models.dataset import DatasetEvent
+from airflow.models import DAG, DagModel, DagRun
+from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
@@ -1533,6 +1535,18 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
                     'source_map_index': ti.map_index,
                     'source_run_id': ti.run_id,
                     'source_task_id': ti.task_id,
+                    'created_dagruns': [
+                        {
+                            'dag_id': 'TEST_DAG_ID',
+                            'dag_run_id': 'TEST_DAG_RUN_ID',
+                            'data_interval_end': dr.data_interval_end.isoformat(),
+                            'data_interval_start': dr.data_interval_start.isoformat(),
+                            'end_date': None,
+                            'logical_date': dr.logical_date.isoformat(),
+                            'start_date': dr.start_date.isoformat(),
+                            'state': 'running',
+                        }
+                    ],
                 }
             ],
             'total_entries': 1,

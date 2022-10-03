@@ -55,8 +55,8 @@ spec:
         tier: airflow
         component: flower
         release: {{ .Release.Name }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 8 }}
+{{- if or (.Values.labels) (.Values.flower.labels) }}
+{{- mustMerge .Values.flower.labels .Values.labels | toYaml | nindent 8 }}
 {{- end }}
       annotations:
         checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
@@ -142,6 +142,7 @@ spec:
             {{- end }}
           {{- include "standard_airflow_environment" . | indent 10 }}
           {{- include "custom_airflow_environment" . | indent 10 }}
+          {{- include "container_extra_envs" (list . .Values.flower.env) | indent 10 }}
 {{- if .Values.flower.extraContainers }}
 {{- toYaml .Values.flower.extraContainers | nindent 8 }}
 {{- end }}

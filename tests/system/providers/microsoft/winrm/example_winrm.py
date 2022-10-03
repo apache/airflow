@@ -15,21 +15,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This is an example dag for using the WinRMOperator.
+"""
+from __future__ import annotations
+
+# --------------------------------------------------------------------------------
+# Load The Dependencies
+# --------------------------------------------------------------------------------
+import os
+from datetime import datetime, timedelta
+
+from airflow import DAG
+
 # --------------------------------------------------------------------------------
 # Caveat: This Dag will not run because of missing scripts.
 # The purpose of this is to give you a sample of a real world example DAG!
 # --------------------------------------------------------------------------------
 
-# --------------------------------------------------------------------------------
-# Load The Dependencies
-# --------------------------------------------------------------------------------
-"""
-This is an example dag for using the WinRMOperator.
-"""
-import os
-from datetime import datetime, timedelta
-
-from airflow import DAG
 
 try:
     from airflow.operators.empty import EmptyOperator

@@ -21,7 +21,7 @@
 
 /*
   global d3, document, nodes, taskInstances, tasks, edges, dagreD3, localStorage, $,
-  autoRefreshInterval, moment, convertSecsToHumanReadable
+  autoRefreshInterval, moment, convertSecsToHumanReadable, priority
 */
 
 import { getMetaValue, finalStatesMap } from './utils';
@@ -94,8 +94,9 @@ const updateNodeLabels = (node, instances) => {
       && instances[node.id].mapped_states
       ? instances[node.id].mapped_states.length
       : ' ';
-
-    label = `${node.id} [${count}]`;
+    if (!label.includes(`[${count}]`)) {
+      label = `${label} [${count}]`;
+    }
   }
   if (g.node(node.id) && g.node(node.id).label !== label) {
     g.node(node.id).label = label;
@@ -533,7 +534,7 @@ function updateNodesStates(tis) {
       elem.onmouseover = (evt) => {
         let tt;
         if (taskId in tis) {
-          tt = tiTooltip(tis[taskId]);
+          tt = tiTooltip(tis[taskId], tasks[taskId]);
         } else if (node.children) {
           tt = groupTooltip(node, tis);
         } else if (taskId in tasks) {
@@ -598,12 +599,6 @@ function getNodeState(nodeId, tis) {
       childrenStates.add(state == null ? 'no_status' : state);
     }
   });
-
-  // In this order, if any of these states appeared in childrenStates, return it as
-  // the group state.
-  const priority = ['failed', 'upstream_failed', 'up_for_retry', 'up_for_reschedule',
-    'queued', 'scheduled', 'running', 'shutdown', 'restarting', 'removed',
-    'no_status', 'success', 'skipped'];
 
   return priority.find((state) => childrenStates.has(state)) || 'no_status';
 }

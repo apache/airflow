@@ -15,8 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -102,11 +101,16 @@ class TestBatchOperator(unittest.TestCase):
 
     def test_template_fields_overrides(self):
         assert self.batch.template_fields == (
+            "job_id",
             "job_name",
-            "job_queue",
             "job_definition",
+            "job_queue",
             "overrides",
+            "array_properties",
             "parameters",
+            "waiters",
+            "tags",
+            "wait_for_completion",
         )
 
     @mock.patch.object(BatchClientHook, "get_job_description")

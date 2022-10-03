@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -332,6 +332,7 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             'table',
             'column_list',
             'copy_options',
+            'redshift_conn_id',
         )
 
     def test_execute_unavailable_method(self):

@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 
@@ -28,6 +29,7 @@ DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ('Secret', 'test-rbac-pgbouncer-config'),
     ('Secret', 'test-rbac-pgbouncer-stats'),
     ('ConfigMap', 'test-rbac-airflow-config'),
+    ('ConfigMap', 'test-rbac-statsd'),
     ('Service', 'test-rbac-postgresql-headless'),
     ('Service', 'test-rbac-postgresql'),
     ('Service', 'test-rbac-statsd'),

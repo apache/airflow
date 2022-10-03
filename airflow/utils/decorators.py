@@ -15,11 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import warnings
+from collections import deque
 from functools import wraps
 from typing import Callable, TypeVar, cast
+
+from airflow.exceptions import RemovedInAirflow3Warning
 
 T = TypeVar('T', bound=Callable)
 
@@ -40,7 +43,7 @@ def apply_defaults(func: T) -> T:
         "`default_args` feature to work properly.\n"
         "\n"
         "In current version, it is optional. The decorator is applied automatically using the metaclass.\n",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=3,
     )
 
@@ -50,3 +53,33 @@ def apply_defaults(func: T) -> T:
         return func(*args, **kwargs)
 
     return cast(T, wrapper)
+
+
+def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
+    """
+    Removed @task.
+
+    :param python_source:
+    """
+    if task_decorator_name not in python_source:
+        return python_source
+    split = python_source.split(task_decorator_name)
+    before_decorator, after_decorator = split[0], split[1]
+    if after_decorator[0] == "(":
+        after_decorator = _balance_parens(after_decorator)
+    if after_decorator[0] == "\n":
+        after_decorator = after_decorator[1:]
+    return before_decorator + after_decorator
+
+
+def _balance_parens(after_decorator):
+    num_paren = 1
+    after_decorator = deque(after_decorator)
+    after_decorator.popleft()
+    while num_paren:
+        current = after_decorator.popleft()
+        if current == "(":
+            num_paren = num_paren + 1
+        elif current == ")":
+            num_paren = num_paren - 1
+    return ''.join(after_decorator)

@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import asyncio
 import datetime
@@ -118,7 +119,7 @@ def test_capacity_decode():
     ]
     for input_str in variants:
         job = TriggererJob(capacity=input_str)
-        assert job.capacity == input_str or 1000
+        assert job.capacity == input_str or job.capacity == 1000
 
     # Negative cases
     variants = [

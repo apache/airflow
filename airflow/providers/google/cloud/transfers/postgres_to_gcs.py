@@ -16,13 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """PostgreSQL to GCS operator."""
+from __future__ import annotations
 
 import datetime
 import json
 import time
 import uuid
 from decimal import Decimal
-from typing import Dict
 
 import pendulum
 
@@ -67,7 +67,7 @@ class _PostgresServerSideCursorDecorator:
 
 class PostgresToGCSOperator(BaseSQLToGCSOperator):
     """
-    Copy data from Postgres to Google Cloud Storage in JSON or CSV format.
+    Copy data from Postgres to Google Cloud Storage in JSON, CSV or Parquet format.
 
     :param postgres_conn_id: Reference to a specific Postgres hook.
     :param use_server_side_cursor: If server-side cursor should be used for querying postgres.
@@ -121,7 +121,7 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
             return _PostgresServerSideCursorDecorator(cursor)
         return cursor
 
-    def field_to_bigquery(self, field) -> Dict[str, str]:
+    def field_to_bigquery(self, field) -> dict[str, str]:
         return {
             'name': field[0],
             'type': self.type_map.get(field[1], "STRING"),

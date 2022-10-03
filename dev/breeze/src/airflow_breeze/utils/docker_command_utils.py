@@ -15,20 +15,21 @@
 # specific language governing permissions and limitations
 # under the License.
 """Various utils to prepare docker and docker compose commands."""
+from __future__ import annotations
+
 import os
 import re
-import subprocess
 import sys
 from copy import deepcopy
 from random import randint
-from subprocess import DEVNULL, STDOUT, CalledProcessError, CompletedProcess
-from typing import Dict, List, Optional, Union
+from subprocess import CalledProcessError, CompletedProcess
 
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
+from airflow_breeze.utils.image import find_available_ci_image
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, MSSQL_DATA_VOLUME
 
 try:
@@ -40,6 +41,7 @@ except ImportError:
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import (
     ALLOWED_PACKAGE_FORMATS,
+    APACHE_AIRFLOW_GITHUB_REPOSITORY,
     FLOWER_HOST_PORT,
     MIN_DOCKER_COMPOSE_VERSION,
     MIN_DOCKER_VERSION,
@@ -77,10 +79,11 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     (".github", "/opt/airflow/.github"),
     (".inputrc", "/root/.inputrc"),
     (".rat-excludes", "/opt/airflow/.rat-excludes"),
-    ("RELEASE_NOTES.rst", "/opt/airflow/RELEASE_NOTES.rst"),
+    ("BREEZE.rst", "/opt/airflow/BREEZE.rst"),
     ("LICENSE", "/opt/airflow/LICENSE"),
     ("MANIFEST.in", "/opt/airflow/MANIFEST.in"),
     ("NOTICE", "/opt/airflow/NOTICE"),
+    ("RELEASE_NOTES.rst", "/opt/airflow/RELEASE_NOTES.rst"),
     ("airflow", "/opt/airflow/airflow"),
     ("provider_packages", "/opt/airflow/provider_packages"),
     ("dags", "/opt/airflow/dags"),
@@ -88,6 +91,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("docs", "/opt/airflow/docs"),
     ("generated", "/opt/airflow/generated"),
     ("hooks", "/opt/airflow/hooks"),
+    ("images", "/opt/airflow/images"),
     ("logs", "/root/airflow/logs"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
     ("pytest.ini", "/opt/airflow/pytest.ini"),
@@ -103,11 +107,12 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
 ]
 
 
-def get_extra_docker_flags(mount_sources: str) -> List[str]:
+def get_extra_docker_flags(mount_sources: str, include_mypy_volume: bool = False) -> list[str]:
     """
     Returns extra docker flags based on the type of mounting we want to do for sources.
 
     :param mount_sources: type of mounting we want to have
+    :param include_mypy_volume: include mypy_volume
     :return: extra flag as list of strings
     """
     extra_docker_flags = []
@@ -119,9 +124,10 @@ def get_extra_docker_flags(mount_sources: str) -> List[str]:
                 extra_docker_flags.extend(
                     ["--mount", f'type=bind,src={AIRFLOW_SOURCES_ROOT / src},dst={dst}']
                 )
-        extra_docker_flags.extend(
-            ['--mount', "type=volume,src=mypy-cache-volume,dst=/opt/airflow/.mypy_cache"]
-        )
+        if include_mypy_volume:
+            extra_docker_flags.extend(
+                ['--mount', "type=volume,src=mypy-cache-volume,dst=/opt/airflow/.mypy_cache"]
+            )
     elif mount_sources == MOUNT_REMOVE:
         extra_docker_flags.extend(
             ["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT / 'empty'},dst=/opt/airflow/airflow"]
@@ -207,8 +213,7 @@ def check_docker_is_running(verbose: bool):
         verbose=verbose,
         no_output_dump_on_exception=True,
         text=False,
-        stdout=DEVNULL,
-        stderr=STDOUT,
+        capture_output=True,
         check=False,
     )
     if response.returncode != 0:
@@ -262,6 +267,9 @@ Please upgrade to at least {MIN_DOCKER_VERSION}[/]
                 )
 
 
+DOCKER_COMPOSE_COMMAND = ["docker-compose"]
+
+
 def check_docker_compose_version(verbose: bool):
     """
     Checks if the docker compose version is as expected, including some specific modifications done by
@@ -289,7 +297,8 @@ def check_docker_compose_version(verbose: bool):
             capture_output=True,
             text=True,
         )
-
+        DOCKER_COMPOSE_COMMAND.clear()
+        DOCKER_COMPOSE_COMMAND.extend(['docker', 'compose'])
     if docker_compose_version_result.returncode == 0:
         docker_compose_version = docker_compose_version_result.stdout
         version_extracted = version_pattern.search(docker_compose_version)
@@ -354,7 +363,7 @@ def check_docker_context(verbose: bool):
         sys.exit(1)
 
 
-def get_env_variable_value(arg_name: str, params: Union[CommonBuildParams, ShellParams]):
+def get_env_variable_value(arg_name: str, params: CommonBuildParams | ShellParams):
     raw_value = getattr(params, arg_name, None)
     value = str(raw_value) if raw_value is not None else ''
     value = "true" if raw_value is True else value
@@ -364,7 +373,7 @@ def get_env_variable_value(arg_name: str, params: Union[CommonBuildParams, Shell
     return value
 
 
-def prepare_arguments_for_docker_build_command(image_params: CommonBuildParams) -> List[str]:
+def prepare_arguments_for_docker_build_command(image_params: CommonBuildParams) -> list[str]:
     """
     Constructs docker compose command arguments list based on parameters passed. Maps arguments to
     argument values.
@@ -395,7 +404,7 @@ def prepare_arguments_for_docker_build_command(image_params: CommonBuildParams) 
 
 def prepare_docker_build_cache_command(
     image_params: CommonBuildParams,
-) -> List[str]:
+) -> list[str]:
     """
     Constructs docker build_cache command based on the parameters passed.
     :param image_params: parameters of the image
@@ -422,7 +431,7 @@ def prepare_docker_build_cache_command(
     return final_command
 
 
-def prepare_base_build_command(image_params: CommonBuildParams, verbose: bool) -> List[str]:
+def prepare_base_build_command(image_params: CommonBuildParams, verbose: bool) -> list[str]:
     """
     Prepare build command for docker build. Depending on whether we have buildx plugin installed or not,
     and whether we run cache preparation, there might be different results:
@@ -456,7 +465,7 @@ def prepare_base_build_command(image_params: CommonBuildParams, verbose: bool) -
 def prepare_docker_build_command(
     image_params: CommonBuildParams,
     verbose: bool,
-) -> List[str]:
+) -> list[str]:
     """
     Constructs docker build command based on the parameters passed.
     :param image_params: parameters of the image
@@ -482,7 +491,7 @@ def prepare_docker_build_command(
 
 def construct_docker_push_command(
     image_params: CommonBuildParams,
-) -> List[str]:
+) -> list[str]:
     """
     Constructs docker push command based on the parameters passed.
     :param image_params: parameters of the image
@@ -493,7 +502,7 @@ def construct_docker_push_command(
 
 def prepare_docker_build_from_input(
     image_params: CommonBuildParams,
-) -> List[str]:
+) -> list[str]:
     """
     Constructs docker build empty image command based on the parameters passed.
     :param image_params: parameters of the image
@@ -503,11 +512,9 @@ def prepare_docker_build_from_input(
 
 
 def build_cache(
-    image_params: CommonBuildParams, output: Optional[Output], dry_run: bool, verbose: bool
+    image_params: CommonBuildParams, output: Output | None, dry_run: bool, verbose: bool
 ) -> RunCommandResult:
-    build_command_result: Union[CompletedProcess, CalledProcessError] = CompletedProcess(
-        args=[], returncode=0
-    )
+    build_command_result: CompletedProcess | CalledProcessError = CompletedProcess(args=[], returncode=0)
     for platform in image_params.platforms:
         platform_image_params = deepcopy(image_params)
         # override the platform in the copied params to only be single platform per run
@@ -519,8 +526,7 @@ def build_cache(
             verbose=verbose,
             dry_run=dry_run,
             cwd=AIRFLOW_SOURCES_ROOT,
-            stdout=output.file if output else None,
-            stderr=subprocess.STDOUT,
+            output=output,
             check=False,
             text=True,
         )
@@ -538,7 +544,7 @@ def make_sure_builder_configured(params: CommonBuildParams, dry_run: bool, verbo
             run_command(next_cmd, verbose=verbose, text=True, check=False)
 
 
-def set_value_to_default_if_not_set(env: Dict[str, str], name: str, default: str):
+def set_value_to_default_if_not_set(env: dict[str, str], name: str, default: str):
     """
     Set value of name parameter to default (indexed by name) if not set.
     :param env: dictionary where to set the parameter
@@ -550,7 +556,7 @@ def set_value_to_default_if_not_set(env: Dict[str, str], name: str, default: str
         env[name] = os.environ.get(name, default)
 
 
-def update_expected_environment_variables(env: Dict[str, str]) -> None:
+def update_expected_environment_variables(env: dict[str, str]) -> None:
     """
     Updates default values for unset environment variables.
 
@@ -567,14 +573,12 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'CI_EVENT_TYPE', "pull_request")
     set_value_to_default_if_not_set(env, 'CI_JOB_ID', "0")
     set_value_to_default_if_not_set(env, 'CI_TARGET_BRANCH', AIRFLOW_BRANCH)
-    set_value_to_default_if_not_set(env, 'CI_TARGET_REPO', "apache/airflow")
+    set_value_to_default_if_not_set(env, 'CI_TARGET_REPO', APACHE_AIRFLOW_GITHUB_REPOSITORY)
     set_value_to_default_if_not_set(env, 'COMMIT_SHA', commit_sha())
     set_value_to_default_if_not_set(env, 'DB_RESET', "false")
-    set_value_to_default_if_not_set(env, 'DEBIAN_VERSION', "bullseye")
     set_value_to_default_if_not_set(env, 'DEFAULT_BRANCH', AIRFLOW_BRANCH)
     set_value_to_default_if_not_set(env, 'ENABLED_SYSTEMS', "")
     set_value_to_default_if_not_set(env, 'ENABLE_TEST_COVERAGE', "false")
-    set_value_to_default_if_not_set(env, 'GITHUB_REGISTRY_PULL_IMAGE_TAG', "latest")
     set_value_to_default_if_not_set(env, 'HOST_GROUP_ID', get_host_group_id())
     set_value_to_default_if_not_set(env, 'HOST_OS', get_host_os())
     set_value_to_default_if_not_set(env, 'HOST_USER_ID', get_host_user_id())
@@ -605,10 +609,9 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
 DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "AIRFLOW_CI_IMAGE": "airflow_image_name",
     "AIRFLOW_CI_IMAGE_WITH_TAG": "airflow_image_name_with_tag",
-    "AIRFLOW_EXTRAS": "airflow_extras",
-    "DEFAULT_CONSTRAINTS_BRANCH": "default-constraints-branch",
     "AIRFLOW_CONSTRAINTS_MODE": "airflow_constraints_mode",
     "AIRFLOW_CONSTRAINTS_REFERENCE": "airflow_constraints_reference",
+    "AIRFLOW_EXTRAS": "airflow_extras",
     "AIRFLOW_IMAGE_KUBERNETES": "airflow_image_kubernetes",
     "AIRFLOW_PROD_IMAGE": "airflow_image_name",
     "AIRFLOW_SOURCES": "airflow_sources",
@@ -617,23 +620,25 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "BACKEND": "backend",
     "COMPOSE_FILE": "compose_files",
     "DB_RESET": 'db_reset',
+    "DEV_MODE": 'dev_mode',
+    "DEFAULT_CONSTRAINTS_BRANCH": "default_constraints_branch",
     "ENABLED_INTEGRATIONS": "enabled_integrations",
     "GITHUB_ACTIONS": "github_actions",
     "INSTALL_AIRFLOW_VERSION": "install_airflow_version",
     "INSTALL_PROVIDERS_FROM_SOURCES": "install_providers_from_sources",
     "ISSUE_ID": "issue_id",
-    "LOAD_EXAMPLES": "load_example_dags",
     "LOAD_DEFAULT_CONNECTIONS": "load_default_connections",
-    "MYSQL_VERSION": "mysql_version",
+    "LOAD_EXAMPLES": "load_example_dags",
     "MSSQL_VERSION": "mssql_version",
+    "MYSQL_VERSION": "mysql_version",
     "NUM_RUNS": "num_runs",
     "PACKAGE_FORMAT": "package_format",
-    "PYTHON_MAJOR_MINOR_VERSION": "python",
     "POSTGRES_VERSION": "postgres_version",
-    "SQLITE_URL": "sqlite_url",
-    "START_AIRFLOW": "start_airflow",
+    "PYTHON_MAJOR_MINOR_VERSION": "python",
     "SKIP_CONSTRAINTS": "skip_constraints",
     "SKIP_ENVIRONMENT_INITIALIZATION": "skip_environment_initialization",
+    "SQLITE_URL": "sqlite_url",
+    "START_AIRFLOW": "start_airflow",
     "USE_AIRFLOW_VERSION": "use_airflow_version",
     "USE_PACKAGES_FROM_DIST": "use_packages_from_dist",
     "VERSION_SUFFIX_FOR_PYPI": "version_suffix_for_pypi",
@@ -650,7 +655,7 @@ DOCKER_VARIABLE_CONSTANTS = {
 }
 
 
-def get_env_variables_for_docker_commands(params: Union[ShellParams, BuildCiParams]) -> Dict[str, str]:
+def get_env_variables_for_docker_commands(params: ShellParams | BuildCiParams) -> dict[str, str]:
     """
     Constructs environment variables needed by the docker-compose command, based on Shell parameters
     passed to it.
@@ -664,7 +669,7 @@ def get_env_variables_for_docker_commands(params: Union[ShellParams, BuildCiPara
     :param params: shell parameters passed.
     :return: dictionary of env variables to set
     """
-    env_variables: Dict[str, str] = os.environ.copy()
+    env_variables: dict[str, str] = os.environ.copy()
     for variable in DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES:
         param_name = DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES[variable]
         param_value = get_env_variable_value(param_name, params=params)
@@ -672,7 +677,7 @@ def get_env_variables_for_docker_commands(params: Union[ShellParams, BuildCiPara
     # Set constant defaults if not defined
     for variable in DOCKER_VARIABLE_CONSTANTS:
         constant_param_value = DOCKER_VARIABLE_CONSTANTS[variable]
-        if not env_variables.get(constant_param_value):
+        if not env_variables.get(variable):
             env_variables[variable] = str(constant_param_value)
     update_expected_environment_variables(env_variables)
     return env_variables
@@ -723,3 +728,23 @@ LABEL description="test warmup image"
             f"[warning]Warning {warm_up_command_result.returncode} when warming up builder:"
             f" {warm_up_command_result.stdout} {warm_up_command_result.stderr}"
         )
+
+
+def fix_ownership_using_docker(dry_run: bool, verbose: bool):
+    perform_environment_checks(verbose=verbose)
+    shell_params = find_available_ci_image(
+        github_repository=APACHE_AIRFLOW_GITHUB_REPOSITORY, dry_run=dry_run, verbose=verbose
+    )
+    extra_docker_flags = get_extra_docker_flags(MOUNT_ALL)
+    env = get_env_variables_for_docker_commands(shell_params)
+    cmd = [
+        "docker",
+        "run",
+        "-t",
+        *extra_docker_flags,
+        "--pull",
+        "never",
+        shell_params.airflow_image_name_with_tag,
+        "/opt/airflow/scripts/in_container/run_fix_ownership.sh",
+    ]
+    run_command(cmd, verbose=verbose, dry_run=dry_run, text=True, env=env, check=False)

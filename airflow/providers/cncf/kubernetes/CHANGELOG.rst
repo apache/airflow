@@ -24,6 +24,29 @@
 Changelog
 ---------
 
+4.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat(KubernetesPodOperator): Add support of container_security_context (#25530)``
+* ``Add @task.kubernetes taskflow decorator (#25663)``
+* ``pretty print KubernetesPodOperator rendered template env_vars (#25850)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Avoid calculating all elements when one item is needed (#26377)``
+* ``Wait for xcom sidecar container to start before sidecar exec (#25055)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+    * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare to release cncf.kubernetes provider (#26588)``
+
 4.3.0
 .....
 

@@ -15,9 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 import json
 import sys
 from typing import Dict, List, Optional, Union
+
+from typing import TYPE_CHECKING, Sequence
 
 import yaml
 from kubernetes import client

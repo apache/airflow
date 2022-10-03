@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Iterable, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.vertica.hooks.vertica import VerticaHook
@@ -40,13 +42,13 @@ class VerticaOperator(BaseOperator):
     ui_color = '#b4e0ff'
 
     def __init__(
-        self, *, sql: Union[str, Iterable[str]], vertica_conn_id: str = 'vertica_default', **kwargs: Any
+        self, *, sql: str | Iterable[str], vertica_conn_id: str = 'vertica_default', **kwargs: Any
     ) -> None:
         super().__init__(**kwargs)
         self.vertica_conn_id = vertica_conn_id
         self.sql = sql
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         self.log.info('Executing: %s', self.sql)
         hook = VerticaHook(vertica_conn_id=self.vertica_conn_id, log_sql=False)
         hook.run(sql=self.sql)

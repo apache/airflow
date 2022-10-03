@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -47,7 +49,7 @@ def delete_temp_file():
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval='@once',
+    schedule='@once',
     start_date=datetime(2021, 1, 1),  # Override to match your needs
     tags=['example'],
     catchup=False,
@@ -61,7 +63,7 @@ with DAG(
     create_s3_bucket = S3CreateBucketOperator(task_id='create-s3-bucket', bucket_name=s3_bucket_name)
     # [START howto_transfer_local_to_s3]
     create_local_to_s3_job = LocalFilesystemToS3Operator(
-        task_id="create_local_to_s3_job",
+        task_id='create_local_to_s3_job',
         filename=TEMP_FILE_PATH,
         dest_key=s3_key,
         dest_bucket=s3_bucket_name,

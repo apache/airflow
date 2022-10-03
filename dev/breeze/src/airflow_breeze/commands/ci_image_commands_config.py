@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, List, Union
+from __future__ import annotations
 
-CI_IMAGE_TOOLS_COMMANDS: Dict[str, Union[str, List[str]]] = {
+CI_IMAGE_TOOLS_COMMANDS: dict[str, str | list[str]] = {
     "name": "CI Image tools",
     "commands": [
         "build",
@@ -24,14 +24,14 @@ CI_IMAGE_TOOLS_COMMANDS: Dict[str, Union[str, List[str]]] = {
         "verify",
     ],
 }
-CI_IMAGE_TOOLS_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
+CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze ci-image build": [
         {
             "name": "Basic usage",
             "options": [
                 "--python",
                 "--upgrade-to-newer-dependencies",
-                "--debian-version",
+                "--upgrade-on-failure",
                 "--image-tag",
                 "--tag-as-latest",
                 "--docker-cache",
@@ -43,7 +43,9 @@ CI_IMAGE_TOOLS_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
             "options": [
                 "--run-in-parallel",
                 "--parallelism",
+                "--skip-cleanup",
                 "--python-versions",
+                "--include-success-outputs",
             ],
         },
         {
@@ -55,13 +57,8 @@ CI_IMAGE_TOOLS_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
                 "--airflow-constraints-reference",
                 "--python-image",
                 "--additional-python-deps",
-                "--runtime-apt-deps",
-                "--runtime-apt-command",
                 "--additional-extras",
                 "--additional-pip-install-flags",
-                "--additional-runtime-apt-deps",
-                "--additional-runtime-apt-env",
-                "--additional-runtime-apt-command",
                 "--additional-dev-apt-deps",
                 "--additional-dev-apt-env",
                 "--additional-dev-apt-command",
@@ -99,7 +96,9 @@ CI_IMAGE_TOOLS_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
             "options": [
                 "--run-in-parallel",
                 "--parallelism",
+                "--skip-cleanup",
                 "--python-versions",
+                "--include-success-outputs",
             ],
         },
     ],

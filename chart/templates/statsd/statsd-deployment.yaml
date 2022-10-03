@@ -57,9 +57,12 @@ spec:
 {{- with .Values.labels }}
 {{ toYaml . | indent 8 }}
 {{- end }}
-{{- if .Values.statsd.extraMappings }}
+{{- if or .Values.statsd.extraMappings .Values.statsd.podAnnotations }}
       annotations:
         checksum/statsd-config: {{ include (print $.Template.BasePath "/configmaps/statsd-configmap.yaml") . | sha256sum }}
+        {{- if .Values.statsd.podAnnotations }}
+        {{- toYaml .Values.statsd.podAnnotations | nindent 8 }}
+        {{- end }}
 {{- end }}
     spec:
       {{- if .Values.statsd.priorityClassName }}
@@ -108,7 +111,6 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5
-{{- if .Values.statsd.extraMappings }}
           volumeMounts:
             - name: config
               mountPath: /etc/statsd-exporter/mappings.yml
@@ -117,5 +119,4 @@ spec:
         - name: config
           configMap:
             name: {{ .Release.Name }}-statsd
-{{- end }}
 {{- end }}
