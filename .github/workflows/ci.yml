@@ -29,7 +29,6 @@ permissions:
   contents: read
   packages: read
 env:
-  MOUNT_SELECTED_LOCAL_SOURCES: "false"
   ANSWER: "yes"
   DB_RESET: "true"
   VERBOSE: "true"
@@ -963,7 +962,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
-      MOUNT_SELECTED_LOCAL_SOURCES: "true"
       TEST_TYPES: "Helm"
       BACKEND: ""
       DB_RESET: "false"
@@ -1055,10 +1053,28 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: breeze ci-image pull --tag-as-latest
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-      - name: "Test downgrade"
-        run: ./scripts/ci/testing/run_downgrade_test.sh
-      - name: "Test Offline SQL generation"
-        run: ./scripts/ci/testing/run_offline_sql_test.sh
+      - name: "Test downgrade migration file ${{ env.BACKEND }}"
+        run: >
+          breeze shell "airflow db reset --skip-init -y &&
+          airflow db upgrade --to-revision heads &&
+          airflow db downgrade -r e959f08ac86c -y &&
+          airflow db upgrade"
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: "Test downgrade ORM ${{ env.BACKEND }}"
+        run: >
+          breeze shell "airflow db reset -y &&
+          airflow db upgrade &&
+          airflow db downgrade -r e959f08ac86c -y &&
+          airflow db upgrade"
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: "Test Offline SQL generation ${{ env.BACKEND }}"
+        run: >
+          breeze shell "airflow db upgrade --from-version 2.0.0 -r heads --show-sql-only &&
+          airflow db downgrade --to-version 2.0.0 --show-sql-only -y"
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Tests: ${{needs.build-info.outputs.test-types}}"
         run: breeze testing tests --run-in-parallel
         env:
@@ -1129,8 +1145,22 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: breeze ci-image pull --tag-as-latest
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-      - name: "Test downgrade"
-        run: ./scripts/ci/testing/run_downgrade_test.sh
+      - name: "Test downgrade migration file ${{ env.BACKEND }}"
+        run: >
+          breeze shell "airflow db reset --skip-init -y &&
+          airflow db upgrade --to-revision heads &&
+          airflow db downgrade -r e959f08ac86c -y &&
+          airflow db upgrade"
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: "Test downgrade ORM ${{ env.BACKEND }}"
+        run: >
+          breeze shell "airflow db reset -y &&
+          airflow db upgrade &&
+          airflow db downgrade -r e959f08ac86c -y &&
+          airflow db upgrade"
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Tests: ${{needs.build-info.outputs.test-types}}"
         run: breeze testing tests --run-in-parallel
         env:
@@ -1201,8 +1231,22 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: breeze ci-image pull --tag-as-latest
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-      - name: "Test downgrade"
-        run: ./scripts/ci/testing/run_downgrade_test.sh
+      - name: "Test downgrade migration file ${{ env.BACKEND }}"
+        run: >
+          breeze shell "airflow db reset --skip-init -y &&
+          airflow db upgrade --to-revision heads &&
+          airflow db downgrade -r e959f08ac86c -y &&
+          airflow db upgrade"
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: "Test downgrade ORM ${{ env.BACKEND }}"
+        run: >
+          breeze shell "airflow db reset -y &&
+          airflow db upgrade &&
+          airflow db downgrade -r e959f08ac86c -y &&
+          airflow db upgrade"
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Tests: ${{needs.build-info.outputs.test-types}}"
         run: breeze testing tests --run-in-parallel
         env:
@@ -1271,8 +1315,22 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: breeze ci-image pull --tag-as-latest
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-      - name: "Test downgrade"
-        run: ./scripts/ci/testing/run_downgrade_test.sh
+      - name: "Test downgrade migration file ${{ env.BACKEND }}"
+        run: >
+          breeze shell "airflow db reset --skip-init -y &&
+          airflow db upgrade --to-revision heads &&
+          airflow db downgrade -r e959f08ac86c -y &&
+          airflow db upgrade"
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: "Test downgrade ORM ${{ env.BACKEND }}"
+        run: >
+          breeze shell "airflow db reset -y &&
+          airflow db upgrade &&
+          airflow db downgrade -r e959f08ac86c -y &&
+          airflow db upgrade"
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Tests: ${{needs.build-info.outputs.test-types}}"
         run: breeze testing tests --run-in-parallel
         env:
@@ -1448,11 +1506,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: breeze ci free-space
-      - name: "Cache virtualenv environment"
-        uses: actions/cache@v3
-        with:
-          path: '.build/.docker_venv'
-          key: ${{ runner.os }}-docker-venv-${{ hashFiles('scripts/ci/images/ci_run_docker_tests.py') }}
       - name: Wait for PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         # We wait for the images to be available either from "build-images.yml' run as pull_request_target
         # or from build-prod-images above.
