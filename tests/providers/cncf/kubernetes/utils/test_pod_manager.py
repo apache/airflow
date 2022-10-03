@@ -22,6 +22,7 @@ from unittest.mock import MagicMock
 
 import pendulum
 import pytest
+import semver
 from kubernetes.client.rest import ApiException
 from pendulum import DateTime
 from pendulum.tz.timezone import Timezone
@@ -341,9 +342,8 @@ class TestPodManager:
             )
         from airflow.providers_manager import ProvidersManager
 
-        version = ProvidersManager().providers['apache-airflow-providers-cncf-kubernetes'].version
-        version_tup = tuple(map(int, version.split('.')))
-        if version_tup >= (6, 0):
+        info = ProvidersManager().providers['apache-airflow-providers-cncf-kubernetes']
+        if semver.VersionInfo.parse(info.version) >= (6, 0):
             raise Exception(
                 "You must now remove `get_kube_client` from PodManager "
                 "and make kube_client a required argument."
