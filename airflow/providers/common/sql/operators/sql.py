@@ -177,7 +177,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     """
 
     template_fields: Sequence[str] = ('sql', 'parameters')
-    template_ext: Sequence[str] = ('.sql',)
+    template_ext: Sequence[str] = ('.sql', '.json')
+    template_fields_renderers = {"sql": "sql", "parameters": "json"}
     ui_color = '#cdaaed'
 
     def __init__(
