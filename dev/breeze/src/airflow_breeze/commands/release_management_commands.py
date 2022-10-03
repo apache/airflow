@@ -44,6 +44,7 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_reference,
     option_airflow_extras,
     option_answer,
+    option_debug_resources,
     option_dry_run,
     option_github_repository,
     option_image_tag_for_running,
@@ -244,7 +245,7 @@ def prepare_provider_documentation(
 @click.option(
     '--package-list-file',
     type=click.File('rt'),
-    help='Read list of packages from text file (one package per line)',
+    help='Read list of packages from text file (one package per line).',
 )
 @option_debug_release_management
 @argument_packages
@@ -318,6 +319,7 @@ def run_generate_constraints_in_parallel(
     include_success_outputs: bool,
     parallelism: int,
     skip_cleanup: bool,
+    debug_resources: bool,
     dry_run: bool,
     verbose: bool,
 ):
@@ -330,6 +332,7 @@ def run_generate_constraints_in_parallel(
         with run_with_pool(
             parallelism=parallelism,
             all_params=all_params,
+            debug_resources=debug_resources,
             progress_matcher=GenericRegexpProgressMatcher(
                 regexp=CONSTRAINT_PROGRESS_MATCHER, lines_to_search=6
             ),
@@ -367,6 +370,7 @@ def run_generate_constraints_in_parallel(
 @option_run_in_parallel
 @option_parallelism
 @option_skip_cleanup
+@option_debug_resources
 @option_python_versions
 @option_image_tag_for_running
 @option_answer
@@ -380,6 +384,7 @@ def generate_constraints(
     run_in_parallel: bool,
     parallelism: int,
     skip_cleanup: bool,
+    debug_resources: bool,
     python_versions: str,
     image_tag: str | None,
     answer: str | None,
@@ -431,6 +436,7 @@ def generate_constraints(
             shell_params_list=shell_params_list,
             parallelism=parallelism,
             skip_cleanup=skip_cleanup,
+            debug_resources=debug_resources,
             include_success_outputs=True,
             dry_run=dry_run,
             verbose=verbose,

@@ -18,15 +18,6 @@
 
 export MEMORY_REQUIRED_FOR_HEAVY_TEST_PARALLEL_RUN=33000
 
-function testing::skip_tests_if_requested(){
-    if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
-        echo
-        echo "Skipping running tests !!!!!"
-        echo
-        exit
-    fi
-}
-
 function testing::get_docker_compose_local() {
     DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/files.yml")
     if [[ ${MOUNT_SELECTED_LOCAL_SOURCES} == "true" ]]; then
@@ -50,70 +41,6 @@ function testing::get_docker_compose_local() {
     readonly DOCKER_COMPOSE_LOCAL
 }
 
-function testing::get_maximum_parallel_test_jobs() {
-    docker_engine_resources::get_available_cpus_in_docker
-    if [[ -n ${RUNS_ON=} && ${RUNS_ON} != *"self-hosted"* ]]; then
-        echo
-        echo "${COLOR_YELLOW}This is a GitHub Public runner - for now we are forcing max parallel Quarantined tests jobs to 1 for those${COLOR_RESET}"
-        echo
-        export MAX_PARALLEL_QUARANTINED_TEST_JOBS="1"
-    else
-        if [[ ${MAX_PARALLEL_QUARANTINED_TEST_JOBS=} != "" ]]; then
-            echo
-            echo "${COLOR_YELLOW}Maximum parallel Quarantined test jobs forced via MAX_PARALLEL_QUARANTINED_TEST_JOBS = ${MAX_PARALLEL_QUARANTINED_TEST_JOBS}${COLOR_RESET}"
-            echo
-        else
-            MAX_PARALLEL_QUARANTINED_TEST_JOBS=${CPUS_AVAILABLE_FOR_DOCKER}
-            echo
-            echo "${COLOR_YELLOW}Maximum parallel Quarantined test jobs set to number of CPUs available for Docker = ${MAX_PARALLEL_QUARANTINED_TEST_JOBS}${COLOR_RESET}"
-            echo
-        fi
-
-    fi
-
-    if [[ ${MAX_PARALLEL_TEST_JOBS=} != "" ]]; then
-        echo
-        echo "${COLOR_YELLOW}Maximum parallel test jobs forced via MAX_PARALLEL_TEST_JOBS = ${MAX_PARALLEL_TEST_JOBS}${COLOR_RESET}"
-        echo
-    else
-        MAX_PARALLEL_TEST_JOBS=${CPUS_AVAILABLE_FOR_DOCKER}
-        echo
-        echo "${COLOR_YELLOW}Maximum parallel test jobs set to number of CPUs available for Docker = ${MAX_PARALLEL_TEST_JOBS}${COLOR_RESET}"
-        echo
-    fi
-    export MAX_PARALLEL_TEST_JOBS
-}
-
-function testing::get_test_types_to_run() {
-    if [[ -n "${FORCE_TEST_TYPE=}" ]]; then
-        # Handle case where test type is forced from outside
-        export TEST_TYPES="${FORCE_TEST_TYPE}"
-    fi
-
-    if [[ -z "${TEST_TYPES=}" ]]; then
-        TEST_TYPES="Core Providers API CLI Integration Other WWW"
-        echo
-        echo "Test types not specified. Adding all: ${TEST_TYPES}"
-        echo
-    fi
-
-    if [[ -z "${FORCE_TEST_TYPE=}" ]]; then
-        # Add Postgres/MySQL special test types in case we are running several test types
-        if [[ ${BACKEND} == "postgres" && ${TEST_TYPES} != "Quarantined" ]]; then
-            TEST_TYPES="${TEST_TYPES} Postgres"
-            echo
-            echo "Added Postgres. Tests to run: ${TEST_TYPES}"
-            echo
-        fi
-        if [[ ${BACKEND} == "mysql" && ${TEST_TYPES} != "Quarantined" ]]; then
-            TEST_TYPES="${TEST_TYPES} MySQL"
-            echo
-            echo "Added MySQL. Tests to run: ${TEST_TYPES}"
-            echo
-        fi
-    fi
-    readonly TEST_TYPES
-}
 
 function testing::dump_container_logs() {
     start_end::group_start "${COLOR_BLUE}Dumping container logs ${container}${COLOR_RESET}"
@@ -149,7 +76,7 @@ function testing::setup_docker_compose_backend() {
             # This is a bit scary and we could get by making it group-writeable but the group would have
             # to be set to "root" (GID=0) for the volume to work and this cannot be accomplished without sudo
             chmod a+rwx "${MSSQL_DATA_VOLUME}"
-            backend_docker_compose+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-mssql-bind-volume.yml")
+            backend_docker_compose+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-mssql-tmpfs-volume.yml")
 
             # Runner user doesn't have blanket sudo access, but we can run docker as root. Go figure
             traps::add_trap "docker run -u 0 --rm -v ${MSSQL_DATA_VOLUME}:/mssql alpine sh -c 'rm -rvf -- /mssql/.* /mssql/*' || true" EXIT

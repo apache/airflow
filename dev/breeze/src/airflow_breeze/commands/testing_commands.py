@@ -16,19 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-import errno
 import os
-import re
-import shutil
-import subprocess
 import sys
-import tempfile
-from threading import Event, Thread
-from time import sleep
+from datetime import datetime
 
 import click
+from click import IntRange
 
-from airflow_breeze.global_constants import ALLOWED_TEST_TYPE_CHOICES
+from airflow_breeze.global_constants import (
+    ALL_INTEGRATIONS,
+    ALLOWED_TEST_TYPE_CHOICES,
+    all_selective_test_types,
+)
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
@@ -36,27 +35,41 @@ from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
     option_backend,
     option_db_reset,
+    option_debug_resources,
     option_dry_run,
     option_github_repository,
     option_image_name,
     option_image_tag_for_running,
+    option_include_success_outputs,
     option_integration,
     option_mount_sources,
     option_mssql_version,
     option_mysql_version,
+    option_parallelism,
     option_postgres_version,
     option_python,
+    option_run_in_parallel,
+    option_skip_cleanup,
     option_verbose,
 )
-from airflow_breeze.utils.console import get_console, message_type_from_return_code
+from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.custom_param_types import NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     DOCKER_COMPOSE_COMMAND,
     get_env_variables_for_docker_commands,
     perform_environment_checks,
 )
+from airflow_breeze.utils.parallel import (
+    GenericRegexpProgressMatcher,
+    bytes2human,
+    check_async_run_results,
+    run_with_pool,
+)
+from airflow_breeze.utils.path_utils import FILES_DIR
 from airflow_breeze.utils.run_tests import run_docker_compose_tests
-from airflow_breeze.utils.run_utils import RunCommandResult, run_command
+from airflow_breeze.utils.run_utils import get_filesystem_type, run_command
+
+LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
 
 
 @click.group(cls=BreezeGroup, name='testing', help='Tools that developers can use to run tests')
@@ -103,90 +116,213 @@ def docker_compose_tests(
     sys.exit(return_code)
 
 
-class MonitoringThread(Thread):
-    """Thread class with a stop() method. The thread itself has to check
-    regularly for the stopped() condition."""
-
-    def __init__(self, title: str, file_name: str):
-        super().__init__(target=self.peek_percent_at_last_lines_of_file, daemon=True)
-        self._stop_event = Event()
-        self.title = title
-        self.file_name = file_name
-
-    def peek_percent_at_last_lines_of_file(self) -> None:
-        max_line_length = 400
-        matcher = re.compile(r"^.*\[([^\]]*)\]$")
-        while not self.stopped():
-            if os.path.exists(self.file_name):
-                try:
-                    with open(self.file_name, 'rb') as temp_f:
-                        temp_f.seek(-(max_line_length * 2), os.SEEK_END)
-                        tail = temp_f.read().decode()
-                    try:
-                        two_last_lines = tail.splitlines()[-2:]
-                        previous_no_ansi_line = escape_ansi(two_last_lines[0])
-                        m = matcher.match(previous_no_ansi_line)
-                        if m:
-                            get_console().print(f"[info]{self.title}:[/] {m.group(1).strip()}")
-                            print(f"\r{two_last_lines[0]}\r")
-                            print(f"\r{two_last_lines[1]}\r")
-                    except IndexError:
-                        pass
-                except OSError as e:
-                    if e.errno == errno.EINVAL:
-                        pass
-                    else:
-                        raise
-            sleep(5)
-
-    def stop(self):
-        self._stop_event.set()
-
-    def stopped(self):
-        return self._stop_event.is_set()
+TEST_PROGRESS_REGEXP = r'tests/.*|.*=====.*'
+PERCENT_TEST_PROGRESS_REGEXP = r'^tests/.*\[[ \d%]*\].*'
 
 
-def escape_ansi(line):
-    ansi_escape = re.compile(r'(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]')
-    return ansi_escape.sub('', line)
-
-
-def run_with_progress(
-    cmd: list[str],
-    env_variables: dict[str, str],
-    test_type: str,
-    python: str,
-    backend: str,
-    verbose: bool,
+def _run_test(
+    exec_shell_params: ShellParams,
+    extra_pytest_args: tuple,
+    db_reset: bool,
+    output: Output | None,
+    test_timeout: int,
     dry_run: bool,
-    version: str | None = None,
-) -> RunCommandResult:
-    backend_version = backend + (":" + version) if version else backend
-    title = f"Running tests: {test_type}, Python: {python}, Backend: {backend_version}"
+    verbose: bool,
+) -> tuple[int, str]:
+    env_variables = get_env_variables_for_docker_commands(exec_shell_params)
+    env_variables['RUN_TESTS'] = "true"
+    if test_timeout:
+        env_variables["TEST_TIMEOUT"] = str(test_timeout)
+    if db_reset:
+        env_variables["DB_RESET"] = "true"
+    perform_environment_checks(verbose=verbose)
+    env_variables["TEST_TYPE"] = exec_shell_params.test_type
+    if "[" in exec_shell_params.test_type and not exec_shell_params.test_type.startswith("Providers"):
+        get_console(output=output).print(
+            "[error]Only 'Providers' test type can specify actual tests with \\[\\][/]"
+        )
+        sys.exit(1)
+    if exec_shell_params.integration:
+        integration = exec_shell_params.integration
+        if "trino" in integration and "kerberos" not in integration:
+            int_list = list(integration)
+            int_list.append("kerberos")
+            integration = tuple(int_list)
+        env_variables["LIST_OF_INTEGRATION_TESTS_TO_RUN"] = ' '.join(list(integration))
+    project_name = _file_name_from_test_type(exec_shell_params.test_type)
+    down_cmd = [
+        *DOCKER_COMPOSE_COMMAND,
+        "--project-name",
+        f'airflow-test-{project_name}',
+        'down',
+        '--remove-orphans',
+    ]
+    run_command(down_cmd, verbose=verbose, dry_run=dry_run, env=env_variables, output=output, check=False)
+    run_cmd = [
+        *DOCKER_COMPOSE_COMMAND,
+        "--project-name",
+        f'airflow-test-{project_name}',
+        'run',
+        '-T',
+        '--service-ports',
+        '--rm',
+        'airflow',
+    ]
+    run_cmd.extend(list(extra_pytest_args))
     try:
-        with tempfile.NamedTemporaryFile(mode='w+t', delete=False) as tf:
-            get_console().print(f"[info]Starting test = {title}[/]")
-            thread = MonitoringThread(title=title, file_name=tf.name)
-            thread.start()
-            try:
-                result = run_command(
-                    cmd,
-                    verbose=verbose,
-                    dry_run=dry_run,
-                    env=env_variables,
-                    check=False,
-                    stdout=tf,
-                    stderr=subprocess.STDOUT,
-                )
-            finally:
-                thread.stop()
-                thread.join()
-        with ci_group(f"Result of {title}", message_type=message_type_from_return_code(result.returncode)):
-            with open(tf.name) as f:
-                shutil.copyfileobj(f, sys.stdout)
+        result = run_command(
+            run_cmd, verbose=verbose, dry_run=dry_run, env=env_variables, output=output, check=False
+        )
+        if os.environ.get('CI') == "true" and result.returncode != 0:
+            ps_result = run_command(
+                ['docker', 'ps', '--all', '--format', '{{.Names}}'],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            container_ids = ps_result.stdout.splitlines()
+            get_console(output=output).print(
+                f"[info]Error {ps_result.returncode}. Dumping containers: {container_ids}."
+            )
+            date_str = datetime.now().strftime("%Y_%d_%m_%H_%M_%S")
+            for container_id in container_ids:
+                dump_path = FILES_DIR / f"container_logs_{container_id}_{date_str}.log"
+                get_console(output=output).print(f"[info]Dumping container {container_id} to {dump_path}")
+                with open(dump_path, "wt") as outfile:
+                    run_command(["docker", "logs", container_id], check=False, stdout=outfile)
     finally:
-        os.unlink(f.name)
-    return result
+        run_command(
+            [
+                *DOCKER_COMPOSE_COMMAND,
+                "--project-name",
+                f'airflow-test-{project_name}',
+                'rm',
+                '--stop',
+                '--force',
+                '-v',
+            ],
+            verbose=False,
+            dry_run=dry_run,
+            env=env_variables,
+            output=output,
+            check=False,
+        )
+    return result.returncode, f"Test: {exec_shell_params.test_type}"
+
+
+def _file_name_from_test_type(test_type):
+    return test_type.lower().replace("[", "_").replace("]", "").replace(",", "_")[:30]
+
+
+def _run_tests_in_pool(
+    tests_to_run: list[str],
+    parallelism: int,
+    exec_shell_params: ShellParams,
+    extra_pytest_args: tuple,
+    test_timeout: int,
+    db_reset: bool,
+    include_success_outputs: bool,
+    debug_resources: bool,
+    skip_cleanup: bool,
+    dry_run: bool,
+    verbose: bool,
+):
+    with ci_group(f"Testing {' '.join(tests_to_run)}"):
+        all_params = [f"Test {test_type}" for test_type in tests_to_run]
+        with run_with_pool(
+            parallelism=parallelism,
+            all_params=all_params,
+            debug_resources=debug_resources,
+            progress_matcher=GenericRegexpProgressMatcher(
+                regexp=TEST_PROGRESS_REGEXP,
+                regexp_for_joined_line=PERCENT_TEST_PROGRESS_REGEXP,
+                lines_to_search=40,
+            ),
+        ) as (pool, outputs):
+            results = [
+                pool.apply_async(
+                    _run_test,
+                    kwds={
+                        "exec_shell_params": exec_shell_params.clone_with_test(
+                            test_type=test_type,
+                            integration=ALL_INTEGRATIONS if test_type == "Integration" else (),
+                        ),
+                        "extra_pytest_args": extra_pytest_args,
+                        "db_reset": db_reset,
+                        "dry_run": dry_run,
+                        "verbose": verbose,
+                        "output": outputs[index],
+                        "test_timeout": test_timeout,
+                    },
+                )
+                for index, test_type in enumerate(tests_to_run)
+            ]
+    check_async_run_results(
+        results=results,
+        success=f"Tests {' '.join(tests_to_run)} completed successfully",
+        outputs=outputs,
+        include_success_outputs=include_success_outputs,
+        skip_cleanup=skip_cleanup,
+    )
+
+
+def run_tests_in_parallel(
+    exec_shell_params: ShellParams,
+    test_types_list: list[str],
+    extra_pytest_args: tuple,
+    db_reset: bool,
+    test_timeout: int,
+    include_success_outputs: bool,
+    debug_resources: bool,
+    parallelism: int,
+    skip_cleanup: bool,
+    dry_run: bool,
+    verbose: bool,
+) -> None:
+    import psutil
+
+    memory_available = psutil.virtual_memory()
+    if memory_available.available < LOW_MEMORY_CONDITION and exec_shell_params.backend in ['mssql', 'mysql']:
+        # Run heavy tests sequentially
+        heavy_test_types = ["Core", "Integration", "Providers"]
+        if bool(set(heavy_test_types) & set(test_types_list)):
+            # some of those are requested
+            get_console().print(
+                f"[warning]Running {heavy_test_types} tests sequentially for {exec_shell_params.backend}"
+                f" backend due to low memory available: {bytes2human(memory_available.available)}"
+            )
+            tests_to_run_sequentially = []
+            for heavy_test_type in heavy_test_types:
+                for test_type in test_types_list:
+                    if test_type.startswith(heavy_test_type):
+                        test_types_list.remove(test_type)
+                        tests_to_run_sequentially.append(test_type)
+            _run_tests_in_pool(
+                tests_to_run=tests_to_run_sequentially,
+                parallelism=1,
+                exec_shell_params=exec_shell_params,
+                extra_pytest_args=extra_pytest_args,
+                test_timeout=test_timeout,
+                db_reset=db_reset,
+                include_success_outputs=include_success_outputs,
+                debug_resources=debug_resources,
+                skip_cleanup=skip_cleanup,
+                dry_run=dry_run,
+                verbose=verbose,
+            )
+    _run_tests_in_pool(
+        tests_to_run=test_types_list,
+        parallelism=parallelism,
+        exec_shell_params=exec_shell_params,
+        extra_pytest_args=extra_pytest_args,
+        test_timeout=test_timeout,
+        db_reset=db_reset,
+        include_success_outputs=include_success_outputs,
+        debug_resources=debug_resources,
+        skip_cleanup=skip_cleanup,
+        dry_run=dry_run,
+        verbose=verbose,
+    )
 
 
 @testing.command(
@@ -205,11 +341,6 @@ def run_with_progress(
 @option_mysql_version
 @option_mssql_version
 @option_integration
-@click.option(
-    '--limit-progress-output',
-    help="Limit progress to percentage only and just show the summary when tests complete.",
-    is_flag=True,
-)
 @option_image_tag_for_running
 @option_mount_sources
 @click.option(
@@ -222,10 +353,23 @@ def run_with_progress(
 @click.option(
     "--test-timeout",
     help="Test timeout. Set the pytest setup, execution and teardown timeouts to this value",
-    default="60",
+    default=60,
+    type=IntRange(min=0),
     show_default=True,
 )
 @option_db_reset
+@option_run_in_parallel
+@option_parallelism
+@option_skip_cleanup
+@option_debug_resources
+@option_include_success_outputs
+@click.option(
+    "--test-types",
+    help="Space separated list of test types used for testing in parallel.",
+    default=" ".join(all_selective_test_types()),
+    show_default=True,
+    envvar="TEST_TYPES",
+)
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
 def tests(
     dry_run: bool,
@@ -235,67 +379,61 @@ def tests(
     postgres_version: str,
     mysql_version: str,
     mssql_version: str,
-    limit_progress_output: bool,
     integration: tuple,
     extra_pytest_args: tuple,
     test_type: str,
-    test_timeout: str,
+    test_timeout: int,
     db_reset: bool,
     image_tag: str | None,
+    run_in_parallel: bool,
+    parallelism: int,
+    skip_cleanup: bool,
+    debug_resources: bool,
+    include_success_outputs: bool,
+    test_types: str,
     mount_sources: str,
 ):
+    docker_filesystem = get_filesystem_type('/var/lib/docker')
+    get_console().print(f"Docker filesystem: {docker_filesystem}")
     exec_shell_params = ShellParams(
         verbose=verbose,
         dry_run=dry_run,
         python=python,
         backend=backend,
+        integration=integration,
         postgres_version=postgres_version,
         mysql_version=mysql_version,
         mssql_version=mssql_version,
         image_tag=image_tag,
         mount_sources=mount_sources,
+        forward_ports=False,
+        test_type=test_type,
     )
-    env_variables = get_env_variables_for_docker_commands(exec_shell_params)
-    env_variables['RUN_TESTS'] = "true"
-    if test_type:
-        env_variables["TEST_TYPE"] = test_type
-        if "[" in test_type and not test_type.startswith("Providers"):
-            get_console().print("[error]Only 'Providers' test type can specify actual tests with \\[\\][/]")
-            sys.exit(1)
-    if test_timeout:
-        env_variables["TEST_TIMEOUT"] = test_timeout
-    if integration:
-        if "trino" in integration:
-            integration = integration + ("kerberos",)
-        env_variables["LIST_OF_INTEGRATION_TESTS_TO_RUN"] = ' '.join(list(integration))
-    if db_reset:
-        env_variables["DB_RESET"] = "true"
-    perform_environment_checks(verbose=verbose)
-    cmd = [*DOCKER_COMPOSE_COMMAND, 'run', '--service-ports', '--rm', 'airflow']
-    cmd.extend(list(extra_pytest_args))
-    version = (
-        mssql_version
-        if backend == "mssql"
-        else mysql_version
-        if backend == "mysql"
-        else postgres_version
-        if backend == "postgres"
-        else "none"
-    )
-    if limit_progress_output:
-        result = run_with_progress(
-            cmd=cmd,
-            env_variables=env_variables,
-            test_type=test_type,
-            python=python,
-            backend=backend,
-            version=version,
-            verbose=verbose,
+    if run_in_parallel:
+        run_tests_in_parallel(
+            exec_shell_params=exec_shell_params,
+            test_types_list=test_types.split(" "),
+            extra_pytest_args=extra_pytest_args,
+            db_reset=db_reset,
+            test_timeout=test_timeout,
+            include_success_outputs=include_success_outputs,
+            parallelism=parallelism,
+            skip_cleanup=skip_cleanup,
+            debug_resources=debug_resources,
             dry_run=dry_run,
+            verbose=verbose,
         )
     else:
-        result = run_command(cmd, verbose=verbose, dry_run=dry_run, env=env_variables, check=False)
-    sys.exit(result.returncode)
+        returncode, _ = _run_test(
+            exec_shell_params=exec_shell_params,
+            extra_pytest_args=extra_pytest_args,
+            db_reset=db_reset,
+            output=None,
+            test_timeout=test_timeout,
+            dry_run=dry_run,
+            verbose=verbose,
+        )
+        sys.exit(returncode)
 
 
 @testing.command(

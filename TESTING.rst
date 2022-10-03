@@ -202,15 +202,6 @@ You can also limit the set of providers you would like to run tests of
     breeze testing tests --test-type "Providers[airbyte,http]"
 
 
-You can also write tests in "limited progress" mode (useful in the future to run CI). In this mode each
-test just prints "percentage" summary of the run as single line and only dumps full output of the test
-after it completes.
-
-.. code-block:: bash
-
-    breeze testing tests --test-type Core --limit-progress-output
-
-
 Running Tests of a specified type from the Host
 -----------------------------------------------
 
@@ -554,12 +545,13 @@ test in parallel. This way we can decrease the time of running all tests in self
 Running full Airflow test suite in parallel
 ===========================================
 
-If you run ``./scripts/ci/testing/ci_run_airflow_testing.sh`` tests run in parallel
+If you run ``breeze testing tests --run-in-parallel`` tests run in parallel
 on your development machine - maxing out the number of parallel runs at the number of cores you
 have available in your Docker engine.
 
-In case you do not have enough memory available to your Docker (~32 GB), the ``Integration`` test type
-is always run sequentially - after all tests are completed (docker cleanup is performed in-between).
+In case you do not have enough memory available to your Docker (8 GB), the ``Integration``. ``Provider``
+and ``Core`` test type are executed sequentially with cleaning the docker setup in-between. This
+allows to print
 
 This allows for massive speedup in full test execution. On 8 CPU machine with 16 cores and 64 GB memory
 and fast SSD disk, the whole suite of tests completes in about 5 minutes (!). Same suite of tests takes

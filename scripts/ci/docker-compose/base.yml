@@ -86,9 +86,5 @@ services:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.
       - /var/run/docker.sock:/var/run/docker.sock
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
-    ports:
-      - "${SSH_PORT}:22"
-      - "${WEBSERVER_HOST_PORT}:8080"
-      - "${FLOWER_HOST_PORT}:5555"
     cap_add:
       - SYS_PTRACE

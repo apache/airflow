@@ -60,7 +60,7 @@ from airflow_breeze.utils.docker_command_utils import (
 )
 from airflow_breeze.utils.find_newer_dependencies import find_newer_dependencies
 from airflow_breeze.utils.github_actions import get_ga_output
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, MSSQL_TMP_DIR_NAME
 from airflow_breeze.utils.run_utils import run_command
 
 
@@ -92,6 +92,11 @@ def free_space(verbose: bool, dry_run: bool, answer: str):
         )
         run_command(["df", "-h"], verbose=verbose, dry_run=dry_run)
         run_command(["docker", "logout", "ghcr.io"], verbose=verbose, dry_run=dry_run, check=False)
+        run_command(
+            ["sudo", "rm", "-f", os.fspath(Path.home() / MSSQL_TMP_DIR_NAME)],
+            verbose=verbose,
+            dry_run=dry_run,
+        )
 
 
 @ci_group.command(name="resource-check", help="Check if available docker resources are enough.")
@@ -111,7 +116,7 @@ DIRECTORIES_TO_FIX = [
     HOME_DIR / ".azure",
     HOME_DIR / ".config/gcloud",
     HOME_DIR / ".docker",
-    AIRFLOW_SOURCES_ROOT,
+    HOME_DIR / MSSQL_TMP_DIR_NAME,
 ]
 
 

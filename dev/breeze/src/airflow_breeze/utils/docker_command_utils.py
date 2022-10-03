@@ -30,7 +30,7 @@ from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
 from airflow_breeze.utils.image import find_available_ci_image
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, MSSQL_DATA_VOLUME
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
 try:
     from packaging import version
@@ -588,7 +588,6 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'LIST_OF_INTEGRATION_TESTS_TO_RUN', "")
     set_value_to_default_if_not_set(env, 'LOAD_DEFAULT_CONNECTIONS', "false")
     set_value_to_default_if_not_set(env, 'LOAD_EXAMPLES', "false")
-    set_value_to_default_if_not_set(env, 'MSSQL_DATA_VOLUME', str(MSSQL_DATA_VOLUME))
     set_value_to_default_if_not_set(env, 'PACKAGE_FORMAT', ALLOWED_PACKAGE_FORMATS[0])
     set_value_to_default_if_not_set(env, 'PRINT_INFO_FROM_SCRIPTS', "true")
     set_value_to_default_if_not_set(env, 'PYTHONDONTWRITEBYTECODE', "true")
@@ -618,7 +617,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "AIRFLOW_VERSION": "airflow_version",
     "ANSWER": "answer",
     "BACKEND": "backend",
-    "COMPOSE_FILE": "compose_files",
+    "COMPOSE_FILE": "compose_file",
     "DB_RESET": 'db_reset',
     "DEV_MODE": 'dev_mode',
     "DEFAULT_CONSTRAINTS_BRANCH": "default_constraints_branch",
@@ -629,6 +628,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "ISSUE_ID": "issue_id",
     "LOAD_DEFAULT_CONNECTIONS": "load_default_connections",
     "LOAD_EXAMPLES": "load_example_dags",
+    "MSSQL_DATA_VOLUME": "mssql_data_volume",
     "MSSQL_VERSION": "mssql_version",
     "MYSQL_VERSION": "mysql_version",
     "NUM_RUNS": "num_runs",

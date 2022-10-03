@@ -240,7 +240,6 @@ BUILD_CACHE_DIR = AIRFLOW_SOURCES_ROOT / '.build'
 DAGS_DIR = AIRFLOW_SOURCES_ROOT / 'dags'
 FILES_DIR = AIRFLOW_SOURCES_ROOT / 'files'
 HOOKS_DIR = AIRFLOW_SOURCES_ROOT / 'hooks'
-MSSQL_DATA_VOLUME = AIRFLOW_SOURCES_ROOT / 'tmp_mssql_volume'
 KUBE_DIR = AIRFLOW_SOURCES_ROOT / ".kube"
 LOGS_DIR = AIRFLOW_SOURCES_ROOT / 'logs'
 DIST_DIR = AIRFLOW_SOURCES_ROOT / 'dist'
@@ -249,6 +248,8 @@ DOCKER_CONTEXT_DIR = AIRFLOW_SOURCES_ROOT / 'docker-context-files'
 CACHE_TMP_FILE_DIR = tempfile.TemporaryDirectory()
 OUTPUT_LOG = Path(CACHE_TMP_FILE_DIR.name, 'out.log')
 BREEZE_SOURCES_ROOT = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
+
+MSSQL_TMP_DIR_NAME = ".tmp-mssql"
 
 
 def create_volume_if_missing(volume_name: str):
@@ -287,7 +288,6 @@ def create_directories_and_files() -> None:
     DAGS_DIR.mkdir(parents=True, exist_ok=True)
     FILES_DIR.mkdir(parents=True, exist_ok=True)
     HOOKS_DIR.mkdir(parents=True, exist_ok=True)
-    MSSQL_DATA_VOLUME.mkdir(parents=True, exist_ok=True)
     KUBE_DIR.mkdir(parents=True, exist_ok=True)
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
     DIST_DIR.mkdir(parents=True, exist_ok=True)

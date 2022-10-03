@@ -79,46 +79,12 @@ def is_regeneration_needed() -> bool:
     return return_code != 0
 
 
-def run_image_regeneration_in_breeze() -> int:
-    sys.path.insert(0, str(AIRFLOW_SOURCES_DIR / "dev" / "breeze" / "src"))
-    from airflow_breeze.utils.run_utils import run_command
-
-    result = run_command(['breeze', 'version'], check=False, capture_output=True)
-    if result.returncode != 0:
-        run_command(
-            [
-                sys.executable,
-                '-m',
-                'pip',
-                'install',
-                '-e',
-                os.fspath(AIRFLOW_SOURCES_DIR / "dev" / "breeze"),
-            ],
-            check=True,
-            capture_output=True,
-        )
-    result = run_command(['breeze', 'setup', 'regenerate-command-images'], check=False)
-    return result.returncode
-
-
 if __name__ == '__main__':
     verify_all_commands_described_in_docs()
-
-    run_generation = False
-    if FORCE:
-        run_generation = True
+    if is_regeneration_needed():
+        console.print('\n[bright_blue]Some of the commands changed since last time images were generated.\n')
         console.print(
-            '[bright_blue]Force regenerating all images. It will be run in Breeze image for consistency.'
+            '\n[red]Image generation is needed. Please run this command:\n\n'
+            '[magenta]breeze setup regenerate-command-images\n'
         )
-    elif is_regeneration_needed():
-        run_generation = True
-        console.print('[yellow]Image generation is needed. It will be run in Breeze image for consistency.')
-    if run_generation:
-        return_code = run_image_regeneration_in_breeze()
-        if return_code != 0 and os.environ.get('CI'):
-            console.print(
-                "\n\n[yellow]Please run this command and commit resulting breeze images:[/]"
-                "\n\n    `breeze setup regenerate-command-images`\n"
-                "\n\n[yellow]This will regenerate all the images in your commit!\n\n"
-            )
-        sys.exit(return_code)
+        sys.exit(1)

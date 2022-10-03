@@ -17,12 +17,8 @@
 ---
 version: "3.7"
 services:
-  mssql:
-    volumes:
-      # In case of tmpfs backend for docker, mssql fails because TMPFS does not support
-      # O_DIRECT parameter for direct writing to the filesystem
-      # https://github.com/microsoft/mssql-docker/issues/13
-      # so we need to mount an external volume for its db location
-      # the external db must allow for parallel testing so external volume is mapped
-      # to the data volume
-      - ${MSSQL_DATA_VOLUME}:/var/opt/mssql
+  airflow:
+    ports:
+      - "${SSH_PORT}:22"
+      - "${WEBSERVER_HOST_PORT}:8080"
+      - "${FLOWER_HOST_PORT}:5555"

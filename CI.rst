@@ -33,7 +33,7 @@ environments we use. Most of our CI jobs are written as bash scripts which are e
 the CI jobs. And we have  a number of variables determine build behaviour.
 
 You can also take a look at the `CI Sequence Diagrams <CI_DIAGRAMS.md>`_ for more graphical overview
-of how Airlfow's CI works.
+of how Airflow CI works.
 
 GitHub Actions runs
 -------------------
@@ -91,183 +91,63 @@ and cache is separately kept for different platform.
 The ``latest`` images of CI and PROD are ``amd64`` only images for CI, because there is no very easy way
 to push multiplatform images without merging the manifests and it is not really needed nor used for cache.
 
-Locally replicating CI failures
--------------------------------
 
-The main goal of the CI philosophy we have that no matter how complex the test and integration
-infrastructure, as a developer you should be able to reproduce and re-run any of the failed checks
-locally. One part of it are pre-commit checks, that allow you to run the same static checks in CI
-and locally, but another part is the CI environment which is replicated locally with Breeze.
+Naming conventions for stored images
+====================================
 
-You can read more about Breeze in `BREEZE.rst <BREEZE.rst>`_ but in essence it is a script that allows
-you to re-create CI environment in your local development instance and interact with it. In its basic
-form, when you do development you can run all the same tests that will be run in CI - but locally,
-before you submit them as PR. Another use case where Breeze is useful is when tests fail on CI. You can
-take the full ``COMMIT_SHA`` of the failed build pass it as ``--image-tag`` parameter of Breeze and it will
-download the very same version of image that was used in CI and run it locally. This way, you can very
-easily reproduce any failed test that happens in CI - even if you do not check out the sources
-connected with the run.
+The images produced during the ``Build Images`` workflow of CI jobs are stored in the
+`GitHub Container Registry <https://github.com/orgs/apache/packages?repo_name=airflow>`_
 
-You can read more about it in `BREEZE.rst <BREEZE.rst>`_ and `TESTING.rst <TESTING.rst>`_
+The images are stored with both "latest" tag (for last main push image that passes all the tests as well
+with the COMMIT_SHA id for images that were used in particular build.
 
-Difference between local runs and GitHub Action workflows
----------------------------------------------------------
+The image names follow the patterns (except the Python image, all the images are stored in
+https://ghcr.io/ in ``apache`` organization.
 
-Depending whether the scripts are run locally (most often via `Breeze <BREEZE.rst>`_) or whether they
-are run in ``Build Images`` or ``Tests`` workflows they can take different values.
+The packages are available under (CONTAINER_NAME is url-encoded name of the image). Note that "/" are
+supported now in the ``ghcr.io`` as apart of the image name within ``apache`` organization, but they
+have to be percent-encoded when you access them via UI (/ = %2F)
 
-You can use those variables when you try to reproduce the build locally.
+``https://github.com/apache/airflow/pkgs/container/<CONTAINER_NAME>``
 
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| Variable                                | Local       | Build Images | Tests      | Comment                                         |
-|                                         | development | CI workflow  | Workflow   |                                                 |
-+=========================================+=============+==============+============+=================================================+
-|                                                           Basic variables                                                           |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``PYTHON_MAJOR_MINOR_VERSION``          |             |              |            | Major/Minor version of Python used.             |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``DB_RESET``                            |    false    |     true     |    true    | Determines whether database should be reset     |
-|                                         |             |              |            | at the container entry. By default locally      |
-|                                         |             |              |            | the database is not reset, which allows to      |
-|                                         |             |              |            | keep the database content between runs in       |
-|                                         |             |              |            | case of Postgres or MySQL. However,             |
-|                                         |             |              |            | it requires to perform manual init/reset        |
-|                                         |             |              |            | if you stop the environment.                    |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-|                                                           Mount variables                                                           |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``MOUNT_SELECTED_LOCAL_SOURCES``        |     true    |    false     |    false   | Determines whether local sources are            |
-|                                         |             |              |            | mounted to inside the container. Useful for     |
-|                                         |             |              |            | local development, as changes you make          |
-|                                         |             |              |            | locally can be immediately tested in            |
-|                                         |             |              |            | the container. We mount only selected,          |
-|                                         |             |              |            | important folders. We do not mount the whole    |
-|                                         |             |              |            | project folder in order to avoid accidental     |
-|                                         |             |              |            | use of artifacts (such as ``egg-info``          |
-|                                         |             |              |            | directories) generated locally on the           |
-|                                         |             |              |            | host during development.                        |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``MOUNT_ALL_LOCAL_SOURCES``             |     false   |    false     |    false   | Determines whether all local sources are        |
-|                                         |             |              |            | mounted to inside the container. Useful for     |
-|                                         |             |              |            | local development when you need to access .git  |
-|                                         |             |              |            | folders and other folders excluded when         |
-|                                         |             |              |            | ``MOUNT_SELECTED_LOCAL_SOURCES`` is true.       |
-|                                         |             |              |            | You might need to manually delete egg-info      |
-|                                         |             |              |            | folder when you enter breeze and the folder was |
-|                                         |             |              |            | generated using different Python versions.      |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-|                                                           Force variables                                                           |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``ANSWER``                              |             |     yes      |     yes    | This variable determines if answer to questions |
-|                                         |             |              |            | during the build process should be              |
-|                                         |             |              |            | automatically given. For local development,     |
-|                                         |             |              |            | the user is occasionally asked to provide       |
-|                                         |             |              |            | answers to questions such as - whether          |
-|                                         |             |              |            | the image should be rebuilt. By default         |
-|                                         |             |              |            | the user has to answer but in the CI            |
-|                                         |             |              |            | environment, we force "yes" answer.             |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-|                                                           Host variables                                                            |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``HOST_USER_ID``                        |             |              |            | User id of the host user.                       |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``HOST_GROUP_ID``                       |             |              |            | Group id of the host user.                      |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``HOST_OS``                             |             |    linux     |    linux   | OS of the Host (darwin/linux/windows).          |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-|                                                            Git variables                                                            |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``COMMIT_SHA``                          |             | GITHUB_SHA   | GITHUB_SHA | SHA of the commit of the build is run           |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-|                                                         Initialization                                                              |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``SKIP_ENVIRONMENT_INITIALIZATION``     |   false\*   |    false\*   |   false\*  | Skip initialization of test environment         |
-|                                         |             |              |            |                                                 |
-|                                         |             |              |            | \* set to true in pre-commits                   |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``SKIP_SSH_SETUP``                      |   false\*   |    false\*   |   false\*  | Skip setting up SSH server for tests.           |
-|                                         |             |              |            |                                                 |
-|                                         |             |              |            | \* set to true in GitHub CodeSpaces             |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-|                                                         Verbosity variables                                                         |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``PRINT_INFO_FROM_SCRIPTS``             |   true\*    |    true\*    |    true\*  | Allows to print output to terminal from running |
-|                                         |             |              |            | scripts. It prints some extra outputs if true   |
-|                                         |             |              |            | including what the commands do, results of some |
-|                                         |             |              |            | operations, summary of variable values, exit    |
-|                                         |             |              |            | status from the scripts, outputs of failing     |
-|                                         |             |              |            | commands. If verbose is on it also prints the   |
-|                                         |             |              |            | commands executed by docker, kind, helm,        |
-|                                         |             |              |            | kubectl. Disabled in pre-commit checks.         |
-|                                         |             |              |            |                                                 |
-|                                         |             |              |            | \* set to false in pre-commits                  |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``VERBOSE``                             |    false    |     true     |    true    | Determines whether docker, helm, kind,          |
-|                                         |             |              |            | kubectl commands should be printed before       |
-|                                         |             |              |            | execution. This is useful to determine          |
-|                                         |             |              |            | what exact commands were executed for           |
-|                                         |             |              |            | debugging purpose as well as allows             |
-|                                         |             |              |            | to replicate those commands easily by           |
-|                                         |             |              |            | copy&pasting them from the output.              |
-|                                         |             |              |            | requires ``PRINT_INFO_FROM_SCRIPTS`` set to     |
-|                                         |             |              |            | true.                                           |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``VERBOSE_COMMANDS``                    |    false    |    false     |    false   | Determines whether every command                |
-|                                         |             |              |            | executed in bash should also be printed         |
-|                                         |             |              |            | before execution. This is a low-level           |
-|                                         |             |              |            | debugging feature of bash (set -x) and          |
-|                                         |             |              |            | it should only be used if you are lost          |
-|                                         |             |              |            | at where the script failed.                     |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-|                                                        Image build variables                                                        |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``UPGRADE_TO_NEWER_DEPENDENCIES``       |    false    |    false     |   false\*  | Determines whether the build should             |
-|                                         |             |              |            | attempt to upgrade Python base image and all    |
-|                                         |             |              |            | PIP dependencies to latest ones matching        |
-|                                         |             |              |            | ``setup.py`` limits. This tries to replicate    |
-|                                         |             |              |            | the situation of "fresh" user who just installs |
-|                                         |             |              |            | airflow and uses latest version of matching     |
-|                                         |             |              |            | dependencies. By default we are using a         |
-|                                         |             |              |            | tested set of dependency constraints            |
-|                                         |             |              |            | stored in separated "orphan" branches           |
-|                                         |             |              |            | of the airflow repository                       |
-|                                         |             |              |            | ("constraints-main, "constraints-2-0")          |
-|                                         |             |              |            | but when this flag is set to anything but false |
-|                                         |             |              |            | (for example random value), they are not used   |
-|                                         |             |              |            | used and "eager" upgrade strategy is used       |
-|                                         |             |              |            | when installing dependencies. We set it         |
-|                                         |             |              |            | to true in case of direct pushes (merges)       |
-|                                         |             |              |            | to main and scheduled builds so that            |
-|                                         |             |              |            | the constraints are tested. In those builds,    |
-|                                         |             |              |            | in case we determine that the tests pass        |
-|                                         |             |              |            | we automatically push latest set of             |
-|                                         |             |              |            | "tested" constraints to the repository.         |
-|                                         |             |              |            |                                                 |
-|                                         |             |              |            | Setting the value to random value is best way   |
-|                                         |             |              |            | to assure that constraints are upgraded even if |
-|                                         |             |              |            | there is no change to setup.py                  |
-|                                         |             |              |            |                                                 |
-|                                         |             |              |            | This way our constraints are automatically      |
-|                                         |             |              |            | tested and updated whenever new versions        |
-|                                         |             |              |            | of libraries are released.                      |
-|                                         |             |              |            |                                                 |
-|                                         |             |              |            | \* true in case of direct pushes and            |
-|                                         |             |              |            |    scheduled builds                             |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
++--------------+----------------------------------------------------------+----------------------------------------------------------+
+| Image        | Name:tag (both cases latest version and per-build)       | Description                                              |
++==============+==========================================================+==========================================================+
+| Python image | python:<X.Y>-slim-bullseye                               | Base Python image used by both production and CI image.  |
+| (DockerHub)  |                                                          | Python maintainer release new versions of those image    |
+|              |                                                          | with security fixes every few weeks in DockerHub.        |
++--------------+----------------------------------------------------------+----------------------------------------------------------+
+| Airflow      | airflow/<BRANCH>/python:<X.Y>-slim-bullseye              | Version of python base image used in Airflow Builds      |
+| python base  |                                                          | We keep the "latest" version only to mark last "good"    |
+| image        |                                                          | python base that went through testing and was pushed.    |
++--------------+----------------------------------------------------------+----------------------------------------------------------+
+| PROD Build   | airflow/<BRANCH>/prod-build/python<X.Y>:latest           | Production Build image - this is the "build" stage of    |
+| image        |                                                          | production image. It contains build-essentials and all   |
+|              |                                                          | necessary apt packages to build/install PIP packages.    |
+|              |                                                          | We keep the "latest" version only to speed up builds.    |
++--------------+----------------------------------------------------------+----------------------------------------------------------+
+| Manifest     | airflow/<BRANCH>/ci-manifest/python<X.Y>:latest          | CI manifest image - this is the image used to optimize   |
+| CI image     |                                                          | pulls and builds for Breeze development environment      |
+|              |                                                          | They store hash indicating whether the image will be     |
+|              |                                                          | faster to build or pull.                                 |
+|              |                                                          | We keep the "latest" version only to help breeze to      |
+|              |                                                          | check if new image should be pulled.                     |
++--------------+----------------------------------------------------------+----------------------------------------------------------+
+| CI image     | airflow/<BRANCH>/ci/python<X.Y>:latest                   | CI image - this is the image used for most of the tests. |
+|              | or                                                       | Contains all provider dependencies and tools useful      |
+|              | airflow/<BRANCH>/ci/python<X.Y>:<COMMIT_SHA>             | For testing. This image is used in Breeze.               |
++--------------+----------------------------------------------------------+----------------------------------------------------------+
+|              |                                                          | faster to build or pull.                                 |
+| PROD image   | airflow/<BRANCH>/prod/python<X.Y>:latest                 | Production image. This is the actual production image    |
+|              | or                                                       | optimized for size.                                      |
+|              | airflow/<BRANCH>/prod/python<X.Y>:<COMMIT_SHA>           | It contains only compiled libraries and minimal set of   |
+|              |                                                          | dependencies to run Airflow.                             |
++--------------+----------------------------------------------------------+----------------------------------------------------------+
 
-Running CI Jobs locally
-=======================
-
-All our CI jobs are executed via ``breeze`` commands. You can replicate exactly what our CI is doing
-by running the sequence of corresponding ``breeze`` command. Make sure however that you look at both:
-
-* flags passed to ``breeze`` commands
-* environment variables used when ``breeze`` command is run - this is useful when we want
-  to set a common flag for all ``breeze`` commands in the same job or even the whole workflow. For
-  example ``VERBOSE`` variable is set to ``true`` for all our workflows so that more detailed information
-  about internal commands executed in CI is printed.
-
-In the output of the CI jobs, you will find both  - the flags passed and environment variables set.
+* <BRANCH> might be either "main" or "v2-*-test"
+* <X.Y> - Python version (Major + Minor).Should be one of ["3.7", "3.8", "3.9"].
+* <COMMIT_SHA> - full-length SHA of commit either from the tip of the branch (for pushes/schedule) or
+  commit from the tip of the branch used for the PR.
 
 GitHub Registry Variables
 =========================
@@ -472,39 +352,34 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +-----------------------------+----------------------------------------------------------+---------+----------+-----------+
 | UI tests                    | React UI tests for new Airflow UI                        | Yes     | Yes      | Yes       |
 +-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| WWW tests                   | React tests for current Airflow UI                       | Yes     | Yes      | Yes       |
-+-----------------------------+----------------------------------------------------------+---------+----------+-----------+
 | Test image building         | Tests if PROD image build examples work                  | Yes     | Yes      | Yes       |
 +-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| CI Images                   | Waits for and verify CI Images (3)                       | Yes     | Yes      | Yes       |
+| CI Images                   | Waits for and verify CI Images (2)                       | Yes     | Yes      | Yes       |
 +-----------------------------+----------------------------------------------------------+---------+----------+-----------+
 | (Basic) Static checks       | Performs static checks (full or basic)                   | Yes     | Yes      | Yes       |
 +-----------------------------+----------------------------------------------------------+---------+----------+-----------+
 | Build docs                  | Builds documentation                                     | Yes     | Yes      | Yes       |
 +-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| Tests                       | Run all the Pytest tests for Python code                 | Yes(2)  | Yes      | Yes       |
+| Tests                       | Run all the Pytest tests for Python code                 | Yes     | Yes      | Yes       |
 +-----------------------------+----------------------------------------------------------+---------+----------+-----------+
 | Tests provider packages     | Tests if provider packages work                          | Yes     | Yes      | Yes       |
 +-----------------------------+----------------------------------------------------------+---------+----------+-----------+
 | Upload coverage             | Uploads test coverage from all the tests                 | -       | Yes      | -         |
 +-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| PROD Images                 | Waits for and verify PROD Images (3)                     | Yes     | Yes      | Yes       |
+| PROD Images                 | Waits for and verify PROD Images (2)                     | Yes     | Yes      | Yes       |
 +-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| Tests Kubernetes            | Run Kubernetes test                                      | Yes(2)  | Yes      | Yes       |
+| Tests Kubernetes            | Run Kubernetes test                                      | Yes     | Yes      | Yes       |
 +-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| Constraints                 | Upgrade constraints to latest ones (4)                   | -       | Yes      | Yes       |
+| Constraints                 | Upgrade constraints to latest ones (3)                   | -       | Yes      | Yes       |
 +-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| Push cache & images         | Pushes cache/images to GitHub Registry (4)               | -       | Yes      | Yes       |
+| Push cache & images         | Pushes cache/images to GitHub Registry (3)               | -       | Yes      | Yes       |
 +-----------------------------+----------------------------------------------------------+---------+----------+-----------+
 
 ``(1)`` Scheduled jobs builds images from scratch - to test if everything works properly for clean builds
 
-``(2)`` The tests are run when the Trigger Tests job determine that important files change (this allows
-for example "no-code" changes to build much faster)
+``(2)`` The jobs wait for CI images to be available.
 
-``(3)`` The jobs wait for CI images to be available.
-
-``(4)`` PROD and CI cache & images are pushed as "latest" to GitHub Container registry and constraints are
+``(3)`` PROD and CI cache & images are pushed as "latest" to GitHub Container registry and constraints are
 upgraded only if all tests are successful. The images are rebuilt in this step using constraints pushed
 in the previous step.
 
@@ -529,65 +404,60 @@ For more information, see:
 
 Website endpoint: http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/
 
-Naming conventions for stored images
-====================================
 
-The images produced during the ``Build Images`` workflow of CI jobs are stored in the
-`GitHub Container Registry <https://github.com/orgs/apache/packages?repo_name=airflow>`_
+Debugging CI Jobs in Github Actions
+===================================
 
-The images are stored with both "latest" tag (for last main push image that passes all the tests as well
-with the COMMIT_SHA id for images that were used in particular build.
+The CI jobs are notoriously difficult to test, because you can only really see results of it when you run them
+in CI environment, and the environment in which they run depend on who runs them (they might be either run
+in our Self-Hosted runners (with 64 GB RAM 8 CPUs) or in the GitHub Public runners (6 GB of RAM, 2 CPUs) and
+the results will vastly differ depending on which environment is used. We are utilizing parallelism to make
+use of all the available CPU/Memory but sometimes you need to enable debugging and force certain environments.
+Additional difficulty is that ``Build Images`` workflow is ``pull-request-target`` type, which means that it
+will always run using the ``main`` version - no matter what is in your Pull Request.
 
-The image names follow the patterns (except the Python image, all the images are stored in
-https://ghcr.io/ in ``apache`` organization.
+There are several ways how you can debug the CI jobs when you are maintainer.
 
-The packages are available under (CONTAINER_NAME is url-encoded name of the image). Note that "/" are
-supported now in the ``ghcr.io`` as apart of the image name within ``apache`` organization, but they
-have to be percent-encoded when you access them via UI (/ = %2F)
+* When you want to tests the build with all combinations of all python, backends etc on regular PR,
+  add ``full tests needed`` label to the PR.
+* When you want to test maintainer PR using public runners, add ``public runners`` label to the PR
+* When you want to see resources used by the run, add ``debug ci resources`` label to the PR
+* When you want to test changes to breeze that include changes to how images are build you should push
+  your PR to ``apache`` repository not to your fork. This will run the images as part of the ``CI`` workflow
+  rather than using ``Build images`` workflow and use the same breeze version for building image and testing
+* When you want to test changes to ``build-images.yml`` workflow you should push your branch as ``main``
+  branch in your local fork. This will run changed ``build-images.yml`` workflow as it will be in ``main``
+  branch of your fork
 
-``https://github.com/apache/airflow/pkgs/container/<CONTAINER_NAME>``
+Replicating the CI Jobs locally
+===============================
 
-+--------------+----------------------------------------------------------+----------------------------------------------------------+
-| Image        | Name:tag (both cases latest version and per-build)       | Description                                              |
-+==============+==========================================================+==========================================================+
-| Python image | python:<X.Y>-slim-bullseye                               | Base Python image used by both production and CI image.  |
-| (DockerHub)  |                                                          | Python maintainer release new versions of those image    |
-|              |                                                          | with security fixes every few weeks in DockerHub.        |
-+--------------+----------------------------------------------------------+----------------------------------------------------------+
-| Airflow      | airflow/<BRANCH>/python:<X.Y>-slim-bullseye              | Version of python base image used in Airflow Builds      |
-| python base  |                                                          | We keep the "latest" version only to mark last "good"    |
-| image        |                                                          | python base that went through testing and was pushed.    |
-+--------------+----------------------------------------------------------+----------------------------------------------------------+
-| PROD Build   | airflow/<BRANCH>/prod-build/python<X.Y>:latest           | Production Build image - this is the "build" stage of    |
-| image        |                                                          | production image. It contains build-essentials and all   |
-|              |                                                          | necessary apt packages to build/install PIP packages.    |
-|              |                                                          | We keep the "latest" version only to speed up builds.    |
-+--------------+----------------------------------------------------------+----------------------------------------------------------+
-| Manifest     | airflow/<BRANCH>/ci-manifest/python<X.Y>:latest          | CI manifest image - this is the image used to optimize   |
-| CI image     |                                                          | pulls and builds for Breeze development environment      |
-|              |                                                          | They store hash indicating whether the image will be     |
-|              |                                                          | faster to build or pull.                                 |
-|              |                                                          | We keep the "latest" version only to help breeze to      |
-|              |                                                          | check if new image should be pulled.                     |
-+--------------+----------------------------------------------------------+----------------------------------------------------------+
-| CI image     | airflow/<BRANCH>/ci/python<X.Y>:latest                   | CI image - this is the image used for most of the tests. |
-|              | or                                                       | Contains all provider dependencies and tools useful      |
-|              | airflow/<BRANCH>/ci/python<X.Y>:<COMMIT_SHA>             | For testing. This image is used in Breeze.               |
-+--------------+----------------------------------------------------------+----------------------------------------------------------+
-|              |                                                          | faster to build or pull.                                 |
-| PROD image   | airflow/<BRANCH>/prod/python<X.Y>:latest                 | Production image. This is the actual production image    |
-|              | or                                                       | optimized for size.                                      |
-|              | airflow/<BRANCH>/prod/python<X.Y>:<COMMIT_SHA>           | It contains only compiled libraries and minimal set of   |
-|              |                                                          | dependencies to run Airflow.                             |
-+--------------+----------------------------------------------------------+----------------------------------------------------------+
+The main goal of the CI philosophy we have that no matter how complex the test and integration
+infrastructure, as a developer you should be able to reproduce and re-run any of the failed checks
+locally. One part of it are pre-commit checks, that allow you to run the same static checks in CI
+and locally, but another part is the CI environment which is replicated locally with Breeze.
 
-* <BRANCH> might be either "main" or "v2-*-test"
-* <X.Y> - Python version (Major + Minor).Should be one of ["3.7", "3.8", "3.9"].
-* <COMMIT_SHA> - full-length SHA of commit either from the tip of the branch (for pushes/schedule) or
-  commit from the tip of the branch used for the PR.
+You can read more about Breeze in `BREEZE.rst <BREEZE.rst>`_ but in essence it is a script that allows
+you to re-create CI environment in your local development instance and interact with it. In its basic
+form, when you do development you can run all the same tests that will be run in CI - but locally,
+before you submit them as PR. Another use case where Breeze is useful is when tests fail on CI. You can
+take the full ``COMMIT_SHA`` of the failed build pass it as ``--image-tag`` parameter of Breeze and it will
+download the very same version of image that was used in CI and run it locally. This way, you can very
+easily reproduce any failed test that happens in CI - even if you do not check out the sources
+connected with the run.
 
-Reproducing CI Runs locally
-===========================
+All our CI jobs are executed via ``breeze`` commands. You can replicate exactly what our CI is doing
+by running the sequence of corresponding ``breeze`` command. Make sure however that you look at both:
+
+* flags passed to ``breeze`` commands
+* environment variables used when ``breeze`` command is run - this is useful when we want
+  to set a common flag for all ``breeze`` commands in the same job or even the whole workflow. For
+  example ``VERBOSE`` variable is set to ``true`` for all our workflows so that more detailed information
+  about internal commands executed in CI is printed.
+
+In the output of the CI jobs, you will find both  - the flags passed and environment variables set.
+
+You can read more about it in `BREEZE.rst <BREEZE.rst>`_ and `TESTING.rst <TESTING.rst>`_
 
 Since we store images from every CI run, you should be able easily reproduce any of the CI tests problems
 locally. You can do it by pulling and using the right image and running it with the right docker command,
@@ -614,11 +484,150 @@ this case, you do not need to checkout the sources that were used for that run -
 the image - but remember that any changes you make in those sources are lost when you leave the image as
 the sources are not mapped from your host machine.
 
+Depending whether the scripts are run locally via `Breeze <BREEZE.rst>`_ or whether they
+are run in ``Build Images`` or ``Tests`` workflows they can take different values.
+
+You can use those variables when you try to reproduce the build locally.
+
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| Variable                                | Local       | Build Images | CI         | Comment                                         |
+|                                         | development | workflow     | Workflow   |                                                 |
++=========================================+=============+==============+============+=================================================+
+|                                                           Basic variables                                                           |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``PYTHON_MAJOR_MINOR_VERSION``          |             |              |            | Major/Minor version of Python used.             |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``DB_RESET``                            |    false    |     true     |    true    | Determines whether database should be reset     |
+|                                         |             |              |            | at the container entry. By default locally      |
+|                                         |             |              |            | the database is not reset, which allows to      |
+|                                         |             |              |            | keep the database content between runs in       |
+|                                         |             |              |            | case of Postgres or MySQL. However,             |
+|                                         |             |              |            | it requires to perform manual init/reset        |
+|                                         |             |              |            | if you stop the environment.                    |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+|                                                           Mount variables                                                           |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``MOUNT_SELECTED_LOCAL_SOURCES``        |     true    |    false     |    false   | Determines whether local sources are            |
+|                                         |             |              |            | mounted to inside the container. Useful for     |
+|                                         |             |              |            | local development, as changes you make          |
+|                                         |             |              |            | locally can be immediately tested in            |
+|                                         |             |              |            | the container. We mount only selected,          |
+|                                         |             |              |            | important folders. We do not mount the whole    |
+|                                         |             |              |            | project folder in order to avoid accidental     |
+|                                         |             |              |            | use of artifacts (such as ``egg-info``          |
+|                                         |             |              |            | directories) generated locally on the           |
+|                                         |             |              |            | host during development.                        |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``MOUNT_ALL_LOCAL_SOURCES``             |     false   |    false     |    false   | Determines whether all local sources are        |
+|                                         |             |              |            | mounted to inside the container. Useful for     |
+|                                         |             |              |            | local development when you need to access .git  |
+|                                         |             |              |            | folders and other folders excluded when         |
+|                                         |             |              |            | ``MOUNT_SELECTED_LOCAL_SOURCES`` is true.       |
+|                                         |             |              |            | You might need to manually delete egg-info      |
+|                                         |             |              |            | folder when you enter breeze and the folder was |
+|                                         |             |              |            | generated using different Python versions.      |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+|                                                           Force variables                                                           |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``ANSWER``                              |             |     yes      |     yes    | This variable determines if answer to questions |
+|                                         |             |              |            | during the build process should be              |
+|                                         |             |              |            | automatically given. For local development,     |
+|                                         |             |              |            | the user is occasionally asked to provide       |
+|                                         |             |              |            | answers to questions such as - whether          |
+|                                         |             |              |            | the image should be rebuilt. By default         |
+|                                         |             |              |            | the user has to answer but in the CI            |
+|                                         |             |              |            | environment, we force "yes" answer.             |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+|                                                           Host variables                                                            |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``HOST_USER_ID``                        |             |              |            | User id of the host user.                       |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``HOST_GROUP_ID``                       |             |              |            | Group id of the host user.                      |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``HOST_OS``                             |             |    linux     |    linux   | OS of the Host (darwin/linux/windows).          |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+|                                                            Git variables                                                            |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``COMMIT_SHA``                          |             | GITHUB_SHA   | GITHUB_SHA | SHA of the commit of the build is run           |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+|                                                         Initialization                                                              |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``SKIP_ENVIRONMENT_INITIALIZATION``     |   false\*   |    false\*   |   false\*  | Skip initialization of test environment         |
+|                                         |             |              |            |                                                 |
+|                                         |             |              |            | \* set to true in pre-commits                   |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``SKIP_SSH_SETUP``                      |   false\*   |    false\*   |   false\*  | Skip setting up SSH server for tests.           |
+|                                         |             |              |            |                                                 |
+|                                         |             |              |            | \* set to true in GitHub CodeSpaces             |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+|                                                         Verbosity variables                                                         |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``PRINT_INFO_FROM_SCRIPTS``             |   true\*    |    true\*    |    true\*  | Allows to print output to terminal from running |
+|                                         |             |              |            | scripts. It prints some extra outputs if true   |
+|                                         |             |              |            | including what the commands do, results of some |
+|                                         |             |              |            | operations, summary of variable values, exit    |
+|                                         |             |              |            | status from the scripts, outputs of failing     |
+|                                         |             |              |            | commands. If verbose is on it also prints the   |
+|                                         |             |              |            | commands executed by docker, kind, helm,        |
+|                                         |             |              |            | kubectl. Disabled in pre-commit checks.         |
+|                                         |             |              |            |                                                 |
+|                                         |             |              |            | \* set to false in pre-commits                  |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``VERBOSE``                             |    false    |     true     |    true    | Determines whether docker, helm, kind,          |
+|                                         |             |              |            | kubectl commands should be printed before       |
+|                                         |             |              |            | execution. This is useful to determine          |
+|                                         |             |              |            | what exact commands were executed for           |
+|                                         |             |              |            | debugging purpose as well as allows             |
+|                                         |             |              |            | to replicate those commands easily by           |
+|                                         |             |              |            | copy&pasting them from the output.              |
+|                                         |             |              |            | requires ``PRINT_INFO_FROM_SCRIPTS`` set to     |
+|                                         |             |              |            | true.                                           |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``VERBOSE_COMMANDS``                    |    false    |    false     |    false   | Determines whether every command                |
+|                                         |             |              |            | executed in bash should also be printed         |
+|                                         |             |              |            | before execution. This is a low-level           |
+|                                         |             |              |            | debugging feature of bash (set -x) and          |
+|                                         |             |              |            | it should only be used if you are lost          |
+|                                         |             |              |            | at where the script failed.                     |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+|                                                        Image build variables                                                        |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``UPGRADE_TO_NEWER_DEPENDENCIES``       |    false    |    false     |   false\*  | Determines whether the build should             |
+|                                         |             |              |            | attempt to upgrade Python base image and all    |
+|                                         |             |              |            | PIP dependencies to latest ones matching        |
+|                                         |             |              |            | ``setup.py`` limits. This tries to replicate    |
+|                                         |             |              |            | the situation of "fresh" user who just installs |
+|                                         |             |              |            | airflow and uses latest version of matching     |
+|                                         |             |              |            | dependencies. By default we are using a         |
+|                                         |             |              |            | tested set of dependency constraints            |
+|                                         |             |              |            | stored in separated "orphan" branches           |
+|                                         |             |              |            | of the airflow repository                       |
+|                                         |             |              |            | ("constraints-main, "constraints-2-0")          |
+|                                         |             |              |            | but when this flag is set to anything but false |
+|                                         |             |              |            | (for example random value), they are not used   |
+|                                         |             |              |            | used and "eager" upgrade strategy is used       |
+|                                         |             |              |            | when installing dependencies. We set it         |
+|                                         |             |              |            | to true in case of direct pushes (merges)       |
+|                                         |             |              |            | to main and scheduled builds so that            |
+|                                         |             |              |            | the constraints are tested. In those builds,    |
+|                                         |             |              |            | in case we determine that the tests pass        |
+|                                         |             |              |            | we automatically push latest set of             |
+|                                         |             |              |            | "tested" constraints to the repository.         |
+|                                         |             |              |            |                                                 |
+|                                         |             |              |            | Setting the value to random value is best way   |
+|                                         |             |              |            | to assure that constraints are upgraded even if |
+|                                         |             |              |            | there is no change to setup.py                  |
+|                                         |             |              |            |                                                 |
+|                                         |             |              |            | This way our constraints are automatically      |
+|                                         |             |              |            | tested and updated whenever new versions        |
+|                                         |             |              |            | of libraries are released.                      |
+|                                         |             |              |            |                                                 |
+|                                         |             |              |            | \* true in case of direct pushes and            |
+|                                         |             |              |            |    scheduled builds                             |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 
 Adding new Python versions to CI
---------------------------------
-
-In the ``main`` branch of development line we currently support Python 3.7, 3.8, 3.9, 3.10
+================================
 
 In order to add a new version the following operations should be done (example uses Python 3.10)
 
