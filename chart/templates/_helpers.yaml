@@ -633,7 +633,13 @@ Create the name of the cleanup service account to use
 
 {{define "scheduler_liveness_check_command"}}
 
-  {{- if semverCompare ">=2.1.0" .Values.airflowVersion }}
+  {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check --job-type SchedulerJob --local
+  {{- else if semverCompare ">=2.1.0" .Values.airflowVersion }}
   - sh
   - -c
   - |
@@ -659,11 +665,19 @@ Create the name of the cleanup service account to use
 {{- end }}
 
 {{define "triggerer_liveness_check_command"}}
-  - sh
-  - -c
-  - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
-    airflow jobs check --job-type TriggererJob --hostname $(hostname)
+    {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
+    - sh
+    - -c
+    - |
+      CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+      airflow jobs check --job-type TriggererJob --local
+    {{- else }}
+    - sh
+    - -c
+    - |
+      CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+      airflow jobs check --job-type TriggererJob  --hostname $(hostname)
+    {{- end }}
 {{- end }}
 
 {{define "dag_processor_liveness_check_command"}}
