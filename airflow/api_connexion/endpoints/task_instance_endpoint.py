@@ -568,9 +568,7 @@ def patch_mapped_task_instance(*, dag_id: str, dag_run_id: str, task_id: str, ma
     if not dag:
         raise NotFound(error_message)
 
-    task = dag.task_dict.get(task_id)
-
-    if not task:
+    if not dag.has_task(task_id):
         error_message = f"Task ID {task_id} not found"
         raise NotFound(error_message)
 
