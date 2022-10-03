@@ -37,6 +37,7 @@ from typing import Any, Callable
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import configupdater
+import flask.json
 import lazy_object_proxy
 import markupsafe
 import nvd3
@@ -107,7 +108,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
 from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.timetables.interval import CronDataIntervalTimetable
-from airflow.utils import json as utils_json, timezone, yaml
+from airflow.utils import timezone, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.dates import infer_time_unit, scale_time_units
@@ -575,7 +576,7 @@ class Airflow(AirflowBaseView):
             'latest_scheduler_heartbeat': latest_scheduler_heartbeat,
         }
 
-        return wwwutils.json_response(payload)
+        return flask.json.jsonify(payload)
 
     @expose('/home')
     @auth.has_access(
@@ -706,7 +707,7 @@ class Airflow(AirflowBaseView):
                 else:
                     dag.can_delete = (permissions.ACTION_CAN_DELETE, dag_resource_name) in user_permissions
 
-            dagtags = session.query(DagTag.name).distinct(DagTag.name).all()
+            dagtags = session.query(func.distinct(DagTag.name)).all()
             tags = [
                 {"name": name, "selected": bool(arg_tags_filter and name in arg_tags_filter)}
                 for name, in dagtags
@@ -856,7 +857,7 @@ class Airflow(AirflowBaseView):
             filter_dag_ids = allowed_dag_ids
 
         if not filter_dag_ids:
-            return wwwutils.json_response({})
+            return flask.json.jsonify({})
 
         payload = {}
         dag_state_stats = dag_state_stats.filter(dr.dag_id.in_(filter_dag_ids))
@@ -873,7 +874,7 @@ class Airflow(AirflowBaseView):
                 count = data.get(dag_id, {}).get(state, 0)
                 payload[dag_id].append({'state': state, 'count': count})
 
-        return wwwutils.json_response(payload)
+        return flask.json.jsonify(payload)
 
     @expose('/task_stats', methods=['POST'])
     @auth.has_access(
@@ -889,7 +890,7 @@ class Airflow(AirflowBaseView):
         allowed_dag_ids = get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
 
         if not allowed_dag_ids:
-            return wwwutils.json_response({})
+            return flask.json.jsonify({})
 
         # Filter by post parameters
         selected_dag_ids = {unquote(dag_id) for dag_id in request.form.getlist('dag_ids') if dag_id}
@@ -983,7 +984,7 @@ class Airflow(AirflowBaseView):
             for state in State.task_states:
                 count = data.get(dag_id, {}).get(state, 0)
                 payload[dag_id].append({'state': state, 'count': count})
-        return wwwutils.json_response(payload)
+        return flask.json.jsonify(payload)
 
     @expose('/last_dagruns', methods=['POST'])
     @auth.has_access(
@@ -1006,7 +1007,7 @@ class Airflow(AirflowBaseView):
             filter_dag_ids = allowed_dag_ids
 
         if not filter_dag_ids:
-            return wwwutils.json_response({})
+            return flask.json.jsonify({})
 
         last_runs_subquery = (
             session.query(
@@ -1046,7 +1047,7 @@ class Airflow(AirflowBaseView):
             }
             for r in query
         }
-        return wwwutils.json_response(resp)
+        return flask.json.jsonify(resp)
 
     @expose('/code')
     @auth.has_access(
@@ -2106,7 +2107,7 @@ class Airflow(AirflowBaseView):
             filter_dag_ids = allowed_dag_ids
 
         if not filter_dag_ids:
-            return wwwutils.json_response([])
+            return flask.json.jsonify([])
 
         dags = (
             session.query(DagRun.dag_id, sqla.func.count(DagRun.id))
@@ -2129,7 +2130,7 @@ class Airflow(AirflowBaseView):
                     'max_active_runs': max_active_runs,
                 }
             )
-        return wwwutils.json_response(payload)
+        return flask.json.jsonify(payload)
 
     def _mark_dagrun_state_as_failed(self, dag_id, dag_run_id, confirmed):
         if not dag_run_id:
@@ -2809,6 +2810,8 @@ class Airflow(AirflowBaseView):
         else:
             external_log_name = None
 
+        state_priority = ['no_status' if p is None else p for p in wwwutils.priority]
+
         return self.render_template(
             'airflow/graph.html',
             dag=dag,
@@ -2831,6 +2834,7 @@ class Airflow(AirflowBaseView):
             dag_run_state=dt_nr_dr_data['dr_state'],
             dag_model=dag_model,
             auto_refresh_interval=conf.getint('webserver', 'auto_refresh_interval'),
+            state_priority=state_priority,
         )
 
     @expose('/duration')
@@ -2897,7 +2901,6 @@ class Airflow(AirflowBaseView):
 
         y_points = defaultdict(list)
         x_points = defaultdict(list)
-        cumulative_y = defaultdict(list)
 
         task_instances = dag.get_task_instances_before(base_date, num_runs, session=session)
         if task_instances:
@@ -2915,7 +2918,6 @@ class Airflow(AirflowBaseView):
         )
         if dag.partial:
             ti_fails = ti_fails.filter(TaskFail.task_id.in_([t.task_id for t in dag.tasks]))
-
         fails_totals = defaultdict(int)
         for failed_task_instance in ti_fails:
             dict_key = (
@@ -2926,14 +2928,23 @@ class Airflow(AirflowBaseView):
             if failed_task_instance.duration:
                 fails_totals[dict_key] += failed_task_instance.duration
 
-        for task_instance in task_instances:
-            if task_instance.duration:
-                date_time = wwwutils.epoch(task_instance.execution_date)
-                x_points[task_instance.task_id].append(date_time)
-                y_points[task_instance.task_id].append(float(task_instance.duration))
-                fails_dict_key = (task_instance.dag_id, task_instance.task_id, task_instance.run_id)
+        # we must group any mapped TIs by dag_id, task_id, run_id
+        mapped_tis = set()
+        tis_grouped = itertools.groupby(task_instances, lambda x: (x.dag_id, x.task_id, x.run_id))
+        for key, tis in tis_grouped:
+            tis = list(tis)
+            duration = sum(x.duration for x in tis if x.duration)
+            if duration:
+                first_ti = tis[0]
+                if first_ti.map_index >= 0:
+                    mapped_tis.add(first_ti.task_id)
+                date_time = wwwutils.epoch(first_ti.execution_date)
+                x_points[first_ti.task_id].append(date_time)
+                fails_dict_key = (first_ti.dag_id, first_ti.task_id, first_ti.run_id)
                 fails_total = fails_totals[fails_dict_key]
-                cumulative_y[task_instance.task_id].append(float(task_instance.duration + fails_total))
+                y_points[first_ti.task_id].append(float(duration + fails_total))
+
+        cumulative_y = {k: list(itertools.accumulate(v)) for k, v in y_points.items()}
 
         # determine the most relevant time unit for the set of task instance
         # durations for the DAG
@@ -2947,12 +2958,12 @@ class Airflow(AirflowBaseView):
 
         for task_id in x_points:
             chart.add_serie(
-                name=task_id,
+                name=task_id + '[]' if task_id in mapped_tis else task_id,
                 x=x_points[task_id],
                 y=scale_time_units(y_points[task_id], y_unit),
             )
             cum_chart.add_serie(
-                name=task_id,
+                name=task_id + '[]' if task_id in mapped_tis else task_id,
                 x=x_points[task_id],
                 y=scale_time_units(cumulative_y[task_id], cum_y_unit),
             )
@@ -3167,9 +3178,7 @@ class Airflow(AirflowBaseView):
                 x=x_points[task_id],
                 y=scale_time_units(y_points[task_id], y_unit),
             )
-
-        dates = sorted({ti.execution_date for ti in tis})
-        max_date = max(ti.execution_date for ti in tis) if dates else None
+        max_date = max(ti.execution_date for ti in tis) if tis else None
 
         session.commit()
 
@@ -3412,7 +3421,7 @@ class Airflow(AirflowBaseView):
                 for ti in dag.get_task_instances(dttm, dttm)
             }
 
-        return json.dumps(task_instances, cls=utils_json.AirflowJsonEncoder)
+        return flask.json.jsonify(task_instances)
 
     @expose('/object/grid_data')
     @auth.has_access(
@@ -3455,10 +3464,7 @@ class Airflow(AirflowBaseView):
             if run_state:
                 query = query.filter(DagRun.state == run_state)
 
-            ordering = (DagRun.__table__.columns[name].desc() for name in dag.timetable.run_ordering)
-            dag_runs = query.order_by(*ordering, DagRun.id.desc()).limit(num_runs).all()
-            dag_runs.reverse()
-
+            dag_runs = wwwutils.sorted_dag_runs(query, ordering=dag.timetable.run_ordering, limit=num_runs)
             encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
             data = {
                 'groups': dag_to_grid(dag, dag_runs, session),
@@ -3467,7 +3473,7 @@ class Airflow(AirflowBaseView):
             }
         # avoid spaces to reduce payload size
         return (
-            htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
+            htmlsafe_json_dumps(data, separators=(',', ':'), dumps=flask.json.dumps),
             {'Content-Type': 'application/json; charset=utf-8'},
         )
 
@@ -3510,7 +3516,7 @@ class Airflow(AirflowBaseView):
                 .all()
             ]
         return (
-            htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
+            htmlsafe_json_dumps(data, separators=(',', ':'), dumps=flask.json.dumps),
             {'Content-Type': 'application/json; charset=utf-8'},
         )
 
@@ -3547,7 +3553,7 @@ class Airflow(AirflowBaseView):
         }
 
         return (
-            htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
+            htmlsafe_json_dumps(data, separators=(',', ':'), dumps=flask.json.dumps),
             {'Content-Type': 'application/json; charset=utf-8'},
         )
 
@@ -5207,7 +5213,7 @@ class AutocompleteView(AirflowBaseView):
         query = unquote(request.args.get('query', ''))
 
         if not query:
-            return wwwutils.json_response([])
+            return flask.json.jsonify([])
 
         # Provide suggestions of dag_ids and owners
         dag_ids_query = session.query(
@@ -5241,7 +5247,7 @@ class AutocompleteView(AirflowBaseView):
         payload = [
             row._asdict() for row in dag_ids_query.union(owners_query).order_by('name').limit(10).all()
         ]
-        return wwwutils.json_response(payload)
+        return flask.json.jsonify(payload)
 
 
 class DagDependenciesView(AirflowBaseView):

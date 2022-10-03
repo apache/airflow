@@ -71,9 +71,11 @@ with DAG(
         release_label='emr-6.6.0',
         job_type="SPARK",
         config={'name': 'new_application'},
-        wait_for_completion=False,
     )
     # [END howto_operator_emr_serverless_create_application]
+
+    # EmrServerlessCreateApplicationOperator waits by default, setting as False to test the Sensor below.
+    emr_serverless_app.wait_for_completion = False
 
     emr_serverless_app_id = emr_serverless_app.output
 
@@ -96,7 +98,9 @@ with DAG(
 
     # [START howto_sensor_emr_serverless_job]
     wait_for_job = EmrServerlessJobSensor(
-        task_id='wait_for_job', application_id=emr_serverless_app_id, job_run_id=start_job.output
+        task_id='wait_for_job',
+        application_id=emr_serverless_app_id,
+        job_run_id=start_job.output,
     )
     # [END howto_sensor_emr_serverless_job]
 
@@ -114,6 +118,7 @@ with DAG(
         force_delete=True,
         trigger_rule=TriggerRule.ALL_DONE,
     )
+
     chain(
         # TEST SETUP
         test_context,

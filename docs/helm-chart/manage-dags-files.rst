@@ -177,7 +177,7 @@ In this example, you will create a yaml file called ``override-values.yaml`` to 
     dags:
       gitSync:
         enabled: true
-        repo: ssh://git@github.com/<username>/<private-repo-name>.git
+        repo: git@github.com/<username>/<private-repo-name>.git
         branch: <branch-name>
         subPath: ""
         sshKeySecret: airflow-ssh-secret

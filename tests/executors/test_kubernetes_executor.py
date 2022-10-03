@@ -20,11 +20,13 @@ import pathlib
 import random
 import re
 import string
+import sys
 import unittest
 from datetime import datetime, timedelta
 from unittest import mock
 
 import pytest
+import yaml
 from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
@@ -100,14 +102,33 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
     @mock.patch("airflow.kubernetes.pod_generator.PodGenerator")
     @mock.patch("airflow.executors.kubernetes_executor.KubeConfig")
     def test_get_base_pod_from_template(self, mock_kubeconfig, mock_generator):
+        # Provide non-existent file path,
+        # so None will be passed to deserialize_model_dict().
         pod_template_file_path = "/bar/biz"
         get_base_pod_from_template(pod_template_file_path, None)
         assert "deserialize_model_dict" == mock_generator.mock_calls[0][0]
-        assert pod_template_file_path == mock_generator.mock_calls[0][1][0]
+        assert mock_generator.mock_calls[0][1][0] is None
+
         mock_kubeconfig.pod_template_file = "/foo/bar"
         get_base_pod_from_template(None, mock_kubeconfig)
         assert "deserialize_model_dict" == mock_generator.mock_calls[1][0]
-        assert "/foo/bar" == mock_generator.mock_calls[1][1][0]
+        assert mock_generator.mock_calls[1][1][0] is None
+
+        # Provide existent file path,
+        # so loaded YAML file content should be used to call deserialize_model_dict(), rather than None.
+        path = sys.path[0] + '/tests/kubernetes/pod.yaml'
+        with open(path) as stream:
+            expected_pod_dict = yaml.safe_load(stream)
+
+        pod_template_file_path = path
+        get_base_pod_from_template(pod_template_file_path, None)
+        assert "deserialize_model_dict" == mock_generator.mock_calls[2][0]
+        assert mock_generator.mock_calls[2][1][0] == expected_pod_dict
+
+        mock_kubeconfig.pod_template_file = path
+        get_base_pod_from_template(None, mock_kubeconfig)
+        assert "deserialize_model_dict" == mock_generator.mock_calls[3][0]
+        assert mock_generator.mock_calls[3][1][0] == expected_pod_dict
 
     def test_make_safe_label_value(self):
         for dag_id, task_id in self._cases():
@@ -228,8 +249,6 @@ class TestKubernetesExecutor:
         - 400 BadRequest is returned when your parameters are invalid e.g. asking for cpu=100ABC123.
 
         """
-        import sys
-
         path = sys.path[0] + '/tests/kubernetes/pod_generator_base_with_secrets.yaml'
 
         response = HTTPResponse(body='{"message": "any message"}', status=status)
@@ -283,8 +302,6 @@ class TestKubernetesExecutor:
         """
         When construct_pod raises PodReconciliationError, we should fail the task.
         """
-        import sys
-
         path = sys.path[0] + '/tests/kubernetes/pod_generator_base_with_secrets.yaml'
 
         mock_kube_client = mock.patch('kubernetes.client.CoreV1Api', autospec=True)

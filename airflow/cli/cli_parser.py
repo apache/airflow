@@ -577,7 +577,7 @@ ARG_DB_FROM_REVISION = Arg(
 ARG_DB_SQL_ONLY = Arg(
     ("-s", "--show-sql-only"),
     help="Don't actually run migrations; just print out sql scripts for offline migration. "
-    "Required if using either `--from-version` or `--from-version`.",
+    "Required if using either `--from-revision` or `--from-version`.",
     action="store_true",
     default=False,
 )
@@ -2035,7 +2035,7 @@ dag_cli_commands: list[CLICommand] = [
         subcommands=[
             _remove_dag_id_opt(sp)
             for sp in DAGS_COMMANDS
-            if sp.name in ['backfill', 'list-runs', 'pause', 'unpause']
+            if sp.name in ['backfill', 'list-runs', 'pause', 'unpause', 'test']
         ],
     ),
     GroupCommand(

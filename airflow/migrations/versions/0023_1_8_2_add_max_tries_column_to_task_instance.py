@@ -25,11 +25,10 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, inspect
 from sqlalchemy.ext.declarative import declarative_base
 
 from airflow import settings
-from airflow.compat.sqlalchemy import inspect
 from airflow.models import DagBag
 
 # revision identifiers, used by Alembic.

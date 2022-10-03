@@ -20,11 +20,10 @@ from __future__ import annotations
 import json
 import textwrap
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any, Sequence
 from urllib.parse import urlencode
 
-import sqlalchemy as sqla
-from flask import Response, request, url_for
+from flask import request, url_for
 from flask.helpers import flash
 from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.filters import BaseFilter
@@ -37,20 +36,24 @@ from markupsafe import Markup
 from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
+from sqlalchemy import func, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
-from airflow import models
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import errors
+from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.helpers import alchemy_to_dict
-from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.state import State, TaskInstanceState
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm.query import Query
+    from sqlalchemy.sql.operators import ColumnOperators
 
 
 def datetime_to_string(value: DateTime | None) -> str | None:
@@ -90,10 +93,10 @@ priority = [
     TaskInstanceState.RUNNING,
     TaskInstanceState.SHUTDOWN,
     TaskInstanceState.RESTARTING,
-    TaskInstanceState.REMOVED,
     None,
     TaskInstanceState.SUCCESS,
     TaskInstanceState.SKIPPED,
+    TaskInstanceState.REMOVED,
 ]
 
 
@@ -130,7 +133,7 @@ def get_mapped_summary(parent_instance, task_instances):
     }
 
 
-def encode_dag_run(dag_run: models.DagRun | None) -> dict[str, Any] | None:
+def encode_dag_run(dag_run: DagRun | None) -> dict[str, Any] | None:
     if not dag_run:
         return None
 
@@ -322,13 +325,6 @@ def epoch(dttm):
     return (int(time.mktime(dttm.timetuple())) * 1000,)
 
 
-def json_response(obj):
-    """Returns a json response from a json serializable python object"""
-    return Response(
-        response=json.dumps(obj, indent=4, cls=AirflowJsonEncoder), status=200, mimetype="application/json"
-    )
-
-
 def make_cache_key(*args, **kwargs):
     """Used by cache to get a unique key per URL"""
     path = request.path
@@ -442,6 +438,34 @@ def dag_run_link(attr):
     execution_date = attr.get('dag_run.exectuion_date') or attr.get('execution_date')
     url = url_for('Airflow.graph', dag_id=dag_id, run_id=run_id, execution_date=execution_date)
     return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
+
+
+def _get_run_ordering_expr(name: str) -> ColumnOperators:
+    expr = DagRun.__table__.columns[name]
+    # Data interval columns are NULL for runs created before 2.3, but SQL's
+    # NULL-sorting logic would make those old runs always appear first. In a
+    # perfect world we'd want to sort by ``get_run_data_interval()``, but that's
+    # not efficient, so instead the columns are coalesced into execution_date,
+    # which is good enough in most cases.
+    if name in ("data_interval_start", "data_interval_end"):
+        expr = func.coalesce(expr, DagRun.execution_date)
+    return expr.desc()
+
+
+def sorted_dag_runs(query: Query, *, ordering: Sequence[str], limit: int) -> Sequence[DagRun]:
+    """Produce DAG runs sorted by specified columns.
+
+    :param query: An ORM query object against *DagRun*.
+    :param ordering: Column names to sort the runs. should generally come from a
+        timetable's ``run_ordering``.
+    :param limit: Number of runs to limit to.
+    :return: A list of DagRun objects ordered by the specified columns. The list
+        contains only the *last* objects, but in *ascending* order.
+    """
+    ordering_exprs = (_get_run_ordering_expr(name) for name in ordering)
+    runs = query.order_by(*ordering_exprs, DagRun.id.desc()).limit(limit).all()
+    runs.reverse()
+    return runs
 
 
 def format_map_index(attr: dict) -> str:
@@ -660,7 +684,7 @@ class CustomSQLAInterface(SQLAInterface):
             obj = self.list_columns[col_name].type
             return (
                 isinstance(obj, UtcDateTime)
-                or isinstance(obj, sqla.types.TypeDecorator)
+                or isinstance(obj, types.TypeDecorator)
                 and isinstance(obj.impl, UtcDateTime)
             )
         return False
@@ -673,7 +697,7 @@ class CustomSQLAInterface(SQLAInterface):
             obj = self.list_columns[col_name].type
             return (
                 isinstance(obj, ExtendedJSON)
-                or isinstance(obj, sqla.types.TypeDecorator)
+                or isinstance(obj, types.TypeDecorator)
                 and isinstance(obj.impl, ExtendedJSON)
             )
         return False
