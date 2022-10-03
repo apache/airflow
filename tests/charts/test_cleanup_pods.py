@@ -247,6 +247,7 @@ class CleanupPodsTest(unittest.TestCase):
         assert 2 == jmespath.search("spec.failedJobsHistoryLimit", docs[0])
         assert 4 == jmespath.search("spec.successfulJobsHistoryLimit", docs[0])
 
+
 class CleanupServiceAccountTest(unittest.TestCase):
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
