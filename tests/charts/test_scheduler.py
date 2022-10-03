@@ -675,14 +675,13 @@ class SchedulerTest(unittest.TestCase):
         assert {"foo": "bar"} == jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0])
 
     @parameterized.expand(
-        "executor",
         [
-            ("LocalExecutor"),
-            ("LocalKubernetesExecutor"),
-            ("CeleryExecutor"),
-            ("KubernetesExecutor"),
-            ("CeleryKubernetesExecutor"),
-        ],
+            "LocalExecutor",
+            "LocalKubernetesExecutor",
+            "CeleryExecutor",
+            "KubernetesExecutor",
+            "CeleryKubernetesExecutor",
+        ]
     )
     def test_scheduler_deployment_has_executor_label(self, executor):
         docs = render_chart(
