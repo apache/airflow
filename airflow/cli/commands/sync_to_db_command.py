@@ -20,7 +20,7 @@ from airflow.models import DagBag
 from airflow.utils import cli as cli_utils
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def sync_to_db(args): # noqa
     dag_bag = DagBag(store_serialized_dags=False)
     dag_bag.sync_to_db()
