@@ -171,9 +171,13 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     File must have a '.sql' extensions.
     :param autocommit: (optional) if True, each command is automatically committed (default: False).
     :param parameters: (optional) the parameters to render the SQL query with.
-    :param handler: (optional) the function that will be applied to the cursor.
+    :param handler: (optional) the function that will be applied to the cursor (default: fetch_all_handler).
     :param split_statements: (optional) if split single SQL string into statements (default: False).
     :param return_last: (optional) if return the result of only last statement (default: True).
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SQLExecuteQueryOperator`
     """
 
     template_fields: Sequence[str] = ('sql', 'parameters')
