@@ -42,7 +42,7 @@ ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 ALLOWED_BACKENDS = ['sqlite', 'mysql', 'postgres', 'mssql']
 ALLOWED_PROD_BACKENDS = ['mysql', 'postgres', 'mssql']
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-ALLOWED_INTEGRATIONS = [
+ALL_INTEGRATIONS = [
     'cassandra',
     'kerberos',
     'mongo',
@@ -52,6 +52,9 @@ ALLOWED_INTEGRATIONS = [
     'redis',
     'statsd',
     'trino',
+]
+ALLOWED_INTEGRATIONS = [
+    *ALL_INTEGRATIONS,
     'all',
 ]
 ALLOWED_KUBERNETES_VERSIONS = ['v1.25.2', 'v1.24.6', 'v1.23.12', 'v1.22.15', 'v1.21.14']
@@ -91,13 +94,10 @@ class SelectiveUnitTestTypes(Enum):
 
 ALLOWED_TEST_TYPE_CHOICES = [
     "All",
-    "Always",
     *all_selective_test_types(),
     "Helm",
     "Postgres",
     "MySQL",
-    "Integration",
-    "Other",
     "Quarantine",
 ]
 
