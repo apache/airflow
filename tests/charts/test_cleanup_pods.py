@@ -239,7 +239,7 @@ class CleanupPodsTest(unittest.TestCase):
                 "cleanup": {
                     "enabled": True,
                     "failedJobsHistoryLimit": 2,
-                    "successfulJobsHistoryLimit": 4
+                    "successfulJobsHistoryLimit": 4,
                 },
             },
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
