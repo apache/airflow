@@ -36,16 +36,19 @@ following steps:
     .. code-block:: python
 
       STATE_COLORS = {
-          "queued": "darkgray",
-          "running": "#01FF70",
-          "success": "#2ECC40",
-          "failed": "firebrick",
-          "up_for_retry": "yellow",
-          "up_for_reschedule": "turquoise",
-          "upstream_failed": "orange",
-          "skipped": "darkorchid",
-          "scheduled": "tan",
           "deferred": "mediumpurple",
+          "failed": "firebrick",
+          "queued": "darkgray",
+          "removed": "lightgrey",
+          "restarting": "violet",
+          "running": "#01FF70",
+          "scheduled": "tan",
+          "shutdown": "blue",
+          "skipped": "darkorchid",
+          "success": "#2ECC40",
+          "up_for_reschedule": "turquoise",
+          "up_for_retry": "yellow",
+          "upstream_failed": "orange",
       }
 
 
