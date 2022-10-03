@@ -3419,7 +3419,7 @@ class DagModel(Base):
         )
 
     @provide_session
-    def get_dataset_triggered_next_run_info(self, *, session=NEW_SESSION) -> dict | None:
+    def get_dataset_triggered_next_run_info(self, *, session=NEW_SESSION) -> dict[str, int] | None:
         if self.schedule_interval != "Dataset":
             return None
         return get_dataset_triggered_next_run_info([self.dag_id], session=session)[self.dag_id]
