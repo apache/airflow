@@ -20,33 +20,33 @@
 {% extends 'appbuilder/general/model/list.html' %}
 {% from 'airflow/_messages.html' import show_message %}
 
- {% block content %}
+{% block content %}
 
-   {% if is_using_secrets_backend() %}
+  {% if is_using_secrets_backend() %}
     {% call show_message(category='warning') %}
       <b>WARNING:</b> {{ warn_list_secrets_alternative_backend("ui", "variable") }}
     {% endcall %}
-   {% endif %}
-   {% if can_create_variable() %}
-   <div class="well well-sm pull-left">
-     <form class="form-inline" action="{{ url_for('VariableModelView.varimport') }}" method="post" enctype="multipart/form-data">
-       {% if csrf_token %}
-         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-       {% endif %}
-       <div class="form-group">
-         <input class="form-control-file" type="file" name="file">
-       </div>
-       <button type="submit" class="btn">
-         <span class="material-icons">cloud_upload</span>
-         Import Variables
-       </button>
-     </form>
-   </div>
-   <div class="clearfix"></div>
-   {% endif %}
-   {{ super() }}
-   <style>
-     td { white-space: nowrap; text-overflow: ellipsis; overflow: hidden; max-width:1px;}
-     th { resize: horizontal; overflow: auto;}
-   </style>
- {% endblock %}
+  {% endif %}
+  {% if can_create_variable() %}
+    <div class="well well-sm pull-left">
+      <form class="form-inline" action="{{ url_for('VariableModelView.varimport') }}" method="post" enctype="multipart/form-data">
+        {% if csrf_token %}
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        {% endif %}
+        <div class="form-group">
+          <input class="form-control-file" type="file" name="file">
+        </div>
+        <button type="submit" class="btn">
+          <span class="material-icons">cloud_upload</span>
+          Import Variables
+        </button>
+      </form>
+    </div>
+    <div class="clearfix"></div>
+    {% endif %}
+    {{ super() }}
+  <style>
+    td { white-space: nowrap; text-overflow: ellipsis; overflow: hidden; max-width:1px;}
+    th { resize: horizontal; overflow: auto;}
+  </style>
+{% endblock %}
