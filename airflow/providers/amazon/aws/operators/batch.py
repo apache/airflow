@@ -102,11 +102,16 @@ class BatchOperator(BaseOperator):
     ui_color = "#c3dae0"
     arn = None  # type: Optional[str]
     template_fields: Sequence[str] = (
-        "job_name",
-        "job_queue",
-        "job_definition",
-        "overrides",
-        "parameters",
+        'job_id',
+        'job_name',
+        'job_definition',
+        'job_queue',
+        'overrides',
+        'array_properties',
+        'parameters',
+        'waiters',
+        'tags',
+        'wait_for_completion',
     )
     template_fields_renderers = {"overrides": "json", "parameters": "json"}
 

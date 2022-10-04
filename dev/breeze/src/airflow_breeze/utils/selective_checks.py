@@ -56,6 +56,7 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.console import get_console
 
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
+DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
 
 
 class FileGroupForCi(Enum):
@@ -216,8 +217,12 @@ def add_dependent_providers(
     providers: set[str], provider_to_check: str, dependencies: dict[str, dict[str, list[str]]]
 ):
     for provider, provider_info in dependencies.items():
+        # Providers that use this provider
         if provider_to_check in provider_info['cross-providers-deps']:
             providers.add(provider)
+        # and providers we use directly
+        for dep_name in dependencies[provider_to_check]["cross-providers-deps"]:
+            providers.add(dep_name)
 
 
 def find_all_providers_affected(changed_files: tuple[str, ...]) -> set[str]:
@@ -574,3 +579,7 @@ class SelectiveChecks:
     @cached_property
     def cache_directive(self) -> str:
         return "disabled" if self._github_event == GithubEvents.SCHEDULE else "registry"
+
+    @cached_property
+    def debug_resources(self) -> bool:
+        return DEBUG_CI_RESOURCES_LABEL in self._pr_labels

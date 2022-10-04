@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,11 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-testing::get_docker_compose_local
-testing::setup_docker_compose_backend "offline-sql-test"
-# We test from 2.0.0 upwards
-testing::run_command_in_docker "offline-sql-test" "airflow db upgrade --from-version 2.0.0 -r heads --show-sql-only \
-    && airflow db downgrade --to-version 2.0.0 --show-sql-only -y"
+from __future__ import annotations
+
+import pendulum
+
+from airflow import DAG
+from airflow.decorators import task
+
+with DAG(
+    dag_id='test_dags_folder',
+    schedule=None,
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    catchup=False,
+) as dag:
+
+    @task(task_id="task")
+    def return_file_path():
+        """Print the Airflow context and ds variable from the context."""
+        print(f"dag file location: {__file__}")
+        return __file__
+
+    return_file_path()
