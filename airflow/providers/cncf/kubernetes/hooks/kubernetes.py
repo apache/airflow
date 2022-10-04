@@ -123,16 +123,7 @@ class KubernetesHook(BaseHook):
         self.in_cluster = in_cluster
         self.disable_verify_ssl = disable_verify_ssl
         self.disable_tcp_keepalive = disable_tcp_keepalive
-
         self._is_in_cluster: bool | None = None
-
-        # these params used for transition in KPO to K8s hook
-        # for a deprecation period we will continue to consider k8s settings from airflow.cfg
-        self._deprecated_core_disable_tcp_keepalive: bool | None = None
-        self._deprecated_core_disable_verify_ssl: bool | None = None
-        self._deprecated_core_in_cluster: bool | None = None
-        self._deprecated_core_cluster_context: str | None = None
-        self._deprecated_core_config_file: str | None = None
 
     @staticmethod
     def _coalesce_param(*params):
@@ -199,30 +190,6 @@ class KubernetesHook(BaseHook):
         disable_tcp_keepalive = self._coalesce_param(
             self.disable_tcp_keepalive, _get_bool(self._get_field("disable_tcp_keepalive"))
         )
-
-        # BEGIN apply settings from core kubernetes configuration
-        # this section should be removed in next major release
-        deprecation_warnings: list[tuple[str, Any]] = []
-        if disable_verify_ssl is None and self._deprecated_core_disable_verify_ssl is True:
-            deprecation_warnings.append(('verify_ssl', False))
-            disable_verify_ssl = self._deprecated_core_disable_verify_ssl
-        # by default, hook will try in_cluster first. so we only need to
-        # apply core airflow config and alert when False and in_cluster not otherwise set.
-        if in_cluster is None and self._deprecated_core_in_cluster is False:
-            deprecation_warnings.append(('in_cluster', self._deprecated_core_in_cluster))
-            in_cluster = self._deprecated_core_in_cluster
-        if not cluster_context and self._deprecated_core_cluster_context:
-            deprecation_warnings.append(('cluster_context', self._deprecated_core_cluster_context))
-            cluster_context = self._deprecated_core_cluster_context
-        if not kubeconfig_path and self._deprecated_core_config_file:
-            deprecation_warnings.append(('config_file', self._deprecated_core_config_file))
-            kubeconfig_path = self._deprecated_core_config_file
-        if disable_tcp_keepalive is None and self._deprecated_core_disable_tcp_keepalive is True:
-            deprecation_warnings.append(('enable_tcp_keepalive', False))
-            disable_tcp_keepalive = True
-        if deprecation_warnings:
-            self._deprecation_warning_core_param(deprecation_warnings)
-        # END apply settings from core kubernetes configuration
 
         if disable_verify_ssl is True:
             _disable_verify_ssl()

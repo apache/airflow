@@ -31,7 +31,6 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from tests.test_utils import db
-from tests.test_utils.config import conf_vars
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
 KPO_MODULE = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod"
@@ -936,27 +935,6 @@ class TestKubernetesPodOperator:
             k.execute(context=context)
         mock_patch_already_checked.assert_called_once()
         mock_delete_pod.assert_not_called()
-
-    @pytest.mark.parametrize(
-        'key, value, attr, patched_value',
-        [
-            ('verify_ssl', 'False', '_deprecated_core_disable_verify_ssl', True),
-            ('in_cluster', 'False', '_deprecated_core_in_cluster', False),
-            ('cluster_context', 'hi', '_deprecated_core_cluster_context', 'hi'),
-            ('config_file', '/path/to/file.txt', '_deprecated_core_config_file', '/path/to/file.txt'),
-            ('enable_tcp_keepalive', 'False', '_deprecated_core_disable_tcp_keepalive', True),
-        ],
-    )
-    def test_patch_core_settings(self, key, value, attr, patched_value):
-        # first verify the behavior for the default value
-        # the hook attr should be None
-        op = KubernetesPodOperator(task_id='abc', name='hi')
-        self.hook_patch.stop()
-        assert getattr(op.hook, attr) is None
-        # now check behavior with a non-default value
-        with conf_vars({('kubernetes', key): value}):
-            op = KubernetesPodOperator(task_id='abc', name='hi')
-            assert getattr(op.hook, attr) == patched_value
 
 
 def test__suppress():
