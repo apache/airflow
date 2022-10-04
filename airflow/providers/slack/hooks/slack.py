@@ -293,11 +293,13 @@ class SlackHook(BaseHook):
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import IntegerField, StringField
+        from wtforms.validators import NumberRange, Optional
 
         return {
             prefixed_extra_field("timeout", cls.conn_type): IntegerField(
                 lazy_gettext("Timeout"),
                 widget=BS3TextFieldWidget(),
+                validators=[Optional(strip_whitespace=True), NumberRange(min=1)],
                 description="Optional. The maximum number of seconds the client will wait to connect "
                 "and receive a response from Slack API.",
             ),
