@@ -130,7 +130,7 @@ class TestEmrContainerOperator(unittest.TestCase):
             job_driver={},
             configuration_overrides={},
             poll_interval=0,
-            max_tries=3,
+            max_polling_attempts=3,
         )
 
         with patch('boto3.session.Session', boto3_session_mock):
