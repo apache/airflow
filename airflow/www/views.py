@@ -2060,21 +2060,19 @@ class Airflow(AirflowBaseView):
                 )
             tasks = task_group.get_task_dict()
             task_ids = list(tasks.keys())
-            dag = dag.partial_subset(
-                task_ids_or_regex=task_ids,
-                include_downstream=downstream,
-                include_upstream=upstream,
-            )
+            task_ids_or_regex = task_ids
         else:
             if map_indexes is None:
                 task_ids = [task_id]
             else:
                 task_ids = [(task_id, map_index) for map_index in map_indexes]
-            dag = dag.partial_subset(
-                task_ids_or_regex=[task_id],
-                include_downstream=downstream,
-                include_upstream=upstream,
-            )
+            task_ids_or_regex = [task_id]
+
+        dag = dag.partial_subset(
+            task_ids_or_regex=task_ids_or_regex,
+            include_downstream=downstream,
+            include_upstream=upstream,
+        )
 
         if len(dag.task_dict) > 1:
             # If we had upstream/downstream etc then also include those!

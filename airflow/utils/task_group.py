@@ -476,7 +476,7 @@ class TaskGroup(DAGNode):
 
     def get_task_dict(self) -> dict[str, AbstractOperator]:
         """Returns a flat dictionary of task_id: AbstractOperator"""
-        task_map = {}
+        task_map: dict[str, AbstractOperator] = {}
         groups_to_visit = [self]
 
         while groups_to_visit:
@@ -487,6 +487,10 @@ class TaskGroup(DAGNode):
                     task_map[child.task_id] = child
                 elif isinstance(child, TaskGroup):
                     groups_to_visit.append(child)
+                else:
+                    raise ValueError(
+                        f"Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child)}"
+                    )
 
         return task_map
 
