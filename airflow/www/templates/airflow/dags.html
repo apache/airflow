@@ -303,15 +303,24 @@
                   title="Click to see dataset details."
                   data-html="true"
                 >
+                  {%- with ds_info = dataset_triggered_next_run_info[dag.dag_id] -%}
                   <div
                     class="label label-default next-dataset-triggered"
                     data-dag-id="{{ dag.dag_id }}"
-                    data-summary="{{ dataset_triggered_next_run_info[dag.dag_id] }}"
-                  >
-                    {% with ds_info = dataset_triggered_next_run_info[dag.dag_id] %}
+                    data-summary="
+                    {%- if ds_info.total == 1 -%}
+                    On {{ ds_info.uri }}
+                    {%- else -%}
                     {{ ds_info.ready }} of {{ ds_info.total }} datasets updated
-                    {% endwith %}
+                    {%- endif -%}"
+                  >
+                    {% if ds_info.total == 1 -%}
+                    On {{ ds_info.uri }}
+                    {%- else -%}
+                    {{ ds_info.ready }} of {{ ds_info.total }} datasets updated
+                    {%- endif %}
                   </div>
+                  {%- endwith -%}
                 </span>
               {% endif %}
               {% if dag.next_dagrun is not none %}
