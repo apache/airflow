@@ -25,7 +25,7 @@ import warnings
 import weakref
 from dataclasses import dataclass
 from inspect import Parameter, signature
-from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple, Type, Union
+from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple, Union
 
 import cattr
 import lazy_object_proxy
@@ -546,7 +546,7 @@ class BaseSerialization:
         we first verify that it's necessary to do.
         """
         class_name = param_dict['__class']
-        class_ = import_string(class_name)  # type: Type[Param]
+        class_: type[Param] = import_string(class_name)
         attrs = ('default', 'description', 'schema')
         kwargs = {}
         for attr in attrs:

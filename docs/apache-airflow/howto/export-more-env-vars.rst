@@ -44,7 +44,7 @@ In your ``airflow_local_settings.py`` file.
 
 .. code-block:: python
 
-  def get_airflow_context_vars(context) -> Dict[str, str]:
+  def get_airflow_context_vars(context) -> dict[str, str]:
       """
       :param context: The context for the task_instance of interest.
       """

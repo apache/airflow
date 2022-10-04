@@ -69,7 +69,6 @@ class GSheetsHook(GoogleBaseHook):
         Retrieves connection to Google Sheets.
 
         :return: Google Sheets services object.
-        :rtype: Any
         """
         if not self._conn:
             http_authorized = self._authorize()
@@ -98,7 +97,6 @@ class GSheetsHook(GoogleBaseHook):
         :param date_time_render_option: Determines how dates should be rendered in the output.
             SERIAL_NUMBER or FORMATTED_STRING
         :return: An array of sheet values from the specified sheet.
-        :rtype: List
         """
         service = self.get_conn()
 
@@ -138,7 +136,6 @@ class GSheetsHook(GoogleBaseHook):
         :param date_time_render_option: Determines how dates should be rendered in the output.
             SERIAL_NUMBER or FORMATTED_STRING
         :return: Google Sheets API response.
-        :rtype: Dict
         """
         service = self.get_conn()
 
@@ -186,7 +183,6 @@ class GSheetsHook(GoogleBaseHook):
         :param date_time_render_option: Determines how dates should be rendered in the output.
             SERIAL_NUMBER or FORMATTED_STRING
         :return: Google Sheets API response.
-        :rtype: Dict
         """
         service = self.get_conn()
         body = {"range": range_, "majorDimension": major_dimension, "values": values}
@@ -237,7 +233,6 @@ class GSheetsHook(GoogleBaseHook):
         :param date_time_render_option: Determines how dates should be rendered in the output.
             SERIAL_NUMBER or FORMATTED_STRING
         :return: Google Sheets API response.
-        :rtype: Dict
         """
         if len(ranges) != len(values):
             raise AirflowException(
@@ -298,7 +293,6 @@ class GSheetsHook(GoogleBaseHook):
         :param date_time_render_option: Determines how dates should be rendered in the output.
             SERIAL_NUMBER or FORMATTED_STRING
         :return: Google Sheets API response.
-        :rtype: Dict
         """
         service = self.get_conn()
         body = {"range": range_, "majorDimension": major_dimension, "values": values}
@@ -329,7 +323,6 @@ class GSheetsHook(GoogleBaseHook):
         :param spreadsheet_id: The Google Sheet ID to interact with
         :param range_: The A1 notation of the values to retrieve.
         :return: Google Sheets API response.
-        :rtype: Dict
         """
         service = self.get_conn()
 
@@ -350,7 +343,6 @@ class GSheetsHook(GoogleBaseHook):
         :param spreadsheet_id: The Google Sheet ID to interact with
         :param ranges: The A1 notation of the values to retrieve.
         :return: Google Sheets API response.
-        :rtype: Dict
         """
         service = self.get_conn()
         body = {"ranges": ranges}

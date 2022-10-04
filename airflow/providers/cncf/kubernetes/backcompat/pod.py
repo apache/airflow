@@ -112,9 +112,5 @@ class Port:
         self.container_port = container_port
 
     def to_k8s_client_obj(self):
-        """
-        Converts to k8s object.
-
-        :rtype: object
-        """
+        """Converts to k8s object."""
         return k8s.V1ContainerPort(name=self.name, container_port=self.container_port)

@@ -78,7 +78,6 @@ with DAG(
 
         :param files: List of S3 object attributes.
         :return: true if the criteria is met
-        :rtype: bool
         """
         return all(f.get("Size", 0) > 20 for f in files)
 

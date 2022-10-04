@@ -63,7 +63,6 @@ class OpsgenieAlertHook(BaseHook):
         Get the API key from the connection
 
         :return: API key
-        :rtype: str
         """
         conn = self.get_connection(self.conn_id)
         return conn.password
@@ -73,7 +72,6 @@ class OpsgenieAlertHook(BaseHook):
         Get the underlying AlertApi client
 
         :return: AlertApi client
-        :rtype: opsgenie_sdk.AlertApi
         """
         return self.alert_api_instance
 
@@ -84,7 +82,6 @@ class OpsgenieAlertHook(BaseHook):
         :param payload: Opsgenie API Create Alert payload values
             See https://docs.opsgenie.com/docs/alert-api#section-create-alert
         :return: api response
-        :rtype: opsgenie_sdk.SuccessResponse
         """
         payload = payload or {}
 
@@ -115,7 +112,6 @@ class OpsgenieAlertHook(BaseHook):
         :return: SuccessResponse
                  If the method is called asynchronously,
                  returns the request thread.
-        :rtype: opsgenie_sdk.SuccessResponse
         """
         payload = payload or {}
         try:
@@ -147,7 +143,6 @@ class OpsgenieAlertHook(BaseHook):
         :param user: Display name of the request owner.
         :param source: Display name of the request source
         :return: SuccessResponse
-        :rtype: opsgenie_sdk.SuccessResponse
         """
         try:
             api_response = self.alert_api_instance.delete_alert(
