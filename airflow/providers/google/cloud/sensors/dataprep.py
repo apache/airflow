@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook, JobGroupStatuses
-from airflow.sensors.base import BaseSensorOperator, PokeReturnValue
+from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -47,7 +47,7 @@ class DataprepJobGroupIsFinishedSensor(BaseSensorOperator):
         self.job_group_id = job_group_id
         self.dataprep_conn_id = dataprep_conn_id
 
-    def poke(self, context: Context) -> bool | PokeReturnValue:
+    def poke(self, context: Context) -> bool:
         hooks = GoogleDataprepHook(dataprep_conn_id=self.dataprep_conn_id)
         status = hooks.get_job_group_status(job_group_id=int(self.job_group_id))
         return status != JobGroupStatuses.IN_PROGRESS
