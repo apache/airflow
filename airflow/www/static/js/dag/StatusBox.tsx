@@ -28,7 +28,7 @@ import {
 import { useContainerRef } from 'src/context/containerRef';
 import type { Task, TaskInstance, TaskState } from 'src/types';
 import type { SelectionProps } from 'src/dag/useSelection';
-import { hoverDelay } from 'src/utils';
+import { getStatusBackgroundColor, hoverDelay } from 'src/utils';
 import Tooltip from 'src/components/Tooltip';
 
 import InstanceTooltip from './InstanceTooltip';
@@ -40,17 +40,14 @@ interface StatusWithNotesProps extends BoxProps {
   state: TaskState;
   containsNotes?: boolean;
 }
+
 export const StatusWithNotes = ({ state, containsNotes, ...rest }: StatusWithNotesProps) => {
-  const backgroundColor = state && stateColors[state] ? stateColors[state] : 'white';
+  const color = state && stateColors[state] ? stateColors[state] : 'white';
   return (
     <Box
       width={boxSizePx}
       height={boxSizePx}
-      background={
-        containsNotes
-          ? `linear-gradient(-135deg,#00000000 6px, ${backgroundColor} 0);`
-          : backgroundColor
-      }
+      background={getStatusBackgroundColor(color, !!containsNotes)}
       borderRadius="2px"
       borderWidth={state ? 0 : 1}
       {...rest}

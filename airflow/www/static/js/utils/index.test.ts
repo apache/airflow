@@ -19,7 +19,9 @@
 
 import { isEmpty } from 'lodash';
 import type { DagRun } from 'src/types';
-import { getDagRunLabel, getTask, getTaskSummary } from '.';
+import {
+  getDagRunLabel, getTask, getTaskSummary, getHexColor,
+} from '.';
 
 const sampleTasks = {
   id: null,
@@ -141,5 +143,17 @@ describe('Test getDagRunLabel', () => {
   test('Passing an order overrides default', async () => {
     const runLabel = getDagRunLabel({ dagRun, ordering: ['executionDate'] });
     expect(runLabel).toBe(dagRun.executionDate);
+  });
+});
+
+describe('Test getHexColor', () => {
+  test('Correctly returns a hex value', () => {
+    const hexColor = getHexColor('hotpink');
+    expect(hexColor).toEqual('#FF69B4');
+  });
+
+  test('Unknown color name returns white', () => {
+    const hexColor = getHexColor('bananablue');
+    expect(hexColor).toEqual('#000000');
   });
 });

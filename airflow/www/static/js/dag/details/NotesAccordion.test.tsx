@@ -38,18 +38,25 @@ describe('Test DagRun / Task Instance Notes', () => {
     jest.clearAllMocks();
   });
 
-  test('No initial value, accordion is closed', async () => {
+  test('No initial value, accordion is also open', async () => {
+    jest.spyOn(utils, 'getMetaValue').mockImplementation(
+      (meta) => {
+        if (meta === 'can_edit') return 'True';
+        return '';
+      },
+    );
+
     const { getByText } = render(
       <NotesAccordion dagId="dagId" runId="runId" />,
       { wrapper: Wrapper },
     );
 
-    expect(getByText('Set Notes')).not.toBeVisible();
+    await waitFor(() => expect(getByText('Add Note')).toBeVisible());
 
     const accordion = getByText('DAG Run Notes:');
 
     fireEvent.click(accordion);
-    await waitFor(() => expect(getByText('Set Notes')).toBeVisible());
+    await waitFor(() => expect(getByText('Add Note')).not.toBeVisible());
   });
 
   test('With initial value, accordion is open. And update button changed', () => {
@@ -65,18 +72,18 @@ describe('Test DagRun / Task Instance Notes', () => {
       { wrapper: Wrapper },
     );
 
-    const changeButton = getByText('Change Notes');
+    const changeButton = getByText('Edit Note');
 
     expect(changeButton).toBeInTheDocument();
-    expect(queryByText('Set Notes')).toBe(null);
+    expect(queryByText('Add Note')).toBe(null);
 
     fireEvent.click(changeButton);
 
-    expect(getByText('Update User Notes')).toBeInTheDocument();
-    expect(getByText('Discard Edit')).toBeInTheDocument();
+    expect(getByText('Save Note')).toBeInTheDocument();
+    expect(getByText('Cancel')).toBeInTheDocument();
   });
 
-  test('Cannot change notes without edit permissions', () => {
+  test('Cannot Edit Note without edit permissions', () => {
     jest.spyOn(utils, 'getMetaValue').mockImplementation(
       (meta) => {
         if (meta === 'can_edit') return 'False';
@@ -89,7 +96,7 @@ describe('Test DagRun / Task Instance Notes', () => {
       { wrapper: Wrapper },
     );
 
-    const changeButton = getByText('Change Notes');
+    const changeButton = getByText('Edit Note');
 
     expect(changeButton).toBeInTheDocument();
     expect(changeButton).toBeDisabled();
@@ -108,18 +115,18 @@ describe('Test DagRun / Task Instance Notes', () => {
       { wrapper: Wrapper },
     );
 
-    const changeButton = getByText('Change Notes');
+    const changeButton = getByText('Edit Note');
 
     fireEvent.click(changeButton);
 
-    expect(getByText('Update User Notes')).toBeInTheDocument();
+    expect(getByText('Save Note')).toBeInTheDocument();
     const textarea = getByTestId('notes-input');
 
     fireEvent.change(textarea, { target: { value: 'A different note.' } });
 
     expect(queryByText('I am a note')).toBe(null);
 
-    fireEvent.click(getByText('Discard Edit'));
+    fireEvent.click(getByText('Cancel'));
 
     expect(getByText('I am a note')).toBeInTheDocument();
   });

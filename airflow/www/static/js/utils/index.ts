@@ -18,6 +18,7 @@
  */
 
 import type { DagRun, RunOrdering, Task } from 'src/types';
+import colors from './colors.json';
 
 // Delay in ms for various hover actions
 const hoverDelay = 200;
@@ -124,6 +125,18 @@ const getDagRunLabel = ({
   ordering = ['dataIntervalEnd', 'executionDate'],
 }: RunLabelProps) => dagRun[ordering[0]] ?? dagRun[ordering[1]];
 
+const getHexColor = (colorName: string) => {
+  const color = colors.find((c) => c.name.toLowerCase() === colorName.toLowerCase());
+  if (color) return color.hex;
+  return '#000000';
+};
+
+const getStatusBackgroundColor = (color: string, hasNotes: boolean) => (
+  hasNotes
+    ? `linear-gradient(-135deg, ${getHexColor(color)}60 5px, ${color} 0);`
+    : color
+);
+
 export {
   hoverDelay,
   finalStatesMap,
@@ -132,4 +145,6 @@ export {
   getTask,
   getTaskSummary,
   getDagRunLabel,
+  getHexColor,
+  getStatusBackgroundColor,
 };

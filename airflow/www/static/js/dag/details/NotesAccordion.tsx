@@ -29,11 +29,13 @@ import {
   Flex,
   Text,
   Textarea,
+  Divider,
 } from '@chakra-ui/react';
 import ResizeTextarea from 'react-textarea-autosize';
 
 import { getMetaValue } from 'src/utils';
 import { useSetDagRunNotes, useSetTaskInstanceNotes } from 'src/api';
+import { MdEdit } from 'react-icons/md';
 
 interface Props {
   dagId: string;
@@ -76,66 +78,71 @@ const NotesAccordion = ({
   };
 
   return (
-    // use initialValue here so we don't re-render when notes changes.
-    <Accordion defaultIndex={!initialValue ? [] : [0]} allowToggle>
-      <AccordionItem border="0">
-        <AccordionButton p={0} pb={2} fontSize="inherit">
-          <Box flex="1" textAlign="left">
-            <Text as="strong" size="lg">
-              {objectIdentifier}
-              {' '}
-              Notes:
-            </Text>
-          </Box>
-          <AccordionIcon />
-        </AccordionButton>
-        <AccordionPanel pl={3}>
-          {editMode ? (
-            <form onSubmit={handleSubmit}>
-              <Box>
-                <Textarea
-                  autoFocus
-                  minH="unset"
-                  overflow="hidden"
-                  width="100%"
-                  resize="none"
-                  minRows={3}
-                  maxRows={10}
-                  as={ResizeTextarea}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  data-testid="notes-input"
-                />
-              </Box>
-              <Flex mt={3}>
-                <Button type="submit" isLoading={isLoading}>
-                  Update User Notes
-                </Button>
+    <>
+      <Accordion defaultIndex={canEdit ? [0] : []} allowToggle>
+        <AccordionItem border="0">
+          <AccordionButton p={0} pb={2} fontSize="inherit">
+            <Box flex="1" textAlign="left">
+              <Text as="strong" size="lg">
+                {objectIdentifier}
+                {' '}
+                Notes:
+              </Text>
+            </Box>
+            <AccordionIcon />
+          </AccordionButton>
+          <AccordionPanel pl={3}>
+            {editMode ? (
+              <form onSubmit={handleSubmit}>
+                <Box>
+                  <Textarea
+                    autoFocus
+                    minH="unset"
+                    overflow="hidden"
+                    width="100%"
+                    resize="none"
+                    minRows={3}
+                    maxRows={10}
+                    as={ResizeTextarea}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    data-testid="notes-input"
+                  />
+                </Box>
+                <Flex mt={3}>
+                  <Button type="submit" isLoading={isLoading} colorScheme="blue">
+                    Save Note
+                  </Button>
+                  <Button
+                    onClick={() => { setNotes(initialValue ?? ''); setEditMode(false); }}
+                    isLoading={isLoading}
+                    ml={3}
+                  >
+                    Cancel
+                  </Button>
+                </Flex>
+              </form>
+            ) : (
+              <>
+                <Text whiteSpace="pre-line">{notes}</Text>
                 <Button
-                  onClick={() => { setNotes(initialValue ?? ''); setEditMode(false); }}
+                  onClick={() => setEditMode(true)}
+                  isDisabled={!canEdit}
                   isLoading={isLoading}
-                  ml={3}
+                  title={`${!notes ? 'Add' : 'Edit'} a note to this ${objectIdentifier}`}
+                  aria-label={`${!notes ? 'Add' : 'Edit'} a note to this ${objectIdentifier}`}
+                  mt={2}
+                  leftIcon={<MdEdit />}
                 >
-                  Discard Edit
+                  {!notes ? 'Add Note' : 'Edit Note'}
                 </Button>
-              </Flex>
-            </form>
-          ) : (
-            <>
-              <Text whiteSpace="pre-line">{notes}</Text>
-              <Button
-                onClick={() => setEditMode(true)}
-                isDisabled={!canEdit}
-                isLoading={isLoading}
-                mt={2}
-              >
-                {notes === '' ? 'Set Notes' : 'Change Notes'}
-              </Button>
-            </>
-          )}
-        </AccordionPanel>
-      </AccordionItem>
-    </Accordion>
+              </>
+            )}
+          </AccordionPanel>
+        </AccordionItem>
+      </Accordion>
+      <Divider my={0} />
+    </>
   );
 };
 

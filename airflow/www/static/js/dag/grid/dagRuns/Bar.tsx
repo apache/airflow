@@ -33,7 +33,7 @@ import {
 import { useContainerRef } from 'src/context/containerRef';
 import Time from 'src/components/Time';
 import type { SelectionProps } from 'src/dag/useSelection';
-import { hoverDelay } from 'src/utils';
+import { hoverDelay, getStatusBackgroundColor } from 'src/utils';
 import RunTypeIcon from 'src/components/RunTypeIcon';
 
 import DagRunTooltip from './Tooltip';
@@ -77,6 +77,8 @@ const DagRunBar = ({
   const shouldShowTick = inverseIndex === 4
     || (inverseIndex > 4 && (inverseIndex - 4) % 10 === 0);
 
+  const color = stateColors[state];
+
   return (
     <Box
       className={`js-${runId}`}
@@ -110,11 +112,7 @@ const DagRunBar = ({
             width="10px"
             height={`${(duration / max) * BAR_HEIGHT}px`}
             minHeight="14px"
-            background={
-              run.notes != null && run.notes !== ''
-                ? `linear-gradient(-135deg,#00000000 8px, ${stateColors[state]} 0);`
-                : stateColors[state]
-            }
+            background={getStatusBackgroundColor(color, !!run.notes)}
             borderRadius={2}
             cursor="pointer"
             pb="2px"
