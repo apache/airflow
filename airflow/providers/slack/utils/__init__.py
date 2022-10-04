@@ -54,7 +54,12 @@ class ConnectionExtraConfig:
         :param default: If specified then use as default value if field not present in Connection Extra.
         """
         prefixed_field = prefixed_extra_field(field, self.conn_type)
-        if prefixed_field in self.extra:
+        if prefixed_field in self.extra and self.extra[prefixed_field] not in (None, ""):
+            # Addition validation with non-empty required for connection which created in the UI
+            # in Airflow 2.2. In these connections always present key-value pair for all prefixed extras
+            # even if user do not fill this fields.
+            # In additional fields from `wtforms.IntegerField` might contain None value.
+            # E.g.: `{'extra__slackwebhook__proxy': '', 'extra__slackwebhook__timeout': None}`
             return self.extra[prefixed_field]
         elif field in self.extra:
             return self.extra[field]
