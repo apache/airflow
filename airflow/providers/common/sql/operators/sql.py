@@ -310,7 +310,6 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         for column, checks in self.column_mapping.items():
             for check, check_values in checks.items():
                 self._column_mapping_validation(check, check_values)
-            checks_list = [*checks]
             checks_sql = checks_sql + " UNION ALL ".join(
                 [
                     self.sql_check_template.format(
@@ -319,7 +318,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
                         table=self.table,
                         column=column,
                     )
-                    for check in checks_list
+                    for check in checks
                 ]
             )
         self.partition_clause = partition_clause
