@@ -358,6 +358,8 @@ class TestBaseChartTest(unittest.TestCase):
             }
             if component:
                 expected_labels["component"] = component
+                if component == 'scheduler':
+                    expected_labels['executor'] = 'CeleryExecutor'
             assert kind_k8s_obj_labels_tuples.pop((k8s_object_name, kind)) == expected_labels
 
         if kind_k8s_obj_labels_tuples:
