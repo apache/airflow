@@ -351,15 +351,6 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
             )
         assert logs.output == ['DEBUG:root:nothing']
 
-        # assert no debug logs emitted from get_credentials_and_project_id
-        with self.assertLogs(level="DEBUG") as logs:
-            logging.debug('nothing')
-            get_credentials_and_project_id(
-                key_path='KEY.json',
-                disable_logging=True,
-            )
-        assert logs.output == ['DEBUG:root:nothing']
-
 
 class TestGetScopes(unittest.TestCase):
     def test_get_scopes_with_default(self):
