@@ -60,6 +60,9 @@ Bug Fixes
 * ``Update gcs.py (#26570)``
 * ``Don't throw an exception when a BQ cusor job has no schema (#26096)``
 * ``Google Cloud Tasks Sensor for queue being empty (#25622)``
+* ``Correcting the transfer config name. (#25719)``
+* ``Fix parsing of optional 'mode' field in BigQuery Result Schema (#26786)``
+* ``Fix MaxID logic for GCSToBigQueryOperator (#26768)``
 
 Misc
 ~~~~
@@ -73,13 +76,14 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Migrate Data Loss Prevention system tests according to AIP-47 (#26060)``
    * ``Google Drive to Google Cloud Storage Transfer Operator - system tests migration (AIP-47) (#26487)``
-   * ``Work around pyupgrade edge cases (#26384)``
    * ``Apply PEP-563 (Postponed Evaluation of Annotations) to core airflow (#26290)``
    * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
-   * ``D400 first line should end with period batch02 (#25268)``
    * ``Replace SQL with Common SQL in pre commit (#26058)``
    * ``Hook into Mypy to get rid of those cast() (#26023)``
+   * ``Work around pyupgrade edge cases (#26384)``
+   * ``D400 first line should end with period batch02 (#25268)``
    * ``Fix GCS sensor system tests failing with DebugExecutor (#26742)``
+   * ``Update docs for September Provider's release (#26731)``
 
 8.3.0
 .....
