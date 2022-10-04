@@ -899,7 +899,7 @@ class TestKubernetesExecutor:
         assert mock_kube_client.list_namespaced_pod.call_count == 0
 
     def test_clear_not_launched_queued_tasks_clear_only_by_job_id(self, dag_maker, create_dummy_dag, session):
-        """Queued TI has no pod, but it is not queued for the k8s executor"""
+        """clear only not launched queued  tasks which are queued by the same executor job"""
         mock_kube_client = mock.MagicMock()
         mock_kube_client.list_namespaced_pod.return_value = k8s.V1PodList(items=[])
 
