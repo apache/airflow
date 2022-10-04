@@ -38,11 +38,15 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.4.0
 .....
 
-Latest change: 2022-09-28
+Latest change: 2022-10-01
 
 =================================================================================================  ===========  ========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================================
+`fa0cb363b8 <https://github.com/apache/airflow/commit/fa0cb363b860b553af2ef9530ea2de706bd16e5d>`_  2022-10-01   ``Correcting the transfer config name. (#25719)``
+`cee610ae5c <https://github.com/apache/airflow/commit/cee610ae5cf14c117527cdfc9ac2ef0ddb5dcf3b>`_  2022-10-01   ``Fix parsing of optional 'mode' field in BigQuery Result Schema (#26786)``
+`b7203cd36e <https://github.com/apache/airflow/commit/b7203cd36eef20de583df3e708f49073d689ac84>`_  2022-10-01   ``Fix MaxID logic for GCSToBigQueryOperator (#26768)``
+`f8db64c35c <https://github.com/apache/airflow/commit/f8db64c35c8589840591021a48901577cff39c07>`_  2022-09-28   ``Update docs for September Provider's release (#26731)``
 `dce27557eb <https://github.com/apache/airflow/commit/dce27557eb57a4f5748617ba584f9204ac09b10b>`_  2022-09-28   ``Fix GCS sensor system tests failing with DebugExecutor (#26742)``
 `26f94c5370 <https://github.com/apache/airflow/commit/26f94c5370587f73ebd935cecf208c6a36bdf9b6>`_  2022-09-26   ``Cloud Data Loss Prevention Operators assets (#26618)``
 `01ac40af75 <https://github.com/apache/airflow/commit/01ac40af759c920f4b2d159bcf18001fdaa24ea4>`_  2022-09-22   ``Update gcs.py (#26570)``
