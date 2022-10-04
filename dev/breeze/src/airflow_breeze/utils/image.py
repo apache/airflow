@@ -47,6 +47,7 @@ def run_pull_in_parallel(
     dry_run: bool,
     parallelism: int,
     skip_cleanup: bool,
+    debug_resources: bool,
     image_params_list: list[BuildCiParams] | list[BuildProdParams],
     python_version_list: list[str],
     verbose: bool,
@@ -62,6 +63,7 @@ def run_pull_in_parallel(
         with run_with_pool(
             parallelism=parallelism,
             all_params=all_params,
+            debug_resources=debug_resources,
             progress_matcher=GenericRegexpProgressMatcher(DOCKER_PULL_PROGRESS_REGEXP, lines_to_search=15),
         ) as (pool, outputs):
 

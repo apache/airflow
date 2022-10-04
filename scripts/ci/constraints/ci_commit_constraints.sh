@@ -15,9 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
-
 cp -v ./files/constraints-*/constraints*.txt repo/
 cd repo || exit 1
 git config --local user.email "dev@airflow.apache.org"

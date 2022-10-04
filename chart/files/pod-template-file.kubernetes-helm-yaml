@@ -60,7 +60,7 @@ spec:
 {{- include "custom_airflow_environment" . | indent 6 }}
 {{- include "container_extra_envs" (list . .Values.workers.env) | indent 6 }}
       image: {{ template "pod_template_image" . }}
-      imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+      imagePullPolicy: {{ .Values.images.pod_template.pullPolicy }}
       name: base
       resources:
 {{ toYaml .Values.workers.resources | indent 8 }}
