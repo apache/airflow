@@ -31,11 +31,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 6.0.0
 .....
 
-Latest change: 2022-09-27
+Latest change: 2022-10-03
 
 =================================================================================================  ===========  ==============================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================================
+`7b183071a3 <https://github.com/apache/airflow/commit/7b183071a398cbe340853f357bc6c029d551b4d1>`_  2022-10-03   ``Fix Slack Connections created in the UI (#26845)``
+`ec1615b589 <https://github.com/apache/airflow/commit/ec1615b589d60416cac449bea5fa777a5eda4757>`_  2022-09-28   ``Fix errors in CHANGELOGS for slack and amazon (#26746)``
+`f8db64c35c <https://github.com/apache/airflow/commit/f8db64c35c8589840591021a48901577cff39c07>`_  2022-09-28   ``Update docs for September Provider's release (#26731)``
 `fd27584b3d <https://github.com/apache/airflow/commit/fd27584b3dc355eaf0c0cd7a4cd65e0e580fcf6d>`_  2022-09-27   ``Refactor 'SlackWebhookOperator': Get rid of mandatory http-provider dependency (#26648)``
 `95a5fc7ec9 <https://github.com/apache/airflow/commit/95a5fc7ec9a637337af9446f11d7f90a6e47e006>`_  2022-09-22   ``Refactor SlackWebhookHook in order to use 'slack_sdk' instead of HttpHook methods (#26452)``
 `7d5e8cce6c <https://github.com/apache/airflow/commit/7d5e8cce6c3e27bc7b9bf28823e9adc6cdb458e2>`_  2022-09-19   ``Remove unsafe imports in Slack API Connection (#26459)``
