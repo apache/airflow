@@ -59,6 +59,29 @@ class TestConnectionExtra:
         )
         assert extra_config.get("arg1") == "bar"
 
+    @pytest.mark.parametrize("conn_type", ["slack", "slack_incoming_webhook"])
+    @pytest.mark.parametrize("empty_value", [None, ""])
+    def test_prefixed_extra_created_in_ui_connections(self, conn_type, empty_value):
+        """Test that empty strings or None values in UI ignored."""
+        extra_config = ConnectionExtraConfig(
+            conn_type=conn_type,
+            conn_id="test-conn-id",
+            extra={
+                f"extra__{conn_type}__arg_missing": empty_value,
+                "arg_extra": "bar",
+                f"extra__{conn_type}__arg_extra": empty_value,
+            },
+        )
+        error_message = (
+            r"Couldn't find '.*' or '.*' in Connection \('.*'\) Extra and no default value specified\."
+        )
+        with pytest.raises(KeyError, match=error_message):
+            # No fallback should raise an error
+            extra_config.get("arg_missing")
+
+        assert extra_config.get("arg_missing", default="foo") == "foo"
+        assert extra_config.get("arg_extra") == "bar"
+
     def test_get_parse_int(self):
         extra_config = ConnectionExtraConfig(
             conn_type="slack",
