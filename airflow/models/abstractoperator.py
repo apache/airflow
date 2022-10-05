@@ -28,6 +28,7 @@ from airflow.models.taskmixin import DAGNode
 from airflow.utils.context import Context
 from airflow.utils.helpers import render_template_as_native, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
@@ -460,9 +461,6 @@ class AbstractOperator(LoggingMixin, DAGNode):
         if not jinja_env:
             jinja_env = self.get_template_env()
 
-        from airflow.models.param import DagParam
-        from airflow.models.xcom_arg import XComArg
-
         if isinstance(value, str):
             if any(value.endswith(ext) for ext in self.template_ext):  # A filepath.
                 template = jinja_env.get_template(value)
@@ -473,7 +471,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
                 return render_template_as_native(template, context)
             return render_template_to_string(template, context)
 
-        if isinstance(value, (DagParam, XComArg)):
+        if isinstance(value, ResolveMixin):
             return value.resolve(context)
 
         # Fast path for common built-in collections.
