@@ -924,7 +924,7 @@ class S3Hook(AwsBaseHook):
             local_folder_name = local_tmp_file.name.rsplit('/', 1)[0]
             local_file_name = f"{local_folder_name}/{filename_in_s3}"
 
-            self.log.info("Moving file from % to %", s3_obj, local_file_name)
+            self.log.info("Renaming file from %s to %s", local_tmp_file.name, local_file_name)
             rename(local_tmp_file.name, local_file_name)
 
             return local_file_name

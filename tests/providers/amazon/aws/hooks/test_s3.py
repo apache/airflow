@@ -553,8 +553,9 @@ class TestAwsS3Hook:
         file_name = "test.log"
         bucket = 'test_bucket'
         key = f'test_key/{file_name}'
+        local_folder = "/tmp"
 
-        with tempfile.NamedTemporaryFile(dir="/tmp/", prefix='airflow_tmp_test_s3_hook') as temp_file:
+        with tempfile.NamedTemporaryFile(dir=local_folder, prefix='airflow_tmp_test_s3_hook') as temp_file:
             mock_temp_file.return_value = temp_file
             s3_hook = S3Hook(aws_conn_id='s3_test')
             s3_hook.check_for_key = Mock(return_value=True)
@@ -564,7 +565,7 @@ class TestAwsS3Hook:
             s3_hook.get_key = Mock(return_value=s3_obj)
             s3_hook.download_file(key=key, bucket_name=bucket, preserve_file_name=True)
 
-            mock_rename.assert_called_once_with(temp_file.name, f"/tmp/{file_name}")
+            mock_rename.assert_called_once_with(temp_file.name, f"{local_folder}/{file_name}")
 
     def test_generate_presigned_url(self, s3_bucket):
         hook = S3Hook()
