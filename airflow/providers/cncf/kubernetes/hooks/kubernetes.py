@@ -95,7 +95,7 @@ class KubernetesHook(BaseHook):
             ),
             "extra__kubernetes__disable_verify_ssl": BooleanField(lazy_gettext('Disable SSL')),
             "extra__kubernetes__disable_tcp_keepalive": BooleanField(lazy_gettext('Disable TCP keepalive')),
-            "extra__kubernetes__sidecar_container_image": StringField(
+            "extra__kubernetes__xcom_sidecar_container_image": StringField(
                 lazy_gettext('Xcom sidecar image'), widget=BS3TextFieldWidget()
             ),
         }
