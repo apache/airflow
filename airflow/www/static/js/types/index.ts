@@ -97,6 +97,11 @@ interface DepEdge {
   v: string;
 }
 
+interface DatasetListItem extends API.Dataset {
+  lastDatasetUpdate: string | null;
+  totalUpdates: number;
+}
+
 export type {
   Dag,
   DagRun,
@@ -108,4 +113,5 @@ export type {
   DepEdge,
   API,
   RunOrdering,
+  DatasetListItem,
 };
