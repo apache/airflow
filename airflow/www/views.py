@@ -2232,6 +2232,13 @@ class Airflow(AirflowBaseView):
         confirmed = request.form.get('confirmed') == 'true'
         return self._mark_dagrun_state_as_queued(dag_id, dag_run_id, confirmed)
 
+    @expose("/dagrun_details")
+    def dagrun_details(self):
+        """Redirect to the GRID DAGRun page. This is avoids breaking links."""
+        dag_id = request.args.get("dag_id")
+        run_id = request.args.get("run_id")
+        return redirect(url_for("Airflow.grid", dag_id=dag_id, dag_run_id=run_id))
+
     def _mark_task_instance_state(
         self,
         *,
