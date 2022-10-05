@@ -72,7 +72,7 @@ const DagRun = ({ runId }: Props) => {
     queuedAt,
     externalTrigger,
     conf,
-    confIsInJsonFormat,
+    confIsJson,
   } = run;
   const graphParams = new URLSearchParamsWrapper({
     execution_date: executionDate,
@@ -182,7 +182,7 @@ const DagRun = ({ runId }: Props) => {
           <Tr>
             <Td>Run config</Td>
             {
-                confIsInJsonFormat
+                confIsJson
                   ? (
                     <Td>
                       <ReactJson

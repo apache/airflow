@@ -55,7 +55,7 @@ interface DagRun {
   lastSchedulingDecision: string | null;
   externalTrigger: boolean;
   conf: string | null;
-  confIsInJsonFormat: boolean;
+  confIsJson: boolean;
 }
 
 interface TaskInstance {

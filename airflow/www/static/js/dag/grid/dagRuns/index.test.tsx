@@ -44,7 +44,7 @@ const generateRuns = (length: number): DagRun[] => (
     executionDate: datestring,
     externalTrigger: false,
     conf: null,
-    confIsInJsonFormat: false,
+    confIsJson: false,
   }))
 );
 
@@ -64,7 +64,7 @@ describe('Test DagRuns', () => {
         lastSchedulingDecision: datestring,
         externalTrigger: false,
         conf: null,
-        confIsInJsonFormat: false,
+        confIsJson: false,
       },
       {
         runId: 'run2',
@@ -79,7 +79,7 @@ describe('Test DagRuns', () => {
         lastSchedulingDecision: datestring,
         externalTrigger: false,
         conf: null,
-        confIsInJsonFormat: false,
+        confIsJson: false,
       },
     ];
     const data = {

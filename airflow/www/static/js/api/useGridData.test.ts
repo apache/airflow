@@ -34,7 +34,7 @@ const commonDagRunParams = {
   lastSchedulingDecision: null,
   externalTrigger: false,
   conf: null,
-  confIsInJsonFormat: false,
+  confIsJson: false,
 };
 
 describe('Test areActiveRuns()', () => {
