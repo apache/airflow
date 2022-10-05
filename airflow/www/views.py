@@ -3521,11 +3521,18 @@ class Airflow(AirflowBaseView):
         """
         allowed_attrs = ['uri', 'last_dataset_update']
 
+        # Grab query parameters
         limit = int(request.args.get("limit", 25))
         offset = int(request.args.get("offset", 0))
         order_by = request.args.get("order_by", "uri")
         uri_pattern = request.args.get("uri_pattern", "")
         lstripped_orderby = order_by.lstrip('-')
+        untrusted_updated_after = request.args.get("updated_after")
+        untrusted_updated_before = request.args.get("updated_before")
+        # with_any_tags = request.args.get("with_any_tags")
+
+        # Check and clean up query parameters
+        limit = 50 if limit > 50 else limit
 
         if lstripped_orderby not in allowed_attrs:
             return {
@@ -3535,7 +3542,25 @@ class Airflow(AirflowBaseView):
                 )
             }, 400
 
-        limit = 50 if limit > 50 else limit
+        updated_after = None
+        if untrusted_updated_after:
+            # Try to figure out how other functions in this module safely parse datetimes submitted by users
+            # and do the same thing here
+            updated_after = ...
+        updated_before = None
+        if untrusted_updated_before:
+            # Clean this data the same way you cleaned updated_after
+            updated_before = ...
+
+        # split_with_any_tags = []
+        # if isinstance(tags, str):
+        #     split_with_any_tags = with_any_tags.split(",") if "," in with_any_tags else [with_any_tags]
+        # else:
+        #     return {
+        #         "detail": (
+        #             f"The with_any_tags query parameter must be a string, or comma-separated strings"
+        #         )
+        #     }, 400
 
         with create_session() as session:
             if lstripped_orderby == "uri":
@@ -3559,11 +3584,8 @@ class Airflow(AirflowBaseView):
                     if session.bind.dialect.name == "postgresql":
                         order_by = (order_by[0].nulls_first(), *order_by[1:])
 
-            total_entries = session.query(func.count(DatasetModel.id)).scalar()
-
-            datasets = [
-                dict(dataset)
-                for dataset in session.query(
+            query = (
+                session.query(
                     DatasetModel.id,
                     DatasetModel.uri,
                     func.max(DatasetEvent.timestamp).label("last_dataset_update"),
@@ -3576,11 +3598,21 @@ class Airflow(AirflowBaseView):
                 )
                 .filter(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
                 .order_by(*order_by)
-                .offset(offset)
-                .limit(limit)
-                .all()
-            ]
-            data = {"datasets": datasets, "total_entries": total_entries}
+            )
+
+            if updated_after:
+                query = query.filter(...)
+            if updated_before:
+                query = query.filter(...)
+
+            # We haven't yet implemented tags for datasets, so you can remove this, or we can implement that
+            # if split_with_any_tags:
+            #     query = query.filter(...)
+
+            query = query.offset(offset).limit(limit)
+
+            datasets = [dict(dataset) for dataset in query.all()]
+            data = {"datasets": datasets, "total_entries": len(datasets)}
 
             return (
                 htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
