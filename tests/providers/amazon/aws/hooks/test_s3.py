@@ -547,6 +547,25 @@ class TestAwsS3Hook:
             ExtraArgs=s3_hook.extra_args,
         )
 
+    @mock.patch('airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile')
+    @mock.patch('airflow.providers.amazon.aws.hooks.s3.rename')
+    def test_download_file_with_preserve_name(self, mock_rename, mock_temp_file):
+        file_name = "test.log"
+        bucket = 'test_bucket'
+        key = f'test_key/{file_name}'
+
+        with tempfile.NamedTemporaryFile(dir="/tmp/", prefix='airflow_tmp_test_s3_hook') as temp_file:
+            mock_temp_file.return_value = temp_file
+            s3_hook = S3Hook(aws_conn_id='s3_test')
+            s3_hook.check_for_key = Mock(return_value=True)
+            s3_obj = Mock()
+            s3_obj.key = f"s3://{bucket}/{key}"
+            s3_obj.download_fileobj = Mock(return_value=None)
+            s3_hook.get_key = Mock(return_value=s3_obj)
+            s3_hook.download_file(key=key, bucket_name=bucket, preserve_file_name=True)
+
+            mock_rename.assert_called_once_with(temp_file.name, f"/tmp/{file_name}")
+
     def test_generate_presigned_url(self, s3_bucket):
         hook = S3Hook()
         presigned_url = hook.generate_presigned_url(
