@@ -313,61 +313,6 @@ class TestKubernetesHook:
         assert isinstance(hook.api_client, kubernetes.client.ApiClient)
         assert isinstance(hook.get_conn(), kubernetes.client.ApiClient)
 
-    @patch(f"{HOOK_MODULE}._disable_verify_ssl")
-    @patch(f"{HOOK_MODULE}.KubernetesHook._get_default_client", new=MagicMock)
-    def test_patch_core_settings_verify_ssl(self, mock_disable_verify_ssl):
-        hook = KubernetesHook()
-        hook.get_conn()
-        mock_disable_verify_ssl.assert_not_called()
-        mock_disable_verify_ssl.reset_mock()
-        hook._deprecated_core_disable_verify_ssl = True
-        hook.get_conn()
-        mock_disable_verify_ssl.assert_called()
-
-    @patch(f"{HOOK_MODULE}._enable_tcp_keepalive")
-    @patch(f"{HOOK_MODULE}.KubernetesHook._get_default_client", new=MagicMock)
-    def test_patch_core_settings_tcp_keepalive(self, mock_enable_tcp_keepalive):
-        hook = KubernetesHook()
-        hook.get_conn()
-        mock_enable_tcp_keepalive.assert_called()
-        mock_enable_tcp_keepalive.reset_mock()
-        hook._deprecated_core_disable_tcp_keepalive = True
-        hook.get_conn()
-        mock_enable_tcp_keepalive.assert_not_called()
-
-    @patch("kubernetes.config.kube_config.KubeConfigLoader", new=MagicMock())
-    @patch("kubernetes.config.kube_config.KubeConfigMerger", new=MagicMock())
-    @patch("kubernetes.config.incluster_config.InClusterConfigLoader")
-    @patch(f"{HOOK_MODULE}.KubernetesHook._get_default_client")
-    def test_patch_core_settings_in_cluster(self, mock_get_default_client, mock_in_cluster_loader):
-        hook = KubernetesHook(conn_id=None)
-        hook.get_conn()
-        mock_in_cluster_loader.assert_not_called()
-        mock_in_cluster_loader.reset_mock()
-        hook._deprecated_core_in_cluster = False
-        hook.get_conn()
-        mock_in_cluster_loader.assert_not_called()
-        mock_get_default_client.assert_called()
-
-    @pytest.mark.parametrize(
-        'key, key_val, attr, attr_val',
-        [
-            ('in_cluster', False, '_deprecated_core_in_cluster', False),
-            ('verify_ssl', False, '_deprecated_core_disable_verify_ssl', True),
-            ('cluster_context', 'hi', '_deprecated_core_cluster_context', 'hi'),
-            ('config_file', '/path/to/file.txt', '_deprecated_core_config_file', '/path/to/file.txt'),
-            ('enable_tcp_keepalive', False, '_deprecated_core_disable_tcp_keepalive', True),
-        ],
-    )
-    @patch("kubernetes.config.incluster_config.InClusterConfigLoader", new=MagicMock())
-    @patch("kubernetes.config.kube_config.KubeConfigLoader", new=MagicMock())
-    @patch("kubernetes.config.kube_config.KubeConfigMerger", new=MagicMock())
-    def test_core_settings_warnings(self, key, key_val, attr, attr_val):
-        hook = KubernetesHook(conn_id=None)
-        setattr(hook, attr, attr_val)
-        with pytest.warns(DeprecationWarning, match=rf'.*Airflow settings.*\n.*{key}={key_val!r}.*'):
-            hook.get_conn()
-
 
 class TestKubernetesHookIncorrectConfiguration:
     @pytest.mark.parametrize(

@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any, Sequence
 from kubernetes.client import CoreV1Api, models as k8s
 
 from airflow.compat.functools import cached_property
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.pod_generator import PodGenerator
@@ -356,7 +355,6 @@ class KubernetesPodOperator(BaseOperator):
             config_file=self.config_file,
             cluster_context=self.cluster_context,
         )
-        self._patch_deprecated_k8s_settings(hook)
         return hook
 
     @cached_property
@@ -607,38 +605,6 @@ class KubernetesPodOperator(BaseOperator):
         """
         pod = self.build_pod_request_obj()
         print(yaml.dump(prune_dict(pod.to_dict(), mode='strict')))
-
-    def _patch_deprecated_k8s_settings(self, hook: KubernetesHook):
-        """
-        Here we read config from core Airflow config [kubernetes] section.
-        In a future release we will stop looking at this section and require users
-        to use Airflow connections to configure KPO.
-
-        When we find values there that we need to apply on the hook, we patch special
-        hook attributes here.
-        """
-        # default for enable_tcp_keepalive is True; patch if False
-        if conf.getboolean('kubernetes', 'enable_tcp_keepalive') is False:
-            hook._deprecated_core_disable_tcp_keepalive = True
-
-        # default verify_ssl is True; patch if False.
-        if conf.getboolean('kubernetes', 'verify_ssl') is False:
-            hook._deprecated_core_disable_verify_ssl = True
-
-        # default for in_cluster is True; patch if False and no KPO param.
-        conf_in_cluster = conf.getboolean('kubernetes', 'in_cluster')
-        if self.in_cluster is None and conf_in_cluster is False:
-            hook._deprecated_core_in_cluster = conf_in_cluster
-
-        # there's no default for cluster context; if we get something (and no KPO param) patch it.
-        conf_cluster_context = conf.get('kubernetes', 'cluster_context', fallback=None)
-        if not self.cluster_context and conf_cluster_context:
-            hook._deprecated_core_cluster_context = conf_cluster_context
-
-        # there's no default for config_file; if we get something (and no KPO param) patch it.
-        conf_config_file = conf.get('kubernetes', 'config_file', fallback=None)
-        if not self.config_file and conf_config_file:
-            hook._deprecated_core_config_file = conf_config_file
 
 
 class _suppress(AbstractContextManager):
