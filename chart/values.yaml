@@ -1738,10 +1738,15 @@ cleanup:
   #  runAsGroup: 0
   env: []
 
+  # Specify history limit
+  # When set, overwrite the default k8s number of successful and failed CronJob executions that are saved.
+  failedJobsHistoryLimit: ~
+  successfulJobsHistoryLimit: ~
+
   # Detailed default security context for cleanup for container level
   securityContexts:
     container: {}
-
+    
 # Configuration for postgresql subchart
 # Not recommended for production
 postgresql:
