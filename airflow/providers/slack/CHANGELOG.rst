@@ -45,6 +45,7 @@ Features
 * ``Refactor Slack API Hook and add Connection (#25852)``
 * ``Remove unsafe imports in Slack API Connection (#26459)``
 * ``Add common-sql lower bound for common-sql (#25789)``
+* ``Fix Slack Connections created in the UI (#26845)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -52,6 +53,8 @@ Features
    * ``Replace SQL with Common SQL in pre commit (#26058)``
    * ``Prepare docs for new providers release (August 2022) (#25618)``
    * ``AIP-47 - Migrate Slack DAG to new design (#25137)``
+   * ``Fix errors in CHANGELOGS for slack and amazon (#26746)``
+   * ``Update docs for September Provider's release (#26731)``
 
 5.1.0
 .....
