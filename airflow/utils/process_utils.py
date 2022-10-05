@@ -28,6 +28,7 @@ import subprocess
 import sys
 import termios
 import tty
+import inspect
 from contextlib import contextmanager
 from typing import Dict, List
 
@@ -60,6 +61,10 @@ def reap_process_group(
     :param sig: signal type
     :param timeout: how much time a process has to terminate
     """
+    current_frame = inspect.currentframe()
+    called_frame = inspect.getouterframes(current_frame, 3)
+    logger.info(called_frame)
+    
     returncodes = {}
 
     def on_terminate(p):
