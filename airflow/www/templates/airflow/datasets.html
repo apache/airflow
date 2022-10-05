@@ -22,7 +22,8 @@
 
 {% block head_meta %}
   {{ super() }}
-  <meta name="datasets_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dataset_endpoint_get_datasets') }}">
+  <meta name="datasets_api" content="{{ url_for('Airflow.datasets_summary') }}">
+  <meta name="dataset_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dataset_endpoint_get_dataset', uri='__URI__') }}">
   <meta name="dataset_events_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dataset_endpoint_get_dataset_events') }}">
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id='__DAG_ID__') }}">
   <meta name="datasets_docs" content="{{ get_docs_url('concepts/datasets.html') }}">
