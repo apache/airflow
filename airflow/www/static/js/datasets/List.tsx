@@ -24,14 +24,20 @@ import {
   Flex,
   Text,
   Link,
+  Input,
+  InputGroup,
+  InputLeftElement,
+  InputRightElement,
+  IconButton,
 } from '@chakra-ui/react';
+import { snakeCase } from 'lodash';
 import type { Row, SortingRule } from 'react-table';
 
 import { useDatasets } from 'src/api';
 import { Table, TimeCell } from 'src/components/Table';
 import type { API } from 'src/types';
 import { getMetaValue } from 'src/utils';
-import { snakeCase } from 'lodash';
+import { MdClose, MdSearch } from 'react-icons/md';
 
 interface Props {
   onSelect: (datasetId: string) => void;
@@ -49,7 +55,7 @@ interface CellProps {
 const DetailCell = ({ cell: { row } }: CellProps) => {
   const { totalUpdates, uri } = row.original;
   return (
-    <Box>
+    <Box data-testid="dataset-list-item">
       <Text>{uri}</Text>
       <Text fontSize="sm" mt={2}>
         Total Updates:
@@ -63,15 +69,18 @@ const DetailCell = ({ cell: { row } }: CellProps) => {
 const DatasetsList = ({ onSelect }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
+  const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortingRule<object>[]>([{ id: 'lastDatasetUpdate', desc: true }]);
 
   const sort = sortBy[0];
   const order = sort ? `${sort.desc ? '-' : ''}${snakeCase(sort.id)}` : '';
+  const uri = search.length > 2 ? search : undefined;
 
   const { data: { datasets, totalEntries }, isLoading } = useDatasets({
     limit,
     offset,
     order,
+    uri,
   });
 
   const columns = useMemo(
@@ -109,8 +118,8 @@ const DatasetsList = ({ onSelect }: Props) => {
           Datasets
         </Heading>
       </Flex>
-      {!datasets.length && !isLoading && (
-        <Text mb={4}>
+      {!datasets.length && !isLoading && !search && (
+        <Text mb={4} data-testid="no-datasets-msg">
           Looks like you do not have any datasets yet. Check out the
           {' '}
           <Link color="blue" href={docsUrl} isExternal>docs</Link>
@@ -118,6 +127,21 @@ const DatasetsList = ({ onSelect }: Props) => {
           to learn how to create a dataset.
         </Text>
       )}
+      <InputGroup my={2} px={1}>
+        <InputLeftElement pointerEvents="none">
+          <MdSearch />
+        </InputLeftElement>
+        <Input
+          placeholder="Search by URI..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        {search.length > 0 && (
+          <InputRightElement>
+            <IconButton aria-label="Clear search" title="Clear search" icon={<MdClose />} variant="ghost" onClick={() => setSearch('')} />
+          </InputRightElement>
+        )}
+      </InputGroup>
       <Box borderWidth={1}>
         <Table
           data={data}
