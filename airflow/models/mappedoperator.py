@@ -59,7 +59,7 @@ from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
 from airflow.typing_compat import Literal
 from airflow.utils.context import Context, context_update_for_unmapped
-from airflow.utils.helpers import is_container
+from airflow.utils.helpers import is_container, prevent_duplicates
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
@@ -107,16 +107,6 @@ def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, valu
         names = ", ".join(repr(n) for n in unknown_args)
         error = f"unexpected keyword arguments {names}"
     raise TypeError(f"{op.__name__}.{func}() got {error}")
-
-
-def prevent_duplicates(kwargs1: dict[str, Any], kwargs2: Mapping[str, Any], *, fail_reason: str) -> None:
-    duplicated_keys = set(kwargs1).intersection(kwargs2)
-    if not duplicated_keys:
-        return
-    if len(duplicated_keys) == 1:
-        raise TypeError(f"{fail_reason} argument: {duplicated_keys.pop()}")
-    duplicated_keys_display = ", ".join(sorted(duplicated_keys))
-    raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")
 
 
 def ensure_xcomarg_return_value(arg: Any) -> None:

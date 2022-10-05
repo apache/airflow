@@ -30,6 +30,7 @@ from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.utils.context import Context
 from airflow.utils.edgemodifier import EdgeModifier
+from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import NOTSET, ArgNotSet
 
@@ -43,7 +44,7 @@ if TYPE_CHECKING:
 MapCallables = Sequence[Union[Callable[[Any], Any], str]]
 
 
-class XComArg(DependencyMixin):
+class XComArg(ResolveMixin, DependencyMixin):
     """Reference to an XCom value pushed from another operator.
 
     The implementation supports::

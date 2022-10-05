@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any, ItemsView, MutableMapping, ValuesView
 
 from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
 from airflow.utils.context import Context
+from airflow.utils.mixins import ResolveMixin
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
@@ -216,7 +217,7 @@ class ParamsDict(MutableMapping[str, Any]):
         return resolved_dict
 
 
-class DagParam:
+class DagParam(ResolveMixin):
     """
     Class that represents a DAG run parameter & binds a simple Param object to a name within a DAG instance,
     so that it can be resolved during the run time via ``{{ context }}`` dictionary. The ideal use case of

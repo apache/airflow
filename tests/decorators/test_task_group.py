@@ -18,8 +18,12 @@
 from __future__ import annotations
 
 import pendulum
+import pytest
 
 from airflow.decorators import dag, task_group
+from airflow.decorators.task_group import _MappedArgument
+from airflow.models.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
+from airflow.utils.task_group import MappedTaskGroup
 
 
 def test_task_group_with_overridden_kwargs():
@@ -44,7 +48,7 @@ def test_task_group_with_overridden_kwargs():
         },
     )
 
-    assert tg_with_overridden_kwargs.kwargs == {
+    assert tg_with_overridden_kwargs.tg_kwargs == {
         'group_id': 'custom_group_id',
         'default_args': {
             'params': {
@@ -88,3 +92,98 @@ def test_tooltip_not_overriden_by_function_docstring():
     _ = pipeline()
 
     assert _.task_group_dict["tg"].tooltip == "tooltip for the TaskGroup"
+
+
+def test_partial_evolves_factory():
+    tgp = None
+
+    @task_group()
+    def tg(a, b):
+        pass
+
+    @dag(start_date=pendulum.datetime(2022, 1, 1))
+    def pipeline():
+        nonlocal tgp
+        tgp = tg.partial(a=1)
+
+    d = pipeline()
+
+    assert d.task_group_dict == {}  # Calling partial() without expanding does not create a task group.
+
+    assert type(tgp) == type(tg)
+    assert tgp.partial_kwargs == {"a": 1}  # Partial kwargs are saved.
+
+    # Warn if the partial object goes out of scope without being mapped.
+    with pytest.warns(UserWarning, match=r"Partial task group 'tg' was never mapped!"):
+        del tgp
+
+
+def test_expand_fail_empty():
+    @dag(start_date=pendulum.datetime(2022, 1, 1))
+    def pipeline():
+        @task_group()
+        def tg():
+            pass
+
+        tg.expand()
+
+    with pytest.raises(TypeError) as ctx:
+        pipeline()
+    assert str(ctx.value) == "no arguments to expand against"
+
+
+def test_expand_create_mapped():
+    saved = {}
+
+    @dag(start_date=pendulum.datetime(2022, 1, 1))
+    def pipeline():
+        @task_group()
+        def tg(a, b):
+            saved["a"] = a
+            saved["b"] = b
+
+        tg.partial(a=1).expand(b=["x", "y"])
+
+    d = pipeline()
+
+    tg = d.task_group_dict["tg"]
+    assert isinstance(tg, MappedTaskGroup)
+    assert tg._expand_input == DictOfListsExpandInput({"b": ["x", "y"]})
+
+    assert saved == {"a": 1, "b": _MappedArgument(input=tg._expand_input, key="b")}
+
+
+def test_expand_kwargs_no_wildcard():
+    @dag(start_date=pendulum.datetime(2022, 1, 1))
+    def pipeline():
+        @task_group()
+        def tg(**kwargs):
+            pass
+
+        tg.expand_kwargs([])
+
+    with pytest.raises(TypeError) as ctx:
+        pipeline()
+
+    assert str(ctx.value) == "calling expand_kwargs() on task group function with * or ** is not supported"
+
+
+def test_expand_kwargs_create_mapped():
+    saved = {}
+
+    @dag(start_date=pendulum.datetime(2022, 1, 1))
+    def pipeline():
+        @task_group()
+        def tg(a, b):
+            saved["a"] = a
+            saved["b"] = b
+
+        tg.partial(a=1).expand_kwargs([{"b": "x"}, {"b": None}])
+
+    d = pipeline()
+
+    tg = d.task_group_dict["tg"]
+    assert isinstance(tg, MappedTaskGroup)
+    assert tg._expand_input == ListOfDictsExpandInput([{"b": "x"}, {"b": None}])
+
+    assert saved == {"a": 1, "b": _MappedArgument(input=tg._expand_input, key="b")}
