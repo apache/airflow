@@ -45,6 +45,12 @@ spec:
   schedule: "{{ .Values.cleanup.schedule }}"
   # The cron job does not allow concurrent runs; if it is time for a new job run and the previous job run hasn't finished yet, the cron job skips the new job run
   concurrencyPolicy: Forbid
+  {{- if .Values.cleanup.failedJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.cleanup.failedJobsHistoryLimit }}
+  {{- end }}
+  {{- if .Values.cleanup.successfulJobsHistoryLimit }}
+  successfulJobsHistoryLimit: {{ .Values.cleanup.successfulJobsHistoryLimit }}
+  {{- end }}
   jobTemplate:
     spec:
       backoffLimit: 1
