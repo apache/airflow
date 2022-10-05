@@ -896,7 +896,7 @@ class S3Hook(AwsBaseHook):
             system's temporary directory.
         :param preserve_file_name: If you want the downloaded file name to be with the same name as in S3, set
             this parameter to True. When set to False, a random filename will be generated.
-             Default: False.
+            Default: False.
         :return: the file name.
         :rtype: str
         """
