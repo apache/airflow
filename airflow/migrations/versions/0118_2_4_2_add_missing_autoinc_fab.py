@@ -38,10 +38,19 @@ airflow_version = '2.4.2'
 
 
 def upgrade():
-    """Apply add_missing_autoinc_fab"""
+    """
+    Apply migration.
+    
+    If these columns are already of the right type (i.e. created by our migration in 1.10.13 rather than FAB
+    itself in an earlier version), then this migration will issue an alter statement to change them to what
+    they already -- i.e. its a no-op.
+    
+    These tables are small (100 to low 1k rows at most) so even if it did try to change it it's not costly to
+    do.
+    """
     conn = op.get_bind()
     if conn.dialect.name in ['mssql', 'sqlite']:
-        # 1.10.12 didn't support SQL Server, so it couldn't have gottren this wrong --> nothing to correct
+        # 1.10.12 didn't support SQL Server, so it couldn't have gotten this wrong --> nothing to correct
         # SQLite autoinc was "implicit" for an INTEGER NOT NULL PRIMARY KEY
         return
 
