@@ -196,7 +196,7 @@ const DagRun = ({ runId }: Props) => {
                       />
                     </Td>
                   )
-                  : <td>{conf ?? 'None'}</td>
+                  : <Td>{conf ?? 'None'}</Td>
               }
           </Tr>
         </Tbody>
