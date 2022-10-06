@@ -914,7 +914,7 @@ class TestKubernetesPodOperator:
     @mock.patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
     def test_wait_for_xcom_sidecar_iff_push_xcom(self, mock_await, mock_extract_xcom, do_xcom_push):
         """Assert we wait for xcom sidecar container if and only if we push xcom."""
-        self.hook_mock.return_value.get_xcom_sidecar_container_image.return_value = "alpine"
+        self.hook_mock.return_value.get_xcom_sidecar_container_image.return_value = None
         mock_extract_xcom.return_value = '{}'
         mock_await.return_value = None
         k = KubernetesPodOperator(
