@@ -32,12 +32,13 @@ import {
 } from '@chakra-ui/react';
 import { snakeCase } from 'lodash';
 import type { Row, SortingRule } from 'react-table';
+import { MdClose, MdSearch } from 'react-icons/md';
+import { useSearchParams } from 'react-router-dom';
 
 import { useDatasets } from 'src/api';
 import { Table, TimeCell } from 'src/components/Table';
 import type { API } from 'src/types';
 import { getMetaValue } from 'src/utils';
-import { MdClose, MdSearch } from 'react-icons/md';
 
 interface Props {
   onSelect: (datasetId: string) => void;
@@ -66,10 +67,13 @@ const DetailCell = ({ cell: { row } }: CellProps) => {
   );
 };
 
+const SEARCH_PARAM = 'search';
+
 const DatasetsList = ({ onSelect }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
-  const [search, setSearch] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get(SEARCH_PARAM) || '';
   const [sortBy, setSortBy] = useState<SortingRule<object>[]>([{ id: 'lastDatasetUpdate', desc: true }]);
 
   const sort = sortBy[0];
@@ -111,6 +115,16 @@ const DatasetsList = ({ onSelect }: Props) => {
 
   const docsUrl = getMetaValue('datasets_docs');
 
+  const onSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    searchParams.set(SEARCH_PARAM, encodeURIComponent(e.target.value));
+    setSearchParams(searchParams);
+  };
+
+  const onClear = () => {
+    searchParams.delete(SEARCH_PARAM);
+    setSearchParams(searchParams);
+  };
+
   return (
     <Box>
       <Flex justifyContent="space-between" alignItems="center">
@@ -134,11 +148,11 @@ const DatasetsList = ({ onSelect }: Props) => {
         <Input
           placeholder="Search by URI..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={onSearch}
         />
         {search.length > 0 && (
           <InputRightElement>
-            <IconButton aria-label="Clear search" title="Clear search" icon={<MdClose />} variant="ghost" onClick={() => setSearch('')} />
+            <IconButton aria-label="Clear search" title="Clear search" icon={<MdClose />} variant="ghost" onClick={onClear} />
           </InputRightElement>
         )}
       </InputGroup>
