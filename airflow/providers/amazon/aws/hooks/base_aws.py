@@ -29,7 +29,7 @@ import json
 import logging
 import warnings
 from functools import wraps
-from typing import Any, Callable, Generic, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union
 
 import boto3
 import botocore
@@ -46,12 +46,15 @@ from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
-from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 
 BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[boto3.client, boto3.resource])
+
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection  # Avoid circular imports.
 
 
 class BaseSessionFactory(LoggingMixin):
