@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-from ast import parse
 
 import datetime
 import json
