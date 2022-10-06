@@ -19,6 +19,7 @@
 This module contains a hook (AwsLogsHook) with some very basic
 functionality for interacting with AWS CloudWatch.
 """
+
 from __future__ import annotations
 
 from typing import Generator
