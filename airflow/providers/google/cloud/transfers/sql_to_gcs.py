@@ -54,7 +54,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         to see the maximum allowed file size for a single object.
     :param export_format: Desired format of files to be exported. (json, csv or parquet)
     :param stringify_dict: Whether to dump Dictionary type objects
-        (such as JSON columns) as a string. Applies only to JSON export format.
+        (such as JSON columns) as a string. Applies only to CSV/JSON export format.
     :param field_delimiter: The delimiter to be used for CSV files.
     :param null_marker: The null marker to be used for CSV files.
     :param gzip: Option to compress file for upload (does not apply to schemas).
@@ -189,10 +189,10 @@ class BaseSQLToGCSOperator(BaseOperator):
 
         return file_meta
 
-    def convert_types(self, schema, col_type_dict, row, stringify_dict=False) -> list:
+    def convert_types(self, schema, col_type_dict, row) -> list:
         """Convert values from DBAPI to output-friendly formats."""
         return [
-            self.convert_type(value, col_type_dict.get(name), stringify_dict=stringify_dict)
+            self.convert_type(value, col_type_dict.get(name), stringify_dict=self.stringify_dict)
             for name, value in zip(schema, row)
         ]
 
@@ -247,7 +247,7 @@ class BaseSQLToGCSOperator(BaseOperator):
                 tbl = pa.Table.from_pydict(row_pydic, parquet_schema)
                 parquet_writer.write_table(tbl)
             else:
-                row = self.convert_types(schema, col_type_dict, row, stringify_dict=self.stringify_dict)
+                row = self.convert_types(schema, col_type_dict, row)
                 row_dict = dict(zip(schema, row))
 
                 tmp_file_handle.write(
