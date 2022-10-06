@@ -158,6 +158,30 @@ class TestTableCheckOperator:
         "column_sum_check": {"check_statement": "col_a + col_b < col_c"},
     }
 
+    correct_generate_sql_query_no_partitions = """
+    SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
+    FROM (SELECT CASE WHEN COUNT(*) == 1000 THEN 1 ELSE 0 END AS row_count_check FROM test_table ) AS sq
+    UNION ALL
+    SELECT 'column_sum_check' AS check_name, MIN(column_sum_check) AS check_result
+    FROM (SELECT CASE WHEN col_a + col_b < col_c THEN 1 ELSE 0 END AS column_sum_check FROM test_table ) AS sq
+    """
+
+    correct_generate_sql_query_with_partition = """
+    SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
+    FROM (SELECT CASE WHEN COUNT(*) == 1000 THEN 1 ELSE 0 END AS row_count_check FROM test_table WHERE col_a > 10) AS sq
+    UNION ALL
+    SELECT 'column_sum_check' AS check_name, MIN(column_sum_check) AS check_result
+    FROM (SELECT CASE WHEN col_a + col_b < col_c THEN 1 ELSE 0 END AS column_sum_check FROM test_table WHERE col_a > 10) AS sq
+    """
+
+    correct_generate_sql_query_with_partition_and_where = """
+    SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
+    FROM (SELECT CASE WHEN COUNT(*) == 1000 THEN 1 ELSE 0 END AS row_count_check FROM test_table WHERE col_a > 10 AND id = 100) AS sq
+    UNION ALL
+    SELECT 'column_sum_check' AS check_name, MIN(column_sum_check) AS check_result
+    FROM (SELECT CASE WHEN col_a + col_b < col_c THEN 1 ELSE 0 END AS column_sum_check FROM test_table WHERE col_a > 10) AS sq
+    """
+
     def _construct_operator(self, monkeypatch, checks, records):
         def get_records(*arg):
             return records
@@ -215,6 +239,28 @@ class TestTableCheckOperator:
         operator = self._construct_operator(monkeypatch, self.checks, records)
         with pytest.raises(AirflowException):
             operator.execute(context=MagicMock())
+
+    def test_generate_sql_query_no_partitions(self, monkeypatch):
+        operator = self._construct_operator(monkeypatch, self.checks, ())
+        assert (
+            operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_no_partitions.lstrip()
+        )
+
+    def test_generate_sql_query_with_partitions(self, monkeypatch):
+        operator = self._construct_operator(monkeypatch, self.checks, ())
+        operator.partition_clause = "col_a > 10"
+        assert (
+            operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_with_partition.lstrip()
+        )
+
+    def test_generate_sql_query_with_partitions_and_check_partition(self, monkeypatch):
+        operator = self._construct_operator(monkeypatch, self.checks, ())
+        operator.partition_clause = "col_a > 10"
+        self.checks["row_count_check"]["where"] = "id = 100"
+        assert (
+            operator._generate_sql_query().lstrip()
+            == self.correct_generate_sql_query_with_partition_and_where.lstrip()
+        )
 
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
