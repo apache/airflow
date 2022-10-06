@@ -310,6 +310,26 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[0].image_pull_policy == "Always"
 
+    def test_xcom_sidecar_container_image_default(self):
+        self.hook_mock.return_value.get_xcom_sidecar_container_image.return_value = None
+        k = KubernetesPodOperator(
+            name="test",
+            task_id="task",
+            do_xcom_push=True,
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[1].image == "alpine"
+
+    def test_xcom_sidecar_container_image_custom(self):
+        self.hook_mock.return_value.get_xcom_sidecar_container_image.return_value = "private.repo/alpine:3.13"
+        k = KubernetesPodOperator(
+            name="test",
+            task_id="task",
+            do_xcom_push=True,
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[1].image == "private.repo/alpine:3.13"
+
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")
     @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.find_pod")
     def test_pod_delete_even_on_launcher_error(self, find_pod_mock, delete_pod_mock):
