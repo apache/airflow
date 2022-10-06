@@ -14,10 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import unittest
 import warnings
 from subprocess import CalledProcessError
-from typing import Any, Dict, List, Union
+from typing import Any
 from unittest import mock
 
 import jmespath
@@ -25,7 +27,7 @@ from parameterized import parameterized
 
 from tests.charts.helm_template_generator import render_chart
 
-OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 34
+OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 35
 
 
 class TestBaseChartTest(unittest.TestCase):
@@ -35,8 +37,7 @@ class TestBaseChartTest(unittest.TestCase):
         return values
 
     def _get_object_count(self, version):
-        # TODO remove default from condition after airflow update
-        if version == "2.3.2" or version == "default":
+        if version == "2.3.2":
             return OBJECT_COUNT_IN_BASIC_DEPLOYMENT + 1
         return OBJECT_COUNT_IN_BASIC_DEPLOYMENT
 
@@ -59,8 +60,7 @@ class TestBaseChartTest(unittest.TestCase):
         list_of_kind_names_tuples = {
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         }
-        # TODO remove default from condition after airflow update
-        if version == "2.3.2" or version == "default":
+        if version == "2.3.2":
             assert ('Secret', 'test-basic-airflow-result-backend') in list_of_kind_names_tuples
             list_of_kind_names_tuples.remove(('Secret', 'test-basic-airflow-result-backend'))
         assert list_of_kind_names_tuples == {
@@ -79,6 +79,7 @@ class TestBaseChartTest(unittest.TestCase):
             ('Secret', 'test-basic-postgresql'),
             ('Secret', 'test-basic-redis-password'),
             ('ConfigMap', 'test-basic-airflow-config'),
+            ('ConfigMap', 'test-basic-statsd'),
             ('Role', 'test-basic-pod-launcher-role'),
             ('Role', 'test-basic-pod-log-reader-role'),
             ('RoleBinding', 'test-basic-pod-launcher-rolebinding'),
@@ -135,8 +136,7 @@ class TestBaseChartTest(unittest.TestCase):
         list_of_kind_names_tuples = {
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         }
-        # TODO remove default from condition after airflow update
-        if version == "2.3.2" or version == "default":
+        if version == "2.3.2":
             assert ('Secret', 'test-basic-airflow-result-backend') in list_of_kind_names_tuples
             list_of_kind_names_tuples.remove(('Secret', 'test-basic-airflow-result-backend'))
         assert list_of_kind_names_tuples == {
@@ -156,6 +156,7 @@ class TestBaseChartTest(unittest.TestCase):
             ('Secret', 'test-basic-postgresql'),
             ('Secret', 'test-basic-redis-password'),
             ('ConfigMap', 'test-basic-airflow-config'),
+            ('ConfigMap', 'test-basic-statsd'),
             ('Role', 'test-basic-pod-launcher-role'),
             ('Role', 'test-basic-pod-log-reader-role'),
             ('RoleBinding', 'test-basic-pod-launcher-rolebinding'),
@@ -205,6 +206,23 @@ class TestBaseChartTest(unittest.TestCase):
         ]
         assert ('Job', 'test-basic-create-user') not in list_of_kind_names_tuples
         assert expected_object_count_in_basic_deployment - 2 == len(k8s_objects)
+
+    @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    def test_basic_deployment_without_statsd(self, version):
+        expected_object_count_in_basic_deployment = self._get_object_count(version)
+        k8s_objects = render_chart(
+            "test-basic",
+            values=self._get_values_with_version(values={"statsd": {'enabled': False}}, version=version),
+        )
+        list_of_kind_names_tuples = [
+            (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
+        ]
+        assert ('ServiceAccount', 'test-basic-statsd') not in list_of_kind_names_tuples
+        assert ('ConfigMap', 'test-basic-statsd') not in list_of_kind_names_tuples
+        assert ('Service', 'test-basic-statsd') not in list_of_kind_names_tuples
+        assert ('Deployment', 'test-basic-statsd') not in list_of_kind_names_tuples
+
+        assert expected_object_count_in_basic_deployment - 4 == len(k8s_objects)
 
     def test_network_policies_are_valid(self):
         k8s_objects = render_chart(
@@ -413,7 +431,7 @@ class TestBaseChartTest(unittest.TestCase):
             assert "true" in annotations["test-annotation/safe-to-evict"]
 
     def test_chart_is_consistent_with_official_airflow_image(self):
-        def get_k8s_objs_with_image(obj: Union[List[Any], Dict[str, Any]]) -> List[Dict[str, Any]]:
+        def get_k8s_objs_with_image(obj: list[Any] | dict[str, Any]) -> list[dict[str, Any]]:
             """
             Recursive helper to retrieve all the k8s objects that have an "image" key
             inside k8s obj or list of k8s obj

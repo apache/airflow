@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import sys
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
 
 import click
 
@@ -36,6 +37,7 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_reference_build,
     option_answer,
     option_builder,
+    option_debug_resources,
     option_dev_apt_command,
     option_dev_apt_deps,
     option_docker_cache,
@@ -103,7 +105,7 @@ def ci_image():
 
 
 def check_if_image_building_is_needed(
-    ci_image_params: BuildCiParams, output: Optional[Output], dry_run: bool, verbose: bool
+    ci_image_params: BuildCiParams, output: Output | None, dry_run: bool, verbose: bool
 ) -> bool:
     """Starts building attempt. Returns false if we should not continue"""
     if not ci_image_params.force_build and not ci_image_params.upgrade_to_newer_dependencies:
@@ -117,11 +119,12 @@ def check_if_image_building_is_needed(
 
 
 def run_build_in_parallel(
-    image_params_list: List[BuildCiParams],
-    python_version_list: List[str],
+    image_params_list: list[BuildCiParams],
+    python_version_list: list[str],
     include_success_outputs: bool,
     parallelism: int,
     skip_cleanup: bool,
+    debug_resources: bool,
     dry_run: bool,
     verbose: bool,
 ) -> None:
@@ -129,7 +132,10 @@ def run_build_in_parallel(
     with ci_group(f"Building for {python_version_list}"):
         all_params = [f"CI {image_params.python}" for image_params in image_params_list]
         with run_with_pool(
-            parallelism=parallelism, all_params=all_params, progress_matcher=DockerBuildxProgressMatcher()
+            parallelism=parallelism,
+            all_params=all_params,
+            debug_resources=debug_resources,
+            progress_matcher=DockerBuildxProgressMatcher(),
         ) as (pool, outputs):
             results = [
                 pool.apply_async(
@@ -166,6 +172,7 @@ def start_building(params: BuildCiParams, dry_run: bool, verbose: bool):
 @option_run_in_parallel
 @option_parallelism
 @option_skip_cleanup
+@option_debug_resources
 @option_include_success_outputs
 @option_python_versions
 @option_upgrade_to_newer_dependencies
@@ -199,12 +206,13 @@ def build(
     run_in_parallel: bool,
     parallelism: int,
     skip_cleanup: bool,
+    debug_resources: bool,
     include_success_outputs,
     python_versions: str,
     answer: str,
     **kwargs,
 ):
-    """Build CI image. Include building multiple images for all python versions (sequentially)."""
+    """Build CI image. Include building multiple images for all python versions."""
 
     def run_build(ci_image_params: BuildCiParams) -> None:
         return_code, info = run_build_ci_image(
@@ -223,7 +231,7 @@ def build(
     fix_group_permissions(verbose=verbose)
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
-        params_list: List[BuildCiParams] = []
+        params_list: list[BuildCiParams] = []
         for python in python_version_list:
             params = BuildCiParams(**parameters_passed)
             params.python = python
@@ -236,6 +244,7 @@ def build(
             include_success_outputs=include_success_outputs,
             parallelism=parallelism,
             skip_cleanup=skip_cleanup,
+            debug_resources=debug_resources,
             dry_run=dry_run,
             verbose=verbose,
         )
@@ -253,6 +262,7 @@ def build(
 @option_run_in_parallel
 @option_parallelism
 @option_skip_cleanup
+@option_debug_resources
 @option_include_success_outputs
 @option_python_versions
 @option_github_token
@@ -272,12 +282,13 @@ def pull(
     github_token: str,
     parallelism: int,
     skip_cleanup: bool,
+    debug_resources: bool,
     include_success_outputs: bool,
     image_tag: str,
     wait_for_image: bool,
     tag_as_latest: bool,
     verify: bool,
-    extra_pytest_args: Tuple,
+    extra_pytest_args: tuple,
 ):
     """Pull and optionally verify CI images - possibly in parallel for all Python versions."""
     perform_environment_checks(verbose=verbose)
@@ -296,6 +307,7 @@ def pull(
             dry_run=dry_run,
             parallelism=parallelism,
             skip_cleanup=skip_cleanup,
+            debug_resources=debug_resources,
             include_success_outputs=include_success_outputs,
             image_params_list=ci_image_params_list,
             python_version_list=python_version_list,
@@ -343,9 +355,9 @@ def verify(
     python: str,
     github_repository: str,
     image_name: str,
-    image_tag: Optional[str],
+    image_tag: str | None,
     pull: bool,
-    extra_pytest_args: Tuple,
+    extra_pytest_args: tuple,
 ):
     """Verify CI image."""
     perform_environment_checks(verbose=verbose)
@@ -396,7 +408,7 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
                 return True
             else:
                 get_console().print(
-                    "\n[warning]This might take a lot of time (more than 10 minutes) even if you have"
+                    "\n[warning]This might take a lot of time (more than 10 minutes) even if you have "
                     "a good network connection. We think you should attempt to rebase first.[/]\n"
                 )
                 answer = user_confirm(
@@ -433,8 +445,8 @@ def run_build_ci_image(
     ci_image_params: BuildCiParams,
     verbose: bool,
     dry_run: bool,
-    output: Optional[Output],
-) -> Tuple[int, str]:
+    output: Output | None,
+) -> tuple[int, str]:
     """
     Builds CI image:
 
@@ -545,7 +557,7 @@ def run_build_ci_image(
 
 
 def rebuild_or_pull_ci_image_if_needed(
-    command_params: Union[ShellParams, BuildCiParams], dry_run: bool, verbose: bool
+    command_params: ShellParams | BuildCiParams, dry_run: bool, verbose: bool
 ) -> None:
     """
     Rebuilds CI image if needed and user confirms it.

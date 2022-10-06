@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import collections
 import datetime
@@ -24,7 +24,7 @@ import os
 import shutil
 from datetime import timedelta
 from tempfile import mkdtemp
-from typing import Deque, Generator, Optional
+from typing import Deque, Generator
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -104,6 +104,12 @@ def dagbag():
     return DagBag(read_dags_from_db=True)
 
 
+@pytest.fixture
+def load_examples():
+    with conf_vars({('core', 'load_examples'): 'True'}):
+        yield
+
+
 @pytest.mark.usefixtures("disable_load_example")
 @pytest.mark.need_serialized_dag
 class TestSchedulerJob:
@@ -135,7 +141,7 @@ class TestSchedulerJob:
         self.dagbag: DagBag = dagbag
         # Speed up some tests by not running the tasks, just look at what we
         # enqueue!
-        self.null_exec: Optional[MockExecutor] = MockExecutor()
+        self.null_exec: MockExecutor | None = MockExecutor()
         # Since we don't want to store the code for the DAG defined in this file
         with patch('airflow.dag_processing.manager.SerializedDagModel.remove_deleted_dags'), patch(
             'airflow.models.dag.DagCode.bulk_sync_to_db'
@@ -1500,7 +1506,7 @@ class TestSchedulerJob:
         ti2 = dr2.get_task_instance(task_id=op1.task_id, session=session)
         assert ti2.state == State.QUEUED, "Tasks run by Backfill Jobs should not be reset"
 
-    @mock.patch('airflow.jobs.scheduler_job.DagFileProcessorAgent')
+    @mock.patch('airflow.dag_processing.manager.DagFileProcessorAgent')
     def test_executor_end_called(self, mock_processor_agent):
         """
         Test to make sure executor.end gets called with a successful scheduler loop run
@@ -1513,7 +1519,7 @@ class TestSchedulerJob:
         self.scheduler_job.executor.end.assert_called_once()
         self.scheduler_job.processor_agent.end.assert_called_once()
 
-    @mock.patch('airflow.jobs.scheduler_job.DagFileProcessorAgent')
+    @mock.patch('airflow.dag_processing.manager.DagFileProcessorAgent')
     def test_cleanup_methods_all_called(self, mock_processor_agent):
         """
         Test to make sure all cleanup methods are called when the scheduler loop has an exception
@@ -2766,6 +2772,7 @@ class TestSchedulerJob:
         ignored_files = {
             'no_dags.py',
             'test_invalid_cron.py',
+            'test_invalid_dup_task.py',
             'test_ignore_this.py',
             'test_invalid_param.py',
             'test_nested_dag.py',
@@ -4013,7 +4020,7 @@ class TestSchedulerJob:
 
             self.scheduler_job.executor.callback_sink.send.assert_not_called()
 
-    def test_find_zombies(self):
+    def test_find_zombies(self, load_examples):
         dagbag = DagBag(TEST_DAG_FOLDER, read_dags_from_db=False)
         with create_session() as session:
             session.query(LocalTaskJob).delete()
@@ -4071,7 +4078,7 @@ class TestSchedulerJob:
             session.query(TaskInstance).delete()
             session.query(LocalTaskJob).delete()
 
-    def test_zombie_message(self):
+    def test_zombie_message(self, load_examples):
         """
         Check that the zombie message comes out as expected
         """
@@ -4438,6 +4445,49 @@ class TestSchedulerJob:
             .scalar()
         ) > (timezone.utcnow() - timedelta(days=2))
 
+    def test_update_dagrun_state_for_paused_dag_not_for_backfill(self, dag_maker, session):
+        """Test that the _update_dagrun_state_for_paused_dag does not affect backfilled dagruns"""
+
+        with dag_maker('testdag') as dag:
+            EmptyOperator(task_id='task1')
+
+        # Backfill run
+        backfill_run = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
+        ti = backfill_run.get_task_instances()[0]
+        ti.set_state(TaskInstanceState.SUCCESS)
+        dm = DagModel.get_dagmodel(dag.dag_id)
+        dm.is_paused = True
+        session.merge(dm)
+        session.merge(ti)
+        session.flush()
+
+        # scheduled run
+        scheduled_run = dag_maker.create_dagrun(
+            execution_date=datetime.datetime(2022, 1, 1), run_type=DagRunType.SCHEDULED
+        )
+        ti = scheduled_run.get_task_instances()[0]
+        ti.set_state(TaskInstanceState.SUCCESS)
+        dm = DagModel.get_dagmodel(dag.dag_id)
+        dm.is_paused = True
+        session.merge(dm)
+        session.merge(ti)
+        session.flush()
+
+        assert dag.dag_id in DagModel.get_all_paused_dag_ids()
+        assert backfill_run.state == State.RUNNING
+        assert scheduled_run.state == State.RUNNING
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.executor = MockExecutor()
+        self.scheduler_job._update_dag_run_state_for_paused_dags()
+        session.flush()
+
+        (backfill_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.BACKFILL_JOB, session=session)
+        assert backfill_run.state == State.RUNNING
+
+        (scheduled_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.SCHEDULED, session=session)
+        assert scheduled_run.state == State.SUCCESS
+
 
 @pytest.mark.need_serialized_dag
 def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
@@ -4484,7 +4534,7 @@ class TestSchedulerJobQueriesCount:
     made that affects the performance of the SchedulerJob.
     """
 
-    scheduler_job: Optional[SchedulerJob]
+    scheduler_job: SchedulerJob | None
 
     @staticmethod
     def clean_db():

@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import timedelta
 from unittest import mock
 
@@ -23,8 +25,8 @@ from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.datasets import Dataset
-from airflow.models import DAG, DagModel, DagRun, DatasetModel
-from airflow.models.dataset import DatasetEvent
+from airflow.models import DAG, DagModel, DagRun
+from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone

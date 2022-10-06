@@ -15,7 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Run ephemeral Docker Swarm services"""
-from typing import TYPE_CHECKING, List, Optional, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from docker import types
 
@@ -95,11 +97,11 @@ class DockerSwarmOperator(DockerOperator):
         *,
         image: str,
         enable_logging: bool = True,
-        configs: Optional[List[types.ConfigReference]] = None,
-        secrets: Optional[List[types.SecretReference]] = None,
-        mode: Optional[types.ServiceMode] = None,
-        networks: Optional[List[Union[str, types.NetworkAttachmentConfig]]] = None,
-        placement: Optional[Union[types.Placement, List[types.Placement]]] = None,
+        configs: list[types.ConfigReference] | None = None,
+        secrets: list[types.SecretReference] | None = None,
+        mode: types.ServiceMode | None = None,
+        networks: list[str | types.NetworkAttachmentConfig] | None = None,
+        placement: types.Placement | list[types.Placement] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(image=image, **kwargs)
@@ -112,7 +114,7 @@ class DockerSwarmOperator(DockerOperator):
         self.networks = networks
         self.placement = placement
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         self.cli = self._get_cli()
 
         self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
@@ -170,7 +172,7 @@ class DockerSwarmOperator(DockerOperator):
                 raise Exception("The 'service' should be initialized before!")
             self.cli.remove_service(self.service['ID'])
 
-    def _service_status(self) -> Optional[str]:
+    def _service_status(self) -> str | None:
         if not self.cli:
             raise Exception("The 'cli' should be initialized before!")
         if not self.service:

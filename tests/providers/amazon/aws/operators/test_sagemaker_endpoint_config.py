@@ -15,18 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
-from typing import Dict, List
 from unittest import mock
 
 import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerEndpointConfigOperator
 
-CREATE_ENDPOINT_CONFIG_PARAMS: Dict = {
+CREATE_ENDPOINT_CONFIG_PARAMS: dict = {
     'EndpointConfigName': 'config_name',
     'ProductionVariants': [
         {
@@ -38,7 +39,7 @@ CREATE_ENDPOINT_CONFIG_PARAMS: Dict = {
     ],
 }
 
-EXPECTED_INTEGER_FIELDS: List[List[str]] = [['ProductionVariants', 'InitialInstanceCount']]
+EXPECTED_INTEGER_FIELDS: list[list[str]] = [['ProductionVariants', 'InitialInstanceCount']]
 
 
 class TestSageMakerEndpointConfigOperator(unittest.TestCase):
@@ -50,7 +51,8 @@ class TestSageMakerEndpointConfigOperator(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_endpoint_config')
-    def test_integer_fields(self, mock_model, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_integer_fields(self, serialize, mock_model, mock_client):
         mock_model.return_value = {
             'EndpointConfigArn': 'test_arn',
             'ResponseMetadata': {'HTTPStatusCode': 200},
@@ -62,7 +64,8 @@ class TestSageMakerEndpointConfigOperator(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_endpoint_config')
-    def test_execute(self, mock_model, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_execute(self, serialize, mock_model, mock_client):
         mock_model.return_value = {
             'EndpointConfigArn': 'test_arn',
             'ResponseMetadata': {'HTTPStatusCode': 200},

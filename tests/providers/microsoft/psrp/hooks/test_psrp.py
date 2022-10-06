@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 from logging import DEBUG, ERROR, INFO, WARNING
 from unittest import TestCase

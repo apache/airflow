@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import platform
 import shutil
 import subprocess
 import sys
-from typing import Optional
 
 from click import Context
 
@@ -202,7 +203,7 @@ def check_for_rosetta_environment():
 @option_answer
 @option_dry_run
 @option_github_repository
-def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, answer: Optional[str]):
+def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, answer: str | None):
     if all:
         get_console().print(
             "\n[info]Removing cache of parameters, clean up docker cache "

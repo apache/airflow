@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for Google Cloud Storage to SFTP transfer operators.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime

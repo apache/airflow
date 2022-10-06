@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import logging
 import os
@@ -23,7 +25,6 @@ import sys
 import textwrap
 import unittest
 from copy import copy
-from typing import Optional
 from unittest import mock
 from unittest.mock import ANY, MagicMock
 
@@ -135,7 +136,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             },
         }
 
-    def _get_labels_selector(self) -> Optional[str]:
+    def _get_labels_selector(self) -> str | None:
         if not self.labels:
             return None
         return ",".join([f'{key}={value}' for key, value in enumerate(self.labels)])
@@ -482,11 +483,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             assert self.expected_pod == actual_pod
 
     def test_run_as_user_root(self):
-        security_context = {
-            'securityContext': {
-                'runAsUser': 0,
-            }
-        }
+        security_context = {'runAsUser': 0}
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",
@@ -507,11 +504,8 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
     def test_run_as_user_non_root(self):
         security_context = {
-            'securityContext': {
-                'runAsUser': 1000,
-            }
+            'runAsUser': 1000,
         }
-
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",
@@ -530,11 +524,30 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         self.expected_pod['spec']['securityContext'] = security_context
         assert self.expected_pod == actual_pod
 
+    def test_disable_privilege_escalation(self):
+        container_security_context = {'allowPrivilegeEscalation': False}
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels=self.labels,
+            name="test-" + str(random.randint(0, 1000000)),
+            task_id="task" + self.get_current_task_name(),
+            in_cluster=False,
+            do_xcom_push=False,
+            container_security_context=container_security_context,
+        )
+        context = create_context(k)
+        k.execute(context)
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod['spec']['containers'][0]['securityContext'] = container_security_context
+        assert self.expected_pod == actual_pod
+
     def test_fs_group(self):
         security_context = {
-            'securityContext': {
-                'fsGroup': 1000,
-            }
+            'fsGroup': 1000,
         }
 
         k = KubernetesPodOperator(

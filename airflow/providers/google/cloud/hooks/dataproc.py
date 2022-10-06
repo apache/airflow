@@ -15,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains a Google Cloud Dataproc hook."""
+from __future__ import annotations
 
 import time
 import uuid
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import ServerError
@@ -61,7 +61,7 @@ class DataProcJobBuilder:
         task_id: str,
         cluster_name: str,
         job_type: str,
-        properties: Optional[Dict[str, str]] = None,
+        properties: dict[str, str] | None = None,
     ) -> None:
         name = f"{task_id.replace('.', '_')}_{uuid.uuid4()!s:.8}"
         self.job_type = job_type
@@ -76,7 +76,7 @@ class DataProcJobBuilder:
         if properties is not None:
             self.job["job"][job_type]["properties"] = properties
 
-    def add_labels(self, labels: Optional[dict] = None) -> None:
+    def add_labels(self, labels: dict | None = None) -> None:
         """
         Set labels for Dataproc job.
 
@@ -85,7 +85,7 @@ class DataProcJobBuilder:
         if labels:
             self.job["job"]["labels"].update(labels)
 
-    def add_variables(self, variables: Optional[Dict] = None) -> None:
+    def add_variables(self, variables: dict | None = None) -> None:
         """
         Set variables for Dataproc job.
 
@@ -94,7 +94,7 @@ class DataProcJobBuilder:
         if variables is not None:
             self.job["job"][self.job_type]["script_variables"] = variables
 
-    def add_args(self, args: Optional[List[str]] = None) -> None:
+    def add_args(self, args: list[str] | None = None) -> None:
         """
         Set args for Dataproc job.
 
@@ -119,7 +119,7 @@ class DataProcJobBuilder:
         """
         self.job["job"][self.job_type]["query_file_uri"] = query_uri
 
-    def add_jar_file_uris(self, jars: Optional[List[str]] = None) -> None:
+    def add_jar_file_uris(self, jars: list[str] | None = None) -> None:
         """
         Set jars uris for Dataproc job.
 
@@ -128,7 +128,7 @@ class DataProcJobBuilder:
         if jars is not None:
             self.job["job"][self.job_type]["jar_file_uris"] = jars
 
-    def add_archive_uris(self, archives: Optional[List[str]] = None) -> None:
+    def add_archive_uris(self, archives: list[str] | None = None) -> None:
         """
         Set archives uris for Dataproc job.
 
@@ -137,7 +137,7 @@ class DataProcJobBuilder:
         if archives is not None:
             self.job["job"][self.job_type]["archive_uris"] = archives
 
-    def add_file_uris(self, files: Optional[List[str]] = None) -> None:
+    def add_file_uris(self, files: list[str] | None = None) -> None:
         """
         Set file uris for Dataproc job.
 
@@ -146,7 +146,7 @@ class DataProcJobBuilder:
         if files is not None:
             self.job["job"][self.job_type]["file_uris"] = files
 
-    def add_python_file_uris(self, pyfiles: Optional[List[str]] = None) -> None:
+    def add_python_file_uris(self, pyfiles: list[str] | None = None) -> None:
         """
         Set python file uris for Dataproc job.
 
@@ -155,7 +155,7 @@ class DataProcJobBuilder:
         if pyfiles is not None:
             self.job["job"][self.job_type]["python_file_uris"] = pyfiles
 
-    def set_main(self, main_jar: Optional[str] = None, main_class: Optional[str] = None) -> None:
+    def set_main(self, main_jar: str | None = None, main_class: str | None = None) -> None:
         """
         Set Dataproc main class.
 
@@ -187,7 +187,7 @@ class DataProcJobBuilder:
         sanitized_name = f"{name.replace('.', '_')}_{uuid.uuid4()!s:.8}"
         self.job["job"]["reference"]["job_id"] = sanitized_name
 
-    def build(self) -> Dict:
+    def build(self) -> dict:
         """
         Returns Dataproc job.
 
@@ -208,12 +208,12 @@ class DataprocHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(gcp_conn_id, delegate_to, impersonation_chain)
 
-    def get_cluster_client(self, region: Optional[str] = None) -> ClusterControllerClient:
+    def get_cluster_client(self, region: str | None = None) -> ClusterControllerClient:
         """Returns ClusterControllerClient."""
         client_options = None
         if region and region != 'global':
@@ -223,7 +223,7 @@ class DataprocHook(GoogleBaseHook):
             credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
-    def get_template_client(self, region: Optional[str] = None) -> WorkflowTemplateServiceClient:
+    def get_template_client(self, region: str | None = None) -> WorkflowTemplateServiceClient:
         """Returns WorkflowTemplateServiceClient."""
         client_options = None
         if region and region != 'global':
@@ -233,7 +233,7 @@ class DataprocHook(GoogleBaseHook):
             credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
-    def get_job_client(self, region: Optional[str] = None) -> JobControllerClient:
+    def get_job_client(self, region: str | None = None) -> JobControllerClient:
         """Returns JobControllerClient."""
         client_options = None
         if region and region != 'global':
@@ -243,7 +243,7 @@ class DataprocHook(GoogleBaseHook):
             credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
-    def get_batch_client(self, region: Optional[str] = None) -> BatchControllerClient:
+    def get_batch_client(self, region: str | None = None) -> BatchControllerClient:
         """Returns BatchControllerClient"""
         client_options = None
         if region and region != 'global':
@@ -253,7 +253,7 @@ class DataprocHook(GoogleBaseHook):
             credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
-    def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):
+    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
         """Waits for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
@@ -267,13 +267,13 @@ class DataprocHook(GoogleBaseHook):
         region: str,
         project_id: str,
         cluster_name: str,
-        cluster_config: Union[Dict, Cluster, None] = None,
-        virtual_cluster_config: Optional[Dict] = None,
-        labels: Optional[Dict[str, str]] = None,
-        request_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        cluster_config: dict | Cluster | None = None,
+        virtual_cluster_config: dict | None = None,
+        labels: dict[str, str] | None = None,
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Creates a cluster in a project.
@@ -334,11 +334,11 @@ class DataprocHook(GoogleBaseHook):
         region: str,
         cluster_name: str,
         project_id: str,
-        cluster_uuid: Optional[str] = None,
-        request_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        cluster_uuid: str | None = None,
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Deletes a cluster in a project.
@@ -378,9 +378,9 @@ class DataprocHook(GoogleBaseHook):
         region: str,
         cluster_name: str,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Gets cluster diagnostic information. After the operation completes GCS uri to
@@ -412,9 +412,9 @@ class DataprocHook(GoogleBaseHook):
         region: str,
         cluster_name: str,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Gets the resource representation for a cluster in a project.
@@ -443,10 +443,10 @@ class DataprocHook(GoogleBaseHook):
         region: str,
         filter_: str,
         project_id: str,
-        page_size: Optional[int] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        page_size: int | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Lists all regions/{region}/clusters in a project.
@@ -476,15 +476,15 @@ class DataprocHook(GoogleBaseHook):
     def update_cluster(
         self,
         cluster_name: str,
-        cluster: Union[Dict, Cluster],
-        update_mask: Union[Dict, FieldMask],
+        cluster: dict | Cluster,
+        update_mask: dict | FieldMask,
         project_id: str,
         region: str,
-        graceful_decommission_timeout: Optional[Union[Dict, Duration]] = None,
-        request_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        graceful_decommission_timeout: dict | Duration | None = None,
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Updates a cluster in a project.
@@ -556,12 +556,12 @@ class DataprocHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def create_workflow_template(
         self,
-        template: Union[Dict, WorkflowTemplate],
+        template: dict | WorkflowTemplate,
         project_id: str,
         region: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> WorkflowTemplate:
         """
         Creates new workflow template.
@@ -591,12 +591,12 @@ class DataprocHook(GoogleBaseHook):
         template_name: str,
         project_id: str,
         region: str,
-        version: Optional[int] = None,
-        request_id: Optional[str] = None,
-        parameters: Optional[Dict[str, str]] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        version: int | None = None,
+        request_id: str | None = None,
+        parameters: dict[str, str] | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Instantiates a template and begins execution.
@@ -636,13 +636,13 @@ class DataprocHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def instantiate_inline_workflow_template(
         self,
-        template: Union[Dict, WorkflowTemplate],
+        template: dict | WorkflowTemplate,
         project_id: str,
         region: str,
-        request_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Instantiates a template and begins execution.
@@ -680,7 +680,7 @@ class DataprocHook(GoogleBaseHook):
         project_id: str,
         region: str,
         wait_time: int = 10,
-        timeout: Optional[int] = None,
+        timeout: int | None = None,
     ) -> None:
         """
         Helper method which polls a job to check if it finishes.
@@ -716,9 +716,9 @@ class DataprocHook(GoogleBaseHook):
         job_id: str,
         project_id: str,
         region: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Job:
         """
         Gets the resource representation for a job in a project.
@@ -746,13 +746,13 @@ class DataprocHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def submit_job(
         self,
-        job: Union[dict, Job],
+        job: dict | Job,
         project_id: str,
         region: str,
-        request_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Job:
         """
         Submits a job to a cluster.
@@ -785,10 +785,10 @@ class DataprocHook(GoogleBaseHook):
         self,
         job_id: str,
         project_id: str,
-        region: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        region: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Job:
         """
         Starts a job cancellation request.
@@ -817,12 +817,12 @@ class DataprocHook(GoogleBaseHook):
         self,
         region: str,
         project_id: str,
-        batch: Union[Dict, Batch],
-        batch_id: Optional[str] = None,
-        request_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        batch: dict | Batch,
+        batch_id: str | None = None,
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
         Creates a batch workload.
@@ -864,9 +864,9 @@ class DataprocHook(GoogleBaseHook):
         batch_id: str,
         region: str,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Deletes the batch workload resource.
@@ -900,9 +900,9 @@ class DataprocHook(GoogleBaseHook):
         batch_id: str,
         region: str,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Batch:
         """
         Gets the batch workload resource representation.
@@ -936,11 +936,11 @@ class DataprocHook(GoogleBaseHook):
         self,
         region: str,
         project_id: str,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        page_size: int | None = None,
+        page_token: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Lists batch workloads.
@@ -984,12 +984,12 @@ class DataprocAsyncHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(gcp_conn_id, delegate_to, impersonation_chain)
 
-    def get_cluster_client(self, region: Optional[str] = None) -> ClusterControllerAsyncClient:
+    def get_cluster_client(self, region: str | None = None) -> ClusterControllerAsyncClient:
         """Returns ClusterControllerAsyncClient."""
         client_options = None
         if region and region != 'global':
@@ -999,7 +999,7 @@ class DataprocAsyncHook(GoogleBaseHook):
             credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
-    def get_template_client(self, region: Optional[str] = None) -> WorkflowTemplateServiceAsyncClient:
+    def get_template_client(self, region: str | None = None) -> WorkflowTemplateServiceAsyncClient:
         """Returns WorkflowTemplateServiceAsyncClient."""
         client_options = None
         if region and region != 'global':
@@ -1009,7 +1009,7 @@ class DataprocAsyncHook(GoogleBaseHook):
             credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
-    def get_job_client(self, region: Optional[str] = None) -> JobControllerAsyncClient:
+    def get_job_client(self, region: str | None = None) -> JobControllerAsyncClient:
         """Returns JobControllerAsyncClient."""
         client_options = None
         if region and region != 'global':
@@ -1021,7 +1021,7 @@ class DataprocAsyncHook(GoogleBaseHook):
             client_options=client_options,
         )
 
-    def get_batch_client(self, region: Optional[str] = None) -> BatchControllerAsyncClient:
+    def get_batch_client(self, region: str | None = None) -> BatchControllerAsyncClient:
         """Returns BatchControllerAsyncClient"""
         client_options = None
         if region and region != 'global':
@@ -1037,13 +1037,13 @@ class DataprocAsyncHook(GoogleBaseHook):
         region: str,
         project_id: str,
         cluster_name: str,
-        cluster_config: Union[Dict, Cluster, None] = None,
-        virtual_cluster_config: Optional[Dict] = None,
-        labels: Optional[Dict[str, str]] = None,
-        request_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        cluster_config: dict | Cluster | None = None,
+        virtual_cluster_config: dict | None = None,
+        labels: dict[str, str] | None = None,
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Creates a cluster in a project.
@@ -1104,11 +1104,11 @@ class DataprocAsyncHook(GoogleBaseHook):
         region: str,
         cluster_name: str,
         project_id: str,
-        cluster_uuid: Optional[str] = None,
-        request_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        cluster_uuid: str | None = None,
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Deletes a cluster in a project.
@@ -1148,9 +1148,9 @@ class DataprocAsyncHook(GoogleBaseHook):
         region: str,
         cluster_name: str,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Gets cluster diagnostic information. After the operation completes GCS uri to
@@ -1182,9 +1182,9 @@ class DataprocAsyncHook(GoogleBaseHook):
         region: str,
         cluster_name: str,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Gets the resource representation for a cluster in a project.
@@ -1213,10 +1213,10 @@ class DataprocAsyncHook(GoogleBaseHook):
         region: str,
         filter_: str,
         project_id: str,
-        page_size: Optional[int] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        page_size: int | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Lists all regions/{region}/clusters in a project.
@@ -1246,15 +1246,15 @@ class DataprocAsyncHook(GoogleBaseHook):
     async def update_cluster(
         self,
         cluster_name: str,
-        cluster: Union[Dict, Cluster],
-        update_mask: Union[Dict, FieldMask],
+        cluster: dict | Cluster,
+        update_mask: dict | FieldMask,
         project_id: str,
         region: str,
-        graceful_decommission_timeout: Optional[Union[Dict, Duration]] = None,
-        request_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        graceful_decommission_timeout: dict | Duration | None = None,
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Updates a cluster in a project.
@@ -1326,12 +1326,12 @@ class DataprocAsyncHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     async def create_workflow_template(
         self,
-        template: Union[Dict, WorkflowTemplate],
+        template: dict | WorkflowTemplate,
         project_id: str,
         region: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> WorkflowTemplate:
         """
         Creates new workflow template.
@@ -1361,12 +1361,12 @@ class DataprocAsyncHook(GoogleBaseHook):
         template_name: str,
         project_id: str,
         region: str,
-        version: Optional[int] = None,
-        request_id: Optional[str] = None,
-        parameters: Optional[Dict[str, str]] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        version: int | None = None,
+        request_id: str | None = None,
+        parameters: dict[str, str] | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Instantiates a template and begins execution.
@@ -1406,13 +1406,13 @@ class DataprocAsyncHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     async def instantiate_inline_workflow_template(
         self,
-        template: Union[Dict, WorkflowTemplate],
+        template: dict | WorkflowTemplate,
         project_id: str,
         region: str,
-        request_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Instantiates a template and begins execution.
@@ -1449,9 +1449,9 @@ class DataprocAsyncHook(GoogleBaseHook):
         job_id: str,
         project_id: str,
         region: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Job:
         """
         Gets the resource representation for a job in a project.
@@ -1479,13 +1479,13 @@ class DataprocAsyncHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     async def submit_job(
         self,
-        job: Union[dict, Job],
+        job: dict | Job,
         project_id: str,
         region: str,
-        request_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Job:
         """
         Submits a job to a cluster.
@@ -1518,10 +1518,10 @@ class DataprocAsyncHook(GoogleBaseHook):
         self,
         job_id: str,
         project_id: str,
-        region: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        region: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Job:
         """
         Starts a job cancellation request.
@@ -1550,12 +1550,12 @@ class DataprocAsyncHook(GoogleBaseHook):
         self,
         region: str,
         project_id: str,
-        batch: Union[Dict, Batch],
-        batch_id: Optional[str] = None,
-        request_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        batch: dict | Batch,
+        batch_id: str | None = None,
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
         """
         Creates a batch workload.
@@ -1597,9 +1597,9 @@ class DataprocAsyncHook(GoogleBaseHook):
         batch_id: str,
         region: str,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Deletes the batch workload resource.
@@ -1633,9 +1633,9 @@ class DataprocAsyncHook(GoogleBaseHook):
         batch_id: str,
         region: str,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Batch:
         """
         Gets the batch workload resource representation.
@@ -1669,11 +1669,11 @@ class DataprocAsyncHook(GoogleBaseHook):
         self,
         region: str,
         project_id: str,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        page_size: int | None = None,
+        page_token: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Lists batch workloads.

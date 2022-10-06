@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import logging
-from typing import Dict, Iterator, List, Optional, Tuple
+from typing import Iterator
 
 from sqlalchemy.orm.session import Session
 
@@ -26,14 +27,15 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.utils.helpers import render_log_filename
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.state import State
 
 
 class TaskLogReader:
     """Task log reader"""
 
     def read_log_chunks(
-        self, ti: TaskInstance, try_number: Optional[int], metadata
-    ) -> Tuple[List[Tuple[Tuple[str, str]]], Dict[str, str]]:
+        self, ti: TaskInstance, try_number: int | None, metadata
+    ) -> tuple[list[tuple[tuple[str, str]]], dict[str, str]]:
         """
         Reads chunks of Task Instance logs.
 
@@ -58,7 +60,7 @@ class TaskLogReader:
         metadata = metadatas[0]
         return logs, metadata
 
-    def read_log_stream(self, ti: TaskInstance, try_number: Optional[int], metadata: dict) -> Iterator[str]:
+    def read_log_stream(self, ti: TaskInstance, try_number: int | None, metadata: dict) -> Iterator[str]:
         """
         Used to continuously read log to the end
 
@@ -76,7 +78,10 @@ class TaskLogReader:
             metadata.pop('end_of_log', None)
             metadata.pop('max_offset', None)
             metadata.pop('offset', None)
-            while 'end_of_log' not in metadata or not metadata['end_of_log']:
+            metadata.pop('log_pos', None)
+            while 'end_of_log' not in metadata or (
+                not metadata['end_of_log'] and ti.state not in State.running
+            ):
                 logs, metadata = self.read_log_chunks(ti, current_try_number, metadata)
                 for host, log in logs[0]:
                     yield "\n".join([host or '', log]) + "\n"
@@ -106,7 +111,7 @@ class TaskLogReader:
     def render_log_filename(
         self,
         ti: TaskInstance,
-        try_number: Optional[int] = None,
+        try_number: int | None = None,
         *,
         session: Session = NEW_SESSION,
     ):

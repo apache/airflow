@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from __future__ import annotations
 
 # [START tutorial]
 # [START import_module]
@@ -100,7 +100,7 @@ def tutorial_taskflow_api():
 
 
 # [START dag_invocation]
-tutorial_dag = tutorial_taskflow_api()
+tutorial_taskflow_api()
 # [END dag_invocation]
 
 # [END tutorial]

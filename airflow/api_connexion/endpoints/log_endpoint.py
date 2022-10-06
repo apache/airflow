@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from flask import Response, request
 from itsdangerous.exc import BadSignature
@@ -49,7 +51,7 @@ def get_log(
     task_try_number: int,
     full_content: bool = False,
     map_index: int = -1,
-    token: Optional[str] = None,
+    token: str | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get logs for specific task instance"""

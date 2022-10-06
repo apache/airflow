@@ -14,8 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import unittest
@@ -326,22 +328,28 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
     )
     def test_disable_logging(self, mock_default, mock_info, mock_file):
         # assert not logs
-        with pytest.raises(AssertionError), self.assertLogs(level="DEBUG"):
+        with self.assertLogs(level="DEBUG") as logs:
+            logging.debug('nothing')
             get_credentials_and_project_id(disable_logging=True)
+        assert logs.output == ['DEBUG:root:nothing']
 
-        # assert not logs
-        with pytest.raises(AssertionError), self.assertLogs(level="DEBUG"):
+        # assert no debug logs emitted from get_credentials_and_project_id
+        with self.assertLogs(level="DEBUG") as logs:
+            logging.debug('nothing')
             get_credentials_and_project_id(
                 keyfile_dict={'private_key': 'PRIVATE_KEY'},
                 disable_logging=True,
             )
+        assert logs.output == ['DEBUG:root:nothing']
 
-        # assert not logs
-        with pytest.raises(AssertionError), self.assertLogs(level="DEBUG"):
+        # assert no debug logs emitted from get_credentials_and_project_id
+        with self.assertLogs(level="DEBUG") as logs:
+            logging.debug('nothing')
             get_credentials_and_project_id(
                 key_path='KEY.json',
                 disable_logging=True,
             )
+        assert logs.output == ['DEBUG:root:nothing']
 
 
 class TestGetScopes(unittest.TestCase):

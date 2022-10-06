@@ -15,12 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 ### Tutorial Documentation
 Documentation that goes along with the Airflow tutorial located
 [here](https://airflow.apache.org/tutorial.html)
 """
+from __future__ import annotations
+
 # [START tutorial]
 # [START import_module]
 from datetime import datetime, timedelta
@@ -97,7 +98,7 @@ with DAG(
     """
     )
 
-    dag.doc_md = __doc__  # providing that you have a docstring at the beginning of the DAG
+    dag.doc_md = __doc__  # providing that you have a docstring at the beginning of the DAG; OR
     dag.doc_md = """
     This is a documentation placed anywhere
     """  # otherwise, type it like this

@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 
@@ -231,6 +232,20 @@ class CleanupPodsTest(unittest.TestCase):
         assert resources == jmespath.search(
             "spec.jobTemplate.spec.template.spec.containers[0].resources", docs[0]
         )
+
+    def test_should_set_job_history_limits(self):
+        docs = render_chart(
+            values={
+                "cleanup": {
+                    "enabled": True,
+                    "failedJobsHistoryLimit": 2,
+                    "successfulJobsHistoryLimit": 4,
+                },
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+        assert 2 == jmespath.search("spec.failedJobsHistoryLimit", docs[0])
+        assert 4 == jmespath.search("spec.successfulJobsHistoryLimit", docs[0])
 
 
 class CleanupServiceAccountTest(unittest.TestCase):

@@ -15,9 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from abc import ABC
 from datetime import timedelta
-from typing import Callable, List
+from typing import Callable
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowClusterPolicyViolation
@@ -40,7 +42,7 @@ def task_must_have_owners(task: BaseOperator):
 
 
 # [START example_list_of_cluster_policy_rules]
-TASK_RULES: List[Callable[[BaseOperator], None]] = [
+TASK_RULES: list[Callable[[BaseOperator], None]] = [
     task_must_have_owners,
 ]
 

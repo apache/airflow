@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that creates, gets, updates and deletes Products and Product Sets in the Google Cloud
 Vision service.
@@ -30,6 +29,7 @@ This DAG relies on the following OS environment variables
 * GCP_VISION_ANNOTATE_IMAGE_URL - A link to the bucket that contains the file to be annotated.
 
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime

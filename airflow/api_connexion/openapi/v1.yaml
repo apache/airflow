@@ -1412,6 +1412,23 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
       operationId: get_xcom_entry
       tags: [XCom]
+      parameters:
+        - in: query
+          name: deserialize
+          schema:
+            type: boolean
+            default: false
+          required: false
+          description: |
+            Whether to deserialize an XCom value when using a custom XCom backend.
+
+            The XCom API endpoint calls `orm_deserialize_value` by default since an XCom may contain value
+            that is potentially expensive to deserialize in the web server. Setting this to true overrides
+            the consideration, and calls `deserialize_value` instead.
+
+            This parameter is not meaningful when using the default XCom backend.
+
+            *New in version 2.4.0*
       responses:
         '200':
           description: Success.
@@ -2912,6 +2929,58 @@ components:
         notification_sent:
           type: boolean
 
+    Trigger:
+      type: object
+      properties:
+        id:
+          type: integer
+        classpath:
+          type: string
+        kwargs:
+          type: string
+        created_date:
+          type: string
+          format: datetime
+        triggerer_id:
+          type: integer
+          nullable: true
+
+    Job:
+      type: object
+      properties:
+        id:
+          type: integer
+        dag_id:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        job_type:
+          type: string
+          nullable: true
+        start_date:
+          type: string
+          format: datetime
+          nullable: true
+        end_date:
+          type: string
+          format: datetime
+          nullable: true
+        latest_heartbeat:
+          type: string
+          format: datetime
+          nullable: true
+        executor_class:
+          type: string
+          nullable: true
+        hostname:
+          type: string
+          nullable: true
+        unixname:
+          type: string
+          nullable: true
+
     TaskInstance:
       type: object
       properties:
@@ -2984,6 +3053,12 @@ components:
 
             *New in version 2.3.0*
           type: object
+        trigger:
+          $ref: '#/components/schemas/Trigger'
+          nullable: true
+        triggerer_job:
+          $ref: '#/components/schemas/Job'
+          nullable: true
 
     TaskInstanceCollection:
       type: object
@@ -4207,6 +4282,7 @@ components:
         *Changed in version 2.2.0*&#58; 'deferred' is added as a possible value.
 
         *Changed in version 2.4.0*&#58; 'sensing' state has been removed.
+        *Changed in version 2.4.2*&#58; 'restarting' is added as a possible value
       type: string
       enum:
         - success
@@ -4221,6 +4297,7 @@ components:
         - scheduled
         - deferred
         - removed
+        - restarting
 
     DagState:
       description: |

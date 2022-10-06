@@ -16,12 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains SFTP hook."""
+from __future__ import annotations
+
 import datetime
 import os
 import stat
 import warnings
 from fnmatch import fnmatch
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable
 
 import paramiko
 
@@ -60,7 +62,7 @@ class SFTPHook(SSHHook):
     hook_name = 'SFTP'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         return {
             "hidden_fields": ['schema'],
             "relabeling": {
@@ -70,12 +72,12 @@ class SFTPHook(SSHHook):
 
     def __init__(
         self,
-        ssh_conn_id: Optional[str] = 'sftp_default',
-        ssh_hook: Optional[SSHHook] = None,
+        ssh_conn_id: str | None = 'sftp_default',
+        ssh_hook: SSHHook | None = None,
         *args,
         **kwargs,
     ) -> None:
-        self.conn: Optional[paramiko.SFTPClient] = None
+        self.conn: paramiko.SFTPClient | None = None
 
         # TODO: remove support for ssh_hook when it is removed from SFTPOperator
         self.ssh_hook = ssh_hook
@@ -128,7 +130,7 @@ class SFTPHook(SSHHook):
             self.conn.close()
             self.conn = None
 
-    def describe_directory(self, path: str) -> Dict[str, Dict[str, Union[str, int, None]]]:
+    def describe_directory(self, path: str) -> dict[str, dict[str, str | int | None]]:
         """
         Returns a dictionary of {filename: {attributes}} for all files
         on the remote system (where the MLSD command is supported).
@@ -147,7 +149,7 @@ class SFTPHook(SSHHook):
             }
         return files
 
-    def list_directory(self, path: str) -> List[str]:
+    def list_directory(self, path: str) -> list[str]:
         """
         Returns a list of files on the remote system.
 
@@ -280,7 +282,7 @@ class SFTPHook(SSHHook):
         return True
 
     @staticmethod
-    def _is_path_match(path: str, prefix: Optional[str] = None, delimiter: Optional[str] = None) -> bool:
+    def _is_path_match(path: str, prefix: str | None = None, delimiter: str | None = None) -> bool:
         """
         Return True if given path starts with prefix (if set) and ends with delimiter (if set).
 
@@ -298,9 +300,9 @@ class SFTPHook(SSHHook):
     def walktree(
         self,
         path: str,
-        fcallback: Callable[[str], Optional[Any]],
-        dcallback: Callable[[str], Optional[Any]],
-        ucallback: Callable[[str], Optional[Any]],
+        fcallback: Callable[[str], Any | None],
+        dcallback: Callable[[str], Any | None],
+        ucallback: Callable[[str], Any | None],
         recurse: bool = True,
     ) -> None:
         """
@@ -341,8 +343,8 @@ class SFTPHook(SSHHook):
                 ucallback(pathname)
 
     def get_tree_map(
-        self, path: str, prefix: Optional[str] = None, delimiter: Optional[str] = None
-    ) -> Tuple[List[str], List[str], List[str]]:
+        self, path: str, prefix: str | None = None, delimiter: str | None = None
+    ) -> tuple[list[str], list[str], list[str]]:
         """
         Return tuple with recursive lists of files, directories and unknown paths from given path.
         It is possible to filter results by giving prefix and/or delimiter parameters.
@@ -353,11 +355,11 @@ class SFTPHook(SSHHook):
         :return: tuple with list of files, dirs and unknown items
         :rtype: Tuple[List[str], List[str], List[str]]
         """
-        files: List[str] = []
-        dirs: List[str] = []
-        unknowns: List[str] = []
+        files: list[str] = []
+        dirs: list[str] = []
+        unknowns: list[str] = []
 
-        def append_matching_path_callback(list_: List[str]) -> Callable:
+        def append_matching_path_callback(list_: list[str]) -> Callable:
             return lambda item: list_.append(item) if self._is_path_match(item, prefix, delimiter) else None
 
         self.walktree(
@@ -370,7 +372,7 @@ class SFTPHook(SSHHook):
 
         return files, dirs, unknowns
 
-    def test_connection(self) -> Tuple[bool, str]:
+    def test_connection(self) -> tuple[bool, str]:
         """Test the SFTP connection by calling path with directory"""
         try:
             conn = self.get_conn()

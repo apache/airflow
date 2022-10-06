@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List, NamedTuple
+from __future__ import annotations
+
+from typing import NamedTuple
 
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
@@ -39,7 +41,7 @@ class DagWarningSchema(SQLAlchemySchema):
 class DagWarningCollection(NamedTuple):
     """List of dag warnings with metadata"""
 
-    dag_warnings: List[DagWarning]
+    dag_warnings: list[DagWarning]
     total_entries: int
 
 

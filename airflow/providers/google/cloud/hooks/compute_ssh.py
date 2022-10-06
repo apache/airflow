@@ -14,10 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import shlex
 import time
 from io import StringIO
-from typing import Any, Dict, Optional
+from typing import Any
 
 from google.api_core.retry import exponential_sleep_generator
 
@@ -88,7 +90,7 @@ class ComputeEngineSSHHook(SSHHook):
     hook_name = 'Google Cloud SSH'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         return {
             "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
             "relabeling": {},
@@ -97,16 +99,16 @@ class ComputeEngineSSHHook(SSHHook):
     def __init__(
         self,
         gcp_conn_id: str = 'google_cloud_default',
-        instance_name: Optional[str] = None,
-        zone: Optional[str] = None,
-        user: Optional[str] = 'root',
-        project_id: Optional[str] = None,
-        hostname: Optional[str] = None,
+        instance_name: str | None = None,
+        zone: str | None = None,
+        user: str | None = 'root',
+        project_id: str | None = None,
+        hostname: str | None = None,
         use_internal_ip: bool = False,
         use_iap_tunnel: bool = False,
         use_oslogin: bool = True,
         expire_time: int = 300,
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
     ) -> None:
         # Ignore original constructor
         # super().__init__()
@@ -121,7 +123,7 @@ class ComputeEngineSSHHook(SSHHook):
         self.expire_time = expire_time
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
-        self._conn: Optional[Any] = None
+        self._conn: Any | None = None
 
     @cached_property
     def _oslogin_hook(self) -> OSLoginHook:

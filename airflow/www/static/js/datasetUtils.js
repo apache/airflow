@@ -38,7 +38,7 @@ export function openDatasetModal(dagId, summary = '', nextDatasets = [], error =
     uriCell.append(datasetLink);
 
     const timeCell = document.createElement('td');
-    if (d.created_at) timeCell.append(isoDateToTimeEl(d.created_at));
+    if (d.lastUpdate) timeCell.append(isoDateToTimeEl(d.lastUpdate));
 
     row.append(uriCell);
     row.append(timeCell);

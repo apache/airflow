@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import time
-from typing import Any, Optional, Union
+from typing import Any
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -48,9 +50,7 @@ class AirbyteHook(HttpHook):
         super().__init__(http_conn_id=airbyte_conn_id)
         self.api_version: str = api_version
 
-    def wait_for_job(
-        self, job_id: Union[str, int], wait_seconds: float = 3, timeout: Optional[float] = 3600
-    ) -> None:
+    def wait_for_job(self, job_id: str | int, wait_seconds: float = 3, timeout: float | None = 3600) -> None:
         """
         Helper method which polls a job to check if it finishes.
 

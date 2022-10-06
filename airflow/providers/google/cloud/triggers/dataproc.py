@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains Google Dataproc triggers."""
+from __future__ import annotations
 
 import asyncio
-from typing import Optional, Sequence, Union
+from typing import Sequence
 
 from google.cloud.dataproc_v1 import JobStatus
 
@@ -38,10 +38,10 @@ class DataprocBaseTrigger(BaseTrigger):
         self,
         job_id: str,
         region: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        delegate_to: Optional[str] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         polling_interval_seconds: int = 30,
     ):
         super().__init__()

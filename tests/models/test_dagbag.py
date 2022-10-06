@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import inspect
 import logging
 import os
@@ -48,6 +50,8 @@ from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
+
+example_dags_folder = pathlib.Path(airflow.example_dags.__path__[0])  # type: ignore[attr-defined]
 
 
 def db_clean_up():
@@ -319,34 +323,70 @@ class TestDagBag:
         assert dagbag.get_dag(dag_id) is not None
         assert 1 == dagbag.process_file_calls
 
-    def test_get_dag_fileloc(self):
-        """
-        Test that fileloc is correctly set when we load example DAGs,
-        specifically SubDAGs and packaged DAGs.
-        """
-        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=True)
-        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
-
-        expected = {
-            'example_bash_operator': 'airflow/example_dags/example_bash_operator.py',
-            'example_subdag_operator': 'airflow/example_dags/example_subdag_operator.py',
-            'example_subdag_operator.section-1': 'airflow/example_dags/example_subdag_operator.py',
-            'test_zip_dag': 'dags/test_zip.zip/test_zip.py',
-        }
-
+    @pytest.mark.parametrize(
+        ("file_to_load", "expected"),
+        (
+            pytest.param(
+                TEST_DAGS_FOLDER / "test_zip.zip",
+                {
+                    'test_zip_dag': 'dags/test_zip.zip/test_zip.py',
+                    'test_zip_autoregister': 'dags/test_zip.zip/test_zip.py',
+                },
+                id='test_zip.zip',
+            ),
+            pytest.param(
+                pathlib.Path(example_dags_folder) / 'example_bash_operator.py',
+                {'example_bash_operator': 'airflow/example_dags/example_bash_operator.py'},
+                id='example_bash_operator',
+            ),
+            pytest.param(
+                TEST_DAGS_FOLDER / 'test_subdag.py',
+                {
+                    'test_subdag_operator': 'dags/test_subdag.py',
+                    'test_subdag_operator.section-1': 'dags/test_subdag.py',
+                },
+                id='test_subdag_operator',
+            ),
+        ),
+    )
+    def test_get_dag_registration(self, file_to_load, expected):
+        dagbag = models.DagBag(dag_folder=os.devnull, include_examples=False)
+        dagbag.process_file(str(file_to_load))
         for dag_id, path in expected.items():
             dag = dagbag.get_dag(dag_id)
+            assert dag, f"{dag_id} was bagged"
             assert dag.fileloc.endswith(path)
+
+    def test_dag_registration_with_failure(self):
+        dagbag = models.DagBag(dag_folder=os.devnull, include_examples=False)
+        found = dagbag.process_file(str(TEST_DAGS_FOLDER / 'test_invalid_dup_task.py'))
+        assert [] == found
+
+    @pytest.fixture()
+    def zip_with_valid_dag_and_dup_tasks(self, tmp_path: pathlib.Path) -> Iterator[str]:
+        failing_dag_file = TEST_DAGS_FOLDER / 'test_invalid_dup_task.py'
+        working_dag_file = TEST_DAGS_FOLDER / 'test_example_bash_operator.py'
+        zipped = os.path.join(tmp_path, "test_zip_invalid_dup_task.zip")
+        with zipfile.ZipFile(zipped, "w") as zf:
+            zf.write(failing_dag_file, os.path.basename(failing_dag_file))
+            zf.write(working_dag_file, os.path.basename(working_dag_file))
+        yield zipped
+        os.unlink(zipped)
+
+    def test_dag_registration_with_failure_zipped(self, zip_with_valid_dag_and_dup_tasks):
+        dagbag = models.DagBag(dag_folder=os.devnull, include_examples=False)
+        found = dagbag.process_file(zip_with_valid_dag_and_dup_tasks)
+        assert 1 == len(found)
+        assert ['test_example_bash_operator'] == [dag.dag_id for dag in found]
 
     @patch.object(DagModel, "get_current")
     def test_refresh_py_dag(self, mock_dagmodel):
         """
         Test that we can refresh an ordinary .py DAG
         """
-        example_dags_folder = airflow.example_dags.__path__[0]
 
         dag_id = "example_bash_operator"
-        fileloc = os.path.realpath(os.path.join(example_dags_folder, "example_bash_operator.py"))
+        fileloc = str(example_dags_folder / "example_bash_operator.py")
 
         mock_dagmodel.return_value = DagModel()
         mock_dagmodel.return_value.last_expired = datetime.max.replace(tzinfo=timezone.utc)
@@ -944,8 +984,7 @@ class TestDagBag:
     def test_collect_dags_from_db(self):
         """DAGs are collected from Database"""
         db.clear_db_dags()
-        example_dags_folder = airflow.example_dags.__path__[0]
-        dagbag = DagBag(example_dags_folder)
+        dagbag = DagBag(str(example_dags_folder))
 
         example_dags = dagbag.dags
         for dag in example_dags.values():

@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 import time
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from mypy_boto3_rds.type_defs import TagTypeDef
 
@@ -37,7 +38,7 @@ class RdsBaseOperator(BaseOperator):
     ui_color = "#eeaa88"
     ui_fgcolor = "#ffffff"
 
-    def __init__(self, *args, aws_conn_id: str = "aws_conn_id", hook_params: Optional[dict] = None, **kwargs):
+    def __init__(self, *args, aws_conn_id: str = "aws_conn_id", hook_params: dict | None = None, **kwargs):
         hook_params = hook_params or {}
         self.hook = RdsHook(aws_conn_id=aws_conn_id, **hook_params)
         super().__init__(*args, **kwargs)
@@ -65,9 +66,9 @@ class RdsBaseOperator(BaseOperator):
         self,
         item_type: str,
         item_name: str,
-        wait_statuses: Optional[List[str]] = None,
-        ok_statuses: Optional[List[str]] = None,
-        error_statuses: Optional[List[str]] = None,
+        wait_statuses: list[str] | None = None,
+        ok_statuses: list[str] | None = None,
+        error_statuses: list[str] | None = None,
     ) -> None:
         """
         Continuously gets item description from `_describe_item()` and waits while:
@@ -94,7 +95,7 @@ class RdsBaseOperator(BaseOperator):
 
         return None
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         """Different implementations for snapshots, tasks and events"""
         raise NotImplementedError
 
@@ -128,7 +129,7 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
         db_type: str,
         db_identifier: str,
         db_snapshot_identifier: str,
-        tags: Optional[Sequence[TagTypeDef]] = None,
+        tags: Sequence[TagTypeDef] | None = None,
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_conn_id",
         **kwargs,
@@ -140,7 +141,7 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
         self.tags = tags or []
         self.wait_for_completion = wait_for_completion
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         self.log.info(
             "Starting to create snapshot of RDS %s '%s': %s",
             self.db_type,
@@ -215,7 +216,7 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
         source_db_snapshot_identifier: str,
         target_db_snapshot_identifier: str,
         kms_key_id: str = "",
-        tags: Optional[Sequence[TagTypeDef]] = None,
+        tags: Sequence[TagTypeDef] | None = None,
         copy_tags: bool = False,
         pre_signed_url: str = "",
         option_group_name: str = "",
@@ -239,7 +240,7 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
         self.source_region = source_region
         self.wait_for_completion = wait_for_completion
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         self.log.info(
             "Starting to copy snapshot '%s' as '%s'",
             self.source_db_snapshot_identifier,
@@ -311,7 +312,7 @@ class RdsDeleteDbSnapshotOperator(RdsBaseOperator):
         self.db_type = RdsDbType(db_type)
         self.db_snapshot_identifier = db_snapshot_identifier
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         self.log.info("Starting to delete snapshot '%s'", self.db_snapshot_identifier)
 
         if self.db_type.value == "instance":
@@ -365,7 +366,7 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
         iam_role_arn: str,
         kms_key_id: str,
         s3_prefix: str = '',
-        export_only: Optional[List[str]] = None,
+        export_only: list[str] | None = None,
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
         **kwargs,
@@ -381,7 +382,7 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
         self.export_only = export_only or []
         self.wait_for_completion = wait_for_completion
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         self.log.info("Starting export task %s for snapshot %s", self.export_task_identifier, self.source_arn)
 
         start_export = self.hook.conn.start_export_task(
@@ -433,7 +434,7 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
         self.export_task_identifier = export_task_identifier
         self.wait_for_completion = wait_for_completion
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         self.log.info("Canceling export task %s", self.export_task_identifier)
 
         cancel_export = self.hook.conn.cancel_export_task(
@@ -487,10 +488,10 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
         subscription_name: str,
         sns_topic_arn: str,
         source_type: str = "",
-        event_categories: Optional[Sequence[str]] = None,
-        source_ids: Optional[Sequence[str]] = None,
+        event_categories: Sequence[str] | None = None,
+        source_ids: Sequence[str] | None = None,
         enabled: bool = True,
-        tags: Optional[Sequence[TagTypeDef]] = None,
+        tags: Sequence[TagTypeDef] | None = None,
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
         **kwargs,
@@ -506,7 +507,7 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
         self.tags = tags or []
         self.wait_for_completion = wait_for_completion
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         self.log.info("Creating event subscription '%s' to '%s'", self.subscription_name, self.sns_topic_arn)
 
         create_subscription = self.hook.conn.create_event_subscription(
@@ -554,7 +555,7 @@ class RdsDeleteEventSubscriptionOperator(RdsBaseOperator):
 
         self.subscription_name = subscription_name
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         self.log.info(
             "Deleting event subscription %s",
             self.subscription_name,
@@ -593,7 +594,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
         db_instance_identifier: str,
         db_instance_class: str,
         engine: str,
-        rds_kwargs: Optional[Dict] = None,
+        rds_kwargs: dict | None = None,
         aws_conn_id: str = "aws_default",
         wait_for_completion: bool = True,
         **kwargs,
@@ -606,7 +607,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
         self.rds_kwargs = rds_kwargs or {}
         self.wait_for_completion = wait_for_completion
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         self.log.info("Creating new DB instance %s", self.db_instance_identifier)
 
         create_db_instance = self.hook.conn.create_db_instance(
@@ -645,7 +646,7 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
         self,
         *,
         db_instance_identifier: str,
-        rds_kwargs: Optional[Dict] = None,
+        rds_kwargs: dict | None = None,
         aws_conn_id: str = "aws_default",
         wait_for_completion: bool = True,
         **kwargs,
@@ -655,7 +656,7 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
         self.rds_kwargs = rds_kwargs or {}
         self.wait_for_completion = wait_for_completion
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         self.log.info("Deleting DB instance %s", self.db_instance_identifier)
 
         delete_db_instance = self.hook.conn.delete_db_instance(

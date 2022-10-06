@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import sys
 from pathlib import Path
@@ -50,8 +52,6 @@ if __name__ == '__main__':
             *get_extra_docker_flags(MOUNT_SELECTED, include_mypy_volume=True),
             "-e",
             "SKIP_ENVIRONMENT_INITIALIZATION=true",
-            "-e",
-            "PRINT_INFO_FROM_SCRIPTS=false",
             "-e",
             "BACKEND=sqlite",
             "--pull",

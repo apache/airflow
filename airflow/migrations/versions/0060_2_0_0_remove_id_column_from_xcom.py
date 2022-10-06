@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Remove id column from xcom
 
 Revision ID: bbf4a7ad0465
@@ -23,13 +22,12 @@ Revises: cf5dc11e79ad
 Create Date: 2019-10-29 13:53:09.445943
 
 """
+from __future__ import annotations
 
 from collections import defaultdict
 
 from alembic import op
-from sqlalchemy import Column, Integer
-
-from airflow.compat.sqlalchemy import inspect
+from sqlalchemy import Column, Integer, inspect
 
 # revision identifiers, used by Alembic.
 revision = 'bbf4a7ad0465'

@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import ast
 import json
 import os
@@ -24,7 +26,7 @@ import sys
 import tempfile
 from io import StringIO
 from pathlib import Path
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple
+from typing import Any, NamedTuple
 
 import click
 
@@ -58,7 +60,7 @@ from airflow_breeze.utils.docker_command_utils import (
 )
 from airflow_breeze.utils.find_newer_dependencies import find_newer_dependencies
 from airflow_breeze.utils.github_actions import get_ga_output
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, MSSQL_TMP_DIR_NAME
 from airflow_breeze.utils.run_utils import run_command
 
 
@@ -90,6 +92,11 @@ def free_space(verbose: bool, dry_run: bool, answer: str):
         )
         run_command(["df", "-h"], verbose=verbose, dry_run=dry_run)
         run_command(["docker", "logout", "ghcr.io"], verbose=verbose, dry_run=dry_run, check=False)
+        run_command(
+            ["sudo", "rm", "-f", os.fspath(Path.home() / MSSQL_TMP_DIR_NAME)],
+            verbose=verbose,
+            dry_run=dry_run,
+        )
 
 
 @ci_group.command(name="resource-check", help="Check if available docker resources are enough.")
@@ -109,7 +116,7 @@ DIRECTORIES_TO_FIX = [
     HOME_DIR / ".azure",
     HOME_DIR / ".config/gcloud",
     HOME_DIR / ".docker",
-    AIRFLOW_SOURCES_ROOT,
+    HOME_DIR / MSSQL_TMP_DIR_NAME,
 ]
 
 
@@ -168,7 +175,7 @@ def fix_ownership(github_repository: str, use_sudo: bool, verbose: bool, dry_run
     sys.exit(0)
 
 
-def get_changed_files(commit_ref: Optional[str], dry_run: bool, verbose: bool) -> Tuple[str, ...]:
+def get_changed_files(commit_ref: str | None, dry_run: bool, verbose: bool) -> tuple[str, ...]:
     if commit_ref is None:
         return ()
     cmd = [
@@ -232,7 +239,7 @@ def get_changed_files(commit_ref: Optional[str], dry_run: bool, verbose: bool) -
 @option_verbose
 @option_dry_run
 def selective_check(
-    commit_ref: Optional[str],
+    commit_ref: str | None,
     pr_labels: str,
     default_branch: str,
     default_constraints_branch: str,
@@ -281,12 +288,12 @@ TEST_BRANCH_MATCHER = re.compile(r"^v.*test$")
 
 class WorkflowInfo(NamedTuple):
     event_name: str
-    pull_request_labels: List[str]
+    pull_request_labels: list[str]
     target_repo: str
     head_repo: str
-    ref: Optional[str]
-    ref_name: Optional[str]
-    pr_number: Optional[int]
+    ref: str | None
+    ref_name: str | None
+    pr_number: int | None
 
     def print_ga_outputs(self):
         print(get_ga_output(name="pr_labels", value=str(self.pull_request_labels)))
@@ -297,7 +304,7 @@ class WorkflowInfo(NamedTuple):
         print(get_ga_output(name="runs-on", value=self.get_runs_on()))
         print(get_ga_output(name='in-workflow-build', value=self.in_workflow_build()))
         print(get_ga_output(name="build-job-description", value=self.get_build_job_description()))
-        print(get_ga_output(name="merge-run", value=self.is_merge_run()))
+        print(get_ga_output(name="canary-run", value=self.is_canary_run()))
         print(get_ga_output(name="run-coverage", value=self.run_coverage()))
 
     def get_runs_on(self) -> str:
@@ -319,7 +326,7 @@ class WorkflowInfo(NamedTuple):
             return "Build"
         return "Skip Build (look in pull_request_target)"
 
-    def is_merge_run(self) -> str:
+    def is_canary_run(self) -> str:
         if (
             self.event_name == 'push'
             and self.head_repo == "apache/airflow"
@@ -336,7 +343,7 @@ class WorkflowInfo(NamedTuple):
 
 
 def workflow_info(context: str) -> WorkflowInfo:
-    ctx: Dict[Any, Any] = json.loads(context)
+    ctx: dict[Any, Any] = json.loads(context)
     event_name = ctx.get("event_name")
     if not event_name:
         get_console().print(f"[error]Missing event_name in: {ctx}")
@@ -344,7 +351,7 @@ def workflow_info(context: str) -> WorkflowInfo:
     pull_request_labels = []
     head_repo = ""
     target_repo = ""
-    pr_number: Optional[int] = None
+    pr_number: int | None = None
     ref_name = ctx.get("ref_name")
     ref = ctx.get("ref")
     if event_name == "pull_request":

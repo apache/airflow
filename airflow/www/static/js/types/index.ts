@@ -65,6 +65,18 @@ interface TaskInstance {
   },
   mapIndex?: number;
   tryNumber?: number;
+  triggererJob?: Job;
+  trigger?: Trigger;
+}
+
+interface Trigger {
+  classpath: string | null;
+  createdDate: string | null;
+}
+
+interface Job {
+  latestHeartbeat: string | null;
+  hostname: string | null;
 }
 
 interface Task {
@@ -97,6 +109,11 @@ interface DepEdge {
   v: string;
 }
 
+interface DatasetListItem extends API.Dataset {
+  lastDatasetUpdate: string | null;
+  totalUpdates: number;
+}
+
 export type {
   Dag,
   DagRun,
@@ -108,4 +125,5 @@ export type {
   DepEdge,
   API,
   RunOrdering,
+  DatasetListItem,
 };

@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import timedelta
 
 import pendulum
@@ -23,6 +25,7 @@ import pytest
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.mappedoperator import MappedOperator
+from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCOM_RETURN_KEY
@@ -271,6 +274,25 @@ def test_mapped_task_applies_default_args_taskflow(dag_maker):
     assert dag.get_task("mapped").execution_timeout == timedelta(minutes=30)
 
 
+@pytest.mark.parametrize(
+    "dag_params, task_params, expected_partial_params",
+    [
+        pytest.param(None, None, ParamsDict(), id="none"),
+        pytest.param({"a": -1}, None, ParamsDict({"a": -1}), id="dag"),
+        pytest.param(None, {"b": -2}, ParamsDict({"b": -2}), id="task"),
+        pytest.param({"a": -1}, {"b": -2}, ParamsDict({"a": -1, "b": -2}), id="merge"),
+    ],
+)
+def test_mapped_expand_against_params(dag_maker, dag_params, task_params, expected_partial_params):
+    with dag_maker(params=dag_params) as dag:
+        MockOperator.partial(task_id="t", params=task_params).expand(params=[{"c": "x"}, {"d": 1}])
+
+    t = dag.get_task("t")
+    assert isinstance(t, MappedOperator)
+    assert t.params == expected_partial_params
+    assert t.expand_input.value == {"params": [{"c": "x"}, {"d": 1}]}
+
+
 def test_mapped_render_template_fields_validating_operator(dag_maker, session):
     class MyOperator(MockOperator):
         def __init__(self, value, arg1, **kwargs):
@@ -303,12 +325,14 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
 
     mapped_ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session)
     mapped_ti.map_index = 0
-    op = mapped.render_template_fields(context=mapped_ti.get_template_context(session=session))
-    assert isinstance(op, MyOperator)
 
-    assert op.value == "{{ ds }}", "Should not be templated!"
-    assert op.arg1 == "{{ ds }}", "Should not be templated!"
-    assert op.arg2 == "a"
+    assert isinstance(mapped_ti.task, MappedOperator)
+    mapped.render_template_fields(context=mapped_ti.get_template_context(session=session))
+    assert isinstance(mapped_ti.task, MyOperator)
+
+    assert mapped_ti.task.value == "{{ ds }}", "Should not be templated!"
+    assert mapped_ti.task.arg1 == "{{ ds }}", "Should not be templated!"
+    assert mapped_ti.task.arg2 == "a"
 
 
 def test_mapped_render_nested_template_fields(dag_maker, session):
@@ -428,10 +452,11 @@ def test_expand_kwargs_render_template_fields_validating_operator(dag_maker, ses
     ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session)
     ti.refresh_from_task(mapped)
     ti.map_index = map_index
-    op = mapped.render_template_fields(context=ti.get_template_context(session=session))
-    assert isinstance(op, MockOperator)
-    assert op.arg1 == expected
-    assert op.arg2 == "a"
+    assert isinstance(ti.task, MappedOperator)
+    mapped.render_template_fields(context=ti.get_template_context(session=session))
+    assert isinstance(ti.task, MockOperator)
+    assert ti.task.arg1 == expected
+    assert ti.task.arg2 == "a"
 
 
 def test_xcomarg_property_of_mapped_operator(dag_maker):

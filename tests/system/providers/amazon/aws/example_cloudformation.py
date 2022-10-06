@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 from datetime import datetime
 
@@ -81,10 +83,10 @@ with DAG(
     # [START howto_operator_cloudformation_delete_stack]
     delete_stack = CloudFormationDeleteStackOperator(
         task_id='delete_stack',
-        trigger_rule=TriggerRule.ALL_DONE,
         stack_name=cloudformation_stack_name,
     )
     # [END howto_operator_cloudformation_delete_stack]
+    delete_stack.trigger_rule = TriggerRule.ALL_DONE
 
     # [START howto_sensor_cloudformation_delete_stack]
     wait_for_stack_delete = CloudFormationDeleteStackSensor(

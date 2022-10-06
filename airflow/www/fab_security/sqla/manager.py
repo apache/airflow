@@ -14,19 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import logging
 import uuid
-from typing import List, Optional
 
 from flask_appbuilder import const as c
 from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
-from sqlalchemy import and_, func, literal
+from sqlalchemy import and_, func, inspect, literal
 from sqlalchemy.orm.exc import MultipleResultsFound
 from werkzeug.security import generate_password_hash
 
-from airflow.compat import sqlalchemy as sqla_compat
 from airflow.www.fab_security.manager import BaseSecurityManager
 from airflow.www.fab_security.sqla.models import (
     Action,
@@ -99,7 +98,7 @@ class SecurityManager(BaseSecurityManager):
     def create_db(self):
         try:
             engine = self.get_session.get_bind(mapper=None, clause=None)
-            inspector = sqla_compat.inspect(engine)
+            inspector = inspect(engine)
             if "ab_user" not in inspector.get_table_names():
                 log.info(c.LOGMSG_INF_SEC_NO_DB)
                 Base.metadata.create_all(engine)
@@ -233,7 +232,7 @@ class SecurityManager(BaseSecurityManager):
     def get_user_by_id(self, pk):
         return self.get_session.query(self.user_model).get(pk)
 
-    def add_role(self, name: str) -> Optional[Role]:
+    def add_role(self, name: str) -> Role | None:
         role = self.find_role(name)
         if role is None:
             try:
@@ -248,7 +247,7 @@ class SecurityManager(BaseSecurityManager):
                 self.get_session.rollback()
         return role
 
-    def update_role(self, role_id, name: str) -> Optional[Role]:
+    def update_role(self, role_id, name: str) -> Role | None:
         role = self.get_session.query(self.role_model).get(role_id)
         if not role:
             return None
@@ -283,7 +282,7 @@ class SecurityManager(BaseSecurityManager):
         return self.get_session.query(self.action_model).filter_by(name=name).one_or_none()
 
     def permission_exists_in_one_or_more_roles(
-        self, resource_name: str, action_name: str, role_ids: List[int]
+        self, resource_name: str, action_name: str, role_ids: list[int]
     ) -> bool:
         """
             Method to efficiently check if a certain permission exists
@@ -315,7 +314,7 @@ class SecurityManager(BaseSecurityManager):
             return self.appbuilder.get_session.query(literal(True)).filter(q).scalar()
         return self.appbuilder.get_session.query(q).scalar()
 
-    def filter_roles_by_perm_with_action(self, action_name: str, role_ids: List[int]):
+    def filter_roles_by_perm_with_action(self, action_name: str, role_ids: list[int]):
         """Find roles with permission"""
         return (
             self.appbuilder.get_session.query(self.permission_model)
@@ -391,7 +390,7 @@ class SecurityManager(BaseSecurityManager):
         """
         return self.get_session.query(self.resource_model).filter_by(name=name).one_or_none()
 
-    def get_all_resources(self) -> List[Resource]:
+    def get_all_resources(self) -> list[Resource]:
         """
         Gets all existing resource records.
 
@@ -455,7 +454,7 @@ class SecurityManager(BaseSecurityManager):
     ----------------------
     """
 
-    def get_permission(self, action_name: str, resource_name: str) -> Optional[Permission]:
+    def get_permission(self, action_name: str, resource_name: str) -> Permission | None:
         """
         Gets a permission made with the given action->resource pair, if the permission already exists.
 
@@ -484,7 +483,7 @@ class SecurityManager(BaseSecurityManager):
         """
         return self.get_session.query(self.permission_model).filter_by(resource_id=resource.id).all()
 
-    def create_permission(self, action_name, resource_name) -> Optional[Permission]:
+    def create_permission(self, action_name, resource_name) -> Permission | None:
         """
         Adds a permission on a resource to the backend
 

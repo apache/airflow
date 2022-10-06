@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 import json
 import time
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Sequence, cast
 
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
@@ -50,7 +51,7 @@ class TriggerDagRunLink(BaseOperatorLink):
 
     name = 'Triggered DAG'
 
-    def get_link(self, operator: BaseOperator, *, ti_key: "TaskInstanceKey") -> str:
+    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         # Fetch the correct execution date for the triggerED dag which is
         # stored in xcom during execution of the triggerING task.
         when = XCom.get_value(ti_key=ti_key, key=XCOM_EXECUTION_DATE_ISO)
@@ -87,14 +88,14 @@ class TriggerDagRunOperator(BaseOperator):
         self,
         *,
         trigger_dag_id: str,
-        trigger_run_id: Optional[str] = None,
-        conf: Optional[Dict] = None,
-        execution_date: Optional[Union[str, datetime.datetime]] = None,
+        trigger_run_id: str | None = None,
+        conf: dict | None = None,
+        execution_date: str | datetime.datetime | None = None,
         reset_dag_run: bool = False,
         wait_for_completion: bool = False,
         poke_interval: int = 60,
-        allowed_states: Optional[List] = None,
-        failed_states: Optional[List] = None,
+        allowed_states: list | None = None,
+        failed_states: list | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

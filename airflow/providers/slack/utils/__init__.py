@@ -14,10 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Any, Dict, Optional
-
-from airflow.utils.module_loading import import_string
+from typing import Any
 
 try:
     from airflow.utils.types import NOTSET
@@ -42,7 +41,7 @@ class ConnectionExtraConfig:
     :param extra: Connection extra dictionary.
     """
 
-    def __init__(self, conn_type: str, conn_id: Optional[str] = None, extra: Optional[Dict[str, Any]] = None):
+    def __init__(self, conn_type: str, conn_id: str | None = None, extra: dict[str, Any] | None = None):
         super().__init__()
         self.conn_type = conn_type
         self.conn_id = conn_id
@@ -55,7 +54,12 @@ class ConnectionExtraConfig:
         :param default: If specified then use as default value if field not present in Connection Extra.
         """
         prefixed_field = prefixed_extra_field(field, self.conn_type)
-        if prefixed_field in self.extra:
+        if prefixed_field in self.extra and self.extra[prefixed_field] not in (None, ""):
+            # Addition validation with non-empty required for connection which created in the UI
+            # in Airflow 2.2. In these connections always present key-value pair for all prefixed extras
+            # even if user do not fill this fields.
+            # In additional fields from `wtforms.IntegerField` might contain None value.
+            # E.g.: `{'extra__slackwebhook__proxy': '', 'extra__slackwebhook__timeout': None}`
             return self.extra[prefixed_field]
         elif field in self.extra:
             return self.extra[field]
@@ -76,23 +80,4 @@ class ConnectionExtraConfig:
         value = self.get(field=field, default=default)
         if value != default:
             value = int(value)
-        return value
-
-    def getimports(self, field, default: Any = NOTSET) -> Any:
-        """Get specified field from Connection Extra and imports the full qualified name separated by comma.
-
-        .. note::
-            This method intends to use with zero-argument callable objects.
-
-        :param field: Connection extra field name.
-        :param default: If specified then use as default value if field not present in Connection Extra.
-        """
-        value = self.get(field=field, default=default)
-        if value != default:
-            if not isinstance(value, str):
-                raise TypeError(
-                    f"Connection ({self.conn_id!r}) Extra {field!r} expected string "
-                    f"when return value not equal `default={default}`, got {type(value).__name__}."
-                )
-            value = [import_string(part.strip())() for part in value.split(",")]
         return value

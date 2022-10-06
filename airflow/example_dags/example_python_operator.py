@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example DAG demonstrating the usage of the TaskFlow API to execute Python functions natively and within a
 virtual environment.
 """
+from __future__ import annotations
+
 import logging
 import os
 import shutil
@@ -46,6 +47,7 @@ with DAG(
     catchup=False,
     tags=['example'],
 ) as dag:
+
     # [START howto_operator_python]
     @task(task_id="print_the_context")
     def print_context(ds=None, **kwargs):
@@ -56,6 +58,14 @@ with DAG(
 
     run_this = print_context()
     # [END howto_operator_python]
+
+    # [START howto_operator_python_render_sql]
+    @task(task_id="log_sql_query", templates_dict={"query": "sql/sample.sql"}, templates_exts=[".sql"])
+    def log_sql(**kwargs):
+        logging.info("Python task decorator query: %s", str(kwargs["templates_dict"]["query"]))
+
+    log_the_sql = log_sql()
+    # [END howto_operator_python_render_sql]
 
     # [START howto_operator_python_kwargs]
     # Generate 5 sleeping tasks, sleeping from 0.0 to 0.4 seconds respectively
@@ -68,7 +78,7 @@ with DAG(
 
         sleeping_task = my_sleeping_function(random_base=float(i) / 10)
 
-        run_this >> sleeping_task
+        run_this >> log_the_sql >> sleeping_task
     # [END howto_operator_python_kwargs]
 
     if not shutil.which("virtualenv"):

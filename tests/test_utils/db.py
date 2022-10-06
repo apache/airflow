@@ -15,15 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.triggerer_job import TriggererJob
 from airflow.models import (
     Connection,
     DagModel,
-    DagOwnerAttributes,
     DagRun,
     DagTag,
-    DagWarning,
     DbCallbackRequest,
     Log,
     Pool,
@@ -37,7 +37,9 @@ from airflow.models import (
     XCom,
     errors,
 )
+from airflow.models.dag import DagOwnerAttributes
 from airflow.models.dagcode import DagCode
+from airflow.models.dagwarning import DagWarning
 from airflow.models.dataset import (
     DagScheduleDatasetReference,
     DatasetDagRunQueue,

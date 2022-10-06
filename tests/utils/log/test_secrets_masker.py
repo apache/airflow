@@ -14,11 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import contextlib
 import inspect
+import io
 import logging
 import logging.config
 import os
+import sys
 import textwrap
 
 import pytest
@@ -361,3 +365,13 @@ class TestRedactedIO:
         RedactedIO().write(p)
         stdout = capsys.readouterr().out
         assert stdout == "***"
+
+    def test_input_builtin(self, monkeypatch):
+        """
+        Test that when redirect is inplace the `input()` builtin works.
+
+        This is used by debuggers!
+        """
+        monkeypatch.setattr(sys, 'stdin', io.StringIO("a\n"))
+        with contextlib.redirect_stdout(RedactedIO()):
+            assert input() == "a"

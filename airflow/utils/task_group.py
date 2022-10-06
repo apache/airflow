@@ -19,10 +19,12 @@
 A TaskGroup is a collection of closely related tasks on the same DAG that should be grouped
 together when the DAG is displayed graphically.
 """
+from __future__ import annotations
+
 import copy
 import re
 import weakref
-from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Sequence, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Generator, Sequence
 
 from airflow.exceptions import (
     AirflowDagCycleException,
@@ -37,6 +39,7 @@ from airflow.utils.helpers import validate_group_key
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
+    from airflow.models.expandinput import ExpandInput
     from airflow.utils.edgemodifier import EdgeModifier
 
 
@@ -68,15 +71,15 @@ class TaskGroup(DAGNode):
         automatically add `__1` etc suffixes
     """
 
-    used_group_ids: Set[Optional[str]]
+    used_group_ids: set[str | None]
 
     def __init__(
         self,
-        group_id: Optional[str],
+        group_id: str | None,
         prefix_group_id: bool = True,
-        parent_group: Optional["TaskGroup"] = None,
-        dag: Optional["DAG"] = None,
-        default_args: Optional[Dict] = None,
+        parent_group: TaskGroup | None = None,
+        dag: DAG | None = None,
+        default_args: dict[str, Any] | None = None,
         tooltip: str = "",
         ui_color: str = "CornflowerBlue",
         ui_fgcolor: str = "#000",
@@ -126,7 +129,7 @@ class TaskGroup(DAGNode):
         self._group_id = group_id
         self._check_for_group_id_collisions(add_suffix_on_collision)
 
-        self.children: Dict[str, DAGNode] = {}
+        self.children: dict[str, DAGNode] = {}
         if parent_group:
             parent_group.add(self)
 
@@ -141,8 +144,8 @@ class TaskGroup(DAGNode):
 
         # Keep track of TaskGroups or tasks that depend on this entire TaskGroup separately
         # so that we can optimize the number of edges when entire TaskGroups depend on each other.
-        self.upstream_group_ids: Set[Optional[str]] = set()
-        self.downstream_group_ids: Set[Optional[str]] = set()
+        self.upstream_group_ids: set[str | None] = set()
+        self.downstream_group_ids: set[str | None] = set()
         self.upstream_task_ids = set()
         self.downstream_task_ids = set()
 
@@ -166,7 +169,7 @@ class TaskGroup(DAGNode):
                 self._group_id = f'{base}__{suffixes[-1] + 1}'
 
     @classmethod
-    def create_root(cls, dag: "DAG") -> "TaskGroup":
+    def create_root(cls, dag: DAG) -> TaskGroup:
         """Create a root TaskGroup with no group_id or parent."""
         return cls(group_id=None, dag=dag)
 
@@ -180,7 +183,7 @@ class TaskGroup(DAGNode):
         return not self.group_id
 
     @property
-    def parent_group(self) -> Optional["TaskGroup"]:
+    def parent_group(self) -> TaskGroup | None:
         return self.task_group
 
     def __iter__(self):
@@ -231,7 +234,7 @@ class TaskGroup(DAGNode):
         del self.children[key]
 
     @property
-    def group_id(self) -> Optional[str]:
+    def group_id(self) -> str | None:
         """group_id of this TaskGroup."""
         if self.task_group and self.task_group.prefix_group_id and self.task_group.group_id:
             return self.task_group.child_id(self._group_id)
@@ -239,7 +242,7 @@ class TaskGroup(DAGNode):
         return self._group_id
 
     @property
-    def label(self) -> Optional[str]:
+    def label(self) -> str | None:
         """group_id excluding parent's group_id used as the node label in UI."""
         return self._group_id
 
@@ -275,9 +278,9 @@ class TaskGroup(DAGNode):
 
     def _set_relatives(
         self,
-        task_or_task_list: Union["DependencyMixin", Sequence["DependencyMixin"]],
+        task_or_task_list: DependencyMixin | Sequence[DependencyMixin],
         upstream: bool = False,
-        edge_modifier: Optional["EdgeModifier"] = None,
+        edge_modifier: EdgeModifier | None = None,
     ) -> None:
         """
         Call set_upstream/set_downstream for all root/leaf tasks within this TaskGroup.
@@ -296,14 +299,14 @@ class TaskGroup(DAGNode):
             for task in self.get_leaves():
                 task.set_downstream(task_or_task_list)
 
-    def __enter__(self) -> "TaskGroup":
+    def __enter__(self) -> TaskGroup:
         TaskGroupContext.push_context_managed_task_group(self)
         return self
 
     def __exit__(self, _type, _value, _tb):
         TaskGroupContext.pop_context_managed_task_group()
 
-    def has_task(self, task: "BaseOperator") -> bool:
+    def has_task(self, task: BaseOperator) -> bool:
         """Returns True if this TaskGroup or its children TaskGroups contains the given task."""
         if task.task_id in self.children:
             return True
@@ -311,16 +314,16 @@ class TaskGroup(DAGNode):
         return any(child.has_task(task) for child in self.children.values() if isinstance(child, TaskGroup))
 
     @property
-    def roots(self) -> List["BaseOperator"]:
+    def roots(self) -> list[BaseOperator]:
         """Required by TaskMixin"""
         return list(self.get_roots())
 
     @property
-    def leaves(self) -> List["BaseOperator"]:
+    def leaves(self) -> list[BaseOperator]:
         """Required by TaskMixin"""
         return list(self.get_leaves())
 
-    def get_roots(self) -> Generator["BaseOperator", None, None]:
+    def get_roots(self) -> Generator[BaseOperator, None, None]:
         """
         Returns a generator of tasks that are root tasks, i.e. those with no upstream
         dependencies within the TaskGroup.
@@ -329,7 +332,7 @@ class TaskGroup(DAGNode):
             if not any(self.has_task(parent) for parent in task.get_direct_relatives(upstream=True)):
                 yield task
 
-    def get_leaves(self) -> Generator["BaseOperator", None, None]:
+    def get_leaves(self) -> Generator[BaseOperator, None, None]:
         """
         Returns a generator of tasks that are leaf tasks, i.e. those with no downstream
         dependencies within the TaskGroup
@@ -366,7 +369,7 @@ class TaskGroup(DAGNode):
         """
         return f"{self.group_id}.downstream_join_id"
 
-    def get_task_group_dict(self) -> Dict[str, "TaskGroup"]:
+    def get_task_group_dict(self) -> dict[str, TaskGroup]:
         """Returns a flat dictionary of group_id: TaskGroup"""
         task_group_map = {}
 
@@ -386,7 +389,7 @@ class TaskGroup(DAGNode):
         """Get a child task/TaskGroup by its label (i.e. task_id/group_id without the group_id prefix)"""
         return self.children[self.child_id(label)]
 
-    def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
+    def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Required by DAGNode."""
         from airflow.serialization.serialized_objects import SerializedTaskGroup
 
@@ -405,7 +408,7 @@ class TaskGroup(DAGNode):
 
         graph_unsorted = copy.copy(self.children)
 
-        graph_sorted: List[DAGNode] = []
+        graph_sorted: list[DAGNode] = []
 
         # special case
         if len(self.children) == 0:
@@ -452,11 +455,26 @@ class TaskGroup(DAGNode):
         return graph_sorted
 
 
+class MappedTaskGroup(TaskGroup):
+    """A mapped task group.
+
+    This doesn't really do anything special, just holds some additional metadata
+    for expansion later.
+
+    Don't instantiate this class directly; call *expand* or *expand_kwargs* on
+    a ``@task_group`` function instead.
+    """
+
+    def __init__(self, *, expand_input: ExpandInput, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self._expand_input = expand_input
+
+
 class TaskGroupContext:
     """TaskGroup context is used to keep the current TaskGroup when TaskGroup is used as ContextManager."""
 
-    _context_managed_task_group: Optional[TaskGroup] = None
-    _previous_context_managed_task_groups: List[TaskGroup] = []
+    _context_managed_task_group: TaskGroup | None = None
+    _previous_context_managed_task_groups: list[TaskGroup] = []
 
     @classmethod
     def push_context_managed_task_group(cls, task_group: TaskGroup):
@@ -466,7 +484,7 @@ class TaskGroupContext:
         cls._context_managed_task_group = task_group
 
     @classmethod
-    def pop_context_managed_task_group(cls) -> Optional[TaskGroup]:
+    def pop_context_managed_task_group(cls) -> TaskGroup | None:
         """Pops the last TaskGroup from the list of manged TaskGroups and update the current TaskGroup."""
         old_task_group = cls._context_managed_task_group
         if cls._previous_context_managed_task_groups:
@@ -476,7 +494,7 @@ class TaskGroupContext:
         return old_task_group
 
     @classmethod
-    def get_current_task_group(cls, dag: Optional["DAG"]) -> Optional[TaskGroup]:
+    def get_current_task_group(cls, dag: DAG | None) -> TaskGroup | None:
         """Get the current TaskGroup."""
         from airflow.models.dag import DagContext
 
@@ -487,3 +505,68 @@ class TaskGroupContext:
                 return dag.task_group
 
         return cls._context_managed_task_group
+
+
+def task_group_to_dict(task_item_or_group):
+    """
+    Create a nested dict representation of this TaskGroup and its children used to construct
+    the Graph.
+    """
+    from airflow.models.abstractoperator import AbstractOperator
+
+    if isinstance(task_item_or_group, AbstractOperator):
+        return {
+            'id': task_item_or_group.task_id,
+            'value': {
+                'label': task_item_or_group.label,
+                'labelStyle': f"fill:{task_item_or_group.ui_fgcolor};",
+                'style': f"fill:{task_item_or_group.ui_color};",
+                'rx': 5,
+                'ry': 5,
+            },
+        }
+    task_group = task_item_or_group
+    children = [
+        task_group_to_dict(child) for child in sorted(task_group.children.values(), key=lambda t: t.label)
+    ]
+
+    if task_group.upstream_group_ids or task_group.upstream_task_ids:
+        children.append(
+            {
+                'id': task_group.upstream_join_id,
+                'value': {
+                    'label': '',
+                    'labelStyle': f"fill:{task_group.ui_fgcolor};",
+                    'style': f"fill:{task_group.ui_color};",
+                    'shape': 'circle',
+                },
+            }
+        )
+
+    if task_group.downstream_group_ids or task_group.downstream_task_ids:
+        # This is the join node used to reduce the number of edges between two TaskGroup.
+        children.append(
+            {
+                'id': task_group.downstream_join_id,
+                'value': {
+                    'label': '',
+                    'labelStyle': f"fill:{task_group.ui_fgcolor};",
+                    'style': f"fill:{task_group.ui_color};",
+                    'shape': 'circle',
+                },
+            }
+        )
+
+    return {
+        "id": task_group.group_id,
+        'value': {
+            'label': task_group.label,
+            'labelStyle': f"fill:{task_group.ui_fgcolor};",
+            'style': f"fill:{task_group.ui_color}",
+            'rx': 5,
+            'ry': 5,
+            'clusterLabelPos': 'top',
+            'tooltip': task_group.tooltip,
+        },
+        'children': children,
+    }

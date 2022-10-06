@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import unittest
 from unittest import mock
 
@@ -30,6 +32,7 @@ TEST_COUNTERS = {
     "bytesFoundFromSource": 512,
     "bytesCopiedToSink": 1024,
 }
+JOB_NAME = "job-name/123"
 
 
 class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
@@ -51,7 +54,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
 
         op = CloudDataTransferServiceJobStatusSensor(
             task_id='task-id',
-            job_name='job-name',
+            job_name=JOB_NAME,
             project_id='project-id',
             expected_statuses=GcpTransferOperationStatus.SUCCESS,
         )
@@ -60,7 +63,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
         result = op.poke(context)
 
         mock_tool.return_value.list_transfer_operations.assert_called_once_with(
-            request_filter={'project_id': 'project-id', 'job_names': ['job-name']}
+            request_filter={'project_id': 'project-id', 'job_names': [JOB_NAME]}
         )
         mock_tool.operations_contain_expected_statuses.assert_called_once_with(
             operations=operations, expected_statuses={GcpTransferOperationStatus.SUCCESS}
@@ -74,7 +77,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
 
         op = CloudDataTransferServiceJobStatusSensor(
             task_id='task-id',
-            job_name='job-name',
+            job_name=JOB_NAME,
             project_id='project-id',
             expected_statuses=GcpTransferOperationStatus.SUCCESS,
         )
@@ -118,7 +121,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
 
         op = CloudDataTransferServiceJobStatusSensor(
             task_id='task-id',
-            job_name='job-name',
+            job_name=JOB_NAME,
             project_id='project-id',
             expected_statuses=GcpTransferOperationStatus.SUCCESS,
         )
@@ -169,7 +172,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
 
         op = CloudDataTransferServiceJobStatusSensor(
             task_id='task-id',
-            job_name='job-name',
+            job_name=JOB_NAME,
             project_id='project-id',
             expected_statuses=expected_status,
         )

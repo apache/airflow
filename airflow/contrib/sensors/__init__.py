@@ -16,14 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """This package is deprecated. Please use `airflow.sensors` or `airflow.providers.*.sensors`."""
+from __future__ import annotations
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 warnings.warn(
     "This package is deprecated. Please use `airflow.sensors` or `airflow.providers.*.sensors`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )
 
@@ -32,19 +34,23 @@ __deprecated_classes = {
         'AthenaSensor': 'airflow.providers.amazon.aws.sensors.athena.AthenaSensor',
     },
     'aws_glue_catalog_partition_sensor': {
-        'AwsGlueCatalogPartitionSensor':
-            'airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor',
+        'AwsGlueCatalogPartitionSensor': (
+            'airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor'
+        ),
     },
     'aws_redshift_cluster_sensor': {
-        'AwsRedshiftClusterSensor':
-            'airflow.providers.amazon.aws.sensors.redshift_cluster.RedshiftClusterSensor',
+        'AwsRedshiftClusterSensor': (
+            'airflow.providers.amazon.aws.sensors.redshift_cluster.RedshiftClusterSensor'
+        ),
     },
     'aws_sqs_sensor': {
         'SqsSensor': 'airflow.providers.amazon.aws.sensors.sqs.SqsSensor',
+        'SQSSensor': 'airflow.providers.amazon.aws.sensors.sqs.SqsSensor',
     },
     'azure_cosmos_sensor': {
-        'AzureCosmosDocumentSensor':
-            'airflow.providers.microsoft.azure.sensors.cosmos.AzureCosmosDocumentSensor',
+        'AzureCosmosDocumentSensor': (
+            'airflow.providers.microsoft.azure.sensors.cosmos.AzureCosmosDocumentSensor'
+        ),
     },
     'bash_sensor': {
         'STDOUT': 'airflow.sensors.bash.STDOUT',
@@ -54,8 +60,10 @@ __deprecated_classes = {
         'gettempdir': 'airflow.sensors.bash.gettempdir',
     },
     'bigquery_sensor': {
-        'BigQueryTableExistenceSensor':
-            'airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceSensor',
+        'BigQueryTableExistenceSensor': (
+            'airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceSensor'
+        ),
+        'BigQueryTableSensor': 'airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceSensor',
     },
     'cassandra_record_sensor': {
         'CassandraRecordSensor': 'airflow.providers.apache.cassandra.sensors.record.CassandraRecordSensor',
@@ -80,18 +88,37 @@ __deprecated_classes = {
         'CloudDataTransferServiceJobStatusSensor':
             'airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.'
             'CloudDataTransferServiceJobStatusSensor',
+        'GCPTransferServiceWaitForJobStatusSensor':
+            'airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.'
+            'CloudDataTransferServiceJobStatusSensor',
     },
     'gcs_sensor': {
         'GCSObjectExistenceSensor': 'airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor',
-        'GCSObjectsWithPrefixExistenceSensor':
-            'airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor',
+        'GCSObjectsWithPrefixExistenceSensor': (
+            'airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor'
+        ),
         'GCSObjectUpdateSensor': 'airflow.providers.google.cloud.sensors.gcs.GCSObjectUpdateSensor',
-        'GCSUploadSessionCompleteSensor':
-            'airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor',
+        'GCSUploadSessionCompleteSensor': (
+            'airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor'
+        ),
+        'GoogleCloudStorageObjectSensor': (
+            'airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor'
+        ),
+        'GoogleCloudStorageObjectUpdatedSensor': (
+            'airflow.providers.google.cloud.sensors.gcs.GCSObjectUpdateSensor'
+        ),
+        'GoogleCloudStoragePrefixSensor': (
+            'airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor'
+        ),
+        'GoogleCloudStorageUploadSessionCompleteSensor': (
+            'airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor'
+        ),
     },
     'hdfs_sensor': {
         'HdfsFolderSensor': 'airflow.providers.apache.hdfs.sensors.hdfs.HdfsFolderSensor',
         'HdfsRegexSensor': 'airflow.providers.apache.hdfs.sensors.hdfs.HdfsRegexSensor',
+        'HdfsSensorFolder': 'airflow.providers.apache.hdfs.sensors.hdfs.HdfsFolderSensor',
+        'HdfsSensorRegex': 'airflow.providers.apache.hdfs.sensors.hdfs.HdfsRegexSensor',
     },
     'imap_attachment_sensor': {
         'ImapAttachmentSensor': 'airflow.providers.imap.sensors.imap_attachment.ImapAttachmentSensor',

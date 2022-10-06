@@ -24,6 +24,18 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Auto tail file logs in Web UI (#26169)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+
 2.0.1
 .....
 

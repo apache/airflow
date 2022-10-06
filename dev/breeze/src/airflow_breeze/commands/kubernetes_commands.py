@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import re
 import shutil
@@ -21,7 +23,6 @@ import sys
 import tempfile
 from pathlib import Path
 from shlex import quote
-from typing import List, Optional, Tuple
 
 import click
 
@@ -31,12 +32,14 @@ from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
+    option_debug_resources,
     option_dry_run,
     option_include_success_outputs,
     option_parallelism,
     option_python,
     option_python_versions,
     option_run_in_parallel,
+    option_skip_cleanup,
     option_verbose,
 )
 from airflow_breeze.utils.console import Output, get_console
@@ -93,7 +96,7 @@ option_kubernetes_version = click.option(
 option_image_tag = click.option(
     '-t',
     '--image-tag',
-    help='Image tag used to build K8S image from',
+    help='Image tag used to build K8S image from.',
     default='latest',
     show_default=True,
     envvar='IMAGE_TAG',
@@ -146,8 +149,7 @@ K8S_UPLOAD_PROGRESS_REGEXP = r'.*airflow-python-[0-9.]+-v[0-9.].*'
 K8S_CONFIGURE_CLUSTER_PROGRESS_REGEXP = r'.*airflow-python-[0-9.]+-v[0-9.].*'
 K8S_DEPLOY_PROGRESS_REGEXP = r'.*airflow-python-[0-9.]+-v[0-9.].*'
 K8S_TEST_PROGRESS_REGEXP = r'.*airflow-python-[0-9.]+-v[0-9.].*|^kubernetes_tests/.*'
-PERCENT_K8S_TEST_PROGRESS_REGEXP = r'^kubernetes_tests/.*\[[ \d*%]*\].*'
-K8S_SKIP_TRUNCATION_REGEXP = r'^kubernetes_tests/.*'
+PERCENT_K8S_TEST_PROGRESS_REGEXP = r'^kubernetes_tests/.*\[[ \d%]*\].*'
 
 
 @kubernetes_group.command(name="setup-env", help="Setup shared Kubernetes virtual environment and tools.")
@@ -171,12 +173,12 @@ def setup_env(force: bool, verbose: bool, dry_run: bool):
 def _create_cluster(
     python: str,
     kubernetes_version: str,
-    output: Optional[Output],
+    output: Output | None,
     num_tries: int,
     force: bool,
     verbose: bool,
     dry_run: bool,
-) -> Tuple[int, str]:
+) -> tuple[int, str]:
     while True:
         if force:
             _delete_cluster(
@@ -250,9 +252,11 @@ def _create_cluster(
 @option_kubernetes_version
 @option_run_in_parallel
 @option_parallelism
+@option_skip_cleanup
+@option_debug_resources
+@option_include_success_outputs
 @option_kubernetes_versions
 @option_python_versions
-@option_include_success_outputs
 @option_verbose
 @option_dry_run
 def create_cluster(
@@ -260,10 +264,12 @@ def create_cluster(
     python: str,
     kubernetes_version: str,
     run_in_parallel: bool,
+    skip_cleanup: bool,
+    debug_resources: bool,
+    include_success_outputs: bool,
     parallelism: int,
     kubernetes_versions: str,
     python_versions: str,
-    include_success_outputs: bool,
     verbose: bool,
     dry_run: bool,
 ):
@@ -272,8 +278,8 @@ def create_cluster(
         sys.exit(result.returncode)
     make_sure_kubernetes_tools_are_installed(verbose=verbose, dry_run=dry_run)
     if run_in_parallel:
-        python_version_array: List[str] = python_versions.split(" ")
-        kubernetes_version_array: List[str] = kubernetes_versions.split(" ")
+        python_version_array: list[str] = python_versions.split(" ")
+        kubernetes_version_array: list[str] = kubernetes_versions.split(" ")
         combo_titles, short_combo_titles, combos = get_kubernetes_python_combos(
             kubernetes_version_array, python_version_array
         )
@@ -281,8 +287,9 @@ def create_cluster(
             with run_with_pool(
                 parallelism=parallelism,
                 all_params=combo_titles,
+                debug_resources=debug_resources,
                 progress_matcher=GenericRegexpProgressMatcher(
-                    K8S_CLUSTER_CREATE_PROGRESS_REGEXP, lines_to_search=15
+                    regexp=K8S_CLUSTER_CREATE_PROGRESS_REGEXP, lines_to_search=15
                 ),
             ) as (pool, outputs):
                 results = [
@@ -304,6 +311,7 @@ def create_cluster(
             results=results,
             success="All clusters created.",
             outputs=outputs,
+            skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
         )
     else:
@@ -321,7 +329,7 @@ def create_cluster(
 
 
 def _delete_cluster(
-    python: str, kubernetes_version: str, output: Optional[Output], dry_run: bool, verbose: bool
+    python: str, kubernetes_version: str, output: Output | None, dry_run: bool, verbose: bool
 ):
     cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
     get_console(output=output).print(f"[info]Deleting KinD cluster {cluster_name}!")
@@ -404,7 +412,7 @@ def delete_cluster(python: str, kubernetes_version: str, all: bool, verbose: boo
         )
 
 
-def _get_python_kubernetes_version_from_name(cluster_name: str) -> Tuple[Optional[str], Optional[str]]:
+def _get_python_kubernetes_version_from_name(cluster_name: str) -> tuple[str | None, str | None]:
     matcher = re.compile(r'airflow-python-(\d+\.\d+)-(v\d+.\d+.\d+)')
     cluster_match = matcher.search(cluster_name)
     if cluster_match:
@@ -548,8 +556,8 @@ def _rebuild_k8s_image(
     rebuild_base_image: bool,
     dry_run: bool,
     verbose: bool,
-    output: Optional[Output],
-) -> Tuple[int, str]:
+    output: Output | None,
+) -> tuple[int, str]:
     params = BuildProdParams(python=python, image_tag=image_tag)
     if rebuild_base_image:
         run_build_production_image(prod_image_params=params, verbose=verbose, dry_run=dry_run, output=output)
@@ -598,8 +606,8 @@ ENV GUNICORN_CMD_ARGS='--preload' AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=0
 
 
 def _upload_k8s_image(
-    python: str, kubernetes_version: str, output: Optional[Output], dry_run: bool, verbose: bool
-) -> Tuple[int, str]:
+    python: str, kubernetes_version: str, output: Output | None, dry_run: bool, verbose: bool
+) -> tuple[int, str]:
     params = BuildProdParams(python=python)
     cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
     get_console(output=output).print(
@@ -631,8 +639,10 @@ def _upload_k8s_image(
 @option_rebuild_base_image
 @option_run_in_parallel
 @option_parallelism
-@option_python_versions
+@option_skip_cleanup
+@option_debug_resources
 @option_include_success_outputs
+@option_python_versions
 @option_verbose
 @option_dry_run
 def build_k8s_image(
@@ -641,8 +651,10 @@ def build_k8s_image(
     rebuild_base_image: bool,
     run_in_parallel: bool,
     parallelism: int,
-    python_versions: str,
+    skip_cleanup: bool,
+    debug_resources: bool,
     include_success_outputs: bool,
+    python_versions: str,
     verbose: bool,
     dry_run: bool,
 ):
@@ -651,11 +663,12 @@ def build_k8s_image(
         sys.exit(result.returncode)
     make_sure_kubernetes_tools_are_installed(verbose=verbose, dry_run=dry_run)
     if run_in_parallel:
-        python_version_array: List[str] = python_versions.split(" ")
+        python_version_array: list[str] = python_versions.split(" ")
         with ci_group(f"Building K8s images for {python_versions}"):
             with run_with_pool(
                 parallelism=parallelism,
                 all_params=[f"Image {python}" for python in python_version_array],
+                debug_resources=debug_resources,
                 progress_matcher=DockerBuildxProgressMatcher(),
             ) as (pool, outputs):
                 results = [
@@ -676,6 +689,7 @@ def build_k8s_image(
             results=results,
             success="All K8S images built correctly.",
             outputs=outputs,
+            skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
         )
     else:
@@ -701,9 +715,11 @@ def build_k8s_image(
 @option_kubernetes_version
 @option_run_in_parallel
 @option_parallelism
+@option_skip_cleanup
+@option_debug_resources
+@option_include_success_outputs
 @option_python_versions
 @option_kubernetes_versions
-@option_include_success_outputs
 @option_verbose
 @option_dry_run
 def upload_k8s_image(
@@ -711,9 +727,11 @@ def upload_k8s_image(
     kubernetes_version: str,
     run_in_parallel: bool,
     parallelism: int,
+    skip_cleanup: bool,
+    debug_resources: bool,
+    include_success_outputs: bool,
     python_versions: str,
     kubernetes_versions: str,
-    include_success_outputs: bool,
     verbose: bool,
     dry_run: bool,
 ):
@@ -722,8 +740,8 @@ def upload_k8s_image(
         sys.exit(result.returncode)
     make_sure_kubernetes_tools_are_installed(verbose=verbose, dry_run=dry_run)
     if run_in_parallel:
-        python_version_array: List[str] = python_versions.split(" ")
-        kubernetes_version_array: List[str] = kubernetes_versions.split(" ")
+        python_version_array: list[str] = python_versions.split(" ")
+        kubernetes_version_array: list[str] = kubernetes_versions.split(" ")
         combo_titles, short_combo_titles, combos = get_kubernetes_python_combos(
             kubernetes_version_array, python_version_array
         )
@@ -731,6 +749,7 @@ def upload_k8s_image(
             with run_with_pool(
                 parallelism=parallelism,
                 all_params=combo_titles,
+                debug_resources=debug_resources,
                 progress_matcher=GenericRegexpProgressMatcher(
                     regexp=K8S_UPLOAD_PROGRESS_REGEXP, lines_to_search=2
                 ),
@@ -752,6 +771,7 @@ def upload_k8s_image(
             results=results,
             success="All K8S images uploaded correctly.",
             outputs=outputs,
+            skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
         )
     else:
@@ -778,7 +798,7 @@ def _recreate_namespaces(
     kubernetes_version: str,
     verbose: bool,
     dry_run: bool,
-    output: Optional[Output],
+    output: Output | None,
 ) -> RunCommandResult:
     cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
     get_console(output=output).print(f"[info]Deleting K8S namespaces for {cluster_name}")
@@ -827,7 +847,7 @@ def _recreate_namespaces(
 
 
 def _deploy_test_resources(
-    python: str, kubernetes_version: str, output: Optional[Output], verbose: bool, dry_run: bool
+    python: str, kubernetes_version: str, output: Output | None, verbose: bool, dry_run: bool
 ) -> RunCommandResult:
     cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
     get_console(output=output).print(f"[info]Deploying test resources for cluster {cluster_name}")
@@ -871,8 +891,8 @@ def _deploy_test_resources(
 
 
 def _configure_k8s_cluster(
-    python: str, kubernetes_version: str, output: Optional[Output], verbose: bool, dry_run: bool
-) -> Tuple[int, str]:
+    python: str, kubernetes_version: str, output: Output | None, verbose: bool, dry_run: bool
+) -> tuple[int, str]:
     cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
     get_console(output=output).print(f'[info]Configuring {cluster_name} to be ready for Airflow deployment')
     result = _recreate_namespaces(
@@ -898,9 +918,11 @@ def _configure_k8s_cluster(
 @option_kubernetes_version
 @option_run_in_parallel
 @option_parallelism
+@option_skip_cleanup
+@option_debug_resources
+@option_include_success_outputs
 @option_python_versions
 @option_kubernetes_versions
-@option_include_success_outputs
 @option_verbose
 @option_dry_run
 def configure_cluster(
@@ -908,9 +930,11 @@ def configure_cluster(
     kubernetes_version: str,
     run_in_parallel: bool,
     parallelism: int,
+    skip_cleanup: bool,
+    debug_resources: bool,
+    include_success_outputs: bool,
     python_versions: str,
     kubernetes_versions: str,
-    include_success_outputs: bool,
     verbose: bool,
     dry_run: bool,
 ):
@@ -919,8 +943,8 @@ def configure_cluster(
         sys.exit(result.returncode)
     make_sure_kubernetes_tools_are_installed(verbose=verbose, dry_run=dry_run)
     if run_in_parallel:
-        python_version_array: List[str] = python_versions.split(" ")
-        kubernetes_version_array: List[str] = kubernetes_versions.split(" ")
+        python_version_array: list[str] = python_versions.split(" ")
+        kubernetes_version_array: list[str] = kubernetes_versions.split(" ")
         combo_titles, short_combo_titles, combos = get_kubernetes_python_combos(
             kubernetes_version_array, python_version_array
         )
@@ -928,6 +952,7 @@ def configure_cluster(
             with run_with_pool(
                 parallelism=parallelism,
                 all_params=combo_titles,
+                debug_resources=debug_resources,
                 progress_matcher=GenericRegexpProgressMatcher(
                     regexp=K8S_CONFIGURE_CLUSTER_PROGRESS_REGEXP, lines_to_search=10
                 ),
@@ -949,6 +974,7 @@ def configure_cluster(
             results=results,
             success="All clusters configured correctly.",
             outputs=outputs,
+            skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
         )
     else:
@@ -969,11 +995,11 @@ def _deploy_helm_chart(
     python: str,
     upgrade: bool,
     kubernetes_version: str,
-    output: Optional[Output],
+    output: Output | None,
     executor: str,
     verbose: bool,
     dry_run: bool,
-    extra_options: Optional[Tuple[str, ...]] = None,
+    extra_options: tuple[str, ...] | None = None,
 ) -> RunCommandResult:
     cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
     get_console(output=output).print(f"[info]Deploying {cluster_name} with airflow Helm Chart.")
@@ -1037,14 +1063,14 @@ def _deploy_helm_chart(
 def _deploy_airflow(
     python: str,
     kubernetes_version: str,
-    output: Optional[Output],
+    output: Output | None,
     executor: str,
     upgrade: bool,
     wait_time_in_seconds: int,
     verbose: bool,
     dry_run: bool,
-    extra_options: Optional[Tuple[str, ...]] = None,
-) -> Tuple[int, str]:
+    extra_options: tuple[str, ...] | None = None,
+) -> tuple[int, str]:
     action = "Deploying" if not upgrade else "Upgrading"
     cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
     get_console(output=output).print(f'[info]{action} Airflow for cluster {cluster_name}')
@@ -1095,9 +1121,11 @@ def _deploy_airflow(
 @option_wait_time_in_seconds
 @option_run_in_parallel
 @option_parallelism
+@option_skip_cleanup
+@option_debug_resources
+@option_include_success_outputs
 @option_python_versions
 @option_kubernetes_versions
-@option_include_success_outputs
 @option_verbose
 @option_dry_run
 @click.argument('extra_options', nargs=-1, type=click.UNPROCESSED)
@@ -1109,16 +1137,18 @@ def deploy_airflow(
     wait_time_in_seconds: int,
     run_in_parallel: bool,
     parallelism: int,
+    skip_cleanup: bool,
+    debug_resources: bool,
+    include_success_outputs: bool,
     python_versions: str,
     kubernetes_versions: str,
-    include_success_outputs: bool,
     verbose: bool,
     dry_run: bool,
-    extra_options: Optional[Tuple[str, ...]] = None,
+    extra_options: tuple[str, ...] | None = None,
 ):
     if run_in_parallel:
-        python_version_array: List[str] = python_versions.split(" ")
-        kubernetes_version_array: List[str] = kubernetes_versions.split(" ")
+        python_version_array: list[str] = python_versions.split(" ")
+        kubernetes_version_array: list[str] = kubernetes_versions.split(" ")
         combo_titles, short_combo_titles, combos = get_kubernetes_python_combos(
             kubernetes_version_array, python_version_array
         )
@@ -1126,7 +1156,10 @@ def deploy_airflow(
             with run_with_pool(
                 parallelism=parallelism,
                 all_params=combo_titles,
-                progress_matcher=GenericRegexpProgressMatcher(K8S_DEPLOY_PROGRESS_REGEXP, lines_to_search=15),
+                debug_resources=debug_resources,
+                progress_matcher=GenericRegexpProgressMatcher(
+                    regexp=K8S_DEPLOY_PROGRESS_REGEXP, lines_to_search=15
+                ),
             ) as (pool, outputs):
                 results = [
                     pool.apply_async(
@@ -1149,6 +1182,7 @@ def deploy_airflow(
             results=results,
             success="All Airflow charts successfully deployed.",
             outputs=outputs,
+            skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
         )
     else:
@@ -1187,7 +1221,7 @@ def deploy_airflow(
 @option_verbose
 @option_dry_run
 @click.argument('k9s_args', nargs=-1, type=click.UNPROCESSED)
-def k9s(python: str, kubernetes_version: str, verbose: bool, dry_run: bool, k9s_args: Tuple[str, ...]):
+def k9s(python: str, kubernetes_version: str, verbose: bool, dry_run: bool, k9s_args: tuple[str, ...]):
     result = create_virtualenv(force=False, verbose=verbose, dry_run=dry_run)
     if result.returncode != 0:
         sys.exit(result.returncode)
@@ -1299,7 +1333,7 @@ def shell(
     force_venv_setup: bool,
     verbose: bool,
     dry_run: bool,
-    shell_args: Tuple[str, ...],
+    shell_args: tuple[str, ...],
 ):
     result = create_virtualenv(force=force_venv_setup, verbose=verbose, dry_run=dry_run)
     if result.returncode != 0:
@@ -1308,7 +1342,7 @@ def shell(
     env = get_k8s_env(python=python, kubernetes_version=kubernetes_version, executor=executor)
     get_console().print("\n[info]Entering interactive k8s shell.\n")
     shell_binary = env['SHELL']
-    extra_args: List[str] = []
+    extra_args: list[str] = []
     if shell_binary.endswith("zsh"):
         extra_args.append('--no-rcs')
     elif shell_binary.endswith("bash"):
@@ -1323,17 +1357,17 @@ def shell(
 def _run_tests(
     python: str,
     kubernetes_version: str,
-    output: Optional[Output],
+    output: Output | None,
     executor: str,
-    test_args: Tuple[str, ...],
+    test_args: tuple[str, ...],
     verbose: bool,
     dry_run: bool,
-) -> Tuple[int, str]:
+) -> tuple[int, str]:
     env = get_k8s_env(python=python, kubernetes_version=kubernetes_version, executor=executor)
     kubectl_cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
     get_console(output=output).print(f"\n[info]Running tests with {kubectl_cluster_name} cluster.")
-    shell_binary = env['SHELL']
-    extra_shell_args: List[str] = []
+    shell_binary = env.get('SHELL', shutil.which('bash'))
+    extra_shell_args: list[str] = []
     if shell_binary.endswith("zsh"):
         extra_shell_args.append('--no-rcs')
     elif shell_binary.endswith("bash"):
@@ -1368,9 +1402,11 @@ def _run_tests(
 @option_force_venv_setup
 @option_run_in_parallel
 @option_parallelism
+@option_skip_cleanup
+@option_debug_resources
+@option_include_success_outputs
 @option_python_versions
 @option_kubernetes_versions
-@option_include_success_outputs
 @option_verbose
 @option_dry_run
 @click.argument('test_args', nargs=-1, type=click.Path())
@@ -1381,12 +1417,14 @@ def tests(
     force_venv_setup: bool,
     run_in_parallel: bool,
     parallelism: int,
+    skip_cleanup: bool,
+    debug_resources: bool,
+    include_success_outputs: bool,
     python_versions: str,
     kubernetes_versions: str,
-    include_success_outputs: bool,
     verbose: bool,
     dry_run: bool,
-    test_args: Tuple[str, ...],
+    test_args: tuple[str, ...],
 ):
     result = create_virtualenv(force=force_venv_setup, verbose=verbose, dry_run=dry_run)
     if result.returncode != 0:
@@ -1417,8 +1455,8 @@ def tests(
             "-rfEX",
             *test_args,
         ]
-        python_version_array: List[str] = python_versions.split(" ")
-        kubernetes_version_array: List[str] = kubernetes_versions.split(" ")
+        python_version_array: list[str] = python_versions.split(" ")
+        kubernetes_version_array: list[str] = kubernetes_versions.split(" ")
         combo_titles, short_combo_titles, combos = get_kubernetes_python_combos(
             kubernetes_version_array, python_version_array
         )
@@ -1426,11 +1464,11 @@ def tests(
             with run_with_pool(
                 parallelism=parallelism,
                 all_params=combo_titles,
+                debug_resources=debug_resources,
                 progress_matcher=GenericRegexpProgressMatcher(
-                    K8S_TEST_PROGRESS_REGEXP,
-                    lines_to_search=15,
+                    regexp=K8S_TEST_PROGRESS_REGEXP,
                     regexp_for_joined_line=PERCENT_K8S_TEST_PROGRESS_REGEXP,
-                    regexp_to_skip_truncation=K8S_SKIP_TRUNCATION_REGEXP,
+                    lines_to_search=15,
                 ),
             ) as (pool, outputs):
                 results = [
@@ -1453,6 +1491,7 @@ def tests(
             success="All K8S tests successfully completed.",
             outputs=outputs,
             include_success_outputs=include_success_outputs,
+            skip_cleanup=skip_cleanup,
         )
     else:
         result, _ = _run_tests(
