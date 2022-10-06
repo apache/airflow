@@ -3032,12 +3032,21 @@ def test_get_dataset_triggered_next_run_info(dag_maker):
     session.flush()
 
     info = get_dataset_triggered_next_run_info([dag1.dag_id], session=session)
-    assert "0 of 1 datasets updated" == info[dag1.dag_id]
+    assert info[dag1.dag_id] == {
+        "ready": 0,
+        "total": 1,
+    }
 
     # This time, check both dag2 and dag3 at the same time (tests filtering)
     info = get_dataset_triggered_next_run_info([dag2.dag_id, dag3.dag_id], session=session)
-    assert "1 of 2 datasets updated" == info[dag2.dag_id]
-    assert "1 of 3 datasets updated" == info[dag3.dag_id]
+    assert info[dag2.dag_id] == {
+        "ready": 1,
+        "total": 2,
+    }
+    assert info[dag3.dag_id] == {
+        "ready": 1,
+        "total": 3,
+    }
 
 
 def test_dag_uses_timetable_for_run_id(session):
