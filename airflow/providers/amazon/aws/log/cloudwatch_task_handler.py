@@ -63,8 +63,8 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     def set_context(self, ti):
         super().set_context(ti)
         self.handler = watchtower.CloudWatchLogHandler(
-            log_group=self.log_group,
-            stream_name=self._render_filename(ti, ti.try_number),
+            log_group_name=self.log_group,
+            log_stream_name=self._render_filename(ti, ti.try_number),
             boto3_client=self.hook.get_conn(),
         )
 
@@ -98,12 +98,11 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         :return: string of all logs from the given log stream
         """
         try:
-            events = list(
-                self.hook.get_log_events(
-                    log_group=self.log_group, log_stream_name=stream_name, start_from_head=True
-                )
+            events = self.hook.get_log_events(
+                log_group=self.log_group,
+                log_stream_name=stream_name,
+                start_from_head=True,
             )
-
             return '\n'.join(self._event_to_str(event) for event in events)
         except Exception:
             msg = f'Could not read remote logs from log_group: {self.log_group} log_stream: {stream_name}.'

@@ -79,6 +79,9 @@ class TestGlueCatalogPartitionSensor(unittest.TestCase):
             poke_interval=poke_interval,
             timeout=timeout,
         )
+        # We're mocking all actual AWS calls and don't need a connection. This
+        # avoids an Airflow warning about connection cannot be found.
+        op.get_hook().get_connection = lambda _: None
         op.poke({})
 
         assert op.hook.region_name == region_name

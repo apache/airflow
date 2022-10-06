@@ -31,6 +31,9 @@ class TestEC2Hook(unittest.TestCase):
             aws_conn_id="aws_conn_test",
             region_name="region-test",
         )
+        # We're mocking all actual AWS calls and don't need a connection. This
+        # avoids an Airflow warning about connection cannot be found.
+        ec2_hook.get_connection = lambda _: None
         assert ec2_hook.aws_conn_id == "aws_conn_test"
         assert ec2_hook.region_name == "region-test"
 

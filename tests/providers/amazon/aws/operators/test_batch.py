@@ -66,6 +66,9 @@ class TestBatchOperator(unittest.TestCase):
             tags={},
         )
         self.client_mock = self.get_client_type_mock.return_value
+        # We're mocking all actual AWS calls and don't need a connection. This
+        # avoids an Airflow warning about connection cannot be found.
+        self.batch.hook.get_connection = lambda _: None
         assert self.batch.hook.client == self.client_mock  # setup client property
 
         # don't pause in unit tests

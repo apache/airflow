@@ -53,6 +53,9 @@ class TestBatchClient(unittest.TestCase):
             aws_conn_id='airflow_test',
             region_name=AWS_REGION,
         )
+        # We're mocking all actual AWS calls and don't need a connection. This
+        # avoids an Airflow warning about connection cannot be found.
+        self.batch_client.get_connection = lambda _: None
         self.client_mock = get_client_type_mock.return_value
         assert self.batch_client.client == self.client_mock  # setup client property
 
@@ -307,6 +310,9 @@ class TestBatchClientDelays(unittest.TestCase):
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
     def setUp(self):
         self.batch_client = BatchClientHook(aws_conn_id='airflow_test', region_name=AWS_REGION)
+        # We're mocking all actual AWS calls and don't need a connection. This
+        # avoids an Airflow warning about connection cannot be found.
+        self.batch_client.get_connection = lambda _: None
 
     def test_init(self):
         assert self.batch_client.max_retries == self.batch_client.MAX_RETRIES

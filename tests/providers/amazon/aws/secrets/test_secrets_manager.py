@@ -17,14 +17,15 @@
 from __future__ import annotations
 
 import json
-from unittest import TestCase, mock
+from unittest import mock
 
+import pytest
 from moto import mock_secretsmanager
 
 from airflow.providers.amazon.aws.secrets.secrets_manager import SecretsManagerBackend
 
 
-class TestSecretsManagerBackend(TestCase):
+class TestSecretsManagerBackend:
     @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend.get_conn_value")
     def test_aws_secrets_manager_get_connection(self, mock_get_value):
         mock_get_value.return_value = "scheme://user:pass@host:100"
@@ -32,7 +33,7 @@ class TestSecretsManagerBackend(TestCase):
         assert conn.host == 'host'
 
     @mock_secretsmanager
-    def test_get_conn_uri_full_url_mode(self):
+    def test_get_conn_value_full_url_mode(self):
         secret_id = 'airflow/connections/test_postgres'
         create_param = {
             'Name': secret_id,
@@ -47,11 +48,18 @@ class TestSecretsManagerBackend(TestCase):
         secrets_manager_backend.client.create_secret(**create_param)
         secrets_manager_backend.client.put_secret_value(**param)
 
-        returned_uri = secrets_manager_backend.get_conn_uri(conn_id="test_postgres")
+        returned_uri = secrets_manager_backend.get_conn_value(conn_id="test_postgres")
         assert 'postgresql://airflow:airflow@host:5432/airflow' == returned_uri
 
+    @pytest.mark.parametrize(
+        "full_url_mode, login, host",
+        [
+            (False, "is url encoded", "not%20idempotent"),
+            (True, "is%20url%20encoded", "not%2520idempotent"),
+        ],
+    )
     @mock_secretsmanager
-    def test_get_connection_broken_field_mode_url_encoding(self):
+    def test_get_connection_broken_field_mode_url_encoding(self, full_url_mode, login, host):
         secret_id = 'airflow/connections/test_postgres'
         create_param = {
             'Name': secret_id,
@@ -62,7 +70,7 @@ class TestSecretsManagerBackend(TestCase):
             'SecretString': json.dumps(
                 {
                     'conn_type': 'postgresql',
-                    'user': 'is%20url%20encoded',
+                    'login': 'is%20url%20encoded',
                     'password': 'not url encoded',
                     'host': 'not%2520idempotent',
                     'extra': json.dumps({'foo': 'bar'}),
@@ -70,23 +78,20 @@ class TestSecretsManagerBackend(TestCase):
             ),
         }
 
-        secrets_manager_backend = SecretsManagerBackend(full_url_mode=False)
+        secrets_manager_backend = SecretsManagerBackend(full_url_mode=full_url_mode)
         secrets_manager_backend.client.create_secret(**create_param)
         secrets_manager_backend.client.put_secret_value(**param)
 
-        conn = secrets_manager_backend.get_connection(conn_id='test_postgres')
-        assert conn.login == 'is url encoded'
-        assert conn.password == 'not url encoded'
-        assert conn.host == 'not%20idempotent'
-        assert conn.conn_id == 'test_postgres'
+        if full_url_mode:
+            conn = secrets_manager_backend.get_connection(conn_id='test_postgres')
+        else:
+            warning_match = r"When full_url_mode=False, URL-encoding secret values is deprecated\..+"
+            with pytest.warns(DeprecationWarning, match=warning_match):
+                conn = secrets_manager_backend.get_connection(conn_id='test_postgres')
 
-        # Remove URL encoding
-        secrets_manager_backend.are_secret_values_urlencoded = False
-
-        conn = secrets_manager_backend.get_connection(conn_id='test_postgres')
-        assert conn.login == 'is%20url%20encoded'
+        assert conn.login == login
         assert conn.password == 'not url encoded'
-        assert conn.host == 'not%2520idempotent'
+        assert conn.host == host
         assert conn.conn_id == 'test_postgres'
         assert conn.extra_dejson['foo'] == 'bar'
 
@@ -118,7 +123,7 @@ class TestSecretsManagerBackend(TestCase):
         assert conn.extra_dejson['foo'] == 'bar'
 
     @mock_secretsmanager
-    def test_get_conn_uri_broken_field_mode(self):
+    def test_get_conn_value_broken_field_mode(self):
         secret_id = 'airflow/connections/test_postgres'
         create_param = {
             'Name': secret_id,
@@ -134,11 +139,16 @@ class TestSecretsManagerBackend(TestCase):
         secrets_manager_backend.client.create_secret(**create_param)
         secrets_manager_backend.client.put_secret_value(**param)
 
-        returned_uri = secrets_manager_backend.get_conn_uri(conn_id="test_postgres")
+        warning_match = (
+            r"In future versions, `SecretsManagerBackend\.get_conn_value` will return a JSON string when "
+            r"full_url_mode is False, not a URI\."
+        )
+        with pytest.warns(DeprecationWarning, match=warning_match):
+            returned_uri = secrets_manager_backend.get_conn_value(conn_id="test_postgres")
         assert 'postgresql://airflow:airflow@host:5432/airflow' == returned_uri
 
     @mock_secretsmanager
-    def test_get_conn_uri_broken_field_mode_extra_words_added(self):
+    def test_get_conn_value_broken_field_mode_extra_words_added(self):
         secret_id = 'airflow/connections/test_postgres'
         create_param = {
             'Name': secret_id,
@@ -156,7 +166,12 @@ class TestSecretsManagerBackend(TestCase):
         secrets_manager_backend.client.create_secret(**create_param)
         secrets_manager_backend.client.put_secret_value(**param)
 
-        returned_uri = secrets_manager_backend.get_conn_uri(conn_id="test_postgres")
+        warning_match = (
+            r"In future versions, `SecretsManagerBackend\.get_conn_value` will return a JSON string when "
+            r"full_url_mode is False, not a URI\."
+        )
+        with pytest.warns(DeprecationWarning, match=warning_match):
+            returned_uri = secrets_manager_backend.get_conn_value(conn_id="test_postgres")
         assert 'postgresql://airflow:airflow@host:5432/airflow' == returned_uri
 
     @mock_secretsmanager
@@ -170,7 +185,7 @@ class TestSecretsManagerBackend(TestCase):
         assert conn_string_with_extra == 'CS?key1=value1&key2=value2'
 
     @mock_secretsmanager
-    def test_get_conn_uri_non_existent_key(self):
+    def test_get_conn_value_non_existent_key(self):
         """
         Test that if the key with connection ID is not present,
         SecretsManagerBackend.get_connection should return None
@@ -191,7 +206,7 @@ class TestSecretsManagerBackend(TestCase):
         secrets_manager_backend.client.create_secret(**create_param)
         secrets_manager_backend.client.put_secret_value(**param)
 
-        assert secrets_manager_backend.get_conn_uri(conn_id=conn_id) is None
+        assert secrets_manager_backend.get_conn_value(conn_id=conn_id) is None
         assert secrets_manager_backend.get_connection(conn_id=conn_id) is None
 
     @mock_secretsmanager
@@ -233,14 +248,14 @@ class TestSecretsManagerBackend(TestCase):
     def test_connection_prefix_none_value(self, mock_get_secret):
         """
         Test that if Variable key is not present in AWS Secrets Manager,
-        SecretsManagerBackend.get_conn_uri should return None,
+        SecretsManagerBackend.get_conn_value should return None,
         SecretsManagerBackend._get_secret should not be called
         """
         kwargs = {'connections_prefix': None}
 
         secrets_manager_backend = SecretsManagerBackend(**kwargs)
 
-        assert secrets_manager_backend.get_conn_uri("test_mysql") is None
+        assert secrets_manager_backend.get_conn_value("test_mysql") is None
 
     @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret")
     def test_variable_prefix_none_value(self, mock_get_secret):

@@ -164,7 +164,8 @@ class TestAthenaHook(unittest.TestCase):
     def test_hook_poll_query_with_timeout(self, mock_conn):
         mock_conn.return_value.get_query_execution.return_value = MOCK_RUNNING_QUERY_EXECUTION
         result = self.athena.poll_query_status(
-            query_execution_id=MOCK_DATA['query_execution_id'], max_tries=1
+            query_execution_id=MOCK_DATA['query_execution_id'],
+            max_polling_attempts=1,
         )
         mock_conn.return_value.get_query_execution.assert_called_once()
         assert result == 'RUNNING'

@@ -110,7 +110,7 @@ class TestEmrContainerHook(unittest.TestCase):
         mock_session.return_value = emr_session_mock
         emr_client_mock.describe_job_run.return_value = JOB2_RUN_DESCRIPTION
 
-        query_status = self.emr_containers.poll_query_status(job_id='job123456', max_tries=2)
+        query_status = self.emr_containers.poll_query_status(job_id='job123456', max_polling_attempts=2)
         # should poll until max_tries is reached since query is in non-terminal state
         assert emr_client_mock.describe_job_run.call_count == 2
         assert query_status == 'RUNNING'

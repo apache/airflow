@@ -1242,6 +1242,9 @@ class TestEksHook:
             'cluster': {'certificateAuthority': {'data': 'test-cert'}, 'endpoint': 'test-endpoint'}
         }
         hook = EksHook(aws_conn_id=aws_conn_id, region_name=region_name)
+        # We're mocking all actual AWS calls and don't need a connection. This
+        # avoids an Airflow warning about connection cannot be found.
+        hook.get_connection = lambda _: None
         with hook.generate_config_file(
             eks_cluster_name='test-cluster', pod_namespace='k8s-namespace'
         ) as config_file:

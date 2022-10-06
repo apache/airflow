@@ -38,6 +38,16 @@ MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 S3_ACL_POLICY = "private-read"
 
 
+def _create_test_bucket():
+    hook = S3Hook(aws_conn_id='airflow_gcs_test')
+    # We're mocking all actual AWS calls and don't need a connection.
+    # This avoids an Airflow warning about connection cannot be found.
+    hook.get_connection = lambda _: None
+    bucket = hook.get_bucket('bucket')
+    bucket.create()
+    return hook, bucket
+
+
 class TestGCSToS3Operator(unittest.TestCase):
 
     # Test1: incremental behaviour (just some files missing)
@@ -58,10 +68,7 @@ class TestGCSToS3Operator(unittest.TestCase):
                 dest_s3_key=S3_BUCKET,
                 replace=False,
             )
-            # create dest bucket
-            hook = S3Hook(aws_conn_id='airflow_gcs_test')
-            bucket = hook.get_bucket('bucket')
-            bucket.create()
+            hook, bucket = _create_test_bucket()
             bucket.put_object(Key=MOCK_FILES[0], Body=b'testing')
 
             # we expect all except first file in MOCK_FILES to be uploaded
@@ -88,10 +95,7 @@ class TestGCSToS3Operator(unittest.TestCase):
                 dest_s3_key=S3_BUCKET,
                 replace=False,
             )
-            # create dest bucket with all the files
-            hook = S3Hook(aws_conn_id='airflow_gcs_test')
-            bucket = hook.get_bucket('bucket')
-            bucket.create()
+            hook, bucket = _create_test_bucket()
             for mock_file in MOCK_FILES:
                 bucket.put_object(Key=mock_file, Body=b'testing')
 
@@ -119,10 +123,7 @@ class TestGCSToS3Operator(unittest.TestCase):
                 dest_s3_key=S3_BUCKET,
                 replace=False,
             )
-            # create dest bucket without files
-            hook = S3Hook(aws_conn_id='airflow_gcs_test')
-            bucket = hook.get_bucket('bucket')
-            bucket.create()
+            hook, _ = _create_test_bucket()
 
             # we expect all MOCK_FILES to be uploaded
             # and all MOCK_FILES to be present at the S3 bucket
@@ -148,10 +149,7 @@ class TestGCSToS3Operator(unittest.TestCase):
                 dest_s3_key=S3_BUCKET,
                 replace=True,
             )
-            # create dest bucket with all the files
-            hook = S3Hook(aws_conn_id='airflow_gcs_test')
-            bucket = hook.get_bucket('bucket')
-            bucket.create()
+            hook, bucket = _create_test_bucket()
             for mock_file in MOCK_FILES:
                 bucket.put_object(Key=mock_file, Body=b'testing')
 
@@ -179,10 +177,7 @@ class TestGCSToS3Operator(unittest.TestCase):
                 dest_s3_key=S3_BUCKET,
                 replace=True,
             )
-            # create dest bucket with just two files (the first two files in MOCK_FILES)
-            hook = S3Hook(aws_conn_id='airflow_gcs_test')
-            bucket = hook.get_bucket('bucket')
-            bucket.create()
+            hook, bucket = _create_test_bucket()
             for mock_file in MOCK_FILES[:2]:
                 bucket.put_object(Key=mock_file, Body=b'testing')
 
@@ -261,12 +256,7 @@ class TestGCSToS3Operator(unittest.TestCase):
                 replace=False,
                 s3_acl_policy=S3_ACL_POLICY,
             )
-
-            # Create dest bucket without files
-            hook = S3Hook(aws_conn_id='airflow_gcs_test')
-            bucket = hook.get_bucket('bucket')
-            bucket.create()
-
+            _create_test_bucket()
             operator.execute(None)
 
             # Make sure the acl_policy parameter is passed to the upload method
@@ -291,10 +281,7 @@ class TestGCSToS3Operator(unittest.TestCase):
                 replace=False,
                 keep_directory_structure=False,
             )
-            # create dest bucket with all the files
-            hook = S3Hook(aws_conn_id='airflow_gcs_test')
-            bucket = hook.get_bucket('bucket')
-            bucket.create()
+            hook, _ = _create_test_bucket()
 
             # we expect all except first file in MOCK_FILES to be uploaded
             # and all the MOCK_FILES to be present at the S3 bucket

@@ -330,19 +330,19 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         if warn_user:
             msg = (
-                "When ``full_url_mode=True``, URL-encoding secret values is deprecated. In future versions, "
-                f" this value will not be un-escaped. For the conn_id {conn_id!r}, please remove the"
-                " URL-encoding."
-                "\n\nThis warning was raised because the SecretsManagerBackend detected that this connection"
-                " was URL-encoded."
+                "When full_url_mode=False, URL-encoding secret values is deprecated. In future versions, "
+                f"this value will not be un-escaped. For the conn_id {conn_id!r}, please remove the "
+                "URL-encoding.\n\n"
+                "This warning was raised because the SecretsManagerBackend detected that this "
+                "connection was URL-encoded."
             )
             if idempotent:
                 msg = f" Once the values for conn_id {conn_id!r} are decoded, this warning will go away."
             if not idempotent:
                 msg += (
                     " In addition to decoding the values for your connection, you must also set"
-                    " ``secret_values_are_urlencoded=False`` for your config variable"
-                    " ``secrets.backend_kwargs`` because this connection's URL encoding is not idempotent."
+                    " secret_values_are_urlencoded=False for your config variable"
+                    " secrets.backend_kwargs because this connection's URL encoding is not idempotent."
                     " For more information, see:"
                     " https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/secrets-backends"
                     "/aws-secrets-manager.html#url-encoding-of-secrets-when-full-url-mode-is-false"
