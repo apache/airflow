@@ -46,6 +46,9 @@ class TestAwsS3HookNoMock:
         monkeypatch.delenv('AWS_ACCESS_KEY_ID', raising=False)
         monkeypatch.delenv('AWS_SECRET_ACCESS_KEY', raising=False)
         hook = S3Hook(aws_conn_id="does_not_exist")
+        # We're mocking all actual AWS calls and don't need a connection. This
+        # avoids an Airflow warning about connection cannot be found.
+        hook.get_connection = lambda _: None
         with pytest.raises(NoCredentialsError):
             hook.check_for_bucket("test-non-existing-bucket")
 
@@ -587,6 +590,9 @@ class TestAwsS3Hook:
             "SSEKMSKeyId": "arn:aws:kms:region:acct-id:key/key-id",
         }
         s3_hook = S3Hook(aws_conn_id="s3_test", extra_args=original)
+        # We're mocking all actual AWS calls and don't need a connection. This
+        # avoids an Airflow warning about connection cannot be found.
+        s3_hook.get_connection = lambda _: None
         assert s3_hook.extra_args == original
         assert s3_hook.extra_args is not original
 

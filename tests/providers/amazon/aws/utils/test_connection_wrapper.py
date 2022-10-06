@@ -73,7 +73,7 @@ class TestAwsConnectionWrapper:
             password="mock-password",
             extra=extra,
             # AwsBaseHook never use this attributes from airflow.models.Connection
-            host="mock-host",
+            host=None,
             schema="mock-schema",
             port=42,
         )
@@ -170,7 +170,8 @@ class TestAwsConnectionWrapper:
         }
         mock_conn = mock_connection_factory(login=None, password=None, extra=mock_conn_extra)
 
-        wrap_conn = AwsConnectionWrapper(conn=mock_conn)
+        with pytest.warns(DeprecationWarning, match=r"'session_kwargs' in extra config is deprecated"):
+            wrap_conn = AwsConnectionWrapper(conn=mock_conn)
         assert wrap_conn.aws_access_key_id == aws_access_key_id
         assert wrap_conn.aws_secret_access_key == aws_secret_access_key
         assert wrap_conn.aws_session_token == aws_session_token
