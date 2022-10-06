@@ -131,6 +131,35 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert ordered_dataset_ids == [json_dict['id'] for json_dict in response.json['datasets']]
         assert response.json['total_entries'] == len(ordered_dataset_ids)
 
+    def test_search_uri_pattern(self, admin_client, session):
+        datasets = [
+            DatasetModel(
+                id=i,
+                uri=f"s3://bucket/key_{i}",
+            )
+            for i in [1, 2]
+        ]
+        session.add_all(datasets)
+        session.commit()
+        assert session.query(DatasetModel).count() == 2
+
+        uri_pattern = 'key_2'
+        response = admin_client.get(f"/object/datasets_summary?uri_pattern={uri_pattern}")
+
+        assert response.status_code == 200
+        response_data = response.json
+        assert response_data == {
+            "datasets": [
+                {
+                    "id": 2,
+                    "uri": "s3://bucket/key_2",
+                    "last_dataset_update": None,
+                    "total_updates": 0,
+                },
+            ],
+            "total_entries": 2,
+        }
+
     @pytest.mark.need_serialized_dag
     def test_correct_counts_update(self, admin_client, session, dag_maker, app, monkeypatch):
         with monkeypatch.context() as m:
