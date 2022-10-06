@@ -3678,7 +3678,7 @@ class Airflow(AirflowBaseView):
 
         current_page = request.args.get('page', default=0, type=int)
         arg_sorting_key = request.args.get('sorting_key', 'dttm')
-        arg_sorting_direction = request.args.get('sorting_direction', default='asc')
+        arg_sorting_direction = request.args.get('sorting_direction', default='desc')
 
         logs_per_page = PAGE_SIZE
         audit_logs_count = query.count()
