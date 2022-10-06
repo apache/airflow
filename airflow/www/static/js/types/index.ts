@@ -49,9 +49,13 @@ interface DagRun {
   executionDate: string;
   dataIntervalStart: string;
   dataIntervalEnd: string;
+  queuedAt: string | null;
   startDate: string | null;
   endDate: string | null;
   lastSchedulingDecision: string | null;
+  externalTrigger: boolean;
+  conf: string | null;
+  confIsJson: boolean;
 }
 
 interface TaskInstance {

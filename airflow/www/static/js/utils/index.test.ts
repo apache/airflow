@@ -120,12 +120,16 @@ describe('Test getDagRunLabel', () => {
     runId: 'run1',
     dataIntervalStart: '2021-12-07T21:14:19.704433+00:00',
     dataIntervalEnd: '2021-12-08T21:14:19.704433+00:00',
+    queuedAt: '2021-11-08T21:14:18.21521+00:00',
     startDate: '2021-11-08T21:14:19.704433+00:00',
     endDate: '2021-11-08T21:17:13.206426+00:00',
     state: 'failed',
     runType: 'scheduled',
     executionDate: '2021-12-09T21:14:19.704433+00:00',
     lastSchedulingDecision: '2021-11-08T21:14:19.704433+00:00',
+    externalTrigger: false,
+    conf: null,
+    confIsJson: false,
   } as DagRun;
 
   test('Defaults to dataIntervalEnd', async () => {

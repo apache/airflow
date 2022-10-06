@@ -137,8 +137,17 @@ def encode_dag_run(dag_run: DagRun | None) -> dict[str, Any] | None:
     if not dag_run:
         return None
 
+    conf: str | None = None
+    conf_is_json: bool = False
+    if isinstance(dag_run.conf, str):
+        conf = dag_run.conf
+    elif isinstance(dag_run.conf, (dict, list)) and any(dag_run.conf):
+        conf = json.dumps(dag_run.conf, sort_keys=True)
+        conf_is_json = True
+
     return {
         'run_id': dag_run.run_id,
+        'queued_at': datetime_to_string(dag_run.queued_at),
         'start_date': datetime_to_string(dag_run.start_date),
         'end_date': datetime_to_string(dag_run.end_date),
         'state': dag_run.state,
@@ -147,6 +156,9 @@ def encode_dag_run(dag_run: DagRun | None) -> dict[str, Any] | None:
         'data_interval_end': datetime_to_string(dag_run.data_interval_end),
         'run_type': dag_run.run_type,
         'last_scheduling_decision': datetime_to_string(dag_run.last_scheduling_decision),
+        'external_trigger': dag_run.external_trigger,
+        'conf': conf,
+        'conf_is_json': conf_is_json,
     }
 
 
