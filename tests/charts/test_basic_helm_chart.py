@@ -355,7 +355,10 @@ class TestBaseChartTest(unittest.TestCase):
             }
             if component:
                 expected_labels["component"] = component
-            assert kind_k8s_obj_labels_tuples.pop((k8s_object_name, kind)) == expected_labels
+            if k8s_object_name == f"{release_name}-scheduler":
+                expected_labels['executor'] = 'CeleryExecutor'
+            actual_labels = kind_k8s_obj_labels_tuples.pop((k8s_object_name, kind))
+            assert actual_labels == expected_labels
 
         if kind_k8s_obj_labels_tuples:
             warnings.warn(f"Unchecked objects: {kind_k8s_obj_labels_tuples.keys()}")
