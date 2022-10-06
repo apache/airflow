@@ -92,6 +92,10 @@ class TestColumnCheckOperator:
         ]
         operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
         operator.execute(context=MagicMock())
+        assert [
+            operator.column_mapping["X"][check]["success"] is True
+            for check in [*operator.column_mapping["X"]]
+        ]
 
     def test_max_less_than_fails_check(self, monkeypatch):
         with pytest.raises(AirflowException):
@@ -129,6 +133,10 @@ class TestColumnCheckOperator:
         ]
         operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
         operator.execute(context=MagicMock())
+        assert [
+            operator.column_mapping["X"][check]["success"] is True
+            for check in [*operator.column_mapping["X"]]
+        ]
 
     def test_fail_all_checks_check(self, monkeypatch):
         records = [
@@ -200,6 +208,7 @@ class TestTableCheckOperator:
         records = [('row_count_check', 1), ('column_sum_check', 'y')]
         operator = self._construct_operator(monkeypatch, self.checks, records)
         operator.execute(context=MagicMock())
+        assert [operator.checks[check]["success"] is True for check in operator.checks.keys()]
 
     def test_fail_all_checks_check(self, monkeypatch):
         records = [('row_count_check', 0), ('column_sum_check', 'n')]
