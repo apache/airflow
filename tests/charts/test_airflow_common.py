@@ -243,7 +243,6 @@ class TestAirflowCommon:
                     "AIRFLOW__CORE__SQL_ALCHEMY_CONN": False,
                     "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": False,
                     "AIRFLOW__WEBSERVER__SECRET_KEY": False,
-                    "AIRFLOW__CELERY__RESULT_BACKEND": False,
                     "AIRFLOW__ELASTICSEARCH__HOST": False,
                 },
             },
@@ -258,7 +257,6 @@ class TestAirflowCommon:
         expected_vars = [
             'AIRFLOW__CORE__FERNET_KEY',
             'AIRFLOW_CONN_AIRFLOW_DB',
-            'AIRFLOW__CELERY__CELERY_RESULT_BACKEND',
             'AIRFLOW__CELERY__BROKER_URL',
         ]
         expected_vars_in_worker = ['DUMB_INIT_SETSID'] + expected_vars
@@ -286,8 +284,6 @@ class TestAirflowCommon:
             'AIRFLOW__DATABASE__SQL_ALCHEMY_CONN',
             'AIRFLOW_CONN_AIRFLOW_DB',
             'AIRFLOW__WEBSERVER__SECRET_KEY',
-            'AIRFLOW__CELERY__CELERY_RESULT_BACKEND',
-            'AIRFLOW__CELERY__RESULT_BACKEND',
             'AIRFLOW__CELERY__BROKER_URL',
         ]
         expected_vars_in_worker = ['DUMB_INIT_SETSID'] + expected_vars

@@ -37,8 +37,7 @@ class TestBaseChartTest(unittest.TestCase):
         return values
 
     def _get_object_count(self, version):
-        # TODO remove default from condition after airflow update
-        if version == "2.3.2" or version == "default":
+        if version == "2.3.2":
             return OBJECT_COUNT_IN_BASIC_DEPLOYMENT + 1
         return OBJECT_COUNT_IN_BASIC_DEPLOYMENT
 
@@ -61,8 +60,7 @@ class TestBaseChartTest(unittest.TestCase):
         list_of_kind_names_tuples = {
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         }
-        # TODO remove default from condition after airflow update
-        if version == "2.3.2" or version == "default":
+        if version == "2.3.2":
             assert ('Secret', 'test-basic-airflow-result-backend') in list_of_kind_names_tuples
             list_of_kind_names_tuples.remove(('Secret', 'test-basic-airflow-result-backend'))
         assert list_of_kind_names_tuples == {
@@ -138,8 +136,7 @@ class TestBaseChartTest(unittest.TestCase):
         list_of_kind_names_tuples = {
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         }
-        # TODO remove default from condition after airflow update
-        if version == "2.3.2" or version == "default":
+        if version == "2.3.2":
             assert ('Secret', 'test-basic-airflow-result-backend') in list_of_kind_names_tuples
             list_of_kind_names_tuples.remove(('Secret', 'test-basic-airflow-result-backend'))
         assert list_of_kind_names_tuples == {
