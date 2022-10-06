@@ -20,6 +20,7 @@ from __future__ import annotations
 import gzip as gz
 import os
 import tempfile
+from pathlib import Path
 from unittest import mock
 from unittest.mock import Mock
 
@@ -529,43 +530,43 @@ class TestAwsS3Hook:
 
     @mock.patch('airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile')
     def test_download_file(self, mock_temp_file):
-        mock_temp_file.return_value.__enter__ = Mock(return_value=mock_temp_file)
-        s3_hook = S3Hook(aws_conn_id='s3_test')
-        s3_hook.check_for_key = Mock(return_value=True)
-        s3_obj = Mock()
-        s3_obj.download_fileobj = Mock(return_value=None)
-        s3_hook.get_key = Mock(return_value=s3_obj)
-        key = 'test_key'
-        bucket = 'test_bucket'
+        with tempfile.NamedTemporaryFile(dir="/tmp", prefix='airflow_tmp_test_s3_hook') as temp_file:
+            mock_temp_file.return_value = temp_file
+            s3_hook = S3Hook(aws_conn_id='s3_test')
+            s3_hook.check_for_key = Mock(return_value=True)
+            s3_obj = Mock()
+            s3_obj.download_fileobj = Mock(return_value=None)
+            s3_hook.get_key = Mock(return_value=s3_obj)
+            key = 'test_key'
+            bucket = 'test_bucket'
 
-        s3_hook.download_file(key=key, bucket_name=bucket)
+            output_file = s3_hook.download_file(key=key, bucket_name=bucket)
 
-        s3_hook.get_key.assert_called_once_with(key, bucket)
-        s3_obj.download_fileobj.assert_called_once_with(
-            mock_temp_file,
-            Config=s3_hook.transfer_config,
-            ExtraArgs=s3_hook.extra_args,
-        )
+            s3_hook.get_key.assert_called_once_with(key, bucket)
+            s3_obj.download_fileobj.assert_called_once_with(
+                temp_file,
+                Config=s3_hook.transfer_config,
+                ExtraArgs=s3_hook.extra_args,
+            )
 
-    @mock.patch('airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile')
-    @mock.patch('airflow.providers.amazon.aws.hooks.s3.rename')
-    def test_download_file_with_preserve_name(self, mock_rename, mock_temp_file):
+            assert temp_file.name == output_file
+
+    @mock.patch('airflow.providers.amazon.aws.hooks.s3.open')
+    def test_download_file_with_preserve_name(self, mock_open):
         file_name = "test.log"
         bucket = 'test_bucket'
         key = f'test_key/{file_name}'
         local_folder = "/tmp"
 
-        with tempfile.NamedTemporaryFile(dir=local_folder, prefix='airflow_tmp_test_s3_hook') as temp_file:
-            mock_temp_file.return_value = temp_file
-            s3_hook = S3Hook(aws_conn_id='s3_test')
-            s3_hook.check_for_key = Mock(return_value=True)
-            s3_obj = Mock()
-            s3_obj.key = f"s3://{bucket}/{key}"
-            s3_obj.download_fileobj = Mock(return_value=None)
-            s3_hook.get_key = Mock(return_value=s3_obj)
-            s3_hook.download_file(key=key, bucket_name=bucket, preserve_file_name=True)
+        s3_hook = S3Hook(aws_conn_id='s3_test')
+        s3_hook.check_for_key = Mock(return_value=True)
+        s3_obj = Mock()
+        s3_obj.key = f"s3://{bucket}/{key}"
+        s3_obj.download_fileobj = Mock(return_value=None)
+        s3_hook.get_key = Mock(return_value=s3_obj)
+        s3_hook.download_file(key=key, bucket_name=bucket, local_path=local_folder, preserve_file_name=True)
 
-            mock_rename.assert_called_once_with(temp_file.name, f"{local_folder}/{file_name}")
+        mock_open.assert_called_once_with(Path(local_folder, file_name), "wb")
 
     def test_generate_presigned_url(self, s3_bucket):
         hook = S3Hook()

@@ -28,9 +28,8 @@ from datetime import datetime
 from functools import wraps
 from inspect import signature
 from io import BytesIO
-from os import rename
 from pathlib import Path
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, gettempdir
 from typing import Any, Callable, List, TypeVar, cast
 from urllib.parse import urlparse
 
@@ -894,8 +893,8 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: The specific bucket to use.
         :param local_path: The local path to the downloaded file. If no path is provided it will use the
             system's temporary directory.
-        :param preserve_file_name: If you want the downloaded file name to be with the same name as in S3, set
-            this parameter to True. When set to False, a random filename will be generated.
+        :param preserve_file_name: If you want the downloaded file name to be the same name as it is in S3,
+            set this parameter to True. When set to False, a random filename will be generated.
             Default: False.
         :return: the file name.
         :rtype: str
@@ -912,24 +911,21 @@ class S3Hook(AwsBaseHook):
             else:
                 raise e
 
-        with NamedTemporaryFile(dir=local_path, prefix='airflow_tmp_', delete=False) as local_tmp_file:
+        if preserve_file_name:
+            local_dir = local_path if local_path else gettempdir()
+            filename_in_s3 = s3_obj.key.rsplit('/', 1)[-1]
+            file = open(Path(local_dir, filename_in_s3), 'wb')
+        else:
+            file = NamedTemporaryFile(dir=local_path, prefix='airflow_tmp_', delete=False)  # type: ignore
+
+        with file:
             s3_obj.download_fileobj(
-                local_tmp_file,
+                file,
                 ExtraArgs=self.extra_args,
                 Config=self.transfer_config,
             )
 
-        if preserve_file_name:
-            filename_in_s3 = s3_obj.key.split('/')[-1]
-            local_folder_name = local_tmp_file.name.rsplit('/', 1)[0]
-            local_file_name = f"{local_folder_name}/{filename_in_s3}"
-
-            self.log.info("Renaming file from %s to %s", local_tmp_file.name, local_file_name)
-            rename(local_tmp_file.name, local_file_name)
-
-            return local_file_name
-        else:
-            return local_tmp_file.name
+        return file.name
 
     def generate_presigned_url(
         self,
