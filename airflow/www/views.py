@@ -3524,6 +3524,7 @@ class Airflow(AirflowBaseView):
         limit = int(request.args.get("limit", 25))
         offset = int(request.args.get("offset", 0))
         order_by = request.args.get("order_by", "uri")
+        uri_pattern = request.args.get("uri_pattern", "")
         lstripped_orderby = order_by.lstrip('-')
 
         if lstripped_orderby not in allowed_attrs:
@@ -3573,6 +3574,7 @@ class Airflow(AirflowBaseView):
                     DatasetModel.id,
                     DatasetModel.uri,
                 )
+                .filter(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
                 .order_by(*order_by)
                 .offset(offset)
                 .limit(limit)
