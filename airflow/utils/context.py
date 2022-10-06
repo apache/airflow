@@ -258,6 +258,21 @@ def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
     context.update(*args, **kwargs)
 
 
+def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
+    """Update context after task unmapping.
+
+    Since ``get_template_context()`` is called before unmapping, the context
+    contains information about the mapped task. We need to do some in-place
+    updates to ensure the template context reflects the unmapped task instead.
+
+    :meta private:
+    """
+    from airflow.models.param import process_params
+
+    context["task"] = context["ti"].task = task
+    context["params"] = process_params(context["dag"], task, context["dag_run"], suppress_exception=False)
+
+
 def context_copy_partial(source: Context, keys: Container[str]) -> Context:
     """Create a context by copying items under selected keys in ``source``.
 
@@ -304,15 +319,3 @@ def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
         return lazy_object_proxy.Proxy(factory)
 
     return {k: _create_value(k, v) for k, v in source._context.items()}
-
-
-def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
-    """Update context after task unmapping.
-
-    Since ``get_template_context()`` is called before unmapping, the context
-    contains information about the mapped task. We need to do some in-place
-    updates to ensure the template context reflects the unmapped task instead.
-
-    :meta private:
-    """
-    context["task"] = context["ti"].task = task

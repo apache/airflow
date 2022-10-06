@@ -97,7 +97,7 @@ from airflow.exceptions import (
 )
 from airflow.models.base import Base, StringID
 from airflow.models.log import Log
-from airflow.models.param import ParamsDict
+from airflow.models.param import process_params
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
@@ -1947,15 +1947,7 @@ class TaskInstance(Base, LoggingMixin):
         dag_run = self.get_dagrun(session)
         data_interval = dag.get_run_data_interval(dag_run)
 
-        # Validates Params and convert them into a simple dict.
-        params = ParamsDict(suppress_exception=ignore_param_exceptions)
-        with contextlib.suppress(AttributeError):
-            params.update(dag.params)
-        if task.params:
-            params.update(task.params)
-        if conf.getboolean('core', 'dag_run_conf_overrides_params'):
-            self.overwrite_params_with_dag_run_conf(params=params, dag_run=dag_run)
-        validated_params = params.validate()
+        validated_params = process_params(dag, task, dag_run, suppress_exception=ignore_param_exceptions)
 
         logical_date = timezone.coerce_datetime(self.execution_date)
         ds = logical_date.strftime('%Y-%m-%d')

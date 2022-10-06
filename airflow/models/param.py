@@ -19,6 +19,7 @@ from __future__ import annotations
 import contextlib
 import copy
 import json
+import logging
 import warnings
 from typing import TYPE_CHECKING, Any, ItemsView, MutableMapping, ValuesView
 
@@ -29,6 +30,10 @@ from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
+    from airflow.models.dagrun import DagRun
+    from airflow.models.operator import Operator
+
+logger = logging.getLogger(__name__)
 
 
 class Param:
@@ -131,6 +136,16 @@ class ParamsDict(MutableMapping[str, Any]):
                 params_dict[k] = v
         self.__dict = params_dict
         self.suppress_exception = suppress_exception
+
+    def __bool__(self) -> bool:
+        return bool(self.__dict)
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, ParamsDict):
+            return self.dump() == other.dump()
+        if isinstance(other, dict):
+            return self.dump() == other
+        return NotImplemented
 
     def __copy__(self) -> ParamsDict:
         return ParamsDict(self.__dict, self.suppress_exception)
@@ -253,3 +268,24 @@ class DagParam(ResolveMixin):
         with contextlib.suppress(KeyError):
             return context['params'][self._name]
         raise AirflowException(f'No value could be resolved for parameter {self._name}')
+
+
+def process_params(
+    dag: DAG,
+    task: Operator,
+    dag_run: DagRun | None,
+    *,
+    suppress_exception: bool,
+) -> dict[str, Any]:
+    """Merge, validate params, and convert them into a simple dict."""
+    from airflow.configuration import conf
+
+    params = ParamsDict(suppress_exception=suppress_exception)
+    with contextlib.suppress(AttributeError):
+        params.update(dag.params)
+    if task.params:
+        params.update(task.params)
+    if conf.getboolean('core', 'dag_run_conf_overrides_params') and dag_run and dag_run.conf:
+        logger.debug("Updating task params (%s) with DagRun.conf (%s)", params, dag_run.conf)
+        params.update(dag_run.conf)
+    return params.validate()

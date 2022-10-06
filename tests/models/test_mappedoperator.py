@@ -25,6 +25,7 @@ import pytest
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.mappedoperator import MappedOperator
+from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCOM_RETURN_KEY
@@ -271,6 +272,25 @@ def test_mapped_task_applies_default_args_taskflow(dag_maker):
 
     assert dag.get_task("simple").execution_timeout == timedelta(minutes=30)
     assert dag.get_task("mapped").execution_timeout == timedelta(minutes=30)
+
+
+@pytest.mark.parametrize(
+    "dag_params, task_params, expected_partial_params",
+    [
+        pytest.param(None, None, ParamsDict(), id="none"),
+        pytest.param({"a": -1}, None, ParamsDict({"a": -1}), id="dag"),
+        pytest.param(None, {"b": -2}, ParamsDict({"b": -2}), id="task"),
+        pytest.param({"a": -1}, {"b": -2}, ParamsDict({"a": -1, "b": -2}), id="merge"),
+    ],
+)
+def test_mapped_expand_against_params(dag_maker, dag_params, task_params, expected_partial_params):
+    with dag_maker(params=dag_params) as dag:
+        MockOperator.partial(task_id="t", params=task_params).expand(params=[{"c": "x"}, {"d": 1}])
+
+    t = dag.get_task("t")
+    assert isinstance(t, MappedOperator)
+    assert t.params == expected_partial_params
+    assert t.expand_input.value == {"params": [{"c": "x"}, {"d": 1}]}
 
 
 def test_mapped_render_template_fields_validating_operator(dag_maker, session):

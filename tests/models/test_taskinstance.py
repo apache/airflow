@@ -61,6 +61,7 @@ from airflow.models import (
 )
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY
+from airflow.models.param import process_params
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import TaskInstance
@@ -1628,27 +1629,24 @@ class TestTaskInstance:
         ti = create_task_instance()
         dag_run = ti.dag_run
         dag_run.conf = {"override": True}
-        params = {"override": False}
+        ti.task.params = {"override": False}
 
-        ti.overwrite_params_with_dag_run_conf(params, dag_run)
-
+        params = process_params(ti.task.dag, ti.task, dag_run, suppress_exception=False)
         assert params["override"] is True
 
     def test_overwrite_params_with_dag_run_none(self, create_task_instance):
         ti = create_task_instance()
-        params = {"override": False}
+        ti.task.params = {"override": False}
 
-        ti.overwrite_params_with_dag_run_conf(params, None)
-
+        params = process_params(ti.task.dag, ti.task, None, suppress_exception=False)
         assert params["override"] is False
 
     def test_overwrite_params_with_dag_run_conf_none(self, create_task_instance):
         ti = create_task_instance()
-        params = {"override": False}
         dag_run = ti.dag_run
+        ti.task.params = {"override": False}
 
-        ti.overwrite_params_with_dag_run_conf(params, dag_run)
-
+        params = process_params(ti.task.dag, ti.task, dag_run, suppress_exception=False)
         assert params["override"] is False
 
     @pytest.mark.parametrize("use_native_obj", [True, False])

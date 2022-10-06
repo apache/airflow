@@ -237,7 +237,7 @@ def partial(
         task_id = task_group.child_id(task_id)
 
     # Merge DAG and task group level defaults into user-supplied values.
-    partial_kwargs, default_params = get_merged_defaults(
+    partial_kwargs, partial_params = get_merged_defaults(
         dag=dag,
         task_group=task_group,
         task_params=params,
@@ -253,7 +253,6 @@ def partial(
     partial_kwargs.setdefault("end_date", end_date)
     partial_kwargs.setdefault("owner", owner)
     partial_kwargs.setdefault("email", email)
-    partial_kwargs.setdefault("params", default_params)
     partial_kwargs.setdefault("trigger_rule", trigger_rule)
     partial_kwargs.setdefault("depends_on_past", depends_on_past)
     partial_kwargs.setdefault("ignore_first_depends_on_past", ignore_first_depends_on_past)
@@ -304,7 +303,11 @@ def partial(
     partial_kwargs["executor_config"] = partial_kwargs["executor_config"] or {}
     partial_kwargs["resources"] = coerce_resources(partial_kwargs["resources"])
 
-    return OperatorPartial(operator_class=operator_class, kwargs=partial_kwargs)
+    return OperatorPartial(
+        operator_class=operator_class,
+        kwargs=partial_kwargs,
+        params=partial_params,
+    )
 
 
 class BaseOperatorMeta(abc.ABCMeta):
@@ -1181,12 +1184,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         context: Context,
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
-        """Template all attributes listed in template_fields.
+        """Template all attributes listed in *self.template_fields*.
 
         This mutates the attributes in-place and is irreversible.
 
-        :param context: Dict with values to apply on content
-        :param jinja_env: Jinja environment
+        :param context: Context dict with values to apply on content.
+        :param jinja_env: Jinja environment to use for rendering.
         """
         if not jinja_env:
             jinja_env = self.get_template_env()

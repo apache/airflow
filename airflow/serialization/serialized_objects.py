@@ -866,6 +866,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = cls._deserialize_deps(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
+                if op.params:  # Merge existing params if needed.
+                    v, new = op.params, v
+                    v.update(new)
             elif k == "partial_kwargs":
                 v = {arg: cls.deserialize(value) for arg, value in v.items()}
             elif k in {"expand_input", "op_kwargs_expand_input"}:
