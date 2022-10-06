@@ -67,7 +67,16 @@
 /airflow/providers/cncf/kubernetes @jedcunningham
 /airflow/providers/dbt/cloud/ @josh-fell
 /airflow/providers/tabular/ @Fokko
+/airflow/providers/amazon/ @eladkal
+/airflow/providers/common/sql/ @eladkal
+/airflow/providers/slack/ @eladkal
+/docs/apache-airflow-providers-amazon/ @eladkal
+/docs/apache-airflow-providers-common-sql/ @eladkal
+/docs/apache-airflow-providers-slack/ @eladkal
 /docs/apache-airflow-providers-cncf-kubernetes @jedcunningham
+/tests/providers/amazon/ @eladkal
+/tests/providers/common/sql/ @eladkal
+/tests/providers/slack/ @eladkal
 
 # Dev tools
 /.github/workflows/ @potiuk @ashb @kaxil
