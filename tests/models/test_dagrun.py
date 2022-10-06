@@ -1945,3 +1945,30 @@ def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session,
     (tis, _) = dr.update_state()
     assert len(tis)
     assert dr.state != DagRunState.FAILED
+
+
+@pytest.mark.parametrize(
+    "partial_params, mapped_params, expected",
+    [
+        pytest.param(None, [{"a": 1}], [[("a", 1)]], id="simple"),
+        pytest.param({"b": 2}, [{"a": 1}], [[("a", 1), ("b", 2)]], id="merge"),
+        pytest.param({"b": 2}, [{"a": 1, "b": 3}], [[("a", 1), ("b", 3)]], id="override"),
+    ],
+)
+def test_mapped_expand_against_params(dag_maker, partial_params, mapped_params, expected):
+    results = []
+
+    class PullOperator(BaseOperator):
+        def execute(self, context):
+            results.append(sorted(context["params"].items()))
+
+    with dag_maker():
+        PullOperator.partial(task_id="t", params=partial_params).expand(params=mapped_params)
+
+    dr: DagRun = dag_maker.create_dagrun()
+    decision = dr.task_instance_scheduling_decisions()
+
+    for ti in decision.schedulable_tis:
+        ti.run()
+
+    assert sorted(results) == expected
