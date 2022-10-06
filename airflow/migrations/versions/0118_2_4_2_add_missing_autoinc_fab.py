@@ -38,15 +38,15 @@ airflow_version = '2.4.2'
 
 
 def upgrade():
-    """
-    Apply migration.
-    
-    If these columns are already of the right type (i.e. created by our migration in 1.10.13 rather than FAB
-    itself in an earlier version), then this migration will issue an alter statement to change them to what
-    they already -- i.e. its a no-op.
-    
-    These tables are small (100 to low 1k rows at most) so even if it did try to change it it's not costly to
-    do.
+    """Apply migration.
+
+    If these columns are already of the right type (i.e. created by our
+    migration in 1.10.13 rather than FAB itself in an earlier version), this
+    migration will issue an alter statement to change them to what they already
+    are -- i.e. its a no-op.
+
+    These tables are small (100 to low 1k rows at most), so it's not too costly
+    to change them.
     """
     conn = op.get_bind()
     if conn.dialect.name in ['mssql', 'sqlite']:
@@ -70,7 +70,7 @@ def upgrade():
                 kwargs['type_'] = sa.Sequence(f'{table}_id_seq').next_value()
             else:
                 kwargs['autoincrement'] = True
-            batch.alter_column("id", existing_type=sa.Integer(), eixsintg_nullable=False, **kwargs)
+            batch.alter_column("id", existing_type=sa.Integer(), existing_nullable=False, **kwargs)
 
 
 def downgrade():
