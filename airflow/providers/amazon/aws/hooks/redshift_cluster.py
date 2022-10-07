@@ -157,7 +157,7 @@ class RedshiftHook(AwsBaseHook):
         )
         return response["Snapshot"] if response["Snapshot"] else None
 
-    def get_cluster_snapshot_status(self, snapshot_identifier: str, cluster_identifier: str):
+    def get_cluster_snapshot_status(self, snapshot_identifier: str):
         """
         Return Redshift cluster snapshot status. If cluster snapshot not found return ``None``
 
@@ -166,7 +166,6 @@ class RedshiftHook(AwsBaseHook):
         """
         try:
             response = self.get_conn().describe_cluster_snapshots(
-                ClusterIdentifier=cluster_identifier,
                 SnapshotIdentifier=snapshot_identifier,
             )
             snapshot = response.get("Snapshots")[0]
