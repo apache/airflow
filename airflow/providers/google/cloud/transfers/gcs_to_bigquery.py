@@ -75,14 +75,14 @@ class GCSToBigQueryOperator(BaseOperator):
     :param skip_leading_rows: The number of rows at the top of a CSV file that BigQuery
         will skip when loading the data.
         When autodetect is on, the behavior is the following:
-        - skipLeadingRows unspecified - Autodetect tries to detect headers in the first row.
-          If they are not detected, the row is read as data. Otherwise data is read starting
-          from the second row.
-        - skipLeadingRows is 0 - Instructs autodetect that there are no headers and data
-          should be read starting from the first row.
-        - skipLeadingRows = N > 0 - Autodetect skips N-1 rows and tries to detect headers
-          in row N. If headers are not detected, row N is just skipped. Otherwise row N is
-          used to extract column names for the detected schema.
+        skipLeadingRows unspecified - Autodetect tries to detect headers in the first row.
+        If they are not detected, the row is read as data. Otherwise, data is read starting
+        from the second row.
+        skipLeadingRows is 0 - Instructs autodetect that there are no headers and data
+        should be read starting from the first row.
+        skipLeadingRows = N > 0 - Autodetect skips N-1 rows and tries to detect headers
+        in row N. If headers are not detected, row N is just skipped. Otherwise, row N is
+        used to extract column names for the detected schema.
         Default value set to None so that autodetect option can detect schema fields.
     :param write_disposition: The write disposition if the table already exists.
     :param field_delimiter: The delimiter to use when loading from a CSV.
@@ -211,7 +211,7 @@ class GCSToBigQueryOperator(BaseOperator):
 
         super().__init__(**kwargs)
         self.hook: BigQueryHook | None = None
-        self.configuration: dict[str, Any] = None
+        self.configuration: dict[str, Any] = {}
 
         # GCS config
         if src_fmt_configs is None:
@@ -367,7 +367,7 @@ class GCSToBigQueryOperator(BaseOperator):
             self.log.info("Using existing BigQuery table for storing data...")
             destination_project, destination_dataset, destination_table = self.hook.split_tablename(
                 table_input=self.destination_project_dataset_table,
-                default_project_id=self.hook.project_id,
+                default_project_id=self.hook.project_id or "",
                 var_name="destination_project_dataset_table",
             )
             self.configuration = {
@@ -523,9 +523,9 @@ class GCSToBigQueryOperator(BaseOperator):
         """
         if not self.autodetect and not self.schema_fields:
             raise RuntimeError(
-                f'Table schema was not found. Set autodetect=True to '
-                f'automatically set schema fields from source objects or pass '
-                f'schema_fields explicitly'
+                "Table schema was not found. Set autodetect=True to "
+                "automatically set schema fields from source objects or pass "
+                "schema_fields explicitly"
             )
         elif not self.schema_fields:
             for source_object in self.source_objects:
@@ -560,10 +560,6 @@ class GCSToBigQueryOperator(BaseOperator):
 
     def on_kill(self) -> None:
         if self.job_id and self.cancel_on_kill:
-            self.hook.cancel_job(  # type: ignore[union-attr]
-                job_id=self.job_id, project_id=self.hook.project_id, location=self.location
-            )
+            self.hook.cancel_job(job_id=self.job_id, location=self.location)  # type: ignore[union-attr]
         else:
-            self.log.info(
-                "Skipping to cancel job: %s:%s.%s", self.hook.project_id, self.location, self.job_id
-            )
+            self.log.info("Skipping to cancel job: %s.%s", self.location, self.job_id)
