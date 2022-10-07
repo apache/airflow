@@ -259,14 +259,14 @@ def configure_vars():
     DONOT_MODIFY_HANDLERS = conf.getboolean('logging', 'donot_modify_handlers', fallback=False)
 
 
-def configure_orm(disable_connection_pool=False):
+def configure_orm(disable_connection_pool=False, pool_class=None):
     """Configure ORM using SQLAlchemy"""
     from airflow.utils.log.secrets_masker import mask_secret
 
     log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     global engine
     global Session
-    engine_args = prepare_engine_args(disable_connection_pool)
+    engine_args = prepare_engine_args(disable_connection_pool, pool_class)
 
     if conf.has_option('database', 'sql_alchemy_connect_args'):
         connect_args = conf.getimport('database', 'sql_alchemy_connect_args')
@@ -319,7 +319,7 @@ DEFAULT_ENGINE_ARGS = {
 }
 
 
-def prepare_engine_args(disable_connection_pool=False):
+def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     """Prepare SQLAlchemy engine args"""
     default_args = {}
     for dialect, default in DEFAULT_ENGINE_ARGS.items():
@@ -331,7 +331,10 @@ def prepare_engine_args(disable_connection_pool=False):
         'database', 'sql_alchemy_engine_args', fallback=default_args
     )  # type: ignore
 
-    if disable_connection_pool or not conf.getboolean('database', 'SQL_ALCHEMY_POOL_ENABLED'):
+    if pool_class:
+        # Don't use separate settings for size etc, only those from sql_alchemy_engine_args
+        engine_args['poolclass'] = pool_class
+    elif disable_connection_pool or not conf.getboolean('database', 'SQL_ALCHEMY_POOL_ENABLED'):
         engine_args['poolclass'] = NullPool
         log.debug("settings.prepare_engine_args(): Using NullPool")
     elif not SQL_ALCHEMY_CONN.startswith('sqlite'):
@@ -413,10 +416,10 @@ def dispose_orm():
         engine = None
 
 
-def reconfigure_orm(disable_connection_pool=False):
+def reconfigure_orm(disable_connection_pool=False, pool_class=None):
     """Properly close database connections and re-configure ORM"""
     dispose_orm()
-    configure_orm(disable_connection_pool=disable_connection_pool)
+    configure_orm(disable_connection_pool=disable_connection_pool, pool_class=pool_class)
 
 
 def configure_adapters():
