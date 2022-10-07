@@ -200,13 +200,16 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     return query.first()
 
 
-def get_dataset_triggered_next_run_info(dag_ids: list[str], *, session: Session) -> dict[str, str]:
+def get_dataset_triggered_next_run_info(dag_ids: list[str], *, session: Session) -> dict[str, dict[str, int]]:
     """
     Given a list of dag_ids, get string representing how close any that are dataset triggered are
     their next run, e.g. "1 of 2 datasets updated"
     """
     return {
-        x.dag_id: f"{x.ready} of {x.total} datasets updated"
+        x.dag_id: {
+            "ready": x.ready,
+            "total": x.total,
+        }
         for x in session.query(
             DagScheduleDatasetReference.dag_id,
             func.count().label("total"),
@@ -585,6 +588,11 @@ class DAG(LoggingMixin):
                 "Wrong link format was used for the owner. Use a valid link \n"
                 f"Bad formatted links are: {wrong_links}"
             )
+
+        # this will only be set at serialization time
+        # it's only use is for determining the relative
+        # fileloc based only on the serialize dag
+        self._processor_dags_folder = None
 
     def get_doc_md(self, doc_md: str | None) -> str | None:
         if doc_md is None:
@@ -1191,7 +1199,11 @@ class DAG(LoggingMixin):
         """File location of the importable dag 'file' relative to the configured DAGs folder."""
         path = pathlib.Path(self.fileloc)
         try:
-            return path.relative_to(settings.DAGS_FOLDER)
+            rel_path = path.relative_to(self._processor_dags_folder or settings.DAGS_FOLDER)
+            if rel_path == pathlib.Path('.'):
+                return path
+            else:
+                return rel_path
         except ValueError:
             # Not relative to DAGS_FOLDER.
             return path
@@ -3407,7 +3419,7 @@ class DagModel(Base):
         )
 
     @provide_session
-    def get_dataset_triggered_next_run_info(self, *, session=NEW_SESSION) -> str | None:
+    def get_dataset_triggered_next_run_info(self, *, session=NEW_SESSION) -> dict[str, int] | None:
         if self.schedule_interval != "Dataset":
             return None
         return get_dataset_triggered_next_run_info([self.dag_id], session=session)[self.dag_id]

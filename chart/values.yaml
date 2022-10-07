@@ -54,10 +54,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.3.4"
+defaultAirflowTag: "2.4.1"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.3.4"
+airflowVersion: "2.4.1"
 
 # Images
 images:
@@ -1741,6 +1741,11 @@ cleanup:
   # Detailed default security context for cleanup for container level
   securityContexts:
     container: {}
+    
+  # Specify history limit
+  # When set, overwrite the default k8s number of successful and failed CronJob executions that are saved.
+  failedJobsHistoryLimit: ~
+  successfulJobsHistoryLimit: ~
 
 # Configuration for postgresql subchart
 # Not recommended for production
