@@ -32,7 +32,7 @@ import {
   ButtonGroup,
   Button,
 } from '@chakra-ui/react';
-import { capitalize, snakeCase } from 'lodash';
+import { snakeCase } from 'lodash';
 import type { Row, SortingRule } from 'react-table';
 import { MdClose, MdSearch } from 'react-icons/md';
 import { useSearchParams } from 'react-router-dom';
@@ -41,7 +41,7 @@ import { useDatasets } from 'src/api';
 import { Table, TimeCell } from 'src/components/Table';
 import type { API } from 'src/types';
 import { getMetaValue } from 'src/utils';
-import type { unitOfTime } from 'moment';
+import type { DateOption } from 'src/api/useDatasets';
 
 interface Props {
   onSelect: (datasetId: string) => void;
@@ -71,19 +71,25 @@ const DetailCell = ({ cell: { row } }: CellProps) => {
 };
 
 const SEARCH_PARAM = 'search';
+const DATE_FILTER_PARAM = 'updated_within';
+
+const dateOptions: Record<string, DateOption> = {
+  month: { count: 30, unit: 'days' },
+  week: { count: 7, unit: 'days' },
+  day: { count: 24, unit: 'hours' },
+  hour: { count: 1, unit: 'hour' },
+};
 
 const DatasetsList = ({ onSelect }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const search = decodeURIComponent(searchParams.get(SEARCH_PARAM) || '');
 
-  const dateOptions: unitOfTime.DurationConstructor[] = ['month', 'week', 'day', 'hour'];
-  const [dateFilter, setDateFilter] = useState<unitOfTime.DurationConstructor | undefined>();
+  const search = decodeURIComponent(searchParams.get(SEARCH_PARAM) || '');
+  const dateFilter = searchParams.get(DATE_FILTER_PARAM) || undefined;
 
   const [sortBy, setSortBy] = useState<SortingRule<object>[]>([{ id: 'lastDatasetUpdate', desc: true }]);
-
   const sort = sortBy[0];
   const order = sort ? `${sort.desc ? '-' : ''}${snakeCase(sort.id)}` : '';
   const uri = search.length > 2 ? search : undefined;
@@ -93,7 +99,7 @@ const DatasetsList = ({ onSelect }: Props) => {
     offset,
     order,
     uri,
-    updatedAfter: dateFilter,
+    updatedAfter: dateFilter ? dateOptions[dateFilter] : undefined,
   });
 
   const columns = useMemo(
@@ -151,18 +157,41 @@ const DatasetsList = ({ onSelect }: Props) => {
         </Text>
       )}
       <Flex>
-        <Text mr={2}>Filter datasets with update in the past:</Text>
+        <Text mr={2}>Filter datasets with updates in the past:</Text>
         <ButtonGroup size="sm" isAttached variant="outline">
-          {dateOptions.map((option) => (
-            <Button
-              key={option}
-              onClick={() => setDateFilter(dateFilter === option ? undefined : option)}
-              variant={dateFilter === option ? 'solid' : 'outline'}
-              fontWeight={dateFilter === option ? 'bold' : 'normal'}
-            >
-              {capitalize(option)}
-            </Button>
-          ))}
+          <Button
+            onClick={() => {
+              searchParams.delete(DATE_FILTER_PARAM);
+              setSearchParams(searchParams);
+            }}
+            variant={!dateFilter ? 'solid' : 'outline'}
+            fontWeight={!dateFilter ? 'bold' : 'normal'}
+          >
+            All Time
+          </Button>
+          {Object.keys(dateOptions).map((option) => {
+            const filter = dateOptions[option];
+            const isSelected = option === dateFilter;
+            return (
+              <Button
+                key={option}
+                onClick={() => {
+                  if (isSelected) {
+                    searchParams.delete(DATE_FILTER_PARAM);
+                  } else {
+                    searchParams.set(DATE_FILTER_PARAM, option);
+                  }
+                  setSearchParams(searchParams);
+                }}
+                variant={isSelected ? 'solid' : 'outline'}
+                fontWeight={isSelected ? 'bold' : 'normal'}
+              >
+                {filter.count}
+                {' '}
+                {filter.unit}
+              </Button>
+            );
+          })}
         </ButtonGroup>
       </Flex>
       <InputGroup my={2} px={1}>

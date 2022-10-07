@@ -29,12 +29,17 @@ interface DatasetsData {
   totalEntries: number;
 }
 
+export interface DateOption {
+  count: number;
+  unit: unitOfTime.DurationConstructor;
+}
+
 interface Props {
   limit?: number;
   offset?: number;
   order?: string;
   uri?: string;
-  updatedAfter?: unitOfTime.DurationConstructor;
+  updatedAfter?: DateOption;
 }
 
 export default function useDatasets({
@@ -46,8 +51,8 @@ export default function useDatasets({
       const datasetsUrl = getMetaValue('datasets_api');
       const orderParam = order ? { order_by: order } : {};
       const uriParam = uri ? { uri_pattern: uri } : {};
-      const updatedAfterParam = updatedAfter
-        ? { updated_after: moment().subtract(1, updatedAfter).toISOString() }
+      const updatedAfterParam = updatedAfter && updatedAfter.count && updatedAfter.unit
+        ? { updated_after: moment().subtract(updatedAfter.count, updatedAfter.unit).toISOString() }
         : {};
       return axios.get<AxiosResponse, DatasetsData>(
         datasetsUrl,
