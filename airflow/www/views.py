@@ -3584,6 +3584,8 @@ class Airflow(AirflowBaseView):
                     if session.bind.dialect.name == "postgresql":
                         order_by = (order_by[0].nulls_first(), *order_by[1:])
 
+            count_query = session.query(func.count(DatasetModel.id))
+
             query = (
                 session.query(
                     DatasetModel.id,
@@ -3612,7 +3614,7 @@ class Airflow(AirflowBaseView):
             query = query.offset(offset).limit(limit)
 
             datasets = [dict(dataset) for dataset in query.all()]
-            data = {"datasets": datasets, "total_entries": len(datasets)}
+            data = {"datasets": datasets, "total_entries": count_query.scalar()}
 
             return (
                 htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
