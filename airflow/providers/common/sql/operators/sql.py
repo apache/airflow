@@ -281,7 +281,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
     sql_check_template = """
         SELECT '{column}' AS col_name, '{check}' AS check_type, {column}_{check} AS check_result
-        FROM (SELECT {check_statement} AS {column}_{check} FROM {table}) AS sq
+        FROM (SELECT {check_statement} AS {column}_{check} FROM {table} {partition_clause}) AS sq
     """
 
     column_checks = {
@@ -308,12 +308,12 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         self.column_mapping = column_mapping
         self.partition_clause = partition_clause
 
-        checks_sql = []
+        checks_sql_list = []
         for column, checks in self.column_mapping.items():
             for check, check_values in checks.items():
                 self._column_mapping_validation(check, check_values)
-            checks_sql.append(self._generate_sql_query(column, checks))
-        checks_sql = " UNION ALL ".join(checks_sql)
+            checks_sql_list.append(self._generate_sql_query(column, checks))
+        checks_sql = "UNION ALL".join(checks_sql_list)
 
         self.sql = f"SELECT col_name, check_type, check_result FROM ({checks_sql}) AS check_columns"
 
@@ -356,15 +356,15 @@ class SQLColumnCheckOperator(BaseSQLOperator):
     def _generate_sql_query(self, column, checks):
         def _generate_partition_clause(check):
             if self.partition_clause and "where" not in checks[check]:
-                return " WHERE " + self.partition_clause
+                return "WHERE " + self.partition_clause
             elif not self.partition_clause and "where" in checks[check]:
-                return " WHERE " + checks[check]["where"]
+                return "WHERE " + checks[check]["where"]
             elif self.partition_clause and "where" in checks[check]:
-                return " WHERE " + self.partition_clause + " AND " + checks[check]["where"]
+                return "WHERE " + self.partition_clause + " AND " + checks[check]["where"]
             else:
                 return ""
 
-        checks_sql = " UNION ALL ".join(
+        checks_sql = "UNION ALL".join(
             [
                 self.sql_check_template.format(
                     check_statement=self.column_checks[check].format(column=column),
@@ -506,7 +506,8 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
     sql_check_template = """
     SELECT '{check_name}' AS check_name, MIN({check_name}) AS check_result
-    FROM (SELECT CASE WHEN {check_statement} THEN 1 ELSE 0 END AS {check_name} FROM {table} {partition_clause}) AS sq
+    FROM (SELECT CASE WHEN {check_statement} THEN 1 ELSE 0 END AS {check_name}
+          FROM {table} {partition_clause}) AS sq
     """
 
     def __init__(
