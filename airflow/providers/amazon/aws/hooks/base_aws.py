@@ -125,7 +125,13 @@ class BaseSessionFactory(LoggingMixin):
             return boto3.session.Session(region_name=self.region_name)
         elif not self.role_arn:
             return self.basic_session
-        return self._create_session_with_assume_role(session_kwargs=self.conn.session_kwargs)
+        # Values stored in AwsConnectionWrapper.session_kwargs intend to use only create initial boto3 session
+        # If user want to use 'assume_role' mechanism we need provide only 'region_name'
+        # otherwise other parameters might conflict with base botocore session.
+        assume_session_kwargs = {}
+        if self.conn.region_name:
+            assume_session_kwargs["region_name"] = self.conn.region_name
+        return self._create_session_with_assume_role(session_kwargs=assume_session_kwargs)
 
     def _create_basic_session(self, session_kwargs: dict[str, Any]) -> boto3.session.Session:
         return boto3.session.Session(**session_kwargs)
