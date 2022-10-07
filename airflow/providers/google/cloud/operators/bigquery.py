@@ -29,7 +29,7 @@ from google.api_core.exceptions import Conflict
 from google.api_core.retry import Retry
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
 from airflow.providers.common.sql.operators.sql import (
@@ -262,9 +262,9 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
 
         records = event["records"]
         if not records:
-            raise AirflowException("The query returned empty results")
+            raise AirflowFailException("The query returned empty results")
         elif not all(bool(r) for r in records):
-            raise AirflowException(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
+            raise AirflowFailException(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
         self.log.info("Record: %s", event["records"])
         self.log.info("Success.")
 

@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence, SupportsAbs
 from packaging.version import Version
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, SkipMixin
 from airflow.providers.common.sql.hooks.sql import DbApiHook, _backported_get_hook
@@ -250,7 +250,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
             records = hook.get_first(self.sql)
 
             if not records:
-                raise AirflowException(f"The following query returned zero rows: {self.sql}")
+                raise AirflowFailException(f"The following query returned zero rows: {self.sql}")
 
             self.log.info("Record: %s", records)
 
@@ -264,7 +264,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
             failed_tests.extend(_get_failed_checks(self.column_mapping[column], column))
         if failed_tests:
-            raise AirflowException(
+            raise AirflowFailException(
                 f"Test failed.\nResults:\n{records!s}\n"
                 "The following tests have failed:"
                 f"\n{''.join(failed_tests)}"
@@ -450,7 +450,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
         failed_tests = _get_failed_checks(self.checks)
         if failed_tests:
-            raise AirflowException(
+            raise AirflowFailException(
                 f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n"
                 "The following tests have failed:"
                 f"\n{', '.join(failed_tests)}"
@@ -512,9 +512,9 @@ class SQLCheckOperator(BaseSQLOperator):
 
         self.log.info("Record: %s", records)
         if not records:
-            raise AirflowException("The query returned None")
+            raise AirflowFailException("The query returned None")
         elif not all(bool(r) for r in records):
-            raise AirflowException(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
+            raise AirflowFailException(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
 
         self.log.info("Success.")
 
