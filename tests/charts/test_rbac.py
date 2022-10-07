@@ -113,8 +113,7 @@ class RBACTest(unittest.TestCase):
         return values
 
     def _get_object_count(self, version):
-        # TODO remove default from condition after airflow update
-        if version == "2.3.2" or version == "default":
+        if version == "2.3.2":
             return [
                 ('Secret', 'test-rbac-airflow-result-backend')
             ] + DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES

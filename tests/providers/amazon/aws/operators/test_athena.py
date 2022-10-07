@@ -60,7 +60,7 @@ class TestAthenaOperator(unittest.TestCase):
             output_location='s3://test_s3_bucket/',
             client_request_token='eac427d0-1c6d-4dfb-96aa-2835d3ac6595',
             sleep_time=0,
-            max_tries=3,
+            max_polling_attempts=3,
             dag=self.dag,
         )
 

@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import collections
 import collections.abc
+import contextlib
+import copy
 import datetime
 import warnings
 from typing import TYPE_CHECKING, Any, ClassVar, Collection, Iterable, Iterator, Mapping, Sequence, Union
@@ -53,13 +55,14 @@ from airflow.models.expandinput import (
     OperatorExpandKwargsArgument,
     get_mappable_types,
 )
+from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
 from airflow.typing_compat import Literal
 from airflow.utils.context import Context, context_update_for_unmapped
-from airflow.utils.helpers import is_container
+from airflow.utils.helpers import is_container, prevent_duplicates
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
@@ -109,16 +112,6 @@ def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, valu
     raise TypeError(f"{op.__name__}.{func}() got {error}")
 
 
-def prevent_duplicates(kwargs1: dict[str, Any], kwargs2: Mapping[str, Any], *, fail_reason: str) -> None:
-    duplicated_keys = set(kwargs1).intersection(kwargs2)
-    if not duplicated_keys:
-        return
-    if len(duplicated_keys) == 1:
-        raise TypeError(f"{fail_reason} argument: {duplicated_keys.pop()}")
-    duplicated_keys_display = ", ".join(sorted(duplicated_keys))
-    raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")
-
-
 def ensure_xcomarg_return_value(arg: Any) -> None:
     from airflow.models.xcom_arg import XCOM_RETURN_KEY, XComArg
 
@@ -147,6 +140,7 @@ class OperatorPartial:
 
     operator_class: type[BaseOperator]
     kwargs: dict[str, Any]
+    params: ParamsDict | dict
 
     _expand_called: bool = False  # Set when expand() is called to ease user debugging.
 
@@ -197,7 +191,6 @@ class OperatorPartial:
 
         partial_kwargs = self.kwargs.copy()
         task_id = partial_kwargs.pop("task_id")
-        params = partial_kwargs.pop("params")
         dag = partial_kwargs.pop("dag")
         task_group = partial_kwargs.pop("task_group")
         start_date = partial_kwargs.pop("start_date")
@@ -213,7 +206,7 @@ class OperatorPartial:
             expand_input=expand_input,
             partial_kwargs=partial_kwargs,
             task_id=task_id,
-            params=params,
+            params=self.params,
             deps=MappedOperator.deps_for(self.operator_class),
             operator_extra_links=self.operator_class.operator_extra_links,
             template_ext=self.operator_class.template_ext,
@@ -263,7 +256,7 @@ class MappedOperator(AbstractOperator):
 
     # Needed for serialization.
     task_id: str
-    params: dict | None
+    params: ParamsDict | dict
     deps: frozenset[BaseTIDep]
     operator_extra_links: Collection[BaseOperatorLink]
     template_ext: Sequence[str]
@@ -549,16 +542,24 @@ class MappedOperator(AbstractOperator):
                 mapped_kwargs,
                 fail_reason="unmappable or already specified",
             )
-        # Ordering is significant; mapped kwargs should override partial ones.
+
+        # If params appears in the mapped kwargs, we need to merge it into the
+        # partial params, overriding existing keys.
+        params = copy.copy(self.params)
+        with contextlib.suppress(KeyError):
+            params.update(mapped_kwargs["params"])
+
+        # Ordering is significant; mapped kwargs should override partial ones,
+        # and the specially handled params should be respected.
         return {
             "task_id": self.task_id,
             "dag": self.dag,
             "task_group": self.task_group,
-            "params": self.params,
             "start_date": self.start_date,
             "end_date": self.end_date,
             **self.partial_kwargs,
             **mapped_kwargs,
+            "params": params,
         }
 
     def unmap(self, resolve: None | Mapping[str, Any] | tuple[Context, Session]) -> BaseOperator:
@@ -598,7 +599,7 @@ class MappedOperator(AbstractOperator):
         # mapped operator to a new SerializedBaseOperator instance.
         from airflow.serialization.serialized_objects import SerializedBaseOperator
 
-        op = SerializedBaseOperator(task_id=self.task_id, _airflow_from_mapped=True)
+        op = SerializedBaseOperator(task_id=self.task_id, params=self.params, _airflow_from_mapped=True)
         SerializedBaseOperator.populate_operator(op, self.operator_class)
         return op
 
@@ -749,6 +750,15 @@ class MappedOperator(AbstractOperator):
         context: Context,
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
+        """Template all attributes listed in *self.template_fields*.
+
+        This updates *context* to reference the map-expanded task and relevant
+        information, without modifying the mapped operator. The expanded task
+        in *context* is then rendered in-place.
+
+        :param context: Context dict with values to apply on content.
+        :param jinja_env: Jinja environment to use for rendering.
+        """
         if not jinja_env:
             jinja_env = self.get_template_env()
 
