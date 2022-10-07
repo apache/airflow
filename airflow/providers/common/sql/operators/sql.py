@@ -238,27 +238,16 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
         self.table = table
         self.column_mapping = column_mapping
-        checks_sql = ""
+        self.partition_clause = partition_clause
+
+        checks_sql = []
         for column, checks in self.column_mapping.items():
             for check, check_values in checks.items():
                 self._column_mapping_validation(check, check_values)
-            checks_sql = checks_sql + " UNION ALL ".join(
-                [
-                    self.sql_check_template.format(
-                        check_statement=self.column_checks[check].format(column=column),
-                        check=check,
-                        table=self.table,
-                        column=column,
-                    )
-                    for check in checks
-                ]
-            )
-        self.partition_clause = partition_clause
-        partition_clause_statement = f"WHERE {self.partition_clause}" if self.partition_clause else ""
-        self.sql = f"""
-            SELECT col_name, check_type, check_result FROM ({checks_sql})
-            AS check_columns {partition_clause_statement}
-        """
+            checks_sql.append(self._generate_sql_query(column, checks))
+        checks_sql = " UNION ALL ".join(checks_sql)
+
+        self.sql = f"SELECT col_name, check_type, check_result FROM ({checks_sql}) AS check_columns"
 
     def execute(self, context: Context):
         failed_tests = []
@@ -295,6 +284,31 @@ class SQLColumnCheckOperator(BaseSQLOperator):
             _raise_exception(exception_string, self.retry_on_failure)
 
         self.log.info("All tests have passed")
+
+    def _generate_sql_query(self, column, checks):
+        def _generate_partition_clause(check):
+            if self.partition_clause and "where" not in checks[check]:
+                return " WHERE " + self.partition_clause
+            elif not self.partition_clause and "where" in checks[check]:
+                return " WHERE " + checks[check]["where"]
+            elif self.partition_clause and "where" in checks[check]:
+                return " WHERE " + self.partition_clause + " AND " + checks[check]["where"]
+            else:
+                return ""
+
+        checks_sql = " UNION ALL ".join(
+            [
+                self.sql_check_template.format(
+                    check_statement=self.column_checks[check].format(column=column),
+                    check=check,
+                    table=self.table,
+                    column=column,
+                    partition_clause=_generate_partition_clause(check),
+                )
+                for check in checks
+            ]
+        )
+        return checks_sql
 
     def _get_match(self, check_values, record, tolerance=None) -> bool:
         match_boolean = True
@@ -423,8 +437,8 @@ class SQLTableCheckOperator(BaseSQLOperator):
     template_fields = ("partition_clause",)
 
     sql_check_template = """
-        SELECT '{check_name}' AS check_name, MIN({check_name}) AS check_result
-        FROM (SELECT CASE WHEN {check_statement} THEN 1 ELSE 0 END AS {check_name} FROM {table}) AS sq
+    SELECT '{check_name}' AS check_name, MIN({check_name}) AS check_result
+    FROM (SELECT CASE WHEN {check_statement} THEN 1 ELSE 0 END AS {check_name} FROM {table} {partition_clause}) AS sq
     """
 
     def __init__(
@@ -442,19 +456,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         self.table = table
         self.checks = checks
         self.partition_clause = partition_clause
-        checks_sql = " UNION ALL ".join(
-            [
-                self.sql_check_template.format(
-                    check_statement=value["check_statement"], check_name=check_name, table=self.table
-                )
-                for check_name, value in self.checks.items()
-            ]
-        )
-        partition_clause_statement = f"WHERE {self.partition_clause}" if self.partition_clause else ""
-        self.sql = f"""
-            SELECT check_name, check_result FROM ({checks_sql})
-            AS check_table {partition_clause_statement}
-        """
+        self.sql = f"SELECT check_name, check_result FROM ({self._generate_sql_query()}) AS check_table"
 
     def execute(self, context: Context):
         hook = self.get_db_hook()
@@ -483,6 +485,30 @@ class SQLTableCheckOperator(BaseSQLOperator):
             _raise_exception(exception_string, self.retry_on_failure)
 
         self.log.info("All tests have passed")
+
+    def _generate_sql_query(self):
+        def _generate_partition_clause(check_name):
+            if self.partition_clause and "where" not in self.checks[check_name]:
+                return "WHERE " + self.partition_clause
+            elif not self.partition_clause and "where" in self.checks[check_name]:
+                return "WHERE " + self.checks[check_name]["where"]
+            elif self.partition_clause and "where" in self.checks[check_name]:
+                return "WHERE " + self.partition_clause + " AND " + self.checks[check_name]["where"]
+            else:
+                return ""
+
+        checks_sql = "UNION ALL".join(
+            [
+                self.sql_check_template.format(
+                    check_statement=value["check_statement"],
+                    check_name=check_name,
+                    table=self.table,
+                    partition_clause=_generate_partition_clause(check_name),
+                )
+                for check_name, value in self.checks.items()
+            ]
+        )
+        return checks_sql
 
 
 class SQLCheckOperator(BaseSQLOperator):
