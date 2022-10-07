@@ -3603,8 +3603,14 @@ class Airflow(AirflowBaseView):
             )
 
             if updated_after:
+                count_query = count_query.outerjoin(
+                    DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id
+                ).filter(DatasetEvent.timestamp >= updated_after)
                 query = query.filter(DatasetEvent.timestamp >= updated_after)
             if updated_before:
+                count_query = count_query.outerjoin(
+                    DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id
+                ).filter(DatasetEvent.timestamp <= updated_before)
                 query = query.filter(DatasetEvent.timestamp <= updated_before)
 
             # We haven't yet implemented tags for datasets, so you can remove this, or we can implement that
