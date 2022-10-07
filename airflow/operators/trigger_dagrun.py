@@ -116,7 +116,6 @@ class TriggerDagRunOperator(BaseOperator):
             warnings.warn(
                 "Parameter ``execution_date`` is deprecated. Use ``logical_date``.",
                 RemovedInAirflow3Warning,
-                stacklevel=2,
             )
 
         if logical_date is not None and not isinstance(logical_date, (str, datetime.datetime)):
