@@ -29,8 +29,10 @@ import {
   InputLeftElement,
   InputRightElement,
   IconButton,
+  ButtonGroup,
+  Button,
 } from '@chakra-ui/react';
-import { snakeCase } from 'lodash';
+import { capitalize, snakeCase } from 'lodash';
 import type { Row, SortingRule } from 'react-table';
 import { MdClose, MdSearch } from 'react-icons/md';
 import { useSearchParams } from 'react-router-dom';
@@ -39,6 +41,7 @@ import { useDatasets } from 'src/api';
 import { Table, TimeCell } from 'src/components/Table';
 import type { API } from 'src/types';
 import { getMetaValue } from 'src/utils';
+import type { unitOfTime } from 'moment';
 
 interface Props {
   onSelect: (datasetId: string) => void;
@@ -72,8 +75,13 @@ const SEARCH_PARAM = 'search';
 const DatasetsList = ({ onSelect }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
+
   const [searchParams, setSearchParams] = useSearchParams();
   const search = decodeURIComponent(searchParams.get(SEARCH_PARAM) || '');
+
+  const dateOptions: unitOfTime.DurationConstructor[] = ['month', 'week', 'day', 'hour'];
+  const [dateFilter, setDateFilter] = useState<unitOfTime.DurationConstructor | undefined>();
+
   const [sortBy, setSortBy] = useState<SortingRule<object>[]>([{ id: 'lastDatasetUpdate', desc: true }]);
 
   const sort = sortBy[0];
@@ -85,6 +93,7 @@ const DatasetsList = ({ onSelect }: Props) => {
     offset,
     order,
     uri,
+    updatedAfter: dateFilter,
   });
 
   const columns = useMemo(
@@ -141,6 +150,21 @@ const DatasetsList = ({ onSelect }: Props) => {
           to learn how to create a dataset.
         </Text>
       )}
+      <Flex>
+        <Text mr={2}>Filter datasets with update in the past:</Text>
+        <ButtonGroup size="sm" isAttached variant="outline">
+          {dateOptions.map((option) => (
+            <Button
+              key={option}
+              onClick={() => setDateFilter(dateFilter === option ? undefined : option)}
+              variant={dateFilter === option ? 'solid' : 'outline'}
+              fontWeight={dateFilter === option ? 'bold' : 'normal'}
+            >
+              {capitalize(option)}
+            </Button>
+          ))}
+        </ButtonGroup>
+      </Flex>
       <InputGroup my={2} px={1}>
         <InputLeftElement pointerEvents="none">
           <MdSearch />

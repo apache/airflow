@@ -3546,11 +3546,11 @@ class Airflow(AirflowBaseView):
         if untrusted_updated_after:
             # Try to figure out how other functions in this module safely parse datetimes submitted by users
             # and do the same thing here
-            updated_after = ...
+            updated_after = _safe_parse_datetime(untrusted_updated_after)
         updated_before = None
         if untrusted_updated_before:
             # Clean this data the same way you cleaned updated_after
-            updated_before = ...
+            updated_before = _safe_parse_datetime(untrusted_updated_before)
 
         # split_with_any_tags = []
         # if isinstance(tags, str):
@@ -3601,9 +3601,9 @@ class Airflow(AirflowBaseView):
             )
 
             if updated_after:
-                query = query.filter(...)
+                query = query.filter(DatasetEvent.timestamp >= updated_after)
             if updated_before:
-                query = query.filter(...)
+                query = query.filter(DatasetEvent.timestamp <= updated_before)
 
             # We haven't yet implemented tags for datasets, so you can remove this, or we can implement that
             # if split_with_any_tags:
