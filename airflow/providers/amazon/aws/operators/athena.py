@@ -112,7 +112,10 @@ class AthenaOperator(BaseOperator):
             self.client_request_token,
             self.workgroup,
         )
-        query_status = self.hook.poll_query_status(self.query_execution_id, self.max_polling_attempts)
+        query_status = self.hook.poll_query_status(
+            self.query_execution_id,
+            max_polling_attempts=self.max_polling_attempts,
+        )
 
         if query_status in AthenaHook.FAILURE_STATES:
             error_message = self.hook.get_state_change_reason(self.query_execution_id)

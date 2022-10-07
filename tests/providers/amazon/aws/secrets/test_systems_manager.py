@@ -36,7 +36,7 @@ class TestSsmSecrets(TestCase):
         assert conn.host == 'host'
 
     @mock_ssm
-    def test_get_conn_uri(self):
+    def test_get_conn_value(self):
         param = {
             'Name': '/airflow/connections/test_postgres',
             'Type': 'String',
@@ -46,11 +46,11 @@ class TestSsmSecrets(TestCase):
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
 
-        returned_uri = ssm_backend.get_conn_uri(conn_id="test_postgres")
+        returned_uri = ssm_backend.get_conn_value(conn_id="test_postgres")
         assert 'postgresql://airflow:airflow@host:5432/airflow' == returned_uri
 
     @mock_ssm
-    def test_get_conn_uri_non_existent_key(self):
+    def test_get_conn_value_non_existent_key(self):
         """
         Test that if the key with connection ID is not present in SSM,
         SystemsManagerParameterStoreBackend.get_connection should return None
@@ -65,7 +65,7 @@ class TestSsmSecrets(TestCase):
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
 
-        assert ssm_backend.get_conn_uri(conn_id=conn_id) is None
+        assert ssm_backend.get_conn_value(conn_id=conn_id) is None
         assert ssm_backend.get_connection(conn_id=conn_id) is None
 
     @mock_ssm
@@ -158,14 +158,14 @@ class TestSsmSecrets(TestCase):
     def test_connection_prefix_none_value(self, mock_get_secret):
         """
         Test that if Variable key is not present in SSM,
-        SystemsManagerParameterStoreBackend.get_conn_uri should return None,
+        SystemsManagerParameterStoreBackend.get_conn_value should return None,
         SystemsManagerParameterStoreBackend._get_secret should not be called
         """
         kwargs = {'connections_prefix': None}
 
         ssm_backend = SystemsManagerParameterStoreBackend(**kwargs)
 
-        assert ssm_backend.get_conn_uri("test_mysql") is None
+        assert ssm_backend.get_conn_value("test_mysql") is None
         mock_get_secret.assert_not_called()
 
     @mock.patch(
