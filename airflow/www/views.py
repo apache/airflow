@@ -3534,6 +3534,8 @@ class Airflow(AirflowBaseView):
         # Check and clean up query parameters
         limit = 50 if limit > 50 else limit
 
+        uri_pattern = uri_pattern[:4000]
+
         if lstripped_orderby not in allowed_attrs:
             return {
                 "detail": (
@@ -3598,9 +3600,12 @@ class Airflow(AirflowBaseView):
                     DatasetModel.id,
                     DatasetModel.uri,
                 )
-                .filter(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
                 .order_by(*order_by)
             )
+
+            if uri_pattern:
+                count_query = count_query.filter(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
+                query = query.filter(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
 
             if updated_after:
                 count_query = count_query.outerjoin(

@@ -215,6 +215,29 @@ class TestGetDatasets(TestDatasetEndpoint):
                     "total_updates": 0,
                 },
             ],
+            "total_entries": 1,
+        }
+
+        uri_pattern = 's3://bucket/key_'
+        response = admin_client.get(f"/object/datasets_summary?uri_pattern={uri_pattern}")
+
+        assert response.status_code == 200
+        response_data = response.json
+        assert response_data == {
+            "datasets": [
+                {
+                    "id": 1,
+                    "uri": "s3://bucket/key_1",
+                    "last_dataset_update": None,
+                    "total_updates": 0,
+                },
+                {
+                    "id": 2,
+                    "uri": "s3://bucket/key_2",
+                    "last_dataset_update": None,
+                    "total_updates": 0,
+                },
+            ],
             "total_entries": 2,
         }
 
