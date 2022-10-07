@@ -132,7 +132,7 @@ PIP package                              Version required
 ``google-cloud-secret-manager``          ``>=0.2.0,<2.0.0``
 ``google-cloud-spanner``                 ``>=1.10.0,<2.0.0``
 ``google-cloud-speech``                  ``>=0.36.3,<2.0.0``
-``google-cloud-storage``                 ``>=1.30,<2.0.0``
+``google-cloud-storage``                 ``>=1.30,<3.0.0``
 ``google-cloud-tasks``                   ``>=2.0.0``
 ``google-cloud-texttospeech``            ``>=0.4.0,<2.0.0``
 ``google-cloud-translate``               ``>=1.5.0,<2.0.0``
