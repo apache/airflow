@@ -2233,55 +2233,11 @@ class Airflow(AirflowBaseView):
         return self._mark_dagrun_state_as_queued(dag_id, dag_run_id, confirmed)
 
     @expose("/dagrun_details")
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        ]
-    )
-    @action_logging
-    @provide_session
-    def dagrun_details(self, session=None):
-        """Retrieve DAG Run details."""
+    def dagrun_details(self):
+        """Redirect to the GRID DAGRun page. This is avoids breaking links."""
         dag_id = request.args.get("dag_id")
         run_id = request.args.get("run_id")
-
-        dag = get_airflow_app().dag_bag.get_dag(dag_id)
-        dag_run: DagRun | None = (
-            session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one_or_none()
-        )
-        redirect_url = get_safe_url(request.values.get('redirect_url'))
-
-        if dag_run is None:
-            flash(f"No DAG run found for DAG id {dag_id} and run id {run_id}", "error")
-            return redirect(redirect_url or url_for('Airflow.index'))
-        else:
-            try:
-                duration = dag_run.end_date - dag_run.start_date
-            except TypeError:
-                # Raised if end_date is None e.g. when DAG is still running
-                duration = None
-
-            dagrun_attributes = [
-                ("Logical date", wwwutils.datetime_html(dag_run.execution_date)),
-                ("Queued at", wwwutils.datetime_html(dag_run.queued_at)),
-                ("Start date", wwwutils.datetime_html(dag_run.start_date)),
-                ("End date", wwwutils.datetime_html(dag_run.end_date)),
-                ("Duration", str(duration)),
-                ("Current state", wwwutils.state_token(dag_run.state)),
-                ("Run type", dag_run.run_type),
-                ("Externally triggered", dag_run.external_trigger),
-                ("Config", wwwutils.json_render(dag_run.conf, lexers.JsonLexer)),
-            ]
-
-            return self.render_template(
-                "airflow/dagrun_details.html",
-                dag=dag,
-                dag_id=dag_id,
-                run_id=run_id,
-                execution_date=dag_run.execution_date.isoformat(),
-                dagrun_attributes=dagrun_attributes,
-            )
+        return redirect(url_for("Airflow.grid", dag_id=dag_id, dag_run_id=run_id))
 
     def _mark_task_instance_state(
         self,
@@ -3568,6 +3524,7 @@ class Airflow(AirflowBaseView):
         limit = int(request.args.get("limit", 25))
         offset = int(request.args.get("offset", 0))
         order_by = request.args.get("order_by", "uri")
+        uri_pattern = request.args.get("uri_pattern", "")
         lstripped_orderby = order_by.lstrip('-')
 
         if lstripped_orderby not in allowed_attrs:
@@ -3617,6 +3574,7 @@ class Airflow(AirflowBaseView):
                     DatasetModel.id,
                     DatasetModel.uri,
                 )
+                .filter(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
                 .order_by(*order_by)
                 .offset(offset)
                 .limit(limit)
