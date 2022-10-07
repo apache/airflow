@@ -8909,7 +8909,7 @@ react-tabs@^3.2.2:
     clsx "^1.1.0"
     prop-types "^15.5.0"
 
-react-textarea-autosize@^8.3.2:
+react-textarea-autosize@^8.3.2, react-textarea-autosize@^8.3.4:
   version "8.3.4"
   resolved "https://registry.yarnpkg.com/react-textarea-autosize/-/react-textarea-autosize-8.3.4.tgz#270a343de7ad350534141b02c9cb78903e553524"
   integrity sha512-CdtmP8Dc19xL8/R6sWvtknD/eCXkQr30dtvC4VmGInhRsfF8X/ihXCq6+9l9qbxmKRiq407/7z5fxE7cVWQNgQ==
