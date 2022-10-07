@@ -193,34 +193,44 @@ class TestColumnCheckOperator:
 
 class TestTableCheckOperator:
 
+    count_check = "COUNT(*) == 1000"
+    sum_check = "col_a + col_b < col_c"
     checks = {
-        "row_count_check": {"check_statement": "COUNT(*) == 1000"},
-        "column_sum_check": {"check_statement": "col_a + col_b < col_c"},
+        "row_count_check": {"check_statement": f"{count_check}"},
+        "column_sum_check": {"check_statement": f"{sum_check}"},
     }
 
-    correct_generate_sql_query_no_partitions = """
+    correct_generate_sql_query_no_partitions = f"""
     SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
-    FROM (SELECT CASE WHEN COUNT(*) == 1000 THEN 1 ELSE 0 END AS row_count_check FROM test_table ) AS sq
+    FROM (SELECT CASE WHEN {count_check} THEN 1 ELSE 0 END AS row_count_check FROM test_table ) AS sq
     UNION ALL
     SELECT 'column_sum_check' AS check_name, MIN(column_sum_check) AS check_result
-    FROM (SELECT CASE WHEN col_a + col_b < col_c THEN 1 ELSE 0 END AS column_sum_check FROM test_table ) AS sq
+    FROM (SELECT CASE WHEN {sum_check} THEN 1 ELSE 0 END AS column_sum_check FROM test_table ) AS sq
     """
 
-    correct_generate_sql_query_with_partition = """
+    correct_generate_sql_query_with_partition = f"""
     SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
-    FROM (SELECT CASE WHEN COUNT(*) == 1000 THEN 1 ELSE 0 END AS row_count_check FROM test_table WHERE col_a > 10) AS sq
+    FROM (SELECT CASE WHEN {count_check} THEN 1 ELSE 0 END AS row_count_check FROM test_table WHERE col_a > 10) AS sq
     UNION ALL
     SELECT 'column_sum_check' AS check_name, MIN(column_sum_check) AS check_result
-    FROM (SELECT CASE WHEN col_a + col_b < col_c THEN 1 ELSE 0 END AS column_sum_check FROM test_table WHERE col_a > 10) AS sq
-    """
+    FROM (SELECT CASE WHEN {sum_check} THEN 1 ELSE 0 END AS column_sum_check FROM test_table WHERE col_a > 10) AS sq
+    """  # noqa 501
 
-    correct_generate_sql_query_with_partition_and_where = """
+    correct_generate_sql_query_with_partition_and_where = f"""
     SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
-    FROM (SELECT CASE WHEN COUNT(*) == 1000 THEN 1 ELSE 0 END AS row_count_check FROM test_table WHERE col_a > 10 AND id = 100) AS sq
+    FROM (SELECT CASE WHEN {count_check} THEN 1 ELSE 0 END AS row_count_check FROM test_table WHERE col_a > 10 AND id = 100) AS sq
     UNION ALL
     SELECT 'column_sum_check' AS check_name, MIN(column_sum_check) AS check_result
-    FROM (SELECT CASE WHEN col_a + col_b < col_c THEN 1 ELSE 0 END AS column_sum_check FROM test_table WHERE col_a > 10) AS sq
-    """
+    FROM (SELECT CASE WHEN {sum_check} THEN 1 ELSE 0 END AS column_sum_check FROM test_table WHERE col_a > 10) AS sq
+    """  # noqa 501
+
+    correct_generate_sql_query_with_where = f"""
+    SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
+    FROM (SELECT CASE WHEN {count_check} THEN 1 ELSE 0 END AS row_count_check FROM test_table ) AS sq
+    UNION ALL
+    SELECT 'column_sum_check' AS check_name, MIN(column_sum_check) AS check_result
+    FROM (SELECT CASE WHEN {sum_check} THEN 1 ELSE 0 END AS column_sum_check FROM test_table WHERE id = 100) AS sq
+    """  # noqa 501
 
     def _construct_operator(self, monkeypatch, checks, records):
         def get_records(*arg):
@@ -294,13 +304,20 @@ class TestTableCheckOperator:
         )
 
     def test_generate_sql_query_with_partitions_and_check_partition(self, monkeypatch):
-        operator = self._construct_operator(monkeypatch, self.checks, ())
+        checks = self.checks
+        checks["row_count_check"]["where"] = "id = 100"
+        operator = self._construct_operator(monkeypatch, checks, ())
         operator.partition_clause = "col_a > 10"
-        self.checks["row_count_check"]["where"] = "id = 100"
         assert (
             operator._generate_sql_query().lstrip()
             == self.correct_generate_sql_query_with_partition_and_where.lstrip()
         )
+
+    def test_generate_sql_query_with_check_partition(self, monkeypatch):
+        checks = self.checks
+        checks["column_sum_check"]["where"] = "id = 100"
+        operator = self._construct_operator(monkeypatch, checks, ())
+        assert operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_with_where.lstrip()
 
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
