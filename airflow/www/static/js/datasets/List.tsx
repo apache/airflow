@@ -73,7 +73,7 @@ const DatasetsList = ({ onSelect }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
   const [searchParams, setSearchParams] = useSearchParams();
-  const search = searchParams.get(SEARCH_PARAM) || '';
+  const search = decodeURIComponent(searchParams.get(SEARCH_PARAM) || '');
   const [sortBy, setSortBy] = useState<SortingRule<object>[]>([{ id: 'lastDatasetUpdate', desc: true }]);
 
   const sort = sortBy[0];
