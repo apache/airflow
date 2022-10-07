@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 from logging.config import fileConfig
 
 from alembic import context
@@ -89,9 +90,12 @@ def run_migrations_online():
     and associate a connection with the context.
 
     """
-    connectable = settings.engine
+    with contextlib.ExitStack() as stack:
+        connection = config.attributes.get('connection', None)
 
-    with connectable.connect() as connection:
+        if not connection:
+            connection = stack.push(settings.engine.connect())
+
         context.configure(
             connection=connection,
             transaction_per_migration=True,
