@@ -86,7 +86,7 @@ Misc
 ^^^^
 
 - Default Airflow version to 2.4.1 (#26485)
-- Vendor in the bitnami chart (#24395)
+- Vendor in the Bitnami chart (#24395)
 - Remove kubernetes 1.20 support (#25871)
 
 
