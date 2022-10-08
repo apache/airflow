@@ -31,6 +31,7 @@ import {
 } from '@chakra-ui/react';
 
 import { MdOutlineAccountTree } from 'react-icons/md';
+import ReactJson from 'react-json-view';
 
 import { useGridData } from 'src/api';
 import { appendSearchParams, getMetaValue } from 'src/utils';
@@ -50,7 +51,6 @@ import DatasetTriggerEvents from './DatasetTriggerEvents';
 
 const dagId = getMetaValue('dag_id');
 const graphUrl = getMetaValue('graph_url');
-const dagRunDetailsUrl = getMetaValue('dagrun_details_url');
 
 interface Props {
   runId: DagRunType['runId'];
@@ -69,20 +69,19 @@ const DagRun = ({ runId }: Props) => {
     dataIntervalEnd,
     startDate,
     endDate,
+    queuedAt,
+    externalTrigger,
+    conf,
+    confIsJson,
   } = run;
-  const detailsParams = new URLSearchParamsWrapper({
-    run_id: runId,
-  }).toString();
   const graphParams = new URLSearchParamsWrapper({
     execution_date: executionDate,
   }).toString();
   const graphLink = appendSearchParams(graphUrl, graphParams);
-  const detailsLink = appendSearchParams(dagRunDetailsUrl, detailsParams);
 
   return (
     <>
       <Flex justifyContent="space-between" alignItems="center">
-        <Button as={Link} variant="ghost" colorScheme="blue" href={detailsLink}>DAG Run Details</Button>
         <Button as={Link} variant="ghost" colorScheme="blue" href={graphLink} leftIcon={<MdOutlineAccountTree />}>
           Graph
         </Button>
@@ -134,6 +133,14 @@ const DagRun = ({ runId }: Props) => {
               </Td>
             </Tr>
           )}
+          {queuedAt && (
+            <Tr>
+              <Td>Queued at</Td>
+              <Td>
+                <Time dateTime={queuedAt} />
+              </Td>
+            </Tr>
+          )}
           {startDate && (
             <Tr>
               <Td>Started</Td>
@@ -166,6 +173,32 @@ const DagRun = ({ runId }: Props) => {
               </Tr>
             </>
           )}
+          <Tr>
+            <Td>Externally triggered</Td>
+            <Td>
+              {externalTrigger ? 'True' : 'False'}
+            </Td>
+          </Tr>
+          <Tr>
+            <Td>Run config</Td>
+            {
+                confIsJson
+                  ? (
+                    <Td>
+                      <ReactJson
+                        src={JSON.parse(conf ?? '')}
+                        theme="tomorrow"
+                        iconStyle="triangle"
+                        indentWidth={2}
+                        displayDataTypes={false}
+                        enableClipboard={false}
+                        style={{ backgroundColor: 'inherit' }}
+                      />
+                    </Td>
+                  )
+                  : <Td>{conf ?? 'None'}</Td>
+              }
+          </Tr>
         </Tbody>
       </Table>
       {runType === 'dataset_triggered' && (
