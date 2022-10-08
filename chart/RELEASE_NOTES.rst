@@ -23,7 +23,7 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
-Airflow Helm Chart 1.7.0 (2022-10-10)
+Airflow Helm Chart 1.7.0 (2022-10-11)
 -------------------------------------
 
 Significant Changes
@@ -41,7 +41,7 @@ New Features
 - Add StatsD ``overrideMappings`` in Helm chart values (#26598)
 - Adding ``podAnnotations`` to StatsD deployment template (#25732)
 - Container specific extra environment variables (#24784)
-- Custom labels for extrasecrets/configmaps (#25283)
+- Custom labels for extra Secrets and ConfigMaps (#25283)
 - Add ``revisionHistoryLimit`` to all deployments (#25059)
 - Adding ``podAnnotations`` to Redis StatefulSet (#23708)
 - Provision Standalone Dag Processor (#23711)
@@ -70,13 +70,13 @@ Doc only changes
 
 - Improve documentation on helm hooks disabling (#26747)
 - Remove ``ssh://`` prefix from git repo value (#26632)
-- Update docs when not to use Helm hooks for starting jobs (#26604)
 - Fix ``defaultAirflowRepository`` comment (#26428)
 - Baking DAGs into Docker image (#26401)
 - Reload pods when using the same DAG tag (#24576)
 - Minor clarifications about ``result_backend``, dag processor, and ``helm uninstall`` (#24929)
-- Add hyperlinks to Github PRs for Release Notes (#24532)
-- Add Flux to chart gitops docs (#24288)
+- Add hyperlinks to GitHub PRs for Release Notes (#24532)
+- Terraform should not use Helm hooks for starting jobs (#26604)
+- Flux should not use Helm hooks for starting jobs (#24288)
 - Provide details on how to pull Airflow image from a private repository (#24394)
 - Helm logo no longer a link (#23977)
 - Document LocalKubernetesExecutor support in chart (#23876)
