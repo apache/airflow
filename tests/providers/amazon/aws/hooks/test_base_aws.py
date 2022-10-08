@@ -241,7 +241,6 @@ class TestSessionFactory:
                     "aws_session_token": "mock_aws_session_token",
                 },
             ),
-            ("assume-with-initial-profile", {"profile_name": "default"}),
             ("assume-without-initial-creds", {}),
         ],
     )
