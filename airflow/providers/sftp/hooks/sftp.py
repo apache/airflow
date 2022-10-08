@@ -165,7 +165,7 @@ class SFTPHook(SSHHook):
         The default mode is 0777, but on some systems, the current umask value is first masked out.
 
         :param path: full path to the remote directory to create
-        :param mode: int permissions (posix-style) of octal mode for directory
+        :param mode: int permissions of octal mode for directory
         """
         conn = self.get_conn()
         conn.mkdir(path, mode=mode)
@@ -202,7 +202,7 @@ class SFTPHook(SSHHook):
         The default mode is 0777, but on some systems, the current umask value is first masked out.
 
         :param path: full path to the remote directory to create
-        :param mode: int permissions (posix-style) of octal mode for directory
+        :param mode: int permissions of octal mode for directory
         """
         conn = self.get_conn()
         if self.isdir(path):
