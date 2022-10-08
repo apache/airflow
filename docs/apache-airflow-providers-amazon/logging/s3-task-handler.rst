@@ -58,7 +58,7 @@ It's recommended best practise to use IAM Role for ServiceAccounts to access AWS
 The steps below guides you to create a new IAM role with ServiceAccount and use with Airflow WebServers and Workers (Kubernetes Executors) Pods.
 
 Step1: Create IAM role for service account (IRSA)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This step is creating IAM role and service account using `eksctl <https://eksctl.io/>`_.
 Also, note that this example is using managed policy with full S3 permissions attached to the IAM role. This is only used for testing purpose.
 We highly recommend you to create a restricted S3 IAM policy and use it with ``--attach-policy-arn``
@@ -78,8 +78,8 @@ Example with sample inputs
     eksctl create iamserviceaccount --cluster=airflow-eks-cluster --name=airflow-sa --namespace=airflow --attach-policy-arn=arn:aws:iam::aws:policy/AmazonS3FullAccess --approve
 
 
-Step2: Update Helm Chart `values.yaml` with Service Account
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step2: Update Helm Chart values.yaml with Service Account
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This step is using `Airflow Helm Chart <https://github.com/apache/airflow/tree/main/chart>`_ deployment.
 If you are deploying Airflow using Helm Chart then you can modify the ``values.yaml`` as mentioned below.
 Add the Service Account (e.g., ``airflow-sa``) created by Step1 to Helm Chart ``values.yaml`` under the following sections.
@@ -126,7 +126,7 @@ The final step to create connections under Airflow UI before executing the DAGs.
 .. image:: /img/aws-base-conn-airflow.png
 
 Step4: Verify the logs
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 * Execute example DAGs
 * Verify the logs in S3 bucket
 * Verify the logs from Airflow UI from DAGs log
