@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import re
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Sequence, SupportsAbs
 
@@ -229,6 +230,11 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
                 self._process_output(*out)
 
         return output
+
+    def prepare_template(self) -> None:
+        """Parse template file for attribute parameters."""
+        if isinstance(self.parameters, str):
+            self.parameters = ast.literal_eval(self.parameters)
 
 
 class SQLColumnCheckOperator(BaseSQLOperator):
