@@ -61,6 +61,7 @@ dependencies:
   - mypy-boto3-rds>=1.21.0
   - mypy-boto3-redshift-data>=1.21.0
   - mypy-boto3-appflow>=1.21.0
+  - mypy-boto3-emr>=1.21.0
 
 integrations:
   - integration-name: Amazon Athena

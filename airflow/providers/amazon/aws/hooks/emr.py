@@ -20,16 +20,25 @@ from __future__ import annotations
 import json
 import warnings
 from time import sleep
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from botocore.exceptions import ClientError
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook, AwsGenericHook
+
+if TYPE_CHECKING:
+    from mypy_boto3_emr import EMRClient
+    from mypy_boto3_emr.literals import ClusterStateType
+    from mypy_boto3_emr.type_defs import (
+        ListClustersOutputTypeDef,
+        RunJobFlowInputRequestTypeDef,
+        RunJobFlowOutputTypeDef,
+    )
 
 
-class EmrHook(AwsBaseHook):
+class EmrHook(AwsGenericHook[EMRClient]):
     """
     Interact with Amazon Elastic MapReduce Service.
 
@@ -54,7 +63,9 @@ class EmrHook(AwsBaseHook):
         kwargs["client_type"] = "emr"
         super().__init__(*args, **kwargs)
 
-    def get_cluster_id_by_name(self, emr_cluster_name: str, cluster_states: list[str]) -> str | None:
+    def get_cluster_id_by_name(
+        self, emr_cluster_name: str, cluster_states: list[ClusterStateType]
+    ) -> str | None:
         """
         Fetch id of EMR cluster with given name and (optional) states.
         Will return only if single id is found.
@@ -63,7 +74,7 @@ class EmrHook(AwsBaseHook):
         :param cluster_states: State(s) of cluster to find
         :return: id of the EMR cluster
         """
-        response = self.get_conn().list_clusters(ClusterStates=cluster_states)
+        response: ListClustersOutputTypeDef = self.get_conn().list_clusters(ClusterStates=cluster_states)
 
         matching_clusters = list(
             filter(lambda cluster: cluster['Name'] == emr_cluster_name, response['Clusters'])
@@ -79,7 +90,7 @@ class EmrHook(AwsBaseHook):
             self.log.info('No cluster found for name %s', emr_cluster_name)
             return None
 
-    def create_job_flow(self, job_flow_overrides: dict[str, Any]) -> dict[str, Any]:
+    def create_job_flow(self, job_flow_overrides: RunJobFlowInputRequestTypeDef) -> RunJobFlowOutputTypeDef:
         """
         Create and start running a new cluster (job flow).
 
@@ -118,13 +129,13 @@ class EmrHook(AwsBaseHook):
                         stacklevel=2,
                     )
                 config = emr_conn.extra_dejson.copy()
-        config.update(job_flow_overrides)
+        config.update(**job_flow_overrides)
 
         response = self.get_conn().run_job_flow(**config)
 
         return response
 
-    def test_connection(self):
+    def test_connection(self) -> tuple[bool, str]:
         """
         Return failed state for test Amazon Elastic MapReduce Connection (untestable).
 
