@@ -20,8 +20,8 @@ from __future__ import annotations
 import datetime
 import json
 import time
-from typing import TYPE_CHECKING, Sequence, cast
 import warnings
+from typing import TYPE_CHECKING, Sequence, cast
 
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists, RemovedInAirflow3Warning
