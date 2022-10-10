@@ -22,6 +22,7 @@ import ast
 import pickle
 import tarfile
 import warnings
+from io import BytesIO, StringIO
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Iterable, Sequence
 
@@ -29,13 +30,11 @@ from docker import APIClient, tls  # type: ignore[attr-defined]
 from docker.constants import DEFAULT_TIMEOUT_SECONDS  # type: ignore[attr-defined]
 from docker.errors import APIError  # type: ignore[attr-defined]
 from docker.types import DeviceRequest, LogConfig, Mount  # type: ignore[attr-defined]
+from dotenv import dotenv_values
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.docker.hooks.docker import DockerHook
-
-from dotenv import dotenv_values
-from io import StringIO, BytesIO
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -473,8 +472,9 @@ class DockerOperator(BaseOperator):
 
     @staticmethod
     def unpack_environment_variables(env_str: str) -> dict:
-        """
+        r"""
         Parse environment variables from the string
+
         :param env_str: environment variables in key=value format separated by '\n'
 
         :return: dictionary containing parsed environment variables

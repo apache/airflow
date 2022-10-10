@@ -28,9 +28,9 @@ from docker.errors import APIError
 
 from airflow.exceptions import AirflowException
 
-from io import StringIO
-
 try:
+    from io import StringIO
+
     from docker import APIClient
     from docker.types import DeviceRequest, LogConfig, Mount
 
@@ -59,7 +59,7 @@ class TestDockerOperator(unittest.TestCase):
 
         # If logs() is called with tail then only return the last value, otherwise return the whole log.
         self.client_mock.logs.side_effect = (
-            lambda **kwargs: iter(self.log_messages[-kwargs['tail']:])
+            lambda **kwargs: iter(self.log_messages[-kwargs['tail'] :])
             if 'tail' in kwargs
             else iter(self.log_messages)
         )
@@ -70,9 +70,10 @@ class TestDockerOperator(unittest.TestCase):
         )
         self.client_class_mock = self.client_class_patcher.start()
 
-        self.dotenv_patcher = mock.patch('airflow.providers.docker.operators.docker.dotenv_values',
-                                         return_value={'ENV': 'FILE', 'VAR': 'VALUE'}
-                                         )
+        self.dotenv_patcher = mock.patch(
+            'airflow.providers.docker.operators.docker.dotenv_values',
+            return_value={'ENV': 'FILE', 'VAR': 'VALUE'},
+        )
         self.dotenv_mock = self.dotenv_patcher.start()
 
     def tearDown(self) -> None:
@@ -81,8 +82,9 @@ class TestDockerOperator(unittest.TestCase):
 
     def test_execute(self):
         stringio_mock = mock.Mock(spec=StringIO)
-        stringio_patcher = mock.patch('airflow.providers.docker.operators.docker.StringIO',
-                                      return_value=stringio_mock)
+        stringio_patcher = mock.patch(
+            'airflow.providers.docker.operators.docker.StringIO', return_value=stringio_mock
+        )
         stringio_class_mock = stringio_patcher.start()
 
         operator = DockerOperator(
@@ -115,8 +117,13 @@ class TestDockerOperator(unittest.TestCase):
         self.client_mock.create_container.assert_called_once_with(
             command='env',
             name='test_container',
-            environment={'AIRFLOW_TMP_DIR': '/tmp/airflow', 'UNIT': 'TEST', 'PRIVATE': 'MESSAGE',
-                         'ENV': 'FILE', 'VAR': 'VALUE'},
+            environment={
+                'AIRFLOW_TMP_DIR': '/tmp/airflow',
+                'UNIT': 'TEST',
+                'PRIVATE': 'MESSAGE',
+                'ENV': 'FILE',
+                'VAR': 'VALUE',
+            },
             host_config=self.client_mock.create_host_config.return_value,
             image='ubuntu:latest',
             user=None,
@@ -157,8 +164,9 @@ class TestDockerOperator(unittest.TestCase):
 
     def test_execute_no_temp_dir(self):
         stringio_mock = mock.Mock(spec=StringIO)
-        stringio_patcher = mock.patch('airflow.providers.docker.operators.docker.StringIO',
-                                      return_value=stringio_mock)
+        stringio_patcher = mock.patch(
+            'airflow.providers.docker.operators.docker.StringIO', return_value=stringio_mock
+        )
         stringio_class_mock = stringio_patcher.start()
 
         operator = DockerOperator(
@@ -234,8 +242,9 @@ class TestDockerOperator(unittest.TestCase):
         ]
 
         stringio_mock = mock.Mock(spec=StringIO)
-        stringio_patcher = mock.patch('airflow.providers.docker.operators.docker.StringIO',
-                                      return_value=stringio_mock)
+        stringio_patcher = mock.patch(
+            'airflow.providers.docker.operators.docker.StringIO', return_value=stringio_mock
+        )
         stringio_class_mock = stringio_patcher.start()
 
         operator = DockerOperator(
@@ -271,8 +280,13 @@ class TestDockerOperator(unittest.TestCase):
                 call(
                     command='env',
                     name='test_container',
-                    environment={'AIRFLOW_TMP_DIR': '/tmp/airflow', 'UNIT': 'TEST', 'PRIVATE': 'MESSAGE',
-                                 'ENV': 'FILE', 'VAR': 'VALUE'},
+                    environment={
+                        'AIRFLOW_TMP_DIR': '/tmp/airflow',
+                        'UNIT': 'TEST',
+                        'PRIVATE': 'MESSAGE',
+                        'ENV': 'FILE',
+                        'VAR': 'VALUE',
+                    },
                     host_config=self.client_mock.create_host_config.return_value,
                     image='ubuntu:latest',
                     user=None,
@@ -504,7 +518,7 @@ class TestDockerOperator(unittest.TestCase):
         self.client_mock.attach.return_value = iter([b'container log 1 ', b'container log 2'])
         # Make sure the logs side effect is updated after the change
         self.client_mock.attach.side_effect = (
-            lambda **kwargs: iter(self.log_messages[-kwargs['tail']:])
+            lambda **kwargs: iter(self.log_messages[-kwargs['tail'] :])
             if 'tail' in kwargs
             else iter(self.log_messages)
         )
