@@ -3529,7 +3529,6 @@ class Airflow(AirflowBaseView):
         lstripped_orderby = order_by.lstrip('-')
         untrusted_updated_after = request.args.get("updated_after")
         untrusted_updated_before = request.args.get("updated_before")
-        # with_any_tags = request.args.get("with_any_tags")
 
         # Check and clean up query parameters
         limit = 50 if limit > 50 else limit
@@ -3546,23 +3545,10 @@ class Airflow(AirflowBaseView):
 
         updated_after = None
         if untrusted_updated_after:
-            # Try to figure out how other functions in this module safely parse datetimes submitted by users
-            # and do the same thing here
             updated_after = _safe_parse_datetime(untrusted_updated_after)
         updated_before = None
         if untrusted_updated_before:
-            # Clean this data the same way you cleaned updated_after
             updated_before = _safe_parse_datetime(untrusted_updated_before)
-
-        # split_with_any_tags = []
-        # if isinstance(tags, str):
-        #     split_with_any_tags = with_any_tags.split(",") if "," in with_any_tags else [with_any_tags]
-        # else:
-        #     return {
-        #         "detail": (
-        #             f"The with_any_tags query parameter must be a string, or comma-separated strings"
-        #         )
-        #     }, 400
 
         with create_session() as session:
             if lstripped_orderby == "uri":
@@ -3603,24 +3589,14 @@ class Airflow(AirflowBaseView):
                 .order_by(*order_by)
             )
 
+            if updated_before or updated_after:
+                count_query = count_query.outerjoin(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
             if uri_pattern:
-                count_query = count_query.filter(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
                 query = query.filter(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
-
             if updated_after:
-                count_query = count_query.outerjoin(
-                    DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id
-                ).filter(DatasetEvent.timestamp >= updated_after)
                 query = query.filter(DatasetEvent.timestamp >= updated_after)
             if updated_before:
-                count_query = count_query.outerjoin(
-                    DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id
-                ).filter(DatasetEvent.timestamp <= updated_before)
                 query = query.filter(DatasetEvent.timestamp <= updated_before)
-
-            # We haven't yet implemented tags for datasets, so you can remove this, or we can implement that
-            # if split_with_any_tags:
-            #     query = query.filter(...)
 
             query = query.offset(offset).limit(limit)
 

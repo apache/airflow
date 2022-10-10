@@ -147,7 +147,7 @@ const DatasetsList = ({ onSelect }: Props) => {
           Datasets
         </Heading>
       </Flex>
-      {!datasets.length && !isLoading && !search && (
+      {!datasets.length && !isLoading && !search && !dateFilter && (
         <Text mb={4} data-testid="no-datasets-msg">
           Looks like you do not have any datasets yet. Check out the
           {' '}
