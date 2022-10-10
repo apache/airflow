@@ -401,7 +401,7 @@ def regenerate_help_images_for_all_commands(
         console.print("[error]The --check-only flag cannot be used with --force flag.")
         return 2
     if check_only and commands:
-        console.print("[error]The --check-only flag cannot be used with --coomand flag.")
+        console.print("[error]The --check-only flag cannot be used with --command flag.")
         return 2
     env = os.environ.copy()
     env['AIRFLOW_SOURCES_ROOT'] = str(AIRFLOW_SOURCES_ROOT)

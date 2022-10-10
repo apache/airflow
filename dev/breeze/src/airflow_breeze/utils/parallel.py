@@ -80,7 +80,10 @@ def get_last_lines_of_file(file_name: str, num_lines: int = 2) -> tuple[list[str
     """
     # account for EOL
     max_read = (180 + 2) * num_lines
-    seek_size = min(os.stat(file_name).st_size, max_read)
+    try:
+        seek_size = min(os.stat(file_name).st_size, max_read)
+    except FileNotFoundError:
+        return [], []
     with open(file_name, 'rb') as temp_f:
         temp_f.seek(-seek_size, os.SEEK_END)
         tail = temp_f.read().decode(errors="ignore")
@@ -258,12 +261,10 @@ class ParallelMonitor(Thread):
         self.debug_resources = debug_resources
         self.progress_matcher = progress_matcher
         self.start_time = datetime.datetime.utcnow()
-        self.last_custom_progress: list[str] | None = None
 
     def print_single_progress(self, output: Output):
         if self.progress_matcher:
             progress_lines: list[str] | None = self.progress_matcher.get_best_matching_lines(output)
-            progress_lines = self.last_custom_progress if progress_lines is None else progress_lines
             if progress_lines is not None:
                 first_line = True
                 for index, line in enumerate(progress_lines):
