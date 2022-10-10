@@ -31,6 +31,7 @@ from google.cloud.aiplatform import schema
 from google.protobuf.struct_pb2 import Value
 
 from airflow import models
+from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLImageTrainingJobOperator,
@@ -58,7 +59,8 @@ REGION = "us-central1"
 
 DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 DATA_SAMPLE_GCS_OBJECT_NAME = "vertex-ai/image-dataset.csv"
-CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "image-dataset.csv")
+IMAGE_ZIP_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "image-dataset.csv.zip")
+IMAGE_CSV_FILE_LOCAL_PATH = "/endpoint/image-dataset.csv"
 
 IMAGE_DATASET = {
     "display_name": f"image-dataset-{ENV_ID}",
@@ -91,9 +93,13 @@ with models.DAG(
         storage_class="REGIONAL",
         location=REGION,
     )
+    unzip_file = BashOperator(
+        task_id="unzip_csv_data_file",
+        bash_command=f"unzip {IMAGE_ZIP_CSV_FILE_LOCAL_PATH} -d /endpoint/",
+    )
     upload_files = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",
-        src=CSV_FILE_LOCAL_PATH,
+        src=IMAGE_CSV_FILE_LOCAL_PATH,
         dst=DATA_SAMPLE_GCS_OBJECT_NAME,
         bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
     )
@@ -208,6 +214,10 @@ with models.DAG(
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
+    clear_folder = BashOperator(
+        task_id="clear_folder",
+        bash_command="rm -r /endpoint/*",
+    )
 
     (
         # TEST SETUP
@@ -215,6 +225,7 @@ with models.DAG(
             create_bucket,
             create_image_dataset,
         ]
+        >> unzip_file
         >> upload_files
         >> import_image_dataset
         >> create_auto_ml_image_training_job
@@ -228,6 +239,7 @@ with models.DAG(
         >> delete_auto_ml_image_training_job
         >> delete_image_dataset
         >> delete_bucket
+        >> clear_folder
     )
 
 

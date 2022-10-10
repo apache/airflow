@@ -31,6 +31,7 @@ from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
 from airflow import models
+from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
     CreateDatasetOperator,
@@ -50,12 +51,15 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 REGION = "us-central1"
 
 DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+
+ALL_DATASETS_ZIP_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "all-datasets.zip")
+
 CSV_FILES_LOCAL_PATH = [
-    str(Path(__file__).parent / "resources" / "forecast-dataset.csv"),
-    str(Path(__file__).parent / "resources" / "image-dataset.csv"),
-    str(Path(__file__).parent / "resources" / "tabular-dataset.csv"),
-    str(Path(__file__).parent / "resources" / "text-dataset.csv"),
-    str(Path(__file__).parent / "resources" / "video-dataset.csv"),
+    "/all-datasets/forecast-dataset.csv",
+    "/all-datasets/image-dataset.csv",
+    "/all-datasets/tabular-dataset.csv",
+    "/all-datasets/text-dataset.csv",
+    "/all-datasets/video-dataset.csv",
 ]
 
 TIME_SERIES_DATASET = {
@@ -127,6 +131,10 @@ with models.DAG(
         bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME,
         storage_class="REGIONAL",
         location=REGION,
+    )
+    unzip_file = BashOperator(
+        task_id="unzip_csv_data_file",
+        bash_command=f"unzip {ALL_DATASETS_ZIP_CSV_FILE_LOCAL_PATH} -d /all-datasets/",
     )
     upload_files = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",
@@ -257,9 +265,15 @@ with models.DAG(
         task_id="delete_bucket", bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
+    clear_folder = BashOperator(
+        task_id="clear_folder",
+        bash_command="rm -r /all-datasets/*",
+    )
+
     (
         # TEST SETUP
         create_bucket
+        >> unzip_file
         >> upload_files
         # TEST BODY
         >> [
@@ -272,6 +286,7 @@ with models.DAG(
         ]
         # TEST TEARDOWN
         >> delete_bucket
+        >> clear_folder
     )
 
 

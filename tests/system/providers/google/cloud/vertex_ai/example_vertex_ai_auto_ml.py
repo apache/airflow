@@ -31,6 +31,7 @@ from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
 from airflow import models
+from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLForecastingTrainingJobOperator,
@@ -60,17 +61,23 @@ TABULAR_GCS_BUCKET_NAME = f"bucket_tabular_{DAG_ID}_{ENV_ID}"
 TEXT_GCS_BUCKET_NAME = f"bucket_text_{DAG_ID}_{ENV_ID}"
 VIDEO_GCS_BUCKET_NAME = f"bucket_custom_python_{DAG_ID}_{ENV_ID}"
 
+FORECAST_ZIP_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "forecast-dataset.csv.zip")
+IMAGE_ZIP_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "image-dataset.csv.zip")
+TABULAR_ZIP_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "tabular-dataset.csv.zip")
+TEXT_ZIP_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "text-dataset.csv.zip")
+VIDEO_ZIP_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "video-dataset.csv.zip")
+
 FORECAST_GCS_OBJECT_NAME = "vertex-ai/forecast-dataset.csv"
 IMAGE_GCS_OBJECT_NAME = "vertex-ai/image-dataset.csv"
 TABULAR_GCS_OBJECT_NAME = "vertex-ai/tabular-dataset.csv"
 TEXT_GCS_OBJECT_NAME = "vertex-ai/text-dataset.csv"
 VIDEO_GCS_OBJECT_NAME = "vertex-ai/video-dataset.csv"
 
-FORECAST_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "forecast-dataset.csv")
-IMAGE_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "image-dataset.csv")
-TABULAR_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "tabular-dataset.csv")
-TEXT_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "text-dataset.csv")
-VIDEO_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "video-dataset.csv")
+FORECAST_CSV_FILE_LOCAL_PATH = "/forecast/forecast-dataset.csv"
+IMAGE_CSV_FILE_LOCAL_PATH = "/image/image-dataset.csv"
+TABULAR_CSV_FILE_LOCAL_PATH = "/tabular/tabular-dataset.csv"
+TEXT_CSV_FILE_LOCAL_PATH = "/text/text-dataset.csv"
+VIDEO_CSV_FILE_LOCAL_PATH = "/video/video-dataset.csv"
 
 FORECAST_DATASET = {
     "display_name": f"forecast-dataset-{ENV_ID}",
@@ -166,12 +173,19 @@ with models.DAG(
     catchup=False,
     tags=["example", "vertex_ai", "auto_ml"],
 ) as forecasting_training_job_dag:
+
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
         bucket_name=FORECAST_GCS_BUCKET_NAME,
         storage_class="REGIONAL",
         location=REGION,
     )
+
+    unzip_file = BashOperator(
+        task_id="unzip_csv_data_file",
+        bash_command=f"unzip {FORECAST_ZIP_CSV_FILE_LOCAL_PATH} -d /forecast/",
+    )
+
     upload_files = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",
         src=FORECAST_CSV_FILE_LOCAL_PATH,
@@ -234,9 +248,15 @@ with models.DAG(
         task_id="delete_bucket", bucket_name=FORECAST_GCS_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
+    clear_folder = BashOperator(
+        task_id="clear_forecast_folder",
+        bash_command="rm -r /forecast/*",
+    )
+
     (
         # TEST SETUP
         create_bucket
+        >> unzip_file
         >> upload_files
         >> create_forecast_dataset
         # TEST BODY
@@ -245,6 +265,7 @@ with models.DAG(
         >> delete_auto_ml_forecasting_training_job
         >> delete_forecast_dataset
         >> delete_bucket
+        >> clear_folder
     )
 
 
@@ -261,6 +282,11 @@ with models.DAG(
         storage_class="REGIONAL",
         location=REGION,
     )
+
+    unzip_file = BashOperator(
+        task_id="unzip_csv_data_file", bash_command=f"unzip {IMAGE_ZIP_CSV_FILE_LOCAL_PATH} -d /image/"
+    )
+
     upload_files = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",
         src=IMAGE_CSV_FILE_LOCAL_PATH,
@@ -321,12 +347,18 @@ with models.DAG(
         task_id="delete_bucket", bucket_name=IMAGE_GCS_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
+    clear_folder = BashOperator(
+        task_id="clear_forecast_folder",
+        bash_command="rm -r /image/*",
+    )
+
     (
         # TEST SETUP
         [
             create_bucket,
             create_image_dataset,
         ]
+        >> unzip_file
         >> upload_files
         >> import_image_dataset
         # TEST BODY
@@ -335,6 +367,7 @@ with models.DAG(
         >> delete_auto_ml_image_training_job
         >> delete_image_dataset
         >> delete_bucket
+        >> clear_folder
     )
 
 
@@ -351,6 +384,11 @@ with models.DAG(
         storage_class="REGIONAL",
         location=REGION,
     )
+
+    unzip_file = BashOperator(
+        task_id="unzip_csv_data_file", bash_command=f"unzip {TABULAR_ZIP_CSV_FILE_LOCAL_PATH} -d /tabular/"
+    )
+
     upload_files = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",
         src=TABULAR_CSV_FILE_LOCAL_PATH,
@@ -403,9 +441,15 @@ with models.DAG(
         task_id="delete_bucket", bucket_name=TABULAR_GCS_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
+    clear_folder = BashOperator(
+        task_id="clear_forecast_folder",
+        bash_command="rm -r /tabular/*",
+    )
+
     (
         # TEST SETUP
         create_bucket
+        >> unzip_file
         >> upload_files
         >> create_tabular_dataset
         # TEST BODY
@@ -414,6 +458,7 @@ with models.DAG(
         >> delete_auto_ml_tabular_training_job
         >> delete_tabular_dataset
         >> delete_bucket
+        >> clear_folder
     )
 
 
@@ -430,6 +475,11 @@ with models.DAG(
         storage_class="REGIONAL",
         location=REGION,
     )
+
+    unzip_file = BashOperator(
+        task_id="unzip_csv_data_file", bash_command=f"unzip {TEXT_ZIP_CSV_FILE_LOCAL_PATH} -d /text/"
+    )
+
     upload_files = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",
         src=TEXT_CSV_FILE_LOCAL_PATH,
@@ -489,12 +539,18 @@ with models.DAG(
         task_id="delete_bucket", bucket_name=TEXT_GCS_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
+    clear_folder = BashOperator(
+        task_id="clear_forecast_folder",
+        bash_command="rm -r /text/*",
+    )
+
     (
         # TEST SETUP
         [
             create_bucket,
             create_text_dataset,
         ]
+        >> unzip_file
         >> upload_files
         >> import_text_dataset
         # TEST BODY
@@ -503,6 +559,7 @@ with models.DAG(
         >> delete_auto_ml_text_training_job
         >> delete_text_dataset
         >> delete_bucket
+        >> clear_folder
     )
 
 
@@ -519,6 +576,11 @@ with models.DAG(
         storage_class="REGIONAL",
         location=REGION,
     )
+
+    unzip_file = BashOperator(
+        task_id="unzip_csv_data_file", bash_command=f"unzip {VIDEO_ZIP_CSV_FILE_LOCAL_PATH} -d /video/"
+    )
+
     upload_files = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",
         src=VIDEO_CSV_FILE_LOCAL_PATH,
@@ -574,12 +636,18 @@ with models.DAG(
         task_id="delete_bucket", bucket_name=VIDEO_GCS_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
+    clear_folder = BashOperator(
+        task_id="clear_forecast_folder",
+        bash_command="rm -r /video/*",
+    )
+
     (
         # TEST SETUP
         [
             create_bucket,
             create_video_dataset,
         ]
+        >> unzip_file
         >> upload_files
         >> import_video_dataset
         # TEST BODY
@@ -588,6 +656,7 @@ with models.DAG(
         >> delete_auto_ml_video_training_job
         >> delete_video_dataset
         >> delete_bucket
+        >> clear_folder
     )
 
 

@@ -31,6 +31,7 @@ from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
 from airflow import models
+from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.vertex_ai.custom_job import (
     CreateCustomTrainingJobOperator,
@@ -58,7 +59,8 @@ DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 STAGING_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}"
 
 DATA_SAMPLE_GCS_OBJECT_NAME = "vertex-ai/california_housing_train.csv"
-CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "california_housing_train.csv")
+CSV_FILE_LOCAL_PATH = "/model_service/california_housing_train.csv"
+CSV_ZIP_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "California-housing.zip")
 
 TABULAR_DATASET = {
     "display_name": f"tabular-dataset-{ENV_ID}",
@@ -75,9 +77,7 @@ TABULAR_DATASET = {
 
 CONTAINER_URI = "gcr.io/cloud-aiplatform/training/tf-cpu.2-2:latest"
 
-LOCAL_TRAINING_SCRIPT_PATH = str(
-    Path(__file__).parent / "resources" / "california_housing_training_script.py"
-)
+LOCAL_TRAINING_SCRIPT_PATH = "/model_service/california_housing_training_script.py"
 
 MODEL_OUTPUT_CONFIG = {
     "artifact_destination": {
@@ -101,6 +101,10 @@ with models.DAG(
         bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME,
         storage_class="REGIONAL",
         location=REGION,
+    )
+    unzip_file = BashOperator(
+        task_id="unzip_csv_data_file",
+        bash_command=f"mkdir -p /model_service && unzip {CSV_ZIP_FILE_LOCAL_PATH} -d /model_service/",
     )
     upload_files = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",
@@ -202,9 +206,15 @@ with models.DAG(
         task_id="delete_bucket", bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
+    clear_folder = BashOperator(
+        task_id="clear_folder",
+        bash_command="rm -r /model_service/*",
+    )
+
     (
         # TEST SETUP
         create_bucket
+        >> unzip_file
         >> upload_files
         >> create_tabular_dataset
         >> create_custom_training_job
@@ -217,6 +227,7 @@ with models.DAG(
         >> delete_custom_training_job
         >> delete_tabular_dataset
         >> delete_bucket
+        >> clear_folder
     )
 
 

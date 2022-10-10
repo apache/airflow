@@ -31,6 +31,7 @@ from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
 from airflow import models
+from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLForecastingTrainingJobOperator,
@@ -56,7 +57,8 @@ REGION = "us-central1"
 JOB_DISPLAY_NAME = f"batch_prediction_job_test_{ENV_ID}"
 DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 DATA_SAMPLE_GCS_OBJECT_NAME = "vertex-ai/forecast-dataset.csv"
-CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "forecast-dataset.csv")
+FORECAST_ZIP_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "forecast-dataset.csv.zip")
+FORECAST_CSV_FILE_LOCAL_PATH = "/batch-prediction/forecast-dataset.csv"
 
 FORECAST_DATASET = {
     "display_name": f"forecast-dataset-{ENV_ID}",
@@ -102,9 +104,16 @@ with models.DAG(
         storage_class="REGIONAL",
         location=REGION,
     )
+
+    unzip_file = BashOperator(
+        task_id="unzip_csv_data_file",
+        bash_command=f"mkdir -p /batch-prediction && "
+        f"unzip {FORECAST_ZIP_CSV_FILE_LOCAL_PATH} -d /batch-prediction/",
+    )
+
     upload_files = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",
-        src=CSV_FILE_LOCAL_PATH,
+        src=FORECAST_CSV_FILE_LOCAL_PATH,
         dst=DATA_SAMPLE_GCS_OBJECT_NAME,
         bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
     )
@@ -187,9 +196,15 @@ with models.DAG(
         task_id="delete_bucket", bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
+    clear_folder = BashOperator(
+        task_id="clear_forecast_folder",
+        bash_command="rm -r /batch-prediction/*",
+    )
+
     (
         # TEST SETUP
         create_bucket
+        >> unzip_file
         >> upload_files
         >> create_forecast_dataset
         >> create_auto_ml_forecasting_training_job
@@ -201,6 +216,7 @@ with models.DAG(
         >> delete_auto_ml_forecasting_training_job
         >> delete_forecast_dataset
         >> delete_bucket
+        >> clear_folder
     )
 
 

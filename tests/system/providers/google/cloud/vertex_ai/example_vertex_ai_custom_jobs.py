@@ -31,6 +31,7 @@ from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
 from airflow import models
+from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.vertex_ai.custom_job import (
     CreateCustomContainerTrainingJobOperator,
@@ -51,15 +52,17 @@ DAG_ID = "vertex_ai_custom_job_operations"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 REGION = "us-central1"
 
-CUSTOM_CONTAINER_GCS_BUCKET_NAME = f"bucket_custom_container_{DAG_ID}_{ENV_ID}"
-CUSTOM_PYTHON_GCS_BUCKET_NAME = f"bucket_custom_python_{DAG_ID}_{ENV_ID}"
-CUSTOM_GCS_BUCKET_NAME = f"bucket_custom_{DAG_ID}_{ENV_ID}"
+CUSTOM_CONTAINER_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+CUSTOM_PYTHON_GCS_BUCKET_NAME = f"bucket_python_{DAG_ID}_{ENV_ID}"
+CUSTOM_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
 DATA_SAMPLE_GCS_OBJECT_NAME = "vertex-ai/california_housing_train.csv"
-CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "california_housing_train.csv")
-CUSTOM_PYTHON_FILES_LOCAL_PATH = [
+CSV_FILE_LOCAL_PATH = "/custom-job/california_housing_train.csv"
+TAR_FILE_LOCAL_PATH = "/custom-job/custom_trainer_script-0.1.tar"
+CSV_ZIP_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "California-housing.zip")
+FILES_TO_UPLOAD = [
     CSV_FILE_LOCAL_PATH,
-    str(Path(__file__).parent / "resources" / "custom_trainer_script-0.1.tar"),
+    TAR_FILE_LOCAL_PATH,
 ]
 
 TABULAR_DATASET = lambda bucket_name: {
@@ -85,9 +88,7 @@ VALIDATION_FRACTION_SPLIT = 0.15
 PYTHON_PACKAGE_GCS_URI = f'gs://{CUSTOM_PYTHON_GCS_BUCKET_NAME}/vertex-ai/custom_trainer_script-0.1.tar'
 PYTHON_MODULE_NAME = "aiplatform_custom_trainer_script.task"
 
-LOCAL_TRAINING_SCRIPT_PATH = str(
-    Path(__file__).parent / "resources" / "california_housing_training_script.py"
-)
+LOCAL_TRAINING_SCRIPT_PATH = "/custom-job/california_housing_training_script.py"
 
 
 with models.DAG(
@@ -102,6 +103,10 @@ with models.DAG(
         bucket_name=CUSTOM_CONTAINER_GCS_BUCKET_NAME,
         storage_class="REGIONAL",
         location=REGION,
+    )
+    unzip_file = BashOperator(
+        task_id="unzip_csv_data_file",
+        bash_command=f"mkdir -p /custom-job/ && unzip {CSV_ZIP_FILE_LOCAL_PATH} -d /custom-job/",
     )
     upload_files = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",
@@ -160,10 +165,15 @@ with models.DAG(
         bucket_name=CUSTOM_CONTAINER_GCS_BUCKET_NAME,
         trigger_rule=TriggerRule.ALL_DONE,
     )
+    clear_folder = BashOperator(
+        task_id="clear_folder",
+        bash_command="rm -r /custom-job/*",
+    )
 
     (
         # TEST SETUP
         create_bucket
+        >> unzip_file
         >> upload_files
         >> create_tabular_dataset
         # TEST BODY
@@ -172,6 +182,7 @@ with models.DAG(
         >> delete_custom_training_job
         >> delete_tabular_dataset
         >> delete_bucket
+        >> clear_folder
     )
 
 
@@ -188,9 +199,13 @@ with models.DAG(
         storage_class="REGIONAL",
         location=REGION,
     )
+    unzip_file = BashOperator(
+        task_id="unzip_csv_data_file",
+        bash_command=f"mkdir -p /custom-job && unzip {CSV_ZIP_FILE_LOCAL_PATH} -d /custom-job/",
+    )
     upload_files = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",
-        src=CUSTOM_PYTHON_FILES_LOCAL_PATH,
+        src=FILES_TO_UPLOAD,
         dst="vertex-ai/",
         bucket=CUSTOM_PYTHON_GCS_BUCKET_NAME,
     )
@@ -244,10 +259,15 @@ with models.DAG(
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=CUSTOM_PYTHON_GCS_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
+    clear_folder = BashOperator(
+        task_id="clear_folder",
+        bash_command="rm -r /custom-job/*",
+    )
 
     (
         # TEST SETUP
         create_bucket
+        >> unzip_file
         >> upload_files
         >> create_tabular_dataset
         # TEST BODY
@@ -256,6 +276,7 @@ with models.DAG(
         >> delete_custom_training_job
         >> delete_tabular_dataset
         >> delete_bucket
+        >> clear_folder
     )
 
 
@@ -271,6 +292,10 @@ with models.DAG(
         bucket_name=CUSTOM_GCS_BUCKET_NAME,
         storage_class="REGIONAL",
         location=REGION,
+    )
+    unzip_file = BashOperator(
+        task_id="unzip_csv_data_file",
+        bash_command=f"mkdir -p /custom-job && unzip {CSV_ZIP_FILE_LOCAL_PATH} -d /custom-job/",
     )
     upload_files = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",
@@ -325,10 +350,15 @@ with models.DAG(
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=CUSTOM_GCS_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
+    clear_folder = BashOperator(
+        task_id="clear_folder",
+        bash_command="rm -r /custom-job/*",
+    )
 
     (
         # TEST SETUP
         create_bucket
+        >> unzip_file
         >> upload_files
         >> create_tabular_dataset
         # TEST BODY
@@ -337,6 +367,7 @@ with models.DAG(
         >> delete_custom_training_job
         >> delete_tabular_dataset
         >> delete_bucket
+        >> clear_folder
     )
 
 
