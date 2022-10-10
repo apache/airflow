@@ -724,6 +724,10 @@ class TestWebserverService:
             (
                 [{"name": "webserver-nodeport", "nodePort": "31000", "port": "8080"}],
                 [{"name": "webserver-nodeport", "nodePort": 31000, "port": 8080}],
+            ),
+            (
+                [{"name": "webserver-nodeport", "port": "8080"}],
+                [{"name": "webserver-nodeport", "port": 8080}],
             )
         ]
     )
