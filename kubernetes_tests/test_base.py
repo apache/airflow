@@ -19,9 +19,11 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import tempfile
 import time
 import unittest
 from datetime import datetime
+from pathlib import Path
 from subprocess import check_call, check_output
 
 import requests
@@ -40,24 +42,45 @@ print()
 
 
 class TestBase(unittest.TestCase):
-    @staticmethod
-    def _describe_resources(namespace: str):
-        print("=" * 80)
-        print(f"Describe resources for namespace {namespace}")
-        print(f"Datetime: {datetime.utcnow()}")
-        print("=" * 80)
-        print("Describing pods")
-        print("-" * 80)
-        subprocess.call(["kubectl", "describe", "pod", "--namespace", namespace])
-        print("=" * 80)
-        print("Describing persistent volumes")
-        print("-" * 80)
-        subprocess.call(["kubectl", "describe", "pv", "--namespace", namespace])
-        print("=" * 80)
-        print("Describing persistent volume claims")
-        print("-" * 80)
-        subprocess.call(["kubectl", "describe", "pvc", "--namespace", namespace])
-        print("=" * 80)
+    def _describe_resources(self, namespace: str):
+        kubeconfig_basename = os.path.basename(os.environ.get('KUBECONFIG', "default"))
+        output_file_path = (
+            Path(tempfile.gettempdir())
+            / f"k8s_test_resources_{namespace}_{kubeconfig_basename}_{self.id()}.txt"
+        )
+        print(f"Dumping resources to {output_file_path}")
+        ci = os.environ.get('CI')
+        if ci and ci.lower() == 'true':
+            print("The resource dump will be uploaded as artifact of the CI job")
+        with open(output_file_path, "wt") as output_file:
+            print("=" * 80, file=output_file)
+            print(f"Describe resources for namespace {namespace}", file=output_file)
+            print(f"Datetime: {datetime.utcnow()}", file=output_file)
+            print("=" * 80, file=output_file)
+            print("Describing pods", file=output_file)
+            print("-" * 80, file=output_file)
+            subprocess.call(
+                ["kubectl", "describe", "pod", "--namespace", namespace],
+                stdout=output_file,
+                stderr=subprocess.STDOUT,
+            )
+            print("=" * 80, file=output_file)
+            print("Describing persistent volumes", file=output_file)
+            print("-" * 80, file=output_file)
+            subprocess.call(
+                ["kubectl", "describe", "pv", "--namespace", namespace],
+                stdout=output_file,
+                stderr=subprocess.STDOUT,
+            )
+            print("=" * 80, file=output_file)
+            print("Describing persistent volume claims", file=output_file)
+            print("-" * 80, file=output_file)
+            subprocess.call(
+                ["kubectl", "describe", "pvc", "--namespace", namespace],
+                stdout=output_file,
+                stderr=subprocess.STDOUT,
+            )
+            print("=" * 80, file=output_file)
 
     @staticmethod
     def _num_pods_in_namespace(namespace):
@@ -84,12 +107,26 @@ class TestBase(unittest.TestCase):
         return session
 
     def _ensure_airflow_webserver_is_healthy(self):
-        response = self.session.get(
-            f"http://{KUBERNETES_HOST_PORT}/health",
-            timeout=1,
+        max_tries = 10
+        timeout_seconds = 5
+        for i in range(max_tries):
+            try:
+                response = self.session.get(
+                    f"http://{KUBERNETES_HOST_PORT}/health",
+                    timeout=1,
+                )
+                if response.status_code == 200:
+                    print("Airflow webserver is healthy!")
+                    return
+            except Exception as e:
+                print(f"Exception when checking if webserver is healthy {e}")
+                if i < max_tries - 1:
+                    print(f"Waiting {timeout_seconds} s and retrying.")
+                    time.sleep(timeout_seconds)
+        raise Exception(
+            f"Giving up. The webserver of Airflow was not healthy after {max_tries} tries "
+            f"with {timeout_seconds} s delays"
         )
-
-        assert response.status_code == 200
 
     def setUp(self):
         self.host = KUBERNETES_HOST_PORT
