@@ -285,11 +285,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
         if isinstance(item, AbstractOperator):
 
             def _get_summary(task_instance):
-                try_count = (
-                    task_instance._try_number
-                    if task_instance._try_number != 0 or task_instance.state in State.running
-                    else task_instance._try_number + 1
-                )
+                try_count = wwwutils.task_try_count(task_instance)
 
                 return {
                     "task_id": task_instance.task_id,
@@ -1594,13 +1590,8 @@ class Airflow(AirflowBaseView):
             .first()
         )
 
-        num_logs = 0
-        if ti is not None:
-            num_logs = ti.next_try_number - 1
-            if ti.state in (State.UP_FOR_RESCHEDULE, State.DEFERRED):
-                # Tasks in reschedule state decremented the try number
-                num_logs += 1
-        logs = [""] * num_logs
+        try_count = wwwutils.task_try_count(ti)
+        logs = [""] * try_count
         root = request.args.get("root", "")
         return self.render_template(
             "airflow/ti_log.html",

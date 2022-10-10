@@ -461,6 +461,11 @@ def dag_run_link(attr):
     return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
 
 
+def task_try_count(ti: TaskInstance):
+    """Get the total try count for a task instance"""
+    return ti._try_number if ti._try_number != 0 or ti.state in State.running else ti._try_number + 1
+
+
 def _get_run_ordering_expr(name: str) -> ColumnOperators:
     expr = DagRun.__table__.columns[name]
     # Data interval columns are NULL for runs created before 2.3, but SQL's
