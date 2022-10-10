@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-10-06T09:58:07Z
+# This constraints file was automatically generated on 2022-10-10T20:55:51Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -40,7 +40,7 @@ anyio==3.6.1
 apispec==3.3.2
 argcomplete==2.0.0
 attrs==22.1.0
-bcrypt==4.0.0
+bcrypt==4.0.1
 billiard==3.6.4.0
 blinker==1.5
 cached-property==1.5.2
@@ -78,10 +78,10 @@ exceptiongroup==1.0.0rc9
 filelock==3.8.0
 flower==1.2.0
 fsspec==2022.8.2
-gevent==21.12.0
+gevent==22.8.0
 google-auth==2.12.0
 graphviz==0.20.1
-greenlet==1.1.3
+greenlet==1.1.3.post0
 gssapi==1.8.1
 gunicorn==20.1.0
 h11==0.12.0
@@ -90,7 +90,7 @@ httpx==0.23.0
 humanize==4.4.0
 idna==3.4
 importlib-metadata==4.13.0
-importlib-resources==5.9.0
+importlib-resources==5.10.0
 inflection==0.5.1
 itsdangerous==2.1.2
 jsonschema==4.16.0
@@ -155,7 +155,7 @@ sniffio==1.3.0
 sortedcontainers==2.4.0
 statsd==3.3.0
 swagger-ui-bundle==0.0.9
-tabulate==0.8.10
+tabulate==0.9.0
 tblib==1.7.0
 tenacity==8.1.0
 termcolor==2.0.1
@@ -164,7 +164,7 @@ thrift-sasl==0.4.3
 thrift==0.16.0
 toolz==0.12.0
 tornado==6.2
-typing_extensions==4.3.0
+typing_extensions==4.4.0
 uc-micro-py==1.0.1
 unicodecsv==0.14.1
 urllib3==1.26.12
@@ -174,6 +174,6 @@ wcwidth==0.2.5
 websocket-client==1.4.1
 wrapt==1.14.1
 zict==2.2.0
-zipp==3.8.1
+zipp==3.9.0
 zope.event==4.5.0
-zope.interface==5.4.0
+zope.interface==5.5.0

@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-10-06T09:53:59Z
+# This constraints file was automatically generated on 2022-10-10T20:49:56Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -23,7 +23,7 @@ Flask-SQLAlchemy==2.5.1
 Flask-Session==0.4.0
 Flask-WTF==1.0.1
 Flask==2.2.2
-GitPython==3.1.27
+GitPython==3.1.28
 HeapDict==1.0.1
 JPype1==1.4.0
 JayDeBeApi==1.2.3
@@ -70,11 +70,11 @@ async-timeout==4.0.2
 asynctest==0.13.0
 atlasclient==1.0.0
 attrs==22.1.0
-aws-sam-translator==1.51.0
+aws-sam-translator==1.52.0
 aws-xray-sdk==2.10.0
 azure-batch==12.0.0
 azure-common==1.1.28
-azure-core==1.25.1
+azure-core==1.26.0
 azure-cosmos==4.3.0
 azure-datalake-store==0.0.52
 azure-identity==1.11.0
@@ -96,15 +96,15 @@ azure-synapse-spark==0.7.0
 backcall==0.2.0
 backoff==1.10.0
 backports.zoneinfo==0.2.1
-bcrypt==4.0.0
+bcrypt==4.0.1
 beautifulsoup4==4.11.1
 billiard==3.6.4.0
-black==22.8.0
+black==22.10.0
 bleach==5.0.1
 blinker==1.5
-boto3==1.24.87
+boto3==1.24.89
 boto==2.49.0
-botocore==1.27.87
+botocore==1.27.89
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.9.0
@@ -115,7 +115,7 @@ celery==5.2.7
 certifi==2022.9.24
 cffi==1.15.1
 cfgv==3.3.1
-cfn-lint==0.66.1
+cfn-lint==0.67.0
 cgroupspy==0.2.2
 chardet==4.0.0
 charset-normalizer==2.1.1
@@ -158,7 +158,7 @@ elasticsearch-dsl==7.4.0
 elasticsearch==7.13.4
 email-validator==1.3.0
 entrypoints==0.4
-eralchemy2==1.3.3
+eralchemy2==1.3.5
 eventlet==0.33.1
 exceptiongroup==1.0.0rc9
 execnet==1.9.0
@@ -181,7 +181,7 @@ gcloud-aio-bigquery==6.1.2
 gcloud-aio-storage==7.0.1
 gcsfs==2022.8.2
 geomet==0.2.1.post1
-gevent==21.12.0
+gevent==22.8.0
 gitdb==4.0.9
 google-ads==18.0.0
 google-api-core==2.8.2
@@ -219,7 +219,7 @@ google-cloud-resource-manager==1.6.0
 google-cloud-secret-manager==1.0.2
 google-cloud-spanner==1.19.3
 google-cloud-speech==1.3.4
-google-cloud-storage==1.44.0
+google-cloud-storage==2.5.0
 google-cloud-tasks==2.10.1
 google-cloud-texttospeech==1.0.3
 google-cloud-translate==1.7.2
@@ -231,7 +231,7 @@ google-resumable-media==2.4.0
 googleapis-common-protos==1.56.4
 graphql-core==3.2.3
 graphviz==0.20.1
-greenlet==1.1.3
+greenlet==1.1.3.post0
 grpc-google-iam-v1==0.12.4
 grpcio-gcp==0.2.2
 grpcio-status==1.48.2
@@ -251,7 +251,7 @@ idna==3.4
 ijson==3.1.4
 imagesize==1.4.1
 importlib-metadata==4.13.0
-importlib-resources==5.9.0
+importlib-resources==5.10.0
 incremental==21.3.0
 inflection==0.5.1
 influxdb-client==1.33.0
@@ -304,7 +304,7 @@ more-itertools==8.14.0
 moreorless==0.4.0
 moto==3.1.16
 msal-extensions==1.0.0
-msal==1.19.0
+msal==1.20.0
 msgpack==1.0.4
 msrest==0.7.1
 msrestazure==0.6.4
@@ -317,8 +317,8 @@ mypy-extensions==0.4.3
 mypy==0.971
 mysql-connector-python==8.0.30
 mysqlclient==2.1.1
-nbclient==0.6.8
-nbformat==5.6.1
+nbclient==0.7.0
+nbformat==5.7.0
 neo4j==5.0.1
 nest-asyncio==1.5.6
 networkx==2.6.3
@@ -364,7 +364,7 @@ prompt-toolkit==3.0.31
 proto-plus==1.19.6
 protobuf==3.20.0
 psutil==5.9.2
-psycopg2==2.9.3
+psycopg2==2.9.4
 ptyprocess==0.7.0
 pure-sasl==0.6.2
 py4j==0.10.9.5
@@ -429,7 +429,7 @@ requests-kerberos==0.14.0
 requests-mock==1.10.0
 requests-ntlm==1.1.0
 requests-oauthlib==1.3.1
-requests-toolbelt==0.9.1
+requests-toolbelt==0.10.0
 requests==2.28.1
 responses==0.21.0
 rfc3986==1.5.0
@@ -471,7 +471,7 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
-sphinxcontrib-spelling==7.6.0
+sphinxcontrib-spelling==7.6.1
 spython==0.2.12
 sqlalchemy-bigquery==1.4.4
 sqlalchemy-drill==1.1.2
@@ -483,7 +483,7 @@ starkbank-ecdsa==2.1.0
 statsd==3.3.0
 swagger-ui-bundle==0.0.9
 tableauserverclient==0.23
-tabulate==0.8.10
+tabulate==0.9.0
 tblib==1.7.0
 tenacity==8.1.0
 termcolor==2.0.1
@@ -502,7 +502,7 @@ trino==0.317.0
 twine==4.0.1
 typed-ast==1.5.4
 types-Deprecated==1.2.9
-types-Markdown==3.4.2
+types-Markdown==3.4.2.1
 types-PyMySQL==1.0.19
 types-PyYAML==6.0.12
 types-boto==2.49.18
@@ -517,13 +517,13 @@ types-python-dateutil==2.8.19
 types-python-slugify==6.1.0
 types-pytz==2022.4.0.0
 types-redis==4.3.21.1
-types-requests==2.28.11.1
+types-requests==2.28.11.2
 types-setuptools==65.4.0.0
-types-tabulate==0.8.11
+types-tabulate==0.9.0.0
 types-termcolor==1.1.6
 types-toml==0.10.8
 types-urllib3==1.26.25
-typing_extensions==4.3.0
+typing_extensions==4.4.0
 tzdata==2022.4
 tzlocal==4.2
 uamqp==1.6.0
@@ -548,6 +548,6 @@ yarl==1.8.1
 zeep==4.1.0
 zenpy==2.0.25
 zict==2.2.0
-zipp==3.8.1
+zipp==3.9.0
 zope.event==4.5.0
-zope.interface==5.4.0
+zope.interface==5.5.0
