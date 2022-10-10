@@ -42,6 +42,6 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
-    restart: always
+    restart: "on-failure"
 volumes:
   postgres-db-volume:

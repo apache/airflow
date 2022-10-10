@@ -32,8 +32,7 @@ class ResultBackendConnectionSecretTest(unittest.TestCase):
         return values
 
     def _assert_for_old_version(self, version, value, expected_value):
-        # TODO remove default from condition after airflow update
-        if version == "2.3.2" or version == "default":
+        if version == "2.3.2":
             assert value == expected_value
         else:
             assert value is None

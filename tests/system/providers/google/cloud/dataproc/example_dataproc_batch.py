@@ -22,6 +22,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from google.api_core.retry import Retry
+
 from airflow import models
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateBatchOperator,
@@ -36,6 +38,7 @@ DAG_ID = "dataproc_batch"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "")
 REGION = "europe-west1"
 BATCH_ID = f"test-batch-id-{ENV_ID}"
+BATCH_ID_2 = f"test-batch-id-{ENV_ID}-2"
 BATCH_CONFIG = {
     "spark_batch": {
         "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
@@ -58,13 +61,25 @@ with models.DAG(
         region=REGION,
         batch=BATCH_CONFIG,
         batch_id=BATCH_ID,
-        timeout=5.0,
+    )
+
+    create_batch_2 = DataprocCreateBatchOperator(
+        task_id="create_batch_2",
+        project_id=PROJECT_ID,
+        region=REGION,
+        batch=BATCH_CONFIG,
+        batch_id=BATCH_ID_2,
+        result_retry=Retry(maximum=10.0, initial=10.0, multiplier=1.0),
     )
     # [END how_to_cloud_dataproc_create_batch_operator]
 
     # [START how_to_cloud_dataproc_get_batch_operator]
     get_batch = DataprocGetBatchOperator(
         task_id="get_batch", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID
+    )
+
+    get_batch_2 = DataprocGetBatchOperator(
+        task_id="get_batch_2", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID_2
     )
     # [END how_to_cloud_dataproc_get_batch_operator]
 
@@ -80,10 +95,23 @@ with models.DAG(
     delete_batch = DataprocDeleteBatchOperator(
         task_id="delete_batch", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID
     )
+    delete_batch.trigger_rule = TriggerRule.ALL_DONE
+
+    delete_batch_2 = DataprocDeleteBatchOperator(
+        task_id="delete_batch_2", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID_2
+    )
     # [END how_to_cloud_dataproc_delete_batch_operator]
     delete_batch.trigger_rule = TriggerRule.ALL_DONE
 
-    create_batch >> get_batch >> list_batches >> delete_batch
+    (
+        create_batch
+        >> create_batch_2
+        >> get_batch
+        >> get_batch_2
+        >> list_batches
+        >> delete_batch
+        >> delete_batch_2
+    )
 
     from tests.system.utils.watcher import watcher
 

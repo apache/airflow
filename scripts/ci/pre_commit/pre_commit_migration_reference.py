@@ -49,8 +49,6 @@ if __name__ == '__main__':
             *get_extra_docker_flags(MOUNT_SELECTED),
             "-e",
             "SKIP_ENVIRONMENT_INITIALIZATION=true",
-            "-e",
-            "PRINT_INFO_FROM_SCRIPTS=false",
             "--pull",
             "never",
             airflow_image,

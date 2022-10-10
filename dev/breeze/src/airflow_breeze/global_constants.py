@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 """
 Global constants that are used by all other Breeze components.
@@ -42,7 +43,7 @@ ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 ALLOWED_BACKENDS = ['sqlite', 'mysql', 'postgres', 'mssql']
 ALLOWED_PROD_BACKENDS = ['mysql', 'postgres', 'mssql']
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-ALLOWED_INTEGRATIONS = [
+ALL_INTEGRATIONS = [
     'cassandra',
     'kerberos',
     'mongo',
@@ -52,9 +53,12 @@ ALLOWED_INTEGRATIONS = [
     'redis',
     'statsd',
     'trino',
+]
+ALLOWED_INTEGRATIONS = [
+    *ALL_INTEGRATIONS,
     'all',
 ]
-ALLOWED_KUBERNETES_VERSIONS = ['v1.24.2', 'v1.23.6', 'v1.22.9', 'v1.21.12']
+ALLOWED_KUBERNETES_VERSIONS = ['v1.25.2', 'v1.24.6', 'v1.23.12', 'v1.22.15', 'v1.21.14']
 ALLOWED_EXECUTORS = ['KubernetesExecutor', 'CeleryExecutor', 'LocalExecutor', 'CeleryKubernetesExecutor']
 ALLOWED_KIND_OPERATIONS = ['start', 'stop', 'restart', 'status', 'deploy', 'test', 'shell', 'k9s']
 ALLOWED_CONSTRAINTS_MODES_CI = ['constraints-source-providers', 'constraints', 'constraints-no-providers']
@@ -91,13 +95,10 @@ class SelectiveUnitTestTypes(Enum):
 
 ALLOWED_TEST_TYPE_CHOICES = [
     "All",
-    "Always",
     *all_selective_test_types(),
     "Helm",
     "Postgres",
     "MySQL",
-    "Integration",
-    "Other",
     "Quarantine",
 ]
 
@@ -204,6 +205,7 @@ AVAILABLE_INTEGRATIONS = [
     'trino',
 ]
 ENABLED_INTEGRATIONS = ""
+ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT).glob("airflow/providers/**/provider.yaml")
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
     'setup.py',
@@ -216,6 +218,7 @@ FILES_FOR_REBUILD_CHECK = [
     'scripts/docker/install_airflow_dependencies_from_branch_tip.sh',
     'scripts/docker/install_from_docker_context_files.sh',
     'scripts/docker/install_mysql.sh',
+    *ALL_PROVIDER_YAML_FILES,
 ]
 
 ENABLED_SYSTEMS = ""
@@ -226,7 +229,7 @@ CURRENT_EXECUTORS = ['KubernetesExecutor']
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = 'v0.15.0'
+KIND_VERSION = 'v0.16.0'
 HELM_VERSION = 'v3.9.4'
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass

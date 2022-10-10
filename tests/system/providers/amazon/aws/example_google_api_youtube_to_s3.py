@@ -42,16 +42,19 @@ https://cloud.google.com/docs/authentication/provide-credentials-adc
 https://airflow.apache.org/docs/apache-airflow-providers-google/stable/connections/gcp.html
 
 The required scope for this DAG is https://www.googleapis.com/auth/youtube.readonly.
-This can be set via the environment variable AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT.
+This can be set via the environment variable AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT,
+or by creating a custom connection.
 """
 from __future__ import annotations
 
+import json
 from datetime import datetime
 
 import boto3
 
-from airflow import DAG
+from airflow import DAG, settings
 from airflow.decorators import task
+from airflow.models import Connection
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS3Operator
@@ -66,7 +69,29 @@ YOUTUBE_VIDEO_PUBLISHED_BEFORE = '2019-10-18T00:00:00Z'
 YOUTUBE_VIDEO_PARTS = 'snippet'
 YOUTUBE_VIDEO_FIELDS = 'items(id,snippet(description,publishedAt,tags,title))'
 
-sys_test_context_task = SystemTestContextBuilder().build()
+SECRET_ARN_KEY = 'SECRET_ARN'
+
+sys_test_context_task = SystemTestContextBuilder().add_variable(SECRET_ARN_KEY).build()
+
+
+@task
+def create_connection_gcp(conn_id_name: str, secret_arn: str):
+    json_data = boto3.client('secretsmanager').get_secret_value(SecretId=secret_arn)['SecretString']
+    conn = Connection(
+        conn_id=conn_id_name,
+        conn_type='google_cloud_platform',
+    )
+    scopes = 'https://www.googleapis.com/auth/youtube.readonly'
+    conn_extra = {
+        "extra__google_cloud_platform__scope": scopes,
+        "extra__google_cloud_platform__project": "aws-oss-airflow",
+        'extra__google_cloud_platform__keyfile_dict': json_data,
+    }
+    conn_extra_json = json.dumps(conn_extra)
+    conn.set_extra(conn_extra_json)
+    session = settings.Session()
+    session.add(conn)
+    session.commit()
 
 
 @task(task_id='wait_for_s3_bucket')
@@ -96,6 +121,10 @@ with DAG(
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
+    conn_id_name = f'{env_id}-conn-id'
+    secret_arn = test_context[SECRET_ARN_KEY]
+
+    set_up_connection = create_connection_gcp(conn_id_name, secret_arn=secret_arn)
 
     s3_bucket_name = f'{env_id}-bucket'
 
@@ -109,6 +138,7 @@ with DAG(
         google_api_service_name='youtube',
         google_api_service_version='v3',
         google_api_endpoint_path='youtube.search.list',
+        gcp_conn_id=conn_id_name,
         google_api_endpoint_params={
             'part': 'snippet',
             'channelId': YOUTUBE_CHANNEL_ID,
@@ -131,6 +161,7 @@ with DAG(
         task_id='video_data_to_s3',
         google_api_service_name='youtube',
         google_api_service_version='v3',
+        gcp_conn_id=conn_id_name,
         google_api_endpoint_path='youtube.videos.list',
         google_api_endpoint_params={
             'part': YOUTUBE_VIDEO_PARTS,
@@ -152,6 +183,7 @@ with DAG(
     chain(
         # TEST SETUP
         test_context,
+        set_up_connection,
         create_s3_bucket,
         wait_for_bucket_creation,
         # TEST BODY

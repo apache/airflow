@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import sys
-import unittest
 import uuid
 from unittest import mock
 
@@ -28,7 +27,7 @@ from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
 
 
-class TestSecret(unittest.TestCase):
+class TestSecret:
     def test_to_env_secret(self):
         secret = Secret('env', 'name', 'secret', 'key')
         assert secret.to_env_secret() == k8s.V1EnvVar(

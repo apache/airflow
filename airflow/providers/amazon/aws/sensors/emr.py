@@ -285,7 +285,11 @@ class EmrContainerSensor(BaseSensorOperator):
         self.max_retries = max_retries
 
     def poke(self, context: Context) -> bool:
-        state = self.hook.poll_query_status(self.job_id, self.max_retries, self.poll_interval)
+        state = self.hook.poll_query_status(
+            self.job_id,
+            max_polling_attempts=self.max_retries,
+            poll_interval=self.poll_interval,
+        )
 
         if state in self.FAILURE_STATES:
             raise AirflowException('EMR Containers sensor failed')

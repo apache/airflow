@@ -221,12 +221,6 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
     fi
 
-    sudo apt-get update && sudo apt-get install -y vsftpd
-    mkdir /ftphome
-    sudo chown airflow:airflow /ftphome
-    echo "write_enable=YES" >> /etc/vsftpd.conf
-    sudo service vsftpd restart
-
     # shellcheck source=scripts/in_container/configure_environment.sh
     . "${IN_CONTAINER_DIR}/configure_environment.sh"
 
