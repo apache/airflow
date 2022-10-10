@@ -643,7 +643,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 get_state_args={'applicationId': self.application_id},
                 parse_response=['application', 'state'],
                 desired_state={'STARTED'},
-                failure_states=EmrServerlessHook.JOB_FAILURE_STATES,
+                failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
                 object_type='application',
                 action='started',
             )
