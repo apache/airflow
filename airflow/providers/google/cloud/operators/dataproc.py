@@ -2038,6 +2038,8 @@ class DataprocCreateBatchOperator(BaseOperator):
         the first ``google.longrunning.Operation`` created and stored in the backend is returned.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
+    :param result_retry: Result retry object used to retry requests. Is used to decrease delay between
+        executing chained tasks in a DAG by specifying exact amount of seconds for executing.
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
     :param metadata: Additional metadata that is provided to the method.
@@ -2074,6 +2076,7 @@ class DataprocCreateBatchOperator(BaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        result_retry: Retry | _MethodDefault = DEFAULT,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -2083,6 +2086,7 @@ class DataprocCreateBatchOperator(BaseOperator):
         self.batch_id = batch_id
         self.request_id = request_id
         self.retry = retry
+        self.result_retry = result_retry
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
@@ -2107,7 +2111,9 @@ class DataprocCreateBatchOperator(BaseOperator):
             )
             if self.operation is None:
                 raise RuntimeError("The operation should be set here!")
-            result = hook.wait_for_operation(timeout=self.timeout, operation=self.operation)
+            result = hook.wait_for_operation(
+                timeout=self.timeout, result_retry=self.result_retry, operation=self.operation
+            )
             self.log.info("Batch %s created", self.batch_id)
         except AlreadyExists:
             self.log.info("Batch with given id already exists")

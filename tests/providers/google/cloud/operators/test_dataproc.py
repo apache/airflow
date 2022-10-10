@@ -193,6 +193,7 @@ UPDATE_MASK = {
 
 TIMEOUT = 120
 RETRY = mock.MagicMock(Retry)
+RESULT_RETRY = mock.MagicMock(Retry)
 METADATA = [("key", "value")]
 REQUEST_ID = "request_id_uuid"
 
@@ -1690,6 +1691,36 @@ class TestDataprocCreateBatchOperator:
             batch_id=BATCH_ID,
             request_id=REQUEST_ID,
             retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context=MagicMock())
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.create_batch.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            batch=BATCH,
+            batch_id=BATCH_ID,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_with_result_retry(self, mock_hook, to_dict_mock):
+        op = DataprocCreateBatchOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            batch=BATCH,
+            batch_id=BATCH_ID,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            result_retry=RESULT_RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
         )
