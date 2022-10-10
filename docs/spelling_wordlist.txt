@@ -157,6 +157,7 @@ bigquery
 BigQueryHook
 Bigtable
 bigtable
+Bitnami
 Bitshift
 bitshift
 bitwise
