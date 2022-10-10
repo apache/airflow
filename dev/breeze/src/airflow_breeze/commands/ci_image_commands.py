@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -502,6 +503,19 @@ def run_build_ci_image(
                 output=output,
             )
         else:
+            subprocess.run(
+                [
+                    sys.executable,
+                    os.fspath(
+                        AIRFLOW_SOURCES_ROOT
+                        / "scripts"
+                        / "ci"
+                        / "pre_commit"
+                        / "pre_commit_build_providers_dependencies.py"
+                    ),
+                ],
+                check=False,
+            )
             get_console(output=output).print(
                 f"\n[info]Building CI Image for Python {ci_image_params.python}\n"
             )
