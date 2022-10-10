@@ -327,11 +327,28 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         'google.oauth2.service_account.Credentials.from_service_account_file',
     )
     def test_disable_logging(self, mock_default, mock_info, mock_file):
-        # assert not logs
+        """
+        Test disable logging in ``get_credentials_and_project_id``.
+
+        Due to selected limitation:
+        - Unable mixin pytest autouse-fixture `caplog` with `unittest.TestCase`
+        - `unittest.TestCase.assertNoLogs` available only in Python 3.10+
+
+        We use some workarounds for filtering specific logger and raise error with these records.
+        """
+        logger_name = "airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider"
+
+        def assert_no_logs(records, name):
+            records = [log_record for log_record in records if log_record.name == name]
+            if not records:
+                return
+            raise AssertionError(f"Not expected get any log message from logger={name!r}, got: {records}")
+
+        # assert no logs
         with self.assertLogs(level="DEBUG") as logs:
             logging.debug('nothing')
             get_credentials_and_project_id(disable_logging=True)
-        assert logs.output == ['DEBUG:root:nothing']
+        assert_no_logs(logs.records, logger_name)
 
         # assert no debug logs emitted from get_credentials_and_project_id
         with self.assertLogs(level="DEBUG") as logs:
@@ -340,7 +357,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
                 keyfile_dict={'private_key': 'PRIVATE_KEY'},
                 disable_logging=True,
             )
-        assert logs.output == ['DEBUG:root:nothing']
+        assert_no_logs(logs.records, logger_name)
 
         # assert no debug logs emitted from get_credentials_and_project_id
         with self.assertLogs(level="DEBUG") as logs:
@@ -349,7 +366,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
                 key_path='KEY.json',
                 disable_logging=True,
             )
-        assert logs.output == ['DEBUG:root:nothing']
+        assert_no_logs(logs.records, logger_name)
 
 
 class TestGetScopes(unittest.TestCase):
