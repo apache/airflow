@@ -22,7 +22,6 @@ from unittest.mock import MagicMock
 
 import pendulum
 import pytest
-import semver
 from kubernetes.client.rest import ApiException
 from pendulum import DateTime
 from pendulum.tz.timezone import Timezone
@@ -30,6 +29,7 @@ from urllib3.exceptions import HTTPError as BaseHTTPError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager, PodPhase, container_is_running
+from tests.test_utils.providers import get_provider_version, object_exists
 
 
 class TestPodManager:
@@ -334,16 +334,13 @@ class TestPodManager:
 
     def test_pod_manager_get_client_call_deprecation(self):
         """Ensure that kube_client.get_kube_client is removed from pod manager in provider 6.0."""
-        try:
-            from airflow.providers.cncf.kubernetes.utils.pod_manager import get_kube_client  # noqa
-        except ImportError:
+        kube_client_path = 'airflow.providers.cncf.kubernetes.utils.pod_manager.get_kube_client'
+        if not object_exists(kube_client_path):
             raise Exception(
                 "You must remove this test. It only exists to remind us to remove `get_kube_client`."
             )
-        from airflow.providers_manager import ProvidersManager
 
-        info = ProvidersManager().providers['apache-airflow-providers-cncf-kubernetes']
-        if semver.VersionInfo.parse(info.version) >= (6, 0):
+        if get_provider_version('apache-airflow-providers-cncf-kubernetes') >= (6, 0):
             raise Exception(
                 "You must now remove `get_kube_client` from PodManager "
                 "and make kube_client a required argument."
