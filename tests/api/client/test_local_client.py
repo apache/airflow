@@ -20,7 +20,6 @@ from __future__ import annotations
 import json
 import random
 import string
-import unittest
 from unittest.mock import patch
 
 import pendulum
@@ -42,20 +41,17 @@ EXECDATE_NOFRACTIONS = EXECDATE.replace(microsecond=0)
 EXECDATE_ISO = EXECDATE_NOFRACTIONS.isoformat()
 
 
-class TestLocalClient(unittest.TestCase):
+class TestLocalClient:
     @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
+    def setup_class(cls):
         DagBag(example_bash_operator.__file__).get_dag("example_bash_operator").sync_to_db()
 
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
         clear_db_pools()
         self.client = Client(api_base_url=None, auth=None)
 
-    def tearDown(self):
+    def teardown_method(self):
         clear_db_pools()
-        super().tearDown()
 
     @patch.object(DAG, 'create_dagrun')
     def test_trigger_dag(self, mock):

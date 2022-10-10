@@ -19,13 +19,11 @@ from __future__ import annotations
 
 import datetime
 import pickle
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 from kubernetes.client import models as k8s
-from parameterized import parameterized
 from pytest import param
 from sqlalchemy.exc import StatementError
 
@@ -41,8 +39,8 @@ from airflow.utils.timezone import utcnow
 TEST_POD = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
 
 
-class TestSqlAlchemyUtils(unittest.TestCase):
-    def setUp(self):
+class TestSqlAlchemyUtils:
+    def setup_method(self):
         session = Session()
 
         # make sure NOT to run in UTC. Only postgres supports storing
@@ -108,7 +106,8 @@ class TestSqlAlchemyUtils(unittest.TestCase):
             )
         dag.clear()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "dialect, supports_for_update_of, expected_return_value",
         [
             (
                 "postgresql",
@@ -130,7 +129,7 @@ class TestSqlAlchemyUtils(unittest.TestCase):
                 False,
                 {'skip_locked': True},
             ),
-        ]
+        ],
     )
     def test_skip_locked(self, dialect, supports_for_update_of, expected_return_value):
         session = mock.Mock()
@@ -138,7 +137,8 @@ class TestSqlAlchemyUtils(unittest.TestCase):
         session.bind.dialect.supports_for_update_of = supports_for_update_of
         assert skip_locked(session=session) == expected_return_value
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "dialect, supports_for_update_of, expected_return_value",
         [
             (
                 "postgresql",
@@ -162,7 +162,7 @@ class TestSqlAlchemyUtils(unittest.TestCase):
                     'nowait': True,
                 },
             ),
-        ]
+        ],
     )
     def test_nowait(self, dialect, supports_for_update_of, expected_return_value):
         session = mock.Mock()
@@ -170,7 +170,8 @@ class TestSqlAlchemyUtils(unittest.TestCase):
         session.bind.dialect.supports_for_update_of = supports_for_update_of
         assert nowait(session=session) == expected_return_value
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "dialect, supports_for_update_of, use_row_level_lock_conf, expected_use_row_level_lock",
         [
             ("postgresql", True, True, True),
             ("postgresql", True, False, False),
@@ -179,7 +180,7 @@ class TestSqlAlchemyUtils(unittest.TestCase):
             ("mysql", True, True, True),
             ("mysql", True, False, False),
             ("sqlite", False, True, True),
-        ]
+        ],
     )
     def test_with_row_locks(
         self, dialect, supports_for_update_of, use_row_level_lock_conf, expected_use_row_level_lock
@@ -232,7 +233,7 @@ class TestSqlAlchemyUtils(unittest.TestCase):
             other_session.execute('SELECT 1')
             other_session.commit()
 
-    def tearDown(self):
+    def teardown_method(self):
         self.session.close()
         settings.engine.dispose()
 

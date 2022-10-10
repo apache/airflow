@@ -17,14 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import pytest
 
 from airflow.utils.module_loading import import_string
 
 
-class TestModuleImport(unittest.TestCase):
+class TestModuleImport:
     def test_import_string(self):
         cls = import_string('airflow.utils.module_loading.import_string')
         assert cls == import_string

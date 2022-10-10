@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import re
-import unittest
 from datetime import datetime
 from urllib.parse import parse_qs
 
@@ -28,7 +27,7 @@ from airflow.www import utils
 from airflow.www.utils import wrapped_markdown
 
 
-class TestUtils(unittest.TestCase):
+class TestUtils:
     def check_generate_pages_html(self, current_page, total_pages, window=7, check_middle=False):
         extra_links = 4  # first, prev, next, last
         search = "'>\"/><img src=x onerror=alert(1)>"
@@ -156,8 +155,8 @@ class TestUtils(unittest.TestCase):
         assert '<b2>' not in html
 
 
-class TestAttrRenderer(unittest.TestCase):
-    def setUp(self):
+class TestAttrRenderer:
+    def setup_method(self):
         self.attr_renderer = utils.get_attr_renderer()
 
     def test_python_callable(self):
@@ -178,11 +177,11 @@ class TestAttrRenderer(unittest.TestCase):
         assert "<li>bar</li>" in rendered
 
     def test_markdown_none(self):
-        rendered = self.attr_renderer["python_callable"](None)
-        assert "" == rendered
+        rendered = self.attr_renderer["doc_md"](None)
+        assert rendered is None
 
 
-class TestWrappedMarkdown(unittest.TestCase):
+class TestWrappedMarkdown:
     def test_wrapped_markdown_with_docstring_curly_braces(self):
         rendered = wrapped_markdown("{braces}", css_class="a_class")
         assert (

@@ -24,11 +24,9 @@ import os
 import pathlib
 import sys
 import tempfile
-import unittest
 from unittest.mock import patch
 
 import pytest
-from parameterized import parameterized
 
 from airflow.configuration import conf
 from tests.test_utils.config import conf_vars
@@ -170,12 +168,12 @@ def settings_context(content, directory=None, name='LOGGING_CONFIG'):
         sys.path.remove(settings_root)
 
 
-class TestLoggingSettings(unittest.TestCase):
+class TestLoggingSettings:
     # Make sure that the configure_logging is not cached
-    def setUp(self):
+    def setup_method(self):
         self.old_modules = dict(sys.modules)
 
-    def tearDown(self):
+    def teardown_method(self):
         # Remove any new modules imported during the test run. This lets us
         # import the same source files for more than one test.
         from airflow.config_templates import airflow_local_settings
@@ -281,7 +279,8 @@ class TestLoggingSettings(unittest.TestCase):
         logger = logging.getLogger('airflow.task')
         assert isinstance(logger.handlers[0], WasbTaskHandler)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "remote_base_log_folder, log_group_arn",
         [
             (
                 'cloudwatch://arn:aws:logs:aaaa:bbbbb:log-group:ccccc',
@@ -295,7 +294,7 @@ class TestLoggingSettings(unittest.TestCase):
                 'cloudwatch://arn:aws:logs:aaaa:bbbbb:log-group:/aws/ecs/ccccc',
                 'arn:aws:logs:aaaa:bbbbb:log-group:/aws/ecs/ccccc',
             ),
-        ]
+        ],
     )
     def test_log_group_arns_remote_logging_with_cloudwatch_handler(
         self, remote_base_log_folder, log_group_arn

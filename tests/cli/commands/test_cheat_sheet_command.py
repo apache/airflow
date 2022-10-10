@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import contextlib
 import io
-import unittest
 from unittest import mock
 
 from airflow.cli import cli_parser
@@ -89,9 +88,9 @@ airflow cmd_e cmd_g                       | Help text G
 """
 
 
-class TestCheatSheetCommand(unittest.TestCase):
+class TestCheatSheetCommand:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
     @mock.patch('airflow.cli.cli_parser.airflow_commands', MOCK_COMMANDS)

@@ -18,13 +18,11 @@ from __future__ import annotations
 
 import json
 import re
-import unittest
 from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowFileParseException, ConnectionNotUnique
@@ -42,24 +40,26 @@ def mock_local_file(content):
         yield file_mock
 
 
-class FileParsers(unittest.TestCase):
-    @parameterized.expand(
-        (
+class TestFileParsers:
+    @pytest.mark.parametrize(
+        "content, expected_message",
+        [
             ("AA", 'Invalid line format. The line should contain at least one equal sign ("=")'),
             ("=", "Invalid line format. Key is empty."),
-        )
+        ],
     )
     def test_env_file_invalid_format(self, content, expected_message):
         with mock_local_file(content):
             with pytest.raises(AirflowFileParseException, match=re.escape(expected_message)):
                 local_filesystem.load_variables("a.env")
 
-    @parameterized.expand(
-        (
+    @pytest.mark.parametrize(
+        "content, expected_message",
+        [
             ("[]", "The file should contain the object."),
             ("{AAAAA}", "Expecting property name enclosed in double quotes"),
             ("", "The file is empty."),
-        )
+        ],
     )
     def test_json_file_invalid_format(self, content, expected_message):
         with mock_local_file(content):
@@ -67,34 +67,41 @@ class FileParsers(unittest.TestCase):
                 local_filesystem.load_variables("a.json")
 
 
-class TestLoadVariables(unittest.TestCase):
-    @parameterized.expand(
-        (
+class TestLoadVariables:
+    @pytest.mark.parametrize(
+        "file_content, expected_variables",
+        [
             ("", {}),
             ("KEY=AAA", {"KEY": "AAA"}),
             ("KEY_A=AAA\nKEY_B=BBB", {"KEY_A": "AAA", "KEY_B": "BBB"}),
             ("KEY_A=AAA\n # AAAA\nKEY_B=BBB", {"KEY_A": "AAA", "KEY_B": "BBB"}),
             ("\n\n\n\nKEY_A=AAA\n\n\n\n\nKEY_B=BBB\n\n\n", {"KEY_A": "AAA", "KEY_B": "BBB"}),
-        )
+        ],
     )
     def test_env_file_should_load_variables(self, file_content, expected_variables):
         with mock_local_file(file_content):
             variables = local_filesystem.load_variables("a.env")
             assert expected_variables == variables
 
-    @parameterized.expand((("AA=A\nAA=B", "The \"a.env\" file contains multiple values for keys: ['AA']"),))
+    @pytest.mark.parametrize(
+        "content, expected_message",
+        [
+            ("AA=A\nAA=B", "The \"a.env\" file contains multiple values for keys: ['AA']"),
+        ],
+    )
     def test_env_file_invalid_logic(self, content, expected_message):
         with mock_local_file(content):
             with pytest.raises(AirflowException, match=re.escape(expected_message)):
                 local_filesystem.load_variables("a.env")
 
-    @parameterized.expand(
-        (
+    @pytest.mark.parametrize(
+        "file_content, expected_variables",
+        [
             ({}, {}),
             ({"KEY": "AAA"}, {"KEY": "AAA"}),
             ({"KEY_A": "AAA", "KEY_B": "BBB"}, {"KEY_A": "AAA", "KEY_B": "BBB"}),
             ({"KEY_A": "AAA", "KEY_B": "BBB"}, {"KEY_A": "AAA", "KEY_B": "BBB"}),
-        )
+        ],
     )
     def test_json_file_should_load_variables(self, file_content, expected_variables):
         with mock_local_file(json.dumps(file_content)):
@@ -109,8 +116,9 @@ class TestLoadVariables(unittest.TestCase):
         ):
             local_filesystem.load_variables("a.json")
 
-    @parameterized.expand(
-        (
+    @pytest.mark.parametrize(
+        "file_content, expected_variables",
+        [
             ("KEY: AAA", {"KEY": "AAA"}),
             (
                 """
@@ -119,7 +127,7 @@ class TestLoadVariables(unittest.TestCase):
             """,
                 {"KEY_A": "AAA", "KEY_B": "BBB"},
             ),
-        )
+        ],
     )
     def test_yaml_file_should_load_variables(self, file_content, expected_variables):
         with mock_local_file(file_content):
@@ -128,9 +136,10 @@ class TestLoadVariables(unittest.TestCase):
             assert expected_variables == vars_yaml == vars_yml
 
 
-class TestLoadConnection(unittest.TestCase):
-    @parameterized.expand(
-        (
+class TestLoadConnection:
+    @pytest.mark.parametrize(
+        "file_content, expected_connection_uris",
+        [
             ("CONN_ID=mysql://host_1/", {"CONN_ID": "mysql://host_1"}),
             (
                 "CONN_ID1=mysql://host_1/\nCONN_ID2=mysql://host_2/",
@@ -144,7 +153,7 @@ class TestLoadConnection(unittest.TestCase):
                 "\n\n\n\nCONN_ID1=mysql://host_1/\n\n\n\n\nCONN_ID2=mysql://host_2/\n\n\n",
                 {"CONN_ID1": "mysql://host_1", "CONN_ID2": "mysql://host_2"},
             ),
-        )
+        ],
     )
     def test_env_file_should_load_connection(self, file_content, expected_connection_uris):
         with mock_local_file(file_content):
@@ -155,13 +164,14 @@ class TestLoadConnection(unittest.TestCase):
 
             assert expected_connection_uris == connection_uris_by_conn_id
 
-    @parameterized.expand(
-        (
+    @pytest.mark.parametrize(
+        "content, expected_connection_uris",
+        [
             (
                 "CONN_ID=mysql://host_1/?param1=val1&param2=val2",
                 {"CONN_ID": "mysql://host_1/?param1=val1&param2=val2"},
             ),
-        )
+        ],
     )
     def test_parsing_with_params(self, content, expected_connection_uris):
         with mock_local_file(content):
@@ -172,24 +182,26 @@ class TestLoadConnection(unittest.TestCase):
 
             assert expected_connection_uris == connection_uris_by_conn_id
 
-    @parameterized.expand(
-        (
+    @pytest.mark.parametrize(
+        "content, expected_message",
+        [
             ("AA", 'Invalid line format. The line should contain at least one equal sign ("=")'),
             ("=", "Invalid line format. Key is empty."),
-        )
+        ],
     )
     def test_env_file_invalid_format(self, content, expected_message):
         with mock_local_file(content):
             with pytest.raises(AirflowFileParseException, match=re.escape(expected_message)):
                 local_filesystem.load_connections_dict("a.env")
 
-    @parameterized.expand(
-        (
+    @pytest.mark.parametrize(
+        "file_content, expected_connection_uris",
+        [
             ({"CONN_ID": "mysql://host_1"}, {"CONN_ID": "mysql://host_1"}),
             ({"CONN_ID": ["mysql://host_1"]}, {"CONN_ID": "mysql://host_1"}),
             ({"CONN_ID": {"uri": "mysql://host_1"}}, {"CONN_ID": "mysql://host_1"}),
             ({"CONN_ID": [{"uri": "mysql://host_1"}]}, {"CONN_ID": "mysql://host_1"}),
-        )
+        ],
     )
     def test_json_file_should_load_connection(self, file_content, expected_connection_uris):
         with mock_local_file(json.dumps(file_content)):
@@ -200,8 +212,9 @@ class TestLoadConnection(unittest.TestCase):
 
             assert expected_connection_uris == connection_uris_by_conn_id
 
-    @parameterized.expand(
-        (
+    @pytest.mark.parametrize(
+        "file_content, expected_connection_uris",
+        [
             ({"CONN_ID": None}, "Unexpected value type: <class 'NoneType'>."),
             ({"CONN_ID": 1}, "Unexpected value type: <class 'int'>."),
             ({"CONN_ID": [2]}, "Unexpected value type: <class 'int'>."),
@@ -209,7 +222,7 @@ class TestLoadConnection(unittest.TestCase):
             ({"CONN_ID": {"AAA": "mysql://host_1"}}, "The object have illegal keys: AAA."),
             ({"CONN_ID": {"conn_id": "BBBB"}}, "Mismatch conn_id."),
             ({"CONN_ID": ["mysql://", "mysql://"]}, "Found multiple values for CONN_ID in a.json."),
-        )
+        ],
     )
     def test_env_file_invalid_input(self, file_content, expected_connection_uris):
         with mock_local_file(json.dumps(file_content)):
@@ -224,8 +237,9 @@ class TestLoadConnection(unittest.TestCase):
         ):
             local_filesystem.load_connections_dict("a.json")
 
-    @parameterized.expand(
-        (
+    @pytest.mark.parametrize(
+        "file_content, expected_attrs_dict",
+        [
             (
                 """CONN_A: 'mysql://host_a'""",
                 {"CONN_A": {'conn_type': 'mysql', 'host': 'host_a'}},
@@ -262,7 +276,7 @@ class TestLoadConnection(unittest.TestCase):
                     },
                 },
             ),
-        )
+        ],
     )
     def test_yaml_file_should_load_connection(self, file_content, expected_attrs_dict):
         with mock_local_file(file_content):
@@ -272,8 +286,9 @@ class TestLoadConnection(unittest.TestCase):
                 actual_attrs = {k: getattr(connection, k) for k in expected_attrs.keys()}
                 assert actual_attrs == expected_attrs
 
-    @parameterized.expand(
-        (
+    @pytest.mark.parametrize(
+        "file_content, expected_extras",
+        [
             (
                 """
                 conn_c:
@@ -323,7 +338,7 @@ class TestLoadConnection(unittest.TestCase):
                 """,
                 {"conn_d": {"extra__google_cloud_platform__keyfile_dict": {"a": "b"}}},
             ),
-        )
+        ],
     )
     def test_yaml_file_should_load_connection_extras(self, file_content, expected_extras):
         with mock_local_file(file_content):
@@ -333,8 +348,9 @@ class TestLoadConnection(unittest.TestCase):
             }
             assert expected_extras == connection_uris_by_conn_id
 
-    @parameterized.expand(
-        (
+    @pytest.mark.parametrize(
+        "file_content, expected_message",
+        [
             (
                 """conn_c:
                conn_type: scheme
@@ -351,50 +367,46 @@ class TestLoadConnection(unittest.TestCase):
                  """,
                 "The extra and extra_dejson parameters are mutually exclusive.",
             ),
-        )
+        ],
     )
     def test_yaml_invalid_extra(self, file_content, expected_message):
         with mock_local_file(file_content):
             with pytest.raises(AirflowException, match=re.escape(expected_message)):
                 local_filesystem.load_connections_dict("a.yaml")
 
-    @parameterized.expand(
-        ("CONN_ID=mysql://host_1/\nCONN_ID=mysql://host_2/",),
-    )
+    @pytest.mark.parametrize("file_content", ["CONN_ID=mysql://host_1/\nCONN_ID=mysql://host_2/"])
     def test_ensure_unique_connection_env(self, file_content):
         with mock_local_file(file_content):
             with pytest.raises(ConnectionNotUnique):
                 local_filesystem.load_connections_dict("a.env")
 
-    @parameterized.expand(
-        (
-            ({"CONN_ID": ["mysql://host_1", "mysql://host_2"]},),
-            ({"CONN_ID": [{"uri": "mysql://host_1"}, {"uri": "mysql://host_2"}]},),
-        )
+    @pytest.mark.parametrize(
+        "file_content",
+        [
+            {"CONN_ID": ["mysql://host_1", "mysql://host_2"]},
+            {"CONN_ID": [{"uri": "mysql://host_1"}, {"uri": "mysql://host_2"}]},
+        ],
     )
     def test_ensure_unique_connection_json(self, file_content):
         with mock_local_file(json.dumps(file_content)):
             with pytest.raises(ConnectionNotUnique):
                 local_filesystem.load_connections_dict("a.json")
 
-    @parameterized.expand(
-        (
-            (
-                """
+    @pytest.mark.parametrize(
+        "file_content",
+        [
+            """
             conn_a:
               - mysql://hosta
               - mysql://hostb"""
-            ),
-        ),
+        ],
     )
     def test_ensure_unique_connection_yaml(self, file_content):
         with mock_local_file(file_content):
             with pytest.raises(ConnectionNotUnique):
                 local_filesystem.load_connections_dict("a.yaml")
 
-    @parameterized.expand(
-        (("conn_a: mysql://hosta"),),
-    )
+    @pytest.mark.parametrize("file_content", ["conn_a: mysql://hosta"])
     def test_yaml_extension_parsers_return_same_result(self, file_content):
         with mock_local_file(file_content):
             conn_uri_by_conn_id_yaml = {
@@ -408,7 +420,7 @@ class TestLoadConnection(unittest.TestCase):
             assert conn_uri_by_conn_id_yaml == conn_uri_by_conn_id_yml
 
 
-class TestLocalFileBackend(unittest.TestCase):
+class TestLocalFileBackend:
     def test_should_read_variable(self):
         with NamedTemporaryFile(suffix="var.env") as tmp_file:
             tmp_file.write(b"KEY_A=VAL_A")

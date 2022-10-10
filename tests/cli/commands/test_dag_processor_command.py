@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -28,13 +27,13 @@ from airflow.configuration import conf
 from tests.test_utils.config import conf_vars
 
 
-class TestDagProcessorCommand(unittest.TestCase):
+class TestDagProcessorCommand:
     """
     Tests the CLI interface and that it correctly calls the DagProcessor
     """
 
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
     @conf_vars(

@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import os
 import tempfile
-import unittest
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -37,7 +36,7 @@ EMAILS = ['test1@example.com', 'test2@example.com']
 send_email_test = mock.MagicMock()
 
 
-class TestEmail(unittest.TestCase):
+class TestEmail:
     def test_get_email_address_single_email(self):
         emails_string = 'test1@example.com'
 
@@ -147,7 +146,7 @@ class TestEmail(unittest.TestCase):
         assert msg['To'] == ','.join(recipients)
 
 
-class TestEmailSmtp(unittest.TestCase):
+class TestEmailSmtp:
     @mock.patch('airflow.utils.email.send_mime_email')
     def test_send_smtp(self, mock_send_mime):
         with tempfile.NamedTemporaryFile() as attachment:

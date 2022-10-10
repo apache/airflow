@@ -25,7 +25,6 @@ import random
 import socket
 import sys
 import threading
-import unittest
 from datetime import datetime, timedelta
 from logging.config import dictConfig
 from tempfile import TemporaryDirectory
@@ -1059,12 +1058,12 @@ class TestDagFileProcessorManager:
         assert manager._callback_to_execute[dag1_req1.full_filepath] == [dag1_req1, dag1_sla1, dag1_req2]
 
 
-class TestDagFileProcessorAgent(unittest.TestCase):
-    def setUp(self):
+class TestDagFileProcessorAgent:
+    def setup_method(self):
         # Make sure that the configure_logging is not cached
         self.old_modules = dict(sys.modules)
 
-    def tearDown(self):
+    def teardown_method(self):
         # Remove any new modules imported during the test run. This lets us
         # import the same source files for more than one test.
         remove_list = []

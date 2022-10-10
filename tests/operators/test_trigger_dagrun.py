@@ -20,7 +20,7 @@ from __future__ import annotations
 import pathlib
 import tempfile
 from datetime import datetime
-from unittest import TestCase, mock
+from unittest import mock
 
 import pytest
 
@@ -49,8 +49,8 @@ DAG_SCRIPT = (
 ).format(dag_id=TRIGGERED_DAG_ID)
 
 
-class TestDagRunOperator(TestCase):
-    def setUp(self):
+class TestDagRunOperator:
+    def setup_method(self):
         # Airflow relies on reading the DAG from disk when triggering it.
         # Therefore write a temp file holding the DAG to trigger.
         with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
@@ -67,7 +67,7 @@ class TestDagRunOperator(TestCase):
         dagbag.bag_dag(self.dag, root_dag=self.dag)
         dagbag.sync_to_db()
 
-    def tearDown(self):
+    def teardown_method(self):
         """Cleanup state after testing in DB."""
         with create_session() as session:
             session.query(Log).filter(Log.dag_id == TEST_DAG_ID).delete(synchronize_session=False)

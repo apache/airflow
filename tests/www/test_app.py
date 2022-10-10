@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import runpy
 import sys
-import unittest
 from datetime import timedelta
 from unittest import mock
 
@@ -33,9 +32,9 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
-class TestApp(unittest.TestCase):
+class TestApp:
     @classmethod
-    def setUpClass(cls) -> None:
+    def setup_class(cls) -> None:
         from airflow import settings
 
         settings.configure_orm()

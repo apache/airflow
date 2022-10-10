@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import re
-import unittest
 
 import marshmallow
 import pytest
@@ -34,12 +33,12 @@ from airflow.utils.session import create_session, provide_session
 from tests.test_utils.db import clear_db_connections
 
 
-class TestConnectionCollectionItemSchema(unittest.TestCase):
-    def setUp(self) -> None:
+class TestConnectionCollectionItemSchema:
+    def setup_method(self) -> None:
         with create_session() as session:
             session.query(Connection).delete()
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         clear_db_connections()
 
     @provide_session
@@ -106,12 +105,12 @@ class TestConnectionCollectionItemSchema(unittest.TestCase):
             connection_collection_item_schema.load(connection_dump_1)
 
 
-class TestConnectionCollectionSchema(unittest.TestCase):
-    def setUp(self) -> None:
+class TestConnectionCollectionSchema:
+    def setup_method(self) -> None:
         with create_session() as session:
             session.query(Connection).delete()
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         clear_db_connections()
 
     @provide_session
@@ -148,12 +147,12 @@ class TestConnectionCollectionSchema(unittest.TestCase):
         }
 
 
-class TestConnectionSchema(unittest.TestCase):
-    def setUp(self) -> None:
+class TestConnectionSchema:
+    def setup_method(self) -> None:
         with create_session() as session:
             session.query(Connection).delete()
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         clear_db_connections()
 
     @provide_session
@@ -205,7 +204,7 @@ class TestConnectionSchema(unittest.TestCase):
         }
 
 
-class TestConnectionTestSchema(unittest.TestCase):
+class TestConnectionTestSchema:
     def test_response(self):
         data = {
             'status': True,

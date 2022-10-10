@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.cli import cli_parser
@@ -24,9 +23,9 @@ from airflow.cli.commands import kerberos_command
 from tests.test_utils.config import conf_vars
 
 
-class TestKerberosCommand(unittest.TestCase):
+class TestKerberosCommand:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
     @mock.patch('airflow.cli.commands.kerberos_command.krb')

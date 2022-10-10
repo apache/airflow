@@ -20,19 +20,18 @@ from __future__ import annotations
 import os
 import shutil
 import tempfile
-import unittest
 from unittest.mock import patch
 
 from airflow import settings
 from airflow.utils.file import find_path_from_directory
 
 
-class TestIgnorePluginFile(unittest.TestCase):
+class TestIgnorePluginFile:
     """
     Test that the .airflowignore work and whether the file is properly ignored.
     """
 
-    def setUp(self):
+    def setup_method(self):
         """
         Make tmp folder and files that should be ignored. And set base path.
         """
@@ -64,7 +63,7 @@ class TestIgnorePluginFile(unittest.TestCase):
             settings, 'PLUGINS_FOLDER', return_value=self.plugin_folder_path
         )
 
-    def tearDown(self):
+    def teardown_method(self):
         """
         Delete tmp folder
         """

@@ -23,10 +23,8 @@ import contextlib
 import io
 import re
 from collections import Counter
-from unittest import TestCase
 
 import pytest
-from parameterized import parameterized
 
 from airflow.cli import cli_parser
 from tests.test_utils.config import conf_vars
@@ -39,7 +37,7 @@ LEGAL_SHORT_OPTION_PATTERN = re.compile("^-[a-zA-z]$")
 cli_args = {k: v for k, v in cli_parser.__dict__.items() if k.startswith("ARG_")}
 
 
-class TestCli(TestCase):
+class TestCli:
     def test_arg_option_long_only(self):
         """
         Test if the name of cli.args long option valid
@@ -151,11 +149,11 @@ class TestCli(TestCase):
         parser = cli_parser.get_parser(dag_parser=True)
 
         with contextlib.redirect_stdout(io.StringIO()) as stdout:
-            with self.assertRaises(SystemExit):
+            with pytest.raises(SystemExit):
                 parser.parse_args(['--help'])
             stdout = stdout.getvalue()
-        self.assertIn("Commands", stdout)
-        self.assertIn("Groups", stdout)
+        assert "Commands" in stdout
+        assert "Groups" in stdout
 
     def test_should_display_help(self):
         parser = cli_parser.get_parser()
@@ -186,7 +184,7 @@ class TestCli(TestCase):
             )
         ]
         for cmd_args in all_command_as_args:
-            with self.assertRaises(SystemExit):
+            with pytest.raises(SystemExit):
                 parser.parse_args([*cmd_args, '--help'])
 
     def test_positive_int(self):
@@ -202,7 +200,7 @@ class TestCli(TestCase):
             io.StringIO()
         ) as stderr:
             parser = cli_parser.get_parser()
-            with self.assertRaises(SystemExit):
+            with pytest.raises(SystemExit):
                 parser.parse_args(['celery'])
             stderr = stderr.getvalue()
         assert (
@@ -211,18 +209,19 @@ class TestCli(TestCase):
             "your current executor: SequentialExecutor, subclassed from: BaseExecutor, see help above."
         ) in stderr
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "executor",
         [
             "CeleryExecutor",
             "CeleryKubernetesExecutor",
             "custom_executor.CustomCeleryExecutor",
             "custom_executor.CustomCeleryKubernetesExecutor",
-        ]
+        ],
     )
     def test_dag_parser_celery_command_accept_celery_executor(self, executor):
         with conf_vars({('core', 'executor'): executor}), contextlib.redirect_stderr(io.StringIO()) as stderr:
             parser = cli_parser.get_parser()
-            with self.assertRaises(SystemExit):
+            with pytest.raises(SystemExit):
                 parser.parse_args(['celery'])
             stderr = stderr.getvalue()
         assert (

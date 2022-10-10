@@ -16,16 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
-from parameterized import parameterized
+import pytest
 
 from airflow.utils.docs import get_docs_url
 
 
-class TestGetDocsUrl(unittest.TestCase):
-    @parameterized.expand(
+class TestGetDocsUrl:
+    @pytest.mark.parametrize(
+        "version, page, expected_url",
         [
             (
                 '2.0.0.dev0',
@@ -45,7 +45,7 @@ class TestGetDocsUrl(unittest.TestCase):
                 'project.html',
                 'https://airflow.apache.org/docs/apache-airflow/1.10.10/project.html',
             ),
-        ]
+        ],
     )
     def test_should_return_link(self, version, page, expected_url):
         with mock.patch('airflow.version.version', version):

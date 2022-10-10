@@ -17,14 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from pathlib import Path
 from subprocess import PIPE, STDOUT
 from tempfile import TemporaryDirectory
 from unittest import mock
 from unittest.mock import MagicMock
 
-from parameterized import parameterized
+import pytest
 
 from airflow.hooks.subprocess import SubprocessHook
 
@@ -32,15 +31,17 @@ OS_ENV_KEY = 'SUBPROCESS_ENV_TEST'
 OS_ENV_VAL = 'this-is-from-os-environ'
 
 
-class TestSubprocessHook(unittest.TestCase):
-    @parameterized.expand(
+class TestSubprocessHook:
+    @pytest.mark.parametrize(
+        "env,expected",
         [
-            ('with env', {'ABC': '123', 'AAA': '456'}, {'ABC': '123', 'AAA': '456', OS_ENV_KEY: ''}),
-            ('empty env', {}, {OS_ENV_KEY: ''}),
-            ('no env', None, {OS_ENV_KEY: OS_ENV_VAL}),
-        ]
+            ({"ABC": "123", "AAA": "456"}, {"ABC": "123", "AAA": "456", OS_ENV_KEY: ""}),
+            ({}, {OS_ENV_KEY: ""}),
+            (None, {OS_ENV_KEY: OS_ENV_VAL}),
+        ],
+        ids=["with env", "empty env", "no env"],
     )
-    def test_env(self, name, env, expected):
+    def test_env(self, env, expected):
         """
         Test that env variables are exported correctly to the command environment.
         When ``env`` is ``None``, ``os.environ`` should be passed to ``Popen``.
@@ -63,13 +64,14 @@ class TestSubprocessHook(unittest.TestCase):
             actual = dict([x.split('=') for x in tmp_file.read_text().splitlines()])
             assert actual == expected
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "val,expected",
         [
             ('test-val', 'test-val'),
             ('test-val\ntest-val\n', ''),
             ('test-val\ntest-val', 'test-val'),
             ('', ''),
-        ]
+        ],
     )
     def test_return_value(self, val, expected):
         hook = SubprocessHook()

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import patch
 
 import pytest
@@ -30,14 +29,14 @@ from tests.test_utils.config import conf_vars
 SQL_ALCHEMY_CONNECT_ARGS = {'test': 43503, 'dict': {'is': 1, 'supported': 'too'}}
 
 
-class TestSqlAlchemySettings(unittest.TestCase):
-    def setUp(self):
+class TestSqlAlchemySettings:
+    def setup_method(self):
         self.old_engine = settings.engine
         self.old_session = settings.Session
         self.old_conn = settings.SQL_ALCHEMY_CONN
         settings.SQL_ALCHEMY_CONN = "mysql+foobar://user:pass@host/dbname?inline=param&another=param"
 
-    def tearDown(self):
+    def teardown_method(self):
         settings.engine = self.old_engine
         settings.Session = self.old_session
         settings.SQL_ALCHEMY_CONN = self.old_conn
