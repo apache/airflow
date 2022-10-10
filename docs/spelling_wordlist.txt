@@ -468,6 +468,7 @@ editorconfig
 Eg
 eg
 eks
+eksctl
 eladkal
 elasticsearch
 emailer
@@ -674,6 +675,7 @@ httpx
 hvac
 hyperparameter
 hyperparameters
+IaC
 iam
 idempotence
 idempotency
@@ -725,6 +727,7 @@ Investorise
 io
 ip
 iPython
+IRSA
 isfile
 ish
 isn
