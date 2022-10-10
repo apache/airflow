@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 """
 Global constants that are used by all other Breeze components.
@@ -204,6 +205,7 @@ AVAILABLE_INTEGRATIONS = [
     'trino',
 ]
 ENABLED_INTEGRATIONS = ""
+ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT).glob("airflow/providers/**/provider.yaml")
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
     'setup.py',
@@ -216,6 +218,7 @@ FILES_FOR_REBUILD_CHECK = [
     'scripts/docker/install_airflow_dependencies_from_branch_tip.sh',
     'scripts/docker/install_from_docker_context_files.sh',
     'scripts/docker/install_mysql.sh',
+    *ALL_PROVIDER_YAML_FILES,
 ]
 
 ENABLED_SYSTEMS = ""
