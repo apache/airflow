@@ -670,6 +670,35 @@ class TestAwsBaseHook:
         assert result
         assert hook.client_type == "s3"  # Same client_type which defined during initialisation
 
+    @mock.patch("boto3.session.Session")
+    def test_hook_connection_test_failed(self, mock_boto3_session):
+        """Test ``test_connection`` failure."""
+        hook = AwsBaseHook(client_type="ec2")
+
+        # Tests that STS API return non 200 code. Under normal circumstances this is hardly possible.
+        response_metadata = {"HTTPStatusCode": 500, "reason": "Test Failure"}
+        mock_sts_client = mock.MagicMock()
+        mock_sts_client.return_value.get_caller_identity.return_value = {
+            "ResponseMetadata": response_metadata
+        }
+        mock_boto3_session.return_value.client = mock_sts_client
+        result, message = hook.test_connection()
+        assert not result
+        assert message == json.dumps(response_metadata)
+        mock_sts_client.assert_called_once_with("sts")
+
+        def mock_error():
+            raise ConnectionError("Test Error")
+
+        # Something bad happen during boto3.session.Session creation (e.g. wrong credentials or conn error)
+        mock_boto3_session.reset_mock()
+        mock_boto3_session.side_effect = mock_error
+        result, message = hook.test_connection()
+        assert not result
+        assert message == "'ConnectionError' error occurred while testing connection: Test Error"
+
+        assert hook.client_type == "ec2"
+
     @mock.patch.dict(os.environ, {f"AIRFLOW_CONN_{MOCK_AWS_CONN_ID.upper()}": "aws://"})
     def test_conn_config_conn_id_exists(self):
         """Test retrieve connection config if aws_conn_id exists."""
