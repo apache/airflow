@@ -44,7 +44,7 @@ To create an Amazon ECS cluster you can use
 All optional parameters to be passed to the Create Cluster API should be
 passed in the 'create_cluster_kwargs' dict.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ecs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_ecs_create_cluster]
@@ -59,7 +59,7 @@ To delete an Amazon ECS cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsDeleteClusterOperator`.
 
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ecs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_ecs_delete_cluster]
@@ -77,7 +77,7 @@ All optional parameters to be passed to the Register Task Definition API should 
 passed in the 'register_task_kwargs' dict.
 
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ecs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_ecs_register_task_definition]
@@ -92,7 +92,7 @@ To deregister a task definition you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsDeregisterTaskDefinitionOperator`.
 
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ecs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_ecs_deregister_task_definition]
@@ -121,7 +121,7 @@ The parameters you need to configure for this Operator will depend upon which ``
 * If you are using EC2 as the compute resources in your ECS Cluster, set the parameter to EC2.
 * If you have integrated external resources in your ECS Cluster, for example using ECS Anywhere, and want to run your containers on those external resources, set the parameter to EXTERNAL.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ecs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_ecs_run_task]
@@ -141,9 +141,9 @@ To stream logs to AWS CloudWatch, you need to define the parameters below.
 Using the example above, we would add these additional parameters to enable logging to CloudWatch.
 You need to ensure that you have the appropriate level of permissions (see next section).
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ecs.py
     :language: python
-    :dedent: 4
+    :dedent: 8
     :start-after: [START howto_awslogs_ecs]
     :end-before: [END howto_awslogs_ecs]
 
@@ -211,7 +211,7 @@ the failure reason if a failed state is provided and that state is reached
 before the target state.
 
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ecs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_ecs_cluster_state]
@@ -231,7 +231,7 @@ to change that.  Raises an AirflowException with the failure reason if the faile
 is reached before the target state.
 
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ecs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_ecs_task_definition_state]
@@ -250,7 +250,7 @@ both can be overridden with provided values.  Raises an AirflowException with
 the failure reason if a failed state is provided and that state is reached
 before the target state.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ecs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_ecs_task_state]
