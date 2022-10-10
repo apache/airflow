@@ -21,6 +21,7 @@ import logging
 import os
 import re
 import unittest
+from contextlib import contextmanager
 from io import StringIO
 from unittest import mock
 from unittest.mock import ANY
@@ -135,6 +136,17 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         cls.test_scopes = _DEFAULT_SCOPES
         cls.test_key_file = "KEY_PATH.json"
         cls.test_project_id = "project_id"
+
+    @contextmanager
+    def assert_no_logs(self, name, level):
+        with self.assertLogs(level=level) as logs:
+            # AssertionError will raise if we do not create dummy record here
+            logging.log(level=logging.getLevelName(level), msg="nothing")
+            yield
+        records = [log_record for log_record in logs.records if log_record.name == name]
+        if not records:
+            return
+        raise AssertionError(f"Did not expect any log message from logger={name!r}, but got: {records}")
 
     @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
     def test_get_credentials_and_project_id_with_default_auth(self, mock_auth_default):
@@ -335,39 +347,25 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         - Cannot use pytest autouse-fixture `caplog` with `unittest.TestCase`
         - `unittest.TestCase.assertNoLogs` available only in Python 3.10+
         """
-
-        def assert_no_logs(records):
-            logger_name = "airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider"
-            records = [log_record for log_record in records if log_record.name == logger_name]
-            if not records:
-                return
-            raise AssertionError(
-                f"Did not expect any log message from logger={logger_name!r}, but got: {records}"
-            )
+        logger_name = "airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider"
 
         # assert no logs
-        with self.assertLogs(level="DEBUG") as logs:
-            logging.debug('nothing')
+        with self.assert_no_logs(name=logger_name, level="DEBUG"):
             get_credentials_and_project_id(disable_logging=True)
-        assert_no_logs(logs.records)
 
         # assert no debug logs emitted from get_credentials_and_project_id
-        with self.assertLogs(level="DEBUG") as logs:
-            logging.debug('nothing')
+        with self.assert_no_logs(name=logger_name, level="DEBUG"):
             get_credentials_and_project_id(
                 keyfile_dict={'private_key': 'PRIVATE_KEY'},
                 disable_logging=True,
             )
-        assert_no_logs(logs.records)
 
         # assert no debug logs emitted from get_credentials_and_project_id
-        with self.assertLogs(level="DEBUG") as logs:
-            logging.debug('nothing')
+        with self.assert_no_logs(name=logger_name, level="DEBUG"):
             get_credentials_and_project_id(
                 key_path='KEY.json',
                 disable_logging=True,
             )
-        assert_no_logs(logs.records)
 
 
 class TestGetScopes(unittest.TestCase):
