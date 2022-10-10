@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from datetime import datetime, timedelta
 
 import pendulum
@@ -28,7 +27,7 @@ from pytest import approx
 from airflow.utils import dates, timezone
 
 
-class TestDates(unittest.TestCase):
+class TestDates:
     @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_days_ago(self):
         today = pendulum.today()
@@ -106,7 +105,7 @@ class TestDates(unittest.TestCase):
         assert arr4 == approx([2.3147, 1.1574], rel=1e-3)
 
 
-class TestUtilsDatesDateRange(unittest.TestCase):
+class TestUtilsDatesDateRange:
     def test_no_delta(self):
         assert dates.date_range(datetime(2016, 1, 1), datetime(2016, 1, 3)) == []
 

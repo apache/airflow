@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -25,9 +24,8 @@ import pytest
 from airflow.www import validators
 
 
-class TestGreaterEqualThan(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
+class TestGreaterEqualThan:
+    def setup_method(self):
         self.form_field_mock = mock.MagicMock(data='2017-05-06')
         self.form_field_mock.gettext.side_effect = lambda msg: msg
         self.other_field_mock = mock.MagicMock(data='2017-05-05')
@@ -89,9 +87,8 @@ class TestGreaterEqualThan(unittest.TestCase):
             )
 
 
-class TestValidJson(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
+class TestValidJson:
+    def setup_method(self):
         self.form_field_mock = mock.MagicMock(data='{"valid":"True"}')
         self.form_field_mock.gettext.side_effect = lambda msg: msg
         self.form_mock = mock.MagicMock(spec_set=dict)

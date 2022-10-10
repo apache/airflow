@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import os
 import tempfile
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock, call
 
@@ -29,9 +28,9 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import kubernetes_command
 
 
-class TestGenerateDagYamlCommand(unittest.TestCase):
+class TestGenerateDagYamlCommand:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
     def test_generate_dag_yaml(self):
@@ -56,12 +55,12 @@ class TestGenerateDagYamlCommand(unittest.TestCase):
             assert os.stat(out_dir + file_name).st_size > 0
 
 
-class TestCleanUpPodsCommand(unittest.TestCase):
+class TestCleanUpPodsCommand:
 
     label_selector = ','.join(['dag_id', 'task_id', 'try_number', 'airflow_version'])
 
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
     @mock.patch('kubernetes.client.CoreV1Api.delete_namespaced_pod')

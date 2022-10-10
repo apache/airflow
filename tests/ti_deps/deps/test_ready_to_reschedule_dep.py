@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from datetime import timedelta
 from unittest.mock import Mock, patch
 
@@ -28,7 +27,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
 
 
-class TestNotInReschedulePeriodDep(unittest.TestCase):
+class TestNotInReschedulePeriodDep:
     def _get_task_instance(self, state):
         dag = DAG('test_dag')
         task = Mock(dag=dag, reschedule=True, is_mapped=False)

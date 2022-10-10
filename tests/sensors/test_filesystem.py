@@ -20,7 +20,6 @@ from __future__ import annotations
 import os
 import shutil
 import tempfile
-import unittest
 
 import pytest
 
@@ -33,8 +32,8 @@ TEST_DAG_ID = 'unit_tests_file_sensor'
 DEFAULT_DATE = datetime(2015, 1, 1)
 
 
-class TestFileSensor(unittest.TestCase):
-    def setUp(self):
+class TestFileSensor:
+    def setup_method(self):
         from airflow.hooks.filesystem import FSHook
 
         hook = FSHook()

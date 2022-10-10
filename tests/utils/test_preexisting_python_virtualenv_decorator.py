@@ -17,12 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 from airflow.utils.decorators import remove_task_decorator
 
 
-class TestExternalPythonDecorator(unittest.TestCase):
+class TestExternalPythonDecorator:
     def test_remove_task_decorator(self):
         py_source = "@task.external_python(use_dill=True)\ndef f():\nimport funcsigs"
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.external_python")

@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import datetime
-import unittest
 
 import pytest
 from dateutil import relativedelta
@@ -31,7 +30,7 @@ from airflow.api_connexion.schemas.common_schema import (
 )
 
 
-class TestTimeDeltaSchema(unittest.TestCase):
+class TestTimeDeltaSchema:
     def test_should_serialize(self):
         instance = datetime.timedelta(days=12)
         schema_instance = TimeDeltaSchema()
@@ -46,7 +45,7 @@ class TestTimeDeltaSchema(unittest.TestCase):
         assert expected_instance == result
 
 
-class TestRelativeDeltaSchema(unittest.TestCase):
+class TestRelativeDeltaSchema:
     def test_should_serialize(self):
         instance = relativedelta.relativedelta(days=+12)
         schema_instance = RelativeDeltaSchema()
@@ -78,7 +77,7 @@ class TestRelativeDeltaSchema(unittest.TestCase):
         assert expected_instance == result
 
 
-class TestCronExpressionSchema(unittest.TestCase):
+class TestCronExpressionSchema:
     def test_should_deserialize(self):
         instance = {"__type": "CronExpression", "value": "5 4 * * *"}
         schema_instance = CronExpressionSchema()
@@ -87,7 +86,7 @@ class TestCronExpressionSchema(unittest.TestCase):
         assert expected_instance == result
 
 
-class TestScheduleIntervalSchema(unittest.TestCase):
+class TestScheduleIntervalSchema:
     def test_should_serialize_timedelta(self):
         instance = datetime.timedelta(days=12)
         schema_instance = ScheduleIntervalSchema()

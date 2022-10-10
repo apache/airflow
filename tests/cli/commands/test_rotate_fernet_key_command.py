@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from cryptography.fernet import Fernet
@@ -30,16 +29,16 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_connections, clear_db_variables
 
 
-class TestRotateFernetKeyCommand(unittest.TestCase):
+class TestRotateFernetKeyCommand:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
-    def setUp(self) -> None:
+    def setup_method(self) -> None:
         clear_db_connections(add_default_connections_back=False)
         clear_db_variables()
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         clear_db_connections(add_default_connections_back=False)
         clear_db_variables()
 

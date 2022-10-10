@@ -17,11 +17,9 @@
 from __future__ import annotations
 
 import datetime as dt
-import unittest
 
 import pytest
 from marshmallow import ValidationError
-from parameterized import parameterized
 
 from airflow.api_connexion.schemas.task_instance_schema import (
     clear_task_instance_form,
@@ -150,70 +148,59 @@ class TestTaskInstanceSchema:
         assert serialized_ti == expected_json
 
 
-class TestClearTaskInstanceFormSchema(unittest.TestCase):
-    @parameterized.expand(
+class TestClearTaskInstanceFormSchema:
+    @pytest.mark.parametrize(
+        "payload",
         [
             (
-                [
-                    {
-                        "dry_run": False,
-                        "reset_dag_runs": True,
-                        "only_failed": True,
-                        "only_running": True,
-                    }
-                ]
+                {
+                    "dry_run": False,
+                    "reset_dag_runs": True,
+                    "only_failed": True,
+                    "only_running": True,
+                }
             ),
             (
-                [
-                    {
-                        "dry_run": False,
-                        "reset_dag_runs": True,
-                        "end_date": "2020-01-01T00:00:00+00:00",
-                        "start_date": "2020-01-02T00:00:00+00:00",
-                    }
-                ]
+                {
+                    "dry_run": False,
+                    "reset_dag_runs": True,
+                    "end_date": "2020-01-01T00:00:00+00:00",
+                    "start_date": "2020-01-02T00:00:00+00:00",
+                }
             ),
             (
-                [
-                    {
-                        "dry_run": False,
-                        "reset_dag_runs": True,
-                        "task_ids": [],
-                    }
-                ]
+                {
+                    "dry_run": False,
+                    "reset_dag_runs": True,
+                    "task_ids": [],
+                }
             ),
             (
-                [
-                    {
-                        "dry_run": False,
-                        "reset_dag_runs": True,
-                        "dag_run_id": "scheduled__2022-06-19T00:00:00+00:00",
-                        "start_date": "2022-08-03T00:00:00+00:00",
-                    }
-                ]
+                {
+                    "dry_run": False,
+                    "reset_dag_runs": True,
+                    "dag_run_id": "scheduled__2022-06-19T00:00:00+00:00",
+                    "start_date": "2022-08-03T00:00:00+00:00",
+                }
             ),
             (
-                [
-                    {
-                        "dry_run": False,
-                        "reset_dag_runs": True,
-                        "dag_run_id": "scheduled__2022-06-19T00:00:00+00:00",
-                        "end_date": "2022-08-03T00:00:00+00:00",
-                    }
-                ]
+                {
+                    "dry_run": False,
+                    "reset_dag_runs": True,
+                    "dag_run_id": "scheduled__2022-06-19T00:00:00+00:00",
+                    "end_date": "2022-08-03T00:00:00+00:00",
+                }
             ),
             (
-                [
-                    {
-                        "dry_run": False,
-                        "reset_dag_runs": True,
-                        "dag_run_id": "scheduled__2022-06-19T00:00:00+00:00",
-                        "end_date": "2022-08-04T00:00:00+00:00",
-                        "start_date": "2022-08-03T00:00:00+00:00",
-                    }
-                ]
+                {
+                    "dry_run": False,
+                    "reset_dag_runs": True,
+                    "dag_run_id": "scheduled__2022-06-19T00:00:00+00:00",
+                    "end_date": "2022-08-04T00:00:00+00:00",
+                    "start_date": "2022-08-03T00:00:00+00:00",
+                }
             ),
-        ]
+        ],
     )
     def test_validation_error(self, payload):
         with pytest.raises(ValidationError):
@@ -246,14 +233,15 @@ class TestSetTaskInstanceStateFormSchema:
         }
         assert expected_result == result
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "override_data",
         [
-            ({"task_id": None},),
-            ({"include_future": "foo"},),
-            ({"execution_date": "NOW"},),
-            ({"new_state": "INVALID_STATE"},),
-            ({"execution_date": "2020-01-01T00:00:00+00:00", "dag_run_id": "some-run-id"},),
-        ]
+            {"task_id": None},
+            {"include_future": "foo"},
+            {"execution_date": "NOW"},
+            {"new_state": "INVALID_STATE"},
+            {"execution_date": "2020-01-01T00:00:00+00:00", "dag_run_id": "some-run-id"},
+        ],
     )
     def test_validation_error(self, override_data):
         self.current_input.update(override_data)

@@ -16,10 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
-from parameterized import parameterized
+import pytest
 
 from airflow.task.task_runner import CORE_TASK_RUNNERS, get_task_runner
 from airflow.utils.module_loading import import_string
@@ -27,8 +26,8 @@ from airflow.utils.module_loading import import_string
 custom_task_runner = mock.MagicMock()
 
 
-class GetTaskRunner(unittest.TestCase):
-    @parameterized.expand([(import_path,) for import_path in CORE_TASK_RUNNERS.values()])
+class TestGetTaskRunner:
+    @pytest.mark.parametrize("import_path", CORE_TASK_RUNNERS.values())
     def test_should_have_valid_imports(self, import_path):
         assert import_string(import_path) is not None
 

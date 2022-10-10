@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from datetime import datetime
 from unittest import mock
 
@@ -26,9 +25,8 @@ import pytest
 from airflow.utils import operator_helpers
 
 
-class TestOperatorHelpers(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
+class TestOperatorHelpers:
+    def setup_method(self):
         self.dag_id = 'dag_id'
         self.task_id = 'task_id'
         self.try_number = 1

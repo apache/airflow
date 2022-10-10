@@ -18,9 +18,8 @@ from __future__ import annotations
 
 import configparser
 import os
-import unittest
 
-from parameterized import parameterized
+import pytest
 
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
@@ -70,19 +69,15 @@ DEFAULT_TEST_SECTIONS = [
 ]
 
 
-class TestAirflowCfg(unittest.TestCase):
-    @parameterized.expand(
-        [
-            ("default_airflow.cfg",),
-            ("default_test.cfg",),
-        ]
-    )
+class TestAirflowCfg:
+    @pytest.mark.parametrize("filename", ["default_airflow.cfg", "default_test.cfg"])
     def test_should_be_ascii_file(self, filename: str):
         with open(os.path.join(CONFIG_TEMPLATES_FOLDER, filename), "rb") as f:
             content = f.read().decode("ascii")
         assert content
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "filename, expected_sections",
         [
             (
                 "default_airflow.cfg",
@@ -92,7 +87,7 @@ class TestAirflowCfg(unittest.TestCase):
                 "default_test.cfg",
                 DEFAULT_TEST_SECTIONS,
             ),
-        ]
+        ],
     )
     def test_should_be_ini_file(self, filename: str, expected_sections):
         filepath = os.path.join(CONFIG_TEMPLATES_FOLDER, filename)

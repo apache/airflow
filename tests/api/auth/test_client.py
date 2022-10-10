@@ -16,14 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.api.client import get_current_api_client
 from tests.test_utils.config import conf_vars
 
 
-class TestGetCurrentApiClient(unittest.TestCase):
+class TestGetCurrentApiClient:
     @mock.patch("airflow.api.client.json_client.Client")
     @mock.patch("airflow.api.auth.backend.default.CLIENT_AUTH", "CLIENT_AUTH")
     @conf_vars(

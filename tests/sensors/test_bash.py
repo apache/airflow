@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import datetime
-import unittest
 
 import pytest
 
@@ -27,8 +26,8 @@ from airflow.models.dag import DAG
 from airflow.sensors.bash import BashSensor
 
 
-class TestBashSensor(unittest.TestCase):
-    def setUp(self):
+class TestBashSensor:
+    def setup_method(self):
         args = {'owner': 'airflow', 'start_date': datetime.datetime(2017, 1, 1)}
         dag = DAG('test_dag_id', default_args=args)
         self.dag = dag

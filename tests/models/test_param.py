@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from contextlib import nullcontext
 
 import pytest
@@ -29,7 +28,7 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 
 
-class TestParam(unittest.TestCase):
+class TestParam:
     def test_param_without_schema(self):
         p = Param('test')
         assert p.resolve() == 'test'
@@ -47,7 +46,6 @@ class TestParam(unittest.TestCase):
         assert p.resolve() is None
         assert p.resolve(None) is None
 
-        p = Param(type="null")
         p = Param(None, type='null')
         assert p.resolve() is None
         assert p.resolve(None) is None

@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 from airflow.api_connexion.schemas.plugin_schema import (
     PluginCollection,
     plugin_collection_schema,
@@ -26,8 +24,8 @@ from airflow.api_connexion.schemas.plugin_schema import (
 from airflow.plugins_manager import AirflowPlugin
 
 
-class TestPluginBase(unittest.TestCase):
-    def setUp(self) -> None:
+class TestPluginBase:
+    def setup_method(self) -> None:
         self.mock_plugin = AirflowPlugin()
         self.mock_plugin.name = "test_plugin"
 

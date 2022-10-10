@@ -17,11 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.api.common.trigger_dag import _trigger_dag
 from airflow.exceptions import AirflowException
@@ -30,11 +28,11 @@ from airflow.utils import timezone
 from tests.test_utils import db
 
 
-class TestTriggerDag(unittest.TestCase):
-    def setUp(self) -> None:
+class TestTriggerDag:
+    def setup_method(self) -> None:
         db.clear_db_runs()
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         db.clear_db_runs()
 
     @mock.patch('airflow.models.DagBag')
@@ -108,15 +106,16 @@ class TestTriggerDag(unittest.TestCase):
 
         assert len(triggers) == 1
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "conf, expected_conf",
         [
             (None, {}),
             ({"foo": "bar"}, {"foo": "bar"}),
             ('{"foo": "bar"}', {"foo": "bar"}),
-        ]
+        ],
     )
     @mock.patch('airflow.models.DagBag')
-    def test_trigger_dag_with_conf(self, conf, expected_conf, dag_bag_mock):
+    def test_trigger_dag_with_conf(self, dag_bag_mock, conf, expected_conf):
         dag_id = "trigger_dag_with_conf"
         dag = DAG(dag_id)
         dag_bag_mock.dags = [dag_id]

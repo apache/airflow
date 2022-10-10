@@ -17,12 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 from airflow.utils.operator_resources import Resources
 
 
-class TestResources(unittest.TestCase):
+class TestResources:
     def test_resource_eq(self):
         r = Resources(cpus=0.1, ram=2048)
         assert r not in [{}, [], None]

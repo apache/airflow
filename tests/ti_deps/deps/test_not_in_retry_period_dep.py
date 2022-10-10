@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from datetime import timedelta
 from unittest.mock import Mock
 
@@ -29,7 +28,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 
-class TestNotInRetryPeriodDep(unittest.TestCase):
+class TestNotInRetryPeriodDep:
     def _get_task_instance(self, state, end_date=None, retry_delay=timedelta(minutes=15)):
         task = Mock(retry_delay=retry_delay, retry_exponential_backoff=False)
         ti = TaskInstance(task=task, state=state, execution_date=None)

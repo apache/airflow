@@ -17,13 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from datetime import datetime
 
 from airflow.macros import hive
 
 
-class TestHive(unittest.TestCase):
+class TestHive:
     def test_closest_ds_partition(self):
         date1 = datetime.strptime('2017-04-24', '%Y-%m-%d')
         date2 = datetime.strptime('2017-04-25', '%Y-%m-%d')

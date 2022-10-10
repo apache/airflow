@@ -17,16 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from enum import Enum
 
 import pytest
-from parameterized import parameterized
 
 from airflow.utils.weekday import WeekDay
 
 
-class TestWeekDay(unittest.TestCase):
+class TestWeekDay:
     def test_weekday_enum_length(self):
         assert len(WeekDay) == 7
 
@@ -44,36 +42,44 @@ class TestWeekDay(unittest.TestCase):
             assert isinstance(weekday_enum, int)
             assert isinstance(weekday_enum, Enum)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "weekday, expected",
         [
-            ("with-string", "Monday", 1),
-            ("with-enum", WeekDay.MONDAY, 1),
-        ]
+            ("Monday", 1),
+            (WeekDay.MONDAY, 1),
+        ],
+        ids=["with-string", "with-enum"],
     )
-    def test_convert(self, _, weekday, expected):
+    def test_convert(self, weekday, expected):
         result = WeekDay.convert(weekday)
-        self.assertEqual(result, expected)
+        assert result == expected
 
     def test_convert_with_incorrect_input(self):
         invalid = "Sun"
-        with self.assertRaisesRegex(
-            AttributeError,
-            f'Invalid Week Day passed: "{invalid}"',
-        ):
+        error_message = fr'Invalid Week Day passed: "{invalid}"'
+        with pytest.raises(AttributeError, match=error_message):
             WeekDay.convert(invalid)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "weekday, expected",
         [
-            ("with-string", "Monday", {WeekDay.MONDAY}),
-            ("with-enum", WeekDay.MONDAY, {WeekDay.MONDAY}),
-            ("with-dict", {"Thursday": "1"}, {WeekDay.THURSDAY}),
-            ("with-list", ["Thursday"], {WeekDay.THURSDAY}),
-            ("with-mix", ["Thursday", WeekDay.MONDAY], {WeekDay.MONDAY, WeekDay.THURSDAY}),
-        ]
+            ("Monday", {WeekDay.MONDAY}),
+            (WeekDay.MONDAY, {WeekDay.MONDAY}),
+            ({"Thursday": "1"}, {WeekDay.THURSDAY}),
+            (["Thursday"], {WeekDay.THURSDAY}),
+            (["Thursday", WeekDay.MONDAY], {WeekDay.MONDAY, WeekDay.THURSDAY}),
+        ],
+        ids=[
+            "with-string",
+            "with-enum",
+            "with-dict",
+            "with-list",
+            "with-mix",
+        ],
     )
-    def test_validate_week_day(self, _, weekday, expected):
+    def test_validate_week_day(self, weekday, expected):
         result = WeekDay.validate_week_day(weekday)
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_validate_week_day_with_invalid_type(self):
         invalid_week_day = 5

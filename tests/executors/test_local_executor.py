@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import datetime
 import subprocess
-import unittest
 from unittest import mock
 
 from airflow import settings
@@ -28,7 +27,7 @@ from airflow.executors.local_executor import LocalExecutor
 from airflow.utils.state import State
 
 
-class TestLocalExecutor(unittest.TestCase):
+class TestLocalExecutor:
 
     TEST_SUCCESS_COMMANDS = 5
 
