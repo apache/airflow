@@ -330,25 +330,26 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         """
         Test disable logging in ``get_credentials_and_project_id``.
 
-        Due to selected limitation:
-        - Unable mixin pytest autouse-fixture `caplog` with `unittest.TestCase`
+        Due to following limitations, we use some workarounds for filtering specific logger
+        and raise error with these records:
+        - Cannot use pytest autouse-fixture `caplog` with `unittest.TestCase`
         - `unittest.TestCase.assertNoLogs` available only in Python 3.10+
-
-        We use some workarounds for filtering specific logger and raise error with these records.
         """
-        logger_name = "airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider"
 
-        def assert_no_logs(records, name):
-            records = [log_record for log_record in records if log_record.name == name]
+        def assert_no_logs(records):
+            logger_name = "airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider"
+            records = [log_record for log_record in records if log_record.name == logger_name]
             if not records:
                 return
-            raise AssertionError(f"Not expected get any log message from logger={name!r}, got: {records}")
+            raise AssertionError(
+                f"Did not expect any log message from logger={logger_name!r}, but got: {records}"
+            )
 
         # assert no logs
         with self.assertLogs(level="DEBUG") as logs:
             logging.debug('nothing')
             get_credentials_and_project_id(disable_logging=True)
-        assert_no_logs(logs.records, logger_name)
+        assert_no_logs(logs.records)
 
         # assert no debug logs emitted from get_credentials_and_project_id
         with self.assertLogs(level="DEBUG") as logs:
@@ -357,7 +358,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
                 keyfile_dict={'private_key': 'PRIVATE_KEY'},
                 disable_logging=True,
             )
-        assert_no_logs(logs.records, logger_name)
+        assert_no_logs(logs.records)
 
         # assert no debug logs emitted from get_credentials_and_project_id
         with self.assertLogs(level="DEBUG") as logs:
@@ -366,7 +367,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
                 key_path='KEY.json',
                 disable_logging=True,
             )
-        assert_no_logs(logs.records, logger_name)
+        assert_no_logs(logs.records)
 
 
 class TestGetScopes(unittest.TestCase):
