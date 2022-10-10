@@ -21,7 +21,6 @@ import contextlib
 import io
 import os
 import tempfile
-import unittest
 from datetime import datetime, timedelta
 from unittest import mock
 from unittest.mock import MagicMock
@@ -48,15 +47,15 @@ DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 # TODO: Check if tests needs side effects - locally there's missing DAG
 
 
-class TestCliDags(unittest.TestCase):
+class TestCliDags:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.dagbag = DagBag(include_examples=True)
         cls.dagbag.sync_to_db()
         cls.parser = cli_parser.get_parser()
 
     @classmethod
-    def tearDownClass(cls) -> None:
+    def teardown_class(cls) -> None:
         clear_db_runs()
         clear_db_dags()
 

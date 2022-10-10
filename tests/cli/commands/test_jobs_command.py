@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import contextlib
 import io
-import unittest
 
 import pytest
 
@@ -30,16 +29,16 @@ from airflow.utils.state import State
 from tests.test_utils.db import clear_db_jobs
 
 
-class TestCliConfigList(unittest.TestCase):
+class TestCliConfigList:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
-    def setUp(self) -> None:
+    def setup_method(self) -> None:
         clear_db_jobs()
         self.scheduler_job = None
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         if self.scheduler_job and self.scheduler_job.processor_agent:
             self.scheduler_job.processor_agent.end()
         clear_db_jobs()
@@ -54,7 +53,7 @@ class TestCliConfigList(unittest.TestCase):
 
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             jobs_command.check(self.parser.parse_args(['jobs', 'check', '--job-type', 'SchedulerJob']))
-        self.assertIn("Found one alive job.", temp_stdout.getvalue())
+        assert "Found one alive job." in temp_stdout.getvalue()
 
     def test_should_report_success_for_one_working_scheduler_with_hostname(self):
         with create_session() as session:
@@ -71,7 +70,7 @@ class TestCliConfigList(unittest.TestCase):
                     ['jobs', 'check', '--job-type', 'SchedulerJob', '--hostname', 'HOSTNAME']
                 )
             )
-        self.assertIn("Found one alive job.", temp_stdout.getvalue())
+        assert "Found one alive job." in temp_stdout.getvalue()
 
     def test_should_report_success_for_ha_schedulers(self):
         scheduler_jobs = []
@@ -90,7 +89,7 @@ class TestCliConfigList(unittest.TestCase):
                     ['jobs', 'check', '--job-type', 'SchedulerJob', '--limit', '100', '--allow-multiple']
                 )
             )
-        self.assertIn("Found 3 alive jobs.", temp_stdout.getvalue())
+        assert "Found 3 alive jobs." in temp_stdout.getvalue()
         for scheduler_job in scheduler_jobs:
             if scheduler_job.processor_agent:
                 scheduler_job.processor_agent.end()

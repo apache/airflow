@@ -146,7 +146,7 @@ Create a database instance
 To create a AWS DB instance you can use
 :class:`~airflow.providers.amazon.aws.operators.rds.RdsCreateDbInstanceOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/rds/example_rds_instance.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_instance.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_rds_create_db_instance]
@@ -160,7 +160,7 @@ Delete a database instance
 To delete a AWS DB instance you can use
 :class:`~airflow.providers.amazon.aws.operators.rds.RDSDeleteDbInstanceOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/rds/example_rds_instance.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_instance.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_rds_delete_db_instance]
@@ -178,7 +178,7 @@ To wait for an Amazon RDS instance or cluster to reach a specific status you can
 :class:`~airflow.providers.amazon.aws.sensors.rds.RdsDbSensor`.
 By default, the sensor waits for a database instance to reach the ``available`` state.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/rds/example_rds_instance.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_instance.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_rds_instance]

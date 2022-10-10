@@ -17,6 +17,9 @@
 # under the License.
 """
 Example DAG using LocalFilesystemToGoogleDriveOperator.
+
+Using this operator requires the following additional scopes:
+https://www.googleapis.com/auth/drive
 """
 from __future__ import annotations
 
@@ -26,16 +29,27 @@ from pathlib import Path
 from airflow import models
 from airflow.providers.google.suite.transfers.local_to_drive import LocalFilesystemToGoogleDriveOperator
 
-SINGLE_FILE_LOCAL_PATHS = [Path("test1")]
-MULTIPLE_FILES_LOCAL_PATHS = [Path("test1"), Path("test2")]
-DRIVE_FOLDER = Path("test-folder")
+DAG_ID = "example_local_to_drive"
+
+FILE_NAME_1 = "test1"
+FILE_NAME_2 = "test2"
+
+LOCAL_PATH = str(Path(__file__).parent / "resources")
+
+SINGLE_FILE_LOCAL_PATHS = [str(Path(LOCAL_PATH) / FILE_NAME_1)]
+MULTIPLE_FILES_LOCAL_PATHS = [str(Path(LOCAL_PATH) / FILE_NAME_1), str(Path(LOCAL_PATH) / FILE_NAME_2)]
+
+DRIVE_FOLDER = "test-folder"
+
 
 with models.DAG(
-    "example_local_to_drive",
+    DAG_ID,
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],
 ) as dag:
+
     # [START howto_operator_local_to_drive_upload_single_file]
     upload_single_file = LocalFilesystemToGoogleDriveOperator(
         task_id="upload_single_file",
@@ -53,4 +67,19 @@ with models.DAG(
     )
     # [END howto_operator_local_to_drive_upload_multiple_files]
 
-    upload_single_file >> upload_multiple_files
+    (
+        # TEST BODY
+        upload_single_file
+        >> upload_multiple_files
+    )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
