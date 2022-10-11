@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import socket
-import unittest
 from unittest import mock
 
 from kubernetes.client import Configuration
@@ -26,7 +25,7 @@ from urllib3.connection import HTTPConnection, HTTPSConnection
 from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive, get_kube_client
 
 
-class TestClient(unittest.TestCase):
+class TestClient:
     @mock.patch('airflow.kubernetes.kube_client.config')
     def test_load_cluster_config(self, config):
         get_kube_client(in_cluster=True)
@@ -50,7 +49,7 @@ class TestClient(unittest.TestCase):
             configuration = Configuration.get_default_copy()
         else:
             configuration = Configuration()
-        self.assertFalse(configuration.verify_ssl)
+        assert not configuration.verify_ssl
 
     def test_enable_tcp_keepalive(self):
         socket_options = [
@@ -69,7 +68,7 @@ class TestClient(unittest.TestCase):
 
     def test_disable_verify_ssl(self):
         configuration = Configuration()
-        self.assertTrue(configuration.verify_ssl)
+        assert configuration.verify_ssl
 
         _disable_verify_ssl()
 
@@ -78,4 +77,4 @@ class TestClient(unittest.TestCase):
             configuration = Configuration.get_default_copy()
         else:
             configuration = Configuration()
-        self.assertFalse(configuration.verify_ssl)
+        assert not configuration.verify_ssl

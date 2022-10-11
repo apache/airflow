@@ -55,7 +55,7 @@ except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
 
 
-class TestAirflowKubernetesScheduler(unittest.TestCase):
+class TestAirflowKubernetesScheduler:
     @staticmethod
     def _gen_random_string(seed, str_len):
         char_list = []
@@ -895,8 +895,8 @@ class TestKubernetesExecutor:
         assert mock_kube_client.list_namespaced_pod.call_count == 0
 
 
-class TestKubernetesJobWatcher(unittest.TestCase):
-    def setUp(self):
+class TestKubernetesJobWatcher:
+    def setup_method(self):
         self.watcher = KubernetesJobWatcher(
             namespace="airflow",
             multi_namespace_mode=False,
@@ -1009,12 +1009,12 @@ class TestKubernetesJobWatcher(unittest.TestCase):
         self.pod.status.phase = 'Pending'
         raw_object = {"code": 422, "message": message, "reason": "Test"}
         self.events.append({"type": "ERROR", "object": self.pod, "raw_object": raw_object})
-        with self.assertRaises(AirflowException) as e:
-            self._run()
-        assert str(e.exception) == (
-            f"Kubernetes failure for {raw_object['reason']} "
-            f"with code {raw_object['code']} and message: {raw_object['message']}"
+        error_message = (
+            fr"Kubernetes failure for {raw_object['reason']} "
+            fr"with code {raw_object['code']} and message: {raw_object['message']}"
         )
+        with pytest.raises(AirflowException, match=error_message):
+            self._run()
 
     def test_recover_from_resource_too_old(self):
         # too old resource

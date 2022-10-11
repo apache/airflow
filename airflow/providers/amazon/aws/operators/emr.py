@@ -279,7 +279,9 @@ class EmrContainerOperator(BaseOperator):
         )
         if self.wait_for_completion:
             query_status = self.hook.poll_query_status(
-                self.job_id, self.max_polling_attempts, self.poll_interval
+                self.job_id,
+                max_polling_attempts=self.max_polling_attempts,
+                poll_interval=self.poll_interval,
             )
 
             if query_status in EmrContainerHook.FAILURE_STATES:
@@ -641,7 +643,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 get_state_args={'applicationId': self.application_id},
                 parse_response=['application', 'state'],
                 desired_state={'STARTED'},
-                failure_states=EmrServerlessHook.JOB_FAILURE_STATES,
+                failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
                 object_type='application',
                 action='started',
             )
