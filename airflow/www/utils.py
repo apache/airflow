@@ -572,9 +572,36 @@ class UtcAwareFilterMixin:
 
     def apply(self, query, value):
         """Apply the filter."""
-        value = timezone.parse(value, timezone=timezone.utc)
+        if isinstance(value, str) and not value.strip():
+            value = None
+        else:
+            value = timezone.parse(value, timezone=timezone.utc)
 
         return super().apply(query, value)
+
+
+class FilterIsNull(BaseFilter):
+    """Is null filter."""
+
+    name = lazy_gettext("Is Null")
+    arg_name = "emp"
+
+    def apply(self, query, value):
+        query, field = get_field_setup_query(query, self.model, self.column_name)
+        value = set_value_to_type(self.datamodel, self.column_name, None)
+        return query.filter(field == value)
+
+
+class FilterIsNotNull(BaseFilter):
+    """Is not null filter."""
+
+    name = lazy_gettext("Is not Null")
+    arg_name = "nemp"
+
+    def apply(self, query, value):
+        query, field = get_field_setup_query(query, self.model, self.column_name)
+        value = set_value_to_type(self.datamodel, self.column_name, None)
+        return query.filter(field != value)
 
 
 class FilterGreaterOrEqual(BaseFilter):
@@ -659,6 +686,15 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
             [],
         ),
     ) + fab_sqlafilters.SQLAFilterConverter.conversion_table
+
+    def __init__(self, datamodel):
+        super().__init__(datamodel)
+
+        for (method, filters) in self.conversion_table:
+            if FilterIsNull not in filters:
+                filters.append(FilterIsNull)
+            if FilterIsNotNull not in filters:
+                filters.append(FilterIsNotNull)
 
 
 class CustomSQLAInterface(SQLAInterface):

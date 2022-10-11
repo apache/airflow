@@ -202,6 +202,35 @@ function initializeUITimezone() {
   });
 }
 
+function filterOpSelected(ele) {
+  const op = $(ele);
+  const filterVal = $('.filter_val.form-control', op.parents('tr'));
+
+  if (op.text() === 'Is Null' || op.text() === 'Is not Null') {
+    if (filterVal.attr('required') !== undefined) {
+      filterVal.removeAttr('required');
+      filterVal.attr('airflow-required', true);
+    }
+
+    if (filterVal.parent('.datetime').length === 1) {
+      filterVal.parent('.datetime').hide();
+    } else {
+      filterVal.hide();
+    }
+  } else {
+    if (filterVal.attr('airflow-required') === 'true') {
+      filterVal.attr('required', true);
+      filterVal.removeAttr('airflow-required');
+    }
+
+    if (filterVal.parent('.datetime').length === 1) {
+      filterVal.parent('.datetime').show();
+    } else {
+      filterVal.show();
+    }
+  }
+}
+
 $(document).ready(() => {
   initializeUITimezone();
 
@@ -226,10 +255,14 @@ $(document).ready(() => {
   $.fn.datetimepicker.defaults.sideBySide = true;
   $('.datetimepicker').datetimepicker();
 
+  $('.filters .select2-chosen').each((idx, elem) => { filterOpSelected(elem); });
+  $('.filters .select2-chosen').on('DOMNodeInserted', (e) => { filterOpSelected(e.target); });
+
   // Fix up filter fields from FAB adds to the page. This event is fired after
   // the FAB registered one which adds the new control
   $('#filter_form a.filter').click(() => {
     $('.datetimepicker').datetimepicker();
+    $('.filters .select2-chosen').on('DOMNodeInserted', (e) => { filterOpSelected(e.target); });
   });
 
   // Global Tooltip selector
