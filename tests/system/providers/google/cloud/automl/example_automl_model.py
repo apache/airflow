@@ -19,16 +19,15 @@
 """
 Example Airflow DAG for Google AutoML service testing model operations.
 """
+from __future__ import annotations
+
 import os
 from copy import deepcopy
 from datetime import datetime
-from pathlib import Path
-from typing import Dict, List
 
 from google.protobuf.struct_pb2 import Value
 
 from airflow import models
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
     AutoMLBatchPredictOperator,
@@ -44,8 +43,11 @@ from airflow.providers.google.cloud.operators.automl import (
     AutoMLTablesUpdateDatasetOperator,
     AutoMLTrainModelOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+    GCSSynchronizeBucketsOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -55,16 +57,14 @@ GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 GCP_AUTOML_LOCATION = "us-central1"
 
 DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-DATA_SAMPLE_GCS_OBJECT_NAME = "automl/bank-marketing/bank-marketing.csv"
-TAR_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "bank-marketing.csv.tar")
-TMP_CSV_FILE_LOCAL_PATH = "/tmp/bank-marketing.csv"
+RESOURCE_DATA_BUCKET = "system-tests-resources"
 
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
 DATASET = {
     "display_name": DATASET_NAME,
     "tables_dataset_metadata": {"target_column_spec_id": ""},
 }
-AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/{DATA_SAMPLE_GCS_OBJECT_NAME}"
+AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl/bank-marketing.csv"
 IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [AUTOML_DATASET_BUCKET]}}
 IMPORT_OUTPUT_CONFIG = {
     "gcs_destination": {"output_uri_prefix": F"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl"}
@@ -98,7 +98,7 @@ PREDICT_VALUES = [
 extract_object_id = CloudAutoMLHook.extract_object_id
 
 
-def get_target_column_spec(columns_specs: List[Dict], column_name: str) -> str:
+def get_target_column_spec(columns_specs: list[dict], column_name: str) -> str:
     """
     Using column name returns spec of the column.
     """
@@ -109,8 +109,8 @@ def get_target_column_spec(columns_specs: List[Dict], column_name: str) -> str:
 
 
 with models.DAG(
-    DAG_ID,
-    schedule_interval='@once',
+    dag_id=DAG_ID,
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     catchup=False,
     user_defined_macros={
@@ -127,15 +127,13 @@ with models.DAG(
         location=GCP_AUTOML_LOCATION,
     )
 
-    unzip_file = BashOperator(
-        task_id="unzip_csv_data_file", bash_command=f"tar xvf {TAR_CSV_FILE_LOCAL_PATH} -C /tmp/"
-    )
-
-    upload_file = LocalFilesystemToGCSOperator(
-        task_id="upload_file_to_bucket",
-        src=TMP_CSV_FILE_LOCAL_PATH,
-        dst=DATA_SAMPLE_GCS_OBJECT_NAME,
-        bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
+    move_dataset_file = GCSSynchronizeBucketsOperator(
+        task_id="move_data_to_bucket",
+        source_bucket=RESOURCE_DATA_BUCKET,
+        source_object='automl',
+        destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
+        destination_object='automl',
+        recursive=True,
     )
 
     create_dataset = AutoMLCreateDatasetOperator(
@@ -144,15 +142,15 @@ with models.DAG(
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
     )
-    dataset_id = create_dataset.output['dataset_id']
 
+    dataset_id = create_dataset.output['dataset_id']
+    MODEL["dataset_id"] = dataset_id
     import_dataset = AutoMLImportDataOperator(
         task_id="import_dataset",
         dataset_id=dataset_id,
         location=GCP_AUTOML_LOCATION,
         input_config=IMPORT_INPUT_CONFIG,
     )
-    MODEL["dataset_id"] = dataset_id
 
     list_tables_spec = AutoMLTablesListTableSpecsOperator(
         task_id="list_tables_spec",
@@ -160,6 +158,7 @@ with models.DAG(
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
     )
+
     list_columns_spec = AutoMLTablesListColumnSpecsOperator(
         task_id="list_columns_spec",
         dataset_id=dataset_id,
@@ -256,8 +255,7 @@ with models.DAG(
 
     (
         # TEST SETUP
-        [create_bucket, create_dataset, unzip_file]
-        >> upload_file
+        [create_bucket >> move_dataset_file, create_dataset]
         >> import_dataset
         >> list_tables_spec
         >> list_columns_spec

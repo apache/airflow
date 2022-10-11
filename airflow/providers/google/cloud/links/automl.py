@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google AutoML links."""
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
@@ -50,7 +52,7 @@ class AutoMLDatasetLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
         dataset_id: str,
         project_id: str,
@@ -71,7 +73,7 @@ class AutoMLDatasetListLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
         project_id: str,
     ):
@@ -93,7 +95,7 @@ class AutoMLModelLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
         dataset_id: str,
         model_id: str,
@@ -120,7 +122,7 @@ class AutoMLModelTrainLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
         project_id: str,
     ):
@@ -144,7 +146,7 @@ class AutoMLModelPredictLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
         model_id: str,
         project_id: str,
