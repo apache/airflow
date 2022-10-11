@@ -108,9 +108,9 @@ def get_kube_client(
         config.load_incluster_config()
     else:
         if cluster_context is None:
-            cluster_context = conf.get('kubernetes', 'cluster_context', fallback=None)
+            cluster_context = conf.get('kubernetes_executor', 'cluster_context', fallback=None)
         if config_file is None:
-            config_file = conf.get('kubernetes', 'config_file', fallback=None)
+            config_file = conf.get('kubernetes_executor', 'config_file', fallback=None)
         config.load_kube_config(config_file=config_file, context=cluster_context)
 
     if not conf.getboolean('kubernetes', 'verify_ssl'):

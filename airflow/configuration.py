@@ -228,7 +228,7 @@ class AirflowConfigParser(ConfigParser):
         ('database', 'load_default_connections'): ('core', 'load_default_connections', '2.3.0'),
         ('database', 'max_db_retries'): ('core', 'max_db_retries', '2.3.0'),
         **{
-            ('kubernetes', x): ('kubernetes_executor', x, '2.4.2')
+            ('kubernetes_executor', x): ('kubernetes', x, '2.4.2')
             for x in (
                 'pod_template_file',
                 'worker_container_repository',
