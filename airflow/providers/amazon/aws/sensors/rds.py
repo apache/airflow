@@ -174,6 +174,12 @@ class RdsDbSensor(RdsBaseSensor):
     :param target_statuses: Target status of DB
     """
 
+    template_fields: Sequence[str] = (
+        'db_identifier',
+        'db_type',
+        'target_statuses',
+    )
+
     def __init__(
         self,
         *,

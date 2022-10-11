@@ -220,7 +220,7 @@ with DAG(
     )
 
     delete_sg = delete_security_group(
-        sec_group_id=set_up_sg['security_group_id'],
+        sec_group_id=set_up_sg,
         sec_group_name=sg_name,
     )
 
