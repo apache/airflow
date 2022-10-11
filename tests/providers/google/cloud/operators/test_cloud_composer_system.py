@@ -30,7 +30,7 @@ class CloudComposerSystemTest(GoogleSystemTest):
     """
     System tests for Google Cloud Composer operators
 
-    It use a real service.
+    It uses a real service.
     """
 
     @provide_gcp_context(GCP_CLOUD_COMPOSER)
