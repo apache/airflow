@@ -71,7 +71,7 @@ from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import Date, and_, desc, func, inspect, union_all
+from sqlalchemy import Date, and_, case, desc, func, inspect, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from wtforms import SelectField, validators
@@ -3581,9 +3581,7 @@ class Airflow(AirflowBaseView):
                     DatasetModel.id,
                     DatasetModel.uri,
                     func.max(DatasetEvent.timestamp).label("last_dataset_update"),
-                    func.count(func.sum(func.case((DatasetEvent.id.is_not(None), 1), else_=0))).label(
-                        "total_updates"
-                    ),
+                    func.sum(case((DatasetEvent.id.is_not(None), 1), else_=0)).label("total_updates"),
                 )
                 .join(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id, isouter=not has_event_filters)
                 .group_by(
