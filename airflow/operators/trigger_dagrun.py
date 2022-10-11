@@ -120,7 +120,7 @@ class TriggerDagRunOperator(BaseOperator):
 
         if logical_date is not None and not isinstance(logical_date, (str, datetime.datetime)):
             raise TypeError(
-                f"Expected str or datetime.datetime type for logical_date.Got {type(logical_date)}"
+                f"Expected str or datetime.datetime type for logical_date. Got {type(logical_date)}"
             )
 
         self.logical_date = logical_date
