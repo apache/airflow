@@ -237,8 +237,15 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     }
 
 
-def _safe_parse_datetime(v):
-    """Parse datetime and return error message for invalid dates"""
+def _safe_parse_datetime(v: str, allow_empty=False):
+    """
+    Parse datetime and return error message for invalid dates
+
+    :param v: the string value to be parsed
+    :param allow_empty: Set True to return none if empty str or None
+    """
+    if allow_empty is True and not v:
+        return None
     try:
         return timezone.parse(v)
     except (TypeError, ParserError):
@@ -3527,8 +3534,8 @@ class Airflow(AirflowBaseView):
         order_by = request.args.get("order_by", "uri")
         uri_pattern = request.args.get("uri_pattern", "")
         lstripped_orderby = order_by.lstrip('-')
-        untrusted_updated_after = request.args.get("updated_after")
-        untrusted_updated_before = request.args.get("updated_before")
+        updated_after = _safe_parse_datetime(request.args.get("updated_after"), allow_empty=True)
+        updated_before = _safe_parse_datetime(request.args.get("updated_before"), allow_empty=True)
 
         # Check and clean up query parameters
         limit = 50 if limit > 50 else limit
@@ -3542,13 +3549,6 @@ class Airflow(AirflowBaseView):
                     "exist on the model"
                 )
             }, 400
-
-        updated_after = None
-        if untrusted_updated_after:
-            updated_after = _safe_parse_datetime(untrusted_updated_after)
-        updated_before = None
-        if untrusted_updated_before:
-            updated_before = _safe_parse_datetime(untrusted_updated_before)
 
         with create_session() as session:
             if lstripped_orderby == "uri":
