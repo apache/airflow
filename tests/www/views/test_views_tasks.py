@@ -24,6 +24,7 @@ import unittest.mock
 import urllib.parse
 from datetime import timedelta
 
+import freezegun
 import pytest
 
 from airflow import settings
@@ -60,30 +61,31 @@ def reset_dagruns():
 
 @pytest.fixture(autouse=True)
 def init_dagruns(app, reset_dagruns):
-    app.dag_bag.get_dag("example_bash_operator").create_dagrun(
-        run_id=DEFAULT_DAGRUN,
-        run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
-        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-        start_date=timezone.utcnow(),
-        state=State.RUNNING,
-    )
-    app.dag_bag.get_dag("example_subdag_operator").create_dagrun(
-        run_id=DEFAULT_DAGRUN,
-        run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
-        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-        start_date=timezone.utcnow(),
-        state=State.RUNNING,
-    )
-    app.dag_bag.get_dag("example_xcom").create_dagrun(
-        run_id=DEFAULT_DAGRUN,
-        run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
-        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-        start_date=timezone.utcnow(),
-        state=State.RUNNING,
-    )
+    with freezegun.freeze_time(DEFAULT_DATE):
+        app.dag_bag.get_dag("example_bash_operator").create_dagrun(
+            run_id=DEFAULT_DAGRUN,
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+        )
+        app.dag_bag.get_dag("example_subdag_operator").create_dagrun(
+            run_id=DEFAULT_DAGRUN,
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+        )
+        app.dag_bag.get_dag("example_xcom").create_dagrun(
+            run_id=DEFAULT_DAGRUN,
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+        )
     yield
     clear_db_runs()
 
@@ -995,17 +997,14 @@ def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client)
         assert resp.status_code == 200
 
 
-def test_task_instances(app, dag_maker, admin_client):
+def test_task_instances(admin_client):
     """Test task_instances view."""
     resp = admin_client.get(
         f'/object/task_instances?dag_id=example_bash_operator&execution_date={DEFAULT_DATE}',
         follow_redirects=True,
     )
     assert resp.status_code == 200
-    payload = resp.json
-    for v in payload.values():
-        assert v.pop('updated_at')
-    assert payload == {
+    assert resp.json == {
         'also_run_this': {
             'dag_id': 'example_bash_operator',
             'duration': None,
@@ -1034,6 +1033,7 @@ def test_task_instances(app, dag_maker, admin_client):
             'trigger_timeout': None,
             'try_number': 1,
             'unixname': 'root',
+            'updated_at': DEFAULT_DATE.isoformat(),
         },
         'run_after_loop': {
             'dag_id': 'example_bash_operator',
@@ -1063,6 +1063,7 @@ def test_task_instances(app, dag_maker, admin_client):
             'trigger_timeout': None,
             'try_number': 1,
             'unixname': 'root',
+            'updated_at': DEFAULT_DATE.isoformat(),
         },
         'run_this_last': {
             'dag_id': 'example_bash_operator',
@@ -1092,6 +1093,7 @@ def test_task_instances(app, dag_maker, admin_client):
             'trigger_timeout': None,
             'try_number': 1,
             'unixname': 'root',
+            'updated_at': DEFAULT_DATE.isoformat(),
         },
         'runme_0': {
             'dag_id': 'example_bash_operator',
@@ -1121,6 +1123,7 @@ def test_task_instances(app, dag_maker, admin_client):
             'trigger_timeout': None,
             'try_number': 1,
             'unixname': 'root',
+            'updated_at': DEFAULT_DATE.isoformat(),
         },
         'runme_1': {
             'dag_id': 'example_bash_operator',
@@ -1150,6 +1153,7 @@ def test_task_instances(app, dag_maker, admin_client):
             'trigger_timeout': None,
             'try_number': 1,
             'unixname': 'root',
+            'updated_at': DEFAULT_DATE.isoformat(),
         },
         'runme_2': {
             'dag_id': 'example_bash_operator',
@@ -1179,6 +1183,7 @@ def test_task_instances(app, dag_maker, admin_client):
             'trigger_timeout': None,
             'try_number': 1,
             'unixname': 'root',
+            'updated_at': DEFAULT_DATE.isoformat(),
         },
         'this_will_skip': {
             'dag_id': 'example_bash_operator',
@@ -1208,5 +1213,6 @@ def test_task_instances(app, dag_maker, admin_client):
             'trigger_timeout': None,
             'try_number': 1,
             'unixname': 'root',
+            'updated_at': DEFAULT_DATE.isoformat(),
         },
     }
