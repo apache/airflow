@@ -20,8 +20,6 @@ import json
 import sys
 from typing import Dict, List, Optional, Union
 
-from typing import TYPE_CHECKING, Sequence
-
 import yaml
 from kubernetes import client
 from kubernetes.client import models as k8s
@@ -38,17 +36,9 @@ from airflow.kubernetes import kube_client, pod_generator
 from airflow.kubernetes.custom_object_launcher import CustomObjectLauncher, SparkResources
 from airflow.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
 from airflow.models import BaseOperator
-from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
-    convert_affinity,
-    convert_configmap,
-    convert_configmap_to_volume,
-    convert_env_vars,
-    convert_image_pull_secrets,
-    convert_secret,
-    convert_toleration,
-    convert_volume,
-    convert_volume_mount,
-)
+from airflow.providers.cncf.kubernetes.resource_convert.secret import convert_secret, convert_image_pull_secrets
+from airflow.providers.cncf.kubernetes.resource_convert.configmap import convert_configmap, convert_configmap_to_volume
+from airflow.providers.cncf.kubernetes.resource_convert.env_variable import convert_env_vars
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager, PodPhase
 
 
@@ -176,12 +166,10 @@ class SparkKubernetesOperator(BaseOperator):
         self.labels = labels or {}
         self.env_from = env_from or []
         self.env_vars = convert_env_vars(env_vars) if env_vars else []
-        self.affinity = convert_affinity(affinity) if affinity else k8s.V1Affinity()
-        self.tolerations = (
-            [convert_toleration(toleration) for toleration in tolerations] if tolerations else []
-        )
-        self.volume_mounts = [convert_volume_mount(v) for v in volume_mounts] if volume_mounts else []
-        self.volumes = [convert_volume(volume) for volume in volumes] if volumes else []
+        self.affinity = affinity or k8s.V1Affinity()
+        self.tolerations = tolerations or []
+        self.volume_mounts = volume_mounts or []
+        self.volumes = volumes or []
         self.startup_timeout_seconds = startup_timeout_seconds
         self.reattach_on_restart = reattach_on_restart
         self.delete_on_termination = delete_on_termination
@@ -214,7 +202,7 @@ class SparkKubernetesOperator(BaseOperator):
             self.volumes.extend(vols)
             self.volume_mounts.extend(vols_mounts)
         if from_env_config_map:
-            self.env_from.extend([convert_configmap(c) for c in from_env_config_map])
+            self.env_from.extend([convert_configmap(c_name) for c_name in from_env_config_map])
         if from_env_secret:
             self.env_from.extend([convert_secret(c) for c in from_env_secret])
         self.log_events_on_failure = log_events_on_failure

@@ -196,14 +196,11 @@ class CustomObjectLauncher(LoggingMixin):
 
     @staticmethod
     def _load_body(file):
-        # try:
-        #     base_body = yaml.safe_load(file)
-        # except Exception:
         try:
             with open(file) as data:
                 base_body = yaml.safe_load(data)
         except yaml.YAMLError as e:
-            raise AirflowException(f"Exception when loading resource definition: {e}\n")
+            raise AirflowException(f"Loading the yaml file is failed.\n")
         return base_body
 
     def set_body(self, **kwargs):

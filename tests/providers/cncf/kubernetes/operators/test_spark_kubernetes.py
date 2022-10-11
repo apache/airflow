@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import json
 import unittest
 from unittest import mock
@@ -493,7 +494,7 @@ class TestSparkKubernetesOperator:
             service_account_name='mock_sa',
             code_path='/code/path',
             image='mock_image_tag',
-            volumes=volumes,
+            volumes=copy.deepcopy(volumes),
             volume_mounts=volume_mount,
             config_map_mounts={'test-configmap-mount': '/configmap-path'},
             dag=self.dag,
