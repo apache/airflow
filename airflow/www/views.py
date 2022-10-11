@@ -3581,7 +3581,7 @@ class Airflow(AirflowBaseView):
                     DatasetModel.id,
                     DatasetModel.uri,
                     func.max(DatasetEvent.timestamp).label("last_dataset_update"),
-                    func.count(func.sum(func.case(DatasetEvent.id.is_not(None), 1, else_=0))).label(
+                    func.count(func.sum(func.case((DatasetEvent.id.is_not(None), 1), else_=0))).label(
                         "total_updates"
                     ),
                 )
