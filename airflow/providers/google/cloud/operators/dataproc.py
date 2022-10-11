@@ -1679,12 +1679,13 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        operation.result()
+        # Save data required by extra links no matter what the job status will be
         workflow_id = operation.operation.name.split('/')[-1]
         DataprocLink.persist(
             context=context, task_instance=self, url=DATAPROC_WORKFLOW_LINK, resource=workflow_id
         )
-        self.log.info('Template instantiated.')
+        operation.result()
+        self.log.info('Template instantiated. Workflow Id : %s', workflow_id)
 
 
 class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
@@ -1770,12 +1771,13 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        operation.result()
+        # Save data required by extra links no matter what the job status will be
         workflow_id = operation.operation.name.split('/')[-1]
         DataprocLink.persist(
             context=context, task_instance=self, url=DATAPROC_WORKFLOW_LINK, resource=workflow_id
         )
-        self.log.info('Template instantiated.')
+        operation.result()
+        self.log.info('Template instantiated. Workflow Id : %s', workflow_id)
 
 
 class DataprocSubmitJobOperator(BaseOperator):
