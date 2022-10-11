@@ -71,7 +71,7 @@ from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import Date, and_, desc, distinct, func, inspect, union_all
+from sqlalchemy import Date, and_, desc, func, inspect, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from wtforms import SelectField, validators
@@ -3574,14 +3574,18 @@ class Airflow(AirflowBaseView):
 
             count_query = session.query(func.count(DatasetModel.id))
 
+            has_event_filters = bool(updated_before or updated_after)
+
             query = (
                 session.query(
                     DatasetModel.id,
                     DatasetModel.uri,
                     func.max(DatasetEvent.timestamp).label("last_dataset_update"),
-                    func.count(distinct(DatasetEvent.id)).label("total_updates"),
+                    func.count(func.sum(func.case(DatasetEvent.id.is_not(None), 1, else_=0))).label(
+                        "total_updates"
+                    ),
                 )
-                .outerjoin(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
+                .join(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id, isouter=not has_event_filters)
                 .group_by(
                     DatasetModel.id,
                     DatasetModel.uri,
@@ -3589,8 +3593,9 @@ class Airflow(AirflowBaseView):
                 .order_by(*order_by)
             )
 
-            if updated_before or updated_after:
-                count_query = count_query.outerjoin(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
+            if has_event_filters:
+                count_query = count_query.join(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
+
             filters = []
             if uri_pattern:
                 filters.append(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
