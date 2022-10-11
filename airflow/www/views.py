@@ -3591,12 +3591,17 @@ class Airflow(AirflowBaseView):
 
             if updated_before or updated_after:
                 count_query = count_query.outerjoin(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
+            filters = []
             if uri_pattern:
-                query = query.filter(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
+                filters.append(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
             if updated_after:
-                query = query.filter(DatasetEvent.timestamp >= updated_after)
+                filters.append(DatasetEvent.timestamp >= updated_after)
             if updated_before:
-                query = query.filter(DatasetEvent.timestamp <= updated_before)
+                filters.append(DatasetEvent.timestamp <= updated_before)
+
+            for filter in filters:
+                query = query.filter(filter)
+                count_query = count_query.filter(filter)
 
             query = query.offset(offset).limit(limit)
 
