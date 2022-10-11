@@ -907,8 +907,8 @@ class S3Hook(AwsBaseHook):
         :rtype: str
         """
         self.log.info(
-            "This function shadows the 'download_file' of AWS API, but it is not the same. If you "
-            "want to use the original method from AWS API, please call "
+            "This function shadows the 'download_file' of S3 API, but it is not the same. If you "
+            "want to use the original method from S3 API, please call "
             "'S3Hook.get_conn().download_file'"
         )
 
