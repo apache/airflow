@@ -191,6 +191,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
                     "tolerance": 0.2,
                 },
                 "max": {"less_than": 1000, "geq_to": 10, "tolerance": 0.01},
+                "partition_clause": "foreign_key IS NOT NULL",
             }
         }
 
@@ -287,12 +288,12 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
     def _generate_sql_query(self, column, checks):
         def _generate_partition_clause(check):
-            if self.partition_clause and "where" not in checks[check]:
+            if self.partition_clause and "partition_clause" not in checks[check]:
                 return "WHERE " + self.partition_clause
-            elif not self.partition_clause and "where" in checks[check]:
-                return "WHERE " + checks[check]["where"]
-            elif self.partition_clause and "where" in checks[check]:
-                return "WHERE " + self.partition_clause + " AND " + checks[check]["where"]
+            elif not self.partition_clause and "partition_clause" in checks[check]:
+                return "WHERE " + checks[check]["partition_clause"]
+            elif self.partition_clause and "partition_clause" in checks[check]:
+                return "WHERE " + self.partition_clause + " AND " + checks[check]["partition_clause"]
             else:
                 return ""
 
@@ -409,13 +410,14 @@ class SQLTableCheckOperator(BaseSQLOperator):
     Checks should be written to return a boolean result.
 
     :param table: the table to run checks on
-    :param checks: the dictionary of checks, e.g.:
+    :param checks: the dictionary of checks, where check names are followed by a dictionary containing at
+        least a check statement, and optionally a partition clause, e.g.:
 
     .. code-block:: python
 
         {
             "row_count_check": {"check_statement": "COUNT(*) = 1000"},
-            "column_sum_check": {"check_statement": "col_a + col_b < col_c"},
+            "column_sum_check": {"check_statement": "col_a + col_b < col_c", "partition_clause": "col_a IS NOT NULL"},
         }
 
 
@@ -489,16 +491,18 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
     def _generate_sql_query(self):
         def _generate_partition_clause(check_name):
-            if self.partition_clause and "where" not in self.checks[check_name]:
+            if self.partition_clause and "partition_clause" not in self.checks[check_name]:
                 return "WHERE " + self.partition_clause
-            elif not self.partition_clause and "where" in self.checks[check_name]:
-                return "WHERE " + self.checks[check_name]["where"]
-            elif self.partition_clause and "where" in self.checks[check_name]:
-                return "WHERE " + self.partition_clause + " AND " + self.checks[check_name]["where"]
+            elif not self.partition_clause and "partition_clause" in self.checks[check_name]:
+                return "WHERE " + self.checks[check_name]["partition_clause"]
+            elif self.partition_clause and "partition_clause" in self.checks[check_name]:
+                return (
+                    "WHERE " + self.partition_clause + " AND " + self.checks[check_name]["partition_clause"]
+                )
             else:
                 return ""
 
-        checks_sql = "UNION ALL".join(
+        return "UNION ALL".join(
             [
                 self.sql_check_template.format(
                     check_statement=value["check_statement"],
@@ -509,7 +513,6 @@ class SQLTableCheckOperator(BaseSQLOperator):
                 for check_name, value in self.checks.items()
             ]
         )
-        return checks_sql
 
 
 class SQLCheckOperator(BaseSQLOperator):

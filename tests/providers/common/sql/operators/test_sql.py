@@ -207,7 +207,7 @@ class TestColumnCheckOperator:
         )
 
     def test_generate_sql_query_with_partitions_and_check_partition(self, monkeypatch):
-        self.short_valid_column_mapping["X"]["null_check"]["where"] = "Z < 100"
+        self.short_valid_column_mapping["X"]["null_check"]["partition_clause"] = "Z < 100"
         checks = self.short_valid_column_mapping["X"]
         operator = self._construct_operator(monkeypatch, self.short_valid_column_mapping, ())
         operator.partition_clause = "Y > 1"
@@ -215,17 +215,17 @@ class TestColumnCheckOperator:
             operator._generate_sql_query("X", checks).lstrip()
             == self.correct_generate_sql_query_with_partition_and_where.lstrip()
         )
-        del self.short_valid_column_mapping["X"]["null_check"]["where"]
+        del self.short_valid_column_mapping["X"]["null_check"]["partition_clause"]
 
     def test_generate_sql_query_with_check_partition(self, monkeypatch):
-        self.short_valid_column_mapping["X"]["distinct_check"]["where"] = "Z < 100"
+        self.short_valid_column_mapping["X"]["distinct_check"]["partition_clause"] = "Z < 100"
         checks = self.short_valid_column_mapping["X"]
         operator = self._construct_operator(monkeypatch, self.short_valid_column_mapping, ())
         assert (
             operator._generate_sql_query("X", checks).lstrip()
             == self.correct_generate_sql_query_with_where.lstrip()
         )
-        del self.short_valid_column_mapping["X"]["distinct_check"]["where"]
+        del self.short_valid_column_mapping["X"]["distinct_check"]["partition_clause"]
 
 
 class TestTableCheckOperator:
@@ -349,20 +349,20 @@ class TestTableCheckOperator:
         )
 
     def test_generate_sql_query_with_partitions_and_check_partition(self, monkeypatch):
-        self.checks["row_count_check"]["where"] = "id = 100"
+        self.checks["row_count_check"]["partition_clause"] = "id = 100"
         operator = self._construct_operator(monkeypatch, self.checks, ())
         operator.partition_clause = "col_a > 10"
         assert (
             operator._generate_sql_query().lstrip()
             == self.correct_generate_sql_query_with_partition_and_where.lstrip()
         )
-        del self.checks["row_count_check"]["where"]
+        del self.checks["row_count_check"]["partition_clause"]
 
     def test_generate_sql_query_with_check_partition(self, monkeypatch):
-        self.checks["column_sum_check"]["where"] = "id = 100"
+        self.checks["column_sum_check"]["partition_clause"] = "id = 100"
         operator = self._construct_operator(monkeypatch, self.checks, ())
         assert operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_with_where.lstrip()
-        del self.checks["column_sum_check"]["where"]
+        del self.checks["column_sum_check"]["partition_clause"]
 
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
