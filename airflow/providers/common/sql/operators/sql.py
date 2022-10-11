@@ -486,7 +486,8 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
         {
             "row_count_check": {"check_statement": "COUNT(*) = 1000"},
-            "column_sum_check": {"check_statement": "col_a + col_b < col_c", "partition_clause": "col_a IS NOT NULL"},
+            "column_sum_check": {"check_statement": "col_a + col_b < col_c"},
+            "third_check": {"check_statement": "MIN(col) = 1", "partition_clause": "col IS NOT NULL"},
         }
 
 
