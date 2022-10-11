@@ -91,6 +91,16 @@ class PostgresHook(DbApiHook):
         )
         return self.database
 
+    @schema.setter
+    def schema(self, value):
+        warnings.warn(
+            'The "schema" variable has been renamed to "database" as it contained the database name.'
+            'Please use "database" to set the database name.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.database = value
+
     def _get_cursor(self, raw_cursor: str) -> CursorType:
         _cursor = raw_cursor.lower()
         if _cursor == "dictcursor":
