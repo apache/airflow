@@ -279,12 +279,9 @@ class PrStat:
         # If the body contains over 2000 characters, the PR should matter 40% more.
         # If the body contains fewer than 1000 characters, the PR should matter 20% less.
         #
-        # For each #protm tag found in PR comment, the score will be multipled by 2.
-        #
-        if self.protm_score > 0:
-            interaction_score = self.interaction_score * (2 * self.protm_score)
-        else:
-            interaction_score = self.interaction_score
+        # Weight PRs with #protm tags more heavily:
+        # If there is at least one #protm tag, multiply the interaction score by the number of tags, up to 3.
+        interaction_score *= min(self.protm_score + 1, 3)
         return round(
             1.0
             * interaction_score
@@ -302,7 +299,7 @@ class PrStat:
                 f"Score: {self.score:.2f}: PR{self.pull_request.number} by @{self.pull_request.user.login}: "
                 f"\"{self.pull_request.title}\". "
                 f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
-            ) 
+            )
         else:
             return (
                 f"Score: {self.score:.2f}: PR{self.pull_request.number} by @{self.pull_request.user.login}: "
@@ -430,4 +427,3 @@ def main(
 
 if __name__ == "__main__":
     main()
-

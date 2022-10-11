@@ -65,7 +65,6 @@ services:
       - NUM_RUNS=${NUM_RUNS}
       - PACKAGE_FORMAT=${PACKAGE_FORMAT}
       - POSTGRES_VERSION=${POSTGRES_VERSION}
-      - PRINT_INFO_FROM_SCRIPTS=${PRINT_INFO_FROM_SCRIPTS}
       - PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE}
       - PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
       - RUN_TESTS=${RUN_TESTS}
@@ -86,9 +85,5 @@ services:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.
       - /var/run/docker.sock:/var/run/docker.sock
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
-    ports:
-      - "${SSH_PORT}:22"
-      - "${WEBSERVER_HOST_PORT}:8080"
-      - "${FLOWER_HOST_PORT}:5555"
     cap_add:
       - SYS_PTRACE
