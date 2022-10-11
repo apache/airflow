@@ -25,6 +25,8 @@ import { debounce } from 'lodash';
 
 import { useDatasetDependencies } from 'src/api';
 
+import type { ElkExtendedEdge } from 'elkjs';
+
 import Node from './Node';
 import Edge from './Edge';
 import Legend from './Legend';
@@ -33,6 +35,27 @@ interface Props {
   onSelect: (datasetId: string) => void;
   selectedUri: string | null;
 }
+
+interface Connection {
+  nodeId: string;
+  edgeId: string;
+}
+
+const getConnectedNodes = (edges: ElkExtendedEdge[], node: string, direction: 'upstream' | 'downstream') => {
+  const nodes: Connection[] = [];
+  edges.forEach((e) => {
+    if (direction === 'downstream' && e.sources[0] === node) {
+      nodes.push({ nodeId: e.targets[0], edgeId: e.id });
+      const distantNodes = getConnectedNodes(edges, e.targets[0], direction);
+      nodes.push(...distantNodes);
+    } else if (direction === 'upstream' && e.targets[0] === node) {
+      nodes.push({ nodeId: e.sources[0], edgeId: e.id });
+      const distantNodes = getConnectedNodes(edges, e.sources[0], direction);
+      nodes.push(...distantNodes);
+    }
+  });
+  return nodes;
+};
 
 const Graph = ({ onSelect, selectedUri }: Props) => {
   const { data, isLoading } = useDatasetDependencies();
@@ -66,14 +89,12 @@ const Graph = ({ onSelect, selectedUri }: Props) => {
     skewY: 0,
   };
 
-  const selectedEdges = selectedUri
-    ? data.edges?.filter(({ sources, targets }) => (
-      sources[0].includes(selectedUri) || targets[0].includes(selectedUri)))
-    : [];
-  const highlightedNodes = data?.children
-    .filter((n) => (
-      selectedEdges.some(({ sources, targets }) => (
-        sources[0] === n.id || targets[0] === n.id))));
+  let connectedNodes: Connection[] = [];
+  if (selectedUri) {
+    const upstream = getConnectedNodes(data.edges, `dataset:${selectedUri}`, 'upstream');
+    const downstream = getConnectedNodes(data.edges, `dataset:${selectedUri}`, 'downstream');
+    connectedNodes = [...upstream, ...downstream];
+  }
 
   const width = dimensions.width - 600 || 200;
   const height = dimensions.height - 125 || 200;
@@ -104,7 +125,7 @@ const Graph = ({ onSelect, selectedUri }: Props) => {
                     <Edge
                       key={edge.id}
                       edge={edge}
-                      isSelected={selectedEdges.some((e) => e.id === edge.id)}
+                      isSelected={connectedNodes.some((e) => e.edgeId === edge.id)}
                     />
                   ))}
                   {data.children.map((node) => (
@@ -113,7 +134,7 @@ const Graph = ({ onSelect, selectedUri }: Props) => {
                       node={node}
                       onSelect={onSelect}
                       isSelected={node.id === `dataset:${selectedUri}`}
-                      isHighlighted={highlightedNodes.some((n) => n.id === node.id)}
+                      isHighlighted={connectedNodes.some((n) => n.nodeId === node.id)}
                     />
                   ))}
                 </g>

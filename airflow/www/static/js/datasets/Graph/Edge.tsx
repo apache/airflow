@@ -38,7 +38,8 @@ const Edge = ({ edge, isSelected }: Props) => {
   const { colors } = useTheme();
   return (
     <>
-      <MarkerArrow id="marker-arrow" fill={isSelected ? colors.blue[400] : colors.gray[400]} refX={6} size={6} />
+      <MarkerArrow id="marker-arrow" fill={colors.gray[400]} refX={6} size={6} />
+      <MarkerArrow id="selected-marker-arrow" fill={colors.blue[400]} refX={6} size={6} />
       {edge.sections.map((s) => (
         <LinePath
           key={s.id}
@@ -47,7 +48,7 @@ const Edge = ({ edge, isSelected }: Props) => {
           x={(d) => d.x || 0}
           y={(d) => d.y || 0}
           data={[s.startPoint, ...(s.bendPoints || []), s.endPoint]}
-          markerEnd="url(#marker-arrow)"
+          markerEnd={isSelected ? 'url(#selected-marker-arrow)' : 'url(#marker-arrow)'}
         />
       ))}
     </>
