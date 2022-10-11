@@ -131,6 +131,10 @@ class TriggerDagRunOperator(BaseOperator):
         except TypeError:
             raise AirflowException("conf parameter should be JSON Serializable")
 
+    @property
+    def execution_date(self):
+        return self.logical_date
+
     def execute(self, context: Context):
         if isinstance(self.logical_date, datetime.datetime):
             parsed_logical_date = self.logical_date
