@@ -529,7 +529,7 @@ class TestPostConnection(TestConnectionEndpoint):
         assert response.status_code == 200
         connection = session.query(Connection).all()
         assert len(connection) == 1
-        assert connection[0].conn_id == 'test-connection-id'
+        assert connection[0].conn_id == "test-connection-id"
         _check_last_log(session, dag_id=None, event="connection.create", execution_date=None)
 
     def test_post_should_respond_200_extra_null(self, session):

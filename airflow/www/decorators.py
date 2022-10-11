@@ -22,7 +22,7 @@ import gzip
 import logging
 from io import BytesIO as IO
 from itertools import chain
-from typing import Callable, Optional, TypeVar, cast
+from typing import Callable, TypeVar, cast
 
 import pendulum
 from flask import after_this_request, g, request
@@ -36,7 +36,7 @@ T = TypeVar("T", bound=Callable)
 logger = logging.getLogger(__name__)
 
 
-def action_logging(func: Optional[T] = None, event: Optional[str] = None) -> Callable[[T], T]:
+def action_logging(func: Callable | None = None, event: str | None = None) -> Callable[[T], T]:
     """Decorator to log user actions"""
 
     def log_action(f: T) -> T:
@@ -46,11 +46,11 @@ def action_logging(func: Optional[T] = None, event: Optional[str] = None) -> Cal
 
             with create_session() as session:
                 if g.user.is_anonymous:
-                    user = 'anonymous'
+                    user = "anonymous"
                 else:
                     user = g.user.username
 
-                fields_skip_logging = {'csrf_token', '_csrf_token'}
+                fields_skip_logging = {"csrf_token", "_csrf_token"}
                 extra_fields = [
                     (k, v)
                     for k, v in chain(request.values.items(multi=True), request.view_args.items())
@@ -64,12 +64,12 @@ def action_logging(func: Optional[T] = None, event: Optional[str] = None) -> Cal
                     task_instance=None,
                     owner=user,
                     extra=str(extra_fields),
-                    task_id=params.get('task_id'),
-                    dag_id=params.get('dag_id'),
+                    task_id=params.get("task_id"),
+                    dag_id=params.get("dag_id"),
                 )
 
-                if 'execution_date' in request.values:
-                    execution_date_value = request.values.get('execution_date')
+                if "execution_date" in request.values:
+                    execution_date_value = request.values.get("execution_date")
                     try:
                         log.execution_date = pendulum.parse(execution_date_value, strict=False)
                     except ParserError:
