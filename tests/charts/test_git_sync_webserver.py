@@ -16,15 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class GitSyncWebserverTest(unittest.TestCase):
+class TestGitSyncWebserver:
     def test_should_add_dags_volume_to_the_webserver_if_git_sync_and_persistence_is_enabled(self):
         docs = render_chart(
             values={
@@ -71,28 +69,14 @@ class GitSyncWebserverTest(unittest.TestCase):
             "spec.template.spec.serviceAccountName", docs[0]
         )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "airflow_version, exclude_webserver",
         [
-            (
-                "2.0.0",
-                True,
-            ),
-            (
-                "2.0.2",
-                True,
-            ),
-            (
-                "1.10.14",
-                False,
-            ),
-            (
-                "1.9.0",
-                False,
-            ),
-            (
-                "2.1.0",
-                True,
-            ),
+            ("2.0.0", True),
+            ("2.0.2", True),
+            ("1.10.14", False),
+            ("1.9.0", False),
+            ("2.1.0", True),
         ],
     )
     def test_git_sync_with_different_airflow_versions(self, airflow_version, exclude_webserver):
