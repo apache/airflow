@@ -3599,9 +3599,8 @@ class Airflow(AirflowBaseView):
             if updated_before:
                 filters.append(DatasetEvent.timestamp <= updated_before)
 
-            for filter in filters:
-                query = query.filter(filter)
-                count_query = count_query.filter(filter)
+            query = query.filter(*filters)
+            count_query = count_query.filter(*filters)
 
             query = query.offset(offset).limit(limit)
 
