@@ -293,7 +293,7 @@ class TestPostVariables(TestVariableEndpoint):
         )
         assert response.status_code == 200
         _check_last_log(session, dag_id=None, event="variable.create", execution_date=None)
-        response = self.client.get("/api/v1/variables/var_create", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/variables/var_create", environ_overrides={"REMOTE_USER": "test"})
         assert response.json == {
             "key": "var_create",
             "value": "{}",
