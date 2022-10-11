@@ -728,14 +728,22 @@ class MappedOperator(AbstractOperator):
     def parse_time_mapped_ti_count(self) -> int | None:
         """Number of mapped TaskInstances that can be created at DagRun create time.
 
+        This only considers literal mapped arguments, and would return *None*
+        when any non-literal values are used for mapping.
+
         :return: None if non-literal mapped arg encountered, or the total
             number of mapped TIs this task should have.
         """
         return self._get_specified_expand_input().get_parse_time_mapped_ti_count()
 
     @cache
-    def run_time_mapped_ti_count(self, run_id: str, *, session: Session) -> int | None:
+    def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int | None:
         """Number of mapped TaskInstances that can be created at run time.
+
+        This considers both literal and non-literal mapped arguments, and the
+        result is therefore available when all depended tasks have finished. The
+        return value should be identical to ``parse_time_mapped_ti_count`` if
+        all mapped arguments are literal.
 
         :return: None if upstream tasks are not complete yet, or the total
             number of mapped TIs this task should have.
