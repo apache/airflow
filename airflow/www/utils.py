@@ -461,7 +461,7 @@ def dag_run_link(attr):
     return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
 
 
-def task_try_count(ti: TaskInstance):
+def task_try_count(ti: TaskInstance) -> int:
     """Get the total try count for a task instance"""
     return ti._try_number if ti._try_number != 0 or ti.state in State.running else ti._try_number + 1
 
