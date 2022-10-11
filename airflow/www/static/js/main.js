@@ -255,7 +255,7 @@ $(document).ready(() => {
   $.fn.datetimepicker.defaults.sideBySide = true;
   $('.datetimepicker').datetimepicker();
 
-  $('.filters .select2-chosen').each((idx, el) => { filterOpSelected(el); });
+  $('.filters .select2-chosen').each((idx, elem) => { filterOpSelected(elem); });
   $('.filters .select2-chosen').on('DOMNodeInserted', (e) => { filterOpSelected(e.target); });
 
   // Fix up filter fields from FAB adds to the page. This event is fired after
