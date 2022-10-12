@@ -376,6 +376,7 @@ Currently, **officially** using Airflow:
 1. [REA Group](https://www.rea-group.com/)
 1. [Reddit](https://www.reddit.com/) [[@reddit](https://github.com/reddit/)]
 1. [Retailink](https://retailink.fr/) [[@Harisonm](https://github.com/Harisonm)]
+1. [ReUp Education](https://reupeducation.com/) [[@Reup-Education](https://github.com/Reup-Education)]
 1. [Reverb](https://reverb.com)[[@reverbdotcom](https://github.com/reverbdotcom)]
 1. [Revolut](https://www.revolut.com/) [[@sztanko](https://github.com/sztanko) & [@nautilus28](https://github.com/nautilus28)]
 1. [Robinhood](https://robinhood.com) [[@vineet-rh](https://github.com/vineet-rh)]
