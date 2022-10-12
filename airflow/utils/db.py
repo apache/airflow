@@ -831,8 +831,8 @@ def reserialize_dags(*, session: Session = NEW_SESSION) -> None:
     from airflow.models.serialized_dag import SerializedDagModel
 
     session.query(SerializedDagModel).delete(synchronize_session=False)
-    dagbag = DagBag()
-    dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+    dagbag = DagBag(collect_dags=False)
+    dagbag.collect_dags(only_if_updated=False, safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'))
     dagbag.sync_to_db(session=session)
 
 
