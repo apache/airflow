@@ -1684,8 +1684,9 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
         DataprocLink.persist(
             context=context, task_instance=self, url=DATAPROC_WORKFLOW_LINK, resource=workflow_id
         )
-        operation.result()
         self.log.info('Template instantiated. Workflow Id : %s', workflow_id)
+        operation.result()
+        self.log.info('Workflow %s completed successfully', workflow_id)
 
 
 class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
@@ -1776,8 +1777,9 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
         DataprocLink.persist(
             context=context, task_instance=self, url=DATAPROC_WORKFLOW_LINK, resource=workflow_id
         )
-        operation.result()
         self.log.info('Template instantiated. Workflow Id : %s', workflow_id)
+        operation.result()
+        self.log.info('Workflow %s completed successfully', workflow_id)
 
 
 class DataprocSubmitJobOperator(BaseOperator):
