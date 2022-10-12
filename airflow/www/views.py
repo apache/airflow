@@ -237,7 +237,7 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     }
 
 
-def _safe_parse_datetime(v: str, allow_empty=False):
+def _safe_parse_datetime(v, allow_empty=False):
     """
     Parse datetime and return error message for invalid dates
 
