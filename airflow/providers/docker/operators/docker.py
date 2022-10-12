@@ -89,7 +89,7 @@ class DockerOperator(BaseOperator):
     :param private_environment: Private environment variables to set in the container.
         These are not templated, and hidden from the website.
     :param env_file: Relative path to the .env file with environment variables to set in the container.
-        (templated)
+        Overridden by variables in the environment parameter. (templated)
     :param force_pull: Pull the docker image on every run. Default is False.
     :param mem_limit: Maximum amount of memory the container can use.
         Either a float value, which represents the limit in bytes,
@@ -317,7 +317,7 @@ class DockerOperator(BaseOperator):
         self.container = self.cli.create_container(
             command=self.format_command(self.command),
             name=self.container_name,
-            environment={**self.environment, **self._private_environment, **env_file_vars},
+            environment={**env_file_vars, **self.environment, **self._private_environment},
             host_config=self.cli.create_host_config(
                 auto_remove=False,
                 mounts=target_mounts,
