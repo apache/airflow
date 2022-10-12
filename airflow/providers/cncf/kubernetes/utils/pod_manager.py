@@ -121,7 +121,16 @@ class PodManager(LoggingMixin):
         :param cluster_context: context of the cluster
         """
         super().__init__()
-        self._client = kube_client or get_kube_client(in_cluster=in_cluster, cluster_context=cluster_context)
+        if kube_client:
+            self._client = kube_client
+        else:
+            self._client = get_kube_client(in_cluster=in_cluster, cluster_context=cluster_context)
+            warnings.warn(
+                "`kube_client` not supplied to PodManager. "
+                "This will be a required argument in a future release. "
+                "Please use KubernetesHook to create the client before calling.",
+                DeprecationWarning,
+            )
         self._watch = watch.Watch()
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
