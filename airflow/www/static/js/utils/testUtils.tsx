@@ -20,13 +20,17 @@
 import React, { PropsWithChildren } from 'react';
 import { ChakraProvider, Table, Tbody } from '@chakra-ui/react';
 import { QueryClient, QueryClientProvider } from 'react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, MemoryRouterProps } from 'react-router-dom';
 
-import { ContainerRefProvider } from '../context/containerRef';
-import { TimezoneProvider } from '../context/timezone';
-import { AutoRefreshProvider } from '../context/autorefresh';
+import { ContainerRefProvider } from 'src/context/containerRef';
+import { TimezoneProvider } from 'src/context/timezone';
+import { AutoRefreshProvider } from 'src/context/autorefresh';
 
-export const Wrapper = ({ children }: PropsWithChildren) => {
+interface WrapperProps extends PropsWithChildren {
+  initialEntries?: MemoryRouterProps['initialEntries'];
+}
+
+export const Wrapper = ({ initialEntries, children }: WrapperProps) => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -41,7 +45,7 @@ export const Wrapper = ({ children }: PropsWithChildren) => {
         <ContainerRefProvider>
           <TimezoneProvider>
             <AutoRefreshProvider>
-              <MemoryRouter>
+              <MemoryRouter initialEntries={initialEntries}>
                 {children}
               </MemoryRouter>
             </AutoRefreshProvider>
