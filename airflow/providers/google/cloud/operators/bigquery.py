@@ -38,7 +38,6 @@ from airflow.providers.common.sql.operators.sql import (
     SQLTableCheckOperator,
     SQLValueCheckOperator,
     _parse_boolean,
-    _raise_exception,
 )
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
@@ -248,9 +247,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         if not records:
             raise AirflowException("The query returned empty results")
         elif not all(bool(r) for r in records):
-            _raise_exception(
-                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}", self.retry_on_failure
-            )
+            self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
         self.log.info("Record: %s", event["records"])
         self.log.info("Success.")
 
@@ -607,20 +604,19 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
                 self.column_mapping[column][check], result, tolerance
             )
 
-        for col, checks in self.column_mapping.items():
-            failed_tests.extend(
-                [
-                    f"Column: {col}\n\tCheck: {check},\n\tCheck Values: {check_values}\n"
-                    for check, check_values in checks.items()
-                    if not check_values["success"]
-                ]
-            )
+        failed_tests(
+            f"Column: {col}\n\tCheck: {check},\n\tCheck Values: {check_values}\n"
+            for col, checks in self.column_mapping.items()
+            for check, check_values in checks.items()
+            if not check_values["success"]
+        )
         if failed_tests:
-            exception_string = f"""
-                Test failed.\nResults:\n{records!s}\n
-                The following tests have failed:
-                \n{''.join(failed_tests)}"""
-            _raise_exception(exception_string, self.retry_on_failure)
+            exception_string = (
+                f"Test failed.\nResults:\n{records!s}\n"
+                f"The following tests have failed:"
+                f"\n{''.join(failed_tests)}"
+            )
+            self._raise_exception(exception_string)
 
         self.log.info("All tests have passed")
 
@@ -718,12 +714,11 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
             if not check_values["success"]
         ]
         if failed_tests:
-            exception_string = f"""
-                Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n
-                The following tests have failed:
-                \n{', '.join(failed_tests)}
-            """
-            _raise_exception(exception_string, self.retry_on_failure)
+            exception_string = (
+                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n"
+                f"The following tests have failed:\n{', '.join(failed_tests)}"
+            )
+            self._raise_exception(exception_string)
 
         self.log.info("All tests have passed")
 
