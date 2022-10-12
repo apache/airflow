@@ -889,7 +889,7 @@ ARG_OPTION = Arg(
 # kubernetes cleanup-pods
 ARG_NAMESPACE = Arg(
     ("--namespace",),
-    default=conf.get('kubernetes', 'namespace'),
+    default=conf.get('kubernetes_executor', 'namespace'),
     help="Kubernetes Namespace. Default value is `[kubernetes] namespace` in configuration.",
 )
 

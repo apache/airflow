@@ -59,7 +59,7 @@ pod_template_file
 ~~~~~~~~~~~~~~~~~
 
 To customize the pod used for k8s executor worker processes, you may create a pod template file. You must provide
-the path to the template file in the ``pod_template_file`` option in the ``kubernetes`` section of ``airflow.cfg``.
+the path to the template file in the ``pod_template_file`` option in the ``kubernetes_executor`` section of ``airflow.cfg``.
 
 Airflow has two strict requirements for pod template files: base image and pod name.
 

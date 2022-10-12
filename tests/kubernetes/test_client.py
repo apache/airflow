@@ -43,7 +43,7 @@ class TestClient:
     def test_load_config_disable_ssl(self, conf, config):
         conf.getboolean.return_value = False
         get_kube_client(in_cluster=False)
-        conf.getboolean.assert_called_with('kubernetes', 'verify_ssl')
+        conf.getboolean.assert_called_with('kubernetes_executor', 'verify_ssl')
         # Support wide range of kube client libraries
         if hasattr(Configuration, 'get_default_copy'):
             configuration = Configuration.get_default_copy()

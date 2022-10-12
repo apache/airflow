@@ -2311,7 +2311,7 @@
       type: string
       example: ~
       default: "True"
-- name: kubernetes
+- name: kubernetes_executor
   description: ~
   options:
     - name: pod_template_file

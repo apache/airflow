@@ -73,8 +73,11 @@ simply run the following command:
 
      airflow generate_pod_template -o <output file path>
 
-Once you have performed this step, simply write out the file path to this file in the ``pod_template_file`` config of the ``kubernetes``
+Once you have performed this step, simply write out the file path to this file in the ``pod_template_file`` config of the ``kubernetes_executor``
 section of your ``airflow.cfg``
+
+.. note::
+    Prior to airflow version 2.4.2, the ``kubernetes_executor`` section was called ``kubernetes``.
 
 Step 3: Run the Upgrade check scripts
 '''''''''''''''''''''''''''''''''''''
