@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-10-11T20:44:55Z
+# This constraints file was automatically generated on 2022-10-12T22:26:13Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -88,7 +88,7 @@ azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==21.2.0
 azure-nspkg==3.0.2
-azure-servicebus==7.8.0
+azure-servicebus==7.8.1
 azure-storage-blob==12.8.1
 azure-storage-common==2.1.0
 azure-storage-file==2.1.0
@@ -472,7 +472,7 @@ sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==7.6.1
-spython==0.2.12
+spython==0.2.13
 sqlalchemy-bigquery==1.4.4
 sqlalchemy-drill==1.1.2
 sqlalchemy-redshift==0.8.11
@@ -498,7 +498,7 @@ tornado==6.1
 towncrier==22.8.0
 tqdm==4.64.1
 traitlets==5.4.0
-trino==0.317.0
+trino==0.318.0
 twine==4.0.1
 typed-ast==1.5.4
 types-Deprecated==1.2.9
@@ -526,7 +526,7 @@ types-urllib3==1.26.25
 typing_extensions==4.4.0
 tzdata==2022.4
 tzlocal==4.2
-uamqp==1.6.0
+uamqp==1.6.1
 uc-micro-py==1.0.1
 unicodecsv==0.14.1
 uritemplate==3.0.1
