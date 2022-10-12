@@ -52,7 +52,7 @@ DEFAULT_AIRFLOW_SECTIONS = [
     'kerberos',
     'elasticsearch',
     'elasticsearch_configs',
-    'kubernetes',
+    'kubernetes_executor',
     'sensors',
 ]
 
