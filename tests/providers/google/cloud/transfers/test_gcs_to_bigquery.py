@@ -142,7 +142,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
         )
 
         result = operator.execute(context=MagicMock())
-        assert result == "100"
+        assert result == "1"
 
         calls = [
             call(

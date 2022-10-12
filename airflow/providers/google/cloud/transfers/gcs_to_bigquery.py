@@ -471,8 +471,7 @@ class GCSToBigQueryOperator(BaseOperator):
             self.task_id,
             event["message"],
         )
-        self._find_max_value_in_column()
-        return self.job_id
+        return self._find_max_value_in_column()
 
     def _find_max_value_in_column(self):
         hook = BigQueryHook(
