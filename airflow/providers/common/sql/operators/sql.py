@@ -251,7 +251,6 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         self.sql = f"SELECT col_name, check_type, check_result FROM ({checks_sql}) AS check_columns"
 
     def execute(self, context: Context):
-        failed_tests = []
         hook = self.get_db_hook()
         records = hook.get_records(self.sql)
 
@@ -260,8 +259,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
         self.log.info("Record: %s", records)
 
-        for row in records:
-            column, check, result = row
+        for column, check, result in records:
             tolerance = self.column_mapping[column][check].get("tolerance")
 
             self.column_mapping[column][check]["result"] = result
@@ -269,19 +267,17 @@ class SQLColumnCheckOperator(BaseSQLOperator):
                 self.column_mapping[column][check], result, tolerance
             )
 
-        for col, checks in self.column_mapping.items():
-            failed_tests.extend(
-                [
-                    f"Column: {col}\n\tCheck: {check},\n\tCheck Values: {check_values}\n"
-                    for check, check_values in checks.items()
-                    if not check_values["success"]
-                ]
-            )
+        failed_tests = [
+            f"Column: {col}\n\tCheck: {check},\n\tCheck Values: {check_values}\n"
+            for col, checks in self.column_mapping.items()
+            for check, check_values in checks.items()
+            if not check_values["success"]
+        ]
         if failed_tests:
-            exception_string = f"""
-                Test failed.\nResults:\n{records!s}\n
-                The following tests have failed:
-                \n{''.join(failed_tests)}"""
+            exception_string = (
+                f"Test failed.\nResults:\n{records!s}\n"
+                f"The following tests have failed:\n{''.join(failed_tests)}"
+            )
             self._raise_exception(exception_string)
 
         self.log.info("All tests have passed")
@@ -298,16 +294,14 @@ class SQLColumnCheckOperator(BaseSQLOperator):
                 return ""
 
         checks_sql = "UNION ALL".join(
-            [
-                self.sql_check_template.format(
-                    check_statement=self.column_checks[check].format(column=column),
-                    check=check,
-                    table=self.table,
-                    column=column,
-                    partition_clause=_generate_partition_clause(check),
-                )
-                for check in checks
-            ]
+            self.sql_check_template.format(
+                check_statement=self.column_checks[check].format(column=column),
+                check=check,
+                table=self.table,
+                column=column,
+                partition_clause=_generate_partition_clause(check),
+            )
+            for check in checks
         )
         return checks_sql
 
@@ -481,11 +475,10 @@ class SQLTableCheckOperator(BaseSQLOperator):
             if not check_values["success"]
         ]
         if failed_tests:
-            exception_string = f"""
-                Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n
-                The following tests have failed:
-                \n{', '.join(failed_tests)}
-            """
+            exception_string = (
+                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n"
+                f"The following tests have failed:\n{', '.join(failed_tests)}"
+            )
             self._raise_exception(exception_string)
 
         self.log.info("All tests have passed")
@@ -502,15 +495,13 @@ class SQLTableCheckOperator(BaseSQLOperator):
                 return ""
 
         return "UNION ALL".join(
-            [
-                self.sql_check_template.format(
-                    check_statement=value["check_statement"],
-                    check_name=check_name,
-                    table=self.table,
-                    partition_clause=_generate_partition_clause(check_name),
-                )
-                for check_name, value in self.checks.items()
-            ]
+            self.sql_check_template.format(
+                check_statement=value["check_statement"],
+                check_name=check_name,
+                table=self.table,
+                partition_clause=_generate_partition_clause(check_name),
+            )
+            for check_name, value in self.checks.items()
         )
 
 
