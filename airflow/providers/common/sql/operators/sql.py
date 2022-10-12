@@ -53,12 +53,6 @@ def _parse_boolean(val: str) -> str | bool:
     raise ValueError(f"{val!r} is not a boolean-like string value")
 
 
-def _raise_exception(exception_string: str, retry_on_failure: bool) -> NoReturn:
-    if retry_on_failure:
-        raise AirflowException(exception_string)
-    raise AirflowFailException(exception_string)
-
-
 _PROVIDERS_MATCHER = re.compile(r'airflow\.providers\.(.*)\.hooks.*')
 
 _MIN_SUPPORTED_PROVIDERS_VERSION = {
@@ -162,6 +156,11 @@ class BaseSQLOperator(BaseOperator):
         """
         return self._hook
 
+    def _raise_exception(self, exception_string: str) -> NoReturn:
+        if self.retry_on_failure:
+            raise AirflowException(exception_string)
+        raise AirflowFailException(exception_string)
+
 
 class SQLColumnCheckOperator(BaseSQLOperator):
     """
@@ -257,7 +256,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         records = hook.get_records(self.sql)
 
         if not records:
-            _raise_exception(f"The following query returned zero rows: {self.sql}", self.retry_on_failure)
+            self._raise_exception(f"The following query returned zero rows: {self.sql}")
 
         self.log.info("Record: %s", records)
 
@@ -283,7 +282,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
                 Test failed.\nResults:\n{records!s}\n
                 The following tests have failed:
                 \n{''.join(failed_tests)}"""
-            _raise_exception(exception_string, self.retry_on_failure)
+            self._raise_exception(exception_string)
 
         self.log.info("All tests have passed")
 
@@ -468,7 +467,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         records = hook.get_records(self.sql)
 
         if not records:
-            _raise_exception(f"The following query returned zero rows: {self.sql}", self.retry_on_failure)
+            self._raise_exception(f"The following query returned zero rows: {self.sql}")
 
         self.log.info("Record:\n%s", records)
 
@@ -487,7 +486,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
                 The following tests have failed:
                 \n{', '.join(failed_tests)}
             """
-            _raise_exception(exception_string, self.retry_on_failure)
+            self._raise_exception(exception_string)
 
         self.log.info("All tests have passed")
 
@@ -568,11 +567,9 @@ class SQLCheckOperator(BaseSQLOperator):
 
         self.log.info("Record: %s", records)
         if not records:
-            _raise_exception(f"The following query returned zero rows: {self.sql}", self.retry_on_failure)
+            self._raise_exception(f"The following query returned zero rows: {self.sql}")
         elif not all(bool(r) for r in records):
-            _raise_exception(
-                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}", self.retry_on_failure
-            )
+            self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
 
         self.log.info("Success.")
 
@@ -620,7 +617,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
         records = self.get_db_hook().get_first(self.sql)
 
         if not records:
-            _raise_exception(f"The following query returned zero rows: {self.sql}", self.retry_on_failure)
+            self._raise_exception(f"The following query returned zero rows: {self.sql}")
 
         pass_value_conv = _convert_to_float_if_possible(self.pass_value)
         is_numeric_value_check = isinstance(pass_value_conv, float)
@@ -649,7 +646,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
             tests = []
 
         if not all(tests):
-            _raise_exception(error_msg, self.retry_on_failure)
+            self._raise_exception(error_msg)
 
     def _to_float(self, records):
         return [float(record) for record in records]
@@ -746,9 +743,9 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         row1 = hook.get_first(self.sql1)
 
         if not row2:
-            _raise_exception(f"The following query returned zero rows: {self.sql2}", self.retry_on_failure)
+            self._raise_exception(f"The following query returned zero rows: {self.sql2}")
         if not row1:
-            _raise_exception(f"The following query returned zero rows: {self.sql1}", self.retry_on_failure)
+            self._raise_exception(f"The following query returned zero rows: {self.sql1}")
 
         current = dict(zip(self.metrics_sorted, row1))
         reference = dict(zip(self.metrics_sorted, row2))
@@ -801,9 +798,7 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
                     ratios[k],
                     self.metrics_thresholds[k],
                 )
-            _raise_exception(
-                f"The following tests have failed:\n {', '.join(sorted(failed_tests))}", self.retry_on_failure
-            )
+            self._raise_exception(f"The following tests have failed:\n {', '.join(sorted(failed_tests))}")
 
         self.log.info("All tests have passed")
 
@@ -847,7 +842,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
         hook = self.get_db_hook()
         result = hook.get_first(self.sql)[0]
         if not result:
-            _raise_exception(f"The following query returned zero rows: {self.sql}", self.retry_on_failure)
+            self._raise_exception(f"The following query returned zero rows: {self.sql}")
 
         if isinstance(self.min_threshold, float):
             lower_bound = self.min_threshold
@@ -882,7 +877,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
                 f'Result: {result} is not within thresholds '
                 f'{meta_data.get("min_threshold")} and {meta_data.get("max_threshold")}'
             )
-            _raise_exception(error_msg, self.retry_on_failure)
+            self._raise_exception(error_msg)
 
         self.log.info("Test %s Successful.", self.task_id)
 
