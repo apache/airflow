@@ -71,44 +71,32 @@ class PrStat:
         self.len_issue_comments = 0
         self.num_issue_comments = 0
         self.num_issue_reactions = 0
-        self.protm_score = 0
 
     @property
     def label_score(self) -> float:
         """assigns label score"""
-        labels = self.pull_request.labels
-        for label in labels:
+        for label in self.pull_request.labels:
             if "provider" in label.name:
                 return PrStat.PROVIDER_SCORE
         return PrStat.REGULAR_SCORE
 
     @cached_property
     def num_comments(self):
-        """counts reviewer comments & checks for #protm tag"""
-        num_comments = 0
-        num_protm = 0
+        """counts reviewer comments"""
+        comments = 0
         for comment in self.pull_request.get_comments():
             self._users.add(comment.user.login)
-            lowercase_body = comment.body.lower()
-            if 'protm' in lowercase_body:
-                num_protm += 1
-            num_comments += 1
-        self.protm_score = num_protm
-        return num_comments
+            comments += 1
+        return comments
 
     @cached_property
     def num_conv_comments(self) -> int:
-        """counts conversational comments & checks for #protm tag"""
-        num_conv_comments = 0
-        num_protm = 0
+        """counts conversational comments"""
+        conv_comments = 0
         for conv_comment in self.pull_request.get_issue_comments():
             self._users.add(conv_comment.user.login)
-            lowercase_body = conv_comment.body.lower()
-            if 'protm' in lowercase_body:
-                num_protm += 1
-            num_conv_comments += 1
-        self.protm_score = num_protm
-        return num_conv_comments
+            conv_comments += 1
+        return conv_comments
 
     @cached_property
     def num_reactions(self) -> int:
@@ -133,11 +121,11 @@ class PrStat:
     @cached_property
     def num_reviews(self) -> int:
         """counts reviews"""
-        num_reviews = 0
+        reviews = 0
         for review in self.pull_request.get_reviews():
             self._users.add(review.user.login)
-            num_reviews += 1
-        return num_reviews
+            reviews += 1
+        return reviews
 
     @cached_property
     def issues(self):
@@ -167,14 +155,14 @@ class PrStat:
     @cached_property
     def issue_comments(self) -> int:
         """counts issue comments and calculates comment length"""
-        if self.issue_nums:
+        issues = self.issues
+        if issues:
             repo = self.g.get_repo("apache/airflow")
             issue_comments = 0
             len_issue_comments = 0
-            for num in self.issue_nums:
+            for num in issues:
                 issue = repo.get_issue(number=num)
-                issues = issue.get_comments()
-                for issue_comment in issues:
+                for issue_comment in issue.get_comments():
                     issue_comments += 1
                     self._users.add(issue_comment.user.login)
                     if issue_comment.body is not None:
@@ -279,12 +267,9 @@ class PrStat:
         # If the body contains over 2000 characters, the PR should matter 40% more.
         # If the body contains fewer than 1000 characters, the PR should matter 20% less.
         #
-        # Weight PRs with #protm tags more heavily:
-        # If there is at least one #protm tag, multiply the interaction score by the number of tags, up to 3.
-        interaction_score *= min(self.protm_score + 1, 3)
         return round(
             1.0
-            * interaction_score
+            * self.interaction_score
             * self.label_score
             * self.length_score
             * self.change_score
@@ -293,23 +278,13 @@ class PrStat:
         )
 
     def __str__(self) -> str:
-        if self.protm_score > 0:
-            return (
-                '[magenta]##Tagged PR## [/]'
-                f"Score: {self.score:.2f}: PR{self.pull_request.number} by @{self.pull_request.user.login}: "
-                f"\"{self.pull_request.title}\". "
-                f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
-            )
-        else:
-            return (
-                f"Score: {self.score:.2f}: PR{self.pull_request.number} by @{self.pull_request.user.login}: "
-                f"\"{self.pull_request.title}\". "
-                f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
-            )
+        return (
+            f"Score: {self.score:.2f}: PR{self.pull_request.number} by @{self.pull_request.user.login}: "
+            f"\"{self.pull_request.title}\". "
+            f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
+        )
 
     def verboseStr(self) -> str:
-        if self.protm_score > 0:
-            console.print("********************* Tagged with '#protm' *********************", style="magenta")
         return (
             f'-- Created at [bright_blue]{self.pull_request.created_at}[/], '
             f'merged at [bright_blue]{self.pull_request.merged_at}[/]\n'
@@ -397,7 +372,7 @@ def main(
                 )
                 continue
 
-            if pr.merged_at < date_start:
+            if pr.created_at < date_start:
                 console.print("[bright_blue]Completed selecting candidates")
                 break
 
