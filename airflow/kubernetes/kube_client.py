@@ -68,17 +68,17 @@ def _enable_tcp_keepalive() -> None:
     if hasattr(socket, "TCP_KEEPIDLE"):
         socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, tcp_keep_idle))
     else:
-        log.warning("Unable to set TCP_KEEPIDLE on this platform")
+        log.debug("Unable to set TCP_KEEPIDLE on this platform")
 
     if hasattr(socket, "TCP_KEEPINTVL"):
         socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, tcp_keep_intvl))
     else:
-        log.warning("Unable to set TCP_KEEPINTVL on this platform")
+        log.debug("Unable to set TCP_KEEPINTVL on this platform")
 
     if hasattr(socket, "TCP_KEEPCNT"):
         socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPCNT, tcp_keep_cnt))
     else:
-        log.warning("Unable to set TCP_KEEPCNT on this platform")
+        log.debug("Unable to set TCP_KEEPCNT on this platform")
 
     HTTPSConnection.default_socket_options = HTTPSConnection.default_socket_options + socket_options
     HTTPConnection.default_socket_options = HTTPConnection.default_socket_options + socket_options
