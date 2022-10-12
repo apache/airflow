@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 from contextlib import closing
+from functools import wraps
 from io import StringIO
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
@@ -33,7 +34,6 @@ from sqlalchemy import create_engine
 from airflow import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.strings import to_boolean
-from airflow.version import version
 
 
 def _try_to_boolean(value: Any):
@@ -42,16 +42,35 @@ def _try_to_boolean(value: Any):
     return value
 
 
-def _maybe_add_prefix(val):
+def _ensure_prefixes(conn_type):
     """
-    From Airflow 2.3 onward, there is no longer a need to add the `extra__<conn type>__`
-    prefix for connection extras.  Once this provider's min Airflow version is >= 2.3,
-    we may remove this function.
+    Remove when provider min airflow version >= 2.5.0 since this is handled by
+    provider manager from that version.
     """
-    if version < (2, 3):
-        return f"extra__snowflake__{val}"
-    else:
-        return val
+
+    def dec(func):
+        def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: str):
+            conn_attrs = {'host', 'schema', 'login', 'password', 'port', 'extra'}
+
+            def _ensure_prefix(field):
+                if field not in conn_attrs and not field.startswith('extra__'):
+                    return f"extra__{conn_type}__{field}"
+                else:
+                    return field
+
+            if 'placeholders' in field_behaviors:
+                placeholders = field_behaviors['placeholders']
+                field_behaviors['placeholders'] = {_ensure_prefix(k): v for k, v in placeholders.items()}
+
+            return field_behaviors
+
+        @wraps(func)
+        def inner():
+            return _ensure_prefix_for_placeholders(func(), conn_type)
+
+        return inner
+
+    return dec
 
 
 class SnowflakeHook(DbApiHook):
@@ -105,25 +124,22 @@ class SnowflakeHook(DbApiHook):
         from wtforms import BooleanField, StringField
 
         return {
-            _maybe_add_prefix("account"): StringField(lazy_gettext('Account'), widget=BS3TextFieldWidget()),
-            _maybe_add_prefix("warehouse"): StringField(
-                lazy_gettext('Warehouse'), widget=BS3TextFieldWidget()
-            ),
-            _maybe_add_prefix("database"): StringField(lazy_gettext('Database'), widget=BS3TextFieldWidget()),
-            _maybe_add_prefix("region"): StringField(lazy_gettext('Region'), widget=BS3TextFieldWidget()),
-            _maybe_add_prefix("role"): StringField(lazy_gettext('Role'), widget=BS3TextFieldWidget()),
-            _maybe_add_prefix("private_key_file"): StringField(
-                lazy_gettext('Private key (Path)'), widget=BS3TextFieldWidget()
-            ),
-            _maybe_add_prefix("private_key_content"): StringField(
+            "account": StringField(lazy_gettext('Account'), widget=BS3TextFieldWidget()),
+            "warehouse": StringField(lazy_gettext('Warehouse'), widget=BS3TextFieldWidget()),
+            "database": StringField(lazy_gettext('Database'), widget=BS3TextFieldWidget()),
+            "region": StringField(lazy_gettext('Region'), widget=BS3TextFieldWidget()),
+            "role": StringField(lazy_gettext('Role'), widget=BS3TextFieldWidget()),
+            "private_key_file": StringField(lazy_gettext('Private key (Path)'), widget=BS3TextFieldWidget()),
+            "private_key_content": StringField(
                 lazy_gettext('Private key (Text)'), widget=BS3TextAreaFieldWidget()
             ),
-            _maybe_add_prefix("insecure_mode"): BooleanField(
+            "insecure_mode": BooleanField(
                 label=lazy_gettext('Insecure mode'), description="Turns off OCSP certificate checks"
             ),
         }
 
     @staticmethod
+    @_ensure_prefixes(conn_type='snowflake')
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         import json
@@ -143,14 +159,14 @@ class SnowflakeHook(DbApiHook):
                 'schema': 'snowflake schema',
                 'login': 'snowflake username',
                 'password': 'snowflake password',
-                'extra__snowflake__account': 'snowflake account name',
-                'extra__snowflake__warehouse': 'snowflake warehouse name',
-                'extra__snowflake__database': 'snowflake db name',
-                'extra__snowflake__region': 'snowflake hosted region',
-                'extra__snowflake__role': 'snowflake role',
-                'extra__snowflake__private_key_file': 'Path of snowflake private key (PEM Format)',
-                'extra__snowflake__private_key_content': 'Content to snowflake private key (PEM format)',
-                'extra__snowflake__insecure_mode': 'insecure mode',
+                'account': 'snowflake account name',
+                'warehouse': 'snowflake warehouse name',
+                'database': 'snowflake db name',
+                'region': 'snowflake hosted region',
+                'role': 'snowflake role',
+                'private_key_file': 'Path of snowflake private key (PEM Format)',
+                'private_key_content': 'Content to snowflake private key (PEM format)',
+                'insecure_mode': 'insecure mode',
             },
         }
 
