@@ -46,3 +46,13 @@ def get_provider_version(provider_name):
 
     info = ProvidersManager().providers[provider_name]
     return semver.VersionInfo.parse(info.version)
+
+
+def get_provider_min_airflow_version(provider_name):
+    from airflow.providers_manager import ProvidersManager
+
+    p = ProvidersManager()
+    deps = p.providers[provider_name].data['dependencies']
+    airflow_dep = [x for x in deps if x.startswith('apache-airflow')][0]
+    min_airflow_version = tuple(map(int, airflow_dep.split('>=')[1].split('.')))
+    return min_airflow_version
