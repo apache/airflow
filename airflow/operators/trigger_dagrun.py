@@ -68,7 +68,6 @@ class TriggerDagRunOperator(BaseOperator):
     :param trigger_run_id: The run ID to use for the triggered DAG run (templated).
         If not provided, a run ID will be automatically generated.
     :param conf: Configuration for the DAG run (templated).
-    :param execution_date: deprecated parameter, same effect as `logical_date`
     :param logical_date: Logical date for the dag (templated).
     :param reset_dag_run: Whether or not clear existing dag run if already exists.
         This is useful when backfill or rerun an existing dag run.
@@ -79,6 +78,7 @@ class TriggerDagRunOperator(BaseOperator):
         (default: 60)
     :param allowed_states: List of allowed states, default is ``['success']``.
     :param failed_states: List of failed or dis-allowed states, default is ``None``.
+    :param execution_date: Deprecated parameter; same as ``logical_date``.
     """
 
     template_fields: Sequence[str] = ("trigger_dag_id", "trigger_run_id", "logical_date", "conf")
@@ -92,13 +92,13 @@ class TriggerDagRunOperator(BaseOperator):
         trigger_dag_id: str,
         trigger_run_id: str | None = None,
         conf: dict | None = None,
-        execution_date: str | datetime.datetime | None = None,
         logical_date: str | datetime.datetime | None = None,
         reset_dag_run: bool = False,
         wait_for_completion: bool = False,
         poke_interval: int = 60,
         allowed_states: list | None = None,
         failed_states: list | None = None,
+        execution_date: str | datetime.datetime | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -111,19 +111,17 @@ class TriggerDagRunOperator(BaseOperator):
         self.allowed_states = allowed_states or [State.SUCCESS]
         self.failed_states = failed_states or [State.FAILED]
 
-        if execution_date:
+        if logical_date is None:
+            if execution_date is not None:
+                warnings.warn(
+                    "Parameter 'execution_date' is deprecated. Use 'logical_date' instead.",
+                    RemovedInAirflow3Warning,
+                    stacklevel=2,
+                )
             logical_date = execution_date
-            warnings.warn(
-                "Parameter ``execution_date`` is deprecated. Use ``logical_date``.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-
-        if logical_date is not None and not isinstance(logical_date, (str, datetime.datetime)):
-            raise TypeError(
-                f"Expected str or datetime.datetime type for logical_date. Got {type(logical_date)}"
-            )
-
+        elif not isinstance(logical_date, (str, datetime.datetime)):
+            type_name = type(logical_date).__name__
+            raise TypeError(f"Expected str or datetime.datetime type for logical_date. Got {type_name}")
         self.logical_date = logical_date
 
         try:
@@ -132,8 +130,22 @@ class TriggerDagRunOperator(BaseOperator):
             raise AirflowException("conf parameter should be JSON Serializable")
 
     @property
-    def execution_date(self):
+    def execution_date(self) -> str | datetime.datetime | None:
+        warnings.warn(
+            "Attribute 'execution_date' is deprecated. Use 'logical_date' instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
         return self.logical_date
+
+    @execution_date.setter
+    def execution_date(self, v: str | datetime.datetime | None) -> None:
+        warnings.warn(
+            "Attribute 'execution_date' is deprecated. Use 'logical_date' instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+        self.logical_date = v
 
     def execute(self, context: Context):
         if isinstance(self.logical_date, datetime.datetime):

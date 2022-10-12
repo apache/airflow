@@ -101,7 +101,7 @@ class TestDagRunOperator:
         args, _ = mock_build_url.call_args
         expected_args = {
             'dag_id': triggered_dag_run.dag_id,
-            'base_date': triggered_dag_run.execution_date.isoformat(),
+            'base_date': triggered_dag_run.logical_date.isoformat(),
         }
         assert expected_args in args
 
@@ -136,7 +136,7 @@ class TestDagRunOperator:
         task = TriggerDagRunOperator(
             task_id="test_trigger_dagrun_with_execution_date",
             trigger_dag_id=TRIGGERED_DAG_ID,
-            execution_date=custom_execution_date,
+            logical_date=custom_execution_date,
             dag=self.dag,
         )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
@@ -154,7 +154,7 @@ class TestDagRunOperator:
         task = TriggerDagRunOperator(
             task_id="test_trigger_dagrun_with_execution_date",
             trigger_dag_id=TRIGGERED_DAG_ID,
-            execution_date=utc_now,
+            logical_date=utc_now,
             dag=self.dag,
             poke_interval=1,
             reset_dag_run=True,
@@ -185,7 +185,7 @@ class TestDagRunOperator:
         task = TriggerDagRunOperator(
             task_id="test_trigger_dagrun_with_str_execution_date",
             trigger_dag_id=TRIGGERED_DAG_ID,
-            execution_date="{{ logical_date }}",
+            logical_date="{{ logical_date }}",
             dag=self.dag,
         )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
@@ -241,31 +241,31 @@ class TestDagRunOperator:
 
     def test_trigger_dagrun_with_reset_dag_run_false(self):
         """Test TriggerDagRunOperator with reset_dag_run."""
-        execution_date = DEFAULT_DATE
+        logical_date = DEFAULT_DATE
         task = TriggerDagRunOperator(
             task_id="test_task",
             trigger_dag_id=TRIGGERED_DAG_ID,
-            execution_date=execution_date,
+            logical_date=logical_date,
             reset_dag_run=False,
             dag=self.dag,
         )
-        task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
+        task.run(start_date=logical_date, end_date=logical_date, ignore_ti_state=True)
 
         with pytest.raises(DagRunAlreadyExists):
-            task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
+            task.run(start_date=logical_date, end_date=logical_date, ignore_ti_state=True)
 
     def test_trigger_dagrun_with_reset_dag_run_true(self):
         """Test TriggerDagRunOperator with reset_dag_run."""
-        execution_date = DEFAULT_DATE
+        logical_date = DEFAULT_DATE
         task = TriggerDagRunOperator(
             task_id="test_task",
             trigger_dag_id=TRIGGERED_DAG_ID,
-            execution_date=execution_date,
+            logical_date=logical_date,
             reset_dag_run=True,
             dag=self.dag,
         )
-        task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
-        task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
+        task.run(start_date=logical_date, end_date=logical_date, ignore_ti_state=True)
+        task.run(start_date=logical_date, end_date=logical_date, ignore_ti_state=True)
 
         with create_session() as session:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
@@ -274,17 +274,17 @@ class TestDagRunOperator:
 
     def test_trigger_dagrun_with_wait_for_completion_true(self):
         """Test TriggerDagRunOperator with wait_for_completion."""
-        execution_date = DEFAULT_DATE
+        logical_date = DEFAULT_DATE
         task = TriggerDagRunOperator(
             task_id="test_task",
             trigger_dag_id=TRIGGERED_DAG_ID,
-            execution_date=execution_date,
+            logical_date=logical_date,
             wait_for_completion=True,
             poke_interval=10,
             allowed_states=[State.QUEUED],
             dag=self.dag,
         )
-        task.run(start_date=execution_date, end_date=execution_date)
+        task.run(start_date=logical_date, end_date=logical_date)
 
         with create_session() as session:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
@@ -292,28 +292,28 @@ class TestDagRunOperator:
 
     def test_trigger_dagrun_with_wait_for_completion_true_fail(self):
         """Test TriggerDagRunOperator with wait_for_completion but triggered dag fails."""
-        execution_date = DEFAULT_DATE
+        logical_date = DEFAULT_DATE
         task = TriggerDagRunOperator(
             task_id="test_task",
             trigger_dag_id=TRIGGERED_DAG_ID,
-            execution_date=execution_date,
+            logical_date=logical_date,
             wait_for_completion=True,
             poke_interval=10,
             failed_states=[State.QUEUED],
             dag=self.dag,
         )
         with pytest.raises(AirflowException):
-            task.run(start_date=execution_date, end_date=execution_date)
+            task.run(start_date=logical_date, end_date=logical_date)
 
     def test_trigger_dagrun_triggering_itself(self):
         """Test TriggerDagRunOperator that triggers itself"""
-        execution_date = DEFAULT_DATE
+        logical_date = DEFAULT_DATE
         task = TriggerDagRunOperator(
             task_id="test_task",
             trigger_dag_id=self.dag.dag_id,
             dag=self.dag,
         )
-        task.run(start_date=execution_date, end_date=execution_date)
+        task.run(start_date=logical_date, end_date=logical_date)
 
         with create_session() as session:
             dagruns = (
@@ -330,12 +330,12 @@ class TestDagRunOperator:
     def test_trigger_dagrun_triggering_itself_with_execution_date(self):
         """Test TriggerDagRunOperator that triggers itself with execution date,
         fails with DagRunAlreadyExists"""
-        execution_date = DEFAULT_DATE
+        logical_date = DEFAULT_DATE
         task = TriggerDagRunOperator(
             task_id="test_task",
             trigger_dag_id=self.dag.dag_id,
-            execution_date=execution_date,
+            logical_date=logical_date,
             dag=self.dag,
         )
         with pytest.raises(DagRunAlreadyExists):
-            task.run(start_date=execution_date, end_date=execution_date)
+            task.run(start_date=logical_date, end_date=logical_date)
