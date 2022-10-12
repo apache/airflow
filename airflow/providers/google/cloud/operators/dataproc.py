@@ -1762,8 +1762,8 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
 
     def execute(self, context: Context):
         self.log.info('Instantiating Inline Template')
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-        operation = hook.instantiate_inline_workflow_template(
+        self.hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        operation = self.hook.instantiate_inline_workflow_template(
             template=self.template,
             project_id=self.project_id,
             region=self.region,
@@ -1773,13 +1773,13 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
             metadata=self.metadata,
         )
         # Save data required by extra links no matter what the job status will be
-        workflow_id = operation.operation.name.split('/')[-1]
+        self.workflow_id = operation.operation.name.split('/')[-1]
         DataprocLink.persist(
-            context=context, task_instance=self, url=DATAPROC_WORKFLOW_LINK, resource=workflow_id
+            context=context, task_instance=self, url=DATAPROC_WORKFLOW_LINK, resource=self.workflow_id
         )
-        self.log.info('Template instantiated. Workflow Id : %s', workflow_id)
+        self.log.info('Template instantiated. Workflow Id : %s', self.workflow_id)
         operation.result()
-        self.log.info('Workflow %s completed successfully', workflow_id)
+        self.log.info('Workflow %s completed successfully', self.workflow_id)
 
 
 class DataprocSubmitJobOperator(BaseOperator):
