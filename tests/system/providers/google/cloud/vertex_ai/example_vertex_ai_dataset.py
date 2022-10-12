@@ -22,6 +22,8 @@
 """
 Example Airflow DAG for Google Vertex AI service testing Dataset operations.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 from pathlib import Path
@@ -46,13 +48,14 @@ from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesyste
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "vertex_ai_dataset_operations"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
+DAG_ID = "vertex_ai_dataset_operations"
 REGION = "us-central1"
 
 DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
-ALL_DATASETS_ZIP_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "all-datasets.zip")
+RESOURCES_PATH = Path(__file__).parent / "resources"
+ALL_DATASETS_ZIP_CSV_FILE_LOCAL_PATH = str(RESOURCES_PATH / "all-datasets.zip")
 
 CSV_FILES_LOCAL_PATH = [
     "/all-datasets/forecast-dataset.csv",
@@ -121,7 +124,7 @@ TEST_UPDATE_MASK = {"paths": ["displayName"]}
 
 with models.DAG(
     DAG_ID,
-    schedule_interval="@once",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "vertex_ai", "dataset"],
@@ -238,6 +241,7 @@ with models.DAG(
         dataset_id=create_time_series_dataset_job.output['dataset_id'],
         region=REGION,
         project_id=PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_tabular_dataset_job = DeleteDatasetOperator(
@@ -245,6 +249,7 @@ with models.DAG(
         dataset_id=create_tabular_dataset_job.output['dataset_id'],
         region=REGION,
         project_id=PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_image_dataset_job = DeleteDatasetOperator(
@@ -252,6 +257,7 @@ with models.DAG(
         dataset_id=create_image_dataset_job.output['dataset_id'],
         region=REGION,
         project_id=PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_video_dataset_job = DeleteDatasetOperator(
@@ -259,10 +265,13 @@ with models.DAG(
         dataset_id=create_video_dataset_job.output['dataset_id'],
         region=REGION,
         project_id=PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     clear_folder = BashOperator(

@@ -24,7 +24,6 @@ from pathlib import Path
 
 import pytest
 import requests
-
 from docker_tests.command_utils import run_command
 from docker_tests.constants import SOURCE_ROOT
 

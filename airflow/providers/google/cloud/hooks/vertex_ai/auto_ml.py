@@ -308,7 +308,7 @@ class AutoMLHook(GoogleBaseHook):
         export_evaluated_data_items_bigquery_destination_uri: str | None = None,
         export_evaluated_data_items_override_destination: bool = False,
         sync: bool = True,
-    ) -> models.Model:
+    ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Tabular Training Job.
 
@@ -540,7 +540,7 @@ class AutoMLHook(GoogleBaseHook):
         model_display_name: str | None = None,
         model_labels: dict[str, str] | None = None,
         sync: bool = True,
-    ) -> models.Model:
+    ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Forecasting Training Job.
 
@@ -761,7 +761,7 @@ class AutoMLHook(GoogleBaseHook):
         model_labels: dict[str, str] | None = None,
         disable_early_stopping: bool = False,
         sync: bool = True,
-    ) -> models.Model:
+    ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Image Training Job.
 
@@ -934,7 +934,7 @@ class AutoMLHook(GoogleBaseHook):
         model_display_name: str | None = None,
         model_labels: dict[str, str] | None = None,
         sync: bool = True,
-    ) -> models.Model:
+    ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Text Training Job.
 
@@ -1068,7 +1068,7 @@ class AutoMLHook(GoogleBaseHook):
         model_display_name: str | None = None,
         model_labels: dict[str, str] | None = None,
         sync: bool = True,
-    ) -> models.Model:
+    ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Video Training Job.
 

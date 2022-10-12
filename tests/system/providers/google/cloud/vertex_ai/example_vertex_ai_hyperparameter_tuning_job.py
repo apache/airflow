@@ -22,6 +22,8 @@
 """
 Example Airflow DAG for Google Vertex AI service testing Hyperparameter Tuning Job operations.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -38,21 +40,45 @@ from airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_jo
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "vertex_ai_hyperparameter_tuning_job_operations"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
+DAG_ID = "vertex_ai_hyperparameter_tuning_job_operations"
 REGION = "us-central1"
+DISPLAY_NAME = f"hyperparameter-tuning-job-{ENV_ID}"
 
-DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_hyperparameter_tuning_job_{ENV_ID}"
 STAGING_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}"
 REPLICA_COUNT = 1
 MACHINE_TYPE = "n1-standard-4"
 ACCELERATOR_TYPE = "ACCELERATOR_TYPE_UNSPECIFIED"
 ACCELERATOR_COUNT = 0
+WORKER_POOL_SPECS = [
+    {
+        "machine_spec": {
+            "machine_type": MACHINE_TYPE,
+            "accelerator_type": ACCELERATOR_TYPE,
+            "accelerator_count": ACCELERATOR_COUNT,
+        },
+        "replica_count": REPLICA_COUNT,
+        "container_spec": {
+            "image_uri": f"gcr.io/{PROJECT_ID}/horse-human:hypertune",
+        },
+    }
+]
+PARAM_SPECS = {
+    'learning_rate': aiplatform.hyperparameter_tuning.DoubleParameterSpec(min=0.01, max=1, scale='log'),
+    'momentum': aiplatform.hyperparameter_tuning.DoubleParameterSpec(min=0, max=1, scale='linear'),
+    'num_neurons': aiplatform.hyperparameter_tuning.DiscreteParameterSpec(
+        values=[64, 128, 512], scale='linear'
+    ),
+}
+METRIC_SPEC = {
+    'accuracy': 'maximize',
+}
 
 
 with models.DAG(
     DAG_ID,
-    schedule_interval="@once",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "vertex_ai", "hyperparameter_tuning_job"],
@@ -68,35 +94,13 @@ with models.DAG(
     create_hyperparameter_tuning_job = CreateHyperparameterTuningJobOperator(
         task_id="create_hyperparameter_tuning_job",
         staging_bucket=STAGING_BUCKET,
-        display_name=f"hyperparameter-tuning-job-{ENV_ID}",
-        worker_pool_specs=[
-            {
-                "machine_spec": {
-                    "machine_type": MACHINE_TYPE,
-                    "accelerator_type": ACCELERATOR_TYPE,
-                    "accelerator_count": ACCELERATOR_COUNT,
-                },
-                "replica_count": REPLICA_COUNT,
-                "container_spec": {
-                    "image_uri": f"gcr.io/{PROJECT_ID}/horse-human:hypertune",
-                },
-            }
-        ],
+        display_name=DISPLAY_NAME,
+        worker_pool_specs=WORKER_POOL_SPECS,
         sync=False,
         region=REGION,
         project_id=PROJECT_ID,
-        parameter_spec={
-            'learning_rate': aiplatform.hyperparameter_tuning.DoubleParameterSpec(
-                min=0.01, max=1, scale='log'
-            ),
-            'momentum': aiplatform.hyperparameter_tuning.DoubleParameterSpec(min=0, max=1, scale='linear'),
-            'num_neurons': aiplatform.hyperparameter_tuning.DiscreteParameterSpec(
-                values=[64, 128, 512], scale='linear'
-            ),
-        },
-        metric_spec={
-            'accuracy': 'maximize',
-        },
+        parameter_spec=PARAM_SPECS,
+        metric_spec=METRIC_SPEC,
         max_trial_count=15,
         parallel_trial_count=3,
     )
@@ -117,6 +121,7 @@ with models.DAG(
         project_id=PROJECT_ID,
         region=REGION,
         hyperparameter_tuning_job_id=create_hyperparameter_tuning_job.output["hyperparameter_tuning_job_id"],
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END how_to_cloud_vertex_ai_delete_hyperparameter_tuning_job_operator]
 
@@ -129,7 +134,9 @@ with models.DAG(
     # [END how_to_cloud_vertex_ai_list_hyperparameter_tuning_job_operator]
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (

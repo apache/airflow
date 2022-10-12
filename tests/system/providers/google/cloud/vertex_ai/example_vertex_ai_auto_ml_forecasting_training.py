@@ -20,7 +20,7 @@
 # type: ignore[arg-type]
 
 """
-Example Airflow DAG for Google Vertex AI service testing Batch Prediction operations.
+Example Airflow DAG for Google Vertex AI service testing Auto ML operations.
 """
 from __future__ import annotations
 
@@ -39,11 +39,6 @@ from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLForecastingTrainingJobOperator,
     DeleteAutoMLTrainingJobOperator,
 )
-from airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job import (
-    CreateBatchPredictionJobOperator,
-    DeleteBatchPredictionJobOperator,
-    ListBatchPredictionJobsOperator,
-)
 from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
     CreateDatasetOperator,
     DeleteDatasetOperator,
@@ -53,17 +48,17 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "vertex_ai_batch_prediction_job_operations"
+DAG_ID = "vertex_ai_auto_ml_operations"
 REGION = "us-central1"
-
-FORECAST_DISPLAY_NAME = f"auto-ml-forecasting-{ENV_ID}"
+FORECASTING_DISPLAY_NAME = f"auto-ml-forecasting-{ENV_ID}"
 MODEL_DISPLAY_NAME = f"auto-ml-forecasting-model-{ENV_ID}"
 
-JOB_DISPLAY_NAME = f"batch_prediction_job_test_{ENV_ID}"
-DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-DATA_SAMPLE_GCS_OBJECT_NAME = "vertex-ai/forecast-dataset.csv"
-FORECAST_ZIP_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "forecast-dataset.csv.zip")
-FORECAST_CSV_FILE_LOCAL_PATH = "/batch-prediction/forecast-dataset.csv"
+FORECAST_GCS_BUCKET_NAME = f"bucket_forecast_{DAG_ID}_{ENV_ID}"
+
+RESOURCES_PATH = Path(__file__).parent / "resources"
+FORECAST_ZIP_CSV_FILE_LOCAL_PATH = str(RESOURCES_PATH / "forecast-dataset.csv.zip")
+FORECAST_GCS_OBJECT_NAME = "vertex-ai/forecast-dataset.csv"
+FORECAST_CSV_FILE_LOCAL_PATH = "/forecast/forecast-dataset.csv"
 
 FORECAST_DATASET = {
     "display_name": f"forecast-dataset-{ENV_ID}",
@@ -71,7 +66,7 @@ FORECAST_DATASET = {
     "metadata": ParseDict(
         {
             "input_config": {
-                "gcs_source": {"uri": [f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/{DATA_SAMPLE_GCS_OBJECT_NAME}"]}
+                "gcs_source": {"uri": [f"gs://{FORECAST_GCS_BUCKET_NAME}/vertex-ai/forecast-dataset.csv"]}
             }
         },
         Value(),
@@ -81,6 +76,7 @@ FORECAST_DATASET = {
 TEST_TIME_COLUMN = "date"
 TEST_TIME_SERIES_IDENTIFIER_COLUMN = "store_name"
 TEST_TARGET_COLUMN = "sale_dollars"
+
 COLUMN_SPECS = {
     TEST_TIME_COLUMN: "timestamp",
     TEST_TARGET_COLUMN: "numeric",
@@ -89,51 +85,50 @@ COLUMN_SPECS = {
     "county": "categorical",
 }
 
-BIGQUERY_SOURCE = f"bq://{PROJECT_ID}.test_iowa_liquor_sales_forecasting_us.2021_sales_predict"
-GCS_DESTINATION_PREFIX = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/output"
-MODEL_PARAMETERS = ParseDict({}, Value())
-
 
 with models.DAG(
-    DAG_ID,
+    f"{DAG_ID}_forecasting_training_job",
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    render_template_as_native_obj=True,
-    tags=["example", "vertex_ai", "batch_prediction_job"],
+    tags=["example", "vertex_ai", "auto_ml"],
 ) as dag:
+
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
-        bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME,
+        bucket_name=FORECAST_GCS_BUCKET_NAME,
         storage_class="REGIONAL",
         location=REGION,
     )
 
     unzip_file = BashOperator(
         task_id="unzip_csv_data_file",
-        bash_command=f"mkdir -p /batch-prediction && "
-        f"unzip {FORECAST_ZIP_CSV_FILE_LOCAL_PATH} -d /batch-prediction/",
+        bash_command=f"unzip {FORECAST_ZIP_CSV_FILE_LOCAL_PATH} -d /forecast/",
     )
 
     upload_files = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",
         src=FORECAST_CSV_FILE_LOCAL_PATH,
-        dst=DATA_SAMPLE_GCS_OBJECT_NAME,
-        bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
+        dst=FORECAST_GCS_OBJECT_NAME,
+        bucket=FORECAST_GCS_BUCKET_NAME,
     )
+
     create_forecast_dataset = CreateDatasetOperator(
         task_id="forecast_dataset",
         dataset=FORECAST_DATASET,
         region=REGION,
         project_id=PROJECT_ID,
     )
+    forecast_dataset_id = create_forecast_dataset.output['dataset_id']
+
+    # [START how_to_cloud_vertex_ai_create_auto_ml_forecasting_training_job_operator]
     create_auto_ml_forecasting_training_job = CreateAutoMLForecastingTrainingJobOperator(
         task_id="auto_ml_forecasting_task",
-        display_name=FORECAST_DISPLAY_NAME,
+        display_name=FORECASTING_DISPLAY_NAME,
         optimization_objective="minimize-rmse",
         column_specs=COLUMN_SPECS,
         # run params
-        dataset_id=create_forecast_dataset.output['dataset_id'],
+        dataset_id=forecast_dataset_id,
         target_column=TEST_TARGET_COLUMN,
         time_column=TEST_TIME_COLUMN,
         time_series_identifier_column=TEST_TIME_SERIES_IDENTIFIER_COLUMN,
@@ -151,62 +146,31 @@ with models.DAG(
         region=REGION,
         project_id=PROJECT_ID,
     )
+    # [END how_to_cloud_vertex_ai_create_auto_ml_forecasting_training_job_operator]
 
-    # [START how_to_cloud_vertex_ai_create_batch_prediction_job_operator]
-    create_batch_prediction_job = CreateBatchPredictionJobOperator(
-        task_id="create_batch_prediction_job",
-        job_display_name=JOB_DISPLAY_NAME,
-        model_name="{{ti.xcom_pull('auto_ml_forecasting_task')['name']}}",
-        predictions_format="csv",
-        bigquery_source=BIGQUERY_SOURCE,
-        gcs_destination_prefix=GCS_DESTINATION_PREFIX,
-        model_parameters=MODEL_PARAMETERS,
-        region=REGION,
-        project_id=PROJECT_ID,
-    )
-    # [END how_to_cloud_vertex_ai_create_batch_prediction_job_operator]
-
-    # [START how_to_cloud_vertex_ai_list_batch_prediction_job_operator]
-    list_batch_prediction_job = ListBatchPredictionJobsOperator(
-        task_id="list_batch_prediction_jobs",
-        region=REGION,
-        project_id=PROJECT_ID,
-    )
-    # [END how_to_cloud_vertex_ai_list_batch_prediction_job_operator]
-
-    # [START how_to_cloud_vertex_ai_delete_batch_prediction_job_operator]
-    delete_batch_prediction_job = DeleteBatchPredictionJobOperator(
-        task_id="delete_batch_prediction_job",
-        batch_prediction_job_id=create_batch_prediction_job.output['batch_prediction_job_id'],
-        region=REGION,
-        project_id=PROJECT_ID,
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
-    # [END how_to_cloud_vertex_ai_delete_batch_prediction_job_operator]
-
+    # [START how_to_cloud_vertex_ai_delete_auto_ml_training_job_operator]
     delete_auto_ml_forecasting_training_job = DeleteAutoMLTrainingJobOperator(
         task_id="delete_auto_ml_forecasting_training_job",
         training_pipeline_id=create_auto_ml_forecasting_training_job.output['training_id'],
         region=REGION,
         project_id=PROJECT_ID,
-        trigger_rule=TriggerRule.ALL_DONE,
     )
+    # [END how_to_cloud_vertex_ai_delete_auto_ml_training_job_operator]
+
     delete_forecast_dataset = DeleteDatasetOperator(
         task_id="delete_forecast_dataset",
-        dataset_id=create_forecast_dataset.output['dataset_id'],
+        dataset_id=forecast_dataset_id,
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
     )
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket",
-        bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME,
-        trigger_rule=TriggerRule.ALL_DONE,
+        task_id="delete_bucket", bucket_name=FORECAST_GCS_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
     clear_folder = BashOperator(
         task_id="clear_folder",
-        bash_command="rm -r /batch-prediction/*",
+        bash_command="rm -r /forecast/*",
     )
 
     (
@@ -215,12 +179,9 @@ with models.DAG(
         >> unzip_file
         >> upload_files
         >> create_forecast_dataset
-        >> create_auto_ml_forecasting_training_job
         # TEST BODY
-        >> create_batch_prediction_job
-        >> list_batch_prediction_job
+        >> create_auto_ml_forecasting_training_job
         # TEST TEARDOWN
-        >> delete_batch_prediction_job
         >> delete_auto_ml_forecasting_training_job
         >> delete_forecast_dataset
         >> delete_bucket
