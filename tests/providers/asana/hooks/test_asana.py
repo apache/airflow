@@ -289,13 +289,10 @@ class TestAsanaHook(unittest.TestCase):
             assert hook.workspace == 'abc'
             assert hook.project == 'abc'
 
-    @patch('airflow.providers.microsoft.azure.hooks.fileshare.FileService')
     def test_backcompat_prefix_both_prefers_short(self, mock_service):
         with patch.dict(
             os.environ,
-            {
-                "AIRFLOW_CONN_MY_CONN": 'a://?workspace=non-prefixed&extra__azure_fileshare__workspace=prefixed'
-            },
+            {"AIRFLOW_CONN_MY_CONN": 'a://?workspace=non-prefixed&extra__asana__workspace=prefixed'},
         ):
             hook = AsanaHook('my_conn')
             assert hook.workspace == 'non-prefixed'
