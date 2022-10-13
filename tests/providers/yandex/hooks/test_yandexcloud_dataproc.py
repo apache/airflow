@@ -72,7 +72,7 @@ class TestYandexCloudDataprocHook(unittest.TestCase):
             self.hook = DataprocHook()
 
     def setUp(self):
-        self.connection = Connection(extra=json.dumps({'extra__yandexcloud__oauth': OAUTH_TOKEN}))
+        self.connection = Connection(extra=json.dumps({'oauth': OAUTH_TOKEN}))
         self._init_hook()
 
     @patch('yandexcloud.SDK.create_operation_and_get_result')
