@@ -564,7 +564,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
             Connection(
                 conn_id="kubernetes_with_namespace",
                 conn_type="kubernetes",
-                extra=json.dumps({"extra__kubernetes__namespace": "mock_namespace"}),
+                extra=json.dumps({"namespace": "mock_namespace"}),
             )
         )
         args = {"owner": "airflow", "start_date": timezone.datetime(2020, 2, 1)}
