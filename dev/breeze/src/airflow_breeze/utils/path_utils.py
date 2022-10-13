@@ -145,7 +145,7 @@ def reinstall_if_setup_changed() -> bool:
         if "apache-airflow-breeze" in e.msg:
             print(
                 """Missing Package`apache-airflow-breeze`.
-                   Use `pip install -e ./dev/breeze` to install the package."""
+                   Use `pipx install -e ./dev/breeze` to install the package."""
             )
             return False
     sources_hash = get_installation_sources_config_metadata_hash()
