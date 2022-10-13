@@ -26,6 +26,7 @@ from pathlib import Path
 
 from airflow import DAG
 from airflow.decorators import task
+from airflow.models.dagrun import DagRun
 from airflow.models.param import Param
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.trigger_rule import TriggerRule
@@ -53,17 +54,21 @@ with DAG(
 ) as dag:
 
     @task(task_id="get_names")
-    def get_names(ti: TaskInstance = None) -> str:
-        if "names" not in ti.dag_run.conf:
+    def get_names(**kwargs) -> list[str]:
+        ti: TaskInstance = kwargs["ti"]
+        dag_run: DagRun = ti.dag_run
+        if "names" not in dag_run.conf:
             print("Uuups, no names given, was no UI used to trigger?")
             return []
-        return ti.dag_run.conf["names"]
+        return dag_run.conf["names"]
 
     @task.branch(task_id="select_languages")
-    def select_languages(ti: TaskInstance = None) -> list[str]:
+    def select_languages(**kwargs) -> list[str]:
+        ti: TaskInstance = kwargs["ti"]
+        dag_run: DagRun = ti.dag_run
         selected_languages = []
         for lang in ["english", "german", "french"]:
-            if lang in ti.dag_run.conf and ti.dag_run.conf[lang]:
+            if lang in dag_run.conf and dag_run.conf[lang]:
                 selected_languages.append(f"generate_{lang}_greeting")
         return selected_languages
 
@@ -80,9 +85,7 @@ with DAG(
         return f"Bonjour {name}!"
 
     @task(task_id="print_greetings", trigger_rule=TriggerRule.ALL_DONE)
-    def print_greetings(
-        greetings1: list(str) | None, greetings2: list(str) | None, greetings3: list(str) | None
-    ) -> None:
+    def print_greetings(greetings1, greetings2, greetings3) -> None:
         for g in greetings1 if greetings1 else []:
             print(g)
         for g in greetings2 if greetings2 else []:
