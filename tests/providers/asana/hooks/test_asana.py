@@ -289,7 +289,7 @@ class TestAsanaHook(unittest.TestCase):
             assert hook.workspace == 'abc'
             assert hook.project == 'abc'
 
-    def test_backcompat_prefix_both_prefers_short(self, mock_service):
+    def test_backcompat_prefix_both_prefers_short(self):
         with patch.dict(
             os.environ,
             {"AIRFLOW_CONN_MY_CONN": 'a://?workspace=non-prefixed&extra__asana__workspace=prefixed'},
