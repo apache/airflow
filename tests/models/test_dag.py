@@ -86,6 +86,13 @@ def clear_dags():
     clear_db_serialized_dags()
 
 
+@pytest.fixture
+def clear_datasets():
+    clear_db_datasets()
+    yield
+    clear_db_datasets()
+
+
 class TestDag:
     def setup_method(self) -> None:
         clear_db_runs()
@@ -3005,7 +3012,7 @@ def test__tags_length(tags: list[str], should_pass: bool):
 
 
 @pytest.mark.need_serialized_dag
-def test_get_dataset_triggered_next_run_info(dag_maker):
+def test_get_dataset_triggered_next_run_info(dag_maker, clear_datasets):
     dataset1 = Dataset(uri="ds1")
     dataset2 = Dataset(uri="ds2")
     dataset3 = Dataset(uri="ds3")
@@ -3031,10 +3038,13 @@ def test_get_dataset_triggered_next_run_info(dag_maker):
     )
     session.flush()
 
+    datasets = session.query(DatasetModel.uri).order_by(DatasetModel.id).all()
+
     info = get_dataset_triggered_next_run_info([dag1.dag_id], session=session)
     assert info[dag1.dag_id] == {
         "ready": 0,
         "total": 1,
+        "uri": datasets[0].uri,
     }
 
     # This time, check both dag2 and dag3 at the same time (tests filtering)
@@ -3042,10 +3052,12 @@ def test_get_dataset_triggered_next_run_info(dag_maker):
     assert info[dag2.dag_id] == {
         "ready": 1,
         "total": 2,
+        "uri": "",
     }
     assert info[dag3.dag_id] == {
         "ready": 1,
         "total": 3,
+        "uri": "",
     }
 
 
