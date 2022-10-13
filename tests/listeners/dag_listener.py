@@ -17,43 +17,33 @@
 # under the License.
 from __future__ import annotations
 
+import copy
+import typing
+
 from airflow.listeners import hookimpl
-from airflow.utils.state import State
 
-started_component = None
-stopped_component = None
-state = []
+if typing.TYPE_CHECKING:
+    from airflow.models.dagrun import DagRun
 
 
-@hookimpl
-def on_starting(component):
-    global started_component
-    started_component = component
+running, success, failure = [], [], []
 
 
 @hookimpl
-def before_stopping(component):
-    global stopped_component
-    stopped_component = component
+def on_dag_run_running(dag_run: DagRun, msg: str):
+    running.append(copy.deepcopy(dag_run))
 
 
 @hookimpl
-def on_task_instance_running(previous_state, task_instance, session):
-    state.append(State.RUNNING)
+def on_dag_run_success(dag_run: DagRun, msg: str):
+    success.append(copy.deepcopy(dag_run))
 
 
 @hookimpl
-def on_task_instance_success(previous_state, task_instance, session):
-    state.append(State.SUCCESS)
-
-
-@hookimpl
-def on_task_instance_failed(previous_state, task_instance, session):
-    state.append(State.FAILED)
+def on_dag_run_failed(dag_run: DagRun, msg: str):
+    failure.append(dag_run)
 
 
 def clear():
-    global started_component, stopped_component, state
-    started_component = None
-    stopped_component = None
-    state = []
+    global running, success, failure
+    running, success, failure = [], [], []
