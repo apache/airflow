@@ -832,7 +832,7 @@ def reserialize_dags(*, session: Session = NEW_SESSION) -> None:
 
     session.query(SerializedDagModel).delete(synchronize_session=False)
     dagbag = DagBag(collect_dags=False)
-    dagbag.collect_dags(only_if_updated=False, safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'))
+    dagbag.collect_dags(only_if_updated=False)
     dagbag.sync_to_db(session=session)
 
 
