@@ -201,8 +201,8 @@ class GoogleAdsHook(BaseHook):
         Updates google ads config with file path of the temp file containing the secret
         Note, the secret must be passed as a file path for Google Ads API
         """
-        secret_conn = self.get_connection(self.gcp_conn_id)
-        secret = get_field(secret_conn.extra_dejson, 'keyfile_dict')
+        extras = self.get_connection(self.gcp_conn_id).extra_dejson
+        secret = get_field(extras, 'keyfile_dict')
         if not secret:
             raise KeyError("secret_conn.extra_dejson does not contain keyfile_dict")
         secrets_temp.write(secret)

@@ -481,10 +481,9 @@ class CloudSqlProxyRunner(LoggingMixin):
         self.sql_proxy_was_downloaded = True
 
     def _get_credential_parameters(self) -> list[str]:
-        connection = GoogleBaseHook.get_connection(conn_id=self.gcp_conn_id)
-
-        key_path = get_field(connection.extra_dejson, 'key_path')
-        keyfile_dict = get_field(connection.extra_dejson, 'keyfile_dict')
+        extras = GoogleBaseHook.get_connection(conn_id=self.gcp_conn_id).extra_dejson
+        key_path = get_field(extras, 'key_path')
+        keyfile_dict = get_field(extras, 'keyfile_dict')
         if key_path:
             credential_params = ['-credential_file', key_path]
         elif keyfile_dict:
@@ -503,7 +502,7 @@ class CloudSqlProxyRunner(LoggingMixin):
             credential_params = []
 
         if not self.instance_specification:
-            project_id = get_field(connection.extra_dejson, 'project')
+            project_id = get_field(extras, 'project')
             if self.project_id:
                 project_id = self.project_id
             if not project_id:

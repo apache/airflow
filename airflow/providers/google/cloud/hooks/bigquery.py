@@ -156,11 +156,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         if engine_kwargs is None:
             engine_kwargs = {}
-        connection = self.get_connection(self.gcp_conn_id)
-        credentials_path = get_field(connection.extra_dejson, 'key_path')
+        extras = self.get_connection(self.gcp_conn_id).extra_dejson
+        credentials_path = get_field(extras, 'key_path')
         if credentials_path:
             return create_engine(self.get_uri(), credentials_path=credentials_path, **engine_kwargs)
-        keyfile_dict = get_field(connection.extra_dejson, 'keyfile_dict')
+        keyfile_dict = get_field(extras, 'keyfile_dict')
         if keyfile_dict:
             keyfile_content = keyfile_dict if isinstance(keyfile_dict, dict) else json.loads(keyfile_dict)
             return create_engine(self.get_uri(), credentials_info=keyfile_content, **engine_kwargs)
