@@ -283,7 +283,7 @@ class TestAsanaHook(unittest.TestCase):
             param('a://?workspace=abc&project=abc', id='no-prefix'),
         ],
     )
-    def test_backcompat_prefix_works(self, mock_service, uri):
+    def test_backcompat_prefix_works(self, uri):
         with patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}):
             hook = AsanaHook('my_conn')
             assert hook.workspace == 'abc'
