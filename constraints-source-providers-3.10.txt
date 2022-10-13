@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-10-12T22:26:12Z
+# This constraints file was automatically generated on 2022-10-13T22:13:31Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -31,7 +31,7 @@ Jinja2==3.1.2
 Mako==1.2.3
 Markdown==3.4.1
 MarkupSafe==2.1.1
-PyGithub==1.55
+PyGithub==1.56
 PyHive==0.6.5
 PyJWT==2.5.0
 PyNaCl==1.5.0
@@ -90,7 +90,7 @@ azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==21.2.0
 azure-nspkg==3.0.2
 azure-servicebus==7.8.1
-azure-storage-blob==12.8.1
+azure-storage-blob==12.14.0
 azure-storage-common==2.1.0
 azure-storage-file==2.1.0
 azure-synapse-spark==0.7.0
@@ -102,9 +102,9 @@ billiard==3.6.4.0
 black==22.10.0
 bleach==5.0.1
 blinker==1.5
-boto3==1.24.89
+boto3==1.24.90
 boto==2.49.0
-botocore==1.27.89
+botocore==1.27.90
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.9.0
@@ -310,7 +310,7 @@ msrest==0.7.1
 msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.2
-mypy-boto3-appflow==1.24.36.post1
+mypy-boto3-appflow==1.24.90
 mypy-boto3-rds==1.24.76
 mypy-boto3-redshift-data==1.24.36.post1
 mypy-extensions==0.4.3
@@ -343,7 +343,7 @@ parso==0.8.3
 partd==1.3.0
 pathspec==0.9.0
 pbr==5.10.0
-pdpyras==4.5.0
+pdpyras==4.5.2
 pendulum==2.1.2
 pexpect==4.8.0
 pickleshare==0.7.5
@@ -359,7 +359,7 @@ portalocker==2.5.1
 pre-commit==2.20.0
 presto-python-client==0.8.3
 prison==0.2.1
-prometheus-client==0.14.1
+prometheus-client==0.15.0
 prompt-toolkit==3.0.31
 proto-plus==1.19.6
 protobuf==3.20.0
@@ -405,7 +405,7 @@ pytest-rerunfailures==9.1.1
 pytest-timeouts==1.2.1
 pytest-xdist==2.5.0
 pytest==6.2.5
-python-arango==7.5.1
+python-arango==7.5.2
 python-daemon==2.3.1
 python-dateutil==2.8.2
 python-http-client==3.3.7
@@ -525,7 +525,7 @@ types-termcolor==1.1.6
 types-toml==0.10.8
 types-urllib3==1.26.25
 typing_extensions==4.4.0
-tzdata==2022.4
+tzdata==2022.5
 tzlocal==4.2
 uamqp==1.6.1
 uc-micro-py==1.0.1
