@@ -23,7 +23,7 @@
 Changelog
 ---------
 
-5.0.0
+3.0.0
 .....
 
 Breaking changes
