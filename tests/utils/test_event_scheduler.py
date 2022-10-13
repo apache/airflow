@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.utils.event_scheduler import EventScheduler
 
 
-class TestEventScheduler(unittest.TestCase):
+class TestEventScheduler:
     def test_call_regular_interval(self):
         somefunction = mock.MagicMock()
 

@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.druid.hooks.druid import DruidHook
@@ -47,7 +48,7 @@ class DruidOperator(BaseOperator):
         json_index_file: str,
         druid_ingest_conn_id: str = 'druid_ingest_default',
         timeout: int = 1,
-        max_ingestion_time: Optional[int] = None,
+        max_ingestion_time: int | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -56,7 +57,7 @@ class DruidOperator(BaseOperator):
         self.timeout = timeout
         self.max_ingestion_time = max_ingestion_time
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         hook = DruidHook(
             druid_ingest_conn_id=self.conn_id,
             timeout=self.timeout,

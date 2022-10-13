@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import unittest
 from typing import Any, Dict
 from unittest import mock
@@ -43,7 +44,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
             self.hook = CloudNaturalLanguageHook(gcp_conn_id="test")
 
     @mock.patch(
-        "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook._get_credentials"
+        "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_credentials"
     )
     @mock.patch("airflow.providers.google.cloud.hooks.natural_language.LanguageServiceClient")
     def test_language_service_client_creation(self, mock_client, mock_get_creds):

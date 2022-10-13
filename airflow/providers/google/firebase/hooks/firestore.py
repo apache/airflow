@@ -16,9 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Google Cloud Firestore service"""
+from __future__ import annotations
 
 import time
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Optional, Sequence
 
 from googleapiclient.discovery import build, build_from_document
 
@@ -57,8 +58,8 @@ class CloudFirestoreHook(GoogleBaseHook):
         self,
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -87,7 +88,7 @@ class CloudFirestoreHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def export_documents(
-        self, body: Dict, database_id: str = "(default)", project_id: Optional[str] = None
+        self, body: dict, database_id: str = "(default)", project_id: str | None = None
     ) -> None:
         """
         Starts a export with the specified configuration.

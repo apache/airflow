@@ -15,11 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import re
 import sys
 import warnings
 from datetime import timedelta
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 import boto3
 
@@ -49,9 +51,9 @@ DEFAULT_CONN_ID = 'aws_default'
 class EcsBaseOperator(BaseOperator):
     """This is the base operator for all Elastic Container Service operators."""
 
-    def __init__(self, **kwargs):
-        self.aws_conn_id = kwargs.get('aws_conn_id', DEFAULT_CONN_ID)
-        self.region = kwargs.get('region')
+    def __init__(self, *, aws_conn_id: str | None = DEFAULT_CONN_ID, region: str | None = None, **kwargs):
+        self.aws_conn_id = aws_conn_id
+        self.region = region
         super().__init__(**kwargs)
 
     @cached_property
@@ -64,7 +66,7 @@ class EcsBaseOperator(BaseOperator):
         """Create and return the EcsHook's client."""
         return self.hook.conn
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """Must overwrite in child classes."""
         raise NotImplementedError('Please implement execute() in subclass')
 
@@ -89,7 +91,7 @@ class EcsCreateClusterOperator(EcsBaseOperator):
         self,
         *,
         cluster_name: str,
-        create_cluster_kwargs: Optional[Dict] = None,
+        create_cluster_kwargs: dict | None = None,
         wait_for_completion: bool = True,
         **kwargs,
     ) -> None:
@@ -98,7 +100,7 @@ class EcsCreateClusterOperator(EcsBaseOperator):
         self.create_cluster_kwargs = create_cluster_kwargs or {}
         self.wait_for_completion = wait_for_completion
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info(
             'Creating cluster %s using the following values: %s',
             self.cluster_name,
@@ -143,7 +145,7 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
         self.cluster_name = cluster_name
         self.wait_for_completion = wait_for_completion
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info('Deleting cluster %s.', self.cluster_name)
         result = self.client.delete_cluster(cluster=self.cluster_name)
 
@@ -181,7 +183,7 @@ class EcsDeregisterTaskDefinitionOperator(EcsBaseOperator):
         self.task_definition = task_definition
         self.wait_for_completion = wait_for_completion
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info('Deregistering task definition %s.', self.task_definition)
         result = self.client.deregister_task_definition(taskDefinition=self.task_definition)
 
@@ -224,8 +226,8 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
         self,
         *,
         family: str,
-        container_definitions: List[Dict],
-        register_task_kwargs: Optional[Dict] = None,
+        container_definitions: list[dict],
+        register_task_kwargs: dict | None = None,
         wait_for_completion: bool = True,
         **kwargs,
     ):
@@ -235,7 +237,7 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
         self.register_task_kwargs = register_task_kwargs or {}
         self.wait_for_completion = wait_for_completion
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info(
             'Registering task definition %s using the following values: %s',
             self.family,
@@ -275,7 +277,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
         credential boto3 strategy will be used
-        (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
+        (https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html).
     :param region_name: region name to use in AWS Hook.
         Override the region_name in connection (if provided)
     :param launch_type: the launch type on which to run your task ('EC2', 'EXTERNAL', or 'FARGATE')
@@ -352,19 +354,19 @@ class EcsRunTaskOperator(EcsBaseOperator):
         cluster: str,
         overrides: dict,
         launch_type: str = 'EC2',
-        capacity_provider_strategy: Optional[list] = None,
-        group: Optional[str] = None,
-        placement_constraints: Optional[list] = None,
-        placement_strategy: Optional[list] = None,
-        platform_version: Optional[str] = None,
-        network_configuration: Optional[dict] = None,
-        tags: Optional[dict] = None,
-        awslogs_group: Optional[str] = None,
-        awslogs_region: Optional[str] = None,
-        awslogs_stream_prefix: Optional[str] = None,
+        capacity_provider_strategy: list | None = None,
+        group: str | None = None,
+        placement_constraints: list | None = None,
+        placement_strategy: list | None = None,
+        platform_version: str | None = None,
+        network_configuration: dict | None = None,
+        tags: dict | None = None,
+        awslogs_group: str | None = None,
+        awslogs_region: str | None = None,
+        awslogs_stream_prefix: str | None = None,
         awslogs_fetch_interval: timedelta = timedelta(seconds=30),
-        propagate_tags: Optional[str] = None,
-        quota_retry: Optional[dict] = None,
+        propagate_tags: str | None = None,
+        quota_retry: dict | None = None,
         reattach: bool = False,
         number_logs_exception: int = 10,
         wait_for_completion: bool = True,
@@ -395,9 +397,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
         if self.awslogs_region is None:
             self.awslogs_region = self.region
 
-        self.arn: Optional[str] = None
+        self.arn: str | None = None
         self.retry_args = quota_retry
-        self.task_log_fetcher: Optional[EcsTaskLogFetcher] = None
+        self.task_log_fetcher: EcsTaskLogFetcher | None = None
         self.wait_for_completion = wait_for_completion
 
     @provide_session

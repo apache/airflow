@@ -15,8 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 """
 Test BatchWaiters
 
@@ -29,10 +27,11 @@ derived from the moto test suite for testing the Batch client.
     - https://github.com/spulec/moto/pull/1197/files
     - https://github.com/spulec/moto/blob/master/tests/test_batch/test_batch.py
 """
+from __future__ import annotations
 
 import inspect
 import unittest
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 from unittest import mock
 
 import boto3
@@ -72,11 +71,11 @@ def job_definition_name():
 
 
 class AwsClients(NamedTuple):
-    batch: "botocore.client.Batch"
-    ec2: "botocore.client.EC2"
-    ecs: "botocore.client.ECS"
-    iam: "botocore.client.IAM"
-    log: "botocore.client.CloudWatchLogs"
+    batch: botocore.client.Batch
+    ec2: botocore.client.EC2
+    ecs: botocore.client.ECS
+    iam: botocore.client.IAM
+    log: botocore.client.CloudWatchLogs
 
 
 @pytest.fixture(scope="module")
@@ -122,16 +121,16 @@ def aws_clients(batch_client, ec2_client, ecs_client, iam_client, logs_client):
 class Infrastructure:
     aws_region: str
     aws_clients: AwsClients
-    vpc_id: Optional[str] = None
-    subnet_id: Optional[str] = None
-    security_group_id: Optional[str] = None
-    iam_arn: Optional[str] = None
-    compute_env_name: Optional[str] = None
-    compute_env_arn: Optional[str] = None
-    job_queue_name: Optional[str] = None
-    job_queue_arn: Optional[str] = None
-    job_definition_name: Optional[str] = None
-    job_definition_arn: Optional[str] = None
+    vpc_id: str | None = None
+    subnet_id: str | None = None
+    security_group_id: str | None = None
+    iam_arn: str | None = None
+    compute_env_name: str | None = None
+    compute_env_arn: str | None = None
+    job_queue_name: str | None = None
+    job_queue_arn: str | None = None
+    job_definition_name: str | None = None
+    job_definition_arn: str | None = None
 
 
 def batch_infrastructure(

@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.executors.sequential_executor import SequentialExecutor
 
 
-class TestSequentialExecutor(unittest.TestCase):
+class TestSequentialExecutor:
     @mock.patch('airflow.executors.sequential_executor.SequentialExecutor.sync')
     @mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')
     @mock.patch('airflow.executors.base_executor.Stats.gauge')

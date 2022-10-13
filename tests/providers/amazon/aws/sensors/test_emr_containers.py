@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -36,6 +37,9 @@ class TestEmrContainerSensor(unittest.TestCase):
             max_retries=1,
             aws_conn_id='aws_default',
         )
+        # We're mocking all actual AWS calls and don't need a connection. This
+        # avoids an Airflow warning about connection cannot be found.
+        self.sensor.hook.get_connection = lambda _: None
 
     @mock.patch.object(EmrContainerHook, 'check_query_status', side_effect=("PENDING",))
     def test_poke_pending(self, mock_check_query_status):

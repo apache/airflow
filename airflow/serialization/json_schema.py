@@ -15,17 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """jsonschema for validating serialized DAG and operator."""
+from __future__ import annotations
 
 import pkgutil
-from typing import Iterable
-
-import jsonschema
+from typing import TYPE_CHECKING, Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.settings import json
 from airflow.typing_compat import Protocol
+
+if TYPE_CHECKING:
+    import jsonschema
 
 
 class Validator(Protocol):
@@ -62,5 +63,7 @@ def load_dag_schema_dict() -> dict:
 
 def load_dag_schema() -> Validator:
     """Load & Validate Json Schema for DAG"""
+    import jsonschema
+
     schema = load_dag_schema_dict()
     return jsonschema.Draft7Validator(schema)

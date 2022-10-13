@@ -15,13 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """Connection sub-commands"""
+from __future__ import annotations
+
 import io
 import json
 import os
 import sys
 import warnings
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 from urllib.parse import urlparse, urlunparse
 
 from sqlalchemy.orm import exc
@@ -42,7 +44,7 @@ from airflow.utils.warnings import warn_list_secrets_alternative_backend
 CUSTOM_BACKEND = bool(get_custom_secret_backend())
 
 
-def _connection_mapper(conn: Connection) -> Dict[str, Any]:
+def _connection_mapper(conn: Connection) -> dict[str, Any]:
     return {
         'id': conn.id,
         'conn_id': conn.conn_id,
@@ -110,7 +112,7 @@ def _connection_to_dict(conn: Connection) -> dict:
     )
 
 
-def _format_connections(conns: List[Connection], file_format: str, serialization_format: str) -> str:
+def _format_connections(conns: list[Connection], file_format: str, serialization_format: str) -> str:
     if serialization_format == 'json':
         serializer_func = lambda x: json.dumps(_connection_to_dict(x))
     elif serialization_format == 'uri':

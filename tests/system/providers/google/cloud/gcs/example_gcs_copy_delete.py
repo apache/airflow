@@ -19,6 +19,7 @@
 Example Airflow DAG for Google Cloud Storage operators for listing, copying and deleting
 bucket content.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime

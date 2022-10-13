@@ -15,13 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Optional
 
 import watchtower
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
+from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -38,7 +40,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     :param filename_template: template for file name (local storage) or log stream name (remote)
     """
 
-    def __init__(self, base_log_folder: str, log_group_arn: str, filename_template: Optional[str] = None):
+    def __init__(self, base_log_folder: str, log_group_arn: str, filename_template: str | None = None):
         super().__init__(base_log_folder, filename_template)
         split_arn = log_group_arn.split(':')
 
@@ -50,20 +52,9 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     @cached_property
     def hook(self):
         """Returns AwsLogsHook."""
-        remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
-        try:
-            from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
-
-            return AwsLogsHook(aws_conn_id=remote_conn_id, region_name=self.region_name)
-        except Exception as e:
-            self.log.error(
-                'Could not create an AwsLogsHook with connection id "%s". '
-                'Please make sure that apache-airflow[aws] is installed and '
-                'the Cloudwatch logs connection exists. Exception: "%s"',
-                remote_conn_id,
-                e,
-            )
-            return None
+        return AwsLogsHook(
+            aws_conn_id=conf.get('logging', 'REMOTE_LOG_CONN_ID'), region_name=self.region_name
+        )
 
     def _render_filename(self, ti, try_number):
         # Replace unsupported log group name characters
@@ -72,8 +63,8 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     def set_context(self, ti):
         super().set_context(ti)
         self.handler = watchtower.CloudWatchLogHandler(
-            log_group=self.log_group,
-            stream_name=self._render_filename(ti, ti.try_number),
+            log_group_name=self.log_group,
+            log_stream_name=self._render_filename(ti, ti.try_number),
             boto3_client=self.hook.get_conn(),
         )
 
@@ -107,12 +98,11 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         :return: string of all logs from the given log stream
         """
         try:
-            events = list(
-                self.hook.get_log_events(
-                    log_group=self.log_group, log_stream_name=stream_name, start_from_head=True
-                )
+            events = self.hook.get_log_events(
+                log_group=self.log_group,
+                log_stream_name=stream_name,
+                start_from_head=True,
             )
-
             return '\n'.join(self._event_to_str(event) for event in events)
         except Exception:
             msg = f'Could not read remote logs from log_group: {self.log_group} log_stream: {stream_name}.'

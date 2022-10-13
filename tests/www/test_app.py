@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import runpy
 import sys
-import unittest
 from datetime import timedelta
 from unittest import mock
 
@@ -31,9 +32,9 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
-class TestApp(unittest.TestCase):
+class TestApp:
     @classmethod
-    def setUpClass(cls) -> None:
+    def setup_class(cls) -> None:
         from airflow import settings
 
         settings.configure_orm()
@@ -238,3 +239,13 @@ class TestFlaskCli:
 
         output = capsys.readouterr()
         assert "/login/" in output.out
+
+
+def test_app_can_json_serialize_k8s_pod():
+    # This is mostly testing that we have correctly configured the JSON provider to use. Testing the k8s pos
+    # is a side-effect of that.
+    k8s = pytest.importorskip('kubernetes.client.models')
+
+    pod = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
+    app = application.cached_app(testing=True)
+    assert app.json.dumps(pod) == '{"spec": {"containers": [{"name": "base"}]}}'

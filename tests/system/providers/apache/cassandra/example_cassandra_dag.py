@@ -15,14 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# Ignore missing args provided by default_args
-# type: ignore[call-arg]
-
 """
 Example Airflow DAG to check if a Cassandra Table and a Records exists
 or not using `CassandraTableSensor` and `CassandraRecordSensor`.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -30,6 +27,10 @@ from datetime import datetime
 from airflow.models import DAG
 from airflow.providers.apache.cassandra.sensors.record import CassandraRecordSensor
 from airflow.providers.apache.cassandra.sensors.table import CassandraTableSensor
+
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
+
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_cassandra_operator"

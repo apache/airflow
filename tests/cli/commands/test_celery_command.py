@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
+from __future__ import annotations
+
 from argparse import Namespace
 from tempfile import NamedTemporaryFile
 from unittest import mock
@@ -30,7 +31,7 @@ from airflow.configuration import conf
 from tests.test_utils.config import conf_vars
 
 
-class TestWorkerPrecheck(unittest.TestCase):
+class TestWorkerPrecheck:
     @mock.patch('airflow.settings.validate_session')
     def test_error(self, mock_validate_session):
         """
@@ -63,9 +64,9 @@ class TestWorkerPrecheck(unittest.TestCase):
 @pytest.mark.integration("redis")
 @pytest.mark.integration("rabbitmq")
 @pytest.mark.backend("mysql", "postgres")
-class TestWorkerServeLogs(unittest.TestCase):
+class TestWorkerServeLogs:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
     @mock.patch('airflow.cli.commands.celery_command.celery_app')
@@ -92,9 +93,9 @@ class TestWorkerServeLogs(unittest.TestCase):
 
 
 @pytest.mark.backend("mysql", "postgres")
-class TestCeleryStopCommand(unittest.TestCase):
+class TestCeleryStopCommand:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
@@ -174,9 +175,9 @@ class TestCeleryStopCommand(unittest.TestCase):
 
 
 @pytest.mark.backend("mysql", "postgres")
-class TestWorkerStart(unittest.TestCase):
+class TestWorkerStart:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
@@ -235,9 +236,9 @@ class TestWorkerStart(unittest.TestCase):
 
 
 @pytest.mark.backend("mysql", "postgres")
-class TestWorkerFailure(unittest.TestCase):
+class TestWorkerFailure:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
     @mock.patch('airflow.cli.commands.celery_command.Process')
@@ -253,9 +254,9 @@ class TestWorkerFailure(unittest.TestCase):
 
 
 @pytest.mark.backend("mysql", "postgres")
-class TestFlowerCommand(unittest.TestCase):
+class TestFlowerCommand:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
     @mock.patch('airflow.cli.commands.celery_command.celery_app')

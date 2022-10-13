@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """change datetime to datetime2(6) on MSSQL tables.
 
 Revision ID: 74effc47d867
@@ -23,6 +22,7 @@ Revises: 6e96a59344a4
 Create Date: 2019-08-01 15:19:57.585620
 
 """
+from __future__ import annotations
 
 from collections import defaultdict
 

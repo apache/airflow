@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import io
 import json
 import textwrap
-import unittest
 from contextlib import redirect_stdout
 
 from airflow.cli import cli_parser
@@ -39,9 +39,9 @@ class TestPlugin(AirflowPlugin):
     hooks = [PluginHook]
 
 
-class TestPluginsCommand(unittest.TestCase):
+class TestPluginsCommand:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
     @mock_plugin_manager(plugins=[])
@@ -117,4 +117,4 @@ class TestPluginsCommand(unittest.TestCase):
             test-plugin-cli | tests.cli.commands.test_plugins_command.PluginHook
             """
         )
-        self.assertEqual(stdout, expected_output)
+        assert stdout == expected_output

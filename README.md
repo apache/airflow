@@ -70,7 +70,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 Airflow works best with workflows that are mostly static and slowly changing. When the DAG structure is similar from one run to the next, it clarifies the unit of work and continuity. Other similar projects include [Luigi](https://github.com/spotify/luigi), [Oozie](https://oozie.apache.org/) and [Azkaban](https://azkaban.github.io/).
 
-Airflow is commonly used to process data, but has the opinion that tasks should ideally be idempotent (i.e., results of the task will be the same, and will not create duplicated data in a destination system), and should not pass large quantities of data from one task to the next (though tasks can pass metadata using Airflow's [Xcom feature](https://airflow.apache.org/docs/apache-airflow/stable/concepts.html#xcoms)). For high-volume, data-intensive tasks, a best practice is to delegate to external services specializing in that type of work.
+Airflow is commonly used to process data, but has the opinion that tasks should ideally be idempotent (i.e., results of the task will be the same, and will not create duplicated data in a destination system), and should not pass large quantities of data from one task to the next (though tasks can pass metadata using Airflow's [XCom feature](https://airflow.apache.org/docs/apache-airflow/stable/concepts/xcoms.html)). For high-volume, data-intensive tasks, a best practice is to delegate to external services specializing in that type of work.
 
 Airflow is not a streaming solution, but it is often used to process real-time data, pulling data off streams in batches.
 
@@ -85,11 +85,11 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|                     | Main version (dev)           | Stable version (2.3.3)       |
+|                     | Main version (dev)           | Stable version (2.4.1)       |
 |---------------------|------------------------------|------------------------------|
 | Python              | 3.7, 3.8, 3.9, 3.10          | 3.7, 3.8, 3.9, 3.10          |
 | Platform            | AMD64/ARM64(\*)              | AMD64/ARM64(\*)              |
-| Kubernetes          | 1.20, 1.21, 1.22, 1.23, 1.24 | 1.20, 1.21, 1.22, 1.23, 1.24 |
+| Kubernetes          | 1.21, 1.22, 1.23, 1.24, 1.25 | 1.21, 1.22, 1.23, 1.24, 1.25 |
 | PostgreSQL          | 10, 11, 12, 13, 14           | 10, 11, 12, 13, 14           |
 | MySQL               | 5.7, 8                       | 5.7, 8                       |
 | SQLite              | 3.15.0+                      | 3.15.0+                      |
@@ -117,7 +117,7 @@ is used in the [Community managed DockerHub image](https://hub.docker.com/p/apac
 
 Visit the official Airflow website documentation (latest **stable** release) for help with
 [installing Airflow](https://airflow.apache.org/docs/apache-airflow/stable/installation.html),
-[getting started](https://airflow.apache.org/docs/apache-airflow/stable/start/index.html), or walking
+[getting started](https://airflow.apache.org/docs/apache-airflow/stable/start.html), or walking
 through a more complete [tutorial](https://airflow.apache.org/docs/apache-airflow/stable/tutorial.html).
 
 > Note: If you're looking for documentation for the main branch (latest development branch): you can find it on [s.apache.org/airflow-docs](https://s.apache.org/airflow-docs/).
@@ -157,15 +157,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.3.3' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.3.3/constraints-3.7.txt"
+pip install 'apache-airflow==2.4.1' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.4.1/constraints-3.7.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.3.3' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.3.3/constraints-3.7.txt"
+pip install 'apache-airflow[postgres,google]==2.4.1' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.4.1/constraints-3.7.txt"
 ```
 
 For information on installing provider packages, check
@@ -270,7 +270,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State     | First Release   | Limited Support   | EOL/Terminated   |
 |-----------|-----------------------|-----------|-----------------|-------------------|------------------|
-| 2         | 2.3.3                 | Supported | Dec 17, 2020    | TBD               | TBD              |
+| 2         | 2.4.1                 | Supported | Dec 17, 2020    | TBD               | TBD              |
 | 1.10      | 1.10.15               | EOL       | Aug 27, 2018    | Dec 17, 2020      | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL       | Jan 03, 2018    | Aug 27, 2018      | Aug 27, 2018     |
 | 1.8       | 1.8.2                 | EOL       | Mar 19, 2017    | Jan 03, 2018      | Jan 03, 2018     |
@@ -290,8 +290,8 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 [Python Developer's Guide](https://devguide.python.org/#status-of-python-branches) and
 [Kubernetes version skew policy](https://kubernetes.io/docs/setup/release/version-skew-policy/).
 
-1. We drop support for Python and Kubernetes versions when they reach EOL. Except for kubernetes, a
-   version stay supported by Airflow if two major cloud provider still provide support for it. We drop
+1. We drop support for Python and Kubernetes versions when they reach EOL. Except for Kubernetes, a
+   version stays supported by Airflow if two major cloud providers still provide support for it. We drop
    support for those EOL versions in main right after EOL date, and it is effectively removed when we release
    the first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow. For example, for Python 3.7 it
    means that we will drop support in main right after 27.06.2023, and the first MAJOR or MINOR version of
@@ -300,7 +300,7 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 2. The "oldest" supported version of Python/Kubernetes is the default one until we decide to switch to
    later version. "Default" is only meaningful in terms of "smoke tests" in CI PRs, which are run using this
    default version and the default reference image available. Currently `apache/airflow:latest`
-   and `apache/airflow:2.3.3` images are Python 3.7 images. This means that default reference image will
+   and `apache/airflow:2.4.1` images are Python 3.7 images. This means that default reference image will
    become the default at the time when we start preparing for dropping 3.7 support which is few months
    before the end of life for Python 3.7.
 
@@ -318,7 +318,7 @@ we publish an Apache Airflow release. Those images contain:
   Airflow released (so there could be different versions for 2.3 and 2.2 line for example)
 * Libraries required to connect to suppoerted Databases (again the set of databases supported depends
   on the MINOR version of Airflow.
-* Predefined set of popular providers (for details see the [Dockerfile](Dockerfile)).
+* Predefined set of popular providers (for details see the [Dockerfile](https://raw.githubusercontent.com/apache/airflow/main/Dockerfile)).
 * Possibility of building your own, custom image where the user can choose their own set of providers
   and libraries (see [Building the image](https://airflow.apache.org/docs/docker-stack/build.html))
 * In the future Airflow might also support a "slim" version without providers nor database clients installed
@@ -327,14 +327,17 @@ The version of the base OS image is the stable version of Debian. Airflow suppor
 stable versions - as soon as all Airflow dependencies support building, and we set up the CI pipeline for
 building and testing the OS version. Approximately 6 months before the end-of-life of a previous stable
 version of the OS, Airflow switches the images released to use the latest supported version of the OS.
-For example since Debian Buster end-of-life is August 2022, Airflow switches the images in `main` branch
-to use Debian Bullseye in February/March 2022. The version will be used in the next MINOR release after
-the switch happens. In case of the Bullseye switch - 2.3.0 version will use Bullseye. The images released
-in the previous MINOR version continue to use the version that all other releases for the MINOR version
-used.
+For example since ``Debian Buster`` end-of-life was August 2022, Airflow switched the images in `main` branch
+to use ``Debian Bullseye`` in February/March 2022. The version was used in the next MINOR release after
+the switch happened. In case of the Bullseye switch - 2.3.0 version used ``Debian Bullseye``.
+The images released  in the previous MINOR version continue to use the version that all other releases
+for the MINOR version used.
+
+Support for ``Debian Buster`` image was dropped in August 2022 completely and everyone is expected to
+stop building their images using ``Debian Buster``.
 
 Users will continue to be able to build their images using stable Debian releases until the end of life and
-building and verifying of the images happens in our CI but no unit tests are executed using this image in
+building and verifying of the images happens in our CI but no unit tests were executed using this image in
 the `main` branch.
 
 ## Approach to dependencies of Airflow

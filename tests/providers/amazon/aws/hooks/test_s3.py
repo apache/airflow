@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import gzip as gz
 import os
 import tempfile
@@ -26,6 +27,7 @@ import boto3
 import pytest
 from botocore.exceptions import ClientError, NoCredentialsError
 
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook, provide_bucket_name, unify_bucket_name_and_key
 from airflow.utils.timezone import datetime
@@ -44,6 +46,9 @@ class TestAwsS3HookNoMock:
         monkeypatch.delenv('AWS_ACCESS_KEY_ID', raising=False)
         monkeypatch.delenv('AWS_SECRET_ACCESS_KEY', raising=False)
         hook = S3Hook(aws_conn_id="does_not_exist")
+        # We're mocking all actual AWS calls and don't need a connection. This
+        # avoids an Airflow warning about connection cannot be found.
+        hook.get_connection = lambda _: None
         with pytest.raises(NoCredentialsError):
             hook.check_for_bucket("test-non-existing-bucket")
 
@@ -71,6 +76,14 @@ class TestAwsS3Hook:
     def test_parse_s3_url(self):
         parsed = S3Hook.parse_s3_url("s3://test/this/is/not/a-real-key.txt")
         assert parsed == ("test", "this/is/not/a-real-key.txt"), "Incorrect parsing of the s3 url"
+
+    def test_parse_s3_url_path_style(self):
+        parsed = S3Hook.parse_s3_url("https://s3.us-west-2.amazonaws.com/DOC-EXAMPLE-BUCKET1/test.jpg")
+        assert parsed == ("DOC-EXAMPLE-BUCKET1", "test.jpg"), "Incorrect parsing of the s3 url"
+
+    def test_parse_s3_url_virtual_hosted_style(self):
+        parsed = S3Hook.parse_s3_url("https://DOC-EXAMPLE-BUCKET1.s3.us-west-2.amazonaws.com/test.png")
+        assert parsed == ("DOC-EXAMPLE-BUCKET1", "test.png"), "Incorrect parsing of the s3 url"
 
     def test_parse_s3_object_directory(self):
         parsed = S3Hook.parse_s3_url("s3://test/this/is/not/a-real-s3-directory/")
@@ -127,6 +140,43 @@ class TestAwsS3Hook:
         assert bucket is not None
         region = bucket.meta.client.get_bucket_location(Bucket=bucket.name).get('LocationConstraint')
         assert region == 'us-east-2'
+
+    @mock_s3
+    @pytest.mark.parametrize("region_name", ["eu-west-1", "us-east-1"])
+    def test_create_bucket_regional_endpoint(self, region_name, monkeypatch):
+        conn = Connection(
+            conn_id="regional-endpoint",
+            conn_type="aws",
+            extra={
+                "config_kwargs": {"s3": {"us_east_1_regional_endpoint": "regional"}},
+            },
+        )
+        with mock.patch.dict("os.environ", values={f"AIRFLOW_CONN_{conn.conn_id.upper()}": conn.get_uri()}):
+            monkeypatch.delenv('AWS_DEFAULT_REGION', raising=False)
+            hook = S3Hook(aws_conn_id=conn.conn_id)
+            bucket_name = f"regional-{region_name}"
+            hook.create_bucket(bucket_name, region_name=region_name)
+            bucket = hook.get_bucket(bucket_name)
+            assert bucket is not None
+            assert bucket.name == bucket_name
+            region = bucket.meta.client.get_bucket_location(Bucket=bucket.name).get('LocationConstraint')
+            assert region == (region_name if region_name != "us-east-1" else None)
+
+    def test_create_bucket_no_region_regional_endpoint(self, monkeypatch):
+        conn = Connection(
+            conn_id="no-region-regional-endpoint",
+            conn_type="aws",
+            extra={"config_kwargs": {"s3": {"us_east_1_regional_endpoint": "regional"}}},
+        )
+        with mock.patch.dict("os.environ", values={f"AIRFLOW_CONN_{conn.conn_id.upper()}": conn.get_uri()}):
+            monkeypatch.delenv('AWS_DEFAULT_REGION', raising=False)
+            hook = S3Hook(aws_conn_id=conn.conn_id)
+            error_message = (
+                "Unable to create bucket if `region_name` not set and boto3 "
+                r"configured to use s3 regional endpoints\."
+            )
+            with pytest.raises(AirflowException, match=error_message):
+                hook.create_bucket("unable-to-create")
 
     def test_check_for_prefix(self, s3_bucket):
         hook = S3Hook()
@@ -540,6 +590,9 @@ class TestAwsS3Hook:
             "SSEKMSKeyId": "arn:aws:kms:region:acct-id:key/key-id",
         }
         s3_hook = S3Hook(aws_conn_id="s3_test", extra_args=original)
+        # We're mocking all actual AWS calls and don't need a connection. This
+        # avoids an Airflow warning about connection cannot be found.
+        s3_hook.get_connection = lambda _: None
         assert s3_hook.extra_args == original
         assert s3_hook.extra_args is not original
 

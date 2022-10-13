@@ -14,6 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+from unittest import mock
 
 import pytest
 
@@ -23,12 +26,16 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
+def get_session_cookie(client):
+    return next((cookie for cookie in client.cookie_jar if cookie.name == 'session'), None)
+
+
 def test_session_cookie_created_on_login(user_client):
-    assert any(cookie.name == 'session' for cookie in user_client.cookie_jar)
+    assert get_session_cookie(user_client) is not None
 
 
 def test_session_inaccessible_after_logout(user_client):
-    session_cookie = next((cookie for cookie in user_client.cookie_jar if cookie.name == 'session'), None)
+    session_cookie = get_session_cookie(user_client)
     assert session_cookie is not None
 
     resp = user_client.get('/logout/')
@@ -63,3 +70,35 @@ def test_invalid_session_backend_option():
     )
     with pytest.raises(AirflowConfigException, match=expected_exc_regex):
         poorly_configured_app_factory()
+
+
+def test_session_id_rotates(app, user_client):
+    old_session_cookie = get_session_cookie(user_client)
+    assert old_session_cookie is not None
+
+    resp = user_client.get('/logout/')
+    assert resp.status_code == 302
+
+    patch_path = "airflow.www.fab_security.manager.check_password_hash"
+    with mock.patch(patch_path) as check_password_hash:
+        check_password_hash.return_value = True
+        resp = user_client.post("/login/", data={"username": "test_user", "password": "test_user"})
+    assert resp.status_code == 302
+
+    new_session_cookie = get_session_cookie(user_client)
+    assert new_session_cookie is not None
+    assert old_session_cookie.value != new_session_cookie.value
+
+
+def test_check_active_user(app, user_client):
+    user = app.appbuilder.sm.find_user(username="test_user")
+    user.active = False
+    resp = user_client.get("/home")
+    assert resp.status_code == 302
+    assert "/login" in resp.headers.get("Location")
+
+    # And they were logged out
+    user.active = True
+    resp = user_client.get("/home")
+    assert resp.status_code == 302
+    assert "/login" in resp.headers.get("Location")

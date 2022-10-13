@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Variable subcommands"""
+from __future__ import annotations
+
 import json
 import os
 from json import JSONDecodeError

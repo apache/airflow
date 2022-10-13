@@ -15,12 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 """
 This module contains various unit tests for
 functions in CloudDLPHook
 """
+from __future__ import annotations
 
 import unittest
 from typing import Any, Dict
@@ -63,7 +62,7 @@ class TestCloudDLPHook(unittest.TestCase):
         ):
             self.hook = CloudDLPHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook._get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.DlpServiceClient")
     def test_dlp_service_client_creation(self, mock_client, mock_get_creds):
         result = self.hook.get_conn()

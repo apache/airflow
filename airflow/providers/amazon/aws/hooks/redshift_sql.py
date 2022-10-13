@@ -14,8 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import Dict, List, Optional, Union
+from __future__ import annotations
 
 import redshift_connector
 from redshift_connector import Connection as RedshiftConnection
@@ -46,7 +45,7 @@ class RedshiftSQLHook(DbApiHook):
     supports_autocommit = True
 
     @staticmethod
-    def get_ui_field_behavior() -> Dict:
+    def get_ui_field_behavior() -> dict:
         """Returns custom field behavior"""
         return {
             "hidden_fields": [],
@@ -57,11 +56,11 @@ class RedshiftSQLHook(DbApiHook):
     def conn(self):
         return self.get_connection(self.redshift_conn_id)  # type: ignore[attr-defined]
 
-    def _get_conn_params(self) -> Dict[str, Union[str, int]]:
+    def _get_conn_params(self) -> dict[str, str | int]:
         """Helper method to retrieve connection args"""
         conn = self.conn
 
-        conn_params: Dict[str, Union[str, int]] = {}
+        conn_params: dict[str, str | int] = {}
 
         if conn.login:
             conn_params['user'] = conn.login
@@ -83,7 +82,10 @@ class RedshiftSQLHook(DbApiHook):
         if 'user' in conn_params:
             conn_params['username'] = conn_params.pop('user')
 
-        return str(URL(drivername='redshift+redshift_connector', **conn_params))
+        # Compatibility: The 'create' factory method was added in SQLAlchemy 1.4
+        # to replace calling the default URL constructor directly.
+        create_url = getattr(URL, "create", URL)
+        return str(create_url(drivername='redshift+redshift_connector', **conn_params))
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """Overrides DbApiHook get_sqlalchemy_engine to pass redshift_connector specific kwargs"""
@@ -98,7 +100,7 @@ class RedshiftSQLHook(DbApiHook):
 
         return create_engine(self.get_uri(), **engine_kwargs)
 
-    def get_table_primary_key(self, table: str, schema: Optional[str] = "public") -> Optional[List[str]]:
+    def get_table_primary_key(self, table: str, schema: str | None = "public") -> list[str] | None:
         """
         Helper method that returns the table primary key
         :param table: Name of the target table
@@ -124,5 +126,5 @@ class RedshiftSQLHook(DbApiHook):
         """Returns a redshift_connector.Connection object"""
         conn_params = self._get_conn_params()
         conn_kwargs_dejson = self.conn.extra_dejson
-        conn_kwargs: Dict = {**conn_params, **conn_kwargs_dejson}
+        conn_kwargs: dict = {**conn_params, **conn_kwargs_dejson}
         return redshift_connector.connect(**conn_kwargs)

@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 import re
 from functools import total_ordering
-from typing import Dict, List, NamedTuple, Optional
+from typing import NamedTuple
 
 from rich.console import Console
 
@@ -35,11 +36,11 @@ console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WI
 class SpellingError(NamedTuple):
     """Spelling errors found when building docs."""
 
-    file_path: Optional[str]
-    line_no: Optional[int]
-    spelling: Optional[str]
-    suggestion: Optional[str]
-    context_line: Optional[str]
+    file_path: str | None
+    line_no: int | None
+    spelling: str | None
+    suggestion: str | None
+    context_line: str | None
     message: str
 
     def __eq__(self, other):
@@ -80,7 +81,7 @@ class SpellingError(NamedTuple):
         return left < right
 
 
-def parse_spelling_warnings(warning_text: str, docs_dir: str) -> List[SpellingError]:
+def parse_spelling_warnings(warning_text: str, docs_dir: str) -> list[SpellingError]:
     """
     Parses warnings from Sphinx.
 
@@ -134,7 +135,7 @@ def parse_spelling_warnings(warning_text: str, docs_dir: str) -> List[SpellingEr
     return sphinx_spelling_errors
 
 
-def display_spelling_error_summary(spelling_errors: Dict[str, List[SpellingError]]) -> None:
+def display_spelling_error_summary(spelling_errors: dict[str, list[SpellingError]]) -> None:
     """Displays summary of Spelling errors"""
     console.print()
     console.print("[red]" + "#" * 30 + " Start spelling errors summary " + "#" * 30 + "[/]")

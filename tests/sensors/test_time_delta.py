@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
+from __future__ import annotations
+
 from datetime import timedelta
 
 from airflow.models import DagBag
@@ -28,8 +29,8 @@ DEV_NULL = '/dev/null'
 TEST_DAG_ID = 'unit_tests'
 
 
-class TestTimedeltaSensor(unittest.TestCase):
-    def setUp(self):
+class TestTimedeltaSensor:
+    def setup_method(self):
         self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=True)
         self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG(TEST_DAG_ID, default_args=self.args)

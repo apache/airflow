@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from unittest import mock
 
@@ -51,7 +52,7 @@ class TestWorkflowsHook:
         with mock.patch(BASE_PATH.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = WorkflowsHook(gcp_conn_id="test")
 
-    @mock.patch(BASE_PATH.format("WorkflowsHook._get_credentials"))
+    @mock.patch(BASE_PATH.format("WorkflowsHook.get_credentials"))
     @mock.patch(BASE_PATH.format("WorkflowsClient"))
     def test_get_workflows_client(self, mock_client, mock_get_credentials):
         self.hook.get_workflows_client()
@@ -60,7 +61,7 @@ class TestWorkflowsHook:
             client_info=CLIENT_INFO,
         )
 
-    @mock.patch(BASE_PATH.format("WorkflowsHook._get_credentials"))
+    @mock.patch(BASE_PATH.format("WorkflowsHook.get_credentials"))
     @mock.patch(BASE_PATH.format("ExecutionsClient"))
     def test_get_executions_client(self, mock_client, mock_get_credentials):
         self.hook.get_executions_client()

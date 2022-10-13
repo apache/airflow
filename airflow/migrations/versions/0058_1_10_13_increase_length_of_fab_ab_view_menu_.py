@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Increase length of ``Flask-AppBuilder`` ``ab_view_menu.name`` column
 
 Revision ID: 03afc6b6f902
@@ -23,11 +22,12 @@ Revises: 92c57b58940d
 Create Date: 2020-11-13 22:21:41.619565
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import inspect
 
-from airflow.compat.sqlalchemy import inspect
 from airflow.migrations.db_types import StringID
 
 # revision identifiers, used by Alembic.

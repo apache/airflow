@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import contextlib
 import os
 from unittest import mock
-from unittest.mock import ANY
 
 import pytest
 from botocore.exceptions import ClientError
@@ -51,11 +51,11 @@ def s3mock():
 class TestS3TaskHandler:
     @conf_vars({('logging', 'remote_log_conn_id'): 'aws_default'})
     @pytest.fixture(autouse=True)
-    def setup(self, create_log_template):
+    def setup(self, create_log_template, tmp_path_factory):
         self.remote_log_base = 's3://bucket/remote/log/location'
         self.remote_log_location = 's3://bucket/remote/log/location/1.log'
         self.remote_log_key = 'remote/log/location/1.log'
-        self.local_log_location = 'local/log/location'
+        self.local_log_location = str(tmp_path_factory.mktemp("local-s3-log-location"))
         create_log_template('{try_number}.log')
         self.s3_task_handler = S3TaskHandler(self.local_log_location, self.remote_log_base)
         # Vivfy the hook now with the config override
@@ -96,23 +96,6 @@ class TestS3TaskHandler:
         assert isinstance(self.s3_task_handler.hook, S3Hook)
         assert self.s3_task_handler.hook.transfer_config.use_threads is False
 
-    @conf_vars({('logging', 'remote_log_conn_id'): 'aws_default'})
-    def test_hook_raises(self):
-        handler = S3TaskHandler(self.local_log_location, self.remote_log_base)
-        with mock.patch.object(handler.log, 'error') as mock_error:
-            with mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook") as mock_hook:
-                mock_hook.side_effect = Exception('Failed to connect')
-                # Initialize the hook
-                handler.hook
-
-            mock_error.assert_called_once_with(
-                'Could not create an S3Hook with connection id "%s". Please make '
-                'sure that apache-airflow[aws] is installed and the S3 connection exists. Exception : "%s"',
-                'aws_default',
-                ANY,
-                exc_info=True,
-            )
-
     def test_log_exists(self):
         self.conn.put_object(Bucket='bucket', Key=self.remote_log_key, Body=b'')
         assert self.s3_task_handler.s3_log_exists(self.remote_log_location)
@@ -144,7 +127,7 @@ class TestS3TaskHandler:
             self.s3_task_handler.set_context(self.ti)
 
         assert self.s3_task_handler.upload_on_close
-        mock_open.assert_called_once_with(os.path.abspath('local/log/location/1.log'), 'w')
+        mock_open.assert_called_once_with(os.path.join(self.local_log_location, '1.log'), 'w')
         mock_open().write.assert_not_called()
 
     def test_read(self):

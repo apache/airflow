@@ -21,6 +21,7 @@ name: Microsoft Azure
 description: |
     `Microsoft Azure <https://azure.microsoft.com/>`__
 versions:
+  - 4.3.0
   - 4.2.0
   - 4.1.0
   - 4.0.0
@@ -57,12 +58,12 @@ dependencies:
   - azure-mgmt-datafactory>=1.0.0,<2.0
   - azure-mgmt-datalake-store>=0.5.0
   - azure-mgmt-resource>=2.2.0
-  # limited due to https://github.com/Azure/azure-sdk-for-python/pull/18801  implementation released in 12.9
-  - azure-storage-blob>=12.7.0,<12.9.0
+  - azure-storage-blob>=12.14.0
   - azure-storage-common>=2.1.0
   - azure-storage-file>=2.1.0
   # Limited due to https://github.com/Azure/azure-uamqp-python/issues/191
   - azure-servicebus>=7.6.1; platform_machine != "aarch64"
+  - azure-synapse-spark
 
 integrations:
   - integration-name: Microsoft Azure Batch
@@ -115,6 +116,11 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-microsoft-azure/operators/asb.rst
     tags: [azure]
+  - integration-name: Microsoft Azure Synapse
+    external-doc-url: https://azure.microsoft.com/en-us/services/synapse-analytics/
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/azure_synapse.rst
+    tags: [azure]
 
 operators:
   - integration-name: Microsoft Azure Data Lake Storage
@@ -146,6 +152,9 @@ operators:
   - integration-name: Microsoft Azure Service Bus
     python-modules:
       - airflow.providers.microsoft.azure.operators.asb
+  - integration-name: Microsoft Azure Synapse
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.synapse
 
 sensors:
   - integration-name: Microsoft Azure Cosmos DB
@@ -200,6 +209,9 @@ hooks:
   - integration-name: Microsoft Azure Service Bus
     python-modules:
       - airflow.providers.microsoft.azure.hooks.asb
+  - integration-name: Microsoft Azure Synapse
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.synapse
 
 transfers:
   - source-integration-name: Local
@@ -252,6 +264,8 @@ connection-types:
     connection-type: azure_container_registry
   - hook-class-name: airflow.providers.microsoft.azure.hooks.asb.BaseAzureServiceBusHook
     connection-type: azure_service_bus
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook
+    connection-type: azure_synapse
 
 secrets-backends:
   - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend

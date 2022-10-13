@@ -27,13 +27,12 @@ cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
 
 # [START build]
 export AIRFLOW_VERSION=2.2.4
-export DEBIAN_VERSION="buster"
 export DOCKER_BUILDKIT=1
 
 docker build . -f Dockerfile \
     --pull \
     --platform 'linux/amd64' \
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-${DEBIAN_VERSION}" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="slack,odbc" \
     --build-arg ADDITIONAL_PYTHON_DEPS=" \

@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
-import unittest
 
 import pendulum
 import pytest
@@ -31,7 +31,7 @@ ICT = pendulum.tz.timezone('Asia/Bangkok')  # Asia/Bangkok
 UTC = timezone.utc
 
 
-class TestTimezone(unittest.TestCase):
+class TestTimezone:
     def test_is_aware(self):
         assert timezone.is_localized(datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT))
         assert not timezone.is_localized(datetime.datetime(2011, 9, 1, 13, 20, 30))

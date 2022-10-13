@@ -15,9 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-
-import unittest
 from unittest.mock import Mock
 
 from airflow.models.dagrun import DagRun
@@ -25,7 +24,7 @@ from airflow.ti_deps.deps.dagrun_backfill_dep import DagRunNotBackfillDep
 from airflow.utils.types import DagRunType
 
 
-class TestDagrunRunningDep(unittest.TestCase):
+class TestDagrunRunningDep:
     def test_run_id_is_backfill(self):
         """
         Task instances whose run_id is a backfill dagrun run_id should fail this dep.

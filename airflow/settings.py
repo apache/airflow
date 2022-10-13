@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import atexit
 import functools
 import json
@@ -22,7 +24,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import TYPE_CHECKING, Callable, List, Optional, Union
+from typing import TYPE_CHECKING, Callable
 
 import pendulum
 import sqlalchemy
@@ -33,6 +35,7 @@ from sqlalchemy.orm.session import Session as SASession
 from sqlalchemy.pool import NullPool
 
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
@@ -73,10 +76,10 @@ GUNICORN_WORKER_READY_PREFIX = "[ready] "
 LOG_FORMAT = conf.get('logging', 'log_format')
 SIMPLE_LOG_FORMAT = conf.get('logging', 'simple_log_format')
 
-SQL_ALCHEMY_CONN: Optional[str] = None
-PLUGINS_FOLDER: Optional[str] = None
-LOGGING_CLASS_PATH: Optional[str] = None
-DONOT_MODIFY_HANDLERS: Optional[bool] = None
+SQL_ALCHEMY_CONN: str | None = None
+PLUGINS_FOLDER: str | None = None
+LOGGING_CLASS_PATH: str | None = None
+DONOT_MODIFY_HANDLERS: bool | None = None
 DAGS_FOLDER: str = os.path.expanduser(conf.get_mandatory_value('core', 'DAGS_FOLDER'))
 
 engine: Engine
@@ -91,8 +94,11 @@ STATE_COLORS = {
     "deferred": "mediumpurple",
     "failed": "red",
     "queued": "gray",
+    "removed": "lightgrey",
+    "restarting": "violet",
     "running": "lime",
     "scheduled": "tan",
+    "shutdown": "blue",
     "skipped": "hotpink",
     "success": "green",
     "up_for_reschedule": "turquoise",
@@ -222,7 +228,7 @@ def get_airflow_context_vars(context):
     return {}
 
 
-def get_dagbag_import_timeout(dag_file_path: str) -> Union[int, float]:
+def get_dagbag_import_timeout(dag_file_path: str) -> int | float:
     """
     This setting allows for dynamic control of the DAG file parsing timeout based on the DAG file path.
 
@@ -253,14 +259,14 @@ def configure_vars():
     DONOT_MODIFY_HANDLERS = conf.getboolean('logging', 'donot_modify_handlers', fallback=False)
 
 
-def configure_orm(disable_connection_pool=False):
+def configure_orm(disable_connection_pool=False, pool_class=None):
     """Configure ORM using SQLAlchemy"""
     from airflow.utils.log.secrets_masker import mask_secret
 
     log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     global engine
     global Session
-    engine_args = prepare_engine_args(disable_connection_pool)
+    engine_args = prepare_engine_args(disable_connection_pool, pool_class)
 
     if conf.has_option('database', 'sql_alchemy_connect_args'):
         connect_args = conf.getimport('database', 'sql_alchemy_connect_args')
@@ -313,7 +319,7 @@ DEFAULT_ENGINE_ARGS = {
 }
 
 
-def prepare_engine_args(disable_connection_pool=False):
+def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     """Prepare SQLAlchemy engine args"""
     default_args = {}
     for dialect, default in DEFAULT_ENGINE_ARGS.items():
@@ -325,7 +331,10 @@ def prepare_engine_args(disable_connection_pool=False):
         'database', 'sql_alchemy_engine_args', fallback=default_args
     )  # type: ignore
 
-    if disable_connection_pool or not conf.getboolean('database', 'SQL_ALCHEMY_POOL_ENABLED'):
+    if pool_class:
+        # Don't use separate settings for size etc, only those from sql_alchemy_engine_args
+        engine_args['poolclass'] = pool_class
+    elif disable_connection_pool or not conf.getboolean('database', 'SQL_ALCHEMY_POOL_ENABLED'):
         engine_args['poolclass'] = NullPool
         log.debug("settings.prepare_engine_args(): Using NullPool")
     elif not SQL_ALCHEMY_CONN.startswith('sqlite'):
@@ -407,10 +416,10 @@ def dispose_orm():
         engine = None
 
 
-def reconfigure_orm(disable_connection_pool=False):
+def reconfigure_orm(disable_connection_pool=False, pool_class=None):
     """Properly close database connections and re-configure ORM"""
     dispose_orm()
-    configure_orm(disable_connection_pool=disable_connection_pool)
+    configure_orm(disable_connection_pool=disable_connection_pool, pool_class=pool_class)
 
 
 def configure_adapters():
@@ -496,7 +505,7 @@ def get_session_lifetime_config():
             'renamed to `session_lifetime_minutes`. The new option allows to configure '
             'session lifetime in minutes. The `force_log_out_after` option has been removed '
             'from `[webserver]` section. Please update your configuration.',
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
         )
         if session_lifetime_days:
             session_lifetime_minutes = minutes_per_day * int(session_lifetime_days)
@@ -636,7 +645,7 @@ MASK_SECRETS_IN_LOGS = False
 #       UIAlert('Visit <a href="http://airflow.apache.org">airflow.apache.org</a>', html=True),
 #   ]
 #
-DASHBOARD_UIALERTS: List["UIAlert"] = []
+DASHBOARD_UIALERTS: list[UIAlert] = []
 
 # Prefix used to identify tables holding data moved during migration.
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"

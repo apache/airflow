@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 import unittest
@@ -82,7 +83,7 @@ TEST_NOTIFICATION_CHANNEL_2 = {
 
 class TestStackdriverHookMethods(unittest.TestCase):
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.stackdriver.StackdriverHook._get_policy_client')
@@ -101,7 +102,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.stackdriver.StackdriverHook._get_policy_client')
@@ -134,7 +135,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.stackdriver.StackdriverHook._get_policy_client')
@@ -167,7 +168,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.stackdriver.StackdriverHook._get_policy_client')
@@ -224,7 +225,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.stackdriver.StackdriverHook._get_policy_client')
@@ -262,7 +263,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.stackdriver.StackdriverHook._get_policy_client')
@@ -279,7 +280,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.stackdriver.StackdriverHook._get_channel_client')
@@ -297,7 +298,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.stackdriver.StackdriverHook._get_channel_client')
@@ -328,7 +329,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.stackdriver.StackdriverHook._get_channel_client')
@@ -358,7 +359,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.stackdriver.StackdriverHook._get_channel_client')
@@ -397,7 +398,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.stackdriver.StackdriverHook._get_channel_client')

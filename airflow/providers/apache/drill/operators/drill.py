@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.drill.hooks.drill import DrillHook
@@ -50,16 +52,16 @@ class DrillOperator(BaseOperator):
         *,
         sql: str,
         drill_conn_id: str = 'drill_default',
-        parameters: Optional[Union[Iterable, Mapping]] = None,
+        parameters: Iterable | Mapping | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.sql = sql
         self.drill_conn_id = drill_conn_id
         self.parameters = parameters
-        self.hook: Optional[DrillHook] = None
+        self.hook: DrillHook | None = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info('Executing: %s on %s', self.sql, self.drill_conn_id)
         self.hook = DrillHook(drill_conn_id=self.drill_conn_id)
         self.hook.run(self.sql, parameters=self.parameters, split_statements=True)

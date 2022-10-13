@@ -45,14 +45,14 @@ securityContext: {}
 # Used for mount paths
 airflowHome: /opt/airflow
 
-# Default airflow repository -- overrides all the specific images below
+# Default airflow repository -- overridden by all the specific images below
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.3.3"
+defaultAirflowTag: "2.4.1"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.3.3"
+airflowVersion: "2.4.1"
 
 # Images
 images:
@@ -76,8 +76,8 @@ images:
     tag: ~
     pullPolicy: IfNotPresent
   statsd:
-    repository: apache/airflow
-    tag: airflow-statsd-exporter-2021.04.28-v0.17.0
+    repository: quay.io/prometheus/statsd-exporter
+    tag: v0.22.8
     pullPolicy: IfNotPresent
   redis:
     repository: redis
@@ -452,6 +452,16 @@ workers:
       exec \
       airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
 
+  # If the worker stops responding for 5 minutes (5*60s) kill the
+  # worker and let Kubernetes restart it
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 10
+    timeoutSeconds: 20
+    failureThreshold: 5
+    periodSeconds: 60
+    command: ~
+
   # Update Strategy when worker is deployed as a StatefulSet
   updateStrategy: ~
   # Update Strategy when worker is deployed as a Deployment
@@ -586,6 +596,9 @@ workers:
 
   podAnnotations: {}
 
+  # Labels specific to workers objects and pods
+  labels: {}
+
   logGroomerSidecar:
     # Command to use when running the Airflow worker log groomer sidecar (templated).
     command: ~
@@ -600,6 +613,11 @@ workers:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+
+  waitForMigrations:
+    env: []
+
+  env: []
 
 # Airflow scheduler settings
 scheduler:
@@ -694,6 +712,9 @@ scheduler:
 
   podAnnotations: {}
 
+  # Labels specific to scheduler objects and pods
+  labels: {}
+
   logGroomerSidecar:
     # Whether to deploy the Airflow scheduler log groomer sidecar.
     enabled: true
@@ -714,6 +735,9 @@ scheduler:
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
+    env: []
+
+  env: []
 
 # Airflow create user job settings
 createUserJob:
@@ -746,6 +770,9 @@ createUserJob:
   # jobAnnotations are annotations on the create user job
   jobAnnotations: {}
 
+  # Labels specific to createUserJob objects and pods
+  labels: {}
+
   # When not set, the values defined in the global securityContext will be used
   securityContext: {}
   #  runAsUser: 50000
@@ -777,6 +804,7 @@ createUserJob:
   # In case you need to disable the helm hooks that create the jobs after install.
   # Disable this if you are using ArgoCD for example
   useHelmHooks: true
+  env: []
 
   resources: {}
   #  limits:
@@ -990,9 +1018,15 @@ webserver:
 
   podAnnotations: {}
 
+  # Labels specific webserver app
+  labels: {}
+
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
+    env: []
+
+  env: []
 
 # Airflow Triggerer Config
 triggerer:
@@ -1082,9 +1116,15 @@ triggerer:
 
   podAnnotations: {}
 
+  # Labels specific to triggerer objects and pods
+  labels: {}
+
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
+    env: []
+
+  env: []
 
 # Airflow Dag Processor Config
 dagProcessor:
@@ -1177,6 +1217,9 @@ dagProcessor:
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
+    env: []
+
+  env: []
 
 # Flower settings
 flower:
@@ -1273,6 +1316,10 @@ flower:
 
   podAnnotations: {}
 
+  # Labels specific to flower objects and pods
+  labels: {}
+  env: []
+
 # StatsD settings
 statsd:
   enabled: true
@@ -1319,7 +1366,16 @@ statsd:
   priorityClassName: ~
 
   # Additional mappings for StatsD exporter.
+  # If set, will merge default mapping and extra mappings, default mapping has higher priority.
+  # So, if you want to change some default mapping, please use `overrideMappings`
   extraMappings: []
+
+  # Override mappings for StatsD exporter.
+  # If set, will ignore setting item in default and `extraMappings`.
+  # So, If you use it, ensure all mapping item contains in it.
+  overrideMappings: []
+
+  podAnnotations: {}
 
 # PgBouncer settings
 pgbouncer:
@@ -1565,6 +1621,9 @@ cleanup:
 
   podAnnotations: {}
 
+  # Labels specific to cleanup objects and pods
+  labels: {}
+
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -1588,6 +1647,12 @@ cleanup:
   securityContext: {}
   #  runAsUser: 50000
   #  runAsGroup: 0
+  env: []
+
+  # Specify history limit
+  # When set, overwrite the default k8s number of successful and failed CronJob executions that are saved.
+  failedJobsHistoryLimit: ~
+  successfulJobsHistoryLimit: ~
 
 # Configuration for postgresql subchart
 # Not recommended for production
@@ -1628,6 +1693,7 @@ config:
     # For Airflow 1.10
     rbac: 'True'
   celery:
+    flower_url_prefix: '{{ .Values.ingress.flower.path }}'
     worker_concurrency: 16
   scheduler:
     standalone_dag_processor: '{{ ternary "True" "False" .Values.dagProcessor.enabled }}'

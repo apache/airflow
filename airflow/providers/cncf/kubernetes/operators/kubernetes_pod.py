@@ -15,17 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 """Executes task in a Kubernetes POD"""
+from __future__ import annotations
+
 import json
 import logging
 import re
 import warnings
 from contextlib import AbstractContextManager
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from kubernetes.client import CoreV1Api, models as k8s
 
 from airflow.compat.functools import cached_property
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.pod_generator import PodGenerator
@@ -129,6 +130,7 @@ class KubernetesPodOperator(BaseOperator):
     :param hostnetwork: If True enable host networking on the pod.
     :param tolerations: A list of kubernetes tolerations.
     :param security_context: security options the pod should run with (PodSecurityContext).
+    :param container_security_context: security options the container should run with.
     :param dnspolicy: dnspolicy for the pod.
     :param schedulername: Specify a schedulername for the pod
     :param full_pod_spec: The complete podSpec
@@ -147,7 +149,6 @@ class KubernetesPodOperator(BaseOperator):
         to populate the environment variables with. The contents of the target
         ConfigMap's Data field will represent the key-value pairs as environment variables.
         Extends env_from.
-    :param: kubernetes_conn_id: To retrieve credentials for your k8s cluster from an Airflow connection
     """
 
     BASE_CONTAINER_NAME = 'base'
@@ -163,54 +164,56 @@ class KubernetesPodOperator(BaseOperator):
         'pod_template_file',
         'namespace',
     )
+    template_fields_renderers = {'env_vars': 'py'}
 
     def __init__(
         self,
         *,
-        kubernetes_conn_id: Optional[str] = None,  # 'kubernetes_default',
-        namespace: Optional[str] = None,
-        image: Optional[str] = None,
-        name: Optional[str] = None,
-        random_name_suffix: Optional[bool] = True,
-        cmds: Optional[List[str]] = None,
-        arguments: Optional[List[str]] = None,
-        ports: Optional[List[k8s.V1ContainerPort]] = None,
-        volume_mounts: Optional[List[k8s.V1VolumeMount]] = None,
-        volumes: Optional[List[k8s.V1Volume]] = None,
-        env_vars: Optional[List[k8s.V1EnvVar]] = None,
-        env_from: Optional[List[k8s.V1EnvFromSource]] = None,
-        secrets: Optional[List[Secret]] = None,
-        in_cluster: Optional[bool] = None,
-        cluster_context: Optional[str] = None,
-        labels: Optional[Dict] = None,
+        kubernetes_conn_id: str | None = None,  # 'kubernetes_default',
+        namespace: str | None = None,
+        image: str | None = None,
+        name: str | None = None,
+        random_name_suffix: bool | None = True,
+        cmds: list[str] | None = None,
+        arguments: list[str] | None = None,
+        ports: list[k8s.V1ContainerPort] | None = None,
+        volume_mounts: list[k8s.V1VolumeMount] | None = None,
+        volumes: list[k8s.V1Volume] | None = None,
+        env_vars: list[k8s.V1EnvVar] | None = None,
+        env_from: list[k8s.V1EnvFromSource] | None = None,
+        secrets: list[Secret] | None = None,
+        in_cluster: bool | None = None,
+        cluster_context: str | None = None,
+        labels: dict | None = None,
         reattach_on_restart: bool = True,
         startup_timeout_seconds: int = 120,
         get_logs: bool = True,
-        image_pull_policy: Optional[str] = None,
-        annotations: Optional[Dict] = None,
-        container_resources: Optional[k8s.V1ResourceRequirements] = None,
-        affinity: Optional[k8s.V1Affinity] = None,
-        config_file: Optional[str] = None,
-        node_selectors: Optional[dict] = None,
-        node_selector: Optional[dict] = None,
-        image_pull_secrets: Optional[List[k8s.V1LocalObjectReference]] = None,
-        service_account_name: Optional[str] = None,
+        image_pull_policy: str | None = None,
+        annotations: dict | None = None,
+        container_resources: k8s.V1ResourceRequirements | None = None,
+        affinity: k8s.V1Affinity | None = None,
+        config_file: str | None = None,
+        node_selectors: dict | None = None,
+        node_selector: dict | None = None,
+        image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
+        service_account_name: str | None = None,
         is_delete_operator_pod: bool = True,
         hostnetwork: bool = False,
-        tolerations: Optional[List[k8s.V1Toleration]] = None,
-        security_context: Optional[Dict] = None,
-        dnspolicy: Optional[str] = None,
-        schedulername: Optional[str] = None,
-        full_pod_spec: Optional[k8s.V1Pod] = None,
-        init_containers: Optional[List[k8s.V1Container]] = None,
+        tolerations: list[k8s.V1Toleration] | None = None,
+        security_context: dict | None = None,
+        container_security_context: dict | None = None,
+        dnspolicy: str | None = None,
+        schedulername: str | None = None,
+        full_pod_spec: k8s.V1Pod | None = None,
+        init_containers: list[k8s.V1Container] | None = None,
         log_events_on_failure: bool = False,
         do_xcom_push: bool = False,
-        pod_template_file: Optional[str] = None,
-        priority_class_name: Optional[str] = None,
-        pod_runtime_info_envs: Optional[List[k8s.V1EnvVar]] = None,
-        termination_grace_period: Optional[int] = None,
-        configmaps: Optional[List[str]] = None,
-        resources: Optional[Dict[str, Any]] = None,
+        pod_template_file: str | None = None,
+        priority_class_name: str | None = None,
+        pod_runtime_info_envs: list[k8s.V1EnvVar] | None = None,
+        termination_grace_period: int | None = None,
+        configmaps: list[str] | None = None,
+        resources: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
 
@@ -270,6 +273,7 @@ class KubernetesPodOperator(BaseOperator):
             [convert_toleration(toleration) for toleration in tolerations] if tolerations else []
         )
         self.security_context = security_context or {}
+        self.container_security_context = container_security_context
         self.dnspolicy = dnspolicy
         self.schedulername = schedulername
         self.full_pod_spec = full_pod_spec
@@ -280,14 +284,14 @@ class KubernetesPodOperator(BaseOperator):
         self.name = self._set_name(name)
         self.random_name_suffix = random_name_suffix
         self.termination_grace_period = termination_grace_period
-        self.pod_request_obj: Optional[k8s.V1Pod] = None
-        self.pod: Optional[k8s.V1Pod] = None
+        self.pod_request_obj: k8s.V1Pod | None = None
+        self.pod: k8s.V1Pod | None = None
 
     def _render_nested_template_fields(
         self,
         content: Any,
-        context: 'Context',
-        jinja_env: "jinja2.Environment",
+        context: Context,
+        jinja_env: jinja2.Environment,
         seen_oids: set,
     ) -> None:
         if id(content) not in seen_oids and isinstance(content, k8s.V1EnvVar):
@@ -298,9 +302,7 @@ class KubernetesPodOperator(BaseOperator):
         super()._render_nested_template_fields(content, context, jinja_env, seen_oids)
 
     @staticmethod
-    def _get_ti_pod_labels(
-        context: Optional['Context'] = None, include_try_number: bool = True
-    ) -> Dict[str, str]:
+    def _get_ti_pod_labels(context: Context | None = None, include_try_number: bool = True) -> dict[str, str]:
         """
         Generate labels for the pod to track the pod in case of Operator crash
 
@@ -353,16 +355,13 @@ class KubernetesPodOperator(BaseOperator):
             config_file=self.config_file,
             cluster_context=self.cluster_context,
         )
-        self._patch_deprecated_k8s_settings(hook)
         return hook
 
     @cached_property
     def client(self) -> CoreV1Api:
         return self.hook.core_v1_client
 
-    def find_pod(
-        self, namespace: str, context: 'Context', *, exclude_checked: bool = True
-    ) -> Optional[k8s.V1Pod]:
+    def find_pod(self, namespace: str, context: Context, *, exclude_checked: bool = True) -> k8s.V1Pod | None:
         """Returns an already-running pod for this task instance if one exists."""
         label_selector = self._build_find_pod_label_selector(context, exclude_checked=exclude_checked)
         pod_list = self.client.list_namespaced_pod(
@@ -381,7 +380,7 @@ class KubernetesPodOperator(BaseOperator):
             self.log.info("`try_number` of pod: %s", pod.metadata.labels['try_number'])
         return pod
 
-    def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context: 'Context') -> k8s.V1Pod:
+    def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context: Context) -> k8s.V1Pod:
         if self.reattach_on_restart:
             pod = self.find_pod(self.namespace or pod_request_obj.metadata.namespace, context=context)
             if pod:
@@ -409,7 +408,7 @@ class KubernetesPodOperator(BaseOperator):
             self.log.info("xcom result: \n%s", result)
             return json.loads(result)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         remote_pod = None
         try:
             self.pod_request_obj = self.build_pod_request_obj(context)
@@ -433,6 +432,7 @@ class KubernetesPodOperator(BaseOperator):
                 )
 
             if self.do_xcom_push:
+                self.pod_manager.await_xcom_sidecar_container_start(pod=self.pod)
                 result = self.extract_xcom(pod=self.pod)
             remote_pod = self.pod_manager.await_pod_completion(self.pod)
         finally:
@@ -475,9 +475,7 @@ class KubernetesPodOperator(BaseOperator):
             else:
                 self.log.info("skipping deleting pod: %s", pod.metadata.name)
 
-    def _build_find_pod_label_selector(
-        self, context: Optional['Context'] = None, *, exclude_checked=True
-    ) -> str:
+    def _build_find_pod_label_selector(self, context: Context | None = None, *, exclude_checked=True) -> str:
         labels = self._get_ti_pod_labels(context, include_try_number=False)
         label_strings = [f'{label_id}={label}' for label_id, label in sorted(labels.items())]
         labels_value = ','.join(label_strings)
@@ -486,7 +484,7 @@ class KubernetesPodOperator(BaseOperator):
         labels_value += ',!airflow-worker'
         return labels_value
 
-    def _set_name(self, name: Optional[str]) -> Optional[str]:
+    def _set_name(self, name: str | None) -> str | None:
         if name is None:
             if self.pod_template_file or self.full_pod_spec:
                 return None
@@ -512,7 +510,7 @@ class KubernetesPodOperator(BaseOperator):
                 kwargs.update(grace_period_seconds=self.termination_grace_period)
             self.client.delete_namespaced_pod(**kwargs)
 
-    def build_pod_request_obj(self, context: Optional['Context'] = None) -> k8s.V1Pod:
+    def build_pod_request_obj(self, context: Context | None = None) -> k8s.V1Pod:
         """
         Returns V1Pod object based on pod template file, full pod spec, and other operator parameters.
 
@@ -556,6 +554,7 @@ class KubernetesPodOperator(BaseOperator):
                         args=self.arguments,
                         env=self.env_vars,
                         env_from=self.env_from,
+                        security_context=self.container_security_context,
                     )
                 ],
                 image_pull_secrets=self.image_pull_secrets,
@@ -606,38 +605,6 @@ class KubernetesPodOperator(BaseOperator):
         """
         pod = self.build_pod_request_obj()
         print(yaml.dump(prune_dict(pod.to_dict(), mode='strict')))
-
-    def _patch_deprecated_k8s_settings(self, hook: KubernetesHook):
-        """
-        Here we read config from core Airflow config [kubernetes] section.
-        In a future release we will stop looking at this section and require users
-        to use Airflow connections to configure KPO.
-
-        When we find values there that we need to apply on the hook, we patch special
-        hook attributes here.
-        """
-        # default for enable_tcp_keepalive is True; patch if False
-        if conf.getboolean('kubernetes', 'enable_tcp_keepalive') is False:
-            hook._deprecated_core_disable_tcp_keepalive = True
-
-        # default verify_ssl is True; patch if False.
-        if conf.getboolean('kubernetes', 'verify_ssl') is False:
-            hook._deprecated_core_disable_verify_ssl = True
-
-        # default for in_cluster is True; patch if False and no KPO param.
-        conf_in_cluster = conf.getboolean('kubernetes', 'in_cluster')
-        if self.in_cluster is None and conf_in_cluster is False:
-            hook._deprecated_core_in_cluster = conf_in_cluster
-
-        # there's no default for cluster context; if we get something (and no KPO param) patch it.
-        conf_cluster_context = conf.get('kubernetes', 'cluster_context', fallback=None)
-        if not self.cluster_context and conf_cluster_context:
-            hook._deprecated_core_cluster_context = conf_cluster_context
-
-        # there's no default for config_file; if we get something (and no KPO param) patch it.
-        conf_config_file = conf.get('kubernetes', 'config_file', fallback=None)
-        if not self.config_file and conf_config_file:
-            hook._deprecated_core_config_file = conf_config_file
 
 
 class _suppress(AbstractContextManager):

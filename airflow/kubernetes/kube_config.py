@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -24,7 +25,7 @@ class KubeConfig:
     """Configuration for Kubernetes"""
 
     core_section = 'core'
-    kubernetes_section = 'kubernetes'
+    kubernetes_section = 'kubernetes_executor'
     logging_section = 'logging'
 
     def __init__(self):

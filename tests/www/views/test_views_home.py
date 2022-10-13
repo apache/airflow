@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from unittest import mock
@@ -121,7 +122,7 @@ TEST_FILTER_DAG_IDS = ['filter_test_1', 'filter_test_2', 'a_first_dag_id_asc']
 
 
 def _process_file(file_path, session):
-    dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+    dag_file_processor = DagFileProcessor(dag_ids=[], dag_directory='/tmp', log=mock.MagicMock())
     dag_file_processor.process_file(file_path, [], False, session)
 
 

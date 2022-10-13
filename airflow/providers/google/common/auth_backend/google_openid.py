@@ -16,9 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """Authentication backend that use Google credentials for authorization."""
+from __future__ import annotations
+
 import logging
 from functools import wraps
-from typing import Callable, Optional, TypeVar, cast
+from typing import Callable, TypeVar, cast
 
 import google
 import google.auth.transport.requests
@@ -53,7 +55,7 @@ def init_app(_):
     """Initializes authentication."""
 
 
-def _get_id_token_from_request(request) -> Optional[str]:
+def _get_id_token_from_request(request) -> str | None:
     authorization_header = request.headers.get("Authorization")
 
     if not authorization_header:
@@ -68,7 +70,7 @@ def _get_id_token_from_request(request) -> Optional[str]:
     return id_token
 
 
-def _verify_id_token(id_token: str) -> Optional[str]:
+def _verify_id_token(id_token: str) -> str | None:
     try:
         request_adapter = google.auth.transport.requests.Request()
         id_info = google.oauth2.id_token.verify_token(id_token, request_adapter, AUDIENCE)

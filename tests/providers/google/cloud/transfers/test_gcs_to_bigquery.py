@@ -15,9 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from unittest import mock
+
+from google.cloud.bigquery.table import Row
 
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 
@@ -42,12 +45,15 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
             max_id_key=MAX_ID_KEY,
         )
 
-        bq_hook.return_value.get_job.return_value.result.return_value = ('1',)
+        bq_hook.return_value.get_job.return_value.result.return_value = [Row(('100',), {'f0_': 0})]
 
-        operator.execute(None)
+        result = operator.execute(None)
+
+        assert result == '100'
 
         bq_hook.return_value.run_query.assert_called_once_with(
             sql="SELECT MAX(id) FROM `test-project.dataset.table`",
+            location=None,
             use_legacy_sql=False,
         )
 

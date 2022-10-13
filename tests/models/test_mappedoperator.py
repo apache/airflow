@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import timedelta
 
 import pendulum
@@ -23,6 +25,7 @@ import pytest
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.mappedoperator import MappedOperator
+from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCOM_RETURN_KEY
@@ -91,7 +94,7 @@ def test_map_xcom_arg():
     """Test that dependencies are correct when mapping with an XComArg"""
     with DAG("test-dag", start_date=DEFAULT_DATE):
         task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=task1.output)
         finish = MockOperator(task_id="finish")
 
         mapped >> finish
@@ -116,8 +119,8 @@ def test_map_xcom_arg_multiple_upstream_xcoms(dag_maker, session):
     with dag_maker("test-dag", session=session, start_date=DEFAULT_DATE) as dag:
         upstream_return = [1, 2, 3]
         task1 = PushExtraXComOperator(return_value=upstream_return, task_id="task_1")
-        task2 = PushExtraXComOperator.partial(task_id='task_2').expand(return_value=XComArg(task1))
-        task3 = PushExtraXComOperator.partial(task_id='task_3').expand(return_value=XComArg(task2))
+        task2 = PushExtraXComOperator.partial(task_id='task_2').expand(return_value=task1.output)
+        task3 = PushExtraXComOperator.partial(task_id='task_3').expand(return_value=task2.output)
 
     dr = dag_maker.create_dagrun()
     ti_1 = dr.get_task_instance("task_1", session)
@@ -184,7 +187,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
     literal = [1, 2, {'a': 'b'}]
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=task1.output)
 
     dr = dag_maker.create_dagrun()
 
@@ -228,7 +231,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
 def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=task1.output)
 
     dr = dag_maker.create_dagrun()
 
@@ -271,6 +274,25 @@ def test_mapped_task_applies_default_args_taskflow(dag_maker):
     assert dag.get_task("mapped").execution_timeout == timedelta(minutes=30)
 
 
+@pytest.mark.parametrize(
+    "dag_params, task_params, expected_partial_params",
+    [
+        pytest.param(None, None, ParamsDict(), id="none"),
+        pytest.param({"a": -1}, None, ParamsDict({"a": -1}), id="dag"),
+        pytest.param(None, {"b": -2}, ParamsDict({"b": -2}), id="task"),
+        pytest.param({"a": -1}, {"b": -2}, ParamsDict({"a": -1, "b": -2}), id="merge"),
+    ],
+)
+def test_mapped_expand_against_params(dag_maker, dag_params, task_params, expected_partial_params):
+    with dag_maker(params=dag_params) as dag:
+        MockOperator.partial(task_id="t", params=task_params).expand(params=[{"c": "x"}, {"d": 1}])
+
+    t = dag.get_task("t")
+    assert isinstance(t, MappedOperator)
+    assert t.params == expected_partial_params
+    assert t.expand_input.value == {"params": [{"c": "x"}, {"d": 1}]}
+
+
 def test_mapped_render_template_fields_validating_operator(dag_maker, session):
     class MyOperator(MockOperator):
         def __init__(self, value, arg1, **kwargs):
@@ -281,10 +303,8 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
 
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
-        xcom_arg = XComArg(task1)
-        mapped = MyOperator.partial(task_id='a', arg2='{{ ti.task_id }}').expand(
-            value=xcom_arg, arg1=xcom_arg
-        )
+        output1 = task1.output
+        mapped = MyOperator.partial(task_id='a', arg2='{{ ti.task_id }}').expand(value=output1, arg1=output1)
 
     dr = dag_maker.create_dagrun()
     ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
@@ -305,12 +325,14 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
 
     mapped_ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session)
     mapped_ti.map_index = 0
-    op = mapped.render_template_fields(context=mapped_ti.get_template_context(session=session))
-    assert isinstance(op, MyOperator)
 
-    assert op.value == "{{ ds }}", "Should not be templated!"
-    assert op.arg1 == "{{ ds }}", "Should not be templated!"
-    assert op.arg2 == "a"
+    assert isinstance(mapped_ti.task, MappedOperator)
+    mapped.render_template_fields(context=mapped_ti.get_template_context(session=session))
+    assert isinstance(mapped_ti.task, MyOperator)
+
+    assert mapped_ti.task.value == "{{ ds }}", "Should not be templated!"
+    assert mapped_ti.task.arg1 == "{{ ds }}", "Should not be templated!"
+    assert mapped_ti.task.arg2 == "a"
 
 
 def test_mapped_render_nested_template_fields(dag_maker, session):
@@ -357,7 +379,7 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
     literal = [{"arg1": "a"}, {"arg1": "b"}, {"arg1": "c"}]
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id='task_2').expand_kwargs(XComArg(task1))
+        mapped = MockOperator.partial(task_id='task_2').expand_kwargs(task1.output)
 
     dr = dag_maker.create_dagrun()
 
@@ -408,7 +430,7 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
 def test_expand_kwargs_render_template_fields_validating_operator(dag_maker, session, map_index, expected):
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id='a', arg2='{{ ti.task_id }}').expand_kwargs(XComArg(task1))
+        mapped = MockOperator.partial(task_id='a', arg2='{{ ti.task_id }}').expand_kwargs(task1.output)
 
     dr = dag_maker.create_dagrun()
     ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
@@ -430,7 +452,53 @@ def test_expand_kwargs_render_template_fields_validating_operator(dag_maker, ses
     ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session)
     ti.refresh_from_task(mapped)
     ti.map_index = map_index
-    op = mapped.render_template_fields(context=ti.get_template_context(session=session))
-    assert isinstance(op, MockOperator)
-    assert op.arg1 == expected
-    assert op.arg2 == "a"
+    assert isinstance(ti.task, MappedOperator)
+    mapped.render_template_fields(context=ti.get_template_context(session=session))
+    assert isinstance(ti.task, MockOperator)
+    assert ti.task.arg1 == expected
+    assert ti.task.arg2 == "a"
+
+
+def test_xcomarg_property_of_mapped_operator(dag_maker):
+    with dag_maker("test_xcomarg_property_of_mapped_operator"):
+        op_a = MockOperator.partial(task_id="a").expand(arg1=["x", "y", "z"])
+    dag_maker.create_dagrun()
+
+    assert op_a.output == XComArg(op_a)
+
+
+def test_set_xcomarg_dependencies_with_mapped_operator(dag_maker):
+    with dag_maker("test_set_xcomargs_dependencies_with_mapped_operator"):
+        op1 = MockOperator.partial(task_id="op1").expand(arg1=[1, 2, 3])
+        op2 = MockOperator.partial(task_id="op2").expand(arg2=["a", "b", "c"])
+        op3 = MockOperator(task_id="op3", arg1=op1.output)
+        op4 = MockOperator(task_id="op4", arg1=[op1.output, op2.output])
+        op5 = MockOperator(task_id="op5", arg1={"op1": op1.output, "op2": op2.output})
+
+    assert op1 in op3.upstream_list
+    assert op1 in op4.upstream_list
+    assert op2 in op4.upstream_list
+    assert op1 in op5.upstream_list
+    assert op2 in op5.upstream_list
+
+
+def test_all_xcomargs_from_mapped_tasks_are_consumable(dag_maker, session):
+    class PushXcomOperator(MockOperator):
+        def __init__(self, arg1, **kwargs):
+            super().__init__(arg1=arg1, **kwargs)
+
+        def execute(self, context):
+            return self.arg1
+
+    class ConsumeXcomOperator(PushXcomOperator):
+        def execute(self, context):
+            assert {i for i in self.arg1} == {1, 2, 3}
+
+    with dag_maker("test_all_xcomargs_from_mapped_tasks_are_consumable"):
+        op1 = PushXcomOperator.partial(task_id="op1").expand(arg1=[1, 2, 3])
+        ConsumeXcomOperator(task_id="op2", arg1=op1.output)
+
+    dr = dag_maker.create_dagrun()
+    tis = dr.get_task_instances(session=session)
+    for ti in tis:
+        ti.run()

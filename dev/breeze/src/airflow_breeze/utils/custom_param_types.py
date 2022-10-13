@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from dataclasses import dataclass
 from re import match
-from typing import Any, Optional, Sequence
+from typing import Any, Sequence
 
 import click
 from click import Context, Parameter
@@ -30,7 +31,7 @@ from airflow_breeze.utils.cache import (
 )
 from airflow_breeze.utils.confirm import set_forced_answer
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.recording import output_file_for_recording
+from airflow_breeze.utils.recording import generating_command_images
 
 
 class BetterChoice(click.Choice):
@@ -69,7 +70,7 @@ class NotVerifiedBetterChoice(BetterChoice):
 
     name = "NotVerifiedBetterChoice"
 
-    def convert(self, value: Any, param: Optional[Parameter], ctx: Optional[Context]) -> Any:
+    def convert(self, value: Any, param: Parameter | None, ctx: Context | None) -> Any:
         # Match through normalization and case sensitivity
         # first do token_normalize_func, then lowercase
         normed_value = value
@@ -141,7 +142,7 @@ class CacheableChoice(click.Choice):
     def get_metavar(self, param) -> str:
         param_name = param.envvar if param.envvar else param.name.upper()
         current_value = (
-            read_from_cache_file(param_name) if not output_file_for_recording else param.default.value
+            read_from_cache_file(param_name) if not generating_command_images() else param.default.value
         )
         if not current_value:
             current_choices = self.choices

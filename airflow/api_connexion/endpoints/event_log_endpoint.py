@@ -14,8 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import Optional
+from __future__ import annotations
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -50,7 +49,7 @@ def get_event_log(*, event_log_id: int, session: Session = NEW_SESSION) -> APIRe
 def get_event_logs(
     *,
     limit: int,
-    offset: Optional[int] = None,
+    offset: int | None = None,
     order_by: str = "event_log_id",
     session: Session = NEW_SESSION,
 ) -> APIResponse:

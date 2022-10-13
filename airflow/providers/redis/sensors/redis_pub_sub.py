@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.redis.hooks.redis import RedisHook
 from airflow.sensors.base import BaseSensorOperator
@@ -36,14 +37,14 @@ class RedisPubSubSensor(BaseSensorOperator):
     template_fields: Sequence[str] = ('channels',)
     ui_color = '#f0eee4'
 
-    def __init__(self, *, channels: Union[List[str], str], redis_conn_id: str, **kwargs) -> None:
+    def __init__(self, *, channels: list[str] | str, redis_conn_id: str, **kwargs) -> None:
         super().__init__(**kwargs)
         self.channels = channels
         self.redis_conn_id = redis_conn_id
         self.pubsub = RedisHook(redis_conn_id=self.redis_conn_id).get_conn().pubsub()
         self.pubsub.subscribe(self.channels)
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         """
         Check for message on subscribed channels and write to xcom the message with key ``message``
 

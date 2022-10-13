@@ -15,10 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import time
 from datetime import datetime as dt
 from unittest import mock
-from unittest.mock import ANY, call
+from unittest.mock import call
 
 import pytest
 from watchtower import CloudWatchLogHandler
@@ -55,10 +57,10 @@ def logmock():
 class TestCloudwatchTaskHandler:
     @conf_vars({('logging', 'remote_log_conn_id'): 'aws_default'})
     @pytest.fixture(autouse=True)
-    def setup(self, create_log_template):
+    def setup(self, create_log_template, tmp_path_factory):
         self.remote_log_group = 'log_group_name'
         self.region_name = 'us-west-2'
-        self.local_log_location = 'local/log/location'
+        self.local_log_location = str(tmp_path_factory.mktemp("local-cloudwatch-log-location"))
         create_log_template('{dag_id}/{task_id}/{execution_date}/{try_number}.log')
         self.cloudwatch_task_handler = CloudwatchTaskHandler(
             self.local_log_location,
@@ -97,27 +99,6 @@ class TestCloudwatchTaskHandler:
 
     def test_hook(self):
         assert isinstance(self.cloudwatch_task_handler.hook, AwsLogsHook)
-
-    @conf_vars({('logging', 'remote_log_conn_id'): 'aws_default'})
-    def test_hook_raises(self):
-        handler = CloudwatchTaskHandler(
-            self.local_log_location,
-            f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
-        )
-
-        with mock.patch.object(handler.log, 'error') as mock_error:
-            with mock.patch("airflow.providers.amazon.aws.hooks.logs.AwsLogsHook") as mock_hook:
-                mock_hook.side_effect = Exception('Failed to connect')
-                # Initialize the hook
-                handler.hook
-
-            mock_error.assert_called_once_with(
-                'Could not create an AwsLogsHook with connection id "%s". Please make '
-                'sure that apache-airflow[aws] is installed and the Cloudwatch '
-                'logs connection exists. Exception: "%s"',
-                'aws_default',
-                ANY,
-            )
 
     def test_handler(self):
         self.cloudwatch_task_handler.set_context(self.ti)

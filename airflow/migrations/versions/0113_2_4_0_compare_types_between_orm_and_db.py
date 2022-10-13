@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """compare types between ORM and DB.
 
 Revision ID: 44b7034f6bdc
@@ -23,6 +22,7 @@ Revises: 424117c37d18
 Create Date: 2022-05-31 09:16:44.558754
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
@@ -162,6 +162,15 @@ def downgrade():
     with op.batch_alter_table('log_template', schema=None) as batch_op:
         batch_op.alter_column(
             'created_at', existing_type=TIMESTAMP(), type_=sa.DateTime(), existing_nullable=False
+        )
+    with op.batch_alter_table('serialized_dag', schema=None) as batch_op:
+        # add server_default
+        batch_op.alter_column(
+            'dag_hash',
+            existing_type=sa.String(32),
+            server_default='Hash not calculated yet',
+            type_=sa.String(32),
+            existing_nullable=False,
         )
     with op.batch_alter_table('trigger', schema=None) as batch_op:
         batch_op.alter_column(

@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import unittest
 from unittest import mock
 
@@ -39,7 +40,7 @@ class TestGKEHookClient(unittest.TestCase):
     def setUp(self):
         self.gke_hook = GKEHook(location=GKE_ZONE)
 
-    @mock.patch(GKE_STRING.format("GKEHook._get_credentials"))
+    @mock.patch(GKE_STRING.format("GKEHook.get_credentials"))
     @mock.patch(GKE_STRING.format("ClusterManagerClient"))
     def test_gke_cluster_client_creation(self, mock_client, mock_get_creds):
 
@@ -72,7 +73,7 @@ class TestGKEHookDelete(unittest.TestCase):
             retry=retry_mock,
             timeout=timeout_mock,
         )
-        wait_mock.assert_called_once_with(client_delete.return_value)
+        wait_mock.assert_called_once_with(client_delete.return_value, TEST_GCP_PROJECT_ID)
 
     @mock.patch(GKE_STRING.format("GKEHook.log"))
     @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
@@ -129,7 +130,7 @@ class TestGKEHookCreate(unittest.TestCase):
             retry=retry_mock,
             timeout=timeout_mock,
         )
-        wait_mock.assert_called_once_with(client_create.return_value)
+        wait_mock.assert_called_once_with(client_create.return_value, TEST_GCP_PROJECT_ID)
 
     @mock.patch(GKE_STRING.format("Cluster.from_json"))
     @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
@@ -150,7 +151,7 @@ class TestGKEHookCreate(unittest.TestCase):
             retry=retry_mock,
             timeout=timeout_mock,
         )
-        wait_mock.assert_called_once_with(client_create.return_value)
+        wait_mock.assert_called_once_with(client_create.return_value, TEST_GCP_PROJECT_ID)
 
     @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
     def test_create_cluster_error(self, wait_mock):
@@ -208,7 +209,7 @@ class TestGKEHook(unittest.TestCase):
         self.gke_hook._client = mock.Mock()
 
     @mock.patch(GKE_STRING.format('ClusterManagerClient'))
-    @mock.patch(GKE_STRING.format('GKEHook._get_credentials'))
+    @mock.patch(GKE_STRING.format('GKEHook.get_credentials'))
     def test_get_client(self, mock_get_credentials, mock_client):
         self.gke_hook._client = None
         self.gke_hook.get_conn()

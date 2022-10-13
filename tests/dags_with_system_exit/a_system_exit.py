@@ -15,14 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# Tests to make sure that a system exit won't cause the scheduler to fail
-# Starts with 'a' to get listed first.
+from __future__ import annotations
 
 import sys
 from datetime import datetime
 
 from airflow.models import DAG
+
+# Tests to make sure that a system exit won't cause the scheduler to fail
+# Starts with 'a' to get listed first.
+
 
 DEFAULT_DATE = datetime(2100, 1, 1)
 

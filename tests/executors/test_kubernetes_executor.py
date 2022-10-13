@@ -14,16 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import pathlib
 import random
 import re
 import string
+import sys
 import unittest
 from datetime import datetime, timedelta
 from unittest import mock
 
 import pytest
+import yaml
 from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
@@ -52,7 +55,7 @@ except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
 
 
-class TestAirflowKubernetesScheduler(unittest.TestCase):
+class TestAirflowKubernetesScheduler:
     @staticmethod
     def _gen_random_string(seed, str_len):
         char_list = []
@@ -99,14 +102,33 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
     @mock.patch("airflow.kubernetes.pod_generator.PodGenerator")
     @mock.patch("airflow.executors.kubernetes_executor.KubeConfig")
     def test_get_base_pod_from_template(self, mock_kubeconfig, mock_generator):
+        # Provide non-existent file path,
+        # so None will be passed to deserialize_model_dict().
         pod_template_file_path = "/bar/biz"
         get_base_pod_from_template(pod_template_file_path, None)
         assert "deserialize_model_dict" == mock_generator.mock_calls[0][0]
-        assert pod_template_file_path == mock_generator.mock_calls[0][1][0]
+        assert mock_generator.mock_calls[0][1][0] is None
+
         mock_kubeconfig.pod_template_file = "/foo/bar"
         get_base_pod_from_template(None, mock_kubeconfig)
         assert "deserialize_model_dict" == mock_generator.mock_calls[1][0]
-        assert "/foo/bar" == mock_generator.mock_calls[1][1][0]
+        assert mock_generator.mock_calls[1][1][0] is None
+
+        # Provide existent file path,
+        # so loaded YAML file content should be used to call deserialize_model_dict(), rather than None.
+        path = sys.path[0] + '/tests/kubernetes/pod.yaml'
+        with open(path) as stream:
+            expected_pod_dict = yaml.safe_load(stream)
+
+        pod_template_file_path = path
+        get_base_pod_from_template(pod_template_file_path, None)
+        assert "deserialize_model_dict" == mock_generator.mock_calls[2][0]
+        assert mock_generator.mock_calls[2][1][0] == expected_pod_dict
+
+        mock_kubeconfig.pod_template_file = path
+        get_base_pod_from_template(None, mock_kubeconfig)
+        assert "deserialize_model_dict" == mock_generator.mock_calls[3][0]
+        assert mock_generator.mock_calls[3][1][0] == expected_pod_dict
 
     def test_make_safe_label_value(self):
         for dag_id, task_id in self._cases():
@@ -227,8 +249,6 @@ class TestKubernetesExecutor:
         - 400 BadRequest is returned when your parameters are invalid e.g. asking for cpu=100ABC123.
 
         """
-        import sys
-
         path = sys.path[0] + '/tests/kubernetes/pod_generator_base_with_secrets.yaml'
 
         response = HTTPResponse(body='{"message": "any message"}', status=status)
@@ -282,8 +302,6 @@ class TestKubernetesExecutor:
         """
         When construct_pod raises PodReconciliationError, we should fail the task.
         """
-        import sys
-
         path = sys.path[0] + '/tests/kubernetes/pod_generator_base_with_secrets.yaml'
 
         mock_kube_client = mock.patch('kubernetes.client.CoreV1Api', autospec=True)
@@ -877,8 +895,8 @@ class TestKubernetesExecutor:
         assert mock_kube_client.list_namespaced_pod.call_count == 0
 
 
-class TestKubernetesJobWatcher(unittest.TestCase):
-    def setUp(self):
+class TestKubernetesJobWatcher:
+    def setup_method(self):
         self.watcher = KubernetesJobWatcher(
             namespace="airflow",
             multi_namespace_mode=False,
@@ -991,12 +1009,12 @@ class TestKubernetesJobWatcher(unittest.TestCase):
         self.pod.status.phase = 'Pending'
         raw_object = {"code": 422, "message": message, "reason": "Test"}
         self.events.append({"type": "ERROR", "object": self.pod, "raw_object": raw_object})
-        with self.assertRaises(AirflowException) as e:
-            self._run()
-        assert str(e.exception) == (
-            f"Kubernetes failure for {raw_object['reason']} "
-            f"with code {raw_object['code']} and message: {raw_object['message']}"
+        error_message = (
+            fr"Kubernetes failure for {raw_object['reason']} "
+            fr"with code {raw_object['code']} and message: {raw_object['message']}"
         )
+        with pytest.raises(AirflowException, match=error_message):
+            self._run()
 
     def test_recover_from_resource_too_old(self):
         # too old resource

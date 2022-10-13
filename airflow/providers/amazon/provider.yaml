@@ -22,6 +22,8 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
+  - 6.0.0
+  - 5.1.0
   - 5.0.0
   - 4.1.0
   - 4.0.0
@@ -45,7 +47,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.2.0
-  - apache-airflow-providers-common-sql
+  - apache-airflow-providers-common-sql>=1.2.0
   - boto3>=1.15.0
   # watchtower 3 has been released end Jan and introduced breaking change across the board that might
   # change logging behaviour:
@@ -533,7 +535,7 @@ transfers:
     target-integration-name: Amazon Simple Storage Service (S3)
     how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/local_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.local_to_s3
-  - source-integration-name: SQL
+  - source-integration-name: Common SQL
     target-integration-name: Amazon Simple Storage Service (S3)
     how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/sql_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.sql_to_s3
@@ -547,16 +549,12 @@ extra-links:
   - airflow.providers.amazon.aws.links.logs.CloudWatchEventsLink
 
 connection-types:
-  - hook-class-name: airflow.providers.amazon.aws.hooks.s3.S3Hook
-    connection-type: s3
   - hook-class-name: airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook
     connection-type: aws
   - hook-class-name: airflow.providers.amazon.aws.hooks.emr.EmrHook
     connection-type: emr
   - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
     connection-type: redshift
-  - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook
-    connection-type: aws
 
 secrets-backends:
   - airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
