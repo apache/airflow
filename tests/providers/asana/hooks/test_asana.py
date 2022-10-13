@@ -16,13 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import unittest
 from unittest.mock import patch
 
+import pytest
 from asana import Client
+from pytest import param
 
 from airflow.models import Connection
 from airflow.providers.asana.hooks.asana import AsanaHook
+from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
 
 
 class TestAsanaHook(unittest.TestCase):
@@ -241,3 +245,57 @@ class TestAsanaHook(unittest.TestCase):
             expected_merged_params,
             hook._merge_project_parameters({"workspace": "2"}),
         )
+
+    def test__ensure_prefixes_removal(self):
+        """Ensure that _ensure_prefixes is removed from snowflake when airflow min version >= 2.5.0."""
+        path = 'airflow.providers.asana.hooks.asana._ensure_prefixes'
+        if not object_exists(path):
+            raise Exception(
+                "You must remove this test. It only exists to "
+                "remind us to remove decorator `_ensure_prefixes`."
+            )
+
+        if get_provider_min_airflow_version('apache-airflow-providers-asana') >= (2, 5):
+            raise Exception(
+                "You must now remove `_ensure_prefixes` from AsanaHook."
+                " The functionality is now taken care of by providers manager."
+            )
+
+    def test__ensure_prefixes(self):
+        """
+        Check that ensure_prefixes decorator working properly
+
+        Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
+        """
+        assert list(AsanaHook.get_ui_field_behaviour()['placeholders'].keys()) == [
+            'password',
+            'extra__asana__workspace',
+            'extra__asana__project',
+        ]
+
+    @pytest.mark.parametrize(
+        'uri',
+        [
+            param(
+                'a://?extra__asana__workspace=abc&extra__asana__project=abc',
+                id='prefix',
+            ),
+            param('a://?workspace=abc&project=abc', id='no-prefix'),
+        ],
+    )
+    def test_backcompat_prefix_works(self, mock_service, uri):
+        with patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}):
+            hook = AsanaHook('my_conn')
+            assert hook.workspace == 'abc'
+            assert hook.project == 'abc'
+
+    @patch('airflow.providers.microsoft.azure.hooks.fileshare.FileService')
+    def test_backcompat_prefix_both_prefers_short(self, mock_service):
+        with patch.dict(
+            os.environ,
+            {
+                "AIRFLOW_CONN_MY_CONN": 'a://?workspace=non-prefixed&extra__azure_fileshare__workspace=prefixed'
+            },
+        ):
+            hook = AsanaHook('my_conn')
+            assert hook.workspace == 'non-prefixed'
