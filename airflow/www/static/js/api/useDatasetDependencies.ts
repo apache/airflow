@@ -72,7 +72,7 @@ const generateGraph = ({ nodes, edges, font }: GenerateProps) => ({
     height: 40,
     value,
   })),
-  edges: edges.map((e) => ({ id: `${e.u}-${e.v}`, sources: [e.u], targets: [e.v] })),
+  edges: edges.map((e) => ({ id: `${e.source}-${e.target}`, sources: [e.source], targets: [e.target] })),
 });
 
 const formatDependencies = async ({ edges, nodes }: DatasetDependencies) => {

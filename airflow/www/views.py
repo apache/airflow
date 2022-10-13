@@ -3503,7 +3503,7 @@ class Airflow(AirflowBaseView):
                             edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
 
         nodes = list(nodes_dict.values())
-        edges = [{"u": u, "v": v} for u, v in edge_tuples]
+        edges = [{"source": source, "target": target} for source, target in edge_tuples]
 
         data = {
             'nodes': nodes,
