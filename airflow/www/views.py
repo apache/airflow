@@ -1825,7 +1825,34 @@ class Airflow(AirflowBaseView):
         request_execution_date = request.values.get('execution_date', default=timezone.utcnow().isoformat())
         is_dag_run_conf_overrides_params = conf.getboolean('core', 'dag_run_conf_overrides_params')
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
-        dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
+        dag_orm: models.DagModel = (
+            session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
+        )
+
+        # Prepare form fields with param struct details to render a proper form with schema information
+        form_fields = {}
+        for k, v in dag.params.items():
+            form_fields[k] = v.dump()
+            # If no schema is provided, auto-detect on default values
+            if "schema" not in form_fields[k]:
+                form_fields[k]["schema"] = {}
+            if "type" not in form_fields[k]["schema"]:
+                if isinstance(form_fields[k]["value"], bool):
+                    form_fields[k]["schema"]["type"] = "boolean"
+                elif isinstance(form_fields[k]["value"], int):
+                    form_fields[k]["schema"]["type"] = ["integer", "null"]
+                elif isinstance(form_fields[k]["value"], list):
+                    form_fields[k]["schema"]["type"] = ["array", "null"]
+                elif isinstance(form_fields[k]["value"], dict):
+                    form_fields[k]["schema"]["type"] = ["object", "null"]
+            # Mark markup fields as safe
+            if "description" in form_fields[k] and form_fields[k]["description"]:
+                form_fields[k]["description"] = Markup(form_fields[k]["description"])
+            if "custom_html_form" in form_fields[k]["schema"]:
+                form_fields[k]["schema"]["custom_html_form"] = Markup(
+                    form_fields[k]["schema"]["custom_html_form"]
+                )
+
         if not dag_orm:
             flash(f"Cannot find dag {dag_id}")
             return redirect(origin)
@@ -1851,7 +1878,8 @@ class Airflow(AirflowBaseView):
                 except TypeError:
                     flash("Could not pre-populate conf field due to non-JSON-serializable data-types")
             return self.render_template(
-                'airflow/trigger.html',
+                "airflow/trigger.html",
+                form_fields=form_fields,
                 dag_id=dag_id,
                 origin=origin,
                 conf=default_conf,
@@ -1866,7 +1894,8 @@ class Airflow(AirflowBaseView):
             flash("Invalid execution date", "error")
             form = DateTimeForm(data={'execution_date': timezone.utcnow().isoformat()})
             return self.render_template(
-                'airflow/trigger.html',
+                "airflow/trigger.html",
+                form_fields=form_fields,
                 dag_id=dag_id,
                 origin=origin,
                 conf=request_conf,
@@ -1899,7 +1928,8 @@ class Airflow(AirflowBaseView):
                     flash("Invalid JSON configuration, must be a dict", "error")
                     form = DateTimeForm(data={'execution_date': execution_date})
                     return self.render_template(
-                        'airflow/trigger.html',
+                        "airflow/trigger.html",
+                        form_fields=form_fields,
                         dag_id=dag_id,
                         origin=origin,
                         conf=request_conf,
@@ -1910,7 +1940,8 @@ class Airflow(AirflowBaseView):
                 flash("Invalid JSON configuration, not parseable", "error")
                 form = DateTimeForm(data={'execution_date': execution_date})
                 return self.render_template(
-                    'airflow/trigger.html',
+                    "airflow/trigger.html",
+                    form_fields=form_fields,
                     dag_id=dag_id,
                     origin=origin,
                     conf=request_conf,
@@ -1935,8 +1966,12 @@ class Airflow(AirflowBaseView):
         except (ValueError, ParamValidationError) as ve:
             flash(f"{ve}", "error")
             form = DateTimeForm(data={'execution_date': execution_date})
+            # Take over "bad" submitted fields for new form display
+            for k, v in form_fields.items():
+                form_fields[k]["value"] = run_conf[k]
             return self.render_template(
-                'airflow/trigger.html',
+                "airflow/trigger.html",
+                form_fields=form_fields,
                 dag_id=dag_id,
                 origin=origin,
                 conf=request_conf,
