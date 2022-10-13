@@ -1219,3 +1219,5 @@ class DataflowStopJobOperator(BaseOperator):
             )
         else:
             self.log.info("No jobs to stop")
+
+        return

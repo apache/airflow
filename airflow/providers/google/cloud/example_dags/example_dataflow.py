@@ -282,7 +282,7 @@ with models.DAG(
         template='gs://dataflow-templates/latest/Word_Count',
         parameters={'inputFile': "gs://dataflow-samples/shakespeare/kinglear.txt", 'output': GCS_OUTPUT},
         location='europe-west3',
-        append_job_name = False,
+        append_job_name=False,
     )
-    
+
     stop_dataflow_job >> start_template_job
