@@ -1141,7 +1141,8 @@ class DataflowCreatePythonJobOperator(BaseOperator):
 
 class DataflowStopJobOperator(BaseOperator):
     """
-    Stops the job with the specified name prefix or Job ID. All jobs with provided name prefix will be stopped.
+    Stops the job with the specified name prefix or Job ID.
+    All jobs with provided name prefix will be stopped.
     Streaming jobs are drained by default.
 
     Parameter ``job_name_prefix`` and ``job_id`` are mutually exclusive.
@@ -1197,7 +1198,7 @@ class DataflowStopJobOperator(BaseOperator):
         self.hook: DataflowHook | None = None
         self.drain_pipeline = drain_pipeline
 
-    def execute(self, context: Context) -> dict:
+    def execute(self, context: Context) -> None:
         self.dataflow_hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -1220,4 +1221,4 @@ class DataflowStopJobOperator(BaseOperator):
         else:
             self.log.info("No jobs to stop")
 
-        return
+        return None
