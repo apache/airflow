@@ -89,6 +89,64 @@ class TestGetDatasets(TestDatasetEndpoint):
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
         assert response.json['detail'] == msg
 
+    def test_order_by_raises_400_for_invalid_datetimes(self, admin_client, session):
+        datasets = [
+            DatasetModel(
+                uri=f"s3://bucket/key/{i}",
+            )
+            for i in [1, 2]
+        ]
+        session.add_all(datasets)
+        session.commit()
+        assert session.query(DatasetModel).count() == 2
+
+        response = admin_client.get("/object/datasets_summary?updated_before=null")
+
+        assert response.status_code == 400
+        assert "Invalid datetime:" in response.text
+
+        response = admin_client.get("/object/datasets_summary?updated_after=null")
+
+        assert response.status_code == 400
+        assert "Invalid datetime:" in response.text
+
+    def test_filter_by_datetimes(self, admin_client, session):
+        today = pendulum.today('UTC')
+
+        datasets = [
+            DatasetModel(
+                id=i,
+                uri=f"s3://bucket/key/{i}",
+            )
+            for i in range(1, 4)
+        ]
+        session.add_all(datasets)
+        # Update datasets, one per day, starting with datasets[0], ending with datasets[2]
+        dataset_events = [
+            DatasetEvent(
+                dataset_id=datasets[i].id,
+                timestamp=today.add(days=-len(datasets) + i + 1),
+            )
+            for i in range(len(datasets))
+        ]
+        session.add_all(dataset_events)
+        session.commit()
+        assert session.query(DatasetModel).count() == len(datasets)
+
+        cutoff = today.add(days=-1).add(minutes=-5).to_iso8601_string()
+        response = admin_client.get(f"/object/datasets_summary?updated_after={cutoff}")
+
+        assert response.status_code == 200
+        assert response.json['total_entries'] == 2
+        assert [json_dict['id'] for json_dict in response.json['datasets']] == [2, 3]
+
+        cutoff = today.add(days=-1).add(minutes=5).to_iso8601_string()
+        response = admin_client.get(f"/object/datasets_summary?updated_before={cutoff}")
+
+        assert response.status_code == 200
+        assert response.json['total_entries'] == 2
+        assert [json_dict['id'] for json_dict in response.json['datasets']] == [1, 2]
+
     @pytest.mark.parametrize(
         "order_by, ordered_dataset_ids",
         [
@@ -150,6 +208,29 @@ class TestGetDatasets(TestDatasetEndpoint):
         response_data = response.json
         assert response_data == {
             "datasets": [
+                {
+                    "id": 2,
+                    "uri": "s3://bucket/key_2",
+                    "last_dataset_update": None,
+                    "total_updates": 0,
+                },
+            ],
+            "total_entries": 1,
+        }
+
+        uri_pattern = 's3://bucket/key_'
+        response = admin_client.get(f"/object/datasets_summary?uri_pattern={uri_pattern}")
+
+        assert response.status_code == 200
+        response_data = response.json
+        assert response_data == {
+            "datasets": [
+                {
+                    "id": 1,
+                    "uri": "s3://bucket/key_1",
+                    "last_dataset_update": None,
+                    "total_updates": 0,
+                },
                 {
                     "id": 2,
                     "uri": "s3://bucket/key_2",
