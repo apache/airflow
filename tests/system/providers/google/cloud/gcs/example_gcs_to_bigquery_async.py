@@ -32,6 +32,7 @@ from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQue
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 DAG_ID = "gcs_to_bigquery_operator_async"
 
 DATASET_NAME_STR = f"dataset_{DAG_ID}_{ENV_ID}_STR"
@@ -40,7 +41,6 @@ TABLE_NAME_STR = "test_str"
 TABLE_NAME_DATE = "test_date"
 MAX_ID_STR = "name"
 MAX_ID_DATE = "date"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 with models.DAG(
     dag_id=DAG_ID,
