@@ -309,12 +309,13 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         self.column_mapping = column_mapping
         self.partition_clause = partition_clause
 
-        checks_sql_list = []
-        for column, checks in self.column_mapping.items():
-            for check, check_values in checks.items():
-                self._column_mapping_validation(check, check_values)
-            checks_sql_list.append(self._generate_sql_query(column, checks))
-        checks_sql = "UNION ALL".join(checks_sql_list)
+        def _build_checks_sql():
+            for column, checks in self.column_mapping.items():
+                for check, check_values in checks.items():
+                    self._column_mapping_validation(check, check_values)
+                yield self._generate_sql_query(column, checks)
+
+        checks_sql = "UNION ALL".join(_build_checks_sql())
 
         self.sql = f"SELECT col_name, check_type, check_result FROM ({checks_sql}) AS check_columns"
 
