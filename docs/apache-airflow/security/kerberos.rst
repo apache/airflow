@@ -64,9 +64,11 @@ your ``airflow.cfg``
 In case you are using Airflow in a docker container based environment,
 you can set the below environment variables in the ``Dockerfile`` instead of modifying ``airflow.cfg``
 
-ENV AIRFLOW__CORE__SECURITY kerberos
-ENV AIRFLOW__KERBEROS__KEYTAB /etc/airflow/airflow.keytab
-ENV AIRFLOW__KERBEROS__INCLUDE_IP False
+.. code-block:: dockerfile
+
+    ENV AIRFLOW__CORE__SECURITY kerberos
+    ENV AIRFLOW__KERBEROS__KEYTAB /etc/airflow/airflow.keytab
+    ENV AIRFLOW__KERBEROS__INCLUDE_IP False
 
 
 If you need more granular options for your Kerberos ticket the following options are available with the following default values:
