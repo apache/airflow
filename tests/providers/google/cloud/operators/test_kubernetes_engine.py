@@ -204,13 +204,7 @@ class TestGKEPodOperator(unittest.TestCase):
     @mock.patch.dict(os.environ, {})
     @mock.patch(
         "airflow.hooks.base.BaseHook.get_connections",
-        return_value=[
-            Connection(
-                extra=json.dumps(
-                    {"extra__google_cloud_platform__keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}
-                )
-            )
-        ],
+        return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch('airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute')
     @mock.patch('airflow.providers.google.cloud.operators.kubernetes_engine.GoogleBaseHook')
@@ -244,13 +238,7 @@ class TestGKEPodOperator(unittest.TestCase):
     @mock.patch.dict(os.environ, {})
     @mock.patch(
         "airflow.hooks.base.BaseHook.get_connections",
-        return_value=[
-            Connection(
-                extra=json.dumps(
-                    {"extra__google_cloud_platform__keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}
-                )
-            )
-        ],
+        return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch('airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute')
     @mock.patch('airflow.providers.google.cloud.operators.kubernetes_engine.GoogleBaseHook')
@@ -300,13 +288,7 @@ class TestGKEPodOperator(unittest.TestCase):
     @mock.patch.dict(os.environ, {})
     @mock.patch(
         "airflow.hooks.base.BaseHook.get_connections",
-        return_value=[
-            Connection(
-                extra=json.dumps(
-                    {"extra__google_cloud_platform__keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}
-                )
-            )
-        ],
+        return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch('airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute')
     @mock.patch('airflow.providers.google.cloud.operators.kubernetes_engine.GoogleBaseHook')
@@ -344,13 +326,7 @@ class TestGKEPodOperator(unittest.TestCase):
     @mock.patch.dict(os.environ, {})
     @mock.patch(
         "airflow.hooks.base.BaseHook.get_connections",
-        return_value=[
-            Connection(
-                extra=json.dumps(
-                    {"extra__google_cloud_platform__keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}
-                )
-            )
-        ],
+        return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch('airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute')
     @mock.patch('airflow.providers.google.cloud.operators.kubernetes_engine.GoogleBaseHook')
@@ -388,13 +364,7 @@ class TestGKEPodOperator(unittest.TestCase):
     @mock.patch.dict(os.environ, {})
     @mock.patch(
         "airflow.hooks.base.BaseHook.get_connections",
-        return_value=[
-            Connection(
-                extra=json.dumps(
-                    {"extra__google_cloud_platform__keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}
-                )
-            )
-        ],
+        return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch('airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute')
     @mock.patch('airflow.providers.google.cloud.operators.kubernetes_engine.GoogleBaseHook')
@@ -432,13 +402,7 @@ class TestGKEPodOperator(unittest.TestCase):
     @mock.patch.dict(os.environ, {})
     @mock.patch(
         "airflow.hooks.base.BaseHook.get_connections",
-        return_value=[
-            Connection(
-                extra=json.dumps(
-                    {"extra__google_cloud_platform__keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}
-                )
-            )
-        ],
+        return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch('airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute')
     @mock.patch('airflow.providers.google.cloud.operators.kubernetes_engine.GoogleBaseHook')
