@@ -3496,19 +3496,21 @@ class Airflow(AirflowBaseView):
 
         for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
             dag_node_id = f"dag:{dag}"
-            if dag_node_id not in nodes_dict:
-                nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")
-
-            for dep in dependencies:
-                if dep.node_id not in nodes_dict and (
-                    dep.dependency_type == 'dag' or dep.dependency_type == 'dataset'
-                ):
-                    nodes_dict[dep.node_id] = node_dict(dep.node_id, dep.dependency_id, dep.dependency_type)
-                edge_tuples.add((f"dag:{dep.source}", dep.node_id))
-                edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
+            if dag_node_id not in nodes_dict and len(dependencies) > 0:
+                for dep in dependencies:
+                    if dep.dependency_type == 'dag' or dep.dependency_type == 'dataset':
+                        nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, 'dag')
+                        if dep.node_id not in nodes_dict:
+                            nodes_dict[dep.node_id] = node_dict(
+                                dep.node_id, dep.dependency_id, dep.dependency_type
+                            )
+                        if dep.source != 'dataset':
+                            edge_tuples.add((f"dag:{dep.source}", dep.node_id))
+                        if dep.target != 'dataset':
+                            edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
 
         nodes = list(nodes_dict.values())
-        edges = [{"u": u, "v": v} for u, v in edge_tuples]
+        edges = [{"source": source, "target": target} for source, target in edge_tuples]
 
         data = {
             'nodes': nodes,
