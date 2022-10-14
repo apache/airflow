@@ -2454,7 +2454,8 @@ class Airflow(AirflowBaseView):
     @action_logging
     def dag(self, dag_id):
         """Redirect to default DAG view."""
-        return redirect(url_for('Airflow.grid', dag_id=dag_id, **request.args))
+        kwargs = {**request.args, "dag_id": dag_id}
+        return redirect(url_for('Airflow.grid', **kwargs))
 
     @expose('/legacy_tree')
     @auth.has_access(
