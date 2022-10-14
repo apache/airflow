@@ -71,7 +71,7 @@ from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import Date, and_, desc, distinct, func, inspect, union_all
+from sqlalchemy import Date, and_, case, desc, func, inspect, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from wtforms import SelectField, validators
@@ -237,8 +237,15 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     }
 
 
-def _safe_parse_datetime(v):
-    """Parse datetime and return error message for invalid dates"""
+def _safe_parse_datetime(v, allow_empty=False):
+    """
+    Parse datetime and return error message for invalid dates
+
+    :param v: the string value to be parsed
+    :param allow_empty: Set True to return none if empty str or None
+    """
+    if allow_empty is True and not v:
+        return None
     try:
         return timezone.parse(v)
     except (TypeError, ParserError):
@@ -3521,11 +3528,19 @@ class Airflow(AirflowBaseView):
         """
         allowed_attrs = ['uri', 'last_dataset_update']
 
+        # Grab query parameters
         limit = int(request.args.get("limit", 25))
         offset = int(request.args.get("offset", 0))
         order_by = request.args.get("order_by", "uri")
         uri_pattern = request.args.get("uri_pattern", "")
         lstripped_orderby = order_by.lstrip('-')
+        updated_after = _safe_parse_datetime(request.args.get("updated_after"), allow_empty=True)
+        updated_before = _safe_parse_datetime(request.args.get("updated_before"), allow_empty=True)
+
+        # Check and clean up query parameters
+        limit = 50 if limit > 50 else limit
+
+        uri_pattern = uri_pattern[:4000]
 
         if lstripped_orderby not in allowed_attrs:
             return {
@@ -3534,8 +3549,6 @@ class Airflow(AirflowBaseView):
                     "exist on the model"
                 )
             }, 400
-
-        limit = 50 if limit > 50 else limit
 
         with create_session() as session:
             if lstripped_orderby == "uri":
@@ -3559,28 +3572,43 @@ class Airflow(AirflowBaseView):
                     if session.bind.dialect.name == "postgresql":
                         order_by = (order_by[0].nulls_first(), *order_by[1:])
 
-            total_entries = session.query(func.count(DatasetModel.id)).scalar()
+            count_query = session.query(func.count(DatasetModel.id))
 
-            datasets = [
-                dict(dataset)
-                for dataset in session.query(
+            has_event_filters = bool(updated_before or updated_after)
+
+            query = (
+                session.query(
                     DatasetModel.id,
                     DatasetModel.uri,
                     func.max(DatasetEvent.timestamp).label("last_dataset_update"),
-                    func.count(distinct(DatasetEvent.id)).label("total_updates"),
+                    func.sum(case((DatasetEvent.id.is_not(None), 1), else_=0)).label("total_updates"),
                 )
-                .outerjoin(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
+                .join(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id, isouter=not has_event_filters)
                 .group_by(
                     DatasetModel.id,
                     DatasetModel.uri,
                 )
-                .filter(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
                 .order_by(*order_by)
-                .offset(offset)
-                .limit(limit)
-                .all()
-            ]
-            data = {"datasets": datasets, "total_entries": total_entries}
+            )
+
+            if has_event_filters:
+                count_query = count_query.join(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
+
+            filters = []
+            if uri_pattern:
+                filters.append(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
+            if updated_after:
+                filters.append(DatasetEvent.timestamp >= updated_after)
+            if updated_before:
+                filters.append(DatasetEvent.timestamp <= updated_before)
+
+            query = query.filter(*filters)
+            count_query = count_query.filter(*filters)
+
+            query = query.offset(offset).limit(limit)
+
+            datasets = [dict(dataset) for dataset in query.all()]
+            data = {"datasets": datasets, "total_entries": count_query.scalar()}
 
             return (
                 htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),

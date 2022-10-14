@@ -137,21 +137,33 @@
         </p>
       {% endif %}
       {% if dag_model is defined and dag_model.schedule_interval is defined and dag_model.schedule_interval == 'Dataset' %}
-        <span
-          id="next-dataset-tooltip"
-          class="js-tooltip"
-          title="Click to see dataset details."
-          data-html="true"
-          data-placement="bottom"
-        >
-          <p
-            class="label label-default next-dataset-triggered"
-            style="margin-left: 5px;"
-            data-summary="{{ dag_model.get_dataset_triggered_next_run_info() }}"
+        {%- with ds_info = dag_model.get_dataset_triggered_next_run_info() -%}
+          <span
+            id="next-dataset-tooltip"
+            class="js-tooltip"
+            title="Click to see dataset details."
+            data-html="true"
+            data-placement="bottom"
+            data-uri="{{ ds_info.uri }}"
           >
-            Next Run: {{ dag_model.get_dataset_triggered_next_run_info() }}
-          </p>
-        </span>
+              <p
+                class="label label-default next-dataset-triggered"
+                style="margin-left: 5px;"
+                data-summary="
+                  {%- if ds_info.total == 1 -%}
+                  On {{ ds_info.uri }}
+                  {%- else -%}
+                  {{ ds_info.ready }} of {{ ds_info.total }} datasets updated
+                  {%- endif -%}"
+                >
+                {% if ds_info.total == 1 -%}
+                  On {{ ds_info.uri }}
+                {%- else -%}
+                {{ ds_info.ready }} of {{ ds_info.total }} datasets updated
+                {%- endif %}
+              </p>
+          </span>
+        {%- endwith -%}
       {% endif %}
     </h4>
   </div>

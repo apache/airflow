@@ -825,14 +825,13 @@ def check_and_run_migrations():
         sys.exit(1)
 
 
-@provide_session
-def reserialize_dags(*, session: Session = NEW_SESSION) -> None:
+def _reserialize_dags(*, session: Session) -> None:
     from airflow.models.dagbag import DagBag
     from airflow.models.serialized_dag import SerializedDagModel
 
     session.query(SerializedDagModel).delete(synchronize_session=False)
-    dagbag = DagBag()
-    dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+    dagbag = DagBag(collect_dags=False)
+    dagbag.collect_dags(only_if_updated=False)
     dagbag.sync_to_db(session=session)
 
 
@@ -1476,6 +1475,7 @@ def upgradedb(
     to_revision: str | None = None,
     from_revision: str | None = None,
     show_sql_only: bool = False,
+    reserialize_dags: bool = True,
     session: Session = NEW_SESSION,
 ):
     """
@@ -1556,7 +1556,8 @@ def upgradedb(
                 os.environ['AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE'] = val
             settings.reconfigure_orm()
 
-    reserialize_dags(session=session)
+    if reserialize_dags:
+        _reserialize_dags(session=session)
     add_default_pool_if_not_exists(session=session)
     synchronize_log_template(session=session)
 
