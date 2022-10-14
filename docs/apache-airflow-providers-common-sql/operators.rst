@@ -71,6 +71,11 @@ The partition clauses may be given at the operator level as a parameter where it
 at the column level in the column mapping where it partitions all checks for that column, or at the
 check level for a column where it partitions just that check.
 
+A database may also be specified if not using the database from the supplied connection.
+
+The accept_none argument, true by default, will convert None values returned by the query to 0s, allowing
+empty tables to return valid integers.
+
 The below example demonstrates how to instantiate the SQLColumnCheckOperator task.
 
 .. exampleinclude:: /../../tests/system/providers/common/sql/example_sql_column_table_check.py

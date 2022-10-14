@@ -204,6 +204,8 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
     :param conn_id: the connection ID used to connect to the database
     :param database: name of database which overwrite the defined one in connection
+    :param accept_none: whether or not to accept None values returned by the query. If true, converts None
+        to 0.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -233,6 +235,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         partition_clause: str | None = None,
         conn_id: str | None = None,
         database: str | None = None,
+        accept_none: bool = True,
         **kwargs,
     ):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -240,6 +243,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         self.table = table
         self.column_mapping = column_mapping
         self.partition_clause = partition_clause
+        self.accept_none = accept_none
 
         def _build_checks_sql():
             for column, checks in self.column_mapping.items():
@@ -307,6 +311,8 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         return checks_sql
 
     def _get_match(self, check_values, record, tolerance=None) -> bool:
+        if record is None and self.accept_none:
+            record = 0
         match_boolean = True
         if "geq_to" in check_values:
             if tolerance is not None:
