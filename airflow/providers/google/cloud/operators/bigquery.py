@@ -543,6 +543,8 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
         table: str,
         column_mapping: dict,
         partition_clause: str | None = None,
+        database: str | None = None,
+        accept_none: bool = True,
         gcp_conn_id: str = "google_cloud_default",
         use_legacy_sql: bool = True,
         location: str | None = None,
@@ -551,11 +553,18 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
         **kwargs,
     ) -> None:
         super().__init__(
-            table=table, column_mapping=column_mapping, partition_clause=partition_clause, **kwargs
+            table=table,
+            column_mapping=column_mapping,
+            partition_clause=partition_clause,
+            database=database,
+            accept_none=accept_none,
+            **kwargs,
         )
         self.table = table
         self.column_mapping = column_mapping
         self.partition_clause = partition_clause
+        self.database = database
+        self.accept_none = accept_none
         self.gcp_conn_id = gcp_conn_id
         self.use_legacy_sql = use_legacy_sql
         self.location = location
