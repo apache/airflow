@@ -1064,17 +1064,17 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Test downgrade migration file ${{ env.BACKEND }}"
         run: >
           breeze shell "airflow db reset --skip-init -y &&
-          airflow db upgrade --to-revision heads &&
+          airflow db upgrade --to-revision heads --no-reserialize-dags &&
           airflow db downgrade -r e959f08ac86c -y &&
-          airflow db upgrade"
+          airflow db upgrade --no-reserialize-dags"
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Test downgrade ORM ${{ env.BACKEND }}"
         run: >
           breeze shell "airflow db reset -y &&
-          airflow db upgrade &&
+          airflow db upgrade --no-reserialize-dags &&
           airflow db downgrade -r e959f08ac86c -y &&
-          airflow db upgrade"
+          airflow db upgrade --no-reserialize-dags"
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Test Offline SQL generation ${{ env.BACKEND }}"
@@ -1156,17 +1156,17 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Test downgrade migration file ${{ env.BACKEND }}"
         run: >
           breeze shell "airflow db reset --skip-init -y &&
-          airflow db upgrade --to-revision heads &&
+          airflow db upgrade --to-revision heads --no-reserialize-dags &&
           airflow db downgrade -r e959f08ac86c -y &&
-          airflow db upgrade"
+          airflow db upgrade --no-reserialize-dags"
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Test downgrade ORM ${{ env.BACKEND }}"
         run: >
           breeze shell "airflow db reset -y &&
-          airflow db upgrade &&
+          airflow db upgrade --no-reserialize-dags &&
           airflow db downgrade -r e959f08ac86c -y &&
-          airflow db upgrade"
+          airflow db upgrade --no-reserialize-dags"
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Tests: ${{needs.build-info.outputs.test-types}}"

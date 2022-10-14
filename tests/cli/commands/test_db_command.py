@@ -96,7 +96,7 @@ class TestCliDb:
     @mock.patch("airflow.cli.commands.db_command.db.upgradedb")
     def test_cli_upgrade_success(self, mock_upgradedb, args, called_with):
         db_command.upgradedb(self.parser.parse_args(['db', 'upgrade', *args]))
-        mock_upgradedb.assert_called_once_with(**called_with)
+        mock_upgradedb.assert_called_once_with(**called_with, reserialize_dags=True)
 
     @pytest.mark.parametrize(
         'args, pattern',
