@@ -601,7 +601,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self._fetch_callbacks(max_callbacks_per_loop)
             self._deactivate_stale_dags()
             DagWarning.purge_inactive_dag_warnings()
-            self._refresh_dag_dir()
+            refreshed_dag_dir = self._refresh_dag_dir()
 
             self._kill_timed_out_processors()
 
@@ -610,6 +610,9 @@ class DagFileProcessorManager(LoggingMixin):
             if not self._file_path_queue:
                 self.emit_metrics()
                 self.prepare_file_path_queue()
+
+            if refreshed_dag_dir:
+                self.add_new_file_path_to_queue()
 
             self.start_new_processes()
 
@@ -759,6 +762,10 @@ class DagFileProcessorManager(LoggingMixin):
             from airflow.models.dagcode import DagCode
 
             DagCode.remove_deleted_code(dag_filelocs)
+
+            return True
+        else:
+            return False
 
     def _print_stat(self):
         """Occasionally print out stats about how fast the files are getting processed"""
@@ -1040,6 +1047,18 @@ class DagFileProcessorManager(LoggingMixin):
             self.log.debug("Started a process (PID: %s) to generate tasks for %s", processor.pid, file_path)
             self._processors[file_path] = processor
             self.waitables[processor.waitable_handle] = processor
+
+
+    def add_new_file_path_to_queue(self):
+        for file_path in self.file_paths:
+            if file_path not in self._file_stats:
+                # We found new file after refreshing dir. add to parsing queue at start
+                self.log.info('Adding new file %s to parsing queue', file_path)
+                self._file_stats[file_path] = DagFileStat(
+                    num_dags=0, import_errors=0, last_finish_time=None, last_duration=None, run_count=0
+                )
+                self._file_path_queue.insert(0, file_path)
+
 
     def prepare_file_path_queue(self):
         """Generate more file paths to process. Result are saved in _file_path_queue."""
