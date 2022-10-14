@@ -189,6 +189,31 @@ class TestProviderManager:
         )
         assert provider_manager.connection_form_widgets['extra__test__my_param'].field == widget_field
 
+    def test_connection_field_behaviors_placeholders_prefix(self):
+        class MyHook:
+            conn_type = 'test'
+
+            @classmethod
+            def get_ui_field_behaviour(cls):
+                return {
+                    "hidden_fields": ['host', 'schema'],
+                    "relabeling": {},
+                    "placeholders": {"abc": "hi", "extra__anything": "n/a", "password": "blah"},
+                }
+
+        provider_manager = ProvidersManager()
+        provider_manager._add_customized_fields(
+            package_name='abc',
+            hook_class=MyHook,
+            customized_fields=MyHook.get_ui_field_behaviour(),
+        )
+        expected = {
+            "extra__test__abc": "hi",  # prefix should be added, since `abc` is not reserved
+            "extra__anything": "n/a",  # no change since starts with extra
+            "password": "blah",  # no change since it's a conn attr
+        }
+        assert provider_manager.field_behaviours['test']['placeholders'] == expected
+
     def test_connection_form_widgets_fields_order(self):
         """Check that order of connection for widgets preserved by original Hook order."""
         test_conn_type = 'test'
