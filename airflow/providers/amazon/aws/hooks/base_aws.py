@@ -29,7 +29,7 @@ import json
 import logging
 import warnings
 from functools import wraps
-from typing import Any, Callable, Generic, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union
 
 import boto3
 import botocore
@@ -46,12 +46,15 @@ from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
-from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 
 BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[boto3.client, boto3.resource])
+
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection  # Avoid circular imports.
 
 
 class BaseSessionFactory(LoggingMixin):
@@ -632,21 +635,21 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         .. seealso::
             https://docs.aws.amazon.com/STS/latest/APIReference/API_GetCallerIdentity.html
         """
-        orig_client_type, self.client_type = self.client_type, 'sts'
         try:
-            res = self.get_client_type().get_caller_identity()
-            metadata = res.pop("ResponseMetadata", {})
-            if metadata.get("HTTPStatusCode") == 200:
-                return True, json.dumps(res)
-            else:
+            session = self.get_session()
+            conn_info = session.client("sts").get_caller_identity()
+            metadata = conn_info.pop("ResponseMetadata", {})
+            if metadata.get("HTTPStatusCode") != 200:
                 try:
                     return False, json.dumps(metadata)
                 except TypeError:
                     return False, str(metadata)
+            conn_info["credentials_method"] = session.get_credentials().method
+            conn_info["region_name"] = session.region_name
+            return True, ", ".join(f"{k}={v!r}" for k, v in conn_info.items())
+
         except Exception as e:
-            return False, str(e)
-        finally:
-            self.client_type = orig_client_type
+            return False, str(f"{type(e).__name__!r} error occurred while testing connection: {e}")
 
 
 class AwsBaseHook(AwsGenericHook[Union[boto3.client, boto3.resource]]):

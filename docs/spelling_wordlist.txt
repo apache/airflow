@@ -157,6 +157,7 @@ bigquery
 BigQueryHook
 Bigtable
 bigtable
+Bitnami
 Bitshift
 bitshift
 bitwise
@@ -468,6 +469,7 @@ editorconfig
 Eg
 eg
 eks
+eksctl
 eladkal
 elasticsearch
 emailer
@@ -674,6 +676,7 @@ httpx
 hvac
 hyperparameter
 hyperparameters
+IaC
 iam
 idempotence
 idempotency
@@ -725,6 +728,7 @@ Investorise
 io
 ip
 iPython
+IRSA
 isfile
 ish
 isn
@@ -956,6 +960,7 @@ nosasl
 NotFound
 notificationChannels
 npm
+ns
 ntlm
 ntpd
 Nullable

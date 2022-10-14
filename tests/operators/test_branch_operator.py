@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import datetime
-import unittest
 
 from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.operators.branch import BaseBranchOperator
@@ -42,16 +41,14 @@ class ChooseBranchOneTwo(BaseBranchOperator):
         return ['branch_1', 'branch_2']
 
 
-class TestBranchOperator(unittest.TestCase):
+class TestBranchOperator:
     @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-
+    def setup_class(cls):
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
 
-    def setUp(self):
+    def setup_method(self):
         self.dag = DAG(
             'branch_operator_test',
             default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
@@ -63,9 +60,7 @@ class TestBranchOperator(unittest.TestCase):
         self.branch_3 = None
         self.branch_op = None
 
-    def tearDown(self):
-        super().tearDown()
-
+    def teardown_method(self):
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
