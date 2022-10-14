@@ -115,7 +115,7 @@ create image you can find by this link: https://cloud.google.com/vertex-ai/docs/
 After that you should put link to the image in ``container_uri`` parameter. Also you can type executing command
 for container which will be created from this image in ``command`` parameter.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_jobs.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_container.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_custom_container_training_job_operator]
@@ -129,7 +129,7 @@ create you can find by this link: https://cloud.google.com/vertex-ai/docs/traini
 Next you should put link to the package in ``python_package_gcs_uri`` parameter, also ``python_module_name``
 parameter should has the name of script which will run your training task.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_jobs.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_job_python_package.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_custom_python_package_training_job_operator]
@@ -140,7 +140,7 @@ How to run Training Job
 
 For this Job you should put path to your local training script inside ``script_path`` parameter.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_jobs.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_custom_training_job_operator]
@@ -149,7 +149,7 @@ For this Job you should put path to your local training script inside ``script_p
 You can get a list of Training Jobs using
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.ListCustomTrainingJobOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_jobs.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_list_custom_jobs.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_list_custom_training_job_operator]
@@ -158,7 +158,7 @@ You can get a list of Training Jobs using
 If you wish to delete a Custom Training Job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.DeleteCustomTrainingJobOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_jobs.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_delete_custom_training_job_operator]
@@ -182,7 +182,7 @@ How to run AutoML Forecasting Training Job
 Before start running this Job you must prepare and create ``TimeSeries`` dataset. After that you should
 put dataset id to ``dataset_id`` parameter in operator.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_auto_ml.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_auto_ml_forecasting_training.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_forecasting_training_job_operator]
@@ -194,7 +194,7 @@ How to run AutoML Image Training Job
 Before start running this Job you must prepare and create ``Image`` dataset. After that you should
 put dataset id to ``dataset_id`` parameter in operator.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_auto_ml.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_auto_ml_image_training.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_image_training_job_operator]
@@ -206,7 +206,7 @@ How to run AutoML Tabular Training Job
 Before start running this Job you must prepare and create ``Tabular`` dataset. After that you should
 put dataset id to ``dataset_id`` parameter in operator.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_auto_ml.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_auto_ml_tabular_training.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_tabular_training_job_operator]
@@ -218,7 +218,7 @@ How to run AutoML Text Training Job
 Before start running this Job you must prepare and create ``Text`` dataset. After that you should
 put dataset id to ``dataset_id`` parameter in operator.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_auto_ml.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_auto_ml_text_training.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_text_training_job_operator]
@@ -230,7 +230,7 @@ How to run AutoML Video Training Job
 Before start running this Job you must prepare and create ``Video`` dataset. After that you should
 put dataset id to ``dataset_id`` parameter in operator.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_auto_ml.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_auto_ml_video_training.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_video_training_job_operator]
@@ -239,7 +239,7 @@ put dataset id to ``dataset_id`` parameter in operator.
 You can get a list of AutoML Training Jobs using
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.ListAutoMLTrainingJobOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_auto_ml.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_auto_ml_list_training.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_list_auto_ml_training_job_operator]
@@ -248,7 +248,7 @@ You can get a list of AutoML Training Jobs using
 If you wish to delete a Auto ML Training Job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.DeleteAutoMLTrainingJobOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_auto_ml.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_auto_ml_forecasting_training.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_delete_auto_ml_training_job_operator]
