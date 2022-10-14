@@ -610,8 +610,7 @@ class DagFileProcessorManager(LoggingMixin):
             if not self._file_path_queue:
                 self.emit_metrics()
                 self.prepare_file_path_queue()
-
-            if refreshed_dag_dir:
+            elif refreshed_dag_dir:
                 self.add_new_file_path_to_queue()
 
             self.start_new_processes()
