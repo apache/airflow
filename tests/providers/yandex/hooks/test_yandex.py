@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import os
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pytest import param
@@ -108,6 +108,7 @@ class TestYandexHook:
             param('a://?folder_id=abc&public_ssh_key=abc', id='no-prefix'),
         ],
     )
+    @patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials', new=MagicMock())
     def test_backcompat_prefix_works(self, uri):
         with patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}):
             hook = YandexCloudBaseHook('my_conn')
