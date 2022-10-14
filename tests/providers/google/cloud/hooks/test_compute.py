@@ -376,9 +376,7 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
         COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
     )
     def test_insert_instance_group_manager_should_not_throw_ex_when_project_id_none(
-        self,
-        mock_client,
-        mocked_project_id
+        self, mock_client, mocked_project_id
     ):
         self.hook.insert_instance_group_manager(
             body=BODY,
@@ -431,9 +429,7 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
         COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
     )
     def test_get_instance_group_manager_should_not_throw_ex_when_project_id_none(
-        self,
-        mock_client,
-        mocked_project_id
+        self, mock_client, mocked_project_id
     ):
         self.hook.get_instance_group_manager(
             resource_id=RESOURCE_ID,
@@ -486,9 +482,7 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
         COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
     )
     def test_delete_instance_group_manager_should_not_throw_ex_when_project_id_none(
-        self,
-        mock_client,
-        mocked_project_id
+        self, mock_client, mocked_project_id
     ):
         self.hook.delete_instance_group_manager(
             resource_id=RESOURCE_ID,
