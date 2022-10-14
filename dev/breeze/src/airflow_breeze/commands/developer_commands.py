@@ -593,7 +593,7 @@ def run_shell(verbose: bool, dry_run: bool, shell_params: ShellParams) -> RunCom
         get_console().print(f"[red]Error {command_result.returncode} returned[/]")
         if verbose:
             get_console().print(command_result.stderr)
-        sys.exit(1)
+        sys.exit(command_result.returncode)
 
 
 def stop_exec_on_error(returncode: int):
