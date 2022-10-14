@@ -87,8 +87,13 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
             metadata=METADATA,
         )
 
+    @mock.patch(
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value='mocked-google',
+    )
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_template_client"))
-    def test_insert_template_should_not_throw_ex_when_project_id_none(self, mock_client):
+    def test_insert_template_should_not_throw_ex_when_project_id_none(self, mock_client, mocked_project_id):
         self.hook.insert_instance_template(
             body=BODY,
             retry=RETRY,
@@ -99,7 +104,7 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
             request=dict(
                 instance_template_resource=BODY,
                 request_id=None,
-                project='google',
+                project='mocked-google',
             ),
             retry=RETRY,
             timeout=TIMEOUT,
@@ -126,8 +131,13 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
             metadata=METADATA,
         )
 
+    @mock.patch(
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value='mocked-google',
+    )
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_template_client"))
-    def test_delete_template_should_not_throw_ex_when_project_id_none(self, mock_client):
+    def test_delete_template_should_not_throw_ex_when_project_id_none(self, mock_client, mocked_project_id):
         self.hook.delete_instance_template(
             resource_id=RESOURCE_ID,
             retry=RETRY,
@@ -137,7 +147,7 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
         mock_client.return_value.delete.assert_called_once_with(
             request=dict(
                 instance_template=RESOURCE_ID,
-                project='google',
+                project='mocked-google',
                 request_id=None,
             ),
             retry=RETRY,
@@ -164,8 +174,13 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
             metadata=METADATA,
         )
 
+    @mock.patch(
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value='mocked-google',
+    )
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_template_client"))
-    def test_get_template_should_not_throw_ex_when_project_id_none(self, mock_client):
+    def test_get_template_should_not_throw_ex_when_project_id_none(self, mock_client, mocked_project_id):
         self.hook.get_instance_template(
             resource_id=RESOURCE_ID,
             retry=RETRY,
@@ -175,7 +190,7 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
         mock_client.return_value.get.assert_called_once_with(
             request=dict(
                 instance_template=RESOURCE_ID,
-                project='google',
+                project='mocked-google',
             ),
             retry=RETRY,
             timeout=TIMEOUT,
@@ -206,8 +221,13 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
             metadata=METADATA,
         )
 
+    @mock.patch(
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value='mocked-google',
+    )
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client"))
-    def test_insert_instance_should_not_throw_ex_when_project_id_none(self, mock_client):
+    def test_insert_instance_should_not_throw_ex_when_project_id_none(self, mock_client, mocked_project_id):
         self.hook.insert_instance(
             body=BODY,
             zone=ZONE,
@@ -219,7 +239,7 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
         mock_client.return_value.insert.assert_called_once_with(
             request=dict(
                 instance_resource=BODY,
-                project='google',
+                project='mocked-google',
                 request_id=None,
                 zone=ZONE,
                 source_instance_template=SOURCE_INSTANCE_TEMPLATE,
@@ -250,8 +270,13 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
             metadata=METADATA,
         )
 
+    @mock.patch(
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value='mocked-google',
+    )
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client"))
-    def test_get_instance_should_not_throw_ex_when_project_id_none(self, mock_client):
+    def test_get_instance_should_not_throw_ex_when_project_id_none(self, mock_client, mocked_project_id):
         self.hook.get_instance(
             resource_id=RESOURCE_ID,
             zone=ZONE,
@@ -262,7 +287,7 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
         mock_client.return_value.get.assert_called_once_with(
             request=dict(
                 instance=RESOURCE_ID,
-                project='google',
+                project='mocked-google',
                 zone=ZONE,
             ),
             retry=RETRY,
@@ -292,8 +317,13 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
             metadata=METADATA,
         )
 
+    @mock.patch(
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value='mocked-google',
+    )
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client"))
-    def test_delete_instance_should_not_throw_ex_when_project_id_none(self, mock_client):
+    def test_delete_instance_should_not_throw_ex_when_project_id_none(self, mock_client, mocked_project_id):
         self.hook.delete_instance(
             resource_id=RESOURCE_ID,
             zone=ZONE,
@@ -304,7 +334,7 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
         mock_client.return_value.delete.assert_called_once_with(
             request=dict(
                 instance=RESOURCE_ID,
-                project='google',
+                project='mocked-google',
                 request_id=None,
                 zone=ZONE,
             ),
@@ -338,9 +368,18 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
         )
 
     @mock.patch(
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value='mocked-google',
+    )
+    @mock.patch(
         COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
     )
-    def test_insert_instance_group_manager_should_not_throw_ex_when_project_id_none(self, mock_client):
+    def test_insert_instance_group_manager_should_not_throw_ex_when_project_id_none(
+        self,
+        mock_client,
+        mocked_project_id
+    ):
         self.hook.insert_instance_group_manager(
             body=BODY,
             zone=ZONE,
@@ -351,7 +390,7 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
         mock_client.return_value.insert.assert_called_once_with(
             request=dict(
                 instance_group_manager_resource=BODY,
-                project='google',
+                project='mocked-google',
                 request_id=None,
                 zone=ZONE,
             ),
@@ -384,9 +423,18 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
         )
 
     @mock.patch(
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value='mocked-google',
+    )
+    @mock.patch(
         COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
     )
-    def test_get_instance_group_manager_should_not_throw_ex_when_project_id_none(self, mock_client):
+    def test_get_instance_group_manager_should_not_throw_ex_when_project_id_none(
+        self,
+        mock_client,
+        mocked_project_id
+    ):
         self.hook.get_instance_group_manager(
             resource_id=RESOURCE_ID,
             zone=ZONE,
@@ -397,7 +445,7 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
         mock_client.return_value.get.assert_called_once_with(
             request=dict(
                 instance_group_manager=RESOURCE_ID,
-                project='google',
+                project='mocked-google',
                 zone=ZONE,
             ),
             retry=RETRY,
@@ -430,9 +478,18 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
         )
 
     @mock.patch(
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value='mocked-google',
+    )
+    @mock.patch(
         COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
     )
-    def test_delete_instance_group_manager_should_not_throw_ex_when_project_id_none(self, mock_client):
+    def test_delete_instance_group_manager_should_not_throw_ex_when_project_id_none(
+        self,
+        mock_client,
+        mocked_project_id
+    ):
         self.hook.delete_instance_group_manager(
             resource_id=RESOURCE_ID,
             zone=ZONE,
@@ -443,7 +500,7 @@ class TestGcpComputeHookApiCall(unittest.TestCase):
         mock_client.return_value.delete.assert_called_once_with(
             request=dict(
                 instance_group_manager=RESOURCE_ID,
-                project='google',
+                project='mocked-google',
                 zone=ZONE,
                 request_id=None,
             ),
