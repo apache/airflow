@@ -32,7 +32,7 @@ jdbc_conn_mock = Mock(name="jdbc_conn")
 
 
 class TestJdbcHook:
-    def set_up(self):
+    def setup(self):
         db.merge_conn(
             Connection(
                 conn_id='jdbc_default',
