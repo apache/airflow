@@ -374,6 +374,29 @@ class TestLocalTaskJob:
 
         session.close()
 
+    @patch.object(StandardTaskRunner, 'return_code')
+    @mock.patch('airflow.jobs.scheduler_job.Stats.incr')
+    def test_localtaskjob_report_return_code(self, mock_stats_incr, mock_return_code, create_dummy_dag):
+
+        _, task = create_dummy_dag('test_localtaskjob_double_trigger')
+        mock_stats_incr.reset_mock()
+
+        ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti_run.refresh_from_db()
+        job1 = LocalTaskJob(task_instance=ti_run, executor=SequentialExecutor())
+
+        mock_return_code.side_effect = [None, -9, None]
+
+        with timeout(10):
+            job1.run()
+
+        mock_stats_incr.assert_has_calls(
+            [
+                mock.call('ti.local_task_job_return_code.test_localtaskjob_double_trigger.op1.-9'),
+            ],
+            any_order=True,
+        )
+
     @pytest.mark.quarantined
     @patch.object(StandardTaskRunner, "return_code")
     def test_localtaskjob_maintain_heart_rate(self, mock_return_code, caplog, create_dummy_dag):
