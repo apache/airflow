@@ -15,16 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-
-import unittest
 from unittest.mock import Mock
 
 from airflow.models import TaskInstance
 from airflow.ti_deps.deps.dag_unpaused_dep import DagUnpausedDep
 
 
-class TestDagUnpausedDep(unittest.TestCase):
+class TestDagUnpausedDep:
     def test_concurrency_reached(self):
         """
         Test paused DAG should fail dependency

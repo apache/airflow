@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import time
-import unittest
 from datetime import timedelta
 
 import pytest
@@ -61,8 +62,8 @@ class TimeoutTestSensor(BaseSensorOperator):
         self.log.info("Success criteria met. Exiting.")
 
 
-class TestSensorTimeout(unittest.TestCase):
-    def setUp(self):
+class TestSensorTimeout:
+    def setup_method(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG(TEST_DAG_ID, default_args=args)
 

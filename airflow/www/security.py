@@ -15,24 +15,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import warnings
-from typing import Dict, Optional, Sequence, Set, Tuple
+from typing import Sequence
 
 from flask import g
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models import DagBag, DagModel
 from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.www.fab_security.sqla.manager import SecurityManager
 from airflow.www.fab_security.sqla.models import Permission, Resource, Role, User
-from airflow.www.utils import CustomSQLAInterface
-from airflow.www.views import (
+from airflow.www.fab_security.views import (
     ActionModelView,
     CustomResetMyPasswordView,
     CustomResetPasswordView,
@@ -47,6 +46,7 @@ from airflow.www.views import (
     PermissionPairModelView,
     ResourceModelView,
 )
+from airflow.www.utils import CustomSQLAInterface
 
 EXISTING_ROLES = {
     'Admin',
@@ -71,6 +71,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB),
@@ -85,8 +86,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DATASET),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
@@ -220,7 +223,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         warnings.warn(
             "`init_role` has been deprecated. Please use `bulk_sync_roles` instead.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         self.bulk_sync_roles([{'role': role_name, 'perms': perms}])
@@ -274,44 +277,44 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Gets the DAGs readable by authenticated user."""
         warnings.warn(
             "`get_readable_dags` has been deprecated. Please use `get_readable_dag_ids` instead.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
+            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
             return self.get_accessible_dags([permissions.ACTION_CAN_READ], user)
 
     def get_editable_dags(self, user):
         """Gets the DAGs editable by authenticated user."""
         warnings.warn(
             "`get_editable_dags` has been deprecated. Please use `get_editable_dag_ids` instead.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
+            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
             return self.get_accessible_dags([permissions.ACTION_CAN_EDIT], user)
 
     @provide_session
     def get_accessible_dags(self, user_actions, user, session=None):
         warnings.warn(
             "`get_accessible_dags` has been deprecated. Please use `get_accessible_dag_ids` instead.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=3,
         )
         dag_ids = self.get_accessible_dag_ids(user, user_actions, session)
         return session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids))
 
-    def get_readable_dag_ids(self, user) -> Set[str]:
+    def get_readable_dag_ids(self, user) -> set[str]:
         """Gets the DAG IDs readable by authenticated user."""
         return self.get_accessible_dag_ids(user, [permissions.ACTION_CAN_READ])
 
-    def get_editable_dag_ids(self, user) -> Set[str]:
+    def get_editable_dag_ids(self, user) -> set[str]:
         """Gets the DAG IDs editable by authenticated user."""
         return self.get_accessible_dag_ids(user, [permissions.ACTION_CAN_EDIT])
 
     @provide_session
-    def get_accessible_dag_ids(self, user, user_actions=None, session=None) -> Set[str]:
+    def get_accessible_dag_ids(self, user, user_actions=None, session=None) -> set[str]:
         """Generic function to get readable or writable DAGs for user."""
         if not user_actions:
             user_actions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
@@ -348,7 +351,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                     resources.add(resource)
         return {dag.dag_id for dag in session.query(DagModel.dag_id).filter(DagModel.dag_id.in_(resources))}
 
-    def can_access_some_dags(self, action: str, dag_id: Optional[str] = None) -> bool:
+    def can_access_some_dags(self, action: str, dag_id: str | None = None) -> bool:
         """Checks if user has read or write access to some dags."""
         if dag_id and dag_id != '~':
             root_dag_id = self._get_root_dag_id(dag_id)
@@ -382,7 +385,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         warnings.warn(
             "`prefixed_dag_id` has been deprecated. "
             "Please use `airflow.security.permissions.resource_name_for_dag` instead.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         root_dag_id = self._get_root_dag_id(dag_id)
@@ -494,7 +497,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         self.get_session.commit()
 
-    def get_all_permissions(self) -> Set[Tuple[str, str]]:
+    def get_all_permissions(self) -> set[tuple[str, str]]:
         """Returns all permissions as a set of tuples with the action and resource names"""
         return set(
             self.get_session.query(self.permission_model)
@@ -504,7 +507,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             .all()
         )
 
-    def _get_all_non_dag_permissions(self) -> Dict[Tuple[str, str], Permission]:
+    def _get_all_non_dag_permissions(self) -> dict[tuple[str, str], Permission]:
         """
         Returns a dict with a key of (action_name, resource_name) and value of permission
         with all permissions except those that are for specific DAGs.
@@ -521,7 +524,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             )
         }
 
-    def _get_all_roles_with_permissions(self) -> Dict[str, Role]:
+    def _get_all_roles_with_permissions(self) -> dict[str, Role]:
         """Returns a dict with a key of role name and value of role with early loaded permissions"""
         return {
             r.name: r
@@ -634,7 +637,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         dag_resource_name = permissions.resource_name_for_dag(dag_id)
 
-        def _get_or_create_dag_permission(action_name: str) -> Optional[Permission]:
+        def _get_or_create_dag_permission(action_name: str) -> Permission | None:
             perm = self.get_permission(action_name, dag_resource_name)
             if not perm:
                 self.log.info("Creating new action '%s' on resource '%s'", action_name, dag_resource_name)
@@ -691,7 +694,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 self._merge_perm(action_name, resource_name)
 
     def check_authorization(
-        self, perms: Optional[Sequence[Tuple[str, str]]] = None, dag_id: Optional[str] = None
+        self, perms: Sequence[tuple[str, str]] | None = None, dag_id: str | None = None
     ) -> bool:
         """Checks that the logged in user has the specified permissions."""
         if not perms:

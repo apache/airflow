@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for HDFS operations"""
-from typing import Any, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -49,7 +51,7 @@ class HDFSHook(BaseHook):
     hook_name = 'HDFS'
 
     def __init__(
-        self, hdfs_conn_id: str = 'hdfs_default', proxy_user: Optional[str] = None, autoconfig: bool = False
+        self, hdfs_conn_id: str = 'hdfs_default', proxy_user: str | None = None, autoconfig: bool = False
     ):
         super().__init__()
         if not snakebite_loaded:

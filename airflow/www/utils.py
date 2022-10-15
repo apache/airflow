@@ -15,14 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import textwrap
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Sequence
 from urllib.parse import urlencode
 
-import sqlalchemy as sqla
-from flask import Response, request, url_for
+from flask import request, url_for
 from flask.helpers import flash
 from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.filters import BaseFilter
@@ -35,22 +36,27 @@ from markupsafe import Markup
 from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
+from sqlalchemy import func, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
-from airflow import models
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import errors
+from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.helpers import alchemy_to_dict
-from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.state import State, TaskInstanceState
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm.query import Query
+    from sqlalchemy.sql.operators import ColumnOperators
 
-def datetime_to_string(value: Optional[DateTime]) -> Optional[str]:
+
+def datetime_to_string(value: DateTime | None) -> str | None:
     if value is None:
         return None
     return value.isoformat()
@@ -87,10 +93,10 @@ priority = [
     TaskInstanceState.RUNNING,
     TaskInstanceState.SHUTDOWN,
     TaskInstanceState.RESTARTING,
-    TaskInstanceState.REMOVED,
     None,
     TaskInstanceState.SUCCESS,
     TaskInstanceState.SKIPPED,
+    TaskInstanceState.REMOVED,
 ]
 
 
@@ -127,12 +133,21 @@ def get_mapped_summary(parent_instance, task_instances):
     }
 
 
-def encode_dag_run(dag_run: Optional[models.DagRun]) -> Optional[Dict[str, Any]]:
+def encode_dag_run(dag_run: DagRun | None) -> dict[str, Any] | None:
     if not dag_run:
         return None
 
+    conf: str | None = None
+    conf_is_json: bool = False
+    if isinstance(dag_run.conf, str):
+        conf = dag_run.conf
+    elif isinstance(dag_run.conf, (dict, list)) and any(dag_run.conf):
+        conf = json.dumps(dag_run.conf, sort_keys=True)
+        conf_is_json = True
+
     return {
         'run_id': dag_run.run_id,
+        'queued_at': datetime_to_string(dag_run.queued_at),
         'start_date': datetime_to_string(dag_run.start_date),
         'end_date': datetime_to_string(dag_run.end_date),
         'state': dag_run.state,
@@ -141,6 +156,9 @@ def encode_dag_run(dag_run: Optional[models.DagRun]) -> Optional[Dict[str, Any]]
         'data_interval_end': datetime_to_string(dag_run.data_interval_end),
         'run_type': dag_run.run_type,
         'last_scheduling_decision': datetime_to_string(dag_run.last_scheduling_decision),
+        'external_trigger': dag_run.external_trigger,
+        'conf': conf,
+        'conf_is_json': conf_is_json,
     }
 
 
@@ -167,7 +185,7 @@ def get_sensitive_variables_fields():
     warnings.warn(
         "This function is deprecated. Please use "
         "`airflow.utils.log.secrets_masker.get_sensitive_variables_fields`",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
     return get_sensitive_variables_fields()
@@ -181,7 +199,7 @@ def should_hide_value_for_key(key_name):
     warnings.warn(
         "This function is deprecated. Please use "
         "`airflow.utils.log.secrets_masker.should_hide_value_for_key`",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
     return should_hide_value_for_key(key_name)
@@ -319,13 +337,6 @@ def epoch(dttm):
     return (int(time.mktime(dttm.timetuple())) * 1000,)
 
 
-def json_response(obj):
-    """Returns a json response from a json serializable python object"""
-    return Response(
-        response=json.dumps(obj, indent=4, cls=AirflowJsonEncoder), status=200, mimetype="application/json"
-    )
-
-
 def make_cache_key(*args, **kwargs):
     """Used by cache to get a unique key per URL"""
     path = request.path
@@ -399,7 +410,7 @@ def datetime_f(attr_name):
     return dt
 
 
-def datetime_html(dttm: Optional[DateTime]) -> str:
+def datetime_html(dttm: DateTime | None) -> str:
     """Return an HTML formatted string with time element to support timezone changes in UI"""
     as_iso = dttm.isoformat() if dttm else ''
     if not as_iso:
@@ -439,6 +450,34 @@ def dag_run_link(attr):
     execution_date = attr.get('dag_run.exectuion_date') or attr.get('execution_date')
     url = url_for('Airflow.graph', dag_id=dag_id, run_id=run_id, execution_date=execution_date)
     return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
+
+
+def _get_run_ordering_expr(name: str) -> ColumnOperators:
+    expr = DagRun.__table__.columns[name]
+    # Data interval columns are NULL for runs created before 2.3, but SQL's
+    # NULL-sorting logic would make those old runs always appear first. In a
+    # perfect world we'd want to sort by ``get_run_data_interval()``, but that's
+    # not efficient, so instead the columns are coalesced into execution_date,
+    # which is good enough in most cases.
+    if name in ("data_interval_start", "data_interval_end"):
+        expr = func.coalesce(expr, DagRun.execution_date)
+    return expr.desc()
+
+
+def sorted_dag_runs(query: Query, *, ordering: Sequence[str], limit: int) -> Sequence[DagRun]:
+    """Produce DAG runs sorted by specified columns.
+
+    :param query: An ORM query object against *DagRun*.
+    :param ordering: Column names to sort the runs. should generally come from a
+        timetable's ``run_ordering``.
+    :param limit: Number of runs to limit to.
+    :return: A list of DagRun objects ordered by the specified columns. The list
+        contains only the *last* objects, but in *ascending* order.
+    """
+    ordering_exprs = (_get_run_ordering_expr(name) for name in ordering)
+    runs = query.order_by(*ordering_exprs, DagRun.id.desc()).limit(limit).all()
+    runs.reverse()
+    return runs
 
 
 def format_map_index(attr: dict) -> str:
@@ -533,9 +572,36 @@ class UtcAwareFilterMixin:
 
     def apply(self, query, value):
         """Apply the filter."""
-        value = timezone.parse(value, timezone=timezone.utc)
+        if isinstance(value, str) and not value.strip():
+            value = None
+        else:
+            value = timezone.parse(value, timezone=timezone.utc)
 
         return super().apply(query, value)
+
+
+class FilterIsNull(BaseFilter):
+    """Is null filter."""
+
+    name = lazy_gettext("Is Null")
+    arg_name = "emp"
+
+    def apply(self, query, value):
+        query, field = get_field_setup_query(query, self.model, self.column_name)
+        value = set_value_to_type(self.datamodel, self.column_name, None)
+        return query.filter(field == value)
+
+
+class FilterIsNotNull(BaseFilter):
+    """Is not null filter."""
+
+    name = lazy_gettext("Is not Null")
+    arg_name = "nemp"
+
+    def apply(self, query, value):
+        query, field = get_field_setup_query(query, self.model, self.column_name)
+        value = set_value_to_type(self.datamodel, self.column_name, None)
+        return query.filter(field != value)
 
 
 class FilterGreaterOrEqual(BaseFilter):
@@ -621,6 +687,15 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
         ),
     ) + fab_sqlafilters.SQLAFilterConverter.conversion_table
 
+    def __init__(self, datamodel):
+        super().__init__(datamodel)
+
+        for (method, filters) in self.conversion_table:
+            if FilterIsNull not in filters:
+                filters.append(FilterIsNull)
+            if FilterIsNotNull not in filters:
+                filters.append(FilterIsNotNull)
+
 
 class CustomSQLAInterface(SQLAInterface):
     """
@@ -645,8 +720,9 @@ class CustomSQLAInterface(SQLAInterface):
             if not isinstance(desc, AssociationProxy):
                 continue
             proxy_instance = getattr(self.obj, desc.value_attr)
-            self.list_columns[desc.value_attr] = proxy_instance.remote_attr.prop.columns[0]
-            self.list_properties[desc.value_attr] = proxy_instance.remote_attr.prop
+            if hasattr(proxy_instance.remote_attr.prop, 'columns'):
+                self.list_columns[desc.value_attr] = proxy_instance.remote_attr.prop.columns[0]
+                self.list_properties[desc.value_attr] = proxy_instance.remote_attr.prop
 
     def is_utcdatetime(self, col_name):
         """Check if the datetime is a UTC one."""
@@ -656,7 +732,7 @@ class CustomSQLAInterface(SQLAInterface):
             obj = self.list_columns[col_name].type
             return (
                 isinstance(obj, UtcDateTime)
-                or isinstance(obj, sqla.types.TypeDecorator)
+                or isinstance(obj, types.TypeDecorator)
                 and isinstance(obj.impl, UtcDateTime)
             )
         return False
@@ -669,7 +745,7 @@ class CustomSQLAInterface(SQLAInterface):
             obj = self.list_columns[col_name].type
             return (
                 isinstance(obj, ExtendedJSON)
-                or isinstance(obj, sqla.types.TypeDecorator)
+                or isinstance(obj, types.TypeDecorator)
                 and isinstance(obj.impl, ExtendedJSON)
             )
         return False
@@ -727,9 +803,9 @@ class UIAlert:
 
     def __init__(
         self,
-        message: Union[str, Markup],
+        message: str | Markup,
         category: str = "info",
-        roles: Optional[List[str]] = None,
+        roles: list[str] | None = None,
         html: bool = False,
     ):
         self.category = category

@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import html
 import json
 import re
@@ -22,6 +24,7 @@ import unittest.mock
 import urllib.parse
 from datetime import timedelta
 
+import freezegun
 import pytest
 
 from airflow import settings
@@ -58,30 +61,31 @@ def reset_dagruns():
 
 @pytest.fixture(autouse=True)
 def init_dagruns(app, reset_dagruns):
-    app.dag_bag.get_dag("example_bash_operator").create_dagrun(
-        run_id=DEFAULT_DAGRUN,
-        run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
-        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-        start_date=timezone.utcnow(),
-        state=State.RUNNING,
-    )
-    app.dag_bag.get_dag("example_subdag_operator").create_dagrun(
-        run_id=DEFAULT_DAGRUN,
-        run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
-        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-        start_date=timezone.utcnow(),
-        state=State.RUNNING,
-    )
-    app.dag_bag.get_dag("example_xcom").create_dagrun(
-        run_id=DEFAULT_DAGRUN,
-        run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
-        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-        start_date=timezone.utcnow(),
-        state=State.RUNNING,
-    )
+    with freezegun.freeze_time(DEFAULT_DATE):
+        app.dag_bag.get_dag("example_bash_operator").create_dagrun(
+            run_id=DEFAULT_DAGRUN,
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+        )
+        app.dag_bag.get_dag("example_subdag_operator").create_dagrun(
+            run_id=DEFAULT_DAGRUN,
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+        )
+        app.dag_bag.get_dag("example_xcom").create_dagrun(
+            run_id=DEFAULT_DAGRUN,
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+        )
     yield
     clear_db_runs()
 
@@ -970,3 +974,245 @@ def test_task_fail_duration(app, admin_client, dag_maker, session):
         assert resp.status_code == 200
         assert sorted(item["key"] for item in cumulative_chart) == ["fail", "success"]
         assert sorted(item["key"] for item in line_chart) == ["fail", "success"]
+
+
+def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client):
+    """Test that the graph view doesn't fail on a recursion error."""
+    from airflow.utils.helpers import chain
+
+    with dag_maker('test_fails_with_recursion') as dag:
+
+        tasks = [
+            BashOperator(
+                task_id=f"task_{i}",
+                bash_command="echo test",
+            )
+            for i in range(1, 1000 + 1)
+        ]
+        chain(*tasks)
+    with unittest.mock.patch.object(app, 'dag_bag') as mocked_dag_bag:
+        mocked_dag_bag.get_dag.return_value = dag
+        url = f'/dags/{dag.dag_id}/graph'
+        resp = admin_client.get(url, follow_redirects=True)
+        assert resp.status_code == 200
+
+
+def test_task_instances(admin_client):
+    """Test task_instances view."""
+    resp = admin_client.get(
+        f'/object/task_instances?dag_id=example_bash_operator&execution_date={DEFAULT_DATE}',
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert resp.json == {
+        'also_run_this': {
+            'dag_id': 'example_bash_operator',
+            'duration': None,
+            'end_date': None,
+            'executor_config': {},
+            'external_executor_id': None,
+            'hostname': '',
+            'job_id': None,
+            'map_index': -1,
+            'max_tries': 0,
+            'next_kwargs': None,
+            'next_method': None,
+            'operator': 'BashOperator',
+            'pid': None,
+            'pool': 'default_pool',
+            'pool_slots': 1,
+            'priority_weight': 2,
+            'queue': 'default',
+            'queued_by_job_id': None,
+            'queued_dttm': None,
+            'run_id': 'TEST_DAGRUN',
+            'start_date': None,
+            'state': None,
+            'task_id': 'also_run_this',
+            'trigger_id': None,
+            'trigger_timeout': None,
+            'try_number': 1,
+            'unixname': 'root',
+            'updated_at': DEFAULT_DATE.isoformat(),
+        },
+        'run_after_loop': {
+            'dag_id': 'example_bash_operator',
+            'duration': None,
+            'end_date': None,
+            'executor_config': {},
+            'external_executor_id': None,
+            'hostname': '',
+            'job_id': None,
+            'map_index': -1,
+            'max_tries': 0,
+            'next_kwargs': None,
+            'next_method': None,
+            'operator': 'BashOperator',
+            'pid': None,
+            'pool': 'default_pool',
+            'pool_slots': 1,
+            'priority_weight': 2,
+            'queue': 'default',
+            'queued_by_job_id': None,
+            'queued_dttm': None,
+            'run_id': 'TEST_DAGRUN',
+            'start_date': None,
+            'state': None,
+            'task_id': 'run_after_loop',
+            'trigger_id': None,
+            'trigger_timeout': None,
+            'try_number': 1,
+            'unixname': 'root',
+            'updated_at': DEFAULT_DATE.isoformat(),
+        },
+        'run_this_last': {
+            'dag_id': 'example_bash_operator',
+            'duration': None,
+            'end_date': None,
+            'executor_config': {},
+            'external_executor_id': None,
+            'hostname': '',
+            'job_id': None,
+            'map_index': -1,
+            'max_tries': 0,
+            'next_kwargs': None,
+            'next_method': None,
+            'operator': 'EmptyOperator',
+            'pid': None,
+            'pool': 'default_pool',
+            'pool_slots': 1,
+            'priority_weight': 1,
+            'queue': 'default',
+            'queued_by_job_id': None,
+            'queued_dttm': None,
+            'run_id': 'TEST_DAGRUN',
+            'start_date': None,
+            'state': None,
+            'task_id': 'run_this_last',
+            'trigger_id': None,
+            'trigger_timeout': None,
+            'try_number': 1,
+            'unixname': 'root',
+            'updated_at': DEFAULT_DATE.isoformat(),
+        },
+        'runme_0': {
+            'dag_id': 'example_bash_operator',
+            'duration': None,
+            'end_date': None,
+            'executor_config': {},
+            'external_executor_id': None,
+            'hostname': '',
+            'job_id': None,
+            'map_index': -1,
+            'max_tries': 0,
+            'next_kwargs': None,
+            'next_method': None,
+            'operator': 'BashOperator',
+            'pid': None,
+            'pool': 'default_pool',
+            'pool_slots': 1,
+            'priority_weight': 3,
+            'queue': 'default',
+            'queued_by_job_id': None,
+            'queued_dttm': None,
+            'run_id': 'TEST_DAGRUN',
+            'start_date': None,
+            'state': None,
+            'task_id': 'runme_0',
+            'trigger_id': None,
+            'trigger_timeout': None,
+            'try_number': 1,
+            'unixname': 'root',
+            'updated_at': DEFAULT_DATE.isoformat(),
+        },
+        'runme_1': {
+            'dag_id': 'example_bash_operator',
+            'duration': None,
+            'end_date': None,
+            'executor_config': {},
+            'external_executor_id': None,
+            'hostname': '',
+            'job_id': None,
+            'map_index': -1,
+            'max_tries': 0,
+            'next_kwargs': None,
+            'next_method': None,
+            'operator': 'BashOperator',
+            'pid': None,
+            'pool': 'default_pool',
+            'pool_slots': 1,
+            'priority_weight': 3,
+            'queue': 'default',
+            'queued_by_job_id': None,
+            'queued_dttm': None,
+            'run_id': 'TEST_DAGRUN',
+            'start_date': None,
+            'state': None,
+            'task_id': 'runme_1',
+            'trigger_id': None,
+            'trigger_timeout': None,
+            'try_number': 1,
+            'unixname': 'root',
+            'updated_at': DEFAULT_DATE.isoformat(),
+        },
+        'runme_2': {
+            'dag_id': 'example_bash_operator',
+            'duration': None,
+            'end_date': None,
+            'executor_config': {},
+            'external_executor_id': None,
+            'hostname': '',
+            'job_id': None,
+            'map_index': -1,
+            'max_tries': 0,
+            'next_kwargs': None,
+            'next_method': None,
+            'operator': 'BashOperator',
+            'pid': None,
+            'pool': 'default_pool',
+            'pool_slots': 1,
+            'priority_weight': 3,
+            'queue': 'default',
+            'queued_by_job_id': None,
+            'queued_dttm': None,
+            'run_id': 'TEST_DAGRUN',
+            'start_date': None,
+            'state': None,
+            'task_id': 'runme_2',
+            'trigger_id': None,
+            'trigger_timeout': None,
+            'try_number': 1,
+            'unixname': 'root',
+            'updated_at': DEFAULT_DATE.isoformat(),
+        },
+        'this_will_skip': {
+            'dag_id': 'example_bash_operator',
+            'duration': None,
+            'end_date': None,
+            'executor_config': {},
+            'external_executor_id': None,
+            'hostname': '',
+            'job_id': None,
+            'map_index': -1,
+            'max_tries': 0,
+            'next_kwargs': None,
+            'next_method': None,
+            'operator': 'BashOperator',
+            'pid': None,
+            'pool': 'default_pool',
+            'pool_slots': 1,
+            'priority_weight': 2,
+            'queue': 'default',
+            'queued_by_job_id': None,
+            'queued_dttm': None,
+            'run_id': 'TEST_DAGRUN',
+            'start_date': None,
+            'state': None,
+            'task_id': 'this_will_skip',
+            'trigger_id': None,
+            'trigger_timeout': None,
+            'try_number': 1,
+            'unixname': 'root',
+            'updated_at': DEFAULT_DATE.isoformat(),
+        },
+    }

@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from contextlib import suppress
 from importlib import import_module
 from pathlib import Path
@@ -30,16 +32,18 @@ from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.operators.python import PythonOperator
 from airflow.utils.db_cleanup import _build_query, _cleanup_table, config_dict, run_cleanup
 from airflow.utils.session import create_session
-from tests.test_utils.db import clear_db_dags, clear_db_runs, drop_tables_with_prefix
+from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, drop_tables_with_prefix
 
 
 @pytest.fixture(autouse=True)
 def clean_database():
     """Fixture that cleans the database before and after every test."""
     clear_db_runs()
+    clear_db_datasets()
     clear_db_dags()
     yield  # Test runs here
     clear_db_dags()
+    clear_db_datasets()
     clear_db_runs()
 
 
@@ -264,8 +268,8 @@ class TestDBCleanup:
             'dag_warning',  # self-maintaining
             'connection',  # leave alone
             'slot_pool',  # leave alone
-            'dataset_dag_ref',  # leave alone for now
-            'dataset_task_ref',  # leave alone for now
+            'dag_schedule_dataset_reference',  # leave alone for now
+            'task_outlet_dataset_reference',  # leave alone for now
             'dataset_dag_run_queue',  # self-managed
             'dataset_event_dag_run',  # foreign keys
         }

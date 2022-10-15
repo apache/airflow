@@ -15,16 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 import sys
 from glob import glob
-from typing import List
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
 
 
-def check_dir_init_file(provider_files: List[str]) -> None:
+def check_dir_init_file(provider_files: list[str]) -> None:
     missing_init_dirs = []
     for path in provider_files:
         if path.endswith("/__pycache__"):

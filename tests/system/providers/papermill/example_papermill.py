@@ -20,6 +20,8 @@ This DAG will use Papermill to run the notebook "hello_world", based on the exec
 it will create an output notebook "out-<date>". All fields, including the keys in the parameters, are
 templated.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime, timedelta
 

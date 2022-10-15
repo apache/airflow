@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime, timedelta
-from typing import List
 
 import pendulum
 import pytest
@@ -26,7 +27,7 @@ from airflow.datasets import Dataset
 from airflow.lineage.entities import File
 from airflow.models import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
+from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
@@ -124,10 +125,11 @@ def test_no_runs(admin_client, dag_without_runs):
             'instances': [],
             'label': None,
         },
+        'ordering': ['data_interval_end', 'execution_date'],
     }
 
 
-def test_one_run(admin_client, dag_with_runs: List[DagRun], session):
+def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
     """
     Test a DAG with complex interaction of states:
     - One run successful
@@ -168,22 +170,30 @@ def test_one_run(admin_client, dag_with_runs: List[DagRun], session):
     assert res == {
         'dag_runs': [
             {
+                'conf': None,
+                'conf_is_json': False,
                 'data_interval_end': '2016-01-02T00:00:00+00:00',
                 'data_interval_start': '2016-01-01T00:00:00+00:00',
                 'end_date': current_date_placeholder,
                 'execution_date': '2016-01-01T00:00:00+00:00',
+                'external_trigger': False,
                 'last_scheduling_decision': None,
+                'queued_at': None,
                 'run_id': 'run_1',
                 'run_type': 'scheduled',
                 'start_date': '2016-01-01T00:00:00+00:00',
                 'state': 'success',
             },
             {
+                'conf': None,
+                'conf_is_json': False,
                 'data_interval_end': '2016-01-03T00:00:00+00:00',
                 'data_interval_start': '2016-01-02T00:00:00+00:00',
                 'end_date': None,
                 'execution_date': '2016-01-02T00:00:00+00:00',
+                'external_trigger': False,
                 'last_scheduling_decision': None,
+                'queued_at': None,
                 'run_id': 'run_2',
                 'run_type': 'scheduled',
                 'start_date': '2016-01-01T00:00:00+00:00',
@@ -272,6 +282,7 @@ def test_one_run(admin_client, dag_with_runs: List[DagRun], session):
             'instances': [],
             'label': None,
         },
+        'ordering': ['data_interval_end', 'execution_date'],
     }
 
 
@@ -323,6 +334,7 @@ def test_has_outlet_dataset_flag(admin_client, dag_maker, session, app, monkeypa
             'instances': [],
             'label': None,
         },
+        'ordering': ['data_interval_end', 'execution_date'],
     }
 
 
@@ -339,17 +351,35 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
         ds1_id = session.query(DatasetModel.id).filter_by(uri=datasets[0].uri).scalar()
         ds2_id = session.query(DatasetModel.id).filter_by(uri=datasets[1].uri).scalar()
         ddrq = DatasetDagRunQueue(
-            target_dag_id=DAG_ID, dataset_id=ds1_id, created_at=pendulum.DateTime(2022, 8, 1, tzinfo=UTC)
+            target_dag_id=DAG_ID, dataset_id=ds1_id, created_at=pendulum.DateTime(2022, 8, 2, tzinfo=UTC)
         )
         session.add(ddrq)
+        dataset_events = [
+            DatasetEvent(
+                dataset_id=ds1_id,
+                extra={},
+                timestamp=pendulum.DateTime(2022, 8, 1, 1, tzinfo=UTC),
+            ),
+            DatasetEvent(
+                dataset_id=ds1_id,
+                extra={},
+                timestamp=pendulum.DateTime(2022, 8, 2, 1, tzinfo=UTC),
+            ),
+            DatasetEvent(
+                dataset_id=ds1_id,
+                extra={},
+                timestamp=pendulum.DateTime(2022, 8, 2, 2, tzinfo=UTC),
+            ),
+        ]
+        session.add_all(dataset_events)
         session.commit()
 
         resp = admin_client.get(f'/object/next_run_datasets/{DAG_ID}', follow_redirects=True)
 
     assert resp.status_code == 200, resp.json
     assert resp.json == [
-        {'id': ds1_id, 'uri': 's3://bucket/key/1', 'created_at': "2022-08-01T00:00:00+00:00"},
-        {'id': ds2_id, 'uri': 's3://bucket/key/2', 'created_at': None},
+        {'id': ds1_id, 'uri': 's3://bucket/key/1', 'lastUpdate': "2022-08-02T02:00:00+00:00"},
+        {'id': ds2_id, 'uri': 's3://bucket/key/2', 'lastUpdate': None},
     ]
 
 

@@ -14,18 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import contextlib
 import copy
 import json
+import logging
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, ItemsView, MutableMapping, Optional, ValuesView
+from typing import TYPE_CHECKING, Any, ItemsView, MutableMapping, ValuesView
 
-from airflow.exceptions import AirflowException, ParamValidationError
+from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
 from airflow.utils.context import Context
+from airflow.utils.mixins import ResolveMixin
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
+    from airflow.models.dagrun import DagRun
+    from airflow.models.operator import Operator
+
+logger = logging.getLogger(__name__)
 
 
 class Param:
@@ -41,14 +49,14 @@ class Param:
 
     CLASS_IDENTIFIER = '__class'
 
-    def __init__(self, default: Any = NOTSET, description: Optional[str] = None, **kwargs):
+    def __init__(self, default: Any = NOTSET, description: str | None = None, **kwargs):
         if default is not NOTSET:
             self._warn_if_not_json(default)
         self.value = default
         self.description = description
         self.schema = kwargs.pop('schema') if 'schema' in kwargs else kwargs
 
-    def __copy__(self) -> "Param":
+    def __copy__(self) -> Param:
         return Param(self.value, self.description, schema=self.schema)
 
     @staticmethod
@@ -59,7 +67,7 @@ class Param:
             warnings.warn(
                 "The use of non-json-serializable params is deprecated and will be removed in "
                 "a future release",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
             )
 
     def resolve(self, value: Any = NOTSET, suppress_exception: bool = False) -> Any:
@@ -114,12 +122,12 @@ class ParamsDict(MutableMapping[str, Any]):
 
     __slots__ = ['__dict', 'suppress_exception']
 
-    def __init__(self, dict_obj: Optional[Dict] = None, suppress_exception: bool = False):
+    def __init__(self, dict_obj: dict | None = None, suppress_exception: bool = False):
         """
         :param dict_obj: A dict or dict like object to init ParamsDict
         :param suppress_exception: Flag to suppress value exceptions while initializing the ParamsDict
         """
-        params_dict: Dict[str, Param] = {}
+        params_dict: dict[str, Param] = {}
         dict_obj = dict_obj or {}
         for k, v in dict_obj.items():
             if not isinstance(v, Param):
@@ -129,10 +137,20 @@ class ParamsDict(MutableMapping[str, Any]):
         self.__dict = params_dict
         self.suppress_exception = suppress_exception
 
-    def __copy__(self) -> "ParamsDict":
+    def __bool__(self) -> bool:
+        return bool(self.__dict)
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, ParamsDict):
+            return self.dump() == other.dump()
+        if isinstance(other, dict):
+            return self.dump() == other
+        return NotImplemented
+
+    def __copy__(self) -> ParamsDict:
         return ParamsDict(self.__dict, self.suppress_exception)
 
-    def __deepcopy__(self, memo: Optional[Dict[int, Any]]) -> "ParamsDict":
+    def __deepcopy__(self, memo: dict[int, Any] | None) -> ParamsDict:
         return ParamsDict(copy.deepcopy(self.__dict, memo), self.suppress_exception)
 
     def __contains__(self, o: object) -> bool:
@@ -198,11 +216,11 @@ class ParamsDict(MutableMapping[str, Any]):
             return super().update(args[0].__dict)
         super().update(*args, **kwargs)
 
-    def dump(self) -> Dict[str, Any]:
+    def dump(self) -> dict[str, Any]:
         """Dumps the ParamsDict object as a dictionary, while suppressing exceptions"""
         return {k: v.resolve(suppress_exception=True) for k, v in self.items()}
 
-    def validate(self) -> Dict[str, Any]:
+    def validate(self) -> dict[str, Any]:
         """Validates & returns all the Params object stored in the dictionary"""
         resolved_dict = {}
         try:
@@ -214,7 +232,7 @@ class ParamsDict(MutableMapping[str, Any]):
         return resolved_dict
 
 
-class DagParam:
+class DagParam(ResolveMixin):
     """
     Class that represents a DAG run parameter & binds a simple Param object to a name within a DAG instance,
     so that it can be resolved during the run time via ``{{ context }}`` dictionary. The ideal use case of
@@ -235,7 +253,7 @@ class DagParam:
     :param default: Default value used if no parameter was set.
     """
 
-    def __init__(self, current_dag: "DAG", name: str, default: Any = NOTSET):
+    def __init__(self, current_dag: DAG, name: str, default: Any = NOTSET):
         if default is not NOTSET:
             current_dag.params[name] = default
         self._name = name
@@ -250,3 +268,24 @@ class DagParam:
         with contextlib.suppress(KeyError):
             return context['params'][self._name]
         raise AirflowException(f'No value could be resolved for parameter {self._name}')
+
+
+def process_params(
+    dag: DAG,
+    task: Operator,
+    dag_run: DagRun | None,
+    *,
+    suppress_exception: bool,
+) -> dict[str, Any]:
+    """Merge, validate params, and convert them into a simple dict."""
+    from airflow.configuration import conf
+
+    params = ParamsDict(suppress_exception=suppress_exception)
+    with contextlib.suppress(AttributeError):
+        params.update(dag.params)
+    if task.params:
+        params.update(task.params)
+    if conf.getboolean('core', 'dag_run_conf_overrides_params') and dag_run and dag_run.conf:
+        logger.debug("Updating task params (%s) with DagRun.conf (%s)", params, dag_run.conf)
+        params.update(dag_run.conf)
+    return params.validate()

@@ -18,7 +18,19 @@
 Reference for Database Migrations
 '''''''''''''''''''''''''''''''''
 
-Here's the list of all the Database Migrations that are executed via when you run ``airflow db upgrade``:
+Here's the list of all the Database Migrations that are executed via when you run ``airflow db upgrade``.
+
+.. warning::
+
+   Those migration details are mostly used here to make the users aware when and what kind of migrations
+   will be executed during migrations between specific Airflow versions. The intention here is that the
+   "DB conscious" users might perform an analysis on the migrations and draw conclusions about the impact
+   of the migrations on their Airflow database. Those users might also want to take a look at the
+   :doc:`database-erd-ref` document to understand how the internal DB of Airflow structure looks like.
+   However you should be aware that the structure is internal and you should not access the DB directly
+   to retrieve or modify any data - you should use :doc:`stable-rest-api-ref` to do that instead.
+
+
 
  .. This table is automatically updated by pre-commit by ``scripts/ci/pre_commit/pre_commit_migration_reference.py``
  .. All table elements are scraped from migration files
@@ -27,7 +39,14 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | Revision ID                     | Revises ID        | Airflow Version   | Description                                                  |
 +=================================+===================+===================+==============================================================+
-| ``1486deb605b4`` (head)         | ``f4ff391becb5``  | ``2.4.0``         | add dag_owner_attributes table                               |
+| ``ee8d93fcc81e`` (head)         | ``b0d31815b5a6``  | ``2.5.0``         | Add updated_at column to DagRun and TaskInstance             |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``b0d31815b5a6``                | ``ecb43d2a1842``  | ``2.4.2``         | Add missing auto-increment to columns on FAB tables          |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``ecb43d2a1842``                | ``1486deb605b4``  | ``2.4.0``         | Add processor_subdir column to DagModel, SerializedDagModel  |
+|                                 |                   |                   | and CallbackRequest tables.                                  |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``1486deb605b4``                | ``f4ff391becb5``  | ``2.4.0``         | add dag_owner_attributes table                               |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``f4ff391becb5``                | ``0038cd0c28b4``  | ``2.4.0``         | Remove smart sensors                                         |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
@@ -43,7 +62,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``1de7bc13c950``                | ``b1b348e02d07``  | ``2.3.1``         | Add index for ``event`` column in ``log`` table.             |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
-| ``b1b348e02d07``                | ``75d5ed6c2b43``  | ``2.3.0``         | Update dag.default_view to grid                              |
+| ``b1b348e02d07``                | ``75d5ed6c2b43``  | ``2.3.0``         | Update dag.default_view to grid.                             |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``75d5ed6c2b43``                | ``909884dea523``  | ``2.3.0``         | Add map_index to Log.                                        |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
@@ -201,7 +220,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``41f5f12752f8``                | ``03bc53e68815``  | ``1.10.2``        | Add superuser field                                          |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
-| ``03bc53e68815`` (merge_point)  | ``0a2a5b66e19d``, | ``1.10.2``        | Merge migrations Heads                                       |
+| ``03bc53e68815`` (merge_point)  | ``0a2a5b66e19d``, | ``1.10.2``        | Merge migrations Heads.                                      |
 |                                 | ``bf00311e1990``  |                   |                                                              |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``0a2a5b66e19d``                | ``9635ae0956e7``  | ``1.10.2``        | Add ``task_reschedule`` table                                |

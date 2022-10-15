@@ -47,6 +47,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
+    executor: {{ .Values.executor }}
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
@@ -77,8 +78,8 @@ spec:
         tier: airflow
         component: scheduler
         release: {{ .Release.Name }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 8 }}
+{{- if or (.Values.labels) (.Values.scheduler.labels) }}
+{{- mustMerge .Values.scheduler.labels .Values.labels | toYaml | nindent 8 }}
 {{- end }}
       annotations:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
@@ -146,6 +147,9 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+{{- if .Values.scheduler.waitForMigrations.env }}
+{{ tpl (toYaml .Values.scheduler.waitForMigrations.env) $ | indent 12 }}
+{{- end }}
         {{- end }}
         {{- if and $localOrDagProcessorDisabled .Values.dags.gitSync.enabled }}
         {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
@@ -169,6 +173,7 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+          {{- include "container_extra_envs" (list . .Values.scheduler.env) | indent 10 }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.scheduler.livenessProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.scheduler.livenessProbe.timeoutSeconds }}

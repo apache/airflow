@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from kubernetes import client
 
@@ -37,6 +39,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
 
     :param application_name: spark Application resource name
     :param namespace: the kubernetes namespace where the sparkApplication reside in
+    :param container_name: the kubernetes container name where the sparkApplication reside in
     :param kubernetes_conn_id: The :ref:`kubernetes connection<howto/connection:kubernetes>`
         to Kubernetes cluster.
     :param attach_log: determines whether logs for driver pod should be appended to the sensor log
@@ -53,7 +56,8 @@ class SparkKubernetesSensor(BaseSensorOperator):
         *,
         application_name: str,
         attach_log: bool = False,
-        namespace: Optional[str] = None,
+        namespace: str | None = None,
+        container_name: str = "spark-kubernetes-driver",
         kubernetes_conn_id: str = "kubernetes_default",
         api_group: str = 'sparkoperator.k8s.io',
         api_version: str = 'v1beta2',
@@ -63,6 +67,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
         self.application_name = application_name
         self.attach_log = attach_log
         self.namespace = namespace
+        self.container_name = container_name
         self.kubernetes_conn_id = kubernetes_conn_id
         self.hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
         self.api_group = api_group
@@ -82,7 +87,9 @@ class SparkKubernetesSensor(BaseSensorOperator):
         log_method = self.log.error if application_state in self.FAILURE_STATES else self.log.info
         try:
             log = ""
-            for line in self.hook.get_pod_logs(driver_pod_name, namespace=namespace):
+            for line in self.hook.get_pod_logs(
+                driver_pod_name, namespace=namespace, container=self.container_name
+            ):
                 log += line.decode()
             log_method(log)
         except client.rest.ApiException as e:
@@ -94,7 +101,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
                 e,
             )
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         self.log.info("Poking: %s", self.application_name)
         response = self.hook.get_custom_object(
             group=self.api_group,

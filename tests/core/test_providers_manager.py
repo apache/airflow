@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import logging
 import re
-from typing import Dict
 from unittest.mock import patch
 
 import pytest
@@ -167,7 +168,7 @@ class TestProviderManager:
         provider_manager = ProvidersManager()
         widget_field = StringField(lazy_gettext('My Param'), widget=BS3TextFieldWidget())
         dummy_field = BooleanField(label=lazy_gettext('Dummy param'), description="dummy")
-        widgets: Dict[str, Field] = {}
+        widgets: dict[str, Field] = {}
         if scenario == 'prefix':
             widgets['extra__test__my_param'] = widget_field
         elif scenario == 'no_prefix':
@@ -187,6 +188,31 @@ class TestProviderManager:
             widgets=widgets,
         )
         assert provider_manager.connection_form_widgets['extra__test__my_param'].field == widget_field
+
+    def test_connection_field_behaviors_placeholders_prefix(self):
+        class MyHook:
+            conn_type = 'test'
+
+            @classmethod
+            def get_ui_field_behaviour(cls):
+                return {
+                    "hidden_fields": ['host', 'schema'],
+                    "relabeling": {},
+                    "placeholders": {"abc": "hi", "extra__anything": "n/a", "password": "blah"},
+                }
+
+        provider_manager = ProvidersManager()
+        provider_manager._add_customized_fields(
+            package_name='abc',
+            hook_class=MyHook,
+            customized_fields=MyHook.get_ui_field_behaviour(),
+        )
+        expected = {
+            "extra__test__abc": "hi",  # prefix should be added, since `abc` is not reserved
+            "extra__anything": "n/a",  # no change since starts with extra
+            "password": "blah",  # no change since it's a conn attr
+        }
+        assert provider_manager.field_behaviours['test']['placeholders'] == expected
 
     def test_connection_form_widgets_fields_order(self):
         """Check that order of connection for widgets preserved by original Hook order."""

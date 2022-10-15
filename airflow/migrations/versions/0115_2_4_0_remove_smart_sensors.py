@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Remove smart sensors
 
 Revision ID: f4ff391becb5
@@ -23,6 +22,7 @@ Revises: 0038cd0c28b4
 Create Date: 2022-08-03 11:33:44.777945
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

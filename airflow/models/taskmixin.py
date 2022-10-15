@@ -14,21 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import warnings
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, Iterable, Iterator, List, Optional, Sequence, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 import pendulum
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.serialization.enums import DagAttributeTypes
 
 if TYPE_CHECKING:
     from logging import Logger
 
     from airflow.models.dag import DAG
-    from airflow.models.mappedoperator import MappedOperator
+    from airflow.models.operator import Operator
     from airflow.utils.edgemodifier import EdgeModifier
     from airflow.utils.task_group import TaskGroup
 
@@ -37,7 +38,7 @@ class DependencyMixin:
     """Mixing implementing common dependency setting methods methods like >> and <<."""
 
     @property
-    def roots(self) -> Sequence["DependencyMixin"]:
+    def roots(self) -> Sequence[DependencyMixin]:
         """
         List of root nodes -- ones with no upstream dependencies.
 
@@ -46,7 +47,7 @@ class DependencyMixin:
         raise NotImplementedError()
 
     @property
-    def leaves(self) -> Sequence["DependencyMixin"]:
+    def leaves(self) -> Sequence[DependencyMixin]:
         """
         List of leaf nodes -- ones with only upstream dependencies.
 
@@ -55,37 +56,37 @@ class DependencyMixin:
         raise NotImplementedError()
 
     @abstractmethod
-    def set_upstream(self, other: Union["DependencyMixin", Sequence["DependencyMixin"]]):
+    def set_upstream(self, other: DependencyMixin | Sequence[DependencyMixin]):
         """Set a task or a task list to be directly upstream from the current task."""
         raise NotImplementedError()
 
     @abstractmethod
-    def set_downstream(self, other: Union["DependencyMixin", Sequence["DependencyMixin"]]):
+    def set_downstream(self, other: DependencyMixin | Sequence[DependencyMixin]):
         """Set a task or a task list to be directly downstream from the current task."""
         raise NotImplementedError()
 
-    def update_relative(self, other: "DependencyMixin", upstream=True) -> None:
+    def update_relative(self, other: DependencyMixin, upstream=True) -> None:
         """
         Update relationship information about another TaskMixin. Default is no-op.
         Override if necessary.
         """
 
-    def __lshift__(self, other: Union["DependencyMixin", Sequence["DependencyMixin"]]):
+    def __lshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
         """Implements Task << Task"""
         self.set_upstream(other)
         return other
 
-    def __rshift__(self, other: Union["DependencyMixin", Sequence["DependencyMixin"]]):
+    def __rshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
         """Implements Task >> Task"""
         self.set_downstream(other)
         return other
 
-    def __rrshift__(self, other: Union["DependencyMixin", Sequence["DependencyMixin"]]):
+    def __rrshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
         """Called for Task >> [Task] because list don't have __rshift__ operators."""
         self.__lshift__(other)
         return self
 
-    def __rlshift__(self, other: Union["DependencyMixin", Sequence["DependencyMixin"]]):
+    def __rlshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
         """Called for Task << [Task] because list don't have __lshift__ operators."""
         self.__rshift__(other)
         return self
@@ -97,7 +98,7 @@ class TaskMixin(DependencyMixin):
     def __init_subclass__(cls) -> None:
         warnings.warn(
             f"TaskMixin has been renamed to DependencyMixin, please update {cls.__name__}",
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return super().__init_subclass__()
@@ -109,8 +110,8 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
     unmapped.
     """
 
-    dag: Optional["DAG"] = None
-    task_group: Optional["TaskGroup"] = None
+    dag: DAG | None = None
+    task_group: TaskGroup | None = None
     """The task_group that contains this node"""
 
     @property
@@ -119,17 +120,17 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         raise NotImplementedError()
 
     @property
-    def label(self) -> Optional[str]:
+    def label(self) -> str | None:
         tg = self.task_group
         if tg and tg.node_id and tg.prefix_group_id:
             # "task_group_id.task_id" -> "task_id"
             return self.node_id[len(tg.node_id) + 1 :]
         return self.node_id
 
-    start_date: Optional[pendulum.DateTime]
-    end_date: Optional[pendulum.DateTime]
-    upstream_task_ids: Set[str]
-    downstream_task_ids: Set[str]
+    start_date: pendulum.DateTime | None
+    end_date: pendulum.DateTime | None
+    upstream_task_ids: set[str]
+    downstream_task_ids: set[str]
 
     def has_dag(self) -> bool:
         return self.dag is not None
@@ -142,24 +143,24 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         return "_in_memory_dag_"
 
     @property
-    def log(self) -> "Logger":
+    def log(self) -> Logger:
         raise NotImplementedError()
 
     @property
     @abstractmethod
-    def roots(self) -> Sequence["DAGNode"]:
+    def roots(self) -> Sequence[DAGNode]:
         raise NotImplementedError()
 
     @property
     @abstractmethod
-    def leaves(self) -> Sequence["DAGNode"]:
+    def leaves(self) -> Sequence[DAGNode]:
         raise NotImplementedError()
 
     def _set_relatives(
         self,
-        task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
+        task_or_task_list: DependencyMixin | Sequence[DependencyMixin],
         upstream: bool = False,
-        edge_modifier: Optional["EdgeModifier"] = None,
+        edge_modifier: EdgeModifier | None = None,
     ) -> None:
         """Sets relatives for the task or task list."""
         from airflow.models.baseoperator import BaseOperator
@@ -169,7 +170,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         if not isinstance(task_or_task_list, Sequence):
             task_or_task_list = [task_or_task_list]
 
-        task_list: List[Operator] = []
+        task_list: list[Operator] = []
         for task_object in task_or_task_list:
             task_object.update_relative(self, not upstream)
             relatives = task_object.leaves if upstream else task_object.roots
@@ -182,7 +183,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
 
         # relationships can only be set if the tasks share a single DAG. Tasks
         # without a DAG are assigned to that DAG.
-        dags: Set["DAG"] = {task.dag for task in [*self.roots, *task_list] if task.has_dag() and task.dag}
+        dags: set[DAG] = {task.dag for task in [*self.roots, *task_list] if task.has_dag() and task.dag}
 
         if len(dags) > 1:
             raise AirflowException(f'Tried to set relationships between tasks in more than one DAG: {dags}')
@@ -198,7 +199,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
             # If this task does not yet have a dag, add it to the same dag as the other task.
             self.dag = dag
 
-        def add_only_new(obj, item_set: Set[str], item: str) -> None:
+        def add_only_new(obj, item_set: set[str], item: str) -> None:
             """Adds only new items to item set"""
             if item in item_set:
                 self.log.warning('Dependency %s, %s already registered for DAG: %s', obj, item, dag.dag_id)
@@ -222,35 +223,35 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
 
     def set_downstream(
         self,
-        task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
-        edge_modifier: Optional["EdgeModifier"] = None,
+        task_or_task_list: DependencyMixin | Sequence[DependencyMixin],
+        edge_modifier: EdgeModifier | None = None,
     ) -> None:
         """Set a node (or nodes) to be directly downstream from the current node."""
         self._set_relatives(task_or_task_list, upstream=False, edge_modifier=edge_modifier)
 
     def set_upstream(
         self,
-        task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
-        edge_modifier: Optional["EdgeModifier"] = None,
+        task_or_task_list: DependencyMixin | Sequence[DependencyMixin],
+        edge_modifier: EdgeModifier | None = None,
     ) -> None:
         """Set a node (or nodes) to be directly upstream from the current node."""
         self._set_relatives(task_or_task_list, upstream=True, edge_modifier=edge_modifier)
 
     @property
-    def downstream_list(self) -> Iterable["DAGNode"]:
+    def downstream_list(self) -> Iterable[Operator]:
         """List of nodes directly downstream"""
         if not self.dag:
             raise AirflowException(f'Operator {self} has not been assigned to a DAG yet')
         return [self.dag.get_task(tid) for tid in self.downstream_task_ids]
 
     @property
-    def upstream_list(self) -> Iterable["DAGNode"]:
+    def upstream_list(self) -> Iterable[Operator]:
         """List of nodes directly upstream"""
         if not self.dag:
             raise AirflowException(f'Operator {self} has not been assigned to a DAG yet')
         return [self.dag.get_task(tid) for tid in self.upstream_task_ids]
 
-    def get_direct_relative_ids(self, upstream: bool = False) -> Set[str]:
+    def get_direct_relative_ids(self, upstream: bool = False) -> set[str]:
         """
         Get set of the direct relative ids to the current task, upstream or
         downstream.
@@ -260,7 +261,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         else:
             return self.downstream_task_ids
 
-    def get_direct_relatives(self, upstream: bool = False) -> Iterable["DAGNode"]:
+    def get_direct_relatives(self, upstream: bool = False) -> Iterable[DAGNode]:
         """
         Get list of the direct relatives to the current task, upstream or
         downstream.
@@ -270,60 +271,6 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         else:
             return self.downstream_list
 
-    def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
+    def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """This is used by SerializedTaskGroup to serialize a task group's content."""
         raise NotImplementedError()
-
-    def _iter_all_mapped_downstreams(self) -> Iterator["MappedOperator"]:
-        """Return mapped nodes that are direct dependencies of the current task.
-
-        For now, this walks the entire DAG to find mapped nodes that has this
-        current task as an upstream. We cannot use ``downstream_list`` since it
-        only contains operators, not task groups. In the future, we should
-        provide a way to record an DAG node's all downstream nodes instead.
-
-        Note that this does not guarantee the returned tasks actually use the
-        current task for task mapping, but only checks those task are mapped
-        operators, and are downstreams of the current task.
-
-        To get a list of tasks that uses the current task for task mapping, use
-        :meth:`iter_mapped_dependants` instead.
-        """
-        from airflow.models.mappedoperator import MappedOperator
-        from airflow.utils.task_group import TaskGroup
-
-        def _walk_group(group: TaskGroup) -> Iterable[Tuple[str, DAGNode]]:
-            """Recursively walk children in a task group.
-
-            This yields all direct children (including both tasks and task
-            groups), and all children of any task groups.
-            """
-            for key, child in group.children.items():
-                yield key, child
-                if isinstance(child, TaskGroup):
-                    yield from _walk_group(child)
-
-        tg = self.task_group
-        if not tg:
-            raise RuntimeError("Cannot check for mapped dependants when not attached to a DAG")
-        for key, child in _walk_group(tg):
-            if key == self.node_id:
-                continue
-            if not isinstance(child, MappedOperator):
-                continue
-            if self.node_id in child.upstream_task_ids:
-                yield child
-
-    def iter_mapped_dependants(self) -> Iterator["MappedOperator"]:
-        """Return mapped nodes that depend on the current task the expansion.
-
-        For now, this walks the entire DAG to find mapped nodes that has this
-        current task as an upstream. We cannot use ``downstream_list`` since it
-        only contains operators, not task groups. In the future, we should
-        provide a way to record an DAG node's all downstream nodes instead.
-        """
-        return (
-            downstream
-            for downstream in self._iter_all_mapped_downstreams()
-            if any(p.node_id == self.node_id for p in downstream.iter_mapped_dependencies())
-        )

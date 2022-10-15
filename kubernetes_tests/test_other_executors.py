@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import time
 
@@ -39,7 +40,7 @@ class TestCeleryAndLocalExecutor(TestBase):
             dag_id=dag_id,
             task_id='run_after_loop',
             expected_final_state='success',
-            timeout=40,
+            timeout=300,
         )
 
         self.ensure_dag_expected_state(
@@ -47,7 +48,7 @@ class TestCeleryAndLocalExecutor(TestBase):
             execution_date=execution_date,
             dag_id=dag_id,
             expected_final_state='success',
-            timeout=60,
+            timeout=300,
         )
 
     def test_integration_run_dag_with_scheduler_failure(self):

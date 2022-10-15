@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -34,7 +35,7 @@ class TestCloudTranslateHook(unittest.TestCase):
         ):
             self.hook = CloudTranslateHook(gcp_conn_id='test')
 
-    @mock.patch("airflow.providers.google.cloud.hooks.translate.CloudTranslateHook._get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.translate.CloudTranslateHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.translate.Client")
     def test_translate_client_creation(self, mock_client, mock_get_creds):
         result = self.hook.get_conn()

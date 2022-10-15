@@ -14,22 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-import unittest
-
-from parameterized import parameterized
+import pytest
 
 from airflow.api_connexion.endpoints.version_endpoint import VersionInfo
 from airflow.api_connexion.schemas.version_schema import version_info_schema
 
 
-class TestVersionInfoSchema(unittest.TestCase):
-    @parameterized.expand(
-        [
-            ("GIT_COMMIT",),
-            (None,),
-        ]
-    )
+class TestVersionInfoSchema:
+    @pytest.mark.parametrize("git_commit", ["GIT_COMMIT", None])
     def test_serialize(self, git_commit):
         version_info = VersionInfo("VERSION", git_commit)
         current_data = version_info_schema.dump(version_info)

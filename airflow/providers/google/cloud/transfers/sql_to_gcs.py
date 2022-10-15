@@ -16,10 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Base operator for SQL to GCS operators."""
+from __future__ import annotations
+
 import abc
 import json
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -34,7 +36,7 @@ if TYPE_CHECKING:
 
 class BaseSQLToGCSOperator(BaseOperator):
     """
-    Copy data from SQL to Google Cloud Storage in JSON or CSV format.
+    Copy data from SQL to Google Cloud Storage in JSON, CSV, or Parquet format.
 
     :param sql: The SQL to execute.
     :param bucket: The bucket to upload to.
@@ -50,7 +52,9 @@ class BaseSQLToGCSOperator(BaseOperator):
         filename param docs above). This param allows developers to specify the
         file size of the splits. Check https://cloud.google.com/storage/quotas
         to see the maximum allowed file size for a single object.
-    :param export_format: Desired format of files to be exported.
+    :param export_format: Desired format of files to be exported. (json, csv or parquet)
+    :param stringify_dict: Whether to dump Dictionary type objects
+        (such as JSON columns) as a string. Applies only to CSV/JSON export format.
     :param field_delimiter: The delimiter to be used for CSV files.
     :param null_marker: The null marker to be used for CSV files.
     :param gzip: Option to compress file for upload (does not apply to schemas).
@@ -94,17 +98,18 @@ class BaseSQLToGCSOperator(BaseOperator):
         sql: str,
         bucket: str,
         filename: str,
-        schema_filename: Optional[str] = None,
+        schema_filename: str | None = None,
         approx_max_file_size_bytes: int = 1900000000,
         export_format: str = 'json',
+        stringify_dict: bool = False,
         field_delimiter: str = ',',
-        null_marker: Optional[str] = None,
+        null_marker: str | None = None,
         gzip: bool = False,
-        schema: Optional[Union[str, list]] = None,
-        parameters: Optional[dict] = None,
+        schema: str | list | None = None,
+        parameters: dict | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         upload_metadata: bool = False,
         exclude_columns=None,
         **kwargs,
@@ -119,6 +124,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.schema_filename = schema_filename
         self.approx_max_file_size_bytes = approx_max_file_size_bytes
         self.export_format = export_format.lower()
+        self.stringify_dict = stringify_dict
         self.field_delimiter = field_delimiter
         self.null_marker = null_marker
         self.gzip = gzip
@@ -130,7 +136,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.upload_metadata = upload_metadata
         self.exclude_columns = exclude_columns
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info("Executing query")
         cursor = self.query()
 
@@ -183,10 +189,10 @@ class BaseSQLToGCSOperator(BaseOperator):
 
         return file_meta
 
-    def convert_types(self, schema, col_type_dict, row, stringify_dict=False) -> list:
+    def convert_types(self, schema, col_type_dict, row) -> list:
         """Convert values from DBAPI to output-friendly formats."""
         return [
-            self.convert_type(value, col_type_dict.get(name), stringify_dict=stringify_dict)
+            self.convert_type(value, col_type_dict.get(name), stringify_dict=self.stringify_dict)
             for name, value in zip(schema, row)
         ]
 
@@ -241,7 +247,7 @@ class BaseSQLToGCSOperator(BaseOperator):
                 tbl = pa.Table.from_pydict(row_pydic, parquet_schema)
                 parquet_writer.write_table(tbl)
             else:
-                row = self.convert_types(schema, col_type_dict, row, stringify_dict=False)
+                row = self.convert_types(schema, col_type_dict, row)
                 row_dict = dict(zip(schema, row))
 
                 tmp_file_handle.write(
@@ -318,7 +324,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         """Execute DBAPI query."""
 
     @abc.abstractmethod
-    def field_to_bigquery(self, field) -> Dict[str, str]:
+    def field_to_bigquery(self, field) -> dict[str, str]:
         """Convert a DBAPI field to BigQuery schema format."""
 
     @abc.abstractmethod

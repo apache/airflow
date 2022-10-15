@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Make xcom value column a large binary
 
 Revision ID: bdaa763e6c56
@@ -23,6 +22,8 @@ Revises: cc1e65623dc7
 Create Date: 2017-08-14 16:06:31.568971
 
 """
+from __future__ import annotations
+
 import dill
 import sqlalchemy as sa
 from alembic import op

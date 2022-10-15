@@ -84,7 +84,7 @@ repos:
       - id: insert-license
         name: Add license for all shell files
         exclude: ^\.github/.*$|^airflow/_vendor/|^dev/breeze/autocomplete/.*$
-        files: ^breeze-legacy$|^breeze-complete$|\.bash$|\.sh$
+        files: \.bash$|\.sh$
         args:
           - --comment-style
           - "|#|"
@@ -150,7 +150,7 @@ repos:
       - id: black
         name: Run Black (the uncompromising Python code formatter)
         args: [--config=./pyproject.toml]
-        exclude: ^airflow/_vendor/
+        exclude: ^airflow/_vendor/|^airflow/contrib
   - repo: https://github.com/asottile/blacken-docs
     rev: v1.12.1
     hooks:
@@ -179,7 +179,7 @@ repos:
         name: Detect if private key is added to the repository
       - id: end-of-file-fixer
         name: Make sure that there is an empty line at the end
-        exclude: ^airflow/_vendor/
+        exclude: ^airflow/_vendor/|^docs/apache-airflow/img/.*\.dot|^docs/apache-airflow/img/.*\.sha256
       - id: mixed-line-ending
         name: Detect if mixed line ending is used (\r vs. \r\n)
         exclude: ^airflow/_vendor/
@@ -191,7 +191,7 @@ repos:
         exclude: ^airflow/_vendor/
       - id: trailing-whitespace
         name: Remove trailing whitespace at end of line
-        exclude: ^airflow/_vendor/|^images/breeze/output.*$
+        exclude: ^airflow/_vendor/|^images/breeze/output.*$|^docs/apache-airflow/img/.*\.dot|^docs/apache-airflow/img/.*\.dot
       - id: fix-encoding-pragma
         name: Remove encoding header from python files
         exclude: ^airflow/_vendor/
@@ -236,9 +236,6 @@ repos:
     hooks:
       - id: isort
         name: Run isort to sort imports in Python files
-        files: \.py$|\.pyi$
-        # To keep consistent with the global isort skip config defined in setup.cfg
-        exclude: ^airflow/_vendor/|^build/.*$|^venv/.*$|^\.tox/.*$
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.1.1
     hooks:
@@ -292,10 +289,10 @@ repos:
           The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
-        exclude: ^airflow/_vendor/|^RELEASE_NOTES\.txt$|^airflow/www/static/css/material-icons\.css$|^images/.*$
+        exclude: ^airflow/_vendor/|^RELEASE_NOTES\.txt$|^airflow/www/static/css/material-icons\.css$|^images/.*$|^.*package-lock.json$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
-          - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv,airflow/www/*.log
+          - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/tutorial/pipeline_example.csv,airflow/www/*.log
           - --exclude-file=.codespellignorelines
   - repo: local
     hooks:
@@ -324,8 +321,8 @@ repos:
         files: ^airflow/api_connexion/openapi/
       - id: lint-dockerfile
         name: Lint dockerfile
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_lint_dockerfile.sh
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_lint_dockerfile.py
         files: Dockerfile.*$
         pass_filenames: true
         require_serial: true
@@ -352,13 +349,6 @@ repos:
         pass_filenames: true
         files: ^airflow/providers/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
-      - id: update-breeze-cmd-output
-        name: Update output of breeze commands in BREEZE.rst
-        entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py
-        language: python
-        files: ^BREEZE\.rst$|^dev/breeze/.*$|^\.pre-commit-config\.yml$
-        pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
         entry: ./scripts/ci/pre_commit/pre_commit_local_yml_mounts.py
@@ -366,12 +356,6 @@ repos:
         files: ^dev/breeze/src/airflow_breeze/utils/docker_command_utils\.py$|^scripts/ci/docker_compose/local\.yml$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
-      - id: update-setup-cfg-file
-        name: Update setup.cfg file with all licenses
-        entry: ./scripts/ci/pre_commit/pre_commit_setup_cfg_file.sh
-        language: system
-        files: ^setup\.cfg$
-        pass_filenames: false
       - id: update-providers-dependencies
         name: Update cross-dependencies for providers packages
         entry: ./scripts/ci/pre_commit/pre_commit_build_providers_dependencies.py
@@ -404,6 +388,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_version_heads_map.py
         pass_filenames: false
+        additional_dependencies: ['packaging']
       - id: update-version
         name: Update version to the latest version in the documentation
         entry: ./scripts/ci/pre_commit/pre_commit_update_versions.py
@@ -466,7 +451,6 @@ repos:
           ^airflow/api_connexion/openapi/v1.yaml$|
           ^tests/cli/commands/test_webserver_command.py$|
           ^airflow/cli/commands/webserver_command.py$|
-          ^airflow/ui/yarn.lock$|
           ^airflow/config_templates/default_airflow.cfg$|
           ^airflow/config_templates/config.yml$|
           ^docs/*.*$|
@@ -480,7 +464,13 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_base_operator_partial_arguments.py
         pass_filenames: false
-        files: ^airflow/models/(?:base|mapped)operator.py$
+        files: ^airflow/models/(?:base|mapped)operator\.py$
+      - id: check-init-decorator-arguments
+        name: Check model __init__ and decorator arguments are in sync
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_sync_init_decorator.py
+        pass_filenames: false
+        files: ^airflow/models/dag\.py$|^airflow/(?:decorators|utils)/task_group.py$
       - id: check-base-operator-usage
         language: pygrep
         name: Check BaseOperator[Link] core imports
@@ -506,6 +496,19 @@ repos:
           (?x)
           ^airflow/providers/.*\.py$
         exclude: ^airflow/_vendor/
+      - id: check-decorated-operator-implements-custom-name
+        name: Check @task decorator implements custom_operator_name
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_decorator_operator_implements_custom_name.py
+        pass_filenames: true
+        files: ^airflow/.*\.py$
+      - id: check-core-deprecation-classes
+        language: pygrep
+        name: Verify using of dedicated Airflow deprecation classes in core
+        entry: category=DeprecationWarning|category=PendingDeprecationWarning
+        files: \.py$
+        exclude: ^airflow/configuration.py|^airflow/providers|^scripts/in_container/verify_providers.py
+        pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
         name: Check provide_session and create_session imports
@@ -536,16 +539,10 @@ repos:
         files: \.*example_dags.*\.py$
         exclude: ^airflow/_vendor/
         pass_filenames: true
-      - id: check-integrations-are-consistent
-        name: Check if integration list is consistent in various places
-        entry: ./scripts/ci/pre_commit/pre_commit_check_integrations.sh
-        language: system
-        pass_filenames: false
-        files: ^common/_common_values\.sh$|^breeze-complete$
       - id: check-apache-license-rat
         name: Check if licenses are OK for Apache
-        entry: ./scripts/ci/pre_commit/pre_commit_check_license.sh
-        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_check_license.py
+        language: python
         files: ^.*LICENSE.*$|^.*LICENCE.*$
         pass_filenames: false
       - id: check-airflow-config-yaml-consistent
@@ -565,28 +562,31 @@ repos:
         additional_dependencies: ['pyyaml', 'termcolor==1.1.0', 'wcmatch==8.2']
       - id: update-in-the-wild-to-be-sorted
         name: Sort INTHEWILD.md alphabetically
-        entry: ./scripts/ci/pre_commit/pre_commit_sort_in_the_wild.sh
-        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_sort_in_the_wild.py
+        language: python
         files: ^\.pre-commit-config\.yaml$|^INTHEWILD\.md$
+        pass_filenames: false
         require_serial: true
       - id: update-spelling-wordlist-to-be-sorted
         name: Sort alphabetically and uniquify spelling_wordlist.txt
-        entry: ./scripts/ci/pre_commit/pre_commit_sort_spelling_wordlist.sh
-        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_sort_spelling_wordlist.py
+        language: python
         files: ^\.pre-commit-config\.yaml$|^docs/spelling_wordlist\.txt$
         require_serial: true
+        pass_filenames: false
       - id: lint-helm-chart
         name: Lint Helm Chart
-        entry: ./scripts/ci/pre_commit/pre_commit_helm_lint.sh
-        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_helm_lint.py
+        language: python
         pass_filenames: false
         files: ^chart
         require_serial: true
+        additional_dependencies: ['rich>=12.4.4','requests']
       - id: run-shellcheck
         name: Check Shell scripts syntax correctness
         language: docker_image
         entry: koalaman/shellcheck:v0.8.0 -x -a
-        files: ^breeze-legacy$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$
+        files: ^.*\.sh$|^hooks/build$|^hooks/push$|\.bash$
         exclude: ^dev/breeze/autocomplete/.*$
       - id: lint-css
         name: stylelint
@@ -617,8 +617,8 @@ repos:
         name: Provider init file is missing
         pass_filenames: false
         always_run: true
-        entry: ./scripts/ci/pre_commit/pre_commit_check_providers_init.sh
-        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_check_providers_init.py
+        language: python
       - id: check-providers-subpackages-init-file-exist
         name: Provider subpackage init files are there
         pass_filenames: false
@@ -762,6 +762,7 @@ repos:
         language: python
         pass_filenames: true
         files: ^\.github/workflows/.*\.yml$
+        exclude: ^\.github/workflows/sync_authors\.yml$
         additional_dependencies: ['PyYAML', 'rich>=12.4.4']
       - id: check-docstring-param-types
         name: Check that docstrings do not specify param types
@@ -800,6 +801,14 @@ repos:
         # We sometimes won't have newsfragments in the repo, so always run it so `check-hooks-apply` passes
         # This is fast, so not too much downside
         always_run: true
+      - id: update-breeze-cmd-output
+        name: Update output of breeze commands in BREEZE.rst
+        entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py
+        language: python
+        files: ^BREEZE\.rst$|^dev/breeze/.*$|^\.pre-commit-config\.yaml$
+        require_serial: true
+        pass_filenames: false
+        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5']
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/pre_commit/pre_commit_update_example_dags_paths.py
@@ -830,14 +839,6 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
         pass_filenames: false
         files: ^tests/.*\.py$
-      - id: lint-javascript
-        name: ESLint against airflow/ui
-        language: node
-        'types_or': [javascript, tsx, ts]
-        files: ^airflow/ui/
-        entry: ./scripts/ci/pre_commit/pre_commit_ui_lint.py
-        pass_filenames: false
-        additional_dependencies: ['yarn@1.22.19']
       - id: ts-compile-and-lint-javascript
         name: TS types generation and ESLint against current UI files
         language: node
@@ -860,14 +861,14 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: \.py$
-        exclude: ^provider_packages|^docs|^airflow/_vendor/|^airflow/providers|^airflow/migrations|^dev
+        exclude: ^provider_packages|^docs|^airflow/_vendor/|^airflow/providers|^airflow/migrations|^dev|^tests/system/providers|^tests/providers
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: run-mypy
         name: Run mypy for providers
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
-        files: ^airflow/providers/.*\.py$
+        files: ^airflow/providers/.*\.py$|^tests/system/providers/\*.py|^tests/providers/\*.py
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: run-mypy
@@ -893,4 +894,11 @@ repos:
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
         additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'markdown-it-py']
+      - id: update-er-diagram
+        name: Update ER diagram
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_update_er_diagram.py
+        pass_filenames: false
+        files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
+        additional_dependencies: ['rich>=12.4.4']
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

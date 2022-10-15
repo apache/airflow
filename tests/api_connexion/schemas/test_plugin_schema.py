@@ -14,8 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
+from __future__ import annotations
 
 from airflow.api_connexion.schemas.plugin_schema import (
     PluginCollection,
@@ -25,8 +24,8 @@ from airflow.api_connexion.schemas.plugin_schema import (
 from airflow.plugins_manager import AirflowPlugin
 
 
-class TestPluginBase(unittest.TestCase):
-    def setUp(self) -> None:
+class TestPluginBase:
+    def setup_method(self) -> None:
         self.mock_plugin = AirflowPlugin()
         self.mock_plugin.name = "test_plugin"
 

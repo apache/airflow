@@ -14,16 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import contextlib
 import importlib
 import io
 import logging
 import os
-import unittest
 
 import pytest
-from parameterized import parameterized
 from rich.console import Console
 
 from airflow.cli import cli_parser
@@ -41,15 +40,16 @@ def capture_show_output(instance):
     return capture.get()
 
 
-class TestPiiAnonymizer(unittest.TestCase):
-    def setUp(self) -> None:
+class TestPiiAnonymizer:
+    def setup_method(self) -> None:
         self.instance = info_command.PiiAnonymizer()
 
     def test_should_remove_pii_from_path(self):
         home_path = os.path.expanduser("~/airflow/config")
         assert "${HOME}/airflow/config" == self.instance.process_path(home_path)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "before, after",
         [
             (
                 "postgresql+psycopg2://postgres:airflow@postgres/airflow",
@@ -67,7 +67,7 @@ class TestPiiAnonymizer(unittest.TestCase):
                 "postgresql+psycopg2://postgres/airflow",
                 "postgresql+psycopg2://postgres/airflow",
             ),
-        ]
+        ],
     )
     def test_should_remove_pii_from_url(self, before, after):
         assert after == self.instance.process_url(before)
@@ -76,7 +76,6 @@ class TestPiiAnonymizer(unittest.TestCase):
 class TestAirflowInfo:
     @classmethod
     def setup_class(cls):
-
         cls.parser = cli_parser.get_parser()
 
     @classmethod

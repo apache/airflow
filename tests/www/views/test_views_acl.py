@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import datetime
 import json
 import urllib.parse
@@ -250,8 +252,8 @@ def test_dag_autocomplete_success(client_all_dags):
     assert resp.json == [
         {'name': 'airflow', 'type': 'owner'},
         {'name': 'test_mapped_taskflow', 'type': 'dag'},
-        {'name': 'tutorial_taskflow_api_etl', 'type': 'dag'},
-        {'name': 'tutorial_taskflow_api_etl_virtualenv', 'type': 'dag'},
+        {'name': 'tutorial_taskflow_api', 'type': 'dag'},
+        {'name': 'tutorial_taskflow_api_virtualenv', 'type': 'dag'},
     ]
 
 

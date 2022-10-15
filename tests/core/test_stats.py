@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import importlib
 import re
-import unittest
 from unittest import mock
 from unittest.mock import Mock
 
@@ -44,8 +45,8 @@ class InvalidCustomStatsd:
         pass
 
 
-class TestStats(unittest.TestCase):
-    def setUp(self):
+class TestStats:
+    def setup_method(self):
         self.statsd_client = Mock(spec=statsd.StatsClient)
         self.stats = SafeStatsdLogger(self.statsd_client)
 
@@ -126,8 +127,8 @@ class TestStats(unittest.TestCase):
         importlib.reload(airflow.stats)
 
 
-class TestDogStats(unittest.TestCase):
-    def setUp(self):
+class TestDogStats:
+    def setup_method(self):
         pytest.importorskip('datadog')
         from datadog import DogStatsd
 
@@ -165,6 +166,7 @@ class TestDogStats(unittest.TestCase):
         )
 
     def test_does_send_stats_using_dogstatsd_when_statsd_and_dogstatsd_both_on(self):
+        # ToDo: Figure out why it identical to test_does_send_stats_using_dogstatsd_when_dogstatsd_on
         self.dogstatsd.incr("empty_key")
         self.dogstatsd_client.increment.assert_called_once_with(
             metric='empty_key', sample_rate=1, tags=[], value=1
@@ -220,8 +222,8 @@ class TestDogStats(unittest.TestCase):
         importlib.reload(airflow.stats)
 
 
-class TestStatsWithAllowList(unittest.TestCase):
-    def setUp(self):
+class TestStatsWithAllowList:
+    def setup_method(self):
         self.statsd_client = Mock(spec=statsd.StatsClient)
         self.stats = SafeStatsdLogger(self.statsd_client, AllowListValidator("stats_one, stats_two"))
 
@@ -238,8 +240,8 @@ class TestStatsWithAllowList(unittest.TestCase):
         self.statsd_client.assert_not_called()
 
 
-class TestDogStatsWithAllowList(unittest.TestCase):
-    def setUp(self):
+class TestDogStatsWithAllowList:
+    def setup_method(self):
         pytest.importorskip('datadog')
         from datadog import DogStatsd
 
@@ -271,7 +273,7 @@ def always_valid(stat_name):
     return stat_name
 
 
-class TestCustomStatsName(unittest.TestCase):
+class TestCustomStatsName:
     @conf_vars(
         {
             ('metrics', 'statsd_on'): 'True',
@@ -322,6 +324,6 @@ class TestCustomStatsName(unittest.TestCase):
             metric='empty_key', sample_rate=1, tags=[], value=1
         )
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         # To avoid side-effect
         importlib.reload(airflow.stats)

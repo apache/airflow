@@ -15,12 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
+from __future__ import annotations
+
 from http.server import BaseHTTPRequestHandler
 from unittest import mock
 from unittest.mock import MagicMock
 
-from parameterized import parameterized
+import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import scheduler_command
@@ -29,27 +30,28 @@ from airflow.utils.serve_logs import serve_logs
 from tests.test_utils.config import conf_vars
 
 
-class TestSchedulerCommand(unittest.TestCase):
+class TestSchedulerCommand:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "executor, expect_serve_logs",
         [
             ("CeleryExecutor", False),
             ("LocalExecutor", True),
             ("SequentialExecutor", True),
             ("KubernetesExecutor", False),
-        ]
+        ],
     )
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJob")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
     def test_serve_logs_on_scheduler(
         self,
-        executor,
-        expect_serve_logs,
         mock_process,
         mock_scheduler_job,
+        executor,
+        expect_serve_logs,
     ):
         args = self.parser.parse_args(['scheduler'])
 
@@ -58,33 +60,23 @@ class TestSchedulerCommand(unittest.TestCase):
             if expect_serve_logs:
                 mock_process.assert_has_calls([mock.call(target=serve_logs)])
             else:
-                with self.assertRaises(AssertionError):
+                with pytest.raises(AssertionError):
                     mock_process.assert_has_calls([mock.call(target=serve_logs)])
 
-    @parameterized.expand(
-        [
-            ("LocalExecutor",),
-            ("SequentialExecutor",),
-        ]
-    )
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJob")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
-    def test_skip_serve_logs(self, executor, mock_process, mock_scheduler_job):
+    @pytest.mark.parametrize("executor", ["LocalExecutor", "SequentialExecutor"])
+    def test_skip_serve_logs(self, mock_process, mock_scheduler_job, executor):
         args = self.parser.parse_args(['scheduler', '--skip-serve-logs'])
         with conf_vars({("core", "executor"): executor}):
             scheduler_command.scheduler(args)
-            with self.assertRaises(AssertionError):
+            with pytest.raises(AssertionError):
                 mock_process.assert_has_calls([mock.call(target=serve_logs)])
 
-    @parameterized.expand(
-        [
-            ("LocalExecutor",),
-            ("SequentialExecutor",),
-        ]
-    )
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJob")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
-    def test_graceful_shutdown(self, executor, mock_process, mock_scheduler_job):
+    @pytest.mark.parametrize("executor", ["LocalExecutor", "SequentialExecutor"])
+    def test_graceful_shutdown(self, mock_process, mock_scheduler_job, executor):
         args = self.parser.parse_args(['scheduler'])
         with conf_vars({("core", "executor"): executor}):
             mock_scheduler_job.run.side_effect = Exception('Mock exception to trigger runtime error')
@@ -114,7 +106,7 @@ class TestSchedulerCommand(unittest.TestCase):
     ):
         args = self.parser.parse_args(['scheduler'])
         scheduler_command.scheduler(args)
-        with self.assertRaises(AssertionError):
+        with pytest.raises(AssertionError):
             mock_process.assert_has_calls([mock.call(target=serve_health_check)])
 
 
@@ -129,8 +121,8 @@ class MockServer(HealthServer):
         super().do_GET()
 
 
-class TestSchedulerHealthServer(unittest.TestCase):
-    def setUp(self) -> None:
+class TestSchedulerHealthServer:
+    def setup_method(self) -> None:
         self.mock_server = MockServer()
 
     @mock.patch.object(BaseHTTPRequestHandler, "send_error")

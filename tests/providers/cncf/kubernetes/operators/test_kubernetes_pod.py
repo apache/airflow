@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -29,7 +31,6 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from tests.test_utils import db
-from tests.test_utils.config import conf_vars
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
 KPO_MODULE = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod"
@@ -69,6 +70,7 @@ def create_context(task, persist_to_db=False):
     }
 
 
+@pytest.mark.execution_timeout(300)
 class TestKubernetesPodOperator:
     @pytest.fixture(autouse=True)
     def setup(self, dag_maker):
@@ -150,6 +152,42 @@ class TestKubernetesPodOperator:
         k.render_template_fields(context={"foo": "footemplated", "bar": "bartemplated"})
         assert k.env_vars[0].value == "footemplated"
         assert k.env_vars[0].name == "bartemplated"
+
+    def test_security_context(self):
+        security_context = {
+            'runAsUser': 1245,
+        }
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            security_context=security_context,
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+        )
+        pod = self.run_pod(k)
+        assert pod.spec.security_context == security_context
+
+    def test_container_security_context(self):
+        container_security_context = {'allowPrivilegeEscalation': False}
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            container_security_context=container_security_context,
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+        )
+        pod = self.run_pod(k)
+        assert pod.spec.containers[0].security_context == container_security_context
 
     def test_envs_from_configmaps(
         self,
@@ -794,9 +832,13 @@ class TestKubernetesPodOperator:
 
     @pytest.mark.parametrize('do_xcom_push', [True, False])
     @mock.patch(f"{POD_MANAGER_CLASS}.extract_xcom")
-    def test_push_xcom_pod_info(self, mock_extract_xcom, do_xcom_push):
+    @mock.patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
+    def test_push_xcom_pod_info(
+        self, mock_await_xcom_sidecar_container_start, mock_extract_xcom, do_xcom_push
+    ):
         """pod name and namespace are *always* pushed; do_xcom_push only controls xcom sidecar"""
         mock_extract_xcom.return_value = '{}'
+        mock_await_xcom_sidecar_container_start.return_value = None
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
@@ -846,6 +888,28 @@ class TestKubernetesPodOperator:
         mock_patch_already_checked.assert_called_once()
         mock_delete_pod.assert_not_called()
 
+    @pytest.mark.parametrize('do_xcom_push', [True, False])
+    @mock.patch(f"{POD_MANAGER_CLASS}.extract_xcom")
+    @mock.patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
+    def test_wait_for_xcom_sidecar_iff_push_xcom(self, mock_await, mock_extract_xcom, do_xcom_push):
+        """Assert we wait for xcom sidecar container if and only if we push xcom."""
+        mock_extract_xcom.return_value = '{}'
+        mock_await.return_value = None
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=do_xcom_push,
+        )
+        self.run_pod(k)
+        if do_xcom_push:
+            mock_await.assert_called_once()
+        else:
+            mock_await.assert_not_called()
+
     @pytest.mark.parametrize('should_fail', [True, False])
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")
     @mock.patch(f"{KPO_MODULE}.KubernetesPodOperator.patch_already_checked")
@@ -871,27 +935,6 @@ class TestKubernetesPodOperator:
             k.execute(context=context)
         mock_patch_already_checked.assert_called_once()
         mock_delete_pod.assert_not_called()
-
-    @pytest.mark.parametrize(
-        'key, value, attr, patched_value',
-        [
-            ('verify_ssl', 'False', '_deprecated_core_disable_verify_ssl', True),
-            ('in_cluster', 'False', '_deprecated_core_in_cluster', False),
-            ('cluster_context', 'hi', '_deprecated_core_cluster_context', 'hi'),
-            ('config_file', '/path/to/file.txt', '_deprecated_core_config_file', '/path/to/file.txt'),
-            ('enable_tcp_keepalive', 'False', '_deprecated_core_disable_tcp_keepalive', True),
-        ],
-    )
-    def test_patch_core_settings(self, key, value, attr, patched_value):
-        # first verify the behavior for the default value
-        # the hook attr should be None
-        op = KubernetesPodOperator(task_id='abc', name='hi')
-        self.hook_patch.stop()
-        assert getattr(op.hook, attr) is None
-        # now check behavior with a non-default value
-        with conf_vars({('kubernetes', key): value}):
-            op = KubernetesPodOperator(task_id='abc', name='hi')
-            assert getattr(op.hook, attr) == patched_value
 
 
 def test__suppress():

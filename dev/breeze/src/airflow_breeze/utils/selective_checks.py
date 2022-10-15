@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
 import json
@@ -22,8 +21,8 @@ import os
 import sys
 from enum import Enum
 
-from rich.markup import escape
-
+from airflow_breeze.utils.github_actions import get_ga_output
+from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
 if sys.version_info >= (3, 8):
@@ -38,22 +37,18 @@ from typing import Any, Dict, List, TypeVar
 
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
-    CURRENT_HELM_VERSIONS,
-    CURRENT_KIND_VERSIONS,
-    CURRENT_KUBERNETES_MODES,
     CURRENT_KUBERNETES_VERSIONS,
     CURRENT_MSSQL_VERSIONS,
     CURRENT_MYSQL_VERSIONS,
     CURRENT_POSTGRES_VERSIONS,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
-    DEFAULT_HELM_VERSION,
-    DEFAULT_KIND_VERSION,
-    DEFAULT_KUBERNETES_MODE,
     DEFAULT_KUBERNETES_VERSION,
     DEFAULT_MSSQL_VERSION,
     DEFAULT_MYSQL_VERSION,
     DEFAULT_POSTGRES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    HELM_VERSION,
+    KIND_VERSION,
     GithubEvents,
     SelectiveUnitTestTypes,
     all_selective_test_types,
@@ -61,13 +56,7 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.console import get_console
 
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
-
-
-def get_ga_output(name: str, value: Any) -> str:
-    output_name = name.replace('_', '-')
-    printed_value = str(value).lower() if isinstance(value, bool) else value
-    get_console().print(f"[info]{output_name}[/] = [green]{escape(str(printed_value))}[/]")
-    return f"::set-output name={output_name}::{printed_value}"
+DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
 
 
 class FileGroupForCi(Enum):
@@ -145,9 +134,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/values\.json",
         ],
         FileGroupForCi.UI_FILES: [
-            r"^airflow/ui/.*\.[tj]sx?$",
-            r"^airflow/ui/[^/]+\.json$",
-            r"^airflow/ui/.*\.lock$",
+            r"^airflow/www/.*\.[tj]sx?$",
+            r"^airflow/www/[^/]+\.json$",
+            r"^airflow/www/.*\.lock$",
         ],
         FileGroupForCi.WWW_FILES: [
             r"^airflow/www/.*\.js[x]?$",
@@ -192,7 +181,7 @@ TEST_TYPE_MATCHES = HashableDict(
             "^tests/providers/",
             "^tests/system/",
         ],
-        SelectiveUnitTestTypes.WWW: ["^airflow/www", "^tests/www", "^airflow/ui"],
+        SelectiveUnitTestTypes.WWW: ["^airflow/www", "^tests/www"],
     }
 )
 
@@ -228,8 +217,12 @@ def add_dependent_providers(
     providers: set[str], provider_to_check: str, dependencies: dict[str, dict[str, list[str]]]
 ):
     for provider, provider_info in dependencies.items():
+        # Providers that use this provider
         if provider_to_check in provider_info['cross-providers-deps']:
             providers.add(provider)
+        # and providers we use directly
+        for dep_name in dependencies[provider_to_check]["cross-providers-deps"]:
+            providers.add(dep_name)
 
 
 def find_all_providers_affected(changed_files: tuple[str, ...]) -> set[str]:
@@ -289,8 +282,8 @@ class SelectiveChecks:
     default_mssql_version = DEFAULT_MSSQL_VERSION
 
     default_kubernetes_version = DEFAULT_KUBERNETES_VERSION
-    default_kind_version = DEFAULT_KIND_VERSION
-    default_helm_version = DEFAULT_HELM_VERSION
+    default_kind_version = KIND_VERSION
+    default_helm_version = HELM_VERSION
 
     @cached_property
     def default_branch(self) -> str:
@@ -326,14 +319,6 @@ class SelectiveChecks:
         return " ".join(self.python_versions)
 
     @cached_property
-    def min_max_python_versions_as_string(self) -> str:
-        return " ".join(
-            [CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[0], CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[-1]]
-            if self._full_tests_needed
-            else [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
-        )
-
-    @cached_property
     def all_python_versions(self) -> list[str]:
         return (
             ALL_PYTHON_MAJOR_MINOR_VERSIONS
@@ -344,10 +329,6 @@ class SelectiveChecks:
     @cached_property
     def all_python_versions_list_as_string(self) -> str:
         return " ".join(self.all_python_versions)
-
-    @cached_property
-    def kubernetes_modes(self):
-        return CURRENT_KUBERNETES_MODES if self._full_tests_needed else [DEFAULT_KUBERNETES_MODE]
 
     @cached_property
     def postgres_versions(self) -> list[str]:
@@ -362,12 +343,12 @@ class SelectiveChecks:
         return CURRENT_MSSQL_VERSIONS if self._full_tests_needed else [DEFAULT_MSSQL_VERSION]
 
     @cached_property
-    def kind_versions(self) -> list[str]:
-        return CURRENT_KIND_VERSIONS
+    def kind_version(self) -> str:
+        return KIND_VERSION
 
     @cached_property
-    def helm_versions(self) -> list[str]:
-        return CURRENT_HELM_VERSIONS
+    def helm_version(self) -> str:
+        return HELM_VERSION
 
     @cached_property
     def postgres_exclude(self) -> list[dict[str, str]]:
@@ -390,16 +371,17 @@ class SelectiveChecks:
         return CURRENT_KUBERNETES_VERSIONS if self._full_tests_needed else [DEFAULT_KUBERNETES_VERSION]
 
     @cached_property
-    def min_max_kubernetes_versions_as_string(self) -> str:
-        return " ".join(
-            [CURRENT_KUBERNETES_VERSIONS[0], CURRENT_KUBERNETES_VERSIONS[-1]]
-            if self._full_tests_needed
-            else [DEFAULT_KUBERNETES_VERSION]
-        )
-
-    @cached_property
     def kubernetes_versions_list_as_string(self) -> str:
         return " ".join(self.kubernetes_versions)
+
+    @cached_property
+    def kubernetes_combos(self) -> str:
+        python_version_array: list[str] = self.python_versions_list_as_string.split(" ")
+        kubernetes_version_array: list[str] = self.kubernetes_versions_list_as_string.split(" ")
+        combo_titles, short_combo_titles, combos = get_kubernetes_python_combos(
+            kubernetes_version_array, python_version_array
+        )
+        return " ".join(short_combo_titles)
 
     def _match_files_with_regexps(self, matched_files, regexps):
         for file in self._files:
@@ -597,3 +579,7 @@ class SelectiveChecks:
     @cached_property
     def cache_directive(self) -> str:
         return "disabled" if self._github_event == GithubEvents.SCHEDULE else "registry"
+
+    @cached_property
+    def debug_resources(self) -> bool:
+        return DEBUG_CI_RESOURCES_LABEL in self._pr_labels

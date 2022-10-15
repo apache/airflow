@@ -14,8 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime, timedelta
-from typing import Any, Dict
+from typing import Any
 
 import jwt
 
@@ -45,7 +47,7 @@ class JWTSigner:
         self._leeway_in_seconds = leeway_in_seconds
         self._algorithm = algorithm
 
-    def generate_signed_token(self, extra_payload: Dict[str, Any]) -> str:
+    def generate_signed_token(self, extra_payload: dict[str, Any]) -> str:
         """
         Generate JWT with extra payload added.
         :param extra_payload: extra payload that is added to the signed token
@@ -65,7 +67,7 @@ class JWTSigner:
         )
         return token
 
-    def verify_token(self, token: str) -> Dict[str, Any]:
+    def verify_token(self, token: str) -> dict[str, Any]:
         payload = jwt.decode(
             token,
             self._secret_key,

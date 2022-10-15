@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import contextlib
 import io
-import unittest
 from argparse import ArgumentError
 from unittest.mock import MagicMock
 
@@ -57,9 +58,9 @@ LEGACY_COMMANDS = [
 ]
 
 
-class TestCliDeprecatedCommandsValue(unittest.TestCase):
+class TestCliDeprecatedCommandsValue:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
     def test_should_display_value(self):

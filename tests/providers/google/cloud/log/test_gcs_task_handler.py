@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import logging
 import tempfile
 from unittest import mock
@@ -103,7 +105,7 @@ class TestGCSTaskHandler:
             log == "*** Unable to read remote log from gs://bucket/remote/log/location/1.log\n*** "
             f"Failed to connect\n\n*** Reading local file: {self.local_log_location}/1.log\n"
         )
-        assert metadata == {"end_of_log": True}
+        assert metadata == {'end_of_log': False, 'log_pos': 31 + len(self.local_log_location)}
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )

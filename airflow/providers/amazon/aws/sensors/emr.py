@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Dict, FrozenSet, Iterable, Optional, Sequence, Set, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
@@ -48,7 +50,7 @@ class EmrBaseSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.target_states: Iterable[str] = []  # will be set in subclasses
         self.failed_states: Iterable[str] = []  # will be set in subclasses
-        self.hook: Optional[EmrHook] = None
+        self.hook: EmrHook | None = None
 
     def get_hook(self) -> EmrHook:
         """Get EmrHook"""
@@ -58,7 +60,7 @@ class EmrBaseSensor(BaseSensorOperator):
         self.hook = EmrHook(aws_conn_id=self.aws_conn_id)
         return self.hook
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         response = self.get_emr_response()
 
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
@@ -80,7 +82,7 @@ class EmrBaseSensor(BaseSensorOperator):
 
         return False
 
-    def get_emr_response(self) -> Dict[str, Any]:
+    def get_emr_response(self) -> dict[str, Any]:
         """
         Make an API call with boto3 and get response.
 
@@ -90,7 +92,7 @@ class EmrBaseSensor(BaseSensorOperator):
         raise NotImplementedError('Please implement get_emr_response() in subclass')
 
     @staticmethod
-    def state_from_response(response: Dict[str, Any]) -> str:
+    def state_from_response(response: dict[str, Any]) -> str:
         """
         Get state from response dictionary.
 
@@ -101,7 +103,7 @@ class EmrBaseSensor(BaseSensorOperator):
         raise NotImplementedError('Please implement state_from_response() in subclass')
 
     @staticmethod
-    def failure_message_from_response(response: Dict[str, Any]) -> Optional[str]:
+    def failure_message_from_response(response: dict[str, Any]) -> str | None:
         """
         Get failure message from response dictionary.
 
@@ -127,11 +129,6 @@ class EmrServerlessJobSensor(BaseSensorOperator):
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
     """
 
-    INTERMEDIATE_STATES = {'PENDING', 'RUNNING', 'SCHEDULED', 'SUBMITTED'}
-    FAILURE_STATES = {'FAILED', 'CANCELLING', 'CANCELLED'}
-    SUCCESS_STATES = {'SUCCESS'}
-    TERMINAL_STATES = SUCCESS_STATES.union(FAILURE_STATES)
-
     template_fields: Sequence[str] = (
         'application_id',
         'job_run_id',
@@ -142,7 +139,7 @@ class EmrServerlessJobSensor(BaseSensorOperator):
         *,
         application_id: str,
         job_run_id: str,
-        target_states: Union[Set, FrozenSet] = frozenset(SUCCESS_STATES),
+        target_states: set | frozenset = frozenset(EmrServerlessHook.JOB_SUCCESS_STATES),
         aws_conn_id: str = 'aws_default',
         **kwargs: Any,
     ) -> None:
@@ -152,12 +149,12 @@ class EmrServerlessJobSensor(BaseSensorOperator):
         self.job_run_id = job_run_id
         super().__init__(**kwargs)
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         response = self.hook.conn.get_job_run(applicationId=self.application_id, jobRunId=self.job_run_id)
 
         state = response['jobRun']['state']
 
-        if state in self.FAILURE_STATES:
+        if state in EmrServerlessHook.JOB_FAILURE_STATES:
             failure_message = f"EMR Serverless job failed: {self.failure_message_from_response(response)}"
             raise AirflowException(failure_message)
 
@@ -169,7 +166,7 @@ class EmrServerlessJobSensor(BaseSensorOperator):
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     @staticmethod
-    def failure_message_from_response(response: Dict[str, Any]) -> Optional[str]:
+    def failure_message_from_response(response: dict[str, Any]) -> str | None:
         """
         Get failure message from response dictionary.
 
@@ -196,15 +193,11 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
 
     template_fields: Sequence[str] = ('application_id',)
 
-    INTERMEDIATE_STATES = {'CREATING', 'STARTING', 'STOPPING'}
-    FAILURE_STATES = {'STOPPED', 'TERMINATED'}
-    SUCCESS_STATES = {'CREATED', 'STARTED'}
-
     def __init__(
         self,
         *,
         application_id: str,
-        target_states: Union[Set, FrozenSet] = frozenset(SUCCESS_STATES),
+        target_states: set | frozenset = frozenset(EmrServerlessHook.APPLICATION_SUCCESS_STATES),
         aws_conn_id: str = 'aws_default',
         **kwargs: Any,
     ) -> None:
@@ -213,14 +206,12 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
         self.application_id = application_id
         super().__init__(**kwargs)
 
-    def poke(self, context: 'Context') -> bool:
-        state = None
-
+    def poke(self, context: Context) -> bool:
         response = self.hook.conn.get_application(applicationId=self.application_id)
 
         state = response['application']['state']
 
-        if state in self.FAILURE_STATES:
+        if state in EmrServerlessHook.APPLICATION_FAILURE_STATES:
             failure_message = f"EMR Serverless job failed: {self.failure_message_from_response(response)}"
             raise AirflowException(failure_message)
 
@@ -232,7 +223,7 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     @staticmethod
-    def failure_message_from_response(response: Dict[str, Any]) -> Optional[str]:
+    def failure_message_from_response(response: dict[str, Any]) -> str | None:
         """
         Get failure message from response dictionary.
 
@@ -281,7 +272,7 @@ class EmrContainerSensor(BaseSensorOperator):
         *,
         virtual_cluster_id: str,
         job_id: str,
-        max_retries: Optional[int] = None,
+        max_retries: int | None = None,
         aws_conn_id: str = 'aws_default',
         poll_interval: int = 10,
         **kwargs: Any,
@@ -293,8 +284,12 @@ class EmrContainerSensor(BaseSensorOperator):
         self.poll_interval = poll_interval
         self.max_retries = max_retries
 
-    def poke(self, context: 'Context') -> bool:
-        state = self.hook.poll_query_status(self.job_id, self.max_retries, self.poll_interval)
+    def poke(self, context: Context) -> bool:
+        state = self.hook.poll_query_status(
+            self.job_id,
+            max_polling_attempts=self.max_retries,
+            poll_interval=self.poll_interval,
+        )
 
         if state in self.FAILURE_STATES:
             raise AirflowException('EMR Containers sensor failed')
@@ -337,8 +332,8 @@ class EmrJobFlowSensor(EmrBaseSensor):
         self,
         *,
         job_flow_id: str,
-        target_states: Optional[Iterable[str]] = None,
-        failed_states: Optional[Iterable[str]] = None,
+        target_states: Iterable[str] | None = None,
+        failed_states: Iterable[str] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -346,7 +341,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
         self.target_states = target_states or ['TERMINATED']
         self.failed_states = failed_states or ['TERMINATED_WITH_ERRORS']
 
-    def get_emr_response(self) -> Dict[str, Any]:
+    def get_emr_response(self) -> dict[str, Any]:
         """
         Make an API call with boto3 and get cluster-level details.
 
@@ -362,7 +357,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
         return emr_client.describe_cluster(ClusterId=self.job_flow_id)
 
     @staticmethod
-    def state_from_response(response: Dict[str, Any]) -> str:
+    def state_from_response(response: dict[str, Any]) -> str:
         """
         Get state from response dictionary.
 
@@ -373,7 +368,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
         return response['Cluster']['Status']['State']
 
     @staticmethod
-    def failure_message_from_response(response: Dict[str, Any]) -> Optional[str]:
+    def failure_message_from_response(response: dict[str, Any]) -> str | None:
         """
         Get failure message from response dictionary.
 
@@ -418,8 +413,8 @@ class EmrStepSensor(EmrBaseSensor):
         *,
         job_flow_id: str,
         step_id: str,
-        target_states: Optional[Iterable[str]] = None,
-        failed_states: Optional[Iterable[str]] = None,
+        target_states: Iterable[str] | None = None,
+        failed_states: Iterable[str] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -428,7 +423,7 @@ class EmrStepSensor(EmrBaseSensor):
         self.target_states = target_states or ['COMPLETED']
         self.failed_states = failed_states or ['CANCELLED', 'FAILED', 'INTERRUPTED']
 
-    def get_emr_response(self) -> Dict[str, Any]:
+    def get_emr_response(self) -> dict[str, Any]:
         """
         Make an API call with boto3 and get details about the cluster step.
 
@@ -444,7 +439,7 @@ class EmrStepSensor(EmrBaseSensor):
         return emr_client.describe_step(ClusterId=self.job_flow_id, StepId=self.step_id)
 
     @staticmethod
-    def state_from_response(response: Dict[str, Any]) -> str:
+    def state_from_response(response: dict[str, Any]) -> str:
         """
         Get state from response dictionary.
 
@@ -455,7 +450,7 @@ class EmrStepSensor(EmrBaseSensor):
         return response['Step']['Status']['State']
 
     @staticmethod
-    def failure_message_from_response(response: Dict[str, Any]) -> Optional[str]:
+    def failure_message_from_response(response: dict[str, Any]) -> str | None:
         """
         Get failure message from response dictionary.
 

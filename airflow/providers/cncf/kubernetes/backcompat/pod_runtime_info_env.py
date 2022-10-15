@@ -19,6 +19,7 @@ Classes for interacting with Kubernetes API.
 
 This module is deprecated. Please use :mod:`kubernetes.client.models.V1EnvVar`.
 """
+from __future__ import annotations
 
 import warnings
 

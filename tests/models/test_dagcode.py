@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
+from __future__ import annotations
+
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -37,13 +38,13 @@ def make_example_dags(module):
     return dagbag.dags
 
 
-class TestDagCode(unittest.TestCase):
+class TestDagCode:
     """Unit tests for DagCode."""
 
-    def setUp(self):
+    def setup_method(self):
         clear_db_dag_code()
 
-    def tearDown(self):
+    def teardown_method(self):
         clear_db_dag_code()
 
     def _write_two_example_dags(self):

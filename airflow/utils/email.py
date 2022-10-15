@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import collections.abc
 import logging
@@ -25,26 +26,26 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Iterable
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException, RemovedInAirflow3Warning
 
 log = logging.getLogger(__name__)
 
 
 def send_email(
-    to: Union[List[str], Iterable[str]],
+    to: list[str] | Iterable[str],
     subject: str,
     html_content: str,
-    files: Optional[List[str]] = None,
+    files: list[str] | None = None,
     dryrun: bool = False,
-    cc: Optional[Union[str, Iterable[str]]] = None,
-    bcc: Optional[Union[str, Iterable[str]]] = None,
+    cc: str | Iterable[str] | None = None,
+    bcc: str | Iterable[str] | None = None,
     mime_subtype: str = 'mixed',
     mime_charset: str = 'utf-8',
-    conn_id: Optional[str] = None,
-    custom_headers: Optional[Dict[str, Any]] = None,
+    conn_id: str | None = None,
+    custom_headers: dict[str, Any] | None = None,
     **kwargs,
 ):
     """Send email using backend specified in EMAIL_BACKEND."""
@@ -73,18 +74,18 @@ def send_email(
 
 
 def send_email_smtp(
-    to: Union[str, Iterable[str]],
+    to: str | Iterable[str],
     subject: str,
     html_content: str,
-    files: Optional[List[str]] = None,
+    files: list[str] | None = None,
     dryrun: bool = False,
-    cc: Optional[Union[str, Iterable[str]]] = None,
-    bcc: Optional[Union[str, Iterable[str]]] = None,
+    cc: str | Iterable[str] | None = None,
+    bcc: str | Iterable[str] | None = None,
     mime_subtype: str = 'mixed',
     mime_charset: str = 'utf-8',
     conn_id: str = "smtp_default",
-    from_email: Optional[str] = None,
-    custom_headers: Optional[Dict[str, Any]] = None,
+    from_email: str | None = None,
+    custom_headers: dict[str, Any] | None = None,
     **kwargs,
 ):
     """
@@ -120,17 +121,17 @@ def send_email_smtp(
 
 
 def build_mime_message(
-    mail_from: Optional[str],
-    to: Union[str, Iterable[str]],
+    mail_from: str | None,
+    to: str | Iterable[str],
     subject: str,
     html_content: str,
-    files: Optional[List[str]] = None,
-    cc: Optional[Union[str, Iterable[str]]] = None,
-    bcc: Optional[Union[str, Iterable[str]]] = None,
+    files: list[str] | None = None,
+    cc: str | Iterable[str] | None = None,
+    bcc: str | Iterable[str] | None = None,
     mime_subtype: str = 'mixed',
     mime_charset: str = 'utf-8',
-    custom_headers: Optional[Dict[str, Any]] = None,
-) -> Tuple[MIMEMultipart, List[str]]:
+    custom_headers: dict[str, Any] | None = None,
+) -> tuple[MIMEMultipart, list[str]]:
     """
     Build a MIME message that can be used to send an email and
     returns full list of recipients.
@@ -186,7 +187,7 @@ def build_mime_message(
 
 def send_mime_email(
     e_from: str,
-    e_to: Union[str, List[str]],
+    e_to: str | list[str],
     mime_msg: MIMEMultipart,
     conn_id: str = "smtp_default",
     dryrun: bool = False,
@@ -214,7 +215,7 @@ def send_mime_email(
         warnings.warn(
             "Fetching SMTP credentials from configuration variables will be deprecated in a future "
             "release. Please set credentials using a connection instead.",
-            PendingDeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         try:
@@ -243,7 +244,7 @@ def send_mime_email(
             break
 
 
-def get_email_address_list(addresses: Union[str, Iterable[str]]) -> List[str]:
+def get_email_address_list(addresses: str | Iterable[str]) -> list[str]:
     """Get list of email addresses."""
     if isinstance(addresses, str):
         return _get_email_list_from_str(addresses)
@@ -265,7 +266,7 @@ def _get_smtp_connection(host: str, port: int, timeout: int, with_ssl: bool) -> 
     )
 
 
-def _get_email_list_from_str(addresses: str) -> List[str]:
+def _get_email_list_from_str(addresses: str) -> list[str]:
     delimiters = [",", ";"]
     for delimiter in delimiters:
         if delimiter in addresses:

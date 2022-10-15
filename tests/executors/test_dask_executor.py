@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
+from __future__ import annotations
+
 from datetime import timedelta
 from unittest import mock
 
@@ -53,7 +54,7 @@ skip_dask_tests = False
 
 
 @pytest.mark.skipif(skip_dask_tests, reason="The tests are skipped because it needs testing from Dask team")
-class TestBaseDask(unittest.TestCase):
+class TestBaseDask:
     def assert_tasks_on_executor(self, executor, timeout_executor=120):
 
         # start the executor
@@ -85,7 +86,7 @@ class TestBaseDask(unittest.TestCase):
 
 @pytest.mark.skipif(skip_dask_tests, reason="The tests are skipped because it needs testing from Dask team")
 class TestDaskExecutor(TestBaseDask):
-    def setUp(self):
+    def setup_method(self):
         self.dagbag = DagBag(include_examples=True)
         self.cluster = LocalCluster()
 
@@ -93,6 +94,7 @@ class TestDaskExecutor(TestBaseDask):
         executor = DaskExecutor(cluster_address=self.cluster.scheduler_address)
         self.assert_tasks_on_executor(executor, timeout_executor=120)
 
+    @pytest.mark.execution_timeout(180)
     def test_backfill_integration(self):
         """
         Test that DaskExecutor can be used to backfill example dags
@@ -108,7 +110,7 @@ class TestDaskExecutor(TestBaseDask):
         )
         job.run()
 
-    def tearDown(self):
+    def teardown_method(self):
         self.cluster.close(timeout=5)
 
 
@@ -116,7 +118,7 @@ class TestDaskExecutor(TestBaseDask):
     skip_tls_tests, reason="The tests are skipped because distributed framework could not be imported"
 )
 class TestDaskExecutorTLS(TestBaseDask):
-    def setUp(self):
+    def setup_method(self):
         self.dagbag = DagBag(include_examples=True)
 
     @conf_vars(
@@ -158,13 +160,13 @@ class TestDaskExecutorTLS(TestBaseDask):
 
 
 @pytest.mark.skipif(skip_dask_tests, reason="The tests are skipped because it needs testing from Dask team")
-class TestDaskExecutorQueue(unittest.TestCase):
+class TestDaskExecutorQueue:
     def test_dask_queues_no_resources(self):
         self.cluster = LocalCluster()
         executor = DaskExecutor(cluster_address=self.cluster.scheduler_address)
         executor.start()
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             executor.execute_async(key='success', command=SUCCESS_COMMAND, queue='queue1')
 
     def test_dask_queues_not_available(self):
@@ -172,7 +174,7 @@ class TestDaskExecutorQueue(unittest.TestCase):
         executor = DaskExecutor(cluster_address=self.cluster.scheduler_address)
         executor.start()
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             # resource 'queue2' doesn't exist on cluster
             executor.execute_async(key='success', command=SUCCESS_COMMAND, queue='queue2')
 
@@ -217,5 +219,5 @@ class TestDaskExecutorQueue(unittest.TestCase):
         assert success_future.done()
         assert success_future.exception() is None
 
-    def tearDown(self):
+    def teardown_method(self):
         self.cluster.close(timeout=5)

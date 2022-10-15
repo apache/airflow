@@ -22,6 +22,7 @@ The first task calls an sql command, defined in the SQLite operator,
 which when triggered, is performed on the connected sqlite database.
 The second task is similar but instead calls the SQL command from an external file.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime

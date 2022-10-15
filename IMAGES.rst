@@ -316,10 +316,9 @@ you have ``buildx`` plugin installed.
   DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
     --pull \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
-    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc"
-    --build-arg ADDITIONAL_PYTHON_DEPS="pandas"
-    --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++"
-    --build-arg ADDITIONAL_RUNTIME_APT_DEPS="default-jre-headless"
+    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
+    --build-arg ADDITIONAL_PYTHON_DEPS="pandas" \
+    --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" \
     --tag my-image:0.0.1
 
 
@@ -327,8 +326,8 @@ the same image can be built using ``breeze`` (it supports auto-completion of the
 
 .. code-block:: bash
 
-  breeze prod-image build --python 3.7 --additional-extras=jdbc --additional-python-deps="pandas" \
-      --additional-dev-apt-deps="gcc g++" --additional-runtime-apt-deps="default-jre-headless"
+  breeze ci-image build --python 3.7 --additional-extras=jdbc --additional-python-deps="pandas" \
+      --additional-dev-apt-deps="gcc g++"
 
 You can customize more aspects of the image - such as additional commands executed before apt dependencies
 are installed, or adding extra sources to install your dependencies from. You can see all the arguments
@@ -353,10 +352,7 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
         typeform" \
     --build-arg ADDITIONAL_DEV_APT_DEPS="msodbcsql17 unixodbc-dev g++" \
     --build-arg ADDITIONAL_DEV_APT_COMMAND="curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add --no-tty - && curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list" \
-    --build-arg ADDITIONAL_DEV_ENV_VARS="ACCEPT_EULA=Y" \
-    --build-arg ADDITIONAL_RUNTIME_APT_COMMAND="curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add --no-tty - && curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list" \
-    --build-arg ADDITIONAL_RUNTIME_APT_DEPS="msodbcsql17 unixodbc git procps vim" \
-    --build-arg ADDITIONAL_RUNTIME_ENV_VARS="ACCEPT_EULA=Y" \
+    --build-arg ADDITIONAL_DEV_ENV_VARS="ACCEPT_EULA=Y"
     --tag my-image:0.0.1
 
 CI image build arguments
@@ -445,37 +441,21 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``ADDITIONAL_PYTHON_DEPS``               |                                          | additional Python dependencies to        |
 |                                          |                                          | install                                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``DEV_APT_COMMAND``                      | (see Dockerfile)                         | Dev apt command executed before dev deps |
+| ``DEV_APT_COMMAND``                      |                                          | Dev apt command executed before dev deps |
 |                                          |                                          | are installed in the first part of image |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_DEV_APT_COMMAND``           |                                          | Additional Dev apt command executed      |
 |                                          |                                          | before dev dep are installed             |
 |                                          |                                          | in the first part of the image           |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``DEV_APT_DEPS``                         | (see Dockerfile)                         | Dev APT dependencies installed           |
-|                                          |                                          | in the first part of the image           |
+| ``DEV_APT_DEPS``                         | Empty - install default dependencies     | Dev APT dependencies installed           |
+|                                          | (see ``install_os_dependencies.sh``)     | in the first part of the image           |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_DEV_APT_DEPS``              |                                          | Additional apt dev dependencies          |
 |                                          |                                          | installed in the first part of the image |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_DEV_APT_ENV``               |                                          | Additional env variables defined         |
 |                                          |                                          | when installing dev deps                 |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``RUNTIME_APT_COMMAND``                  | (see Dockerfile)                         | Runtime apt command executed before deps |
-|                                          |                                          | are installed in first part of the image |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_RUNTIME_APT_COMMAND``       |                                          | Additional Runtime apt command executed  |
-|                                          |                                          | before runtime dep are installed         |
-|                                          |                                          | in the second part of the image          |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``RUNTIME_APT_DEPS``                     | (see Dockerfile)                         | Runtime APT dependencies installed       |
-|                                          |                                          | in the second part of the image          |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_RUNTIME_APT_DEPS``          |                                          | Additional apt runtime dependencies      |
-|                                          |                                          | installed in second part of the image    |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_RUNTIME_APT_ENV``           |                                          | Additional env variables defined         |
-|                                          |                                          | when installing runtime deps             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_PIP_VERSION``                  | ``22.2.2``                               | PIP version used.                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
@@ -537,7 +517,7 @@ This builds the CI image in version 3.7 with "jdbc" extra and "default-jre-headl
   DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
     --pull \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
-    --build-arg AIRFLOW_EXTRAS=jdbc --build-arg ADDITIONAL_RUNTIME_DEPS="default-jre-headless" \
+    --build-arg AIRFLOW_EXTRAS=jdbc \
     --tag my-image:0.0.1
 
 Running the CI image

@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Callable
 
 from datadog import api
 
@@ -57,10 +59,10 @@ class DatadogSensor(BaseSensorOperator):
         datadog_conn_id: str = 'datadog_default',
         from_seconds_ago: int = 3600,
         up_to_seconds_from_now: int = 0,
-        priority: Optional[str] = None,
-        sources: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        response_check: Optional[Callable[[Dict[str, Any]], bool]] = None,
+        priority: str | None = None,
+        sources: str | None = None,
+        tags: list[str] | None = None,
+        response_check: Callable[[dict[str, Any]], bool] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -72,7 +74,7 @@ class DatadogSensor(BaseSensorOperator):
         self.tags = tags
         self.response_check = response_check
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         # This instantiates the hook, but doesn't need it further,
         # because the API authenticates globally (unfortunately),
         # but for airflow this shouldn't matter too much, because each

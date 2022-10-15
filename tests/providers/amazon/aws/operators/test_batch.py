@@ -15,8 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -67,6 +66,9 @@ class TestBatchOperator(unittest.TestCase):
             tags={},
         )
         self.client_mock = self.get_client_type_mock.return_value
+        # We're mocking all actual AWS calls and don't need a connection. This
+        # avoids an Airflow warning about connection cannot be found.
+        self.batch.hook.get_connection = lambda _: None
         assert self.batch.hook.client == self.client_mock  # setup client property
 
         # don't pause in unit tests
@@ -102,11 +104,16 @@ class TestBatchOperator(unittest.TestCase):
 
     def test_template_fields_overrides(self):
         assert self.batch.template_fields == (
+            "job_id",
             "job_name",
-            "job_queue",
             "job_definition",
+            "job_queue",
             "overrides",
+            "array_properties",
             "parameters",
+            "waiters",
+            "tags",
+            "wait_for_completion",
         )
 
     @mock.patch.object(BatchClientHook, "get_job_description")

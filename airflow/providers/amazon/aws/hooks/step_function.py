@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
-from typing import Optional, Union
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -39,8 +39,8 @@ class StepFunctionHook(AwsBaseHook):
     def start_execution(
         self,
         state_machine_arn: str,
-        name: Optional[str] = None,
-        state_machine_input: Union[dict, str, None] = None,
+        name: str | None = None,
+        state_machine_input: dict | str | None = None,
     ) -> str:
         """
         Start Execution of the State Machine.

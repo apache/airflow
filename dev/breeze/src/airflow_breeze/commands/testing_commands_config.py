@@ -14,19 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, List, Union
+from __future__ import annotations
 
-TESTING_COMMANDS: Dict[str, Union[str, List[str]]] = {
+TESTING_COMMANDS: dict[str, str | list[str]] = {
     "name": "Testing",
     "commands": ["tests", "helm-tests", "docker-compose-tests"],
 }
-TESTING_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
+TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze testing tests": [
         {
             "name": "Basic flag for tests command",
             "options": [
                 "--integration",
                 "--test-type",
+                "--test-timeout",
                 "--db-reset",
                 "--backend",
                 "--python",
@@ -36,9 +37,19 @@ TESTING_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
             ],
         },
         {
+            "name": "Options for parallel test commands",
+            "options": [
+                "--run-in-parallel",
+                "--parallelism",
+                "--test-types",
+                "--skip-cleanup",
+                "--debug-resources",
+                "--include-success-outputs",
+            ],
+        },
+        {
             "name": "Advanced flag for tests command",
             "options": [
-                "--limit-progress-output",
                 "--image-tag",
                 "--mount-sources",
             ],
@@ -48,7 +59,6 @@ TESTING_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
         {
             "name": "Advanced flag for helms-tests command",
             "options": [
-                "--limit-progress-output",
                 "--image-tag",
                 "--mount-sources",
             ],

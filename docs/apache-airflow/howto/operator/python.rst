@@ -22,8 +22,11 @@
 PythonOperator
 ==============
 
-Use the :class:`~airflow.operators.python.PythonOperator` to execute
-Python callables.
+Use the ``@task`` decorator to execute Python callables.
+
+.. warning::
+    The ``@task`` decorator is recommended over the classic :class:`~airflow.operators.python.PythonOperator`
+    to execute Python callables.
 
 .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
@@ -34,8 +37,7 @@ Python callables.
 Passing in arguments
 ^^^^^^^^^^^^^^^^^^^^
 
-Use the ``op_args`` and ``op_kwargs`` arguments to pass additional arguments
-to the Python callable.
+Pass extra arguments to the ``@task`` decorated function as you would with a normal Python function.
 
 .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
@@ -53,6 +55,13 @@ argument.
 The ``templates_dict`` argument is templated, so each value in the dictionary
 is evaluated as a :ref:`Jinja template <concepts:jinja-templating>`.
 
+.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_python_render_sql]
+    :end-before: [END howto_operator_python_render_sql]
+
+
 
 
 .. _howto/operator:PythonVirtualenvOperator:
@@ -60,7 +69,12 @@ is evaluated as a :ref:`Jinja template <concepts:jinja-templating>`.
 PythonVirtualenvOperator
 ========================
 
-Use the :class:`~airflow.operators.python.PythonVirtualenvOperator` to execute Python callables inside a new Python virtual environment. The ``virtualenv`` package needs to be installed in the environment that runs Airflow (as optional dependency ``pip install airflow[virtualenv] --constraint ...``).
+Use the ``@task.virtualenv`` decorator to execute Python callables inside a new Python virtual environment.
+The ``virtualenv`` package needs to be installed in the environment that runs Airflow (as optional dependency ``pip install airflow[virtualenv] --constraint ...``).
+
+.. warning::
+    The ``@task.virtualenv`` decorator is recommended over the classic :class:`~airflow.operators.python.PythonVirtualenvOperator`
+    to execute Python callables inside new Python virtual environments.
 
 .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
@@ -71,8 +85,8 @@ Use the :class:`~airflow.operators.python.PythonVirtualenvOperator` to execute P
 Passing in arguments
 ^^^^^^^^^^^^^^^^^^^^
 
-You can use the ``op_args`` and ``op_kwargs`` arguments the same way you use it in the PythonOperator.
-Unfortunately we currently do not support to serialize ``var`` and ``ti`` / ``task_instance`` due to incompatibilities
+Pass extra arguments to the ``@task.virtualenv`` decorated function as you would with a normal Python function.
+Unfortunately, Airflow does not support serializing ``var``, ``ti`` and ``task_instance`` due to incompatibilities
 with the underlying library. For Airflow context variables make sure that you either have access to Airflow through
 setting ``system_site_packages`` to ``True`` or add ``apache-airflow`` to the ``requirements`` argument.
 Otherwise you won't have access to the most context variables of Airflow in ``op_kwargs``.
@@ -89,22 +103,57 @@ If additional parameters for package installation are needed pass them in ``requ
 All supported options are listed in the `requirements file format <https://pip.pypa.io/en/stable/reference/requirements-file-format/#supported-options>`_.
 
 
+.. _howto/operator:ExternalPythonOperator:
+
+ExternalPythonOperator
+======================
+
+The ``ExternalPythonOperator`` can help you to run some of your tasks with a different set of Python
+libraries than other tasks (and than the main Airflow environment).
+
+Use the :class:`~airflow.operators.python.ExternalPythonOperator` to execute Python callables inside a
+pre-defined virtual environment. The virtualenv should be preinstalled in the environment where
+Python is run and in case ``dill`` is used, it has to be preinstalled in the virtualenv (the same
+version that is installed in main Airflow environment).
+
+.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_external_python]
+    :end-before: [END howto_operator_external_python]
+
+Passing in arguments
+^^^^^^^^^^^^^^^^^^^^
+
+Pass extra arguments to the ``@task.external_python`` decorated function as you would with a normal Python function.
+Unfortunately Airflow does not support serializing ``var`` and ``ti`` / ``task_instance`` due to incompatibilities
+with the underlying library. For Airflow context variables make sure that Airflow is also installed as part
+of the virtualenv environment in the same version as the Airflow version the task is run on.
+Otherwise you won't have access to the most context variables of Airflow in ``op_kwargs``.
+If you want the context related to datetime objects like ``data_interval_start`` you can add ``pendulum`` and
+``lazy_object_proxy`` to your virtualenv.
+
 .. _howto/operator:ShortCircuitOperator:
 
 ShortCircuitOperator
-========================
+====================
 
-Use the :class:`~airflow.operators.python.ShortCircuitOperator` to control whether a pipeline continues
-if a condition is satisfied or a truthy value is obtained. The evaluation of this condition and truthy value
-is done via the output of a ``python_callable``. If the ``python_callable`` returns True or a truthy value,
+Use the ``@task.short_circuit`` decorator to control whether a pipeline continues
+if a condition is satisfied or a truthy value is obtained.
+
+.. warning::
+    The ``@task.short_circuit`` decorator is recommended over the classic :class:`~airflow.operators.python.ShortCircuitOperator`
+    to short-circuit pipelines via Python callables.
+
+The evaluation of this condition and truthy value
+is done via the output of the decorated function. If the decorated function returns True or a truthy value,
 the pipeline is allowed to continue and an :ref:`XCom <concepts:xcom>` of the output will be pushed. If the
 output is False or a falsy value, the pipeline will be short-circuited based on the configured
-short-circuiting (more on this later). In the example below, the tasks that follow the "condition_is_True"
-ShortCircuitOperator will execute while the tasks downstream of the "condition_is_False" ShortCircuitOperator
-will be skipped.
+short-circuiting (more on this later). In the example below, the tasks that follow the "condition_is_true"
+task will execute while the tasks downstream of the "condition_is_false" task will be skipped.
 
 
-.. exampleinclude:: /../../airflow/example_dags/example_short_circuit_operator.py
+.. exampleinclude:: /../../airflow/example_dags/example_short_circuit_decorator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_short_circuit]
@@ -118,14 +167,14 @@ set to False, the direct downstream tasks are skipped but the specified ``trigge
 downstream tasks are respected. In this short-circuiting configuration, the operator assumes the direct
 downstream task(s) were purposely meant to be skipped but perhaps not other subsequent tasks. This
 configuration is especially useful if only *part* of a pipeline should be short-circuited rather than all
-tasks which follow the ShortCircuitOperator task.
+tasks which follow the short-circuiting task.
 
-In the example below, notice that the ShortCircuitOperator task is configured to respect downstream trigger
-rules. This means while the tasks that follow the "short_circuit" ShortCircuitOperator task will be skipped
-since the ``python_callable`` returns False, "task_7" will still execute as its set to execute when upstream
+In the example below, notice that the "short_circuit" task is configured to respect downstream trigger
+rules. This means while the tasks that follow the "short_circuit" task will be skipped
+since the decorated function returns False, "task_7" will still execute as its set to execute when upstream
 tasks have completed running regardless of status (i.e. the ``TriggerRule.ALL_DONE`` trigger rule).
 
-.. exampleinclude:: /../../airflow/example_dags/example_short_circuit_operator.py
+.. exampleinclude:: /../../airflow/example_dags/example_short_circuit_decorator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_short_circuit_trigger_rules]
@@ -136,7 +185,7 @@ tasks have completed running regardless of status (i.e. the ``TriggerRule.ALL_DO
 Passing in arguments
 ^^^^^^^^^^^^^^^^^^^^
 
-Both the ``op_args`` and ``op_kwargs`` arguments can be used in same way as described for the PythonOperator.
+Pass extra arguments to the ``@task.short_circuit``-decorated function as you would with a normal Python function.
 
 
 Templating

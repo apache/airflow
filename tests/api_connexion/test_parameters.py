@@ -14,8 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -33,8 +33,8 @@ from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
 
 
-class TestValidateIsTimezone(unittest.TestCase):
-    def setUp(self) -> None:
+class TestValidateIsTimezone:
+    def setup_method(self) -> None:
         from datetime import datetime
 
         self.naive = datetime.now()
@@ -48,8 +48,8 @@ class TestValidateIsTimezone(unittest.TestCase):
         assert validate_istimezone(self.timezoned) is None
 
 
-class TestDateTimeParser(unittest.TestCase):
-    def setUp(self) -> None:
+class TestDateTimeParser:
+    def setup_method(self) -> None:
         self.default_time = '2020-06-13T22:44:00+00:00'
         self.default_time_2 = '2020-06-13T22:44:00Z'
 
@@ -71,7 +71,7 @@ class TestDateTimeParser(unittest.TestCase):
             format_datetime(invalid_datetime)
 
 
-class TestMaximumPagelimit(unittest.TestCase):
+class TestMaximumPagelimit:
     @conf_vars({("api", "maximum_page_limit"): "320"})
     def test_maximum_limit_return_val(self):
         limit = check_limit(300)
@@ -98,7 +98,7 @@ class TestMaximumPagelimit(unittest.TestCase):
             check_limit(-1)
 
 
-class TestFormatParameters(unittest.TestCase):
+class TestFormatParameters:
     def test_should_works_with_datetime_formatter(self):
         decorator = format_parameters({"param_a": format_datetime})
         endpoint = mock.MagicMock()

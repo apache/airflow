@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import itertools
 import unittest
@@ -168,3 +169,18 @@ class IngressFlowerTest(unittest.TestCase):
             show_only=["templates/flower/flower-ingress.yaml"],
         )
         assert 0 == len(docs)
+
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "ingress": {"enabled": True},
+                "flower": {
+                    "enabled": True,
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/flower/flower-ingress.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"

@@ -14,8 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
+from __future__ import annotations
 
 import pytest
 
@@ -28,7 +27,7 @@ from airflow.utils.task_group import TaskGroup
 from tests.models import DEFAULT_DATE
 
 
-class TestCycleTester(unittest.TestCase):
+class TestCycleTester:
     def test_cycle_empty(self):
         # test empty
         dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})

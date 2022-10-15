@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Add ``run_type`` column in ``dag_run`` table
 
@@ -24,13 +23,13 @@ Revises: b25a55525161
 Create Date: 2020-04-08 13:35:25.671327
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, inspect
 from sqlalchemy.ext.declarative import declarative_base
 
-from airflow.compat.sqlalchemy import inspect
 from airflow.utils.types import DagRunType
 
 # revision identifiers, used by Alembic.

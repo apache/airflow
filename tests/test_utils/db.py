@@ -15,15 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.triggerer_job import TriggererJob
 from airflow.models import (
     Connection,
     DagModel,
-    DagOwnerAttributes,
     DagRun,
     DagTag,
-    DagWarning,
     DbCallbackRequest,
     Log,
     Pool,
@@ -37,13 +37,15 @@ from airflow.models import (
     XCom,
     errors,
 )
+from airflow.models.dag import DagOwnerAttributes
 from airflow.models.dagcode import DagCode
+from airflow.models.dagwarning import DagWarning
 from airflow.models.dataset import (
-    DatasetDagRef,
+    DagScheduleDatasetReference,
     DatasetDagRunQueue,
     DatasetEvent,
     DatasetModel,
-    DatasetTaskRef,
+    TaskOutletDatasetReference,
 )
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
@@ -65,8 +67,8 @@ def clear_db_datasets():
         session.query(DatasetEvent).delete()
         session.query(DatasetModel).delete()
         session.query(DatasetDagRunQueue).delete()
-        session.query(DatasetDagRef).delete()
-        session.query(DatasetTaskRef).delete()
+        session.query(DagScheduleDatasetReference).delete()
+        session.query(TaskOutletDatasetReference).delete()
 
 
 def clear_db_dags():

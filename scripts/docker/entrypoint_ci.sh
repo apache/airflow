@@ -65,6 +65,7 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
     USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
+    TEST_TIMEOUT=${TEST_TIMEOUT:="60"}
 
     if [[ ${USE_AIRFLOW_VERSION} == "" ]]; then
         export PYTHONPATH=${AIRFLOW_SOURCES}
@@ -193,7 +194,6 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         echo
         exit ${ENVIRONMENT_EXIT_CODE}
     fi
-    # Create symbolic link to fix possible issues with kubectl config cmd-path
     mkdir -p /usr/lib/google-cloud-sdk/bin
     touch /usr/lib/google-cloud-sdk/bin/gcloud
     ln -s -f /usr/bin/gcloud /usr/lib/google-cloud-sdk/bin/gcloud
@@ -256,9 +256,9 @@ EXTRA_PYTEST_ARGS=(
     # timeouts in seconds for individual tests
     "--timeouts-order"
     "moi"
-    "--setup-timeout=60"
-    "--execution-timeout=60"
-    "--teardown-timeout=60"
+    "--setup-timeout=${TEST_TIMEOUT}"
+    "--execution-timeout=${TEST_TIMEOUT}"
+    "--teardown-timeout=${TEST_TIMEOUT}"
     # Only display summary for non-expected case
     # f - failed
     # E - error
@@ -370,7 +370,12 @@ else
         SELECTED_TESTS=()
         for provider in ${BASH_REMATCH[1]//,/ }
         do
-            SELECTED_TESTS+=("tests/providers/${provider//./\/}")
+            providers_dir="tests/providers/${provider//./\/}"
+            if [[ -d ${providers_dir} ]]; then
+                SELECTED_TESTS+=("${providers_dir}")
+            else
+                echo "${COLOR_YELLOW}Skip ${providers_dir} as the directory does not exist.${COLOR_RESET}"
+            fi
         done
     else
         echo

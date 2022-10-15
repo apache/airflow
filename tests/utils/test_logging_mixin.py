@@ -15,16 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-import unittest
 import warnings
 from unittest import mock
 
 from airflow.utils.log.logging_mixin import StreamLogWriter, set_context
 
 
-class TestLoggingMixin(unittest.TestCase):
-    def setUp(self):
+class TestLoggingMixin:
+    def setup_method(self):
         warnings.filterwarnings(action='always')
 
     def test_set_context(self):
@@ -52,7 +52,7 @@ class TestLoggingMixin(unittest.TestCase):
         warnings.resetwarnings()
 
 
-class TestStreamLogWriter(unittest.TestCase):
+class TestStreamLogWriter:
     def test_write(self):
         logger = mock.MagicMock()
         logger.log = mock.MagicMock()

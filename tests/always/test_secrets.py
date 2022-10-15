@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-import unittest
+from __future__ import annotations
+
 from unittest import mock
 
 from airflow.configuration import ensure_secrets_loaded, initialize_secrets_backends
@@ -25,7 +25,7 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_variables
 
 
-class TestConnectionsFromSecrets(unittest.TestCase):
+class TestConnectionsFromSecrets:
     @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_connection")
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection")
     def test_get_connection_second_try(self, mock_env_get, mock_meta_get):
@@ -111,11 +111,11 @@ class TestConnectionsFromSecrets(unittest.TestCase):
         assert 'mysql://airflow:airflow@host:5432/airflow' == conn.get_uri()
 
 
-class TestVariableFromSecrets(unittest.TestCase):
-    def setUp(self) -> None:
+class TestVariableFromSecrets:
+    def setup_method(self) -> None:
         clear_db_variables()
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         clear_db_variables()
 
     @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_variable")

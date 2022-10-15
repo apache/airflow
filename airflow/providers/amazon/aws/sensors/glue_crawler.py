@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
@@ -46,9 +48,9 @@ class GlueCrawlerSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.success_statuses = 'SUCCEEDED'
         self.errored_statuses = ('FAILED', 'CANCELLED')
-        self.hook: Optional[GlueCrawlerHook] = None
+        self.hook: GlueCrawlerHook | None = None
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         hook = self.get_hook()
         self.log.info("Poking for AWS Glue crawler: %s", self.crawler_name)
         crawler_state = hook.get_crawler(self.crawler_name)['State']
