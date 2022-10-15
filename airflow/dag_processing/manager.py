@@ -18,6 +18,7 @@
 """Processes DAGs."""
 from __future__ import annotations
 
+import collections
 import enum
 import importlib
 import inspect
@@ -118,7 +119,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         async_mode: bool,
     ):
         super().__init__()
-        self._file_path_queue: list[str] = []
         self._dag_directory: os.PathLike = dag_directory
         self._max_runs = max_runs
         self._processor_timeout = processor_timeout
@@ -381,7 +381,7 @@ class DagFileProcessorManager(LoggingMixin):
     ):
         super().__init__()
         self._file_paths: list[str] = []
-        self._file_path_queue: list[str] = []
+        self._file_path_queue: collections.deque[str] = collections.deque()
         self._max_runs = max_runs
         # signal_conn is None for dag_processor_standalone mode.
         self._direct_scheduler_conn = signal_conn
@@ -701,7 +701,7 @@ class DagFileProcessorManager(LoggingMixin):
             self.log.debug("Queuing SlaCallbackRequest for %s", request.dag_id)
             self._callback_to_execute[request.full_filepath].append(request)
             if request.full_filepath not in self._file_path_queue:
-                self._file_path_queue.append(request.full_filepath)
+                self._file_path_queue.appendleft(request.full_filepath)
 
         # Other callbacks have a higher priority over DAG Run scheduling, so those callbacks gazump, even if
         # already in the queue
@@ -712,10 +712,10 @@ class DagFileProcessorManager(LoggingMixin):
                 # Remove file paths matching request.full_filepath from self._file_path_queue
                 # Since we are already going to use that filepath to run callback,
                 # there is no need to have same file path again in the queue
-                self._file_path_queue = [
+                self._file_path_queue = collections.deque([
                     file_path for file_path in self._file_path_queue if file_path != request.full_filepath
-                ]
-            self._file_path_queue.insert(0, request.full_filepath)
+                ])
+            self._file_path_queue.append(request.full_filepath)
 
     def _refresh_dag_dir(self):
         """Refresh file paths from dag dir if we haven't done it for too long."""
@@ -947,7 +947,7 @@ class DagFileProcessorManager(LoggingMixin):
         :return: None
         """
         self._file_paths = new_file_paths
-        self._file_path_queue = [x for x in self._file_path_queue if x in new_file_paths]
+        self._file_path_queue = collections.deque([x for x in self._file_path_queue if x in new_file_paths])
         # Stop processors that are working on deleted files
         filtered_processors = {}
         for file_path, processor in self._processors.items():
@@ -1025,7 +1025,7 @@ class DagFileProcessorManager(LoggingMixin):
     def start_new_processes(self):
         """Start more processors if we have enough slots and files to process"""
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
-            file_path = self._file_path_queue.pop(0)
+            file_path = self._file_path_queue.pop()
             # Stop creating duplicate processor i.e. processor with the same filepath
             if file_path in self._processors.keys():
                 continue
@@ -1056,7 +1056,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self._file_stats[file_path] = DagFileStat(
                     num_dags=0, import_errors=0, last_finish_time=None, last_duration=None, run_count=0
                 )
-                self._file_path_queue.insert(0, file_path)
+                self._file_path_queue.append(file_path)
 
 
     def prepare_file_path_queue(self):
@@ -1139,7 +1139,7 @@ class DagFileProcessorManager(LoggingMixin):
                     num_dags=0, import_errors=0, last_finish_time=None, last_duration=None, run_count=0
                 )
 
-        self._file_path_queue.extend(files_paths_to_queue)
+        self._file_path_queue.extendleft(files_paths_to_queue)
 
     def _kill_timed_out_processors(self):
         """Kill any file processors that timeout to defend against process hangs."""
