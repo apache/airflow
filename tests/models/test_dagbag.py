@@ -1060,3 +1060,16 @@ class TestDagBag:
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert len(dagbag.dag_ids) == 0
         assert "has no tags" in dagbag.import_errors[dag_file]
+
+    def test_dagbag_dag_collection(self):
+
+        dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False, collect_dags=False)
+        # since collect_dags is False, dagbag.dags should be empty
+        assert not dagbag.dags
+
+        dagbag.collect_dags()
+        assert dagbag.dags
+
+        # test that dagbag.dags is not empty if collect_dags is True
+        dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
+        assert dagbag.dags

@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 import sys
 import tempfile
-import unittest
+from unittest import mock
 from unittest.mock import MagicMock, call
 
 import pytest
@@ -78,32 +78,32 @@ class SettingsContext:
         sys.path.remove(self.settings_root)
 
 
-class TestLocalSettings(unittest.TestCase):
+class TestLocalSettings:
     # Make sure that the configure_logging is not cached
-    def setUp(self):
+    def setup_method(self):
         self.old_modules = dict(sys.modules)
 
-    def tearDown(self):
+    def teardown_method(self):
         # Remove any new modules imported during the test run. This lets us
         # import the same source files for more than one test.
         for mod in [m for m in sys.modules if m not in self.old_modules]:
             del sys.modules[mod]
 
-    @unittest.mock.patch("airflow.settings.import_local_settings")
-    @unittest.mock.patch("airflow.settings.prepare_syspath")
+    @mock.patch("airflow.settings.import_local_settings")
+    @mock.patch("airflow.settings.prepare_syspath")
     def test_initialize_order(self, prepare_syspath, import_local_settings):
         """
         Tests that import_local_settings is called after prepare_classpath
         """
-        mock = unittest.mock.Mock()
-        mock.attach_mock(prepare_syspath, "prepare_syspath")
-        mock.attach_mock(import_local_settings, "import_local_settings")
+        mock_local_settings = mock.Mock()
+        mock_local_settings.attach_mock(prepare_syspath, "prepare_syspath")
+        mock_local_settings.attach_mock(import_local_settings, "import_local_settings")
 
         import airflow.settings
 
         airflow.settings.initialize()
 
-        mock.assert_has_calls([call.prepare_syspath(), call.import_local_settings()])
+        mock_local_settings.assert_has_calls([call.prepare_syspath(), call.import_local_settings()])
 
     def test_import_with_dunder_all_not_specified(self):
         """
@@ -133,7 +133,7 @@ class TestLocalSettings(unittest.TestCase):
 
             assert task_instance.run_as_user == "myself"
 
-    @unittest.mock.patch("airflow.settings.log.debug")
+    @mock.patch("airflow.settings.log.debug")
     def test_import_local_settings_without_syspath(self, log_mock):
         """
         Tests that an ImportError is raised in import_local_settings
@@ -186,7 +186,7 @@ class TestLocalSettings(unittest.TestCase):
                 settings.task_must_have_owners(task_instance)
 
 
-class TestUpdatedConfigNames(unittest.TestCase):
+class TestUpdatedConfigNames:
     @conf_vars(
         {("webserver", "session_lifetime_days"): '5', ("webserver", "session_lifetime_minutes"): '43200'}
     )
