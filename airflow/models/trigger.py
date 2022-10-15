@@ -201,10 +201,12 @@ class Trigger(Base):
             # notin_ doesn't find NULL rows
             .filter(or_(cls.triggerer_id.is_(None), cls.triggerer_id.notin_(alive_triggerer_ids)))
             .limit(capacity)
+            .with_for_update(skip_locked=True)
             .all()
         )
-        session.query(cls).filter(cls.id.in_([i.id for i in trigger_ids_query])).update(
-            {cls.triggerer_id: triggerer_id},
-            synchronize_session=False,
-        )
+        if trigger_ids_query:
+            session.query(cls).filter(cls.id.in_([i.id for i in trigger_ids_query])).update(
+                {cls.triggerer_id: triggerer_id},
+                synchronize_session=False,
+            )
         session.commit()
