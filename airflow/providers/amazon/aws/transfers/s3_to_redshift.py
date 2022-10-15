@@ -64,7 +64,15 @@ class S3ToRedshiftOperator(BaseOperator):
     :param upsert_keys: List of fields to use as key on upsert action
     """
 
-    template_fields: Sequence[str] = ('s3_bucket', 's3_key', 'schema', 'table', 'column_list', 'copy_options')
+    template_fields: Sequence[str] = (
+        's3_bucket',
+        's3_key',
+        'schema',
+        'table',
+        'column_list',
+        'copy_options',
+        'redshift_conn_id',
+    )
     template_ext: Sequence[str] = ()
     ui_color = '#99e699'
 

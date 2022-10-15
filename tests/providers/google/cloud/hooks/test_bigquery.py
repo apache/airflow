@@ -1255,11 +1255,17 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
             "schema": {
                 "fields": [
                     {"name": "field_1", "type": "STRING", "mode": "NULLABLE"},
+                    {"name": "field_2", "type": "STRING"},
+                    {"name": "field_3", "type": "STRING", "mode": "REPEATED"},
                 ]
             },
         }
         description = _format_schema_for_description(test_query_result["schema"])
-        assert description == [('field_1', 'STRING', None, None, None, None, True)]
+        assert description == [
+            ('field_1', 'STRING', None, None, None, None, True),
+            ('field_2', 'STRING', None, None, None, None, True),
+            ('field_3', 'STRING', None, None, None, None, False),
+        ]
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")

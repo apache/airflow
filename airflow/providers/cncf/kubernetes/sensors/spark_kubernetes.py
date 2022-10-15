@@ -39,6 +39,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
 
     :param application_name: spark Application resource name
     :param namespace: the kubernetes namespace where the sparkApplication reside in
+    :param container_name: the kubernetes container name where the sparkApplication reside in
     :param kubernetes_conn_id: The :ref:`kubernetes connection<howto/connection:kubernetes>`
         to Kubernetes cluster.
     :param attach_log: determines whether logs for driver pod should be appended to the sensor log
@@ -56,6 +57,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
         application_name: str,
         attach_log: bool = False,
         namespace: str | None = None,
+        container_name: str = "spark-kubernetes-driver",
         kubernetes_conn_id: str = "kubernetes_default",
         api_group: str = 'sparkoperator.k8s.io',
         api_version: str = 'v1beta2',
@@ -65,6 +67,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
         self.application_name = application_name
         self.attach_log = attach_log
         self.namespace = namespace
+        self.container_name = container_name
         self.kubernetes_conn_id = kubernetes_conn_id
         self.hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
         self.api_group = api_group
@@ -84,7 +87,9 @@ class SparkKubernetesSensor(BaseSensorOperator):
         log_method = self.log.error if application_state in self.FAILURE_STATES else self.log.info
         try:
             log = ""
-            for line in self.hook.get_pod_logs(driver_pod_name, namespace=namespace):
+            for line in self.hook.get_pod_logs(
+                driver_pod_name, namespace=namespace, container=self.container_name
+            ):
                 log += line.decode()
             log_method(log)
         except client.rest.ApiException as e:

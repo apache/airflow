@@ -77,7 +77,7 @@ from airflow.models.base import Base, StringID
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue as DDRQ
+from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue as DDRQ, DatasetModel
 from airflow.models.operator import Operator
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
@@ -200,15 +200,24 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     return query.first()
 
 
-def get_dataset_triggered_next_run_info(dag_ids: list[str], *, session: Session) -> dict[str, str]:
+def get_dataset_triggered_next_run_info(
+    dag_ids: list[str], *, session: Session
+) -> dict[str, dict[str, int | str]]:
     """
     Given a list of dag_ids, get string representing how close any that are dataset triggered are
     their next run, e.g. "1 of 2 datasets updated"
     """
     return {
-        x.dag_id: f"{x.ready} of {x.total} datasets updated"
+        x.dag_id: {
+            "uri": x.uri,
+            "ready": x.ready,
+            "total": x.total,
+        }
         for x in session.query(
             DagScheduleDatasetReference.dag_id,
+            # This is a dirty hack to workaround group by requiring an aggregate, since grouping by dataset
+            # is not what we want to do here...but it works
+            case((func.count() == 1, func.max(DatasetModel.uri)), else_='').label("uri"),
             func.count().label("total"),
             func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)).label("ready"),
         )
@@ -220,7 +229,13 @@ def get_dataset_triggered_next_run_info(dag_ids: list[str], *, session: Session)
             ),
             isouter=True,
         )
-        .group_by(DagScheduleDatasetReference.dag_id)
+        .join(
+            DatasetModel,
+            DatasetModel.id == DagScheduleDatasetReference.dataset_id,
+        )
+        .group_by(
+            DagScheduleDatasetReference.dag_id,
+        )
         .filter(DagScheduleDatasetReference.dag_id.in_(dag_ids))
         .all()
     }
@@ -585,6 +600,11 @@ class DAG(LoggingMixin):
                 "Wrong link format was used for the owner. Use a valid link \n"
                 f"Bad formatted links are: {wrong_links}"
             )
+
+        # this will only be set at serialization time
+        # it's only use is for determining the relative
+        # fileloc based only on the serialize dag
+        self._processor_dags_folder = None
 
     def get_doc_md(self, doc_md: str | None) -> str | None:
         if doc_md is None:
@@ -1191,7 +1211,11 @@ class DAG(LoggingMixin):
         """File location of the importable dag 'file' relative to the configured DAGs folder."""
         path = pathlib.Path(self.fileloc)
         try:
-            return path.relative_to(settings.DAGS_FOLDER)
+            rel_path = path.relative_to(self._processor_dags_folder or settings.DAGS_FOLDER)
+            if rel_path == pathlib.Path('.'):
+                return path
+            else:
+                return rel_path
         except ValueError:
             # Not relative to DAGS_FOLDER.
             return path
@@ -2446,7 +2470,15 @@ class DAG(LoggingMixin):
         variable_file_path: str | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
-        """Execute one single DagRun for a given DAG and execution date."""
+        """
+        Execute one single DagRun for a given DAG and execution date.
+
+        :param execution_date: execution date for the DAG run
+        :param run_conf: configuration to pass to newly created dagrun
+        :param conn_file_path: file path to a connection file in either yaml or json
+        :param variable_file_path: file path to a variable file in either yaml or json
+        :param session: database connection (optional)
+        """
 
         def add_logger_if_needed(ti: TaskInstance):
             """
@@ -3399,7 +3431,7 @@ class DagModel(Base):
         )
 
     @provide_session
-    def get_dataset_triggered_next_run_info(self, *, session=NEW_SESSION) -> str | None:
+    def get_dataset_triggered_next_run_info(self, *, session=NEW_SESSION) -> dict[str, int | str] | None:
         if self.schedule_interval != "Dataset":
             return None
         return get_dataset_triggered_next_run_info([self.dag_id], session=session)[self.dag_id]
