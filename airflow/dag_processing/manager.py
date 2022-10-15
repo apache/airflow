@@ -701,7 +701,7 @@ class DagFileProcessorManager(LoggingMixin):
             self.log.debug("Queuing SlaCallbackRequest for %s", request.dag_id)
             self._callback_to_execute[request.full_filepath].append(request)
             if request.full_filepath not in self._file_path_queue:
-                self._file_path_queue.appendleft(request.full_filepath)
+                self._file_path_queue.append(request.full_filepath)
 
         # Other callbacks have a higher priority over DAG Run scheduling, so those callbacks gazump, even if
         # already in the queue
@@ -715,7 +715,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self._file_path_queue = collections.deque([
                     file_path for file_path in self._file_path_queue if file_path != request.full_filepath
                 ])
-            self._file_path_queue.append(request.full_filepath)
+            self._file_path_queue.appendleft(request.full_filepath)
 
     def _refresh_dag_dir(self):
         """Refresh file paths from dag dir if we haven't done it for too long."""
@@ -1025,7 +1025,7 @@ class DagFileProcessorManager(LoggingMixin):
     def start_new_processes(self):
         """Start more processors if we have enough slots and files to process"""
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
-            file_path = self._file_path_queue.pop()
+            file_path = self._file_path_queue.popleft()
             # Stop creating duplicate processor i.e. processor with the same filepath
             if file_path in self._processors.keys():
                 continue
@@ -1056,7 +1056,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self._file_stats[file_path] = DagFileStat(
                     num_dags=0, import_errors=0, last_finish_time=None, last_duration=None, run_count=0
                 )
-                self._file_path_queue.append(file_path)
+                self._file_path_queue.appendleft(file_path)
 
 
     def prepare_file_path_queue(self):
@@ -1139,7 +1139,7 @@ class DagFileProcessorManager(LoggingMixin):
                     num_dags=0, import_errors=0, last_finish_time=None, last_duration=None, run_count=0
                 )
 
-        self._file_path_queue.extendleft(files_paths_to_queue)
+        self._file_path_queue.extend(files_paths_to_queue)
 
     def _kill_timed_out_processors(self):
         """Kill any file processors that timeout to defend against process hangs."""
