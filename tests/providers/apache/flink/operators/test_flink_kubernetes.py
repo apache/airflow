@@ -25,7 +25,7 @@ from unittest.mock import patch
 
 from airflow import DAG
 from airflow.models import Connection
-from airflow.providers.cncf.kubernetes.operators.flink_kubernetes import FlinkKubernetesOperator
+from airflow.providers.apache.flink.operators.flink_kubernetes import FlinkKubernetesOperator
 from airflow.utils import db, timezone
 
 TEST_VALID_APPLICATION_YAML = """

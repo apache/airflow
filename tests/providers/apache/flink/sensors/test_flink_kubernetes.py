@@ -30,7 +30,7 @@ from kubernetes.client.rest import ApiException
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.cncf.kubernetes.sensors.flink_kubernetes import FlinkKubernetesSensor
+from airflow.providers.apache.flink.sensors.flink_kubernetes import FlinkKubernetesSensor
 from airflow.utils import db, timezone
 
 TEST_NO_STATE_CLUSTER = {

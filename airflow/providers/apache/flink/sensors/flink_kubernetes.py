@@ -38,7 +38,7 @@ class FlinkKubernetesSensor(BaseSensorOperator):
         https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/docs/custom-resource/reference/#flinkdeployment
 
     :param application_name: flink Application resource name
-    :param namespace: the kubernetes namespace where the sparkApplication reside in
+    :param namespace: the kubernetes namespace where the flinkDeployment reside in
     :param kubernetes_conn_id: The :ref:`kubernetes connection<howto/connection:kubernetes>`
         to Kubernetes cluster
     :param attach_log: determines whether logs for driver pod should be appended to the sensor log
