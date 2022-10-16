@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 import os.path
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 from urllib.parse import urlparse
 
 import requests
@@ -124,7 +124,7 @@ class DeltaSharingLocalDownloadOperator(BaseOperator):
         self.overwrite_existing = overwrite_existing
         if num_parallel_downloads < 1:
             raise ValueError(
-                "num_parallel_downloads should be greater or equal to 1," f" got {num_parallel_downloads}"
+                "num_parallel_downloads should be greater or equal to 1, got {num_parallel_downloads}"
             )
         self.num_parallel_downloads = num_parallel_downloads
 
@@ -148,7 +148,7 @@ class DeltaSharingLocalDownloadOperator(BaseOperator):
             for part in partitions:
                 part_value = partition_values.get(part)
                 if part_value is None:
-                    self.log.warning(f"There is no value for partition '{part}'")
+                    self.log.warning("There is no value for partition '%s'", part)
                     part_value = "__null__"
                 file_parts.append(f"{part}={part_value}")
 
@@ -163,7 +163,7 @@ class DeltaSharingLocalDownloadOperator(BaseOperator):
             stat = os.stat(dest_file_path)
             if file_size == stat.st_size and not self.overwrite_existing:
                 self.log.info(
-                    f"File {dest_file_path} already exists, and has the same size. " "Skipping download..."
+                    f"File {dest_file_path} already exists, and has the same size. Skipping download..."
                 )
                 return
 
@@ -196,10 +196,10 @@ class DeltaSharingLocalDownloadOperator(BaseOperator):
         results = self.hook.query_table(
             self.share, self.schema, self.table, limit=self.limit, predicates=self.predicates
         )
-        self.log.debug(f"Version: {results.version}")
-        self.log.debug(f"Protocol: {results.protocol}")
-        self.log.debug(f"Metadata: {results.metadata}")
-        self.log.debug(f"Files: count={len(results.files)}")
+        self.log.debug("Version: %s", results.version)
+        self.log.debug("Protocol: %s", results.protocol)
+        self.log.debug("Metadata: %s", results.metadata)
+        self.log.debug("Files: count=%d", len(results.files))
         # write files
         if len(results.files) > 0:
             has_errors = False
@@ -217,7 +217,7 @@ class DeltaSharingLocalDownloadOperator(BaseOperator):
                         self.log.warning("Exception when downloading from '%s': %s", file['url'], exc)
             if has_errors:
                 raise AirflowException(
-                    "Some Delta Sharing files weren't downloaded correctly. " "Check logs for details"
+                    "Some Delta Sharing files weren't downloaded correctly. Check logs for details"
                 )
 
         # write metadata - for each version

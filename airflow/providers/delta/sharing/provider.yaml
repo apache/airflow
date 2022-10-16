@@ -51,9 +51,6 @@ hooks:
     python-modules:
       - airflow.providers.delta.sharing.hooks.delta_sharing
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.delta.sharing.hooks.delta_sharing.DeltaSharingHook
-
 connection-types:
   - hook-class-name: airflow.providers.delta.sharing.hooks.delta_sharing.DeltaSharingHook
     connection-type: delta_sharing

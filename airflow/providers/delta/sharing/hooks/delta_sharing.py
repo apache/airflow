@@ -23,7 +23,7 @@ import os.path
 import re
 import sys
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import requests
 from requests import exceptions as requests_exceptions
@@ -279,7 +279,7 @@ class DeltaSharingHook(BaseHook):
         lines = response.text.splitlines()
         if len(lines) < 2:
             raise AirflowException(
-                "Content should have at least two lines (protocol and metadata)," f" got {len(lines)}"
+                "Content should have at least two lines (protocol and metadata), got {len(lines)}"
             )
         protocol = json.loads(lines[0])['protocol']
         meta = json.loads(lines[1])['metaData']
