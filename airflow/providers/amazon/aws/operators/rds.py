@@ -709,10 +709,11 @@ class RdsStartDbOperator(RdsBaseOperator):
     ):
         super().__init__(aws_conn_id=aws_conn_id, **kwargs)
         self.db_identifier = db_identifier
-        self.db_type = RdsDbType(db_type)
+        self.db_type = db_type
         self.wait_for_completion = wait_for_completion
 
     def execute(self, context: Context) -> str:
+        self.db_type = RdsDbType(self.db_type)
         start_db_response = self._start_db()
         if self.wait_for_completion:
             self._wait_until_db_available()
@@ -765,11 +766,12 @@ class RdsStopDbOperator(RdsBaseOperator):
     ):
         super().__init__(aws_conn_id=aws_conn_id, **kwargs)
         self.db_identifier = db_identifier
-        self.db_type = RdsDbType(db_type)
+        self.db_type = db_type
         self.db_snapshot_identifier = db_snapshot_identifier
         self.wait_for_completion = wait_for_completion
 
     def execute(self, context: Context) -> str:
+        self.db_type = RdsDbType(self.db_type)
         stop_db_response = self._stop_db()
         if self.wait_for_completion:
             self._wait_until_db_stopped()
