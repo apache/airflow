@@ -166,6 +166,32 @@ To delete a AWS DB instance you can use
     :start-after: [START howto_operator_rds_delete_db_instance]
     :end-before: [END howto_operator_rds_delete_db_instance]
 
+
+Start a database instance or cluster
+====================================
+
+To start an AWS DB instance or cluster you can use
+:class:`~airflow.providers.amazon.aws.operators.rds.RdsStartDbOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_instance.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_rds_start_db]
+    :end-before: [END howto_operator_rds_start_db]
+
+
+Stop a database instance or cluster
+===================================
+
+To stop an AWS DB instance or cluster you can use
+:class:`~airflow.providers.amazon.aws.operators.rds.RdsStopDbOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_instance.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_rds_stop_db]
+    :end-before: [END howto_operator_rds_stop_db]
+
 Sensors
 -------
 

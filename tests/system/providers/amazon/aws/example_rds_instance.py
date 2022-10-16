@@ -79,15 +79,15 @@ with DAG(
         db_identifier=rds_db_identifier,
         wait_for_completion=True,
     )
-    # [END howto_sensor_rds_stop_db]
+    # [END howto_operator_rds_stop_db]
 
-    # [START howto_sensor_rds_start_db]
+    # [START howto_operator_rds_start_db]
     start_db_instance = RdsStartDbOperator(
         task_id="start_db_instance",
         db_identifier=rds_db_identifier,
         wait_for_completion=True,
     )
-    # [END howto_sensor_rds_start_db]
+    # [END howto_operator_rds_start_db]
 
     # [START howto_operator_rds_delete_db_instance]
     delete_db_instance = RdsDeleteDbInstanceOperator(
