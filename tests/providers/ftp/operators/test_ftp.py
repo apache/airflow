@@ -22,13 +22,12 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.providers.ftp.operators.ftp import FTPOperation, FTPOperator
 from airflow.utils.timezone import datetime
 
 DEFAULT_DATE = datetime(2017, 1, 1)
-TEST_CONN_ID = "ftp_default"
+DEFAULT_CONN_ID = "ftp_default"
 
 
 class TestFTPOperator:
@@ -53,7 +52,7 @@ class TestFTPOperator:
     def test_file_transfer_put(self, mock_create_dir, mock_put):
         ftp_op = FTPOperator(
             task_id="test_ftp_put",
-            ftp_conn_id=TEST_CONN_ID,
+            ftp_conn_id=DEFAULT_CONN_ID,
             local_filepath=self.test_local_filepath,
             remote_filepath=self.test_remote_filepath,
             operation=FTPOperation.PUT,
@@ -68,7 +67,7 @@ class TestFTPOperator:
     def test_file_transfer_with_intermediate_dir_put(self, mock_create_dir, mock_put):
         ftp_op = FTPOperator(
             task_id="test_ftp_put_imm_dirs",
-            ftp_conn_id=TEST_CONN_ID,
+            ftp_conn_id=DEFAULT_CONN_ID,
             local_filepath=self.test_local_filepath,
             remote_filepath=self.test_remote_filepath_int_dir,
             operation=FTPOperation.PUT,
@@ -83,7 +82,7 @@ class TestFTPOperator:
     def test_file_transfer_get(self, mock_get):
         ftp_op = FTPOperator(
             task_id="test_ftp_get",
-            ftp_conn_id=TEST_CONN_ID,
+            ftp_conn_id=DEFAULT_CONN_ID,
             local_filepath=self.test_local_filepath,
             remote_filepath=self.test_remote_filepath,
             operation=FTPOperation.GET,
@@ -96,7 +95,7 @@ class TestFTPOperator:
     def test_file_transfer_with_intermediate_dir_get(self, mock_get):
         ftp_op = FTPOperator(
             task_id="test_ftp_get_imm_dirs",
-            ftp_conn_id=TEST_CONN_ID,
+            ftp_conn_id=DEFAULT_CONN_ID,
             local_filepath=self.test_local_filepath_int_dir,
             remote_filepath=self.test_remote_filepath,
             operation=FTPOperation.GET,
@@ -113,7 +112,7 @@ class TestFTPOperator:
         remote_filepath = ['/tmp/rtest1', '/tmp/rtest2']
         ftp_op = FTPOperator(
             task_id='test_multiple_paths_get',
-            ftp_conn_id=TEST_CONN_ID,
+            ftp_conn_id=DEFAULT_CONN_ID,
             local_filepath=local_filepath,
             remote_filepath=remote_filepath,
             operation=FTPOperation.GET,
@@ -131,7 +130,7 @@ class TestFTPOperator:
         remote_filepath = ['/tmp/rtest1', '/tmp/rtest2']
         ftp_op = FTPOperator(
             task_id='test_multiple_paths_put',
-            ftp_conn_id=TEST_CONN_ID,
+            ftp_conn_id=DEFAULT_CONN_ID,
             local_filepath=local_filepath,
             remote_filepath=remote_filepath,
             operation=FTPOperation.PUT,
@@ -143,24 +142,25 @@ class TestFTPOperator:
         assert args0 == (remote_filepath[0], local_filepath[0])
         assert args1 == (remote_filepath[1], local_filepath[1])
 
-    def test_arg_checking(self):
+    @mock.patch('airflow.providers.ftp.operators.ftp.FTPHook.store_file')
+    def test_arg_checking(self, mock_put):
         dag = DAG(dag_id="unit_tests_ftp_op_arg_checking", default_args={"start_date": DEFAULT_DATE})
-        # Exception should be raised if ftp_conn_id is not provided (this is a required argument)
-        with pytest.raises(AirflowException, match="missing keyword argument 'ftp_conn_id'"):
-            task_0 = FTPOperator(
-                task_id="test_ftp_args_0",
-                local_filepath=self.test_local_filepath,
-                remote_filepath=self.test_remote_filepath,
-                operation=FTPOperation.PUT,
-                dag=dag,
-            )
-            task_0.execute(None)
+        # If ftp_conn_id is not passed in, it should be assigned the default connection id
+        task_0 = FTPOperator(
+            task_id="test_ftp_args_0",
+            local_filepath=self.test_local_filepath,
+            remote_filepath=self.test_remote_filepath,
+            operation=FTPOperation.PUT,
+            dag=dag,
+        )
+        task_0.execute(None)
+        assert task_0.ftp_conn_id == DEFAULT_CONN_ID
 
         # Exception should be raised if operation is invalid
         with pytest.raises(TypeError, match="Unsupported operation value invalid_operation, "):
             task_1 = FTPOperator(
                 task_id="test_ftp_args_1",
-                ftp_conn_id=TEST_CONN_ID,
+                ftp_conn_id=DEFAULT_CONN_ID,
                 local_filepath=self.test_local_filepath,
                 remote_filepath=self.test_remote_filepath,
                 operation='invalid_operation',
@@ -172,7 +172,7 @@ class TestFTPOperator:
         with pytest.raises(ValueError):
             FTPOperator(
                 task_id='test_ftp_unequal_paths',
-                ftp_conn_id=TEST_CONN_ID,
+                ftp_conn_id=DEFAULT_CONN_ID,
                 local_filepath='/tmp/test',
                 remote_filepath=['/tmp/test1', '/tmp/test2'],
             )
@@ -180,7 +180,7 @@ class TestFTPOperator:
         with pytest.raises(ValueError):
             FTPOperator(
                 task_id='test_ftp_unequal_paths',
-                ftp_conn_id=TEST_CONN_ID,
+                ftp_conn_id=DEFAULT_CONN_ID,
                 local_filepath=['/tmp/test1', '/tmp/test2'],
                 remote_filepath='/tmp/test1',
             )

@@ -29,12 +29,7 @@ pull files to/from an FTP server.
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
-| **ftp_conn_id**: id referencing an FTP Connection **str**
-| **local_filepath**: local file path to get or put. **str**
-| **remote_filepath**: remote file path to get or put. **str**
-| **operation**: specify operation 'get' or 'put' **str** - Default: **PUT**
-| **create_intermediate_dirs**: create missing intermediate directories when copying from remote to local and vice-versa. **bool** - Default: **False**
-|
+For parameter definition take a look at :class:`~airflow.providers.ftp.operators.FTPOperator`.
 
 Example: The following task would copy ``file.txt`` to the remote host
 at ``/tmp/tmp1/tmp2/`` while creating ``tmp``, ``tmp1`` and ``tmp2`` if they

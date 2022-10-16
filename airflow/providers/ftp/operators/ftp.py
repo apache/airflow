@@ -23,7 +23,6 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.ftp.hooks.ftp import FTPHook
 
@@ -51,8 +50,8 @@ class FTPOperator(BaseOperator):
 
         Example: The following task would copy ``file.txt`` to the remote host
         at ``/tmp/tmp1/tmp2/`` while creating ``tmp``,``tmp1`` and ``tmp2`` if they
-        don't exist. If the parameter is not passed it would error as the directory
-        does not exist. ::
+        don't exist. If the ``create_intermediate_dirs`` parameter is not passed it would error
+        as the directory does not exist. ::
 
             put_file = FTPOperator(
                 task_id="test_ftp",
@@ -71,7 +70,7 @@ class FTPOperator(BaseOperator):
     def __init__(
         self,
         *,
-        ftp_conn_id: str,
+        ftp_conn_id: str = "ftp_default",
         local_filepath: str | list[str],
         remote_filepath: str | list[str],
         operation: str = FTPOperation.PUT,
@@ -83,7 +82,6 @@ class FTPOperator(BaseOperator):
         self.operation = operation
         self.create_intermediate_dirs = create_intermediate_dirs
 
-        self.local_filepath_was_str = False
         if isinstance(local_filepath, str):
             self.local_filepath = [local_filepath]
         else:
@@ -113,23 +111,19 @@ class FTPOperator(BaseOperator):
 
     def execute(self, context: Any) -> str | list[str] | None:
         file_msg = None
-        try:
-            for local_filepath, remote_filepath in zip(self.local_filepath, self.remote_filepath):
-                if self.operation.lower() == FTPOperation.GET:
-                    local_folder = os.path.dirname(local_filepath)
-                    if self.create_intermediate_dirs:
-                        Path(local_folder).mkdir(parents=True, exist_ok=True)
-                    file_msg = f"from {remote_filepath} to {local_filepath}"
-                    self.log.info("Starting to transfer %s", file_msg)
-                    self.hook.retrieve_file(remote_filepath, local_filepath)
-                else:
-                    remote_folder = os.path.dirname(remote_filepath)
-                    if self.create_intermediate_dirs:
-                        self.hook.create_directory(remote_folder)
-                    file_msg = f"from {local_filepath} to {remote_filepath}"
-                    self.log.info("Starting to transfer file %s", file_msg)
-                    self.hook.store_file(remote_filepath, local_filepath)
-        except Exception as e:
-            raise AirflowException(f"Error while transferring {file_msg}, error: {str(e)}")
-
+        for local_filepath, remote_filepath in zip(self.local_filepath, self.remote_filepath):
+            if self.operation.lower() == FTPOperation.GET:
+                local_folder = os.path.dirname(local_filepath)
+                if self.create_intermediate_dirs:
+                    Path(local_folder).mkdir(parents=True, exist_ok=True)
+                file_msg = f"from {remote_filepath} to {local_filepath}"
+                self.log.info("Starting to transfer %s", file_msg)
+                self.hook.retrieve_file(remote_filepath, local_filepath)
+            else:
+                remote_folder = os.path.dirname(remote_filepath)
+                if self.create_intermediate_dirs:
+                    self.hook.create_directory(remote_folder)
+                file_msg = f"from {local_filepath} to {remote_filepath}"
+                self.log.info("Starting to transfer file %s", file_msg)
+                self.hook.store_file(remote_filepath, local_filepath)
         return self.local_filepath
