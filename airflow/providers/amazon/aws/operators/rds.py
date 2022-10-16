@@ -88,12 +88,17 @@ class RdsBaseOperator(BaseOperator):
             if len(items) > 1:
                 raise AirflowException(f"There are {len(items)} {item_type} with identifier {item_name}")
 
-            if wait_statuses and items[0]['Status'].lower() in wait_statuses:
+            if item_type == "db_instance":
+                status_field = "DBInstanceStatus"
+            else:
+                status_field = "Status"
+
+            if wait_statuses and items[0][status_field].lower() in wait_statuses:
                 time.sleep(self._await_interval)
                 continue
-            elif ok_statuses and items[0]['Status'].lower() in ok_statuses:
+            elif ok_statuses and items[0][status_field].lower() in ok_statuses:
                 break
-            elif error_statuses and items[0]['Status'].lower() in error_statuses:
+            elif error_statuses and items[0][status_field].lower() in error_statuses:
                 raise AirflowException(f"Item has error status ({error_statuses}): {items[0]}")
             else:
                 raise AirflowException(f"Item has uncertain status: {items[0]}")
@@ -740,7 +745,8 @@ class RdsStopDbOperator(RdsBaseOperator):
     :param db_identifier: The AWS identifier of the DB to stop
     :param db_type: Type of the DB - either "instance" or "cluster" (default: "instance")
     :param db_snapshot_identifier: The instance identifier of the DB Snapshot to create before
-        stopping the DB instance. This parameter is ignored when ``db_type`` is "cluster"
+        stopping the DB instance. The default value (None) skips snapshot creation. This
+        parameter is ignored when ``db_type`` is "cluster"
     :param aws_conn_id: The Airflow connection used for AWS credentials. (default: "aws_default")
     :param wait_for_completion:  If True, waits for DB to stop. (default: True)
     """
@@ -772,9 +778,12 @@ class RdsStopDbOperator(RdsBaseOperator):
     def _stop_db(self):
         self.log.info(f"Stopping DB {self.db_type} '{self.db_identifier}'")
         if self.db_type == RdsDbType.INSTANCE:
-            response = self.hook.conn.stop_db_instance(
-                DBInstanceIdentifier=self.db_identifier, DBSnapshotIdentifier=self.db_snapshot_identifier
-            )
+            conn_params = {"DBInstanceIdentifier": self.db_identifier}
+            # The db snapshot parameter is optional, but the AWS SDK raises an exception
+            # if passed a null value. Only set snapshot id if value is present.
+            if self.db_snapshot_identifier:
+                conn_params["DBSnapshotIdentifier"] = self.db_snapshot_identifier
+            response = self.hook.conn.stop_db_instance(**conn_params)
         else:
             if self.db_snapshot_identifier:
                 self.log.warning(

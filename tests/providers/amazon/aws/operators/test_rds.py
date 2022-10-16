@@ -35,7 +35,9 @@ from airflow.providers.amazon.aws.operators.rds import (
     RdsDeleteDbInstanceOperator,
     RdsDeleteDbSnapshotOperator,
     RdsDeleteEventSubscriptionOperator,
+    RdsStartDbOperator,
     RdsStartExportTaskOperator,
+    RdsStopDbOperator,
 )
 from airflow.utils import timezone
 
@@ -767,3 +769,127 @@ class TestRdsDeleteDbInstanceOperator:
         with pytest.raises(self.hook.conn.exceptions.ClientError):
             self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
         assert mock_await_status.not_called()
+
+
+@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
+class TestRdsStopDbOperator:
+    @classmethod
+    def setup_class(cls):
+        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
+        _patch_hook_get_connection(cls.hook)
+
+    @classmethod
+    def teardown_class(cls):
+        del cls.dag
+        del cls.hook
+
+    @mock_rds
+    @patch.object(RdsBaseOperator, "_await_status")
+    def test_stop_db_instance(self, mock_await_status):
+        _create_db_instance(self.hook)
+        stop_db_instance = RdsStopDbOperator(task_id="test_stop_db_instance", db_identifier=DB_INSTANCE_NAME)
+        _patch_hook_get_connection(stop_db_instance.hook)
+        stop_db_instance.execute(None)
+        result = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        status = result["DBInstances"][0]["DBInstanceStatus"]
+        assert status == "stopped"
+        mock_await_status.assert_called()
+
+    @mock_rds
+    @patch.object(RdsBaseOperator, "_await_status")
+    def test_stop_db_instance_no_wait(self, mock_await_status):
+        _create_db_instance(self.hook)
+        stop_db_instance = RdsStopDbOperator(
+            task_id="test_stop_db_instance_no_wait", db_identifier=DB_INSTANCE_NAME, wait_for_completion=False
+        )
+        _patch_hook_get_connection(stop_db_instance.hook)
+        stop_db_instance.execute(None)
+        result = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        status = result["DBInstances"][0]["DBInstanceStatus"]
+        assert status == "stopped"
+        mock_await_status.assert_not_called()
+
+    @mock_rds
+    def test_stop_db_instance_create_snapshot(self):
+        _create_db_instance(self.hook)
+        stop_db_instance = RdsStopDbOperator(
+            task_id="test_stop_db_instance_create_snapshot",
+            db_identifier=DB_INSTANCE_NAME,
+            db_snapshot_identifier=DB_INSTANCE_SNAPSHOT,
+        )
+        _patch_hook_get_connection(stop_db_instance.hook)
+        stop_db_instance.execute(None)
+
+        describe_result = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        status = describe_result["DBInstances"][0]['DBInstanceStatus']
+        assert status == "stopped"
+
+        snapshot_result = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT)
+        instance_snapshots = snapshot_result.get("DBSnapshots")
+        assert instance_snapshots
+        assert len(instance_snapshots) == 1
+
+    @mock_rds
+    @patch.object(RdsBaseOperator, "_await_status")
+    def test_stop_db_cluster(self, mock_await_status):
+        _create_db_cluster(self.hook)
+        stop_db_cluster = RdsStopDbOperator(
+            task_id="test_stop_db_cluster", db_identifier=DB_CLUSTER_NAME, db_type="cluster"
+        )
+        _patch_hook_get_connection(stop_db_cluster.hook)
+        stop_db_cluster.execute(None)
+
+        describe_result = self.hook.conn.describe_db_clusters(DBClusterIdentifier=DB_CLUSTER_NAME)
+        status = describe_result["DBClusters"][0]["Status"]
+        assert status == "stopped"
+
+
+@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
+class TestRdsStartDbOperator:
+    @classmethod
+    def setup_class(cls):
+        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
+        _patch_hook_get_connection(cls.hook)
+
+    @classmethod
+    def teardown_class(cls):
+        del cls.dag
+        del cls.hook
+
+    @mock_rds
+    def test_start_db_instance(self):
+        _create_db_instance(self.hook)
+        self.hook.conn.stop_db_instance(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        result_before = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        status_before = result_before["DBInstances"][0]["DBInstanceStatus"]
+        assert status_before == "stopped"
+
+        start_db_instance = RdsStartDbOperator(
+            task_id="test_start_db_instance", db_identifier=DB_INSTANCE_NAME
+        )
+        _patch_hook_get_connection(start_db_instance.hook)
+        start_db_instance.execute(None)
+
+        result_after = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        status_after = result_after["DBInstances"][0]["DBInstanceStatus"]
+        assert status_after == "available"
+
+    @mock_rds
+    def test_start_db_cluster(self):
+        _create_db_cluster(self.hook)
+        self.hook.conn.stop_db_cluster(DBClusterIdentifier=DB_CLUSTER_NAME)
+        result_before = self.hook.conn.describe_db_clusters(DBClusterIdentifier=DB_CLUSTER_NAME)
+        status_before = result_before["DBClusters"][0]["Status"]
+        assert status_before == "stopped"
+
+        start_db_cluster = RdsStartDbOperator(
+            task_id="test_start_db_cluster", db_identifier=DB_CLUSTER_NAME, db_type="cluster"
+        )
+        _patch_hook_get_connection(start_db_cluster.hook)
+        start_db_cluster.execute(None)
+
+        result_after = self.hook.conn.describe_db_clusters(DBClusterIdentifier=DB_CLUSTER_NAME)
+        status_after = result_after["DBClusters"][0]["Status"]
+        assert status_after == "available"
