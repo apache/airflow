@@ -31,29 +31,18 @@ Using the Operator
 
 For parameter definition take a look at :class:`~airflow.providers.ftp.operators.FTPOperator`.
 
-Example: The following task would copy ``file.txt`` to the remote host
-at ``/tmp/tmp1/tmp2/`` while creating ``tmp``, ``tmp1`` and ``tmp2`` if they
-don't exist. If the ``create_immediate_dirs`` parameter is not passed it would error as the directory
-does not exist. ::
+The below example shows how to use the FTPOperator to transfer a locally stored file to a remote FTP Server:
 
-    put_file = FTPOperator(
-        task_id="test_ftp",
-        ftp_conn_id="ftp_default",
-        local_filepath="/tmp/file.txt",
-        remote_filepath="/tmp/tmp1/tmp2/file.txt",
-        operation="put",
-        create_intermediate_dirs=True,
-        dag=dag
-    )
+.. exampleinclude:: /../../airflow/providers/ftp/example_dags/example_ftp.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_ftp_put]
+    :end-before: [END howto_ftp_put]
 
-Another Example: The following task would copy ``file.txt`` from the remote host
-at ``/remote_dir/remote_dir1/remote_dir2/`` to the local file path ``tmp/file.txt`` ::
+The below example shows how to use the FTPOperator to pull a file from a remote FTP Server.
 
-    get_file = FTPOperator(
-        task_id="test_ftp",
-        ftp_conn_id="ftp_default",
-        local_filepath="/tmp/file.txt",
-        remote_filepath="/remote_dir/remote_dir1/remote_dir2/",
-        operation="get",
-        dag=dag
-    )
+.. exampleinclude:: /../../airflow/providers/ftp/example_dags/example_ftp.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_ftp_get]
+    :end-before: [END howto_ftp_get]

@@ -40,6 +40,10 @@ class FTPOperator(BaseOperator):
     This operator uses an FTPHook to open ftp transport channel that serve as basis
     for file transfer.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:FTPOperator`
+
     :param ftp_conn_id: :ref:`ftp connection id<howto/connection:ftp>`
         from airflow Connections.
     :param local_filepath: local file path to get or put. (templated)
@@ -62,7 +66,6 @@ class FTPOperator(BaseOperator):
                 create_intermediate_dirs=True,
                 dag=dag
             )
-
     """
 
     template_fields: Sequence[str] = ('local_filepath', 'remote_filepath')

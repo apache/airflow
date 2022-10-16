@@ -31,8 +31,15 @@ Content
 
 .. toctree::
     :maxdepth: 1
+    :caption: Operators
+
+    Operators <operators/index>
+
+.. toctree::
+    :maxdepth: 1
     :caption: Resources
 
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/ftp/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-ftp/>
     Installing from sources <installing-providers-from-sources>
 
