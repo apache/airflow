@@ -23,7 +23,7 @@ from airflow.providers.google.cloud.links.base import BaseGoogleLink
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-BUILD_BASE_LINK = "https://console.cloud.google.com/cloud-build"
+BUILD_BASE_LINK = "/cloud-build"
 
 BUILD_LINK = BUILD_BASE_LINK + "/builds/{build_id}?project={project_id}"
 

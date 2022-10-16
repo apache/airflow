@@ -54,6 +54,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     import pathlib
@@ -92,16 +93,26 @@ class DagBag(LoggingMixin):
     def __init__(
         self,
         dag_folder: str | pathlib.Path | None = None,
-        include_examples: bool = conf.getboolean('core', 'LOAD_EXAMPLES'),
-        safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+        include_examples: bool | ArgNotSet = NOTSET,
+        safe_mode: bool | ArgNotSet = NOTSET,
         read_dags_from_db: bool = False,
         store_serialized_dags: bool | None = None,
         load_op_links: bool = True,
+        collect_dags: bool = True,
     ):
         # Avoid circular import
         from airflow.models.dag import DAG
 
         super().__init__()
+
+        include_examples = (
+            include_examples
+            if isinstance(include_examples, bool)
+            else conf.getboolean('core', 'LOAD_EXAMPLES')
+        )
+        safe_mode = (
+            safe_mode if isinstance(safe_mode, bool) else conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')
+        )
 
         if store_serialized_dags:
             warnings.warn(
@@ -127,11 +138,12 @@ class DagBag(LoggingMixin):
 
         self.dagbag_import_error_tracebacks = conf.getboolean('core', 'dagbag_import_error_tracebacks')
         self.dagbag_import_error_traceback_depth = conf.getint('core', 'dagbag_import_error_traceback_depth')
-        self.collect_dags(
-            dag_folder=dag_folder,
-            include_examples=include_examples,
-            safe_mode=safe_mode,
-        )
+        if collect_dags:
+            self.collect_dags(
+                dag_folder=dag_folder,
+                include_examples=include_examples,
+                safe_mode=safe_mode,
+            )
         # Should the extra operator link be loaded via plugins?
         # This flag is set to False in Scheduler so that Extra Operator links are not loaded
         self.load_op_links = load_op_links

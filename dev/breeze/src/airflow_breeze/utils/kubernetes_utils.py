@@ -337,9 +337,9 @@ def _install_packages_in_k8s_virtualenv(dry_run: bool, verbose: bool, with_const
     return install_packages_result
 
 
-def create_virtualenv(force: bool, verbose: bool, dry_run: bool) -> RunCommandResult:
+def create_virtualenv(force_venv_setup: bool, verbose: bool, dry_run: bool) -> RunCommandResult:
     K8S_CLUSTERS_PATH.mkdir(parents=True, exist_ok=True)
-    if not force and not _requirements_changed():
+    if not force_venv_setup and not _requirements_changed():
         try:
             python_command_result = run_command(
                 [str(PYTHON_BIN_PATH), "--version"],
@@ -353,7 +353,7 @@ def create_virtualenv(force: bool, verbose: bool, dry_run: bool) -> RunCommandRe
                 return python_command_result
         except FileNotFoundError:
             pass
-    if force:
+    if force_venv_setup:
         get_console().print(f'[info]Forcing initializing K8S virtualenv in {K8S_ENV_PATH}')
     else:
         get_console().print(f'[info]Initializing K8S virtualenv in {K8S_ENV_PATH}')

@@ -27,6 +27,7 @@ import os
 import pickle
 from datetime import datetime, timedelta
 from glob import glob
+from pathlib import Path
 from unittest import mock
 
 import pendulum
@@ -34,6 +35,7 @@ import pytest
 from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
 
+import airflow
 from airflow.datasets import Dataset
 from airflow.exceptions import SerializationError
 from airflow.hooks.base import BaseHook
@@ -62,6 +64,8 @@ from airflow.utils.task_group import TaskGroup
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import CustomOperator, GoogleLink, MockOperator
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
+
+repo_root = Path(airflow.__file__).parent.parent
 
 
 class CustomDepOperator(BashOperator):
@@ -133,6 +137,7 @@ serialized_simple_dag_ground_truth = {
         "_dag_id": "simple_dag",
         "doc_md": "### DAG Tutorial Documentation",
         "fileloc": None,
+        "_processor_dags_folder": f"{repo_root}/tests/dags",
         "tasks": [
             {
                 "task_id": "bash_task",
@@ -406,7 +411,9 @@ class TestStringifiedDAGs:
         message = (
             "Failed to serialize DAG 'simple_dag': Timetable class "
             "'tests.test_utils.timetables.CustomSerializationTimetable' "
-            "is not registered"
+            "is not registered or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
         )
         assert str(ctx.value) == message
 
@@ -494,13 +501,17 @@ class TestStringifiedDAGs:
             'default_args',
             "_task_group",
             'params',
+            '_processor_dags_folder',
         }
         fields_to_check = dag.get_serialized_fields() - exclusion_list
         for field in fields_to_check:
             assert getattr(serialized_dag, field) == getattr(
                 dag, field
             ), f'{dag.dag_id}.{field} does not match'
-
+        # _processor_dags_folder is only populated at serialization time
+        # it's only used when relying on serialized dag to determine a dag's relative path
+        assert dag._processor_dags_folder is None
+        assert serialized_dag._processor_dags_folder == str(repo_root / 'tests/dags')
         if dag.default_args:
             for k, v in dag.default_args.items():
                 if callable(v):
@@ -712,7 +723,9 @@ class TestStringifiedDAGs:
         message = (
             "Timetable class "
             "'tests.test_utils.timetables.CustomSerializationTimetable' "
-            "is not registered"
+            "is not registered or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
         )
         assert str(ctx.value) == message
 
@@ -2151,8 +2164,8 @@ def test_taskflow_expand_serde():
         'ui_fgcolor': '#000',
         'task_id': 'x',
         'template_ext': [],
-        'template_fields': ['op_args', 'op_kwargs'],
-        'template_fields_renderers': {"op_args": "py", "op_kwargs": "py"},
+        'template_fields': ['templates_dict', 'op_args', 'op_kwargs'],
+        'template_fields_renderers': {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"},
         "_disallow_kwargs_override": False,
         '_expand_input_attr': 'op_kwargs_expand_input',
     }
@@ -2234,8 +2247,8 @@ def test_taskflow_expand_kwargs_serde(strict):
         'ui_fgcolor': '#000',
         'task_id': 'x',
         'template_ext': [],
-        'template_fields': ['op_args', 'op_kwargs'],
-        'template_fields_renderers': {"op_args": "py", "op_kwargs": "py"},
+        'template_fields': ['templates_dict', 'op_args', 'op_kwargs'],
+        'template_fields_renderers': {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"},
         "_disallow_kwargs_override": strict,
         '_expand_input_attr': 'op_kwargs_expand_input',
     }

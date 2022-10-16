@@ -674,6 +674,24 @@ class SchedulerTest(unittest.TestCase):
         )
         assert {"foo": "bar"} == jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0])
 
+    @parameterized.expand(
+        [
+            "LocalExecutor",
+            "LocalKubernetesExecutor",
+            "CeleryExecutor",
+            "KubernetesExecutor",
+            "CeleryKubernetesExecutor",
+        ]
+    )
+    def test_scheduler_deployment_has_executor_label(self, executor):
+        docs = render_chart(
+            values={"executor": executor},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert 1 == len(docs)
+        assert executor == docs[0]['metadata']['labels'].get('executor')
+
 
 class SchedulerNetworkPolicyTest(unittest.TestCase):
     def test_should_add_component_specific_labels(self):

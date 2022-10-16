@@ -16,6 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 """
 Global constants that are used by all other Breeze components.
 """
@@ -40,7 +43,7 @@ ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 ALLOWED_BACKENDS = ['sqlite', 'mysql', 'postgres', 'mssql']
 ALLOWED_PROD_BACKENDS = ['mysql', 'postgres', 'mssql']
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-ALLOWED_INTEGRATIONS = [
+ALL_INTEGRATIONS = [
     'cassandra',
     'kerberos',
     'mongo',
@@ -50,9 +53,12 @@ ALLOWED_INTEGRATIONS = [
     'redis',
     'statsd',
     'trino',
+]
+ALLOWED_INTEGRATIONS = [
+    *ALL_INTEGRATIONS,
     'all',
 ]
-ALLOWED_KUBERNETES_VERSIONS = ['v1.24.2', 'v1.23.6', 'v1.22.9', 'v1.21.12']
+ALLOWED_KUBERNETES_VERSIONS = ['v1.25.2', 'v1.24.6', 'v1.23.12', 'v1.22.15', 'v1.21.14']
 ALLOWED_EXECUTORS = ['KubernetesExecutor', 'CeleryExecutor', 'LocalExecutor', 'CeleryKubernetesExecutor']
 ALLOWED_KIND_OPERATIONS = ['start', 'stop', 'restart', 'status', 'deploy', 'test', 'shell', 'k9s']
 ALLOWED_CONSTRAINTS_MODES_CI = ['constraints-source-providers', 'constraints', 'constraints-no-providers']
@@ -89,13 +95,10 @@ class SelectiveUnitTestTypes(Enum):
 
 ALLOWED_TEST_TYPE_CHOICES = [
     "All",
-    "Always",
     *all_selective_test_types(),
     "Helm",
     "Postgres",
     "MySQL",
-    "Integration",
-    "Other",
     "Quarantine",
 ]
 
@@ -108,27 +111,23 @@ SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
 ALLOWED_USE_AIRFLOW_VERSIONS = ['none', 'wheel', 'sdist']
 
-EXCLUDE_DOCS_PACKAGE_FOLDER = [
-    'exts',
-    'integration-logos',
-    'rtd-deprecation',
-    '_build',
-    '_doctrees',
-    '_inventory_cache',
-]
+PROVIDER_PACKAGE_JSON_FILE = AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json"
 
 
-def get_available_packages(short_version=False) -> list[str]:
-    docs_path_content = (AIRFLOW_SOURCES_ROOT / 'docs').glob('*/')
-    available_packages = [x.name for x in docs_path_content if x.is_dir()]
-    package_list = list(set(available_packages) - set(EXCLUDE_DOCS_PACKAGE_FOLDER))
-    package_list.sort()
+def get_available_documentation_packages(short_version=False) -> list[str]:
+    provider_names: list[str] = list(json.loads(PROVIDER_PACKAGE_JSON_FILE.read_text()).keys())
+    doc_provider_names = [provider_name.replace('.', '-') for provider_name in provider_names]
+    available_packages = [f"apache-airflow-providers-{doc_provider}" for doc_provider in doc_provider_names]
+    available_packages.extend(["apache-airflow", "docker-stack", "helm-chart"])
+    available_packages.sort()
     if short_version:
         prefix_len = len("apache-airflow-providers-")
-        package_list = [
-            package[prefix_len:].replace("-", ".") for package in package_list if len(package) > prefix_len
+        available_packages = [
+            package[prefix_len:].replace("-", ".")
+            for package in available_packages
+            if len(package) > prefix_len
         ]
-    return package_list
+    return available_packages
 
 
 def get_default_platform_machine() -> str:
@@ -206,6 +205,7 @@ AVAILABLE_INTEGRATIONS = [
     'trino',
 ]
 ENABLED_INTEGRATIONS = ""
+ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT).glob("airflow/providers/**/provider.yaml")
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
     'setup.py',
@@ -218,6 +218,7 @@ FILES_FOR_REBUILD_CHECK = [
     'scripts/docker/install_airflow_dependencies_from_branch_tip.sh',
     'scripts/docker/install_from_docker_context_files.sh',
     'scripts/docker/install_mysql.sh',
+    *ALL_PROVIDER_YAML_FILES,
 ]
 
 ENABLED_SYSTEMS = ""
@@ -228,7 +229,7 @@ CURRENT_EXECUTORS = ['KubernetesExecutor']
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = 'v0.15.0'
+KIND_VERSION = 'v0.16.0'
 HELM_VERSION = 'v3.9.4'
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass

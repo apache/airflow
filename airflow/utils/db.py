@@ -33,7 +33,6 @@ from sqlalchemy.orm.session import Session
 
 import airflow
 from airflow import settings
-from airflow.compat.sqlalchemy import has_table
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import import_all_models
@@ -73,6 +72,7 @@ REVISION_HEADS_MAP = {
     "2.3.3": "f5fcbda3e651",
     "2.3.4": "f5fcbda3e651",
     "2.4.0": "ecb43d2a1842",
+    "2.4.1": "ecb43d2a1842",
 }
 
 
@@ -424,6 +424,18 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="oracle_default",
+            conn_type="oracle",
+            host="localhost",
+            login="root",
+            password="password",
+            schema="schema",
+            port=1521,
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="oss_default",
             conn_type="oss",
             extra='''{
@@ -656,6 +668,7 @@ def _create_db_from_orm(session):
     def _create_flask_session_tbl():
         flask_app = Flask(__name__)
         flask_app.config['SQLALCHEMY_DATABASE_URI'] = conf.get('database', 'SQL_ALCHEMY_CONN')
+        flask_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         db = SQLAlchemy(flask_app)
         AirflowDatabaseSessionInterface(app=flask_app, db=db, table='session', key_prefix='')
         db.create_all()
@@ -812,14 +825,13 @@ def check_and_run_migrations():
         sys.exit(1)
 
 
-@provide_session
-def reserialize_dags(*, session: Session = NEW_SESSION) -> None:
+def _reserialize_dags(*, session: Session) -> None:
     from airflow.models.dagbag import DagBag
     from airflow.models.serialized_dag import SerializedDagModel
 
     session.query(SerializedDagModel).delete(synchronize_session=False)
-    dagbag = DagBag()
-    dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+    dagbag = DagBag(collect_dags=False)
+    dagbag.collect_dags(only_if_updated=False)
     dagbag.sync_to_db(session=session)
 
 
@@ -940,31 +952,31 @@ def reflect_tables(tables: list[Base | str] | None, session):
     return metadata
 
 
-def check_task_fail_for_duplicates(session):
-    """Check that there are no duplicates in the task_fail table before creating FK"""
-    from airflow.models.taskfail import TaskFail
-
-    metadata = reflect_tables([TaskFail], session)
-    task_fail = metadata.tables.get(TaskFail.__tablename__)  # type: ignore
-    if task_fail is None:  # table not there
-        return
-    if "run_id" in task_fail.columns:  # upgrade already applied
-        return
-    yield from check_table_for_duplicates(
-        table_name=task_fail.name,
-        uniqueness=['dag_id', 'task_id', 'execution_date'],
-        session=session,
-        version='2.3',
-    )
-
-
 def check_table_for_duplicates(
     *, session: Session, table_name: str, uniqueness: list[str], version: str
 ) -> Iterable[str]:
     """
     Check table for duplicates, given a list of columns which define the uniqueness of the table.
 
-    Call from ``run_duplicates_checks``.
+    Usage example:
+
+    .. code-block:: python
+
+        def check_task_fail_for_duplicates(session):
+            from airflow.models.taskfail import TaskFail
+
+            metadata = reflect_tables([TaskFail], session)
+            task_fail = metadata.tables.get(TaskFail.__tablename__)  # type: ignore
+            if task_fail is None:  # table not there
+                return
+            if "run_id" in task_fail.columns:  # upgrade already applied
+                return
+            yield from check_table_for_duplicates(
+                table_name=task_fail.name,
+                uniqueness=['dag_id', 'task_id', 'execution_date'],
+                session=session,
+                version='2.3',
+            )
 
     :param table_name: table name to check
     :param uniqueness: uniqueness constraint to evaluate against
@@ -1387,7 +1399,6 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
     :rtype: list[str]
     """
     check_functions: tuple[Callable[..., Iterable[str]], ...] = (
-        check_task_fail_for_duplicates,
         check_conn_id_duplicates,
         check_conn_type_null,
         check_run_id_null,
@@ -1464,6 +1475,7 @@ def upgradedb(
     to_revision: str | None = None,
     from_revision: str | None = None,
     show_sql_only: bool = False,
+    reserialize_dags: bool = True,
     session: Session = NEW_SESSION,
 ):
     """
@@ -1527,9 +1539,25 @@ def upgradedb(
         initdb(session=session, load_connections=False)
         return
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
+        import sqlalchemy.pool
+
         log.info("Creating tables")
-        command.upgrade(config, revision=to_revision or 'heads')
-    reserialize_dags(session=session)
+        val = os.environ.get('AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE')
+        try:
+            # Reconfigure the ORM ot use _EXACTLY_ one connection, otherwise some db engines hang forever
+            # trying to ALTER TABLEs
+            os.environ['AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE'] = '1'
+            settings.reconfigure_orm(pool_class=sqlalchemy.pool.SingletonThreadPool)
+            command.upgrade(config, revision=to_revision or 'heads')
+        finally:
+            if val is None:
+                os.environ.pop('AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE')
+            else:
+                os.environ['AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE'] = val
+            settings.reconfigure_orm()
+
+    if reserialize_dags:
+        _reserialize_dags(session=session)
     add_default_pool_if_not_exists(session=session)
     synchronize_log_template(session=session)
 
@@ -1641,7 +1669,7 @@ def drop_airflow_models(connection):
 
     migration_ctx = MigrationContext.configure(connection)
     version = migration_ctx._version
-    if has_table(connection, version):
+    if inspect(connection).has_table(version.name):
         version.drop(connection)
 
 

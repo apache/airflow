@@ -127,7 +127,7 @@ class TestLogView:
                 f"try_number=1.\n",
             )
         ] == logs[0]
-        assert {"end_of_log": True} == metadatas
+        assert metadatas == {'end_of_log': True, 'log_pos': 102 + len(self.log_dir)}
 
     def test_test_read_log_chunks_should_read_all_files(self):
         task_log_reader = TaskLogReader()
@@ -159,7 +159,7 @@ class TestLogView:
                 )
             ],
         ] == logs
-        assert {"end_of_log": True} == metadatas
+        assert {'end_of_log': True, 'log_pos': 102 + len(self.log_dir)} == metadatas
 
     def test_test_test_read_log_stream_should_read_one_try(self):
         task_log_reader = TaskLogReader()
@@ -174,6 +174,7 @@ class TestLogView:
 
     def test_test_test_read_log_stream_should_read_all_logs(self):
         task_log_reader = TaskLogReader()
+        self.ti.state = TaskInstanceState.SUCCESS  # Ensure mocked instance is completed to return stream
         stream = task_log_reader.read_log_stream(ti=self.ti, try_number=None, metadata={})
         assert [
             "localhost\n*** Reading local file: "
@@ -199,6 +200,7 @@ class TestLogView:
         mock_read.side_effect = [first_return, second_return, third_return, fourth_return]
 
         task_log_reader = TaskLogReader()
+        self.ti.state = TaskInstanceState.SUCCESS
         log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=1, metadata={})
         assert ["\n1st line\n", "\n2nd line\n", "\n3rd line\n"] == list(log_stream)
 

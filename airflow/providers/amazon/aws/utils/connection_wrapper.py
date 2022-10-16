@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import warnings
 from copy import deepcopy
 from dataclasses import MISSING, InitVar, dataclass, field, fields
@@ -39,7 +40,44 @@ except ImportError:  # TODO: Remove when the provider has an Airflow 2.3+ requir
     NOTSET = ArgNotSet()
 
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection
+    from airflow.models.connection import Connection  # Avoid circular imports.
+
+
+@dataclass
+class _ConnectionMetadata:
+    """Connection metadata data-class.
+
+    This class implements main :ref:`~airflow.models.connection.Connection` attributes
+    and use in AwsConnectionWrapper for avoid circular imports.
+
+    Only for internal usage, this class might change or removed in the future.
+    """
+
+    conn_id: str | None = None
+    conn_type: str | None = None
+    description: str | None = None
+    host: str | None = None
+    login: str | None = None
+    password: str | None = None
+    schema: str | None = None
+    port: int | None = None
+    extra: str | dict | None = None
+
+    @property
+    def extra_dejson(self):
+        if not self.extra:
+            return {}
+        extra = deepcopy(self.extra)
+        if isinstance(extra, str):
+            try:
+                extra = json.loads(extra)
+            except json.JSONDecodeError as err:
+                raise AirflowException(
+                    f"'extra' expected valid JSON-Object string. Original error:\n * {err}"
+                ) from None
+        if not isinstance(extra, dict):
+            raise TypeError(f"Expected JSON-Object or dict, got {type(extra).__name__}.")
+        return extra
 
 
 @dataclass
@@ -61,7 +99,7 @@ class AwsConnectionWrapper(LoggingMixin):
         3. The wrapper's default value
     """
 
-    conn: InitVar[Connection | AwsConnectionWrapper | None]
+    conn: InitVar[Connection | AwsConnectionWrapper | _ConnectionMetadata | None]
     region_name: str | None = field(default=None)
     # boto3 client/resource configs
     botocore_config: Config | None = field(default=None)
@@ -128,9 +166,19 @@ class AwsConnectionWrapper(LoggingMixin):
         self.password = conn.password
         self.extra_config = deepcopy(conn.extra_dejson)
 
-        if self.conn_type != "aws":
+        if self.conn_type.lower() == "s3":
             warnings.warn(
-                f"{self.conn_repr} expected connection type 'aws', got {self.conn_type!r}.",
+                f"{self.conn_repr} has connection type 's3', "
+                "which has been replaced by connection type 'aws'. "
+                "Please update your connection to have `conn_type='aws'`.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        elif self.conn_type != "aws":
+            warnings.warn(
+                f"{self.conn_repr} expected connection type 'aws', got {self.conn_type!r}. "
+                "This connection might not work correctly. "
+                "Please use Amazon Web Services Connection type.",
                 UserWarning,
                 stacklevel=2,
             )
@@ -177,15 +225,15 @@ class AwsConnectionWrapper(LoggingMixin):
             )
 
         # Warn the user that an invalid parameter is being used which actually not related to 'profile_name'.
-        if "profile" in extra and "s3_config_file" not in extra:
-            if "profile_name" not in self.session_kwargs:
-                warnings.warn(
-                    f"Found 'profile' without specifying 's3_config_file' in {self.conn_repr} extra. "
-                    "If required profile from AWS Shared Credentials please "
-                    f"set 'profile_name' in {self.conn_repr} extra['session_kwargs'].",
-                    UserWarning,
-                    stacklevel=2,
-                )
+        # ToDo: Remove this check entirely as soon as drop support credentials from s3_config_file
+        if "profile" in extra and "s3_config_file" not in extra and not self.profile_name:
+            warnings.warn(
+                f"Found 'profile' without specifying 's3_config_file' in {self.conn_repr} extra. "
+                "If required profile from AWS Shared Credentials please "
+                f"set 'profile_name' in {self.conn_repr} extra.",
+                UserWarning,
+                stacklevel=2,
+            )
 
         config_kwargs = extra.get("config_kwargs")
         if not self.botocore_config and config_kwargs:
@@ -232,11 +280,10 @@ class AwsConnectionWrapper(LoggingMixin):
         :param password: AWS Secret Access Key.
         :param extra: Connection Extra metadata.
         """
-        from airflow.models.connection import Connection
-
-        return cls(
-            conn=Connection(conn_id=conn_id, conn_type="aws", login=login, password=password, extra=extra)
+        conn_meta = _ConnectionMetadata(
+            conn_id=conn_id, conn_type="aws", login=login, password=password, extra=extra
         )
+        return cls(conn=conn_meta)
 
     @property
     def extra_dejson(self):

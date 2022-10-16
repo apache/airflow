@@ -26,7 +26,7 @@ from airflow.providers.google.cloud.links.base import BaseGoogleLink
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-SPANNER_BASE_LINK = "https://console.cloud.google.com/spanner/instances"
+SPANNER_BASE_LINK = "/spanner/instances"
 SPANNER_INSTANCE_LINK = SPANNER_BASE_LINK + "/{instance_id}/details/databases?project={project_id}"
 SPANNER_DATABASE_LINK = (
     SPANNER_BASE_LINK + "/{instance_id}/databases/{database_id}/details/tables?project={project_id}"

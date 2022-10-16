@@ -26,7 +26,7 @@ from airflow.providers.google.cloud.links.base import BaseGoogleLink
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-BIGQUERY_BASE_LINK = "https://console.cloud.google.com/bigquery"
+BIGQUERY_BASE_LINK = "/bigquery"
 BIGQUERY_DATASET_LINK = (
     BIGQUERY_BASE_LINK + "?referrer=search&project={project_id}&d={dataset_id}&p={project_id}&page=dataset"
 )

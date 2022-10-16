@@ -227,6 +227,33 @@ class AirflowConfigParser(ConfigParser):
         ('database', 'sql_alchemy_connect_args'): ('core', 'sql_alchemy_connect_args', '2.3.0'),
         ('database', 'load_default_connections'): ('core', 'load_default_connections', '2.3.0'),
         ('database', 'max_db_retries'): ('core', 'max_db_retries', '2.3.0'),
+        **{
+            ('kubernetes_executor', x): ('kubernetes', x, '2.4.2')
+            for x in (
+                'pod_template_file',
+                'worker_container_repository',
+                'worker_container_tag',
+                'namespace',
+                'delete_worker_pods',
+                'delete_worker_pods_on_failure',
+                'worker_pods_creation_batch_size',
+                'multi_namespace_mode',
+                'in_cluster',
+                'cluster_context',
+                'config_file',
+                'kube_client_request_args',
+                'delete_option_kwargs',
+                'enable_tcp_keepalive',
+                'tcp_keep_idle',
+                'tcp_keep_intvl',
+                'tcp_keep_cnt',
+                'verify_ssl',
+                'worker_pods_pending_timeout',
+                'worker_pods_pending_timeout_check_interval',
+                'worker_pods_queued_check_interval',
+                'worker_pods_pending_timeout_batch_size',
+            )
+        },
     }
 
     # A mapping of old default values that we want to change and warn the user
@@ -1542,15 +1569,23 @@ def get_custom_secret_backend() -> BaseSecretsBackend | None:
     """Get Secret Backend if defined in airflow.cfg"""
     secrets_backend_cls = conf.getimport(section='secrets', key='backend')
 
-    if secrets_backend_cls:
-        try:
-            backends: Any = conf.get(section='secrets', key='backend_kwargs', fallback='{}')
-            alternative_secrets_config_dict = json.loads(backends)
-        except JSONDecodeError:
-            alternative_secrets_config_dict = {}
+    if not secrets_backend_cls:
+        return None
 
-        return secrets_backend_cls(**alternative_secrets_config_dict)
-    return None
+    try:
+        backend_kwargs = conf.getjson(section='secrets', key='backend_kwargs')
+        if not backend_kwargs:
+            backend_kwargs = {}
+        elif not isinstance(backend_kwargs, dict):
+            raise ValueError("not a dict")
+    except AirflowConfigException:
+        log.warning("Failed to parse [secrets] backend_kwargs as JSON, defaulting to no kwargs.")
+        backend_kwargs = {}
+    except ValueError:
+        log.warning("Failed to parse [secrets] backend_kwargs into a dict, defaulting to no kwargs.")
+        backend_kwargs = {}
+
+    return secrets_backend_cls(**backend_kwargs)
 
 
 def initialize_secrets_backends() -> list[BaseSecretsBackend]:
