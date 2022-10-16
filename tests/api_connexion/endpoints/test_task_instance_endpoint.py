@@ -1585,21 +1585,22 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
 
 
 class TestPatchTaskInstance(TestTaskInstanceEndpoint):
-    ENDPOINT_URL = "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+    ENDPOINT_URL = (
+        "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+    )
 
     @mock.patch('airflow.models.dag.DAG.set_task_instance_state')
     def test_should_call_mocked_api(self, mock_set_task_instance_state, session):
         self.create_task_instances(session)
 
         NEW_STATE = "failed"
-        mock_set_task_instance_state.return_value = (
-            session.query(TaskInstance)
-            .get({
+        mock_set_task_instance_state.return_value = session.query(TaskInstance).get(
+            {
                 "task_id": "print_the_context",
                 "dag_id": "example_python_operator",
                 "run_id": "TEST_DAG_RUN_ID",
-                "map_index": -1
-            })
+                "map_index": -1,
+            }
         )
         response = self.client.patch(
             self.ENDPOINT_URL,
@@ -1630,14 +1631,13 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
 
         NEW_STATE = "failed"
-        mock_set_task_instance_state.return_value = (
-            session.query(TaskInstance)
-            .get({
+        mock_set_task_instance_state.return_value = session.query(TaskInstance).get(
+            {
                 "task_id": "print_the_context",
                 "dag_id": "example_python_operator",
                 "run_id": "TEST_DAG_RUN_ID",
-                "map_index": -1
-            })
+                "map_index": -1,
+            }
         )
         response = self.client.patch(
             self.ENDPOINT_URL,
@@ -1663,7 +1663,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
 
         NEW_STATE = "failed"
 
-        response1 = self.client.patch(
+        self.client.patch(
             self.ENDPOINT_URL,
             environ_overrides={'REMOTE_USER': "test"},
             json={
@@ -1691,7 +1691,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "new_state": "failed",
                 },
             ]
-
         ],
     )
     def test_should_handle_errors(self, error, code, payload, session):
@@ -1747,7 +1746,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 404
 
-
     @pytest.mark.parametrize(
         "payload, expected",
         [
@@ -1756,16 +1754,16 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "dry_run": True,
                     "new_state": "failede",
                 },
-                f"'failede' is not one of ['{State.SUCCESS}', '{State.FAILED}'] - 'new_state'"
+                f"'failede' is not one of ['{State.SUCCESS}', '{State.FAILED}'] - 'new_state'",
             ),
             (
                 {
                     "dry_run": True,
                     "new_state": "queued",
                 },
-                f"'queued' is not one of ['{State.SUCCESS}', '{State.FAILED}'] - 'new_state'"
+                f"'queued' is not one of ['{State.SUCCESS}', '{State.FAILED}'] - 'new_state'",
             ),
-        ]
+        ],
     )
     @provide_session
     def test_should_raise_400_for_invalid_task_instance_state(self, payload, expected, session):
@@ -1780,7 +1778,9 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
 
 
 class TestPatchMappedTaskInstance(TestTaskInstanceEndpoint):
-    ENDPOINT_URL = "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/1"
+    ENDPOINT_URL = (
+        "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/1"
+    )
 
     @mock.patch('airflow.models.dag.DAG.set_task_instance_state')
     def test_should_assert_call_mocked_api(self, mock_set_task_instance_state, session):
@@ -1792,16 +1792,14 @@ class TestPatchMappedTaskInstance(TestTaskInstanceEndpoint):
         session.add(rendered_fields)
         session.commit()
 
-
         NEW_STATE = "failed"
-        mock_set_task_instance_state.return_value = (
-            session.query(TaskInstance)
-            .get({
+        mock_set_task_instance_state.return_value = session.query(TaskInstance).get(
+            {
                 "task_id": "print_the_context",
                 "dag_id": "example_python_operator",
                 "run_id": "TEST_DAG_RUN_ID",
-                "map_index": 2
-            })
+                "map_index": 2,
+            }
         )
 
         response = self.client.patch(
@@ -1834,14 +1832,13 @@ class TestPatchMappedTaskInstance(TestTaskInstanceEndpoint):
         session.commit()
 
         NEW_STATE = "failed"
-        mock_set_task_instance_state.return_value = (
-            session.query(TaskInstance)
-                .get({
+        mock_set_task_instance_state.return_value = session.query(TaskInstance).get(
+            {
                 "task_id": "print_the_context",
                 "dag_id": "example_python_operator",
                 "run_id": "TEST_DAG_RUN_ID",
-                "map_index": -1
-            })
+                "map_index": -1,
+            }
         )
         response = self.client.patch(
             self.ENDPOINT_URL,
@@ -1872,7 +1869,7 @@ class TestPatchMappedTaskInstance(TestTaskInstanceEndpoint):
 
         NEW_STATE = "failed"
 
-        response1 = self.client.patch(
+        self.client.patch(
             self.ENDPOINT_URL,
             environ_overrides={'REMOTE_USER': "test"},
             json={
@@ -1893,14 +1890,14 @@ class TestPatchMappedTaskInstance(TestTaskInstanceEndpoint):
         "error, code, payload",
         [
             [
-                "Mapped task instance not found for task 'print_the_context' on DAG run with ID 'TEST_DAG_RUN_ID'",
+                "Mapped task instance not found for task 'print_the_context' "
+                "on DAG run with ID 'TEST_DAG_RUN_ID'",
                 404,
                 {
                     "dry_run": True,
                     "new_state": "failed",
                 },
             ]
-
         ],
     )
     def test_should_handle_errors(self, error, code, payload, session):
@@ -1956,7 +1953,6 @@ class TestPatchMappedTaskInstance(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 404
 
-
     @pytest.mark.parametrize(
         "payload, expected",
         [
@@ -1965,16 +1961,16 @@ class TestPatchMappedTaskInstance(TestTaskInstanceEndpoint):
                     "dry_run": True,
                     "new_state": "failede",
                 },
-                f"'failede' is not one of ['{State.SUCCESS}', '{State.FAILED}'] - 'new_state'"
+                f"'failede' is not one of ['{State.SUCCESS}', '{State.FAILED}'] - 'new_state'",
             ),
             (
                 {
                     "dry_run": True,
                     "new_state": "queued",
                 },
-                f"'queued' is not one of ['{State.SUCCESS}', '{State.FAILED}'] - 'new_state'"
+                f"'queued' is not one of ['{State.SUCCESS}', '{State.FAILED}'] - 'new_state'",
             ),
-        ]
+        ],
     )
     @provide_session
     def test_should_raise_400_for_invalid_task_instance_state(self, payload, expected, session):
