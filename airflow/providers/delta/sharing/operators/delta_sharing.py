@@ -17,6 +17,8 @@
 # under the License.
 #
 """This module contains Delta Sharing operators."""
+from __future__ import annotations
+
 import json
 import os.path
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -91,19 +93,19 @@ class DeltaSharingLocalDownloadOperator(BaseOperator):
         schema: str,
         table: str,
         location: str,
-        limit: Optional[int] = None,
-        predicates: Optional[List[str]] = None,
+        limit: int | None = None,
+        predicates: list[str] | None = None,
         save_partitioned: bool = True,
         save_metadata: bool = True,
         save_stats: bool = True,
         overwrite_existing: bool = False,
         num_parallel_downloads: int = 5,
         delta_sharing_conn_id: str = 'delta_sharing_default',
-        profile_file: Optional[str] = None,
+        profile_file: str | None = None,
         timeout_seconds: int = 180,
         retry_limit: int = 3,
         retry_delay: float = 2.0,
-        retry_args: Optional[Dict[Any, Any]] = None,
+        retry_args: dict[Any, Any] | None = None,
         **kwargs,
     ) -> None:
         """Creates a new ``DeltaSharingDownloadToLocalOperator``."""
@@ -135,7 +137,7 @@ class DeltaSharingLocalDownloadOperator(BaseOperator):
             profile_file=profile_file,
         )
 
-    def _get_output_file_path(self, metadata: Dict[str, Any], file: Dict[str, Any]) -> str:
+    def _get_output_file_path(self, metadata: dict[str, Any], file: dict[str, Any]) -> str:
         chunks = urlparse(file['url'])
         file_name = chunks.path.split('/')[-1]
         file_parts = [self.location]
@@ -154,7 +156,7 @@ class DeltaSharingLocalDownloadOperator(BaseOperator):
         file_parts.append(file_name)
         return os.path.join(*file_parts)
 
-    def _download_one(self, metadata: Dict[str, Any], file: Dict[str, Any]):
+    def _download_one(self, metadata: dict[str, Any], file: dict[str, Any]):
         dest_file_path = self._get_output_file_path(metadata, file)
         file_size = file['size']
         if os.path.exists(dest_file_path):
@@ -190,7 +192,7 @@ class DeltaSharingLocalDownloadOperator(BaseOperator):
 
         return
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         results = self.hook.query_table(
             self.share, self.schema, self.table, limit=self.limit, predicates=self.predicates
         )

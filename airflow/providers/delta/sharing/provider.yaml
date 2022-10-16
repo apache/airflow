@@ -24,6 +24,10 @@ description: |
 versions:
   - 1.0.0
 
+dependencies:
+  - apache-airflow>=2.2.0
+  - requests>=2.27,<3
+
 integrations:
   - integration-name: Delta Sharing
     external-doc-url: https://delta.io/sharing/

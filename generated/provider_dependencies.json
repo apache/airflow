@@ -231,6 +231,13 @@
       "http"
     ]
   },
+  "delta.sharing": {
+    "deps": [
+      "apache-airflow>=2.2.0",
+      "requests>=2.27,<3"
+    ],
+    "cross-providers-deps": []
+  },
   "dingding": {
     "deps": [
       "apache-airflow-providers-http",

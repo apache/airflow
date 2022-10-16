@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import copy
 import json
 import os.path
@@ -49,9 +51,9 @@ class DeltaSharingQueryResult:
     """Data class to hold results from querying a Delta Sharing table"""
 
     version: int
-    protocol: Dict[str, Any]
-    metadata: Dict[str, Any]
-    files: List[Dict[str, Any]]
+    protocol: dict[str, Any]
+    metadata: dict[str, Any]
+    files: list[dict[str, Any]]
 
 
 class DeltaSharingHook(BaseHook):
@@ -82,11 +84,11 @@ class DeltaSharingHook(BaseHook):
     def __init__(
         self,
         delta_sharing_conn_id: str = default_conn_name,
-        profile_file: Optional[str] = None,
+        profile_file: str | None = None,
         timeout_seconds: int = 180,
         retry_limit: int = 3,
         retry_delay: float = 2.0,
-        retry_args: Optional[Dict[Any, Any]] = None,
+        retry_args: dict[Any, Any] | None = None,
     ) -> None:
         super().__init__()
         self.delta_sharing_conn_id = delta_sharing_conn_id
@@ -174,7 +176,7 @@ class DeltaSharingHook(BaseHook):
         self._extract_endpoint_and_token()
         return self._token
 
-    def _do_api_call(self, endpoint: str, json: Optional[Dict[str, Any]] = None, http_method='GET'):
+    def _do_api_call(self, endpoint: str, json: dict[str, Any] | None = None, http_method='GET'):
         url = self.delta_sharing_endpoint + endpoint
         token = self._delta_sharing_token
         headers = USER_AGENT_HEADER.copy()
@@ -251,8 +253,8 @@ class DeltaSharingHook(BaseHook):
         share: str,
         schema: str,
         table: str,
-        predicates: Optional[List[str]] = None,
-        limit: Optional[int] = None,
+        predicates: list[str] | None = None,
+        limit: int | None = None,
     ) -> DeltaSharingQueryResult:
         """
         Queries a given Delta Sharing table
@@ -263,7 +265,7 @@ class DeltaSharingHook(BaseHook):
         :param limit: optional limit on the number of records to return.
         :return:
         """
-        query_body: Dict[str, Any] = {}
+        query_body: dict[str, Any] = {}
         if limit is not None:
             query_body["limitHint"] = limit
         if predicates is not None:

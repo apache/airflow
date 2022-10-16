@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import re
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
@@ -61,11 +63,11 @@ class DeltaSharingSensor(BaseSensorOperator):
         schema: str,
         table: str,
         delta_sharing_conn_id: str = 'delta_sharing_default',
-        profile_file: Optional[str] = None,
+        profile_file: str | None = None,
         timeout_seconds: int = 180,
         retry_limit: int = 3,
         retry_delay: float = 2.0,
-        retry_args: Optional[Dict[Any, Any]] = None,
+        retry_args: dict[Any, Any] | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -83,14 +85,14 @@ class DeltaSharingSensor(BaseSensorOperator):
         )
 
     @staticmethod
-    def get_previous_version(context: 'Context', lookup_key):
+    def get_previous_version(context: Context, lookup_key):
         return context['ti'].xcom_pull(key=lookup_key, include_prior_dates=True)
 
     @staticmethod
-    def set_version(context: 'Context', lookup_key, version):
+    def set_version(context: Context, lookup_key, version):
         context['ti'].xcom_push(key=lookup_key, value=version)
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         table_full_name = f'{self.share}.{self.schema}.{self.table}'
         self.log.info(
             'Poking Delta Sharing server for %s at %s', table_full_name, self.hook.delta_sharing_endpoint
