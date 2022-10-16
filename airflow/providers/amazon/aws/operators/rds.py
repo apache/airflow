@@ -796,9 +796,6 @@ class RdsStopDbOperator(RdsBaseOperator):
 
     def _wait_until_db_stopped(self):
         self.log.info(f"Waiting for DB {self.db_type} to reach 'stopped' state")
-        # todo: check docs for available states
-        # after you issue the stop command, what statuses happen?
-        # ex. backing up, configuring xxx, ...
         wait_statuses = ["stopping"]
         ok_statuses = ["stopped"]
         if self.db_type == RdsDbType.INSTANCE:
