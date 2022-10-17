@@ -746,7 +746,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
             from airflow.utils import timezone
 
             execution_date = timezone.utcnow()
-        create_dummy_dag(with_dagrun_type=None, **kwargs)
+        _, task = create_dummy_dag(with_dagrun_type=None, **kwargs)
 
         dagrun_kwargs = {"execution_date": execution_date, "state": dagrun_state}
         if run_id is not None:
@@ -757,6 +757,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
             dagrun_kwargs["data_interval"] = data_interval
         dagrun = dag_maker.create_dagrun(**dagrun_kwargs)
         (ti,) = dagrun.task_instances
+        ti.task = task
         ti.state = state
 
         dag_maker.session.flush()

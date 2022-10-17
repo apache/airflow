@@ -25,6 +25,7 @@ import sys
 import textwrap
 import unittest
 from copy import copy
+from tempfile import NamedTemporaryFile
 from unittest import mock
 from unittest.mock import ANY, MagicMock
 
@@ -147,7 +148,8 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         client.delete_collection_namespaced_pod(namespace="default", grace_period_seconds=0)
 
     def test_do_xcom_push_defaults_false(self):
-        new_config_path = '/tmp/kube_config'
+        with NamedTemporaryFile(prefix="kube_config", suffix=".cfg") as f:
+            new_config_path = f.name
         old_config_path = get_kubeconfig_path()
         shutil.copy(old_config_path, new_config_path)
         k = KubernetesPodOperator(
@@ -165,7 +167,8 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         assert not k.do_xcom_push
 
     def test_config_path_move(self):
-        new_config_path = '/tmp/kube_config'
+        with NamedTemporaryFile(prefix="kube_config", suffix=".cfg") as f:
+            new_config_path = f.name
         old_config_path = get_kubeconfig_path()
         shutil.copy(old_config_path, new_config_path)
 
@@ -834,6 +837,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             full_pod_spec=pod_spec,
             do_xcom_push=True,
             is_delete_operator_pod=False,
+            startup_timeout_seconds=30,
         )
 
         context = create_context(k)

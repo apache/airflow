@@ -37,10 +37,14 @@ const generateRuns = (length: number): DagRun[] => (
     dataIntervalEnd: datestring,
     state: 'success',
     runType: 'manual',
+    queuedAt: '2021-11-08T21:14:18.21521+00:00',
     startDate: '2021-11-08T21:14:19.704433+00:00',
     endDate: '2021-11-08T21:17:13.206426+00:00',
     lastSchedulingDecision: datestring,
     executionDate: datestring,
+    externalTrigger: false,
+    conf: null,
+    confIsJson: false,
   }))
 );
 
@@ -51,12 +55,16 @@ describe('Test DagRuns', () => {
         runId: 'run1',
         dataIntervalStart: datestring,
         dataIntervalEnd: datestring,
+        queuedAt: '2021-11-08T21:14:18.21521+00:00',
         startDate: '2021-11-08T21:14:19.704433+00:00',
         endDate: '2021-11-08T21:17:13.206426+00:00',
         state: 'failed',
         runType: 'scheduled',
         executionDate: '2021-11-08T21:14:19.704433+00:00',
         lastSchedulingDecision: datestring,
+        externalTrigger: false,
+        conf: null,
+        confIsJson: false,
       },
       {
         runId: 'run2',
@@ -64,10 +72,14 @@ describe('Test DagRuns', () => {
         dataIntervalEnd: datestring,
         state: 'success',
         runType: 'manual',
+        queuedAt: '2021-11-09T00:19:43.022122+00:00',
         startDate: '2021-11-09T00:19:43.023200+00:00',
         endDate: '2021-11-09T00:22:18.607167+00:00',
         executionDate: '2021-11-08T21:14:19.704433+00:00',
         lastSchedulingDecision: datestring,
+        externalTrigger: false,
+        conf: null,
+        confIsJson: false,
       },
     ];
     const data = {

@@ -137,8 +137,17 @@ def encode_dag_run(dag_run: DagRun | None) -> dict[str, Any] | None:
     if not dag_run:
         return None
 
+    conf: str | None = None
+    conf_is_json: bool = False
+    if isinstance(dag_run.conf, str):
+        conf = dag_run.conf
+    elif isinstance(dag_run.conf, (dict, list)) and any(dag_run.conf):
+        conf = json.dumps(dag_run.conf, sort_keys=True)
+        conf_is_json = True
+
     return {
         'run_id': dag_run.run_id,
+        'queued_at': datetime_to_string(dag_run.queued_at),
         'start_date': datetime_to_string(dag_run.start_date),
         'end_date': datetime_to_string(dag_run.end_date),
         'state': dag_run.state,
@@ -147,6 +156,9 @@ def encode_dag_run(dag_run: DagRun | None) -> dict[str, Any] | None:
         'data_interval_end': datetime_to_string(dag_run.data_interval_end),
         'run_type': dag_run.run_type,
         'last_scheduling_decision': datetime_to_string(dag_run.last_scheduling_decision),
+        'external_trigger': dag_run.external_trigger,
+        'conf': conf,
+        'conf_is_json': conf_is_json,
     }
 
 
@@ -560,9 +572,36 @@ class UtcAwareFilterMixin:
 
     def apply(self, query, value):
         """Apply the filter."""
-        value = timezone.parse(value, timezone=timezone.utc)
+        if isinstance(value, str) and not value.strip():
+            value = None
+        else:
+            value = timezone.parse(value, timezone=timezone.utc)
 
         return super().apply(query, value)
+
+
+class FilterIsNull(BaseFilter):
+    """Is null filter."""
+
+    name = lazy_gettext("Is Null")
+    arg_name = "emp"
+
+    def apply(self, query, value):
+        query, field = get_field_setup_query(query, self.model, self.column_name)
+        value = set_value_to_type(self.datamodel, self.column_name, None)
+        return query.filter(field == value)
+
+
+class FilterIsNotNull(BaseFilter):
+    """Is not null filter."""
+
+    name = lazy_gettext("Is not Null")
+    arg_name = "nemp"
+
+    def apply(self, query, value):
+        query, field = get_field_setup_query(query, self.model, self.column_name)
+        value = set_value_to_type(self.datamodel, self.column_name, None)
+        return query.filter(field != value)
 
 
 class FilterGreaterOrEqual(BaseFilter):
@@ -647,6 +686,15 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
             [],
         ),
     ) + fab_sqlafilters.SQLAFilterConverter.conversion_table
+
+    def __init__(self, datamodel):
+        super().__init__(datamodel)
+
+        for (method, filters) in self.conversion_table:
+            if FilterIsNull not in filters:
+                filters.append(FilterIsNull)
+            if FilterIsNotNull not in filters:
+                filters.append(FilterIsNotNull)
 
 
 class CustomSQLAInterface(SQLAInterface):

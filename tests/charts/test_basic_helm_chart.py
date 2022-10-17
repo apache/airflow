@@ -37,8 +37,7 @@ class TestBaseChartTest(unittest.TestCase):
         return values
 
     def _get_object_count(self, version):
-        # TODO remove default from condition after airflow update
-        if version == "2.3.2" or version == "default":
+        if version == "2.3.2":
             return OBJECT_COUNT_IN_BASIC_DEPLOYMENT + 1
         return OBJECT_COUNT_IN_BASIC_DEPLOYMENT
 
@@ -61,8 +60,7 @@ class TestBaseChartTest(unittest.TestCase):
         list_of_kind_names_tuples = {
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         }
-        # TODO remove default from condition after airflow update
-        if version == "2.3.2" or version == "default":
+        if version == "2.3.2":
             assert ('Secret', 'test-basic-airflow-result-backend') in list_of_kind_names_tuples
             list_of_kind_names_tuples.remove(('Secret', 'test-basic-airflow-result-backend'))
         assert list_of_kind_names_tuples == {
@@ -138,8 +136,7 @@ class TestBaseChartTest(unittest.TestCase):
         list_of_kind_names_tuples = {
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         }
-        # TODO remove default from condition after airflow update
-        if version == "2.3.2" or version == "default":
+        if version == "2.3.2":
             assert ('Secret', 'test-basic-airflow-result-backend') in list_of_kind_names_tuples
             list_of_kind_names_tuples.remove(('Secret', 'test-basic-airflow-result-backend'))
         assert list_of_kind_names_tuples == {
@@ -358,7 +355,10 @@ class TestBaseChartTest(unittest.TestCase):
             }
             if component:
                 expected_labels["component"] = component
-            assert kind_k8s_obj_labels_tuples.pop((k8s_object_name, kind)) == expected_labels
+            if k8s_object_name == f"{release_name}-scheduler":
+                expected_labels['executor'] = 'CeleryExecutor'
+            actual_labels = kind_k8s_obj_labels_tuples.pop((k8s_object_name, kind))
+            assert actual_labels == expected_labels
 
         if kind_k8s_obj_labels_tuples:
             warnings.warn(f"Unchecked objects: {kind_k8s_obj_labels_tuples.keys()}")

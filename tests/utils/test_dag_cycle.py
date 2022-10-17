@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import pytest
 
 from airflow import DAG
@@ -29,7 +27,7 @@ from airflow.utils.task_group import TaskGroup
 from tests.models import DEFAULT_DATE
 
 
-class TestCycleTester(unittest.TestCase):
+class TestCycleTester:
     def test_cycle_empty(self):
         # test empty
         dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})

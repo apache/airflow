@@ -32,7 +32,8 @@ services:
     volumes:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.
       - /var/run/docker.sock:/var/run/docker.sock
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+      - /dev/urandom:/dev/random  # Required to get non-blocking entropy source
       # Mount the cloned repo from codspaces docker host into the container,
       # this will keep /workspaces/airflow and /opt/airflow in sync.
-      - /var/lib/docker/codespacemount/workspace/airflow:/opt/airflow
+      - ../../../.:/opt/airflow
+      # - /var/lib/docker/codespacemount/workspace/airflow:/opt/airflow

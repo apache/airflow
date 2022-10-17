@@ -23,6 +23,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
+from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.operators.rds import (
     RdsBaseOperator,
@@ -130,6 +131,12 @@ def _create_event_subscription(hook: RdsHook):
         raise ValueError('AWS not properly mocked')
 
 
+def _patch_hook_get_connection(hook: AwsGenericHook) -> None:
+    # We're mocking all actual AWS calls and don't need a connection. This
+    # avoids an Airflow warning about connection cannot be found.
+    hook.get_connection = lambda _: None
+
+
 class TestBaseRdsOperator:
     dag = None
     op = None
@@ -175,6 +182,7 @@ class TestRdsCreateDbSnapshotOperator:
     def setup_class(cls):
         cls.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name='us-east-1')
+        _patch_hook_get_connection(cls.hook)
 
     @classmethod
     def teardown_class(cls):
@@ -192,6 +200,7 @@ class TestRdsCreateDbSnapshotOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(instance_snapshot_operator.hook)
         instance_snapshot_operator.execute(None)
 
         result = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT)
@@ -213,6 +222,7 @@ class TestRdsCreateDbSnapshotOperator:
             dag=self.dag,
             wait_for_completion=False,
         )
+        _patch_hook_get_connection(instance_snapshot_operator.hook)
         instance_snapshot_operator.execute(None)
 
         result = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT)
@@ -233,6 +243,7 @@ class TestRdsCreateDbSnapshotOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(cluster_snapshot_operator.hook)
         cluster_snapshot_operator.execute(None)
 
         result = self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT)
@@ -254,6 +265,7 @@ class TestRdsCreateDbSnapshotOperator:
             dag=self.dag,
             wait_for_completion=False,
         )
+        _patch_hook_get_connection(cluster_snapshot_operator.hook)
         cluster_snapshot_operator.execute(None)
 
         result = self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT)
@@ -270,6 +282,7 @@ class TestRdsCopyDbSnapshotOperator:
     def setup_class(cls):
         cls.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name='us-east-1')
+        _patch_hook_get_connection(cls.hook)
 
     @classmethod
     def teardown_class(cls):
@@ -289,6 +302,7 @@ class TestRdsCopyDbSnapshotOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(instance_snapshot_operator.hook)
         instance_snapshot_operator.execute(None)
         result = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT_COPY)
         instance_snapshots = result.get("DBSnapshots")
@@ -311,6 +325,7 @@ class TestRdsCopyDbSnapshotOperator:
             dag=self.dag,
             wait_for_completion=False,
         )
+        _patch_hook_get_connection(instance_snapshot_operator.hook)
         instance_snapshot_operator.execute(None)
         result = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT_COPY)
         instance_snapshots = result.get("DBSnapshots")
@@ -332,6 +347,7 @@ class TestRdsCopyDbSnapshotOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(cluster_snapshot_operator.hook)
         cluster_snapshot_operator.execute(None)
         result = self.hook.conn.describe_db_cluster_snapshots(
             DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT_COPY
@@ -355,6 +371,7 @@ class TestRdsCopyDbSnapshotOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(cluster_snapshot_operator.hook)
         cluster_snapshot_operator.execute(None)
         result = self.hook.conn.describe_db_cluster_snapshots(
             DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT_COPY
@@ -372,6 +389,7 @@ class TestRdsDeleteDbSnapshotOperator:
     def setup_class(cls):
         cls.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name='us-east-1')
+        _patch_hook_get_connection(cls.hook)
 
     @classmethod
     def teardown_class(cls):
@@ -390,6 +408,7 @@ class TestRdsDeleteDbSnapshotOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(instance_snapshot_operator.hook)
         instance_snapshot_operator.execute(None)
 
         with pytest.raises(self.hook.conn.exceptions.ClientError):
@@ -407,6 +426,7 @@ class TestRdsDeleteDbSnapshotOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(cluster_snapshot_operator.hook)
         cluster_snapshot_operator.execute(None)
 
         with pytest.raises(self.hook.conn.exceptions.ClientError):
@@ -419,6 +439,7 @@ class TestRdsStartExportTaskOperator:
     def setup_class(cls):
         cls.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name='us-east-1')
+        _patch_hook_get_connection(cls.hook)
 
     @classmethod
     def teardown_class(cls):
@@ -440,6 +461,7 @@ class TestRdsStartExportTaskOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(start_export_operator.hook)
         start_export_operator.execute(None)
 
         result = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=EXPORT_TASK_NAME)
@@ -466,6 +488,7 @@ class TestRdsStartExportTaskOperator:
             dag=self.dag,
             wait_for_completion=False,
         )
+        _patch_hook_get_connection(start_export_operator.hook)
         start_export_operator.execute(None)
 
         result = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=EXPORT_TASK_NAME)
@@ -483,6 +506,7 @@ class TestRdsCancelExportTaskOperator:
     def setup_class(cls):
         cls.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name='us-east-1')
+        _patch_hook_get_connection(cls.hook)
 
     @classmethod
     def teardown_class(cls):
@@ -501,6 +525,7 @@ class TestRdsCancelExportTaskOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(cancel_export_operator.hook)
         cancel_export_operator.execute(None)
 
         result = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=EXPORT_TASK_NAME)
@@ -523,6 +548,7 @@ class TestRdsCancelExportTaskOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(cancel_export_operator.hook)
         cancel_export_operator.execute(None)
 
         result = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=EXPORT_TASK_NAME)
@@ -540,6 +566,7 @@ class TestRdsCreateEventSubscriptionOperator:
     def setup_class(cls):
         cls.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name='us-east-1')
+        _patch_hook_get_connection(cls.hook)
 
     @classmethod
     def teardown_class(cls):
@@ -559,6 +586,7 @@ class TestRdsCreateEventSubscriptionOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(create_subscription_operator.hook)
         create_subscription_operator.execute(None)
 
         result = self.hook.conn.describe_event_subscriptions(SubscriptionName=SUBSCRIPTION_NAME)
@@ -582,6 +610,7 @@ class TestRdsCreateEventSubscriptionOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(create_subscription_operator.hook)
         create_subscription_operator.execute(None)
 
         result = self.hook.conn.describe_event_subscriptions(SubscriptionName=SUBSCRIPTION_NAME)
@@ -599,6 +628,7 @@ class TestRdsDeleteEventSubscriptionOperator:
     def setup_class(cls):
         cls.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name='us-east-1')
+        _patch_hook_get_connection(cls.hook)
 
     @classmethod
     def teardown_class(cls):
@@ -615,6 +645,7 @@ class TestRdsDeleteEventSubscriptionOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(delete_subscription_operator.hook)
         delete_subscription_operator.execute(None)
 
         with pytest.raises(self.hook.conn.exceptions.ClientError):
@@ -627,6 +658,7 @@ class TestRdsCreateDbInstanceOperator:
     def setup_class(cls):
         cls.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name='us-east-1')
+        _patch_hook_get_connection(cls.hook)
 
     @classmethod
     def teardown_class(cls):
@@ -646,6 +678,7 @@ class TestRdsCreateDbInstanceOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(create_db_instance_operator.hook)
         create_db_instance_operator.execute(None)
 
         result = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
@@ -669,6 +702,7 @@ class TestRdsCreateDbInstanceOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(create_db_instance_operator.hook)
         create_db_instance_operator.execute(None)
 
         result = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
@@ -686,6 +720,7 @@ class TestRdsDeleteDbInstanceOperator:
     def setup_class(cls):
         cls.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name='us-east-1')
+        _patch_hook_get_connection(cls.hook)
 
     @classmethod
     def teardown_class(cls):
@@ -705,6 +740,7 @@ class TestRdsDeleteDbInstanceOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(delete_db_instance_operator.hook)
         delete_db_instance_operator.execute(None)
 
         with pytest.raises(self.hook.conn.exceptions.ClientError):
@@ -725,6 +761,7 @@ class TestRdsDeleteDbInstanceOperator:
             dag=self.dag,
             wait_for_completion=False,
         )
+        _patch_hook_get_connection(delete_db_instance_operator.hook)
         delete_db_instance_operator.execute(None)
 
         with pytest.raises(self.hook.conn.exceptions.ClientError):

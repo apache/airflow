@@ -71,7 +71,7 @@ from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import Date, and_, desc, func, inspect, union_all
+from sqlalchemy import Date, and_, case, desc, func, inspect, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from wtforms import SelectField, validators
@@ -108,7 +108,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
 from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.timetables.interval import CronDataIntervalTimetable
-from airflow.utils import timezone, yaml
+from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.dates import infer_time_unit, scale_time_units
@@ -237,8 +237,15 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     }
 
 
-def _safe_parse_datetime(v):
-    """Parse datetime and return error message for invalid dates"""
+def _safe_parse_datetime(v, allow_empty=False):
+    """
+    Parse datetime and return error message for invalid dates
+
+    :param v: the string value to be parsed
+    :param allow_empty: Set True to return none if empty str or None
+    """
+    if allow_empty is True and not v:
+        return None
     try:
         return timezone.parse(v)
     except (TypeError, ParserError):
@@ -2233,55 +2240,11 @@ class Airflow(AirflowBaseView):
         return self._mark_dagrun_state_as_queued(dag_id, dag_run_id, confirmed)
 
     @expose("/dagrun_details")
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        ]
-    )
-    @action_logging
-    @provide_session
-    def dagrun_details(self, session=None):
-        """Retrieve DAG Run details."""
+    def dagrun_details(self):
+        """Redirect to the GRID DAGRun page. This is avoids breaking links."""
         dag_id = request.args.get("dag_id")
         run_id = request.args.get("run_id")
-
-        dag = get_airflow_app().dag_bag.get_dag(dag_id)
-        dag_run: DagRun | None = (
-            session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one_or_none()
-        )
-        redirect_url = get_safe_url(request.values.get('redirect_url'))
-
-        if dag_run is None:
-            flash(f"No DAG run found for DAG id {dag_id} and run id {run_id}", "error")
-            return redirect(redirect_url or url_for('Airflow.index'))
-        else:
-            try:
-                duration = dag_run.end_date - dag_run.start_date
-            except TypeError:
-                # Raised if end_date is None e.g. when DAG is still running
-                duration = None
-
-            dagrun_attributes = [
-                ("Logical date", wwwutils.datetime_html(dag_run.execution_date)),
-                ("Queued at", wwwutils.datetime_html(dag_run.queued_at)),
-                ("Start date", wwwutils.datetime_html(dag_run.start_date)),
-                ("End date", wwwutils.datetime_html(dag_run.end_date)),
-                ("Duration", str(duration)),
-                ("Current state", wwwutils.state_token(dag_run.state)),
-                ("Run type", dag_run.run_type),
-                ("Externally triggered", dag_run.external_trigger),
-                ("Config", wwwutils.json_render(dag_run.conf, lexers.JsonLexer)),
-            ]
-
-            return self.render_template(
-                "airflow/dagrun_details.html",
-                dag=dag,
-                dag_id=dag_id,
-                run_id=run_id,
-                execution_date=dag_run.execution_date.isoformat(),
-                dagrun_attributes=dagrun_attributes,
-            )
+        return redirect(url_for("Airflow.grid", dag_id=dag_id, dag_run_id=run_id))
 
     def _mark_task_instance_state(
         self,
@@ -2491,7 +2454,8 @@ class Airflow(AirflowBaseView):
     @action_logging
     def dag(self, dag_id):
         """Redirect to default DAG view."""
-        return redirect(url_for('Airflow.grid', dag_id=dag_id, **request.args))
+        kwargs = {**request.args, "dag_id": dag_id}
+        return redirect(url_for('Airflow.grid', **kwargs))
 
     @expose('/legacy_tree')
     @auth.has_access(
@@ -3533,19 +3497,21 @@ class Airflow(AirflowBaseView):
 
         for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
             dag_node_id = f"dag:{dag}"
-            if dag_node_id not in nodes_dict:
-                nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")
-
-            for dep in dependencies:
-                if dep.node_id not in nodes_dict and (
-                    dep.dependency_type == 'dag' or dep.dependency_type == 'dataset'
-                ):
-                    nodes_dict[dep.node_id] = node_dict(dep.node_id, dep.dependency_id, dep.dependency_type)
-                edge_tuples.add((f"dag:{dep.source}", dep.node_id))
-                edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
+            if dag_node_id not in nodes_dict and len(dependencies) > 0:
+                for dep in dependencies:
+                    if dep.dependency_type == 'dag' or dep.dependency_type == 'dataset':
+                        nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, 'dag')
+                        if dep.node_id not in nodes_dict:
+                            nodes_dict[dep.node_id] = node_dict(
+                                dep.node_id, dep.dependency_id, dep.dependency_type
+                            )
+                        if dep.source != 'dataset':
+                            edge_tuples.add((f"dag:{dep.source}", dep.node_id))
+                        if dep.target != 'dataset':
+                            edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
 
         nodes = list(nodes_dict.values())
-        edges = [{"u": u, "v": v} for u, v in edge_tuples]
+        edges = [{"source": source, "target": target} for source, target in edge_tuples]
 
         data = {
             'nodes': nodes,
@@ -3556,6 +3522,101 @@ class Airflow(AirflowBaseView):
             htmlsafe_json_dumps(data, separators=(',', ':'), dumps=flask.json.dumps),
             {'Content-Type': 'application/json; charset=utf-8'},
         )
+
+    @expose('/object/datasets_summary')
+    @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
+    def datasets_summary(self):
+        """Get a summary of datasets, including the datetime they were last updated and how many updates
+        they've ever had
+        """
+        allowed_attrs = ['uri', 'last_dataset_update']
+
+        # Grab query parameters
+        limit = int(request.args.get("limit", 25))
+        offset = int(request.args.get("offset", 0))
+        order_by = request.args.get("order_by", "uri")
+        uri_pattern = request.args.get("uri_pattern", "")
+        lstripped_orderby = order_by.lstrip('-')
+        updated_after = _safe_parse_datetime(request.args.get("updated_after"), allow_empty=True)
+        updated_before = _safe_parse_datetime(request.args.get("updated_before"), allow_empty=True)
+
+        # Check and clean up query parameters
+        limit = 50 if limit > 50 else limit
+
+        uri_pattern = uri_pattern[:4000]
+
+        if lstripped_orderby not in allowed_attrs:
+            return {
+                "detail": (
+                    f"Ordering with '{lstripped_orderby}' is disallowed or the attribute does not "
+                    "exist on the model"
+                )
+            }, 400
+
+        with create_session() as session:
+            if lstripped_orderby == "uri":
+                if order_by[0] == "-":
+                    order_by = (DatasetModel.uri.desc(),)
+                else:
+                    order_by = (DatasetModel.uri.asc(),)
+            elif lstripped_orderby == "last_dataset_update":
+                if order_by[0] == "-":
+                    order_by = (
+                        func.max(DatasetEvent.timestamp).desc(),
+                        DatasetModel.uri.asc(),
+                    )
+                    if session.bind.dialect.name == "postgresql":
+                        order_by = (order_by[0].nulls_last(), *order_by[1:])
+                else:
+                    order_by = (
+                        func.max(DatasetEvent.timestamp).asc(),
+                        DatasetModel.uri.desc(),
+                    )
+                    if session.bind.dialect.name == "postgresql":
+                        order_by = (order_by[0].nulls_first(), *order_by[1:])
+
+            count_query = session.query(func.count(DatasetModel.id))
+
+            has_event_filters = bool(updated_before or updated_after)
+
+            query = (
+                session.query(
+                    DatasetModel.id,
+                    DatasetModel.uri,
+                    func.max(DatasetEvent.timestamp).label("last_dataset_update"),
+                    func.sum(case((DatasetEvent.id.is_not(None), 1), else_=0)).label("total_updates"),
+                )
+                .join(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id, isouter=not has_event_filters)
+                .group_by(
+                    DatasetModel.id,
+                    DatasetModel.uri,
+                )
+                .order_by(*order_by)
+            )
+
+            if has_event_filters:
+                count_query = count_query.join(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
+
+            filters = []
+            if uri_pattern:
+                filters.append(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
+            if updated_after:
+                filters.append(DatasetEvent.timestamp >= updated_after)
+            if updated_before:
+                filters.append(DatasetEvent.timestamp <= updated_before)
+
+            query = query.filter(*filters)
+            count_query = count_query.filter(*filters)
+
+            query = query.offset(offset).limit(limit)
+
+            datasets = [dict(dataset) for dataset in query.all()]
+            data = {"datasets": datasets, "total_entries": count_query.scalar()}
+
+            return (
+                htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
+                {'Content-Type': 'application/json; charset=utf-8'},
+            )
 
     @expose('/robots.txt')
     @action_logging
@@ -3606,7 +3667,7 @@ class Airflow(AirflowBaseView):
 
         current_page = request.args.get('page', default=0, type=int)
         arg_sorting_key = request.args.get('sorting_key', 'dttm')
-        arg_sorting_direction = request.args.get('sorting_direction', default='asc')
+        arg_sorting_direction = request.args.get('sorting_direction', default='desc')
 
         logs_per_page = PAGE_SIZE
         audit_logs_count = query.count()

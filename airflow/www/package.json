@@ -110,6 +110,7 @@
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "react-icons": "^4.3.1",
+    "react-json-view": "^1.21.3",
     "react-query": "^3.39.1",
     "react-router-dom": "^6.3.0",
     "react-table": "^7.8.0",

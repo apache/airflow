@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import re
-import unittest
 from unittest import mock
 
 import pytest
@@ -32,7 +31,7 @@ def get_hostname():
     return 'awesomehostname'
 
 
-class TestGetHostname(unittest.TestCase):
+class TestGetHostname:
     @mock.patch('airflow.utils.net.getfqdn', return_value='first')
     @conf_vars({('core', 'hostname_callable'): None})
     def test_get_hostname_unset(self, mock_getfqdn):
