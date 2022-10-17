@@ -24,6 +24,7 @@ import ELK, { ElkShape, ElkExtendedEdge } from 'elkjs';
 import { getMetaValue } from 'src/utils';
 import type { DepEdge, DepNode } from 'src/types';
 import type { NodeType } from 'src/datasets/Graph/Node';
+import { unionBy } from 'lodash';
 
 interface DatasetDependencies {
   edges: DepEdge[];
@@ -75,15 +76,106 @@ const generateGraph = ({ nodes, edges, font }: GenerateProps) => ({
   edges: edges.map((e) => ({ id: `${e.source}-${e.target}`, sources: [e.source], targets: [e.target] })),
 });
 
+interface SeparateGraphsProps extends DatasetDependencies {
+  graphs: DatasetDependencies[];
+}
+
+const graphIndicesToMerge: Record<number, number[]> = {};
+
+const findDownstreamGraph = (
+  { edges, nodes, graphs = [] }: SeparateGraphsProps,
+): DatasetDependencies[] => {
+  const newGraphs = [...graphs];
+  let filteredEdges = [...edges];
+
+  graphs.forEach((g, i) => {
+    const newEdges = edges.filter((e) => g.edges.some((ge) => ge.target === e.source));
+    const newNodes: DepNode[] = [];
+    newEdges.forEach((e) => {
+      const newNode = nodes.find((n) => n.id === e.target);
+      if (newNode) {
+        newNodes.push(newNode);
+        const existingGraphIndex = newGraphs
+          .findIndex(((ng) => ng.nodes.some((n) => n.id === newNode.id)));
+        if (existingGraphIndex > -1) {
+          graphIndicesToMerge[i] = [...(graphIndicesToMerge[i] || []), existingGraphIndex];
+        }
+        newGraphs[i] = {
+          nodes: [...newGraphs[i].nodes, newNode],
+          edges: [...newGraphs[i].edges, e],
+        };
+        filteredEdges = filteredEdges
+          .filter((fe) => fe.source !== e.source && fe.target !== e.target);
+      }
+    });
+  });
+
+  if (!filteredEdges.length) {
+    const mergedGraphs: DatasetDependencies[] = [...newGraphs];
+    Object.keys(graphIndicesToMerge).forEach((key) => {
+      const realKey = key as unknown as number;
+      const values = graphIndicesToMerge[realKey];
+      values.forEach((v) => {
+        mergedGraphs[realKey] = {
+          nodes: unionBy(mergedGraphs[realKey].nodes, newGraphs[v as unknown as number].nodes, 'id'),
+          edges: [...mergedGraphs[realKey].edges, ...newGraphs[v as unknown as number].edges],
+        };
+      });
+    });
+
+    Object.keys(graphIndicesToMerge).forEach((key) => {
+      const realKey = key as unknown as number;
+      const values = graphIndicesToMerge[realKey];
+      values.reverse().forEach((v) => {
+        mergedGraphs.splice(v, 1);
+      });
+    });
+    return mergedGraphs;
+  }
+  return findDownstreamGraph({ edges: filteredEdges, nodes, graphs: newGraphs });
+};
+
+const separateGraphs = ({ edges, nodes }: DatasetDependencies): DatasetDependencies[] => {
+  const newGraphs: DatasetDependencies[] = [];
+  let remainingEdges = [...edges];
+  let remainingNodes = [...nodes];
+
+  edges.forEach((edge) => {
+    const downstreams = edges.filter((e) => e.target === edge.source);
+    if (!downstreams.length) {
+      const newNodes = nodes.filter((n) => n.id === edge.source || n.id === edge.target);
+      const nodesInUse = newGraphs
+        .findIndex((g) => g.nodes.some((n) => newNodes.some((nn) => nn.id === n.id)));
+      if (nodesInUse > -1) {
+        const { nodes: existingNodes, edges: existingEdges } = newGraphs[nodesInUse];
+        newGraphs[nodesInUse] = { nodes: unionBy(existingNodes, newNodes, 'id'), edges: [...existingEdges, edge] };
+      } else {
+        newGraphs.push({ nodes: newNodes, edges: [edge] });
+      }
+      remainingEdges = remainingEdges.filter((e) => e.source !== edge.source);
+      remainingNodes = remainingNodes.filter((n) => !newNodes.some((nn) => nn.id === n.id));
+    }
+  });
+
+  if (remainingEdges.length) {
+    return findDownstreamGraph({ edges: remainingEdges, nodes, graphs: newGraphs });
+  }
+  return newGraphs;
+};
+
 const formatDependencies = async ({ edges, nodes }: DatasetDependencies) => {
   const elk = new ELK();
+
+  const graphs = separateGraphs({ edges, nodes });
 
   // get computed style to calculate how large each node should be
   const font = `bold ${16}px ${window.getComputedStyle(document.body).fontFamily}`;
 
   // Finally generate the graph data with elk
-  const data = await elk.layout(generateGraph({ nodes, edges, font }));
-  return data as Data;
+  const data = await Promise.all(graphs.map(async (g) => (
+    elk.layout(generateGraph({ nodes: g.nodes, edges: g.edges, font }))
+  )));
+  return data as Data[];
 };
 
 export default function useDatasetDependencies() {
