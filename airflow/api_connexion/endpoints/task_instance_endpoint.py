@@ -567,10 +567,9 @@ def patch_mapped_task_instance(
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
-    error_message = f"Dag ID {dag_id} not found"
     dag = get_airflow_app().dag_bag.get_dag(dag_id)
     if not dag:
-        raise NotFound(error_message)
+        raise NotFound("DAG not found", detail=f"DAG {dag_id!r} not found")
 
     if not dag.has_task(task_id):
         error_message = f"Task ID {task_id} not found"
