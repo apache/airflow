@@ -16,11 +16,12 @@
 # under the License.
 
 """Launches Custom object"""
+from __future__ import annotations
+
 import sys
 import time
 from copy import deepcopy
 from datetime import datetime as dt
-from typing import Optional
 
 import tenacity
 import yaml
@@ -167,7 +168,7 @@ class CustomObjectLauncher(LoggingMixin):
         plural: str = 'sparkapplications',
         kind: str = 'SparkApplication',
         extract_xcom: bool = False,
-        application_file: Optional[str] = None,
+        application_file: str | None = None,
     ):
         """
         Creates the launcher.

@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
+
 import json
 import sys
-from typing import Dict, List, Optional, Union
 
 import yaml
 from kubernetes import client
@@ -32,13 +32,20 @@ if sys.version_info >= (3, 8):
     from functools import cached_property
 else:
     from cached_property import cached_property
+
 from airflow.kubernetes import kube_client, pod_generator
 from airflow.kubernetes.custom_object_launcher import CustomObjectLauncher, SparkResources
 from airflow.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
 from airflow.models import BaseOperator
-from airflow.providers.cncf.kubernetes.resource_convert.secret import convert_secret, convert_image_pull_secrets
-from airflow.providers.cncf.kubernetes.resource_convert.configmap import convert_configmap, convert_configmap_to_volume
+from airflow.providers.cncf.kubernetes.resource_convert.configmap import (
+    convert_configmap,
+    convert_configmap_to_volume,
+)
 from airflow.providers.cncf.kubernetes.resource_convert.env_variable import convert_env_vars
+from airflow.providers.cncf.kubernetes.resource_convert.secret import (
+    convert_image_pull_secrets,
+    convert_secret,
+)
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager, PodPhase
 
 
@@ -110,42 +117,42 @@ class SparkKubernetesOperator(BaseOperator):
     def __init__(
         self,
         *,
-        image: Optional[str] = None,
-        code_path: Optional[str] = None,
-        namespace: Optional[str] = 'default',
-        application_file: Optional[str] = None,
+        image: str | None = None,
+        code_path: str | None = None,
+        namespace: str | None = 'default',
+        application_file: str | None = None,
         spark_api_group: str = 'sparkoperator.k8s.io',
         spark_api_version: str = 'v1beta2',
         spark_api_kind: str = 'SparkApplication',
         spark_api_plural: str = 'sparkapplications',
-        spark_resources: Optional[dict] = None,
+        spark_resources: dict | None = None,
         spark_dynamic_allocation: bool = False,
-        spark_dynamic_alloc_max_executors: Optional[int] = None,
+        spark_dynamic_alloc_max_executors: int | None = None,
         spark_dynamic_alloc_initial_executors: int = 1,
         spark_dynamic_alloc_min_executors: int = 1,
         spark_version: str = '3.0.0',
         spark_job_mode: str = 'cluster',
         spark_job_python_version: str = '3',
         spark_job_type: str = 'Python',
-        spark_hadoop_config: Optional[dict] = None,
+        spark_hadoop_config: dict | None = None,
         spark_number_workers: int = 1,
-        k8s_env_vars: Optional[Union[List[k8s.V1EnvVar], Dict]] = None,
-        k8s_env_from: Optional[List[k8s.V1EnvFromSource]] = None,
-        k8s_affinity: Optional[k8s.V1Affinity] = None,
-        k8s_tolerations: Optional[List[k8s.V1Toleration]] = None,
-        k8s_volume_mounts: Optional[List[k8s.V1VolumeMount]] = None,
-        k8s_volumes: Optional[List[k8s.V1Volume]] = None,
-        k8s_config_map_mounts: Optional[Dict[str, str]] = None,
-        k8s_from_env_config_map: Optional[List[str]] = None,
-        k8s_from_env_secret: Optional[List[str]] = None,
+        k8s_env_vars: list[k8s.V1EnvVar] | dict | None = None,
+        k8s_env_from: list[k8s.V1EnvFromSource] | None = None,
+        k8s_affinity: k8s.V1Affinity | None = None,
+        k8s_tolerations: list[k8s.V1Toleration] | None = None,
+        k8s_volume_mounts: list[k8s.V1VolumeMount] | None = None,
+        k8s_volumes: list[k8s.V1Volume] | None = None,
+        k8s_config_map_mounts: dict[str, str] | None = None,
+        k8s_from_env_config_map: list[str] | None = None,
+        k8s_from_env_secret: list[str] | None = None,
         k8s_image_pull_policy: str = 'Always',
         k8s_service_account_name: str = 'default',
-        k8s_image_pull_secrets: Optional[Union[List[k8s.V1LocalObjectReference], str]] = None,
-        k8s_labels: Optional[dict] = None,
-        k8s_restart_policy: Optional[dict] = None,
-        k8s_cluster_context: Optional[str] = None,
-        k8s_config_file: Optional[str] = None,
-        k8s_in_cluster: Optional[bool] = None,
+        k8s_image_pull_secrets: list[k8s.V1LocalObjectReference] | str | None = None,
+        k8s_labels: dict | None = None,
+        k8s_restart_policy: dict | None = None,
+        k8s_cluster_context: str | None = None,
+        k8s_config_file: str | None = None,
+        k8s_in_cluster: bool | None = None,
         get_logs: bool = True,
         do_xcom_push: bool = False,
         success_run_history_limit: int = 1,
@@ -238,7 +245,7 @@ class SparkKubernetesOperator(BaseOperator):
         return ','.join([label_id + '=' + label for label_id, label in sorted(filtered_labels.items())])
 
     @staticmethod
-    def create_labels_for_pod(context: Optional[dict] = None, include_try_number: bool = True) -> dict:
+    def create_labels_for_pod(context: dict | None = None, include_try_number: bool = True) -> dict:
         """
         Generate labels for the pod to track the pod in case of Operator crash
         :param include_try_number: add try number to labels
