@@ -763,8 +763,7 @@ class DagFileProcessorManager(LoggingMixin):
             DagCode.remove_deleted_code(dag_filelocs)
 
             return True
-        else:
-            return False
+        return False
 
     def _print_stat(self):
         """Occasionally print out stats about how fast the files are getting processed"""
