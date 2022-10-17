@@ -72,7 +72,7 @@ const generateGraph = ({ nodes, edges, font }: GenerateProps) => ({
     height: 40,
     value,
   })),
-  edges: edges.map((e) => ({ id: `${e.u}-${e.v}`, sources: [e.u], targets: [e.v] })),
+  edges: edges.map((e) => ({ id: `${e.source}-${e.target}`, sources: [e.source], targets: [e.target] })),
 });
 
 const formatDependencies = async ({ edges, nodes }: DatasetDependencies) => {
@@ -81,17 +81,8 @@ const formatDependencies = async ({ edges, nodes }: DatasetDependencies) => {
   // get computed style to calculate how large each node should be
   const font = `bold ${16}px ${window.getComputedStyle(document.body).fontFamily}`;
 
-  // Make sure we only show edges that are connected to two nodes.
-  const newEdges = edges.filter((e) => {
-    const edgeNodes = nodes.filter((n) => n.id === e.u || n.id === e.v);
-    return edgeNodes.length === 2;
-  });
-
-  // Then filter out any nodes without an edge.
-  const newNodes = nodes.filter((n) => newEdges.some((e) => e.u === n.id || e.v === n.id));
-
   // Finally generate the graph data with elk
-  const data = await elk.layout(generateGraph({ nodes: newNodes, edges: newEdges, font }));
+  const data = await elk.layout(generateGraph({ nodes, edges, font }));
   return data as Data;
 };
 
