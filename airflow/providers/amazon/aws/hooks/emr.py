@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     )
 
 
-class EmrHook(AwsGenericHook[EMRClient]):
+class EmrHook(AwsGenericHook["EMRClient"]):
     """
     Interact with Amazon Elastic MapReduce Service.
 
