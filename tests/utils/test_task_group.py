@@ -1273,11 +1273,11 @@ def test_get_task_dict():
         with TaskGroup("section_2") as tg2:
             task2 = EmptyOperator(task_id="task2")
             task3 = EmptyOperator(task_id="task3")
-            mapped_bash_operator = BashOperator.partial(task_id="get_tag_template_result").expand(
+            mapped_bash_operator = BashOperator.partial(task_id="bash_task").expand(
                 bash_command=[
-                    "echo get_tag_template_result",
-                    "echo get_tag_template_result",
-                    "echo get_tag_template_result",
+                    "echo hello 1",
+                    "echo hello 2",
+                    "echo hello 3",
                 ]
             )
             task2 >> task3 >> mapped_bash_operator
@@ -1289,7 +1289,7 @@ def test_get_task_dict():
         'section_1.task1',
         'section_2.task2',
         'section_2.task3',
-        'section_2.get_tag_template_result',
+        'section_2.bash_task',
     ]
     section_1_task_mapping = tg1.get_task_dict()
     assert list(section_1_task_mapping.keys()) == [
@@ -1299,5 +1299,5 @@ def test_get_task_dict():
     assert list(section_2_task_mapping.keys()) == [
         'section_2.task2',
         'section_2.task3',
-        'section_2.get_tag_template_result',
+        'section_2.bash_task',
     ]
