@@ -40,7 +40,12 @@ with DAG(
     # [START howto_operator_mysql]
 
     drop_table_mysql_task = MySqlOperator(
-        task_id='drop_table_mysql', sql=r"""DROP TABLE table_name;""", dag=dag
+        task_id='drop_table_mysql', sql=r"""DROP TABLE table_name;"""
+    )
+
+    from airflow.providers.common.sql.hooks.sql import fetch_all_handler
+    get_results_task = MySqlOperator(
+        task_id='get_results_mysql', sql="SELECT 1;", handler=fetch_all_handler
     )
 
     # [END howto_operator_mysql]
@@ -50,7 +55,6 @@ with DAG(
     mysql_task = MySqlOperator(
         task_id='drop_table_mysql_external_file',
         sql='/scripts/drop_table.sql',
-        dag=dag,
     )
 
     # [END howto_operator_mysql_external_file]

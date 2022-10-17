@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence, Callable
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -48,6 +48,8 @@ class MsSqlOperator(BaseOperator):
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
     :param database: name of database which overwrite defined one in connection
+    :param handler: A Python callable that will act on cursor result.
+        By default, it will use ``fetchall``
     """
 
     template_fields: Sequence[str] = ('sql',)
@@ -64,6 +66,7 @@ class MsSqlOperator(BaseOperator):
         parameters: Iterable | Mapping | None = None,
         autocommit: bool = False,
         database: str | None = None,
+        handler: Callable | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -73,6 +76,7 @@ class MsSqlOperator(BaseOperator):
         self.autocommit = autocommit
         self.database = database
         self._hook: MsSqlHook | DbApiHook | None = None
+        self.handler = handler
 
     def get_hook(self) -> MsSqlHook | DbApiHook | None:
         """
@@ -90,9 +94,12 @@ class MsSqlOperator(BaseOperator):
                 self._hook = MsSqlHook(mssql_conn_id=self.mssql_conn_id, schema=self.database)
         return self._hook
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Context) -> list[tuple] | None:
         self.log.info('Executing: %s', self.sql)
         hook = self.get_hook()
-        hook.run(  # type: ignore[union-attr]
-            sql=self.sql, autocommit=self.autocommit, parameters=self.parameters
+        return hook.run(  # type: ignore[union-attr]
+            sql=self.sql,
+            autocommit=self.autocommit,
+            parameters=self.parameters,
+            handler=self.handler
         )

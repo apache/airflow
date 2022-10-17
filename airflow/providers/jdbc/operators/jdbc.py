@@ -44,6 +44,8 @@ class JdbcOperator(BaseOperator):
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
     :param parameters: (optional) the parameters to render the SQL query with.
+    :param handler: A Python callable that will act on the cursor result.
+        By default, it will use ``fetchall``
     """
 
     template_fields: Sequence[str] = ('sql',)

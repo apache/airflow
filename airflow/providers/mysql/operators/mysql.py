@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import ast
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence, Callable
 
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
@@ -47,6 +47,8 @@ class MySqlOperator(BaseOperator):
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
     :param database: name of database which overwrite defined one in connection
+    :param handler: A Python callable that will act on the cursor result.
+        By default, it will use ``fetchall``
     """
 
     template_fields: Sequence[str] = ('sql', 'parameters')
@@ -66,6 +68,7 @@ class MySqlOperator(BaseOperator):
         parameters: Iterable | Mapping | None = None,
         autocommit: bool = False,
         database: str | None = None,
+        handler: Callable | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -74,13 +77,19 @@ class MySqlOperator(BaseOperator):
         self.autocommit = autocommit
         self.parameters = parameters
         self.database = database
+        self.handler = handler
 
     def prepare_template(self) -> None:
         """Parse template file for attribute parameters."""
         if isinstance(self.parameters, str):
             self.parameters = ast.literal_eval(self.parameters)
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Context) -> list[tuple] | None:
         self.log.info('Executing: %s', self.sql)
         hook = MySqlHook(mysql_conn_id=self.mysql_conn_id, schema=self.database)
-        hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)
+        return hook.run(
+            sql=self.sql,
+            autocommit=self.autocommit,
+            parameters=self.parameters,
+            handler=self.handler
+        )

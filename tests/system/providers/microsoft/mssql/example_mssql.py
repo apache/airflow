@@ -54,7 +54,6 @@ with DAG(
             continent TEXT
         );
         """,
-        dag=dag,
     )
 
     # [END howto_operator_mssql]
@@ -84,7 +83,6 @@ with DAG(
         task_id='create_table_from_external_file',
         mssql_conn_id='airflow_mssql',
         sql='create_table.sql',
-        dag=dag,
     )
     # [END mssql_operator_howto_guide_create_table_mssql_from_external_file]
 
@@ -106,10 +104,13 @@ with DAG(
     # [END mssql_operator_howto_guide_populate_user_table]
 
     # [START mssql_operator_howto_guide_get_all_countries]
+    from airflow.providers.common.sql.hooks.sql import fetch_all_handler
+
     get_all_countries = MsSqlOperator(
         task_id="get_all_countries",
         mssql_conn_id='airflow_mssql',
         sql=r"""SELECT * FROM Country;""",
+        handler=fetch_all_handler,
     )
     # [END mssql_operator_howto_guide_get_all_countries]
 
