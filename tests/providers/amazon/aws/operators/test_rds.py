@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from unittest.mock import patch
 
 import pytest
@@ -843,6 +844,23 @@ class TestRdsStopDbOperator:
         describe_result = self.hook.conn.describe_db_clusters(DBClusterIdentifier=DB_CLUSTER_NAME)
         status = describe_result["DBClusters"][0]["Status"]
         assert status == "stopped"
+
+    @mock_rds
+    def test_stop_db_cluster_create_snapshot_logs_warning_message(self, caplog):
+        _create_db_cluster(self.hook)
+        stop_db_cluster = RdsStopDbOperator(
+            task_id="test_stop_db_cluster",
+            db_identifier=DB_CLUSTER_NAME,
+            db_type="cluster",
+            db_snapshot_identifier=DB_CLUSTER_SNAPSHOT,
+        )
+        _patch_hook_get_connection(stop_db_cluster.hook)
+        with caplog.at_level(logging.WARNING, logger=stop_db_cluster.log.name):
+            stop_db_cluster.execute(None)
+        warning_message = (
+            "'db_snapshot_identifier' does not apply to db clusters. Remove it to silence this warning."
+        )
+        assert warning_message in caplog.text
 
 
 @pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
