@@ -376,7 +376,7 @@ class TestLocalTaskJob:
 
     @patch.object(StandardTaskRunner, 'return_code')
     @mock.patch('airflow.jobs.scheduler_job.Stats.incr')
-    def test_localtaskjob_report_return_code(self, mock_stats_incr, mock_return_code, create_dummy_dag):
+    def test_raw_task_return_code_metric(self, mock_stats_incr, mock_return_code, create_dummy_dag):
 
         _, task = create_dummy_dag('test_localtaskjob_double_trigger')
         mock_stats_incr.reset_mock()
@@ -392,7 +392,7 @@ class TestLocalTaskJob:
 
         mock_stats_incr.assert_has_calls(
             [
-                mock.call('ti.local_task_job_return_code.test_localtaskjob_double_trigger.op1.-9'),
+                mock.call('ti.raw_task_return_code.test_localtaskjob_double_trigger.op1.-9'),
             ],
             any_order=True,
         )
