@@ -590,7 +590,7 @@ def patch_mapped_task_instance(
             run_id=dag_run_id,
             map_indexes=[map_index],
             state=data["new_state"],
-            commit=not data["dry_run"],
+            commit=True,
             session=session,
         )
 
