@@ -77,7 +77,6 @@ with DAG(
     stop_db_instance = RdsStopDbOperator(
         task_id="stop_db_instance",
         db_identifier=rds_db_identifier,
-        wait_for_completion=True,
     )
     # [END howto_operator_rds_stop_db]
 
@@ -85,7 +84,6 @@ with DAG(
     start_db_instance = RdsStartDbOperator(
         task_id="start_db_instance",
         db_identifier=rds_db_identifier,
-        wait_for_completion=True,
     )
     # [END howto_operator_rds_start_db]
 
