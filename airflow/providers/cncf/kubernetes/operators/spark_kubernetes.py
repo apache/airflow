@@ -50,57 +50,56 @@ class SparkKubernetesOperator(BaseOperator):
         For more detail about Spark Application Object have a look at the reference:
         https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/v1beta2-1.3.3-3.1.1/docs/api-docs.md#sparkapplication
 
-    :param application_file: filepath to kubernetes custom_resource_definition of sparkApplication
-    :param kubernetes_conn_id: the connection to Kubernetes cluster
     :param image: Docker image you wish to launch. Defaults to hub.docker.com,
-    :param code_path: path to the code in your image,
+    :param code_path: path to the spark code in image,
     :param namespace: kubernetes namespace to put sparkApplication
-    :param api_group: CRD api group for spark
+    :param application_file: filepath to kubernetes custom_resource_definition of sparkApplication.
+           (yaml file if passed)
+    :param spark_api_group: CRD api group for spark
             https://github.com/GoogleCloudPlatform/spark-on-k8s-operator#project-status
-    :param api_version: CRD api version
-    :param api_kind: CRD api kind
-    :param api_plural: CRD api plural
-    :param cluster_context: context of the cluster
-    :param labels: labels to apply to the crd.
-    :param config_file: kube configuration file
-    :param resources: resources for the launched pod.
-    :param number_workers: number spark executors
-    :param env_vars: A dictionary of key:value OR list of V1EnvVar items
-    :param env_from: A list of V1EnvFromSource items
-    :param affinity: Affinity scheduling rules for the launched pod.(V1Affinity)
-    :param tolerations: A list of kubernetes tolerations.(V1Toleration)
-    :param volume_mounts: A list of V1VolumeMount items
-    :param volumes: A list of V1Volume items
-    :param config_map_mounts: A dictionary of config_map as key and path as value
-    :param from_env_config_map: Read configmap into a env variable(name of the configmap)
-    :param from_env_secret: Read secret into a env variable(name of the configmap)
-    :param hadoop_config: hadoop base config e.g, AWS s3 config
-    :param application_file: yaml file if passed
-    :param image_pull_secrets: Any image pull secrets to be given to the pod.
+    :param spark_api_version: CRD api version
+    :param spark_api_kind: CRD api kind
+    :param spark_api_plural: CRD api plural
+    :param spark_resources: resources defined for driver and executor pods.
+    :param spark_dynamic_allocation: Enable spark dynamic allocation
+    :param spark_dynamic_alloc_max_executors: Max number of executor if spark_dynamic_allocation is enabled
+    :param spark_dynamic_alloc_initial_executors: Initial number of executor if spark_dynamic_allocation is enabled
+    :param spark_dynamic_alloc_min_executors: min number of executor if spark_dynamic_allocation is enabled
+    :param spark_version: spark version
+    :param spark_job_mode: spark job type in spark operator(at the time of writing it just supports cluster)
+    :param spark_job_python_version: version of spark python
+    :param spark_job_type: type of spark job
+    :param spark_hadoop_config: hadoop base config e.g, AWS s3 config
+    :param spark_number_workers: number spark executors
+    :param k8s_env_vars: A dictionary of key:value OR list of V1EnvVar items
+    :param k8s_env_from: A list of V1EnvFromSource items
+    :param k8s_affinity: Affinity scheduling rules for the launched pod.(V1Affinity)
+    :param k8s_tolerations: A list of kubernetes tolerations.(V1Toleration)
+    :param k8s_volume_mounts: A list of V1VolumeMount items
+    :param k8s_volumes: A list of V1Volume items
+    :param k8s_config_map_mounts: A dictionary of config_map as key and path as value
+    :param k8s_from_env_config_map: Read configmap into a env variable(name of the configmap)
+    :param k8s_from_env_secret: Read secret into a env variable(name of the configmap)
+    :param k8s_image_pull_policy: Specify a policy to cache or always pull an image.
+    :param k8s_service_account_name: Name of the service account
+    :param k8s_image_pull_secrets: Any image pull secrets to be given to the pod.
         If more than one secret is required, provide a
         comma separated list: secret_a,secret_b
+    :param k8s_labels: labels to apply to the crd.
+    :param k8s_restart_policy: restart policy of the driver/executor
+    :param k8s_cluster_context: context of the cluster
+    :param k8s_config_file: kube configuration file
+    :param k8s_in_cluster: run kubernetes client with in_cluster configuration.
     :param get_logs: get the stdout of the container as logs of the tasks.
     :param do_xcom_push: If True, the content of the file
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
-    :param restart_policy: restart policy of the driver/executor
-    :param spark_version: spark version
     :param success_run_history_limit: Number of past successful runs of the application to keep.
     :param delete_on_termination: What to do when the pod reaches its final
         state, or the execution is interrupted. If True (default), delete the
         pod; if False, leave the pod.
-    :param dynamic_allocation: Enable spark dynamic allocation
-    :param dynamic_alloc_max_executors: Max number of executor if dynamic_allocation is enabled
-    :param dynamic_alloc_initial_executors: Initial number of executor if dynamic_allocation is enabled
-    :param dynamic_alloc_min_executors: min number of executor if dynamic_allocation is enabled
-    :param image_pull_policy: Specify a policy to cache or always pull an image.
-    :param service_account_name: Name of the service account
-    :param spark_job_mode: spark job type in spark operator(at the time of writing it just supports cluster)
-    :param spark_job_python_version: version of spark python
-    :param spark_job_type: type of spark job
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
     :param log_events_on_failure: Log the pod's events if a failure occurs
-    :param in_cluster: run kubernetes client with in_cluster configuration.
     :param reattach_on_restart: if the scheduler dies while the pod is running, reattach and monitor
     """
 
@@ -114,47 +113,46 @@ class SparkKubernetesOperator(BaseOperator):
         image: Optional[str] = None,
         code_path: Optional[str] = None,
         namespace: Optional[str] = 'default',
-        api_group: str = 'sparkoperator.k8s.io',
-        api_version: str = 'v1beta2',
-        api_kind: str = 'SparkApplication',
-        api_plural: str = 'sparkapplications',
-        cluster_context: Optional[str] = None,
-        config_file: Optional[str] = None,
-        labels: Optional[dict] = None,
-        resources: Optional[dict] = None,
-        number_workers: int = 1,
-        env_vars: Optional[Union[List[k8s.V1EnvVar], Dict]] = None,
-        env_from: Optional[List[k8s.V1EnvFromSource]] = None,
-        affinity: Optional[k8s.V1Affinity] = None,
-        tolerations: Optional[List[k8s.V1Toleration]] = None,
-        volume_mounts: Optional[List[k8s.V1VolumeMount]] = None,
-        volumes: Optional[List[k8s.V1Volume]] = None,
-        config_map_mounts: Optional[Dict[str, str]] = None,
-        from_env_config_map: Optional[List[str]] = None,
-        from_env_secret: Optional[List[str]] = None,
-        hadoop_config: Optional[dict] = None,
         application_file: Optional[str] = None,
-        image_pull_secrets: Optional[Union[List[k8s.V1LocalObjectReference], str]] = None,
-        get_logs: bool = True,
-        do_xcom_push: bool = False,
-        restart_policy: Optional[dict] = None,
+        spark_api_group: str = 'sparkoperator.k8s.io',
+        spark_api_version: str = 'v1beta2',
+        spark_api_kind: str = 'SparkApplication',
+        spark_api_plural: str = 'sparkapplications',
+        spark_resources: Optional[dict] = None,
+        spark_dynamic_allocation: bool = False,
+        spark_dynamic_alloc_max_executors: Optional[int] = None,
+        spark_dynamic_alloc_initial_executors: int = 1,
+        spark_dynamic_alloc_min_executors: int = 1,
         spark_version: str = '3.0.0',
-        success_run_history_limit: int = 1,
-        dynamic_allocation: bool = False,
-        dynamic_alloc_max_executors: Optional[int] = None,
-        dynamic_alloc_initial_executors: int = 1,
-        dynamic_alloc_min_executors: int = 1,
-        image_pull_policy: str = 'Always',
-        service_account_name: str = 'default',
         spark_job_mode: str = 'cluster',
         spark_job_python_version: str = '3',
         spark_job_type: str = 'Python',
+        spark_hadoop_config: Optional[dict] = None,
+        spark_number_workers: int = 1,
+        k8s_env_vars: Optional[Union[List[k8s.V1EnvVar], Dict]] = None,
+        k8s_env_from: Optional[List[k8s.V1EnvFromSource]] = None,
+        k8s_affinity: Optional[k8s.V1Affinity] = None,
+        k8s_tolerations: Optional[List[k8s.V1Toleration]] = None,
+        k8s_volume_mounts: Optional[List[k8s.V1VolumeMount]] = None,
+        k8s_volumes: Optional[List[k8s.V1Volume]] = None,
+        k8s_config_map_mounts: Optional[Dict[str, str]] = None,
+        k8s_from_env_config_map: Optional[List[str]] = None,
+        k8s_from_env_secret: Optional[List[str]] = None,
+        k8s_image_pull_policy: str = 'Always',
+        k8s_service_account_name: str = 'default',
+        k8s_image_pull_secrets: Optional[Union[List[k8s.V1LocalObjectReference], str]] = None,
+        k8s_labels: Optional[dict] = None,
+        k8s_restart_policy: Optional[dict] = None,
+        k8s_cluster_context: Optional[str] = None,
+        k8s_config_file: Optional[str] = None,
+        k8s_in_cluster: Optional[bool] = None,
+        get_logs: bool = True,
+        do_xcom_push: bool = False,
+        success_run_history_limit: int = 1,
+        delete_on_termination: bool = True,
         startup_timeout_seconds=600,
         log_events_on_failure: bool = False,
-        in_cluster: Optional[bool] = None,
         reattach_on_restart: bool = True,
-        delete_on_termination: bool = True,
-        kubernetes_conn_id: str = 'kubernetes_default',
         **kwargs,
     ) -> None:
         if kwargs.get('xcom_push') is not None:
@@ -162,75 +160,74 @@ class SparkKubernetesOperator(BaseOperator):
         super().__init__(**kwargs)
         self.application_file = application_file
         self.namespace = namespace
-        self.kubernetes_conn_id = kubernetes_conn_id
-        self.labels = labels or {}
-        self.env_from = env_from or []
-        self.env_vars = convert_env_vars(env_vars) if env_vars else []
-        self.affinity = affinity or k8s.V1Affinity()
-        self.tolerations = tolerations or []
-        self.volume_mounts = volume_mounts or []
-        self.volumes = volumes or []
         self.startup_timeout_seconds = startup_timeout_seconds
         self.reattach_on_restart = reattach_on_restart
         self.delete_on_termination = delete_on_termination
         self.application_file = application_file
-        self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.do_xcom_push = do_xcom_push
         self.name = PodGenerator.make_unique_pod_id(self.task_id)
         if self.name:
             self.name = self.name[:MAX_LABEL_LEN]
-        self.cluster_context = cluster_context
-        self.config_file = config_file
+        self.k8s_cluster_context = k8s_cluster_context
+        self.k8s_config_file = k8s_config_file
         self.namespace = namespace
         self.get_logs = get_logs
-        self.api_group = api_group
-        self.api_version = api_version
-        self.api_kind = api_kind
-        self.api_plural = api_plural
         self.code_path = code_path
-        self.dynamic_allocation = dynamic_allocation
-        self.dynamic_alloc_max_executors = dynamic_alloc_max_executors
-        self.dynamic_alloc_min_executors = dynamic_alloc_min_executors
-        self.dynamic_alloc_initial_executors = dynamic_alloc_initial_executors
-        if dynamic_allocation:
-            if not all(
-                [dynamic_alloc_max_executors, dynamic_alloc_min_executors, dynamic_alloc_initial_executors]
-            ):
-                raise AirflowException("Make sure initial/min/max value for dynamic allocation is passed")
-        if config_map_mounts:
-            vols, vols_mounts = convert_configmap_to_volume(config_map_mounts)
-            self.volumes.extend(vols)
-            self.volume_mounts.extend(vols_mounts)
-        if from_env_config_map:
-            self.env_from.extend([convert_configmap(c_name) for c_name in from_env_config_map])
-        if from_env_secret:
-            self.env_from.extend([convert_secret(c) for c in from_env_secret])
         self.log_events_on_failure = log_events_on_failure
-        self.in_cluster = in_cluster
-        self.image_pull_policy = image_pull_policy
-        self.service_account_name = service_account_name
+        self.k8s_in_cluster = k8s_in_cluster
         self.image = image
+        self.success_run_history_limit = success_run_history_limit
+        self.k8s_labels = k8s_labels or {}
+        self.k8s_env_from = k8s_env_from or []
+        self.k8s_env_vars = convert_env_vars(k8s_env_vars) if k8s_env_vars else []
+        self.k8s_affinity = k8s_affinity or k8s.V1Affinity()
+        self.k8s_tolerations = k8s_tolerations or []
+        self.k8s_volume_mounts = k8s_volume_mounts or []
+        self.k8s_volumes = k8s_volumes or []
+        self.k8s_image_pull_secrets = convert_image_pull_secrets(k8s_image_pull_secrets) if k8s_image_pull_secrets else []
+        self.k8s_image_pull_policy = k8s_image_pull_policy
+        self.k8s_service_account_name = k8s_service_account_name
+        self.k8s_restart_policy = k8s_restart_policy or {'type': 'Never'}
+        self.spark_api_group = spark_api_group
+        self.spark_api_version = spark_api_version
+        self.spark_api_kind = spark_api_kind
+        self.spark_api_plural = spark_api_plural
+        self.spark_dynamic_allocation = spark_dynamic_allocation
+        self.spark_dynamic_alloc_max_executors = spark_dynamic_alloc_max_executors
+        self.spark_dynamic_alloc_min_executors = spark_dynamic_alloc_min_executors
+        self.spark_dynamic_alloc_initial_executors = spark_dynamic_alloc_initial_executors
         self.spark_version = spark_version
         self.spark_job_type = spark_job_type
         self.spark_job_python_version = spark_job_python_version
         self.spark_job_mode = spark_job_mode
-        self.success_run_history_limit = success_run_history_limit
-        self.number_workers = number_workers
+        self.spark_number_workers = spark_number_workers
         self.spark_obj_spec = None
-        self.restart_policy = restart_policy or {'type': 'Never'}
-        self.hadoop_config = hadoop_config
-        self.job_resources = SparkResources(**resources) if resources else SparkResources()
+        self.spark_hadoop_config = spark_hadoop_config
+        if spark_dynamic_allocation:
+            if not all(
+                [spark_dynamic_alloc_max_executors, spark_dynamic_alloc_min_executors, spark_dynamic_alloc_initial_executors]
+            ):
+                raise AirflowException("Make sure initial/min/max value for dynamic allocation is passed")
+        if k8s_config_map_mounts:
+            vols, vols_mounts = convert_configmap_to_volume(k8s_config_map_mounts)
+            self.k8s_volumes.extend(vols)
+            self.k8s_volume_mounts.extend(vols_mounts)
+        if k8s_from_env_config_map:
+            self.k8s_env_from.extend([convert_configmap(c_name) for c_name in k8s_from_env_config_map])
+        if k8s_from_env_secret:
+            self.k8s_env_from.extend([convert_secret(c) for c in k8s_from_env_secret])
+        self.job_resources = SparkResources(**spark_resources) if spark_resources else SparkResources()
 
     def get_kube_clients(self):
-        if self.in_cluster is not None:
+        if self.k8s_in_cluster is not None:
             core_v1_api = kube_client.get_kube_client(
-                in_cluster=self.in_cluster,
-                cluster_context=self.cluster_context,
-                config_file=self.config_file,
+                in_cluster=self.k8s_in_cluster,
+                cluster_context=self.k8s_cluster_context,
+                config_file=self.k8s_config_file,
             )
         else:
             core_v1_api = kube_client.get_kube_client(
-                cluster_context=self.cluster_context, config_file=self.config_file
+                cluster_context=self.k8s_cluster_context, config_file=self.k8s_config_file
             )
         custom_obj_api = client.CustomObjectsApi()
         return core_v1_api, custom_obj_api
@@ -294,10 +291,10 @@ class SparkKubernetesOperator(BaseOperator):
             namespace=self.namespace,
             kube_client=kube_client,
             custom_obj_api=custom_obj_api,
-            api_group=self.api_group,
-            kind=self.api_kind,
-            plural=self.api_plural,
-            api_version=self.api_version,
+            api_group=self.spark_api_group,
+            kind=self.spark_api_kind,
+            plural=self.spark_api_plural,
+            api_version=self.spark_api_version,
             extract_xcom=self.do_xcom_push,
             application_file=self.application_file,
         )
@@ -307,30 +304,30 @@ class SparkKubernetesOperator(BaseOperator):
             namespace=self.namespace,
             image=self.image,
             code_path=self.code_path,
-            image_pull_policy=self.image_pull_policy,
-            restart_policy=self.restart_policy,
+            image_pull_policy=self.k8s_image_pull_policy,
+            restart_policy=self.k8s_restart_policy,
             spark_version=self.spark_version,
             spark_job_type=self.spark_job_type,
             spark_job_python_version=self.spark_job_python_version,
             spark_job_mode=self.spark_job_mode,
-            labels=self.labels,
+            labels=self.k8s_labels,
             success_run_history_limit=self.success_run_history_limit,
-            service_account_name=self.service_account_name,
-            dynamic_allocation=self.dynamic_allocation,
-            dynamic_alloc_initial_executors=self.dynamic_alloc_initial_executors,
-            dynamic_alloc_max_executors=self.dynamic_alloc_max_executors,
-            dynamic_alloc_min_executors=self.dynamic_alloc_min_executors,
+            service_account_name=self.k8s_service_account_name,
+            dynamic_allocation=self.spark_dynamic_allocation,
+            dynamic_alloc_initial_executors=self.spark_dynamic_alloc_initial_executors,
+            dynamic_alloc_max_executors=self.spark_dynamic_alloc_max_executors,
+            dynamic_alloc_min_executors=self.spark_dynamic_alloc_min_executors,
             driver_resource=self.job_resources.driver_resources,
             executor_resource=self.job_resources.executor_resources,
-            number_workers=self.number_workers,
-            hadoop_config=self.hadoop_config,
-            image_pull_secrets=self.image_pull_secrets,
-            env=self.env_vars,
-            env_from=self.env_from,
-            affinity=self.affinity,
-            tolerations=self.tolerations,
-            volumes=self.volumes,
-            volume_mounts=self.volume_mounts,
+            number_workers=self.spark_number_workers,
+            hadoop_config=self.spark_hadoop_config,
+            image_pull_secrets=self.k8s_image_pull_secrets,
+            env=self.k8s_env_vars,
+            env_from=self.k8s_env_from,
+            affinity=self.k8s_affinity,
+            tolerations=self.k8s_tolerations,
+            volumes=self.k8s_volumes,
+            volume_mounts=self.k8s_volume_mounts,
         )
         return launcher
 
@@ -397,17 +394,6 @@ class SparkKubernetesOperator(BaseOperator):
         driver_pod = None
         try:
             self.client, custom_obj_api = self.get_kube_clients()
-            # if self.application_file:
-            #     hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
-            #     response = hook.create_custom_object(
-            #         group=self.api_group,
-            #         version=self.api_version,
-            #         plural=self.api_plural,
-            #         body=self.application_file,
-            #         namespace=self.namespace,
-            #     )
-            #     driver_pod = self.get_or_create_spark_crd(self.launcher, context)
-            #     return response
             self.launcher = self.build_spark_request_obj(self.client, custom_obj_api)
             driver_pod = self.get_or_create_spark_crd(self.launcher, context)
 
