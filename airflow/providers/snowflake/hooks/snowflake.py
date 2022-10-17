@@ -181,7 +181,7 @@ class SnowflakeHook(DbApiHook):
 
     def _get_field(self, extra_dict, field_name):
         prefix = 'extra__snowflake__'
-        if field_name.startswith('extra_'):
+        if field_name.startswith('extra__'):
             raise ValueError(
                 f"Got prefixed name {field_name}; please remove the '{prefix}' prefix "
                 f"when using this method."
