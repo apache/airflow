@@ -574,7 +574,7 @@ def patch_mapped_task_instance(
     if not dag.has_task(task_id):
         raise NotFound("Task not found", detail=f"Task {task_id!r} not found in DAG {dag_id!r}")
 
-    ti: TI = session.query(TI).get(
+    ti: TI | None = session.query(TI).get(
         {'task_id': task_id, 'dag_id': dag_id, 'run_id': dag_run_id, 'map_index': map_index}
     )
 
