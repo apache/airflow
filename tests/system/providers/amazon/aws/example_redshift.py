@@ -89,7 +89,7 @@ def setup_security_group(sec_group_name: str, ip_permissions: list[dict]):
     client.authorize_security_group_ingress(
         GroupId=security_group["GroupId"], GroupName=sec_group_name, IpPermissions=ip_permissions
     )
-    return security_group['GroupId']
+    return security_group["GroupId"]
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -149,9 +149,9 @@ with DAG(
     # [END howto_operator_redshift_create_cluster_snapshot]
 
     wait_cluster_available_before_pause = RedshiftClusterSensor(
-        task_id='wait_cluster_available_before_pause',
+        task_id="wait_cluster_available_before_pause",
         cluster_identifier=redshift_cluster_identifier,
-        target_status='available',
+        target_status="available",
         poke_interval=15,
         timeout=60 * 15,
     )

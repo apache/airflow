@@ -393,7 +393,7 @@ class RedshiftResumeClusterOperator(BaseOperator):
         *,
         cluster_identifier: str,
         aws_conn_id: str = "aws_default",
-        attempts: int = 0,
+        attempts: int = 1,
         attempt_interval: int = 30,
         **kwargs,
     ):
@@ -406,16 +406,18 @@ class RedshiftResumeClusterOperator(BaseOperator):
     def execute(self, context: Context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
 
-        while self.attempts > 0:
+        while self.attempts >= 1:
             try:
                 redshift_hook.get_conn().resume_cluster(ClusterIdentifier=self.cluster_identifier)
                 return
-            except redshift_hook.get_conn().exceptions.InvalidClusterStateFault:
-                self.log.error('Unable to pause cluster. %d attempts remaining.', self.attempts)
-                time.sleep(self.attempt_interval)
+            except redshift_hook.get_conn().exceptions.InvalidClusterStateFault as error:
                 self.attempts = self.attempts - 1
 
-        redshift_hook.get_conn().resume_cluster(ClusterIdentifier=self.cluster_identifier)
+                if self.attempts > 0:
+                    self.log.error("Unable to resume cluster. %d attempts remaining.", self.attempts)
+                    time.sleep(self.attempt_interval)
+                else:
+                    raise error
 
 
 class RedshiftPauseClusterOperator(BaseOperator):
@@ -441,7 +443,7 @@ class RedshiftPauseClusterOperator(BaseOperator):
         *,
         cluster_identifier: str,
         aws_conn_id: str = "aws_default",
-        attempts: int = 0,
+        attempts: int = 1,
         attempt_interval: int = 30,
         **kwargs,
     ):
@@ -454,16 +456,18 @@ class RedshiftPauseClusterOperator(BaseOperator):
     def execute(self, context: Context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
 
-        while self.attempts > 0:
+        while self.attempts >= 1:
             try:
                 redshift_hook.get_conn().pause_cluster(ClusterIdentifier=self.cluster_identifier)
                 return
-            except redshift_hook.get_conn().exceptions.InvalidClusterStateFault:
-                self.log.error('Unable to pause cluster. %d attempts remaining.', self.attempts)
-                time.sleep(self.attempt_interval)
+            except redshift_hook.get_conn().exceptions.InvalidClusterStateFault as error:
                 self.attempts = self.attempts - 1
 
-        redshift_hook.get_conn().pause_cluster(ClusterIdentifier=self.cluster_identifier)
+                if self.attempts > 0:
+                    self.log.error("Unable to pause cluster. %d attempts remaining.", self.attempts)
+                    time.sleep(self.attempt_interval)
+                else:
+                    raise error
 
 
 class RedshiftDeleteClusterOperator(BaseOperator):
