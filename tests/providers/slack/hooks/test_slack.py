@@ -477,7 +477,9 @@ class TestSlackHook:
         'uri',
         [
             param(
-                'a://:abc@?extra__slack__timeout=123&extra__slack__base_url=base_url&extra__slack__proxy=proxy',
+                'a://:abc@?extra__slack__timeout=123'
+                '&extra__slack__base_url=base_url'
+                '&extra__slack__proxy=proxy',
                 id='prefix',
             ),
             param('a://:abc@?timeout=123&base_url=base_url&proxy=proxy', id='no-prefix'),
