@@ -414,6 +414,8 @@ def webserver(args):
 
         run_args += ["airflow.www.app:cached_app()"]
 
+        run_args += ['--preload']
+
         gunicorn_master_proc = None
 
         def kill_proc(signum, _):
