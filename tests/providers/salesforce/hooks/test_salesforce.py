@@ -491,7 +491,8 @@ class TestSalesforceHook:
         with patch.dict(
             os.environ,
             {
-                "AIRFLOW_CONN_MY_CONN": 'a://?security_token=non-prefixed&extra__salesforce__security_token=prefixed'
+                "AIRFLOW_CONN_MY_CONN": 'a://?security_token=non-prefixed'
+                '&extra__salesforce__security_token=prefixed'
             },
         ):
             hook = SalesforceHook('my_conn')
