@@ -49,7 +49,9 @@ def _ensure_prefixes(conn_type):
     """
 
     def dec(func):
-        def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: str):
+        @wraps(func)
+        def inner(cls):
+            field_behaviors = func(cls)
             conn_attrs = {'host', 'schema', 'login', 'password', 'port', 'extra'}
 
             def _ensure_prefix(field):
@@ -61,12 +63,7 @@ def _ensure_prefixes(conn_type):
             if 'placeholders' in field_behaviors:
                 placeholders = field_behaviors['placeholders']
                 field_behaviors['placeholders'] = {_ensure_prefix(k): v for k, v in placeholders.items()}
-
             return field_behaviors
-
-        @wraps(func)
-        def inner():
-            return _ensure_prefix_for_placeholders(func(), conn_type)
 
         return inner
 
