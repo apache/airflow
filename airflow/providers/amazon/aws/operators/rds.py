@@ -752,7 +752,7 @@ class RdsStopDbOperator(RdsBaseOperator):
     :param wait_for_completion:  If True, waits for DB to stop. (default: True)
     """
 
-    template_fields = ("db_identifier", "db_type")
+    template_fields = ("db_identifier", "db_snapshot_identifier", "db_type")
 
     def __init__(
         self,
