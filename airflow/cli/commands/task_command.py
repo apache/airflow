@@ -133,10 +133,12 @@ def _get_dag_run(
         dag_run = DagRun(dag.dag_id, run_id=exec_date_or_run_id, execution_date=dag_run_execution_date)
         return dag_run, True
     elif create_if_necessary == "db":
+        data_interval = dag.infer_automated_data_interval(logical_date=dag_run_execution_date)
         dag_run = dag.create_dagrun(
             state=DagRunState.QUEUED,
             execution_date=dag_run_execution_date,
             run_id=_generate_temporary_run_id(),
+            data_interval=data_interval,
             session=session,
         )
         return dag_run, True
