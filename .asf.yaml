@@ -70,6 +70,7 @@ github:
     - petedejoy
     - gmcdonald
     - o-nikolas
+    - ferruzzi
 
 notifications:
   jobs: jobs@airflow.apache.org
