@@ -489,12 +489,29 @@ def not_found(error):
     """Show Not Found on screen for any error in the Webserver"""
     return (
         render_template(
-            'airflow/not_found.html',
+            'airflow/error.html',
             hostname=get_hostname()
             if conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
             else 'redact',
+            status_code=404,
+            error_message='Page cannot be found.',
         ),
         404,
+    )
+
+
+def method_not_allowed(error):
+    """Show Method Not Allowed on screen for any error in the Webserver"""
+    return (
+        render_template(
+            'airflow/error.html',
+            hostname=get_hostname()
+            if conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
+            else 'redact',
+            status_code=405,
+            error_message='Received an invalid request.',
+        ),
+        405,
     )
 
 
