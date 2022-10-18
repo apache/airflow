@@ -350,7 +350,7 @@ this (note the ``if ti_key is not None:`` condition).
 
 
 Having sensors return XCOM values
---------------------------------
+---------------------------------
 In Airflow 2.3, sensor operators will be able to return XCOM values. This is achieved by returning an instance of the ``PokeReturnValue`` object at the end of the ``poke()`` method:
 
   .. code-block:: python
