@@ -2440,7 +2440,7 @@ class TaskInstance(Base, LoggingMixin):
                 TaskInstance.map_index == map_index,
                 TaskInstance.task_id == first_task_id,
             )
-        if dag_ids == {dag_id} and run_ids == {run_id} and task_ids == {task_id}:
+        if dag_ids == {dag_id} and run_ids == {run_id} and task_ids == {first_task_id}:
             return and_(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id == run_id,
@@ -2484,10 +2484,7 @@ class TaskInstance(Base, LoggingMixin):
                             )
                         )       
                 
-        return and_(
-            TaskInstance.map_index == map_index,
-            or_(*filter_condition)
-        )   
+        return or_(*filter_condition)
 
 
     @classmethod
