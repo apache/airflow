@@ -171,7 +171,7 @@ To delete a AWS DB instance you can use
 Start a database instance or cluster
 ====================================
 
-To start an AWS DB instance or cluster you can use
+To start an Amazon RDS DB instance or cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.rds.RdsStartDbOperator`.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_instance.py
