@@ -186,7 +186,7 @@ To start an Amazon RDS DB instance or cluster you can use
 Stop a database instance or cluster
 ===================================
 
-To stop an AWS DB instance or cluster you can use
+To stop an Amazon RDS DB instance or cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.rds.RdsStopDbOperator`.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_instance.py
