@@ -180,15 +180,24 @@ class SnowflakeHook(DbApiHook):
         self.query_ids: list[str] = []
 
     def _get_field(self, extra_dict, field_name):
-        prefix = 'extra__snowflake__'
+        backcompat_prefix = 'extra__snowflake__'
+        backcompat_key = f"{backcompat_prefix}{field_name}"
         if field_name.startswith('extra__'):
             raise ValueError(
-                f"Got prefixed name {field_name}; please remove the '{prefix}' prefix "
+                f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
                 f"when using this method."
             )
         if field_name in extra_dict:
+            import warnings
+
+            if backcompat_key in extra_dict:
+                warnings.warn(
+                    f"Conflicting params `{field_name}` and `{backcompat_key}` found in extras. "
+                    f"Using value for `{field_name}`.  Please ensure this is the correct "
+                    f"value and remove the backcompat key `{backcompat_key}`."
+                )
             return extra_dict[field_name] or None
-        return extra_dict.get(f"{prefix}{field_name}") or None
+        return extra_dict.get(backcompat_key) or None
 
     def _get_conn_params(self) -> dict[str, str | None]:
         """
