@@ -17,7 +17,9 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
 
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
@@ -204,9 +206,8 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         response = hook.get_job_run_artifact(
             run_id=self.run_id, path=self.path, account_id=self.account_id, step=self.step
         )
-
+        Path(self.output_file_name).parent.mkdir(parents=True, exist_ok=True)
         with open(self.output_file_name, "w") as file:
-            file.parent.mkdir(exist_ok=True, parents=True)
             if self.path.endswith(".json"):
                 json.dump(response.json(), file)
             else:
