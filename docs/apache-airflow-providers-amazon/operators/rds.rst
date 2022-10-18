@@ -166,6 +166,7 @@ To delete a AWS DB instance you can use
     :start-after: [START howto_operator_rds_delete_db_instance]
     :end-before: [END howto_operator_rds_delete_db_instance]
 
+.. _howto/operator:RdsStartDbOperator:
 
 Start a database instance or cluster
 ====================================
@@ -179,6 +180,8 @@ To start an AWS DB instance or cluster you can use
     :start-after: [START howto_operator_rds_start_db]
     :end-before: [END howto_operator_rds_start_db]
 
+
+.. _howto/operator:RdsStopDbOperator:
 
 Stop a database instance or cluster
 ===================================

@@ -702,7 +702,7 @@ class RdsStartDbOperator(RdsBaseOperator):
         self,
         *,
         db_identifier: str,
-        db_type: str = "instance",
+        db_type: RdsDbType | str = RdsDbType.INSTANCE,
         aws_conn_id: str = "aws_default",
         wait_for_completion: bool = True,
         **kwargs,
@@ -720,7 +720,7 @@ class RdsStartDbOperator(RdsBaseOperator):
         return json.dumps(start_db_response, default=str)
 
     def _start_db(self):
-        self.log.info(f"Starting DB {self.db_type} '{self.db_identifier}'")
+        self.log.info("Starting DB %s '%s'", self.db_type.value, self.db_identifier)
         if self.db_type == RdsDbType.INSTANCE:
             response = self.hook.conn.start_db_instance(DBInstanceIdentifier=self.db_identifier)
         else:
@@ -728,7 +728,7 @@ class RdsStartDbOperator(RdsBaseOperator):
         return response
 
     def _wait_until_db_available(self):
-        self.log.info(f"Waiting for DB {self.db_type} to reach 'available' state")
+        self.log.info("Waiting for DB %s to reach 'available' state", self.db_type.value)
         if self.db_type == RdsDbType.INSTANCE:
             self.hook.conn.get_waiter("db_instance_available").wait(DBInstanceIdentifier=self.db_identifier)
         else:
@@ -758,8 +758,8 @@ class RdsStopDbOperator(RdsBaseOperator):
         self,
         *,
         db_identifier: str,
-        db_type: str = "instance",
-        db_snapshot_identifier: str = None,
+        db_type: RdsDbType | str = RdsDbType.INSTANCE,
+        db_snapshot_identifier: str | None = None,
         aws_conn_id: str = "aws_default",
         wait_for_completion: bool = True,
         **kwargs,
@@ -778,7 +778,7 @@ class RdsStopDbOperator(RdsBaseOperator):
         return json.dumps(stop_db_response, default=str)
 
     def _stop_db(self):
-        self.log.info(f"Stopping DB {self.db_type} '{self.db_identifier}'")
+        self.log.info("Stopping DB %s '%s'", self.db_type.value, self.db_identifier)
         if self.db_type == RdsDbType.INSTANCE:
             conn_params = {"DBInstanceIdentifier": self.db_identifier}
             # The db snapshot parameter is optional, but the AWS SDK raises an exception
@@ -789,13 +789,14 @@ class RdsStopDbOperator(RdsBaseOperator):
         else:
             if self.db_snapshot_identifier:
                 self.log.warning(
-                    "'db_snapshot_identifier' does not apply to db clusters. Remove it to silence this warning."
+                    "'db_snapshot_identifier' does not apply to db clusters. "
+                    "Remove it to silence this warning."
                 )
             response = self.hook.conn.stop_db_cluster(DBClusterIdentifier=self.db_identifier)
         return response
 
     def _wait_until_db_stopped(self):
-        self.log.info(f"Waiting for DB {self.db_type} to reach 'stopped' state")
+        self.log.info("Waiting for DB %s to reach 'stopped' state", self.db_type.value)
         wait_statuses = ["stopping"]
         ok_statuses = ["stopped"]
         if self.db_type == RdsDbType.INSTANCE:
