@@ -16,8 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
+
 import pytest
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.www import app
 from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
@@ -52,5 +55,13 @@ def session():
 def dagbag():
     from airflow.models import DagBag
 
-    DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
+    with warnings.catch_warnings():
+        # This explicitly shows off SubDagOperator, no point to warn about that.
+        warnings.filterwarnings(
+            "ignore",
+            category=RemovedInAirflow3Warning,
+            message=r".+Please use.+TaskGroup.+",
+            module=r".+example_subdag_operator$",
+        )
+        DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
     return DagBag(include_examples=True, read_dags_from_db=True)

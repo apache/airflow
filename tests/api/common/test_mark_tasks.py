@@ -540,7 +540,11 @@ class TestMarkDAGRun:
 
     def _create_test_dag_run(self, state, date):
         return self.dag1.create_dagrun(
-            run_type=DagRunType.MANUAL, state=state, start_date=date, execution_date=date
+            run_type=DagRunType.MANUAL,
+            state=state,
+            start_date=date,
+            execution_date=date,
+            data_interval=(date, date),
         )
 
     def _verify_dag_run_state(self, dag, date, state):
@@ -748,18 +752,21 @@ class TestMarkDAGRun:
             run_type=DagRunType.MANUAL,
             state=State.FAILED,
             execution_date=self.execution_dates[0],
+            data_interval=(self.execution_dates[0], self.execution_dates[0]),
             session=session,
         )
         dr2 = self.dag2.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.FAILED,
             execution_date=self.execution_dates[1],
+            data_interval=(self.execution_dates[1], self.execution_dates[1]),
             session=session,
         )
         self.dag2.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=self.execution_dates[2],
+            data_interval=(self.execution_dates[2], self.execution_dates[2]),
             session=session,
         )
 
