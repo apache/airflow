@@ -206,6 +206,7 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         )
 
         with open(self.output_file_name, "w") as file:
+            file.parent.mkdir(exist_ok=True, parents=True)
             if self.path.endswith(".json"):
                 json.dump(response.json(), file)
             else:
