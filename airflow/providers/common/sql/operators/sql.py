@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import re
-from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence, SupportsAbs
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Sequence, SupportsAbs
 
 from packaging.version import Version
 
@@ -26,7 +27,7 @@ from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, SkipMixin
-from airflow.providers.common.sql.hooks.sql import DbApiHook, _backported_get_hook
+from airflow.providers.common.sql.hooks.sql import DbApiHook, _backported_get_hook, fetch_all_handler
 from airflow.version import version
 
 if TYPE_CHECKING:
@@ -94,7 +95,9 @@ class BaseSQLOperator(BaseOperator):
 
     The provided method is .get_db_hook(). The default behavior will try to
     retrieve the DB hook based on connection type.
-    You can custom the behavior by overriding the .get_db_hook() method.
+    You can customize the behavior by overriding the .get_db_hook() method.
+
+    :param conn_id: reference to a specific database
     """
 
     def __init__(
@@ -160,6 +163,78 @@ class BaseSQLOperator(BaseOperator):
         :rtype: DbApiHook
         """
         return self._hook
+
+
+class SQLExecuteQueryOperator(BaseSQLOperator):
+    """
+    Executes SQL code in a specific database
+    :param sql: the SQL code or string pointing to a template file to be executed (templated).
+    File must have a '.sql' extensions.
+    :param autocommit: (optional) if True, each command is automatically committed (default: False).
+    :param parameters: (optional) the parameters to render the SQL query with.
+    :param handler: (optional) the function that will be applied to the cursor (default: fetch_all_handler).
+    :param split_statements: (optional) if split single SQL string into statements (default: False).
+    :param return_last: (optional) if return the result of only last statement (default: True).
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SQLExecuteQueryOperator`
+    """
+
+    template_fields: Sequence[str] = ('sql', 'parameters')
+    template_ext: Sequence[str] = ('.sql', '.json')
+    template_fields_renderers = {"sql": "sql", "parameters": "json"}
+    ui_color = '#cdaaed'
+
+    def __init__(
+        self,
+        *,
+        sql: str | list[str],
+        autocommit: bool = False,
+        parameters: Mapping | Iterable | None = None,
+        handler: Callable[[Any], Any] = fetch_all_handler,
+        split_statements: bool = False,
+        return_last: bool = True,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.sql = sql
+        self.autocommit = autocommit
+        self.parameters = parameters
+        self.handler = handler
+        self.split_statements = split_statements
+        self.return_last = return_last
+
+    def execute(self, context):
+        self.log.info('Executing: %s', self.sql)
+        hook = self.get_db_hook()
+        if self.do_xcom_push:
+            output = hook.run(
+                sql=self.sql,
+                autocommit=self.autocommit,
+                parameters=self.parameters,
+                handler=self.handler,
+                split_statements=self.split_statements,
+                return_last=self.return_last,
+            )
+        else:
+            output = hook.run(
+                sql=self.sql,
+                autocommit=self.autocommit,
+                parameters=self.parameters,
+                split_statements=self.split_statements,
+            )
+
+        if hasattr(self, '_process_output'):
+            for out in output:
+                self._process_output(*out)
+
+        return output
+
+    def prepare_template(self) -> None:
+        """Parse template file for attribute parameters."""
+        if isinstance(self.parameters, str):
+            self.parameters = ast.literal_eval(self.parameters)
 
 
 class SQLColumnCheckOperator(BaseSQLOperator):

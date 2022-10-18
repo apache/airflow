@@ -19,13 +19,14 @@ from __future__ import annotations
 import unittest
 from unittest import mock
 
+from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.oracle.hooks.oracle import OracleHook
 from airflow.providers.oracle.operators.oracle import OracleOperator, OracleStoredProcedureOperator
 
 
 class TestOracleOperator(unittest.TestCase):
-    @mock.patch.object(OracleHook, 'run', autospec=OracleHook.run)
-    def test_execute(self, mock_run):
+    @mock.patch('airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook')
+    def test_execute(self, mock_get_db_hook):
         sql = 'SELECT * FROM test_table'
         oracle_conn_id = 'oracle_default'
         parameters = {'parameter': 'value'}
@@ -41,11 +42,13 @@ class TestOracleOperator(unittest.TestCase):
             task_id=task_id,
         )
         operator.execute(context=context)
-        mock_run.assert_called_once_with(
-            mock.ANY,
-            sql,
+        mock_get_db_hook.return_value.run.assert_called_once_with(
+            sql=sql,
             autocommit=autocommit,
             parameters=parameters,
+            handler=fetch_all_handler,
+            return_last=True,
+            split_statements=False,
         )
 
 

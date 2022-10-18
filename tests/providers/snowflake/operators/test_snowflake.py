@@ -35,8 +35,6 @@ DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = 'unit_test_dag'
-LONG_MOCK_PATH = "airflow.providers.snowflake.operators.snowflake."
-LONG_MOCK_PATH += 'SnowflakeOperator.get_db_hook'
 
 
 class TestSnowflakeOperator(unittest.TestCase):
@@ -46,7 +44,7 @@ class TestSnowflakeOperator(unittest.TestCase):
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
-    @mock.patch(LONG_MOCK_PATH)
+    @mock.patch('airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook')
     def test_snowflake_operator(self, mock_get_db_hook):
         sql = """
         CREATE TABLE IF NOT EXISTS test_airflow (
@@ -67,7 +65,7 @@ class TestSnowflakeOperator(unittest.TestCase):
     ],
 )
 class TestSnowflakeCheckOperators:
-    @mock.patch("airflow.providers.snowflake.operators.snowflake.get_db_hook")
+    @mock.patch('airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook')
     def test_get_db_hook(
         self,
         mock_get_db_hook,

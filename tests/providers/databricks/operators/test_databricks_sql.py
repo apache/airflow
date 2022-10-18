@@ -53,7 +53,7 @@ class TestDatabricksSqlOperator(unittest.TestCase):
 
         results = op.execute(None)
 
-        assert results == mock_results
+        assert results[0][1] == mock_results
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
             http_path=None,
@@ -64,7 +64,14 @@ class TestDatabricksSqlOperator(unittest.TestCase):
             schema=None,
             caller='DatabricksSqlOperator',
         )
-        db_mock.run.assert_called_once_with(sql, parameters=None, handler=fetch_all_handler)
+        db_mock.run.assert_called_once_with(
+            sql=sql,
+            parameters=None,
+            handler=fetch_all_handler,
+            autocommit=False,
+            return_last=True,
+            split_statements=False,
+        )
 
     @mock.patch('airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook')
     def test_exec_write_file(self, db_mock_class):
@@ -96,7 +103,14 @@ class TestDatabricksSqlOperator(unittest.TestCase):
             schema=None,
             caller='DatabricksSqlOperator',
         )
-        db_mock.run.assert_called_once_with(sql, parameters=None, handler=fetch_all_handler)
+        db_mock.run.assert_called_once_with(
+            sql=sql,
+            parameters=None,
+            handler=fetch_all_handler,
+            autocommit=False,
+            return_last=True,
+            split_statements=False,
+        )
 
 
 class TestDatabricksSqlCopyIntoOperator(unittest.TestCase):

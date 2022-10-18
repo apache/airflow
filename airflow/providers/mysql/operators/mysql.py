@@ -17,18 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-import ast
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+import warnings
+from typing import Sequence
 
-from airflow.models import BaseOperator
-from airflow.providers.mysql.hooks.mysql import MySqlHook
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.www import utils as wwwutils
 
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
-
-class MySqlOperator(BaseOperator):
+class MySqlOperator(SQLExecuteQueryOperator):
     """
     Executes sql code in a specific MySQL database
 
@@ -59,28 +55,17 @@ class MySqlOperator(BaseOperator):
     ui_color = '#ededed'
 
     def __init__(
-        self,
-        *,
-        sql: str | Iterable[str],
-        mysql_conn_id: str = 'mysql_default',
-        parameters: Iterable | Mapping | None = None,
-        autocommit: bool = False,
-        database: str | None = None,
-        **kwargs,
+        self, *, mysql_conn_id: str = 'mysql_default', database: str | None = None, **kwargs
     ) -> None:
-        super().__init__(**kwargs)
-        self.mysql_conn_id = mysql_conn_id
-        self.sql = sql
-        self.autocommit = autocommit
-        self.parameters = parameters
-        self.database = database
+        if database is not None:
+            hook_params = kwargs.pop('hook_params', {})
+            kwargs['hook_params'] = {'schema': database, **hook_params}
 
-    def prepare_template(self) -> None:
-        """Parse template file for attribute parameters."""
-        if isinstance(self.parameters, str):
-            self.parameters = ast.literal_eval(self.parameters)
-
-    def execute(self, context: Context) -> None:
-        self.log.info('Executing: %s', self.sql)
-        hook = MySqlHook(mysql_conn_id=self.mysql_conn_id, schema=self.database)
-        hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)
+        super().__init__(conn_id=mysql_conn_id, **kwargs)
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
+            Also, you can provide `hook_params={'schema': <database>}`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )

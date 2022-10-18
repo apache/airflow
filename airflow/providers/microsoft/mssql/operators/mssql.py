@@ -17,19 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+import warnings
+from typing import Sequence
 
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
-from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.www import utils as wwwutils
 
-if TYPE_CHECKING:
-    from airflow.providers.common.sql.hooks.sql import DbApiHook
-    from airflow.utils.context import Context
 
-
-class MsSqlOperator(BaseOperator):
+class MsSqlOperator(SQLExecuteQueryOperator):
     """
     Executes sql code in a specific Microsoft SQL database
 
@@ -57,42 +52,17 @@ class MsSqlOperator(BaseOperator):
     ui_color = '#ededed'
 
     def __init__(
-        self,
-        *,
-        sql: str | Iterable[str],
-        mssql_conn_id: str = 'mssql_default',
-        parameters: Iterable | Mapping | None = None,
-        autocommit: bool = False,
-        database: str | None = None,
-        **kwargs,
+        self, *, mssql_conn_id: str = 'mssql_default', database: str | None = None, **kwargs
     ) -> None:
-        super().__init__(**kwargs)
-        self.mssql_conn_id = mssql_conn_id
-        self.sql = sql
-        self.parameters = parameters
-        self.autocommit = autocommit
-        self.database = database
-        self._hook: MsSqlHook | DbApiHook | None = None
+        if database is not None:
+            hook_params = kwargs.pop('hook_params', {})
+            kwargs['hook_params'] = {'schema': database, **hook_params}
 
-    def get_hook(self) -> MsSqlHook | DbApiHook | None:
-        """
-        Will retrieve hook as determined by :meth:`~.Connection.get_hook` if one is defined, and
-        :class:`~.MsSqlHook` otherwise.
-
-        For example, if the connection ``conn_type`` is ``'odbc'``, :class:`~.OdbcHook` will be used.
-        """
-        if not self._hook:
-            conn = MsSqlHook.get_connection(conn_id=self.mssql_conn_id)
-            try:
-                self._hook = conn.get_hook()
-                self._hook.schema = self.database  # type: ignore[union-attr]
-            except AirflowException:
-                self._hook = MsSqlHook(mssql_conn_id=self.mssql_conn_id, schema=self.database)
-        return self._hook
-
-    def execute(self, context: Context) -> None:
-        self.log.info('Executing: %s', self.sql)
-        hook = self.get_hook()
-        hook.run(  # type: ignore[union-attr]
-            sql=self.sql, autocommit=self.autocommit, parameters=self.parameters
+        super().__init__(conn_id=mssql_conn_id, **kwargs)
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
+            Also, you can provide `hook_params={'schema': <database>}`.""",
+            DeprecationWarning,
+            stacklevel=2,
         )

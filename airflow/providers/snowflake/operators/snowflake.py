@@ -17,37 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Callable, Iterable, Mapping, Sequence, SupportsAbs
+import warnings
+from typing import Any, Iterable, Mapping, Sequence, SupportsAbs
 
-from airflow.models import BaseOperator
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
+    SQLExecuteQueryOperator,
     SQLIntervalCheckOperator,
     SQLValueCheckOperator,
 )
-from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 
-def get_db_hook(self) -> SnowflakeHook:
-    """
-    Create and return SnowflakeHook.
-
-    :return: a SnowflakeHook instance.
-    :rtype: SnowflakeHook
-    """
-    return SnowflakeHook(
-        snowflake_conn_id=self.snowflake_conn_id,
-        warehouse=self.warehouse,
-        database=self.database,
-        role=self.role,
-        schema=self.schema,
-        authenticator=self.authenticator,
-        session_parameters=self.session_parameters,
-    )
-
-
-class SnowflakeOperator(BaseOperator):
+class SnowflakeOperator(SQLExecuteQueryOperator):
     """
     Executes SQL code in a Snowflake database
 
@@ -80,8 +61,6 @@ class SnowflakeOperator(BaseOperator):
         through native Okta.
     :param session_parameters: You can set session-level parameters at
         the time you connect to Snowflake
-    :param handler: A Python callable that will act on cursor result.
-        By default, it will use ``fetchall``
     """
 
     template_fields: Sequence[str] = ('sql',)
@@ -92,48 +71,37 @@ class SnowflakeOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql: str | Iterable[str],
         snowflake_conn_id: str = 'snowflake_default',
-        parameters: Iterable | Mapping | None = None,
-        autocommit: bool = True,
-        do_xcom_push: bool = True,
         warehouse: str | None = None,
         database: str | None = None,
         role: str | None = None,
         schema: str | None = None,
         authenticator: str | None = None,
         session_parameters: dict | None = None,
-        handler: Callable | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
-        self.snowflake_conn_id = snowflake_conn_id
-        self.sql = sql
-        self.autocommit = autocommit
-        self.do_xcom_push = do_xcom_push
-        self.parameters = parameters
-        self.warehouse = warehouse
-        self.database = database
-        self.role = role
-        self.schema = schema
-        self.authenticator = authenticator
-        self.session_parameters = session_parameters
-        self.query_ids: list[str] = []
-        self.handler = handler
+        if any([warehouse, database, role, schema, authenticator, session_parameters]):
+            hook_params = kwargs.pop('hook_params', {})
+            kwargs['hook_params'] = {
+                'warehouse': warehouse,
+                'database': database,
+                'role': role,
+                'schema': schema,
+                'authenticator': authenticator,
+                'session_parameters': session_parameters,
+                **hook_params,
+            }
 
-    def get_db_hook(self) -> SnowflakeHook:
-        return get_db_hook(self)
-
-    def execute(self, context: Any):
-        """Run query on snowflake"""
-        self.log.info('Executing: %s', self.sql)
-        hook = self.get_db_hook()
-        handler = self.handler or fetch_all_handler
-        execution_info = hook.run(self.sql, self.autocommit, self.parameters, handler)
-        self.query_ids = hook.query_ids
-
-        if self.do_xcom_push:
-            return execution_info
+        super().__init__(conn_id=snowflake_conn_id, **kwargs)
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
+            Also, you can provide `hook_params={'warehouse': <warehouse>, 'database': <database>,
+            'role': <role>, 'schema': <schema>, 'authenticator': <authenticator>,
+            'session_parameters': <session_parameters>}`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
 
 class SnowflakeCheckOperator(SQLCheckOperator):
@@ -225,9 +193,6 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         self.session_parameters = session_parameters
         self.query_ids: list[str] = []
 
-    def get_db_hook(self) -> SnowflakeHook:
-        return get_db_hook(self)
-
 
 class SnowflakeValueCheckOperator(SQLValueCheckOperator):
     """
@@ -293,9 +258,6 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         self.authenticator = authenticator
         self.session_parameters = session_parameters
         self.query_ids: list[str] = []
-
-    def get_db_hook(self) -> SnowflakeHook:
-        return get_db_hook(self)
 
 
 class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
@@ -375,6 +337,3 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         self.authenticator = authenticator
         self.session_parameters = session_parameters
         self.query_ids: list[str] = []
-
-    def get_db_hook(self) -> SnowflakeHook:
-        return get_db_hook(self)
