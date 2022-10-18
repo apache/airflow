@@ -131,7 +131,7 @@ spec:
 {{ tpl (toYaml .Values.dagProcessor.waitForMigrations.env) $ | indent 12 }}
 {{- end }}
         {{- end }}
-        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
+        {{- if .Values.dags.gitSync.enabled }}
         {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
         {{- end }}
         {{- if .Values.dagProcessor.extraInitContainers }}
@@ -186,7 +186,7 @@ spec:
                   {{- else }}
                   {{- include "dag_processor_liveness_check_command" . | nindent 16 }}
                   {{- end }}
-        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
+        {{- if .Values.dags.gitSync.enabled }}
         {{- include "git_sync_container" . | indent 8 }}
         {{- end }}
         {{- if .Values.dagProcessor.extraContainers }}
