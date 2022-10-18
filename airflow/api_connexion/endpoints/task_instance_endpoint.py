@@ -557,8 +557,8 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
     ],
 )
 @provide_session
-def patch_mapped_task_instance(
-    *, dag_id: str, dag_run_id: str, task_id: str, map_index: int, session: Session = NEW_SESSION
+def patch_task_instance(
+    *, dag_id: str, dag_run_id: str, task_id: str, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Update the state of a mapped task instance."""
     body = get_json_request_dict()
@@ -566,6 +566,8 @@ def patch_mapped_task_instance(
         data = set_single_task_instance_state_form.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
+
+    map_index = -1 if "map_index" not in data else data.get("map_index")
 
     dag = get_airflow_app().dag_bag.get_dag(dag_id)
     if not dag:
@@ -579,9 +581,7 @@ def patch_mapped_task_instance(
     )
 
     if not ti:
-        error_message = (
-            f"Mapped task instance not found for task {task_id!r} on DAG run with ID {dag_run_id!r}"
-        )
+        error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {dag_run_id!r}"
         raise NotFound(detail=error_message)
 
     if not data["dry_run"]:
@@ -591,55 +591,6 @@ def patch_mapped_task_instance(
             map_indexes=[map_index],
             state=data["new_state"],
             commit=True,
-            session=session,
-        )
-
-    return task_instance_reference_schema.dump(ti)
-
-
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
-    ],
-)
-@provide_session
-def patch_task_instance(
-    *, dag_id: str, dag_run_id: str, task_id: str, session: Session = NEW_SESSION
-) -> APIResponse:
-    """Update the state of a task instance."""
-    body = get_json_request_dict()
-    try:
-        data = set_single_task_instance_state_form.load(body)
-    except ValidationError as err:
-        raise BadRequest(detail=str(err.messages))
-
-    error_message = f"Dag ID {dag_id} not found"
-    dag = get_airflow_app().dag_bag.get_dag(dag_id)
-    if not dag:
-        raise NotFound(error_message)
-
-    task = dag.get_task(task_id)
-
-    if not task:
-        error_message = f"Task ID {task_id} not found"
-        raise NotFound(error_message)
-
-    ti: TI = session.query(TI).get(
-        {'task_id': task_id, 'dag_id': dag_id, 'run_id': dag_run_id, 'map_index': -1}
-    )
-
-    if ti is None:
-        error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {dag_run_id!r}"
-        raise NotFound(detail=error_message)
-
-    if not data["dry_run"]:
-        ti = dag.set_task_instance_state(
-            task_id=task_id,
-            run_id=dag_run_id,
-            state=data["new_state"],
-            commit=not data["dry_run"],
             session=session,
         )
 
