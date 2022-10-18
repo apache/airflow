@@ -2417,60 +2417,78 @@ class TaskInstance(Base, LoggingMixin):
         first_task_id = first.task_id
         # Common path optimisations: when all TIs are for the same dag_id and run_id, or same dag_id
         # and task_id -- this can be over 150x faster for huge numbers of TIs (20k+)
-        if all(t.dag_id == dag_id and t.run_id == run_id and t.map_index == map_index for t in tis):
+
+        # pre-compute the set of dag_id, run_id, map_indices and task_ids
+        dag_ids, run_ids, map_indices, task_ids = set(), set(), set(), set()
+        for t in tis:
+            dag_ids.add(t.dag_id)
+            run_ids.add(t.run_id)
+            map_indices.add(t.map_index)
+            task_ids.add(t.task_id)
+
+        if dag_ids == {dag_id} and run_ids == {run_id} and map_indices == {map_index}:
             return and_(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id == run_id,
                 TaskInstance.map_index == map_index,
-                TaskInstance.task_id.in_(t.task_id for t in tis),
+                TaskInstance.task_id.in_(task_ids),
             )
-        if all(t.dag_id == dag_id and t.task_id == first_task_id and t.map_index == map_index for t in tis):
+        if dag_ids == {dag_id} and task_ids == {first_task_id} and map_indices == {map_index}:
             return and_(
                 TaskInstance.dag_id == dag_id,
-                TaskInstance.run_id.in_(t.run_id for t in tis),
+                TaskInstance.run_id.in_(run_ids),
                 TaskInstance.map_index == map_index,
                 TaskInstance.task_id == first_task_id,
             )
-        if all(t.dag_id == dag_id and t.run_id == run_id and t.task_id == first_task_id for t in tis):
+        if dag_ids == {dag_id} and run_ids == {run_id} and task_ids == {task_id}:
             return and_(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id == run_id,
-                TaskInstance.map_index.in_(t.map_index for t in tis),
+                TaskInstance.map_index.in_(map_indices),
                 TaskInstance.task_id == first_task_id,
             )
 
-        # group by dag_id and map_index while creating multiple groups for the other 2 params
-        if all(t.dag_id == dag_id and t.map_index == map_index for t in tis):
+        filter_condition = []
+        # create 2 groups, 1 grouped by task_id the other by map_index and use the smaller group
+        task_id_groups, map_index_groups = defaultdict(lambda: defaultdict(list)), defaultdict(lambda: defaultdict(list))
+        for t in tis:
+            task_id_groups[(t.dag_id, t.run_id)][t.task_id].append(t.map_index)
+            map_index_groups[(t.dag_id, t.run_id)][t.map_index].append(t.task_id)
 
-            # naively create 2 groups, 1 grouped by run_id and the other by task_id then use the smaller group
-            run_id_groups = defaultdict(list)
-            task_id_groups = defaultdict(list)
-            for t in tis:
-                run_id_groups[t.run_id].append(t.task_id)
-                task_id_groups[t.task_id].append(t.run_id)
-            filter_condition = []
-            if len(run_id_groups) <= len(task_id_groups):
-                for run_id, task_ids in run_id_groups.items():
-                    filter_condition.append(
-                        and_(TaskInstance.run_id == run_id, TaskInstance.task_id.in_(task_ids)
-                    )
-                )
-            else:
-                for task_id, run_ids in task_id_groups.items():
-                    filter_condition.append(
-                        and_(TaskInstance.task_id == task_id, TaskInstance.run_id.in_(run_ids)
-                    )
-                )
-            return and_(
-                TaskInstance.dag_id == dag_id,
-                TaskInstance.map_index == map_index,
-                or_(*filter_condition)
-            )   
+        # this assumes that most dags have dag_id as the largest grouping, followed by run_id. even if its not, this is still
+        # a significant optimization over querying for every single tuple key
+        for cur_dag_id in dag_ids:
+            for cur_run_id in run_ids:
+                # we compare the group size between task_id and map_index and use the smaller group
+                dag_task_id_groups = task_id_groups[(cur_dag_id, cur_run_id)]
+                dag_map_index_groups = task_id_groups[(cur_dag_id, cur_run_id)]
 
-        return tuple_in_condition(
-            (TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.run_id, TaskInstance.map_index),
-            (ti.key.primary for ti in tis),
-        )
+                if len(dag_task_id_groups) <= len(dag_map_index_groups):
+                    for cur_task_id, cur_map_indices in dag_task_id_groups.items():
+                        filter_condition.append(
+                            and_(
+                                TaskInstance.dag_id == cur_dag_id,
+                                TaskInstance.run_id == cur_run_id, 
+                                TaskInstance.task_id == cur_task_id,
+                                TaskInstance.map_index.in_(cur_map_indices)
+                            )
+                        )
+                else:
+                    for cur_map_index, cur_task_ids in dag_map_index_groups.items():
+                        filter_condition.append(
+                            and_(
+                                TaskInstance.dag_id == cur_dag_id,
+                                TaskInstance.run_id == cur_run_id,
+                                TaskInstance.task_id.in_(cur_task_ids),
+                                TaskInstance.map_index == cur_map_index,
+                            )
+                        )       
+                
+        return and_(
+            TaskInstance.map_index == map_index,
+            or_(*filter_condition)
+        )   
+
 
     @classmethod
     def ti_selector_condition(cls, vals: Collection[str | tuple[str, int]]) -> ColumnOperators:
