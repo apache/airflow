@@ -93,6 +93,7 @@ class GoogleApiToS3Operator(BaseOperator):
         'google_api_endpoint_params',
         's3_destination_key',
         'google_impersonation_chain',
+        'gcp_conn_id',
     )
     template_ext: Sequence[str] = ()
     ui_color = '#cc181e'

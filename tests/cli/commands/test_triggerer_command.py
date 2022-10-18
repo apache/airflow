@@ -17,20 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import triggerer_command
 
 
-class TestTriggererCommand(unittest.TestCase):
+class TestTriggererCommand:
     """
     Tests the CLI interface and that it correctly calls the TriggererJob
     """
 
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
     @mock.patch("airflow.cli.commands.triggerer_command.TriggererJob")

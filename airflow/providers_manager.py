@@ -49,6 +49,33 @@ MIN_PROVIDER_VERSIONS = {
     "apache-airflow-providers-celery": "2.1.0",
 }
 
+
+def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: str):
+    """
+    If the given field_behaviors dict contains a placeholders node, and there
+    are placeholders for extra fields (i.e. anything other than the built-in conn
+    attrs), and if those extra fields are unprefixed, then add the prefix.
+
+    The reason we need to do this is, all custom conn fields live in the same dictionary,
+    so we need to namespace them with a prefix internally.  But for user convenience,
+    and consistency between the `get_ui_field_behaviour` method and the extra dict itself,
+    we allow users to supply the unprefixed name.
+    """
+    conn_attrs = {'host', 'schema', 'login', 'password', 'port', 'extra'}
+
+    def ensure_prefix(field):
+        if field not in conn_attrs and not field.startswith('extra__'):
+            return f"extra__{conn_type}__{field}"
+        else:
+            return field
+
+    if 'placeholders' in field_behaviors:
+        placeholders = field_behaviors['placeholders']
+        field_behaviors['placeholders'] = {ensure_prefix(k): v for k, v in placeholders.items()}
+
+    return field_behaviors
+
+
 if TYPE_CHECKING:
     from airflow.decorators.base import TaskDecorator
     from airflow.hooks.base import BaseHook
@@ -740,6 +767,7 @@ class ProvidersManager(LoggingMixin):
             # hierarchy and we add it only from the parent hook that provides those!
             if 'get_connection_form_widgets' in hook_class.__dict__:
                 widgets = hook_class.get_connection_form_widgets()
+
                 if widgets:
                     for widget in widgets.values():
                         if widget.field_class not in allowed_field_classes:
@@ -821,7 +849,12 @@ class ProvidersManager(LoggingMixin):
     def _add_customized_fields(self, package_name: str, hook_class: type, customized_fields: dict):
         try:
             connection_type = getattr(hook_class, "conn_type")
+
             self._customized_form_fields_schema_validator.validate(customized_fields)
+
+            if connection_type:
+                customized_fields = _ensure_prefix_for_placeholders(customized_fields, connection_type)
+
             if connection_type in self._field_behaviours:
                 log.warning(
                     "The connection_type %s from package %s and class %s has already been added "
