@@ -2439,6 +2439,34 @@ class TaskInstance(Base, LoggingMixin):
                 TaskInstance.task_id == first_task_id,
             )
 
+        # group by dag_id and map_index while creating multiple groups for the other 2 params
+        if all(t.dag_id == dag_id and t.map_index == map_index for t in tis):
+
+            # naively create 2 groups, 1 grouped by run_id and the other by task_id then use the smaller group
+            run_id_groups = defaultdict(list)
+            task_id_groups = defaultdict(list)
+            for t in tis:
+                run_id_groups[t.run_id].append(t.task_id)
+                task_id_groups[t.task_id].append(t.run_id)
+            filter_condition = []
+            if len(run_id_groups) <= len(task_id_groups):
+                for run_id, task_ids in run_id_groups.items():
+                    filter_condition.append(
+                        and_(TaskInstance.run_id == run_id, TaskInstance.task_id.in_(task_ids)
+                    )
+                )
+            else:
+                for task_id, run_ids in task_id_groups.items():
+                    filter_condition.append(
+                        and_(TaskInstance.task_id == task_id, TaskInstance.run_id.in_(run_ids)
+                    )
+                )
+            return and_(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.map_index == map_index,
+                or_(*filter_condition)
+            )   
+
         return tuple_in_condition(
             (TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.run_id, TaskInstance.map_index),
             (ti.key.primary for ti in tis),
