@@ -65,7 +65,7 @@ class SSHOperator(BaseOperator):
     template_ext: Sequence[str] = ('.sh',)
     template_fields_renderers = {
         "command": "bash",
-        "environment": "json",
+        "environment": "python",
     }
 
     def __init__(
