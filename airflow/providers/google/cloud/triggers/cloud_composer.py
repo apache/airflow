@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 import asyncio
@@ -74,6 +75,9 @@ class CloudComposerExecutionTrigger(BaseTrigger):
             operation = await self.gcp_hook.get_operation(operation_name=self.operation_name)
             if operation.done:
                 break
+            elif operation.state == "CREATING":
+                self.log.info("Environment is in CREATING state.")
+                self.log.info("Sleeping for %s seconds.", self.pooling_period_seconds)
             elif operation.error.message:
                 raise AirflowException(f"Cloud Composer Environment error: {operation.error.message}")
             await asyncio.sleep(self.pooling_period_seconds)
