@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pendulum
 import pytest
@@ -291,6 +292,19 @@ class TestKubernetesPodOperator:
 
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.image_pull_secrets == [k8s.V1LocalObjectReference(name=fake_pull_secrets)]
+
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
+    def test_omitted_name(self, mock_find):
+        k = KubernetesPodOperator(
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            task_id="this-task-name",
+        )
+
+        context = create_context(k)
+        pod = k.build_pod_request_obj(context)
+        assert re.match('this-task-name-[a-z0-9]+', pod.metadata.name) is not None
 
     def test_image_pull_policy_correctly_set(self):
         k = KubernetesPodOperator(
