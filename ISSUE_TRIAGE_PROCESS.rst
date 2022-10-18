@@ -208,7 +208,7 @@ following situations:
 **GitHub Discussions**
 
 Issues should represent clear feature requests which can/should be implemented. If the idea is vague or can be solved with easier steps
-we normally convert such issues to category ideas in discussion.
-Issues that seems more like support requests are also converted to discussion.
-We use judgment about what issue to convert to discussion, it's best to always clarify with comment why the issue is converted.
-Note that we can always convert discussion back to issue.
+we normally convert such issues to Discussions in the Ideas category.
+Issues that seems more like support requests are also converted to Discussions in the Q&A category.
+We use judgment about which Issues to convert to Discussions, it's best to always clarify with a comment why the Issue is being converted.
+Note that we can always convert Discussions back to Issues.
