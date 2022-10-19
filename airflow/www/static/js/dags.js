@@ -209,13 +209,11 @@ function drawDagAndTaskStatsForDag(selector, dagId, states) {
       params.append('_flt_3_dag_id', dagId);
       /* eslint no-unused-expressions: ["error", { "allowTernary": true }] */
       d.state ? params.append('_flt_3_state', d.state) : params.append('_flt_8_state', '');
-      if (selector === 'dag-run') {
-        return `${dagRunUrl}?${params.toString()}`;
+      switch (selector) {
+        case 'dag-run': return `${dagRunUrl}?${params.toString()}`;
+        case 'task-run': return `${taskInstanceUrl}?${params.toString()}`;
+        default: return '';
       }
-      if (selector === 'task-run') {
-        return `${taskInstanceUrl}?${params.toString()}`;
-      }
-      return '';
     })
     .append('circle')
     .attr('id', (d) => `${selector}-${dagId.replace(/\./g, '_')}-${d.state || 'none'}`)
@@ -251,7 +249,7 @@ function drawDagAndTaskStatsForDag(selector, dagId, states) {
     .delay((d, i) => i * 50)
     .style('opacity', 1);
 
-  d3.select('.js-loading-dag-stats').remove();
+  d3.select(`.js-loading-${selector}-stats`).remove();
 
   g.append('text')
     .attr('fill', '#51504f')
@@ -309,8 +307,8 @@ function getDagStats() {
       .post(params, taskStatsHandler);
   } else {
     // no dags, hide the loading dots
-    $('.js-loading-task-stats').remove();
-    $('.js-loading-dag-stats').remove();
+    $('.js-loading-task-run-stats').remove();
+    $('.js-loading-dag-run-stats').remove();
   }
 }
 
