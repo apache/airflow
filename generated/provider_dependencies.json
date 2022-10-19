@@ -116,6 +116,15 @@
       "vertica"
     ]
   },
+  "apache.impala": {
+    "deps": [
+      "apache-airflow>=2.3.0",
+      "impyla>=0.18.0,<1.0"
+    ],
+    "cross-providers-deps": [
+      "common.sql"
+    ]
+  },
   "apache.kylin": {
     "deps": [
       "apache-airflow>=2.3.0",
