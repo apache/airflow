@@ -560,14 +560,14 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
 def patch_task_instance(
     *, dag_id: str, dag_run_id: str, task_id: str, session: Session = NEW_SESSION
 ) -> APIResponse:
-    """Update the state of a mapped task instance."""
+    """Update the state of a task instance."""
     body = get_json_request_dict()
     try:
         data = set_single_task_instance_state_form.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
-    map_index = -1 if "map_index" not in data else data.get("map_index")
+    map_index = data['map_index']
 
     dag = get_airflow_app().dag_bag.get_dag(dag_id)
     if not dag:
