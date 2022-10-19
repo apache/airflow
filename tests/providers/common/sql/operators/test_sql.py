@@ -28,10 +28,12 @@ from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models import Connection, DagRun, TaskInstance as TI, XCom
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
     BranchSQLOperator,
     SQLCheckOperator,
     SQLColumnCheckOperator,
+    SQLExecuteQueryOperator,
     SQLIntervalCheckOperator,
     SQLTableCheckOperator,
     SQLThresholdCheckOperator,
@@ -54,6 +56,44 @@ class MockHook:
 
 def _get_mock_db_hook():
     return MockHook()
+
+
+class TestSQLExecuteQueryOperator(unittest.TestCase):
+    def _construct_operator(self, sql, **kwargs):
+        dag = DAG("test_dag", start_date=datetime.datetime(2017, 1, 1))
+        return SQLExecuteQueryOperator(
+            task_id="test_task",
+            conn_id='default_conn',
+            sql=sql,
+            **kwargs,
+            dag=dag,
+        )
+
+    @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
+    def test_do_xcom_push(self, mock_get_db_hook):
+        operator = self._construct_operator("SELECT 1;", do_xcom_push=True)
+        operator.execute(context=MagicMock())
+
+        mock_get_db_hook.return_value.run.assert_called_once_with(
+            sql='SELECT 1;',
+            autocommit=False,
+            handler=fetch_all_handler,
+            parameters=None,
+            return_last=True,
+            split_statements=False,
+        )
+
+    @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
+    def test_dont_xcom_push(self, mock_get_db_hook):
+        operator = self._construct_operator("SELECT 1;", do_xcom_push=False)
+        operator.execute(context=MagicMock())
+
+        mock_get_db_hook.return_value.run.assert_called_once_with(
+            sql='SELECT 1;',
+            autocommit=False,
+            parameters=None,
+            split_statements=False,
+        )
 
 
 class TestColumnCheckOperator:

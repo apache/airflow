@@ -279,8 +279,9 @@ class PrStat:
         # If the body contains over 2000 characters, the PR should matter 40% more.
         # If the body contains fewer than 1000 characters, the PR should matter 20% less.
         #
-        # Weight PRs with #protm tags more heavily:
-        # If there is at least one #protm tag, multiply the interaction score by the number of tags, up to 3.
+        # Weight PRs with protm tags more heavily:
+        # If there is at least one protm tag, multiply the interaction score by the number of tags, up to 3.
+        interaction_score = self.interaction_score
         interaction_score *= min(self.protm_score + 1, 3)
         return round(
             1.0
