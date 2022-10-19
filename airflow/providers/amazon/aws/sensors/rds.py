@@ -169,7 +169,7 @@ class RdsDbSensor(RdsBaseSensor):
         For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:RdsDbSensor`
 
-    :param db_type: Type of the DB - either "instance" or "cluster"
+    :param db_type: Type of the DB - either "instance" or "cluster" (default: 'instance')
     :param db_identifier: The AWS identifier for the DB
     :param target_statuses: Target status of DB
     """
