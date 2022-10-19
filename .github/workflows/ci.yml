@@ -696,8 +696,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Get Python version"
-        run: "echo \"::set-output name=host-python-version::$(python -c
- 'import platform; print(platform.python_version())')\""
+        run: "echo \"host-python-version=$(python -c
+ 'import platform; print(platform.python_version())')\"" >> $GITHUB_OUTPUT
         id: host-python-version
       - name: "Static checks"
         run: breeze static-checks --all-files --show-diff-on-failure --color always
@@ -747,8 +747,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Free space"
         run: breeze ci free-space
       - name: "Get Python version"
-        run: "echo \"::set-output name=host-python-version::$(python -c
- 'import platform; print(platform.python_version())')\""
+        run: "echo \"host-python-version=$(python -c
+ 'import platform; print(platform.python_version())')\"" >> $GITHUB_OUTPUT
         id: host-python-version
       - name: "Static checks: basic checks only"
         run: >
