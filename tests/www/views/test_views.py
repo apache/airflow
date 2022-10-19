@@ -167,7 +167,13 @@ def test_task_dag_id_equals_filter(admin_client, url, content):
     "test_url, expected_url",
     [
         ("", "/home"),
+        ("javascript:alert(1)", "/home"),
+        (" javascript:alert(1)", "http://localhost:8080/ javascript:alert(1)"),
         ("http://google.com", "/home"),
+        ("google.com", "http://localhost:8080/google.com"),
+        ("\\/google.com", "http://localhost:8080/\\/google.com"),
+        ("//google.com", "/home"),
+        ("\\/\\/google.com", "http://localhost:8080/\\/\\/google.com"),
         ("36539'%3balert(1)%2f%2f166", "/home"),
         (
             "http://localhost:8080/trigger?dag_id=test&origin=36539%27%3balert(1)%2f%2f166&abc=2",
