@@ -16,14 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import jmespath
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class LimitRangesTest(unittest.TestCase):
+class TestLimitRanges:
     def test_limit_ranges_template(self):
         docs = render_chart(
             values={"limits": [{"max": {"cpu": "500m"}, "min": {"min": "200m"}, "type": "Container"}]},

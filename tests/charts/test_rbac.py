@@ -16,10 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
@@ -106,7 +104,7 @@ CUSTOM_SERVICE_ACCOUNT_NAMES = (
 )
 
 
-class RBACTest(unittest.TestCase):
+class TestRBAC:
     def _get_values_with_version(self, values, version):
         if version != "default":
             values["airflowVersion"] = version
@@ -119,7 +117,7 @@ class RBACTest(unittest.TestCase):
             ] + DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES
         return DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES
 
-    @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_deployments_no_rbac_no_sa(self, version):
         k8s_objects = render_chart(
             "test-rbac",
@@ -155,13 +153,9 @@ class RBACTest(unittest.TestCase):
         list_of_kind_names_tuples = [
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
+        assert sorted(list_of_kind_names_tuples) == sorted(self._get_object_count(version))
 
-        self.assertCountEqual(
-            list_of_kind_names_tuples,
-            self._get_object_count(version),
-        )
-
-    @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_deployments_no_rbac_with_sa(self, version):
         k8s_objects = render_chart(
             "test-rbac",
@@ -180,12 +174,9 @@ class RBACTest(unittest.TestCase):
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
         real_list_of_kind_names = self._get_object_count(version) + SERVICE_ACCOUNT_NAME_TUPLES
-        self.assertCountEqual(
-            list_of_kind_names_tuples,
-            real_list_of_kind_names,
-        )
+        assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
-    @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_deployments_with_rbac_no_sa(self, version):
         k8s_objects = render_chart(
             "test-rbac",
@@ -221,12 +212,9 @@ class RBACTest(unittest.TestCase):
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
         real_list_of_kind_names = self._get_object_count(version) + RBAC_ENABLED_KIND_NAME_TUPLES
-        self.assertCountEqual(
-            list_of_kind_names_tuples,
-            real_list_of_kind_names,
-        )
+        assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
-    @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_deployments_with_rbac_with_sa(self, version):
         k8s_objects = render_chart(
             "test-rbac",
@@ -246,10 +234,7 @@ class RBACTest(unittest.TestCase):
         real_list_of_kind_names = (
             self._get_object_count(version) + SERVICE_ACCOUNT_NAME_TUPLES + RBAC_ENABLED_KIND_NAME_TUPLES
         )
-        self.assertCountEqual(
-            list_of_kind_names_tuples,
-            real_list_of_kind_names,
-        )
+        assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
     def test_service_account_custom_names(self):
         k8s_objects = render_chart(
@@ -284,10 +269,7 @@ class RBACTest(unittest.TestCase):
             for k8s_object in k8s_objects
             if k8s_object['kind'] == "ServiceAccount"
         ]
-        self.assertCountEqual(
-            list_of_sa_names,
-            CUSTOM_SERVICE_ACCOUNT_NAMES,
-        )
+        assert sorted(list_of_sa_names) == sorted(CUSTOM_SERVICE_ACCOUNT_NAMES)
 
     def test_service_account_custom_names_in_objects(self):
         k8s_objects = render_chart(
@@ -330,10 +312,7 @@ class RBACTest(unittest.TestCase):
             if name and name not in list_of_sa_names_in_objects:
                 list_of_sa_names_in_objects.append(name)
 
-        self.assertCountEqual(
-            list_of_sa_names_in_objects,
-            CUSTOM_SERVICE_ACCOUNT_NAMES,
-        )
+        assert sorted(list_of_sa_names_in_objects) == sorted(CUSTOM_SERVICE_ACCOUNT_NAMES)
 
     def test_service_account_without_resource(self):
         k8s_objects = render_chart(
@@ -360,4 +339,4 @@ class RBACTest(unittest.TestCase):
             'test-rbac-triggerer',
             'test-rbac-migrate-database-job',
         ]
-        self.assertCountEqual(list_of_sa_names, service_account_names)
+        assert sorted(list_of_sa_names) == sorted(service_account_names)

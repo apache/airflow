@@ -17,14 +17,13 @@
 from __future__ import annotations
 
 import json
-import unittest
 
 import jmespath
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class KerberosTest(unittest.TestCase):
+class TestKerberos:
     def test_kerberos_not_mentioned_in_render_if_disabled(self):
         # the name is deliberately shorter as we look for "kerberos" in the rendered chart
         k8s_objects = render_chart(name="no-krbros", values={"kerberos": {'enabled': False}})

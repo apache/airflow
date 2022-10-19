@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import jmespath
 import pytest
-from parameterized import parameterized
 
 from tests.charts.helm_template_generator import render_chart
 
@@ -32,7 +31,8 @@ class TestAirflowCommon:
     as it requires extra test setup.
     """
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "dag_values, expected_mount",
         [
             (
                 {"gitSync": {"enabled": True}},
@@ -70,7 +70,7 @@ class TestAirflowCommon:
                     "readOnly": False,
                 },
             ),
-        ]
+        ],
     )
     def test_dags_mount(self, dag_values, expected_mount):
         docs = render_chart(

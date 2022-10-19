@@ -16,12 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 from tests.charts.helm_template_generator import render_chart
 
 
-class PgbouncerPdbTest(unittest.TestCase):
+class TestPgbouncerPdb:
     def test_should_pass_validation_with_just_pdb_enabled_v1(self):
         render_chart(
             values={"pgbouncer": {"enabled": True, "podDisruptionBudget": {"enabled": True}}},

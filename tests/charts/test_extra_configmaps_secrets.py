@@ -17,19 +17,18 @@
 from __future__ import annotations
 
 import textwrap
-import unittest
 from base64 import b64encode
 from unittest import mock
 
+import pytest
 import yaml
-from parameterized import parameterized
 
 from tests.charts.helm_template_generator import prepare_k8s_lookup_dict, render_chart
 
 RELEASE_NAME = "test-extra-configmaps-secrets"
 
 
-class ExtraConfigMapsSecretsTest(unittest.TestCase):
+class TestExtraConfigMapsSecrets:
     def test_extra_configmaps(self):
         values_str = textwrap.dedent(
             """
@@ -151,12 +150,13 @@ class ExtraConfigMapsSecretsTest(unittest.TestCase):
         for k8s_object in k8s_objects:
             assert k8s_object['metadata']['labels'] == expected_labels
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "chart_labels, local_labels",
         [
             ({}, {"label3": "value3", "label4": "value4"}),
             ({"label1": "value1", "label2": "value2"}, {}),
             ({"label1": "value1", "label2": "value2"}, {"label3": "value3", "label4": "value4"}),
-        ]
+        ],
     )
     def test_extra_configmaps_secrets_additional_labels(self, chart_labels, local_labels):
         k8s_objects = render_chart(

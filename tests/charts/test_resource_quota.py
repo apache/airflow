@@ -16,14 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import jmespath
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class ResourceQuotaTest(unittest.TestCase):
+class TestResourceQuota:
     def test_resource_quota_template(self):
         docs = render_chart(
             values={

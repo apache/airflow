@@ -16,14 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import jmespath
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class GitSyncWorkerTest(unittest.TestCase):
+class TestGitSyncWorker:
     def test_should_add_dags_volume_to_the_worker_if_git_sync_and_persistence_is_enabled(self):
         docs = render_chart(
             values={

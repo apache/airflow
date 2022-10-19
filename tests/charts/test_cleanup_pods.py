@@ -16,15 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class CleanupPodsTest(unittest.TestCase):
+class TestCleanupPods:
     def test_should_create_cronjob_for_enabled_cleanup(self):
         docs = render_chart(
             values={
@@ -139,14 +137,8 @@ class CleanupPodsTest(unittest.TestCase):
             "spec.jobTemplate.spec.template.spec.containers[0].env", docs[0]
         )
 
-    @parameterized.expand(
-        [
-            (None, None),
-            (None, ["custom", "args"]),
-            (["custom", "command"], None),
-            (["custom", "command"], ["custom", "args"]),
-        ]
-    )
+    @pytest.mark.parametrize("command", [None, ["custom", "command"]])
+    @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_command_and_args_overrides(self, command, args):
         docs = render_chart(
             values={"cleanup": {"enabled": True, "command": command, "args": args}},
@@ -248,7 +240,7 @@ class CleanupPodsTest(unittest.TestCase):
         assert 4 == jmespath.search("spec.successfulJobsHistoryLimit", docs[0])
 
 
-class CleanupServiceAccountTest(unittest.TestCase):
+class TestCleanupServiceAccount:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={

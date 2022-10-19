@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import jmespath
 import pytest
-from parameterized import parameterized
 
 from tests.charts.helm_template_generator import render_chart
 
@@ -32,11 +31,12 @@ class TestKeda:
         )
         assert docs == []
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "executor, is_created",
         [
             ('CeleryExecutor', True),
             ('CeleryKubernetesExecutor', True),
-        ]
+        ],
     )
     def test_keda_enabled(self, executor, is_created):
         """
@@ -54,12 +54,7 @@ class TestKeda:
         else:
             assert docs == []
 
-    @parameterized.expand(
-        [
-            ('CeleryExecutor'),
-            ('CeleryKubernetesExecutor'),
-        ]
-    )
+    @pytest.mark.parametrize("executor", ['CeleryExecutor', 'CeleryKubernetesExecutor'])
     def test_keda_advanced(self, executor):
         """
         Verify keda advanced config.
@@ -151,11 +146,12 @@ class TestKeda:
         expected_query = self.build_query(executor=executor, queue=queue)
         assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == expected_query
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "enabled, kind",
         [
             ('enabled', 'StatefulSet'),
             ('not_enabled', 'Deployment'),
-        ]
+        ],
     )
     def test_persistence(self, enabled, kind):
         """

@@ -16,21 +16,20 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 import warnings
 from subprocess import CalledProcessError
 from typing import Any
 from unittest import mock
 
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 35
 
 
-class TestBaseChartTest(unittest.TestCase):
+class TestBaseChartTest:
     def _get_values_with_version(self, values, version):
         if version != "default":
             values["airflowVersion"] = version
@@ -41,7 +40,7 @@ class TestBaseChartTest(unittest.TestCase):
             return OBJECT_COUNT_IN_BASIC_DEPLOYMENT + 1
         return OBJECT_COUNT_IN_BASIC_DEPLOYMENT
 
-    @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_basic_deployments(self, version):
         expected_object_count_in_basic_deployment = self._get_object_count(version)
         k8s_objects = render_chart(
@@ -114,7 +113,7 @@ class TestBaseChartTest(unittest.TestCase):
                 "test-label"
             ), f"Missing label test-label on {k8s_name}. Current labels: {labels}"
 
-    @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_basic_deployment_with_standalone_dag_processor(self, version):
         # Dag Processor creates two extra objects compared to the basic deployment
         object_count_in_basic_deployment = self._get_object_count(version)
@@ -192,7 +191,7 @@ class TestBaseChartTest(unittest.TestCase):
                 "test-label"
             ), f"Missing label test-label on {k8s_name}. Current labels: {labels}"
 
-    @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_basic_deployment_without_default_users(self, version):
         expected_object_count_in_basic_deployment = self._get_object_count(version)
         k8s_objects = render_chart(
@@ -207,7 +206,7 @@ class TestBaseChartTest(unittest.TestCase):
         assert ('Job', 'test-basic-create-user') not in list_of_kind_names_tuples
         assert expected_object_count_in_basic_deployment - 2 == len(k8s_objects)
 
-    @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_basic_deployment_without_statsd(self, version):
         expected_object_count_in_basic_deployment = self._get_object_count(version)
         k8s_objects = render_chart(
@@ -462,7 +461,7 @@ class TestBaseChartTest(unittest.TestCase):
                 assert "command" not in obj
 
     def test_unsupported_executor(self):
-        with self.assertRaises(CalledProcessError) as ex_ctx:
+        with pytest.raises(CalledProcessError) as ex_ctx:
             render_chart(
                 "test-basic",
                 {
@@ -472,23 +471,15 @@ class TestBaseChartTest(unittest.TestCase):
         assert (
             'executor must be one of the following: "LocalExecutor", '
             '"LocalKubernetesExecutor", "CeleryExecutor", '
-            '"KubernetesExecutor", "CeleryKubernetesExecutor"' in ex_ctx.exception.stderr.decode()
+            '"KubernetesExecutor", "CeleryKubernetesExecutor"' in ex_ctx.value.stderr.decode()
         )
 
-    @parameterized.expand(
-        [
-            ("airflow",),
-            ("pod_template",),
-            ("flower",),
-            ("statsd",),
-            ("redis",),
-            ("pgbouncer",),
-            ("pgbouncerExporter",),
-            ("gitSync",),
-        ]
+    @pytest.mark.parametrize(
+        "image",
+        ["airflow", "pod_template", "flower", "statsd", "redis", "pgbouncer", "pgbouncerExporter", "gitSync"],
     )
     def test_invalid_pull_policy(self, image):
-        with self.assertRaises(CalledProcessError) as ex_ctx:
+        with pytest.raises(CalledProcessError) as ex_ctx:
             render_chart(
                 "test-basic",
                 {
@@ -497,11 +488,11 @@ class TestBaseChartTest(unittest.TestCase):
             )
         assert (
             'pullPolicy must be one of the following: "Always", "Never", "IfNotPresent"'
-            in ex_ctx.exception.stderr.decode()
+            in ex_ctx.value.stderr.decode()
         )
 
     def test_invalid_dags_access_mode(self):
-        with self.assertRaises(CalledProcessError) as ex_ctx:
+        with pytest.raises(CalledProcessError) as ex_ctx:
             render_chart(
                 "test-basic",
                 {
@@ -510,10 +501,10 @@ class TestBaseChartTest(unittest.TestCase):
             )
         assert (
             'accessMode must be one of the following: "ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"'
-            in ex_ctx.exception.stderr.decode()
+            in ex_ctx.value.stderr.decode()
         )
 
-    @parameterized.expand(["abc", "123", "123abc", "123-abc"])
+    @pytest.mark.parametrize("namespace", ["abc", "123", "123abc", "123-abc"])
     def test_namespace_names(self, namespace):
         """Test various namespace names to make sure they render correctly in templates"""
         render_chart(namespace=namespace)
