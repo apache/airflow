@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import os
 import os.path
-import unittest
 from pathlib import Path
 from unittest import mock
 
@@ -29,7 +28,7 @@ from airflow.utils.file import correct_maybe_zipped, find_path_from_directory, o
 from tests.models import TEST_DAGS_FOLDER
 
 
-class TestCorrectMaybeZipped(unittest.TestCase):
+class TestCorrectMaybeZipped:
     @mock.patch("zipfile.is_zipfile")
     def test_correct_maybe_zipped_normal_file(self, mocked_is_zipfile):
         path = '/path/to/some/file.txt'
@@ -62,7 +61,7 @@ class TestCorrectMaybeZipped(unittest.TestCase):
         assert dag_folder == '/path/to/archive.zip'
 
 
-class TestOpenMaybeZipped(unittest.TestCase):
+class TestOpenMaybeZipped:
     def test_open_maybe_zipped_normal_file(self):
         test_file_path = os.path.join(TEST_DAGS_FOLDER, "no_dags.py")
         with open_maybe_zipped(test_file_path, 'r') as test_file:

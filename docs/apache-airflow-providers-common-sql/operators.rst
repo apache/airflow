@@ -21,6 +21,29 @@ SQL Operators
 These operators perform various queries against a SQL database, including
 column- and table-level data quality checks.
 
+.. _howto/operator:SQLExecuteQueryOperator:
+
+Execute SQL query
+~~~~~~~~~~~~~~~~~
+
+Use the :class:`~airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator` to run SQL query against
+different databases. Parameters of the operators are:
+
+- ``sql`` - single string, list of strings or string pointing to a template file to be executed;
+- ``autocommit`` (optional) if True, each command is automatically committed (default: False);
+- ``parameters`` (optional) the parameters to render the SQL query with.
+- ``handler`` (optional) the function that will be applied to the cursor. If it's ``None`` results won't returned (default: fetch_all_handler).
+- ``split_statements`` (optional) if split single SQL string into statements and run separately (default: False).
+- ``return_last`` (optional) depends ``split_statements`` and if it's ``True`` this parameter is used to return the result of only last statement or all split statements (default: True).
+
+The example below shows how to instantiate the SQLExecuteQueryOperator task.
+
+.. exampleinclude:: /../../tests/system/providers/common/sql/example_sql_execute_query.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sql_execute_query]
+    :end-before: [END howto_operator_sql_execute_query]
+
 .. _howto/operator:SQLColumnCheckOperator:
 
 Check SQL Table Columns

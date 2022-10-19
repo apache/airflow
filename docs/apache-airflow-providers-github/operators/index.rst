@@ -24,7 +24,7 @@ Use the :class:`~airflow.providers.github.operators.GithubOperator` to execute
 Operations in a `GitHub <https://www.github.com/>`__.
 
 You can build your own operator using :class:`~airflow.providers.github.operators.GithubOperator`
-and passing **github_method** and **github_method_args** from top level `PyGithub <https://www.pygithub.readthedocs.io/>`__ methods.
+and passing **github_method** and **github_method_args** from top level `PyGithub <https://pygithub.readthedocs.io/>`__ methods.
 You can further process the result using **result_processor** Callable as you like.
 
 An example of Listing all Repositories owned by a user, **client.get_user().get_repos()** can be implemented as following:

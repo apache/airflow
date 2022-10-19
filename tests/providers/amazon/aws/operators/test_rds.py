@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from unittest.mock import patch
 
 import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
+from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.operators.rds import (
     RdsBaseOperator,
@@ -34,7 +36,9 @@ from airflow.providers.amazon.aws.operators.rds import (
     RdsDeleteDbInstanceOperator,
     RdsDeleteDbSnapshotOperator,
     RdsDeleteEventSubscriptionOperator,
+    RdsStartDbOperator,
     RdsStartExportTaskOperator,
+    RdsStopDbOperator,
 )
 from airflow.utils import timezone
 
@@ -130,6 +134,12 @@ def _create_event_subscription(hook: RdsHook):
         raise ValueError('AWS not properly mocked')
 
 
+def _patch_hook_get_connection(hook: AwsGenericHook) -> None:
+    # We're mocking all actual AWS calls and don't need a connection. This
+    # avoids an Airflow warning about connection cannot be found.
+    hook.get_connection = lambda _: None
+
+
 class TestBaseRdsOperator:
     dag = None
     op = None
@@ -175,6 +185,7 @@ class TestRdsCreateDbSnapshotOperator:
     def setup_class(cls):
         cls.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name='us-east-1')
+        _patch_hook_get_connection(cls.hook)
 
     @classmethod
     def teardown_class(cls):
@@ -192,6 +203,7 @@ class TestRdsCreateDbSnapshotOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(instance_snapshot_operator.hook)
         instance_snapshot_operator.execute(None)
 
         result = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT)
@@ -213,6 +225,7 @@ class TestRdsCreateDbSnapshotOperator:
             dag=self.dag,
             wait_for_completion=False,
         )
+        _patch_hook_get_connection(instance_snapshot_operator.hook)
         instance_snapshot_operator.execute(None)
 
         result = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT)
@@ -233,6 +246,7 @@ class TestRdsCreateDbSnapshotOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(cluster_snapshot_operator.hook)
         cluster_snapshot_operator.execute(None)
 
         result = self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT)
@@ -254,6 +268,7 @@ class TestRdsCreateDbSnapshotOperator:
             dag=self.dag,
             wait_for_completion=False,
         )
+        _patch_hook_get_connection(cluster_snapshot_operator.hook)
         cluster_snapshot_operator.execute(None)
 
         result = self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT)
@@ -270,6 +285,7 @@ class TestRdsCopyDbSnapshotOperator:
     def setup_class(cls):
         cls.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name='us-east-1')
+        _patch_hook_get_connection(cls.hook)
 
     @classmethod
     def teardown_class(cls):
@@ -289,6 +305,7 @@ class TestRdsCopyDbSnapshotOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(instance_snapshot_operator.hook)
         instance_snapshot_operator.execute(None)
         result = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT_COPY)
         instance_snapshots = result.get("DBSnapshots")
@@ -311,6 +328,7 @@ class TestRdsCopyDbSnapshotOperator:
             dag=self.dag,
             wait_for_completion=False,
         )
+        _patch_hook_get_connection(instance_snapshot_operator.hook)
         instance_snapshot_operator.execute(None)
         result = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT_COPY)
         instance_snapshots = result.get("DBSnapshots")
@@ -332,6 +350,7 @@ class TestRdsCopyDbSnapshotOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(cluster_snapshot_operator.hook)
         cluster_snapshot_operator.execute(None)
         result = self.hook.conn.describe_db_cluster_snapshots(
             DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT_COPY
@@ -355,6 +374,7 @@ class TestRdsCopyDbSnapshotOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(cluster_snapshot_operator.hook)
         cluster_snapshot_operator.execute(None)
         result = self.hook.conn.describe_db_cluster_snapshots(
             DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT_COPY
@@ -372,6 +392,7 @@ class TestRdsDeleteDbSnapshotOperator:
     def setup_class(cls):
         cls.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name='us-east-1')
+        _patch_hook_get_connection(cls.hook)
 
     @classmethod
     def teardown_class(cls):
@@ -390,6 +411,7 @@ class TestRdsDeleteDbSnapshotOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(instance_snapshot_operator.hook)
         instance_snapshot_operator.execute(None)
 
         with pytest.raises(self.hook.conn.exceptions.ClientError):
@@ -407,6 +429,7 @@ class TestRdsDeleteDbSnapshotOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(cluster_snapshot_operator.hook)
         cluster_snapshot_operator.execute(None)
 
         with pytest.raises(self.hook.conn.exceptions.ClientError):
@@ -419,6 +442,7 @@ class TestRdsStartExportTaskOperator:
     def setup_class(cls):
         cls.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name='us-east-1')
+        _patch_hook_get_connection(cls.hook)
 
     @classmethod
     def teardown_class(cls):
@@ -440,6 +464,7 @@ class TestRdsStartExportTaskOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(start_export_operator.hook)
         start_export_operator.execute(None)
 
         result = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=EXPORT_TASK_NAME)
@@ -466,6 +491,7 @@ class TestRdsStartExportTaskOperator:
             dag=self.dag,
             wait_for_completion=False,
         )
+        _patch_hook_get_connection(start_export_operator.hook)
         start_export_operator.execute(None)
 
         result = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=EXPORT_TASK_NAME)
@@ -483,6 +509,7 @@ class TestRdsCancelExportTaskOperator:
     def setup_class(cls):
         cls.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name='us-east-1')
+        _patch_hook_get_connection(cls.hook)
 
     @classmethod
     def teardown_class(cls):
@@ -501,6 +528,7 @@ class TestRdsCancelExportTaskOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(cancel_export_operator.hook)
         cancel_export_operator.execute(None)
 
         result = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=EXPORT_TASK_NAME)
@@ -523,6 +551,7 @@ class TestRdsCancelExportTaskOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(cancel_export_operator.hook)
         cancel_export_operator.execute(None)
 
         result = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=EXPORT_TASK_NAME)
@@ -540,6 +569,7 @@ class TestRdsCreateEventSubscriptionOperator:
     def setup_class(cls):
         cls.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name='us-east-1')
+        _patch_hook_get_connection(cls.hook)
 
     @classmethod
     def teardown_class(cls):
@@ -559,6 +589,7 @@ class TestRdsCreateEventSubscriptionOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(create_subscription_operator.hook)
         create_subscription_operator.execute(None)
 
         result = self.hook.conn.describe_event_subscriptions(SubscriptionName=SUBSCRIPTION_NAME)
@@ -582,6 +613,7 @@ class TestRdsCreateEventSubscriptionOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(create_subscription_operator.hook)
         create_subscription_operator.execute(None)
 
         result = self.hook.conn.describe_event_subscriptions(SubscriptionName=SUBSCRIPTION_NAME)
@@ -599,6 +631,7 @@ class TestRdsDeleteEventSubscriptionOperator:
     def setup_class(cls):
         cls.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name='us-east-1')
+        _patch_hook_get_connection(cls.hook)
 
     @classmethod
     def teardown_class(cls):
@@ -615,6 +648,7 @@ class TestRdsDeleteEventSubscriptionOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(delete_subscription_operator.hook)
         delete_subscription_operator.execute(None)
 
         with pytest.raises(self.hook.conn.exceptions.ClientError):
@@ -627,6 +661,7 @@ class TestRdsCreateDbInstanceOperator:
     def setup_class(cls):
         cls.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name='us-east-1')
+        _patch_hook_get_connection(cls.hook)
 
     @classmethod
     def teardown_class(cls):
@@ -646,6 +681,7 @@ class TestRdsCreateDbInstanceOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(create_db_instance_operator.hook)
         create_db_instance_operator.execute(None)
 
         result = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
@@ -669,6 +705,7 @@ class TestRdsCreateDbInstanceOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(create_db_instance_operator.hook)
         create_db_instance_operator.execute(None)
 
         result = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
@@ -686,6 +723,7 @@ class TestRdsDeleteDbInstanceOperator:
     def setup_class(cls):
         cls.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name='us-east-1')
+        _patch_hook_get_connection(cls.hook)
 
     @classmethod
     def teardown_class(cls):
@@ -705,6 +743,7 @@ class TestRdsDeleteDbInstanceOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
+        _patch_hook_get_connection(delete_db_instance_operator.hook)
         delete_db_instance_operator.execute(None)
 
         with pytest.raises(self.hook.conn.exceptions.ClientError):
@@ -725,8 +764,150 @@ class TestRdsDeleteDbInstanceOperator:
             dag=self.dag,
             wait_for_completion=False,
         )
+        _patch_hook_get_connection(delete_db_instance_operator.hook)
         delete_db_instance_operator.execute(None)
 
         with pytest.raises(self.hook.conn.exceptions.ClientError):
             self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
         assert mock_await_status.not_called()
+
+
+@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
+class TestRdsStopDbOperator:
+    @classmethod
+    def setup_class(cls):
+        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
+        _patch_hook_get_connection(cls.hook)
+
+    @classmethod
+    def teardown_class(cls):
+        del cls.dag
+        del cls.hook
+
+    @mock_rds
+    @patch.object(RdsBaseOperator, "_await_status")
+    def test_stop_db_instance(self, mock_await_status):
+        _create_db_instance(self.hook)
+        stop_db_instance = RdsStopDbOperator(task_id="test_stop_db_instance", db_identifier=DB_INSTANCE_NAME)
+        _patch_hook_get_connection(stop_db_instance.hook)
+        stop_db_instance.execute(None)
+        result = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        status = result["DBInstances"][0]["DBInstanceStatus"]
+        assert status == "stopped"
+        mock_await_status.assert_called()
+
+    @mock_rds
+    @patch.object(RdsBaseOperator, "_await_status")
+    def test_stop_db_instance_no_wait(self, mock_await_status):
+        _create_db_instance(self.hook)
+        stop_db_instance = RdsStopDbOperator(
+            task_id="test_stop_db_instance_no_wait", db_identifier=DB_INSTANCE_NAME, wait_for_completion=False
+        )
+        _patch_hook_get_connection(stop_db_instance.hook)
+        stop_db_instance.execute(None)
+        result = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        status = result["DBInstances"][0]["DBInstanceStatus"]
+        assert status == "stopped"
+        mock_await_status.assert_not_called()
+
+    @mock_rds
+    def test_stop_db_instance_create_snapshot(self):
+        _create_db_instance(self.hook)
+        stop_db_instance = RdsStopDbOperator(
+            task_id="test_stop_db_instance_create_snapshot",
+            db_identifier=DB_INSTANCE_NAME,
+            db_snapshot_identifier=DB_INSTANCE_SNAPSHOT,
+        )
+        _patch_hook_get_connection(stop_db_instance.hook)
+        stop_db_instance.execute(None)
+
+        describe_result = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        status = describe_result["DBInstances"][0]['DBInstanceStatus']
+        assert status == "stopped"
+
+        snapshot_result = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT)
+        instance_snapshots = snapshot_result.get("DBSnapshots")
+        assert instance_snapshots
+        assert len(instance_snapshots) == 1
+
+    @mock_rds
+    @patch.object(RdsBaseOperator, "_await_status")
+    def test_stop_db_cluster(self, mock_await_status):
+        _create_db_cluster(self.hook)
+        stop_db_cluster = RdsStopDbOperator(
+            task_id="test_stop_db_cluster", db_identifier=DB_CLUSTER_NAME, db_type="cluster"
+        )
+        _patch_hook_get_connection(stop_db_cluster.hook)
+        stop_db_cluster.execute(None)
+
+        describe_result = self.hook.conn.describe_db_clusters(DBClusterIdentifier=DB_CLUSTER_NAME)
+        status = describe_result["DBClusters"][0]["Status"]
+        assert status == "stopped"
+
+    @mock_rds
+    def test_stop_db_cluster_create_snapshot_logs_warning_message(self, caplog):
+        _create_db_cluster(self.hook)
+        stop_db_cluster = RdsStopDbOperator(
+            task_id="test_stop_db_cluster",
+            db_identifier=DB_CLUSTER_NAME,
+            db_type="cluster",
+            db_snapshot_identifier=DB_CLUSTER_SNAPSHOT,
+        )
+        _patch_hook_get_connection(stop_db_cluster.hook)
+        with caplog.at_level(logging.WARNING, logger=stop_db_cluster.log.name):
+            stop_db_cluster.execute(None)
+        warning_message = (
+            "'db_snapshot_identifier' does not apply to db clusters. Remove it to silence this warning."
+        )
+        assert warning_message in caplog.text
+
+
+@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
+class TestRdsStartDbOperator:
+    @classmethod
+    def setup_class(cls):
+        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
+        _patch_hook_get_connection(cls.hook)
+
+    @classmethod
+    def teardown_class(cls):
+        del cls.dag
+        del cls.hook
+
+    @mock_rds
+    def test_start_db_instance(self):
+        _create_db_instance(self.hook)
+        self.hook.conn.stop_db_instance(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        result_before = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        status_before = result_before["DBInstances"][0]["DBInstanceStatus"]
+        assert status_before == "stopped"
+
+        start_db_instance = RdsStartDbOperator(
+            task_id="test_start_db_instance", db_identifier=DB_INSTANCE_NAME
+        )
+        _patch_hook_get_connection(start_db_instance.hook)
+        start_db_instance.execute(None)
+
+        result_after = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        status_after = result_after["DBInstances"][0]["DBInstanceStatus"]
+        assert status_after == "available"
+
+    @mock_rds
+    def test_start_db_cluster(self):
+        _create_db_cluster(self.hook)
+        self.hook.conn.stop_db_cluster(DBClusterIdentifier=DB_CLUSTER_NAME)
+        result_before = self.hook.conn.describe_db_clusters(DBClusterIdentifier=DB_CLUSTER_NAME)
+        status_before = result_before["DBClusters"][0]["Status"]
+        assert status_before == "stopped"
+
+        start_db_cluster = RdsStartDbOperator(
+            task_id="test_start_db_cluster", db_identifier=DB_CLUSTER_NAME, db_type="cluster"
+        )
+        _patch_hook_get_connection(start_db_cluster.hook)
+        start_db_cluster.execute(None)
+
+        result_after = self.hook.conn.describe_db_clusters(DBClusterIdentifier=DB_CLUSTER_NAME)
+        status_after = result_after["DBClusters"][0]["Status"]
+        assert status_after == "available"
