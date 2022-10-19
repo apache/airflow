@@ -125,9 +125,15 @@ class BaseSessionFactory(LoggingMixin):
             return boto3.session.Session(region_name=self.region_name)
         elif not self.role_arn:
             return self.basic_session
-        # Values stored in AwsConnectionWrapper.session_kwargs intend to use only create initial boto3 session
-        # If user want to use 'assume_role' mechanism we need provide only 'region_name'
-        # otherwise other parameters might conflict with base botocore session.
+
+        # Values stored in ``AwsConnectionWrapper.session_kwargs`` are intended to be used only
+        # to create the initial boto3 session.
+        # If the user wants to use the 'assume_role' mechanism then only the 'region_name' needs to be
+        # provided, otherwise other parameters might conflict with the base botocore session.
+        # Unfortunately it is not a part of public boto3 API, see source of boto3.session.Session:
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/_modules/boto3/session.html#Session
+        # If we provide 'aws_access_key_id' or 'aws_secret_access_key' or 'aws_session_token'
+        # as part of session kwargs it will use them instead of assumed credentials.
         assume_session_kwargs = {}
         if self.conn.region_name:
             assume_session_kwargs["region_name"] = self.conn.region_name
