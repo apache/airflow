@@ -267,6 +267,7 @@ class DAG(LoggingMixin):
 
     :param dag_id: The id of the DAG; must consist exclusively of alphanumeric
         characters, dashes, dots and underscores (all ASCII)
+    :param display_name: The display name for the DAG to be shown on the webserver
     :param description: The description for the DAG to e.g. be shown on the webserver
     :param schedule: Defines the rules according to which DAG runs are scheduled. Can
         accept cron string, timedelta object, Timetable, or list of Dataset objects.
@@ -378,6 +379,7 @@ class DAG(LoggingMixin):
     def __init__(
         self,
         dag_id: str,
+        display_name: str | None = None,
         description: str | None = None,
         schedule: ScheduleArg = NOTSET,
         schedule_interval: ScheduleIntervalArg = NOTSET,
@@ -451,6 +453,7 @@ class DAG(LoggingMixin):
             max_active_tasks = concurrency
         self._max_active_tasks = max_active_tasks
         self._pickle_id: int | None = None
+        self._display_name = dag_id if display_name is None else display_name
 
         self._description = description
         # set file location to caller source path
@@ -1153,6 +1156,10 @@ class DAG(LoggingMixin):
     @access_control.setter
     def access_control(self, value):
         self._access_control = DAG._upgrade_outdated_dag_access_control(value)
+
+    @property
+    def display_name(self) -> str | None:
+        return self._display_name
 
     @property
     def description(self) -> str | None:
@@ -2735,6 +2742,7 @@ class DAG(LoggingMixin):
             orm_dag.has_import_errors = False
             orm_dag.last_parsed_time = timezone.utcnow()
             orm_dag.default_view = dag.default_view
+            orm_dag.display_name = dag.display_name
             orm_dag.description = dag.description
             orm_dag.max_active_tasks = dag.max_active_tasks
             orm_dag.max_active_runs = dag.max_active_runs
@@ -3126,6 +3134,8 @@ class DagModel(Base):
     processor_subdir = Column(String(2000), nullable=True)
     # String representing the owners
     owners = Column(String(2000))
+    # Display name of the dag
+    display_name = Column(Text)
     # Description of the dag
     description = Column(Text)
     # Default view of the DAG inside the webserver
@@ -3441,6 +3451,7 @@ class DagModel(Base):
 # Only exception: dag_id here should have a default value, but not in DAG.
 def dag(
     dag_id: str = "",
+    display_name: str | None = None,
     description: str | None = None,
     schedule: ScheduleArg = NOTSET,
     schedule_interval: ScheduleIntervalArg = NOTSET,
@@ -3494,6 +3505,7 @@ def dag(
             # Initialize DAG with bound arguments
             with DAG(
                 dag_id or f.__name__,
+                display_name=display_name,
                 description=description,
                 schedule_interval=schedule_interval,
                 timetable=timetable,
