@@ -567,7 +567,7 @@ def patch_task_instance(
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
-    map_index = -1 if "map_index" not in data else data.get("map_index")
+    map_index = data['map_index']
 
     dag = get_airflow_app().dag_bag.get_dag(dag_id)
     if not dag:
