@@ -16,15 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class ConfigmapTest(unittest.TestCase):
+class TestConfigmap:
     def test_single_annotation(self):
         docs = render_chart(
             values={
@@ -48,14 +46,15 @@ class ConfigmapTest(unittest.TestCase):
         assert "value" == annotations.get("key")
         assert "value-two" == annotations.get("key-two")
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "af_version, secret_key, secret_key_name, expected",
         [
             ('2.2.0', None, None, True),
             ('2.2.0', "foo", None, False),
             ('2.2.0', None, "foo", False),
             ('2.1.3', None, None, False),
             ('2.1.3', "foo", None, False),
-        ]
+        ],
     )
     def test_default_airflow_local_settings(self, af_version, secret_key, secret_key_name, expected):
         docs = render_chart(

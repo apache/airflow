@@ -536,7 +536,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
             raise ValueError("must specify awslogs_group to fetch task logs")
         log_stream_name = f"{self.awslogs_stream_prefix}/{self.ecs_task_id}"
 
-        return EcsTaskLogFetcher(
+        return ecs.EcsTaskLogFetcher(
             aws_conn_id=self.aws_conn_id,
             region_name=self.awslogs_region,
             log_group=self.awslogs_group,
