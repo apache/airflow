@@ -2415,8 +2415,6 @@ class TaskInstance(Base, LoggingMixin):
         run_id = first.run_id
         map_index = first.map_index
         first_task_id = first.task_id
-        # Common path optimisations: when all TIs are for the same dag_id and run_id, or same dag_id
-        # and task_id -- this can be over 150x faster for huge numbers of TIs (20k+)
 
         # pre-compute the set of dag_id, run_id, map_indices and task_ids
         dag_ids, run_ids, map_indices, task_ids = set(), set(), set(), set()
@@ -2426,6 +2424,8 @@ class TaskInstance(Base, LoggingMixin):
             map_indices.add(t.map_index)
             task_ids.add(t.task_id)
 
+        # Common path optimisations: when all TIs are for the same dag_id and run_id, or same dag_id
+        # and task_id -- this can be over 150x faster for huge numbers of TIs (20k+)
         if dag_ids == {dag_id} and run_ids == {run_id} and map_indices == {map_index}:
             return and_(
                 TaskInstance.dag_id == dag_id,
