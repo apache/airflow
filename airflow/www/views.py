@@ -34,7 +34,7 @@ from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
 from typing import Any, Callable
-from urllib.parse import parse_qsl, unquote, urlencode, urlparse
+from urllib.parse import unquote, urljoin, urlsplit
 
 import configupdater
 import flask.json
@@ -155,27 +155,21 @@ def truncate_task_duration(task_duration):
 
 def get_safe_url(url):
     """Given a user-supplied URL, ensure it points to our web server"""
-    valid_schemes = ['http', 'https', '']
-    valid_netlocs = [request.host, '']
-
     if not url:
         return url_for('Airflow.index')
-
-    parsed = urlparse(url)
 
     # If the url contains semicolon, redirect it to homepage to avoid
     # potential XSS. (Similar to https://github.com/python/cpython/pull/24297/files (bpo-42967))
     if ';' in unquote(url):
         return url_for('Airflow.index')
 
-    query = parse_qsl(parsed.query, keep_blank_values=True)
+    host_url = urlsplit(request.host_url)
+    redirect_url = urlsplit(urljoin(request.host_url, url))
+    if not (redirect_url.scheme in ("http", "https") and host_url.netloc == redirect_url.netloc):
+        return url_for('Airflow.index')
 
-    url = parsed._replace(query=urlencode(query)).geturl()
-
-    if parsed.scheme in valid_schemes and parsed.netloc in valid_netlocs:
-        return url
-
-    return url_for('Airflow.index')
+    # This will ensure we only redirect to the right scheme/netloc
+    return redirect_url.geturl()
 
 
 def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
