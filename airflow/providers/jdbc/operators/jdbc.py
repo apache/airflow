@@ -17,17 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Sequence
+import warnings
+from typing import Sequence
 
-from airflow.models import BaseOperator
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
-from airflow.providers.jdbc.hooks.jdbc import JdbcHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 
-class JdbcOperator(BaseOperator):
+class JdbcOperator(SQLExecuteQueryOperator):
     """
     Executes sql code in a database using jdbc driver.
 
@@ -51,28 +47,11 @@ class JdbcOperator(BaseOperator):
     template_fields_renderers = {'sql': 'sql'}
     ui_color = '#ededed'
 
-    def __init__(
-        self,
-        *,
-        sql: str | Iterable[str],
-        jdbc_conn_id: str = 'jdbc_default',
-        autocommit: bool = False,
-        parameters: Iterable | Mapping | None = None,
-        handler: Callable[[Any], Any] = fetch_all_handler,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.parameters = parameters
-        self.sql = sql
-        self.jdbc_conn_id = jdbc_conn_id
-        self.autocommit = autocommit
-        self.handler = handler
-        self.hook = None
-
-    def execute(self, context: Context):
-        self.log.info('Executing: %s', self.sql)
-        hook = JdbcHook(jdbc_conn_id=self.jdbc_conn_id)
-        if self.do_xcom_push:
-            return hook.run(self.sql, self.autocommit, parameters=self.parameters, handler=self.handler)
-        else:
-            return hook.run(self.sql, self.autocommit, parameters=self.parameters)
+    def __init__(self, *, jdbc_conn_id: str = 'jdbc_default', **kwargs) -> None:
+        super().__init__(conn_id=jdbc_conn_id, **kwargs)
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )

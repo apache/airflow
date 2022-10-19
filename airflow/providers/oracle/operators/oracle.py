@@ -17,16 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+import warnings
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class OracleOperator(BaseOperator):
+class OracleOperator(SQLExecuteQueryOperator):
     """
     Executes sql code in a specific Oracle database.
 
@@ -49,26 +51,14 @@ class OracleOperator(BaseOperator):
     template_fields_renderers = {'sql': 'sql'}
     ui_color = '#ededed'
 
-    def __init__(
-        self,
-        *,
-        sql: str | Iterable[str],
-        oracle_conn_id: str = 'oracle_default',
-        parameters: Iterable | Mapping | None = None,
-        autocommit: bool = False,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.oracle_conn_id = oracle_conn_id
-        self.sql = sql
-        self.autocommit = autocommit
-        self.parameters = parameters
-
-    def execute(self, context: Context) -> None:
-        self.log.info('Executing: %s', self.sql)
-        hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
-        if self.sql:
-            hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)
+    def __init__(self, *, oracle_conn_id: str = 'oracle_default', **kwargs) -> None:
+        super().__init__(conn_id=oracle_conn_id, **kwargs)
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
 
 class OracleStoredProcedureOperator(BaseOperator):
