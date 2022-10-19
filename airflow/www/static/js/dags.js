@@ -189,10 +189,10 @@ d3.selectAll('.js-last-run-tooltip')
     d3.select(this).attr('data-original-title', tiTooltip(lastRunData));
   });
 
-function drawDagStatsForDag(dagId, states) {
-  const g = d3.select(`svg#dag-run-${dagId.replace(/\./g, '__dot__')}`)
+function drawDagAndTaskStatsForDag(selector, dagId, states) {
+  const g = d3.select(`svg#${selector}-${dagId.replace(/\./g, '__dot__')}`)
     .attr('height', diameter + (strokeWidthHover * 2))
-    .attr('width', '120px')
+    .attr('width', (states.length * (diameter + circleMargin)) + circleMargin)
     .selectAll('g')
     .data(states)
     .enter()
@@ -204,33 +204,43 @@ function drawDagStatsForDag(dagId, states) {
     });
 
   g.append('svg:a')
-    .attr('href', (d) => `${dagRunUrl}?_flt_3_dag_id=${dagId}&_flt_3_state=${d.state}`)
+    .attr('href', (d) => {
+      const params = new URLSearchParams();
+      params.append('_flt_3_dag_id', dagId);
+      /* eslint no-unused-expressions: ["error", { "allowTernary": true }] */
+      d.state ? params.append('_flt_3_state', d.state) : params.append('_flt_8_state', '');
+      if (selector === 'dag-run') {
+        return `${dagRunUrl}?${params.toString()}`;
+      }
+      if (selector === 'task-run') {
+        return `${taskInstanceUrl}?${params.toString()}`;
+      }
+      return '';
+    })
     .append('circle')
-    .attr('id', (d) => `run-${dagId.replace(/\./g, '_')}${d.state || 'none'}`)
+    .attr('id', (d) => `${selector}-${dagId.replace(/\./g, '_')}-${d.state || 'none'}`)
     .attr('class', 'has-svg-tooltip')
     .attr('stroke-width', (d) => {
       if (d.count > 0) return strokeWidth;
-
       return 1;
     })
     .attr('stroke', (d) => {
       if (d.count > 0) return STATE_COLOR[d.state];
-
       return 'gainsboro';
     })
     .attr('fill', '#fff')
     .attr('r', diameter / 2)
-    .attr('title', (d) => d.state)
+    .attr('title', (d) => d.state || 'none')
     .on('mouseover', (d) => {
       if (d.count > 0) {
-        d3.select(this).transition().duration(400)
+        d3.select(d3.event.currentTarget).transition().duration(400)
           .attr('fill', '#e2e2e2')
           .style('stroke-width', strokeWidthHover);
       }
     })
     .on('mouseout', (d) => {
       if (d.count > 0) {
-        d3.select(this).transition().duration(400)
+        d3.select(d3.event.currentTarget).transition().duration(400)
           .attr('fill', '#fff')
           .style('stroke-width', strokeWidth);
       }
@@ -240,6 +250,7 @@ function drawDagStatsForDag(dagId, states) {
     .duration(300)
     .delay((d, i) => i * 50)
     .style('opacity', 1);
+
   d3.select('.js-loading-dag-stats').remove();
 
   g.append('text')
@@ -255,78 +266,14 @@ function drawDagStatsForDag(dagId, states) {
 function dagStatsHandler(error, json) {
   Object.keys(json).forEach((dagId) => {
     const states = json[dagId];
-    drawDagStatsForDag(dagId, states);
+    drawDagAndTaskStatsForDag('dag-run', dagId, states);
   });
-}
-
-function drawTaskStatsForDag(dagId, states) {
-  const g = d3.select(`svg#task-run-${dagId.replace(/\./g, '__dot__')}`)
-    .attr('height', diameter + (strokeWidthHover * 2))
-    .attr('width', (states.length * (diameter + circleMargin)) + circleMargin)
-    .selectAll('g')
-    .data(states)
-    .enter()
-    .append('g')
-    .attr('transform', (d, i) => {
-      const x = (i * (diameter + circleMargin)) + (diameter / 2 + circleMargin);
-      const y = (diameter / 2) + strokeWidthHover;
-      return `translate(${x},${y})`;
-    });
-
-  g.append('svg:a')
-    .attr('href', (d) => `${taskInstanceUrl}?_flt_3_dag_id=${dagId}&_flt_3_state=${d.state}`)
-    .append('circle')
-    .attr('id', (d) => `task-${dagId.replace(/\./g, '_')}${d.state || 'none'}`)
-    .attr('class', 'has-svg-tooltip')
-    .attr('stroke-width', (d) => {
-      if (d.count > 0) return strokeWidth;
-
-      return 1;
-    })
-    .attr('stroke', (d) => {
-      if (d.count > 0) return STATE_COLOR[d.state];
-
-      return 'gainsboro';
-    })
-    .attr('fill', '#fff')
-    .attr('r', diameter / 2)
-    .attr('title', (d) => d.state || 'none')
-    .on('mouseover', function mouseOver(d) {
-      if (d.count > 0) {
-        d3.select(this).transition().duration(400)
-          .attr('fill', '#e2e2e2')
-          .style('stroke-width', strokeWidthHover);
-      }
-    })
-    .on('mouseout', function mouseOut(d) {
-      if (d.count > 0) {
-        d3.select(this).transition().duration(400)
-          .attr('fill', '#fff')
-          .style('stroke-width', strokeWidth);
-      }
-    })
-    .style('opacity', 0)
-    .transition()
-    .duration(300)
-    .delay((d, i) => i * 50)
-    .style('opacity', 1);
-
-  d3.select('.js-loading-task-stats').remove();
-
-  g.append('text')
-    .attr('fill', '#51504f')
-    .attr('text-anchor', 'middle')
-    .attr('vertical-align', 'middle')
-    .attr('font-size', 9)
-    .attr('y', 3)
-    .style('pointer-events', 'none')
-    .text((d) => (d.count > 0 ? d.count : ''));
 }
 
 function taskStatsHandler(error, json) {
   Object.keys(json).forEach((dagId) => {
     const states = json[dagId];
-    drawTaskStatsForDag(dagId, states);
+    drawDagAndTaskStatsForDag('task-run', dagId, states);
   });
 }
 
@@ -392,19 +339,9 @@ function refreshDagRunsAndTasks(selector, dagId, states) {
     })
     .attr('stroke', (d) => {
       if (d.count > 0) return STATE_COLOR[d.state];
-
       return 'gainsboro';
-    })
-    .attr('fill', '#fff')
-    .attr('r', diameter / 2)
-    .attr('title', (d) => d.state)
-    .on('mouseover', (d) => {
-      if (d.count > 0) {
-        d3.select(this).transition().duration(400)
-          .attr('fill', '#e2e2e2')
-          .style('stroke-width', strokeWidthHover);
-      }
     });
+
   d3.select(`svg#${selector}-${dagId.replace(/\./g, '__dot__')}`)
     .selectAll('text')
     .data(states)
@@ -442,7 +379,6 @@ function refreshDagRuns(error, json) {
   checkActiveRuns(json);
   Object.keys(json).forEach((dagId) => {
     const states = json[dagId];
-    drawDagStatsForDag(dagId, states);
     refreshDagRunsAndTasks('dag-run', dagId, states);
   });
 }
