@@ -4223,14 +4223,15 @@ class ConnectionModelView(AirflowModelView):
                 flash(
                     Markup(
                         "<p>The <em>Extra</em> connection field contained an invalid value for Conn ID: "
-                        f"<q>{conn_id}</q>.</p>"
+                        "<q>{conn_id}</q>.</p>"
                         "<p>If connection parameters need to be added to <em>Extra</em>, "
                         "please make sure they are in the form of a single, valid JSON object.</p><br>"
                         "The following <em>Extra</em> parameters were <b>not</b> added to the connection:<br>"
-                        f"{extra_json}",
-                    ),
+                        "{extra_json}"
+                    ).format(conn_id=conn_id, extra_json=extra_json),
                     category="error",
                 )
+                del form.extra
         del extra_json
 
         for key in self.extra_fields:
