@@ -324,3 +324,29 @@ def test_connection_form_widgets_testable_types(mock_pm_hooks, admin_client):
     }
 
     assert ["first"] == ConnectionFormWidget().testable_connection_types
+
+
+def test_process_form_invalid_extra_removed(admin_client):
+    """
+    Test that when an invalid json `extra` is passed in the form, it is removed and _not_
+    saved over the existing extras.
+    """
+    from airflow.www.views import lazy_add_provider_discovered_options_to_connection_form
+
+    lazy_add_provider_discovered_options_to_connection_form()
+
+    conn_details = {"conn_id": "test_conn", "conn_type": "http"}
+    conn = Connection(**conn_details, extra='{"foo": "bar"}')
+    conn.id = 1
+
+    with create_session() as session:
+        session.add(conn)
+
+    data = {**conn_details, "extra": "Invalid"}
+    resp = admin_client.post('/connection/edit/1', data=data, follow_redirects=True)
+
+    assert resp.status_code == 200
+    with create_session() as session:
+        conn = session.query(Connection).get(1)
+
+    assert conn.extra == '{"foo": "bar"}'
