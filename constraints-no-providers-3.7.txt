@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-10-18T21:54:15Z
+# This constraints file was automatically generated on 2022-10-19T17:27:11Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -36,7 +36,7 @@ WTForms==3.0.1
 Werkzeug==2.2.2
 alembic==1.8.1
 amqp==5.1.1
-anyio==3.6.1
+anyio==3.6.2
 apispec==3.3.2
 argcomplete==2.0.0
 attrs==22.1.0
@@ -77,7 +77,7 @@ eventlet==0.33.1
 exceptiongroup==1.0.0rc9
 filelock==3.8.0
 flower==1.2.0
-fsspec==2022.8.2
+fsspec==2022.10.0
 gevent==22.10.1
 google-auth==2.13.0
 graphviz==0.20.1
