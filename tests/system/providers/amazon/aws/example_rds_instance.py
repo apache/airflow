@@ -23,6 +23,8 @@ from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.rds import (
     RdsCreateDbInstanceOperator,
     RdsDeleteDbInstanceOperator,
+    RdsStartDbOperator,
+    RdsStopDbOperator,
 )
 from airflow.providers.amazon.aws.sensors.rds import RdsDbSensor
 from airflow.utils.trigger_rule import TriggerRule
@@ -71,6 +73,20 @@ with DAG(
     )
     # [END howto_sensor_rds_instance]
 
+    # [START howto_operator_rds_stop_db]
+    stop_db_instance = RdsStopDbOperator(
+        task_id="stop_db_instance",
+        db_identifier=rds_db_identifier,
+    )
+    # [END howto_operator_rds_stop_db]
+
+    # [START howto_operator_rds_start_db]
+    start_db_instance = RdsStartDbOperator(
+        task_id="start_db_instance",
+        db_identifier=rds_db_identifier,
+    )
+    # [END howto_operator_rds_start_db]
+
     # [START howto_operator_rds_delete_db_instance]
     delete_db_instance = RdsDeleteDbInstanceOperator(
         task_id='delete_db_instance',
@@ -88,6 +104,8 @@ with DAG(
         # TEST BODY
         create_db_instance,
         await_db_instance,
+        stop_db_instance,
+        start_db_instance,
         delete_db_instance,
     )
 
