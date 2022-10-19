@@ -79,10 +79,13 @@ API, UI, Logging, and Kubernetes, which are all conceptually under the
 
 Similarly within Airflow Providers, the larger providers such as Apache, AWS, Azure,
 and Google who have many hooks and operators within them, have labels directly
-associated with them such as ``provider/Apache``, ``provider/AWS``,
-``provider/Azure``, and ``provider/Google``.
+associated with them such as ``provider:Apache``, ``provider:AWS``,
+``provider:Azure``, and ``provider:Google``.
+
 These make it easier for developers working on a single provider to
 track issues for that provider.
+
+Some provider labels may couple several providers for example: ``provider:Protocols``
 
 Most issues need a combination of "kind" and "area" labels to be actionable.
 For example:
@@ -151,11 +154,7 @@ to be able to reproduce the issue. Typically, this may require a response to the
 issue creator asking for more information, with the issue then being tagged with
 the label ``pending-response``.
 Also, during this stage, additional labels may be added to the issue to help
-classification and triage, such as ``reported_version`` and ``area``.
-
-Occasionally an issue may require a larger discussion among the Airflow PMC or
-the developer mailing list. This issue may then be tagged with the
-``needs:discussion`` label.
+classification and triage, such as ``affected_version`` and ``area``.
 
 Some issues may need a detailed review by one of the core committers of the project
 and this could be tagged with a ``needs:triage`` label.
@@ -164,7 +163,7 @@ and this could be tagged with a ``needs:triage`` label.
 **Good First Issue**
 
 Issues which are relatively straight forward to solve, will be tagged with
-the ``GoodFirstIssue`` label.
+the ``good first issue`` label.
 
 The intention here is to galvanize contributions from new and inexperienced
 contributors who are looking to contribute to the project. This has been successful
@@ -196,7 +195,6 @@ issue creator. After the pending-response label has been assigned, if there is n
 further information for a period of 1 month, the issue will be automatically closed.
 
 
-
 **Invalidity**
 
 At times issues are marked as invalid and later closed because of one of the
@@ -206,3 +204,11 @@ following situations:
 * Despite attempts to reproduce the issue to resolve it, the issue cannot be reproduced by the Airflow team based on the given information. In such cases, the issue is marked as ``Can't Reproduce``.
 * In some cases, the original creator realizes that the issue was incorrectly reported and then marks it as ``invalid``. Also, a committer could mark it as ``invalid`` if the issue being reported is for an unsupported operation or environment.
 * In some cases, the issue may be legitimate, but may not be addressed in the short to medium term based on current project priorities or because this will be irrelevant because of an upcoming change. The committer could mark this as ``wontfix`` to set expectations that it won't be directly addressed in the near term.
+
+**GitHub Discussions**
+
+Issues should represent clear feature requests which can/should be implemented. If the idea is vague or can be solved with easier steps
+we normally convert such issues to Discussions in the Ideas category.
+Issues that seems more like support requests are also converted to Discussions in the Q&A category.
+We use judgment about which Issues to convert to Discussions, it's best to always clarify with a comment why the Issue is being converted.
+Note that we can always convert Discussions back to Issues.
