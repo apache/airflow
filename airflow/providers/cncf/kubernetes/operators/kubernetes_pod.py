@@ -489,6 +489,7 @@ class KubernetesPodOperator(BaseOperator):
         if name is not None:
             validate_key(name, max_length=220)
             return re.sub(r'[^a-z0-9-]+', '-', name.lower())
+        return None
 
     def patch_already_checked(self, pod: k8s.V1Pod):
         """Add an "already checked" annotation to ensure we don't reattach on retries"""

@@ -392,17 +392,6 @@ class TestKubernetesPodOperator:
         else:
             assert pod.metadata.name == name_base
 
-    def test_pod_name_required(self):
-        with pytest.raises(AirflowException, match="`name` is required"):
-            KubernetesPodOperator(
-                namespace="default",
-                image="ubuntu:16.04",
-                task_id="task",
-                in_cluster=False,
-                do_xcom_push=False,
-                cluster_context="default",
-            )
-
     @pytest.fixture
     def pod_spec(self):
         return k8s.V1Pod(
