@@ -4477,14 +4477,6 @@ components:
       required: true
       description: The DAG run ID.
 
-    TaskInstanceID:
-      in: path
-      name: task_instance_id
-      schema:
-        type: string
-      required: true
-      description: The TaskInstance ID.
-
     TaskTryNumber:
       in: path
       name: task_try_number
