@@ -20,14 +20,14 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Airflow 404</title>
+    <title>Airflow {{ status_code }}</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='pin_32.png') }}">
   </head>
   <body>
     <div style="font-family: verdana; text-align: center; margin-top: 200px;">
       <img src="{{ url_for('static', filename='pin_100.png') }}" width="50px" alt="pin-logo" />
-      <h1>Airflow 404</h1>
-      <p>Page cannot be found.</p>
+      <h1>Airflow {{ status_code }}</h1>
+      <p>{{ error_message }}</p>
       <a href="/">Return to the main page</a>
       <p>{{ hostname }}</p>
     </div>

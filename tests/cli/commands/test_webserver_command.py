@@ -21,7 +21,6 @@ import subprocess
 import sys
 import tempfile
 import time
-import unittest
 from unittest import mock
 
 import psutil
@@ -35,8 +34,8 @@ from airflow.utils.cli import setup_locations
 from tests.test_utils.config import conf_vars
 
 
-class TestGunicornMonitor(unittest.TestCase):
-    def setUp(self) -> None:
+class TestGunicornMonitor:
+    def setup_method(self) -> None:
         self.monitor = GunicornMonitor(
             gunicorn_master_pid=1,
             num_workers_expected=4,
@@ -127,7 +126,7 @@ class TestGunicornMonitor(unittest.TestCase):
         assert abs(self.monitor._last_refresh_time - time.monotonic()) < 5
 
 
-class TestGunicornMonitorGeneratePluginState(unittest.TestCase):
+class TestGunicornMonitorGeneratePluginState:
     @staticmethod
     def _prepare_test_file(filepath: str, size: int):
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
@@ -184,12 +183,12 @@ class TestGunicornMonitorGeneratePluginState(unittest.TestCase):
             assert 4 == len(state_d)
 
 
-class TestCLIGetNumReadyWorkersRunning(unittest.TestCase):
+class TestCLIGetNumReadyWorkersRunning:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
-    def setUp(self):
+    def setup_method(self):
         self.children = mock.MagicMock()
         self.child = mock.MagicMock()
         self.process = mock.MagicMock()

@@ -17,13 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Iterable, Mapping, Sequence
+import warnings
+from typing import Sequence
 
-from airflow.models import BaseOperator
-from airflow.providers.sqlite.hooks.sqlite import SqliteHook
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 
-class SqliteOperator(BaseOperator):
+class SqliteOperator(SQLExecuteQueryOperator):
     """
     Executes sql code in a specific Sqlite database
 
@@ -44,20 +44,11 @@ class SqliteOperator(BaseOperator):
     template_fields_renderers = {'sql': 'sql'}
     ui_color = '#cdaaed'
 
-    def __init__(
-        self,
-        *,
-        sql: str | Iterable[str],
-        sqlite_conn_id: str = 'sqlite_default',
-        parameters: Iterable | Mapping | None = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.sqlite_conn_id = sqlite_conn_id
-        self.sql = sql
-        self.parameters = parameters or []
-
-    def execute(self, context: Mapping[Any, Any]) -> None:
-        self.log.info('Executing: %s', self.sql)
-        hook = SqliteHook(sqlite_conn_id=self.sqlite_conn_id)
-        hook.run(self.sql, parameters=self.parameters)
+    def __init__(self, *, sqlite_conn_id: str = 'sqlite_default', **kwargs) -> None:
+        super().__init__(conn_id=sqlite_conn_id, **kwargs)
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )

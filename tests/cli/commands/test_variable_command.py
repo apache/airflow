@@ -20,7 +20,6 @@ from __future__ import annotations
 import io
 import os
 import tempfile
-import unittest.mock
 from contextlib import redirect_stdout
 
 import pytest
@@ -32,16 +31,16 @@ from airflow.models import Variable
 from tests.test_utils.db import clear_db_variables
 
 
-class TestCliVariables(unittest.TestCase):
+class TestCliVariables:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.dagbag = models.DagBag(include_examples=True)
         cls.parser = cli_parser.get_parser()
 
-    def setUp(self):
+    def setup_method(self):
         clear_db_variables()
 
-    def tearDown(self):
+    def teardown_method(self):
         clear_db_variables()
 
     def test_variables_set(self):
