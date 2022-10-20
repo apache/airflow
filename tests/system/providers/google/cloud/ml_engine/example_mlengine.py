@@ -28,10 +28,7 @@ from math import ceil
 from airflow import models
 from airflow.decorators import task
 from airflow.operators.bash import BashOperator
-from airflow.providers.google.cloud.operators.gcs import (
-    GCSCreateBucketOperator,
-    GCSDeleteBucketOperator,
-)
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.mlengine import (
     MLEngineCreateModelOperator,
     MLEngineCreateVersionOperator,
