@@ -78,12 +78,13 @@ class DictOfListsExpandInput(NamedTuple):
 
         return ((k, v) for k, v in self.value.items() if not isinstance(v, XComArg))
 
-    def get_parse_time_mapped_ti_count(self) -> int | None:
+    def get_parse_time_mapped_ti_count(self) -> int:
         if not self.value:
             return 0
         literal_values = [len(v) for _, v in self._iter_parse_time_resolved_kwargs()]
         if len(literal_values) != len(self.value):
-            return None  # None-literal type encountered, so give up.
+            literal_keys = (k for k, _ in self._iter_parse_time_resolved_kwargs())
+            raise NotFullyPopulated(set(self.value).difference(literal_keys))
         return functools.reduce(operator.mul, literal_values, 1)
 
     def _get_map_lengths(self, run_id: str, *, session: Session) -> dict[str, int]:
@@ -166,10 +167,10 @@ class ListOfDictsExpandInput(NamedTuple):
 
     value: OperatorExpandKwargsArgument
 
-    def get_parse_time_mapped_ti_count(self) -> int | None:
+    def get_parse_time_mapped_ti_count(self) -> int:
         if isinstance(self.value, collections.abc.Sized):
             return len(self.value)
-        return None
+        raise NotFullyPopulated({"expand_kwargs() argument"})
 
     def get_total_map_length(self, run_id: str, *, session: Session) -> int:
         if isinstance(self.value, collections.abc.Sized):

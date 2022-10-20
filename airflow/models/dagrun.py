@@ -22,18 +22,7 @@ import os
 import warnings
 from collections import defaultdict
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Iterable,
-    Iterator,
-    NamedTuple,
-    Sequence,
-    TypeVar,
-    cast,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, NamedTuple, Sequence, TypeVar, overload
 
 from sqlalchemy import (
     Boolean,
@@ -59,7 +48,9 @@ from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskNotFound
+from airflow.models.abstractoperator import NotMapped
 from airflow.models.base import Base, StringID
+from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
@@ -907,7 +898,6 @@ class DagRun(Base, LoggingMixin):
         for ti in tis:
             ti_mutation_hook(ti)
             task_ids.add(ti.task_id)
-            task = None
             try:
                 task = dag.get_task(ti.task_id)
 
@@ -925,28 +915,15 @@ class DagRun(Base, LoggingMixin):
                     ti.state = State.REMOVED
                 continue
 
-            if not task.is_mapped:
+            try:
+                num_mapped_tis = task.get_parse_time_mapped_ti_count()
+            except NotMapped:
                 continue
-            task = cast("MappedOperator", task)
-            num_mapped_tis = task.parse_time_mapped_ti_count
-            # Check if the number of mapped literals has changed and we need to mark this TI as removed
-            if num_mapped_tis is not None:
-                if ti.map_index >= num_mapped_tis:
-                    self.log.debug(
-                        "Removing task '%s' as the map_index is longer than the literal mapping list (%s)",
-                        ti,
-                        num_mapped_tis,
-                    )
-                    ti.state = State.REMOVED
-                elif ti.map_index < 0:
-                    self.log.debug("Removing the unmapped TI '%s' as the mapping can now be performed", ti)
-                    ti.state = State.REMOVED
-            else:
-                #  What if it is _now_ dynamically mapped, but wasn't before?
-                task.get_mapped_ti_count.cache_clear()  # type: ignore[attr-defined]
-                total_length = task.get_mapped_ti_count(self.run_id, session=session)
-
-                if total_length is None:
+            except NotFullyPopulated:
+                # What if it is _now_ dynamically mapped, but wasn't before?
+                try:
+                    total_length = task.get_mapped_ti_count(self.run_id, session=session)
+                except NotFullyPopulated:
                     # Not all upstreams finished, so we can't tell what should be here. Remove everything.
                     if ti.map_index >= 0:
                         self.log.debug(
@@ -961,6 +938,18 @@ class DagRun(Base, LoggingMixin):
                         ti,
                         total_length,
                     )
+                    ti.state = State.REMOVED
+            else:
+                # Check if the number of mapped literals has changed and we need to mark this TI as removed.
+                if ti.map_index >= num_mapped_tis:
+                    self.log.debug(
+                        "Removing task '%s' as the map_index is longer than the literal mapping list (%s)",
+                        ti,
+                        num_mapped_tis,
+                    )
+                    ti.state = State.REMOVED
+                elif ti.map_index < 0:
+                    self.log.debug("Removing the unmapped TI '%s' as the mapping can now be performed", ti)
                     ti.state = State.REMOVED
 
         return task_ids
@@ -1033,15 +1022,20 @@ class DagRun(Base, LoggingMixin):
         :param tasks: Tasks to create jobs for in the DAG run
         :param task_creator: Function to create task instances
         """
+        map_indexes: Iterable[int]
         for task in tasks:
-            if not task.is_mapped:
-                yield from task_creator(task, (-1,))
-                continue
-            count = cast(MappedOperator, task).get_mapped_ti_count(self.run_id, session=session)
-            if count:
-                yield from task_creator(task, range(count))
-                continue
-            yield from task_creator(task, (-1,))
+            try:
+                count = task.get_mapped_ti_count(self.run_id, session=session)
+            except (NotMapped, NotFullyPopulated):
+                map_indexes = (-1,)
+            else:
+                if count:
+                    map_indexes = range(count)
+                else:
+                    # Make sure to always create at least one ti; this will be
+                    # marked as REMOVED later at runtime.
+                    map_indexes = (-1,)
+            yield from task_creator(task, map_indexes)
 
     def _create_task_instances(
         self,
@@ -1090,9 +1084,9 @@ class DagRun(Base, LoggingMixin):
         """Check if task increased or reduced in length and handle appropriately"""
         from airflow.settings import task_instance_mutation_hook
 
-        task.get_mapped_ti_count.cache_clear()  # type: ignore[attr-defined]
-        total_length = task.get_mapped_ti_count(self.run_id, session=session)
-        if total_length is None:  # Upstreams not ready, don't need to revise this yet.
+        try:
+            total_length = task.get_mapped_ti_count(self.run_id, session=session)
+        except NotFullyPopulated:  # Upstreams not ready, don't need to revise this yet.
             return []
 
         query = session.query(TI.map_index).filter(
