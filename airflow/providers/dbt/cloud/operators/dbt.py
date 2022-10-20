@@ -218,3 +218,54 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
                 json.dump(response.json(), file)
             else:
                 file.write(response.text)
+
+
+class DbtCloudListJobsOperator(BaseOperator):
+    """
+    List jobs in a dbt Cloud project.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DbtCloudListJobsOperator`
+
+    Retrieves metadata for all jobs tied to a specified dbt Cloud account. If a ``project_id`` is
+    supplied, only jobs pertaining to this project id will be retrieved.
+
+    :param account_id: Optional. If an account ID is not provided explicitly,
+        the account ID from the dbt Cloud connection will be used.
+    :param order_by: Optional. Field to order the result by. Use '-' to indicate reverse order.
+        For example, to use reverse order by the run ID use ``order_by=-id``.
+    :param project_id: Optional. The ID of a dbt Cloud project.
+    """
+
+    template_fields = (
+        "account_id",
+        "project_id",
+    )
+
+    def __init__(
+        self,
+        *,
+        dbt_cloud_conn_id: str = DbtCloudHook.default_conn_name,
+        account_id: int | None = None,
+        project_id: int | None = None,
+        order_by: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.dbt_cloud_conn_id = dbt_cloud_conn_id
+        self.account_id = account_id
+        self.project_id = project_id
+        self.order_by = order_by
+
+    def execute(self, context: Context) -> list:
+        hook = DbtCloudHook(self.dbt_cloud_conn_id)
+        list_jobs_response = hook.list_jobs(
+            account_id=self.account_id, order_by=self.order_by, project_id=self.project_id
+        )
+        buffer = []
+        for job_metadata in list_jobs_response:
+            for job in job_metadata.json()['data']:
+                buffer.append(job["id"])
+        self.log.info("Jobs in the specified dbt Cloud account are: %s", ", ".join(map(str, buffer)))
+        return buffer

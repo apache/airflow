@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -37,6 +38,7 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_reference_build,
     option_answer,
     option_builder,
+    option_debug_resources,
     option_dev_apt_command,
     option_dev_apt_deps,
     option_docker_cache,
@@ -123,6 +125,7 @@ def run_build_in_parallel(
     include_success_outputs: bool,
     parallelism: int,
     skip_cleanup: bool,
+    debug_resources: bool,
     dry_run: bool,
     verbose: bool,
 ) -> None:
@@ -130,7 +133,10 @@ def run_build_in_parallel(
     with ci_group(f"Building for {python_version_list}"):
         all_params = [f"CI {image_params.python}" for image_params in image_params_list]
         with run_with_pool(
-            parallelism=parallelism, all_params=all_params, progress_matcher=DockerBuildxProgressMatcher()
+            parallelism=parallelism,
+            all_params=all_params,
+            debug_resources=debug_resources,
+            progress_matcher=DockerBuildxProgressMatcher(),
         ) as (pool, outputs):
             results = [
                 pool.apply_async(
@@ -167,6 +173,7 @@ def start_building(params: BuildCiParams, dry_run: bool, verbose: bool):
 @option_run_in_parallel
 @option_parallelism
 @option_skip_cleanup
+@option_debug_resources
 @option_include_success_outputs
 @option_python_versions
 @option_upgrade_to_newer_dependencies
@@ -200,12 +207,13 @@ def build(
     run_in_parallel: bool,
     parallelism: int,
     skip_cleanup: bool,
+    debug_resources: bool,
     include_success_outputs,
     python_versions: str,
     answer: str,
     **kwargs,
 ):
-    """Build CI image. Include building multiple images for all python versions (sequentially)."""
+    """Build CI image. Include building multiple images for all python versions."""
 
     def run_build(ci_image_params: BuildCiParams) -> None:
         return_code, info = run_build_ci_image(
@@ -237,6 +245,7 @@ def build(
             include_success_outputs=include_success_outputs,
             parallelism=parallelism,
             skip_cleanup=skip_cleanup,
+            debug_resources=debug_resources,
             dry_run=dry_run,
             verbose=verbose,
         )
@@ -254,6 +263,7 @@ def build(
 @option_run_in_parallel
 @option_parallelism
 @option_skip_cleanup
+@option_debug_resources
 @option_include_success_outputs
 @option_python_versions
 @option_github_token
@@ -273,6 +283,7 @@ def pull(
     github_token: str,
     parallelism: int,
     skip_cleanup: bool,
+    debug_resources: bool,
     include_success_outputs: bool,
     image_tag: str,
     wait_for_image: bool,
@@ -297,6 +308,7 @@ def pull(
             dry_run=dry_run,
             parallelism=parallelism,
             skip_cleanup=skip_cleanup,
+            debug_resources=debug_resources,
             include_success_outputs=include_success_outputs,
             image_params_list=ci_image_params_list,
             python_version_list=python_version_list,
@@ -491,6 +503,19 @@ def run_build_ci_image(
                 output=output,
             )
         else:
+            subprocess.run(
+                [
+                    sys.executable,
+                    os.fspath(
+                        AIRFLOW_SOURCES_ROOT
+                        / "scripts"
+                        / "ci"
+                        / "pre_commit"
+                        / "pre_commit_build_providers_dependencies.py"
+                    ),
+                ],
+                check=False,
+            )
             get_console(output=output).print(
                 f"\n[info]Building CI Image for Python {ci_image_params.python}\n"
             )

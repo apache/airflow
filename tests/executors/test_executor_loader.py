@@ -16,10 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
-from parameterized import parameterized
+import pytest
 
 from airflow import plugins_manager
 from airflow.executors.executor_loader import ExecutorLoader
@@ -38,21 +37,22 @@ class FakePlugin(plugins_manager.AirflowPlugin):
     executors = [FakeExecutor]
 
 
-class TestExecutorLoader(unittest.TestCase):
-    def setUp(self) -> None:
+class TestExecutorLoader:
+    def setup_method(self) -> None:
         ExecutorLoader._default_executor = None
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         ExecutorLoader._default_executor = None
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "executor_name",
         [
-            ("CeleryExecutor",),
-            ("CeleryKubernetesExecutor",),
-            ("DebugExecutor",),
-            ("KubernetesExecutor",),
-            ("LocalExecutor",),
-        ]
+            "CeleryExecutor",
+            "CeleryKubernetesExecutor",
+            "DebugExecutor",
+            "KubernetesExecutor",
+            "LocalExecutor",
+        ],
     )
     def test_should_support_executor_from_core(self, executor_name):
         with conf_vars({("core", "executor"): executor_name}):

@@ -45,6 +45,19 @@ from google.protobuf.json_format import MessageToDict
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
+from airflow.providers.google.cloud.links.data_loss_prevention import (
+    CloudDLPDeidentifyTemplateDetailsLink,
+    CloudDLPDeidentifyTemplatesListLink,
+    CloudDLPInfoTypeDetailsLink,
+    CloudDLPInfoTypesListLink,
+    CloudDLPInspectTemplateDetailsLink,
+    CloudDLPInspectTemplatesListLink,
+    CloudDLPJobDetailsLink,
+    CloudDLPJobsListLink,
+    CloudDLPJobTriggerDetailsLink,
+    CloudDLPJobTriggersListLink,
+    CloudDLPPossibleInfoTypesListLink,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -85,6 +98,7 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPJobDetailsLink(),)
 
     def __init__(
         self,
@@ -119,6 +133,15 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPJobDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                job_name=self.dlp_job_id,
+            )
 
 
 class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
@@ -164,6 +187,7 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPDeidentifyTemplateDetailsLink(),)
 
     def __init__(
         self,
@@ -216,8 +240,19 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
+        result = MessageToDict(template)
 
-        return MessageToDict(template)
+        project_id = self.project_id or hook.project_id
+        template_id = self.template_id or result['name'].split("/")[-1] if result['name'] else None
+        if project_id and template_id:
+            CloudDLPDeidentifyTemplateDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                template_name=template_id,
+            )
+
+        return result
 
 
 class CloudDLPCreateDLPJobOperator(BaseOperator):
@@ -263,6 +298,7 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPJobDetailsLink(),)
 
     def __init__(
         self,
@@ -317,7 +353,19 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-        return MessageToDict(job)
+
+        result = MessageToDict(job)
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPJobDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                job_name=result['name'].split("/")[-1] if result['name'] else None,
+            )
+
+        return result
 
 
 class CloudDLPCreateInspectTemplateOperator(BaseOperator):
@@ -363,6 +411,7 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPInspectTemplateDetailsLink(),)
 
     def __init__(
         self,
@@ -415,7 +464,20 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-        return MessageToDict(template)
+
+        result = MessageToDict(template)
+
+        template_id = self.template_id or result['name'].split("/")[-1] if result['name'] else None
+        project_id = self.project_id or hook.project_id
+        if project_id and template_id:
+            CloudDLPInspectTemplateDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                template_name=template_id,
+            )
+
+        return result
 
 
 class CloudDLPCreateJobTriggerOperator(BaseOperator):
@@ -458,6 +520,7 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPJobTriggerDetailsLink(),)
 
     def __init__(
         self,
@@ -508,7 +571,20 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-        return MessageToDict(trigger)
+
+        result = MessageToDict(trigger)
+
+        project_id = self.project_id or hook.project_id
+        trigger_name = result['name'].split("/")[-1] if result['name'] else None
+        if project_id:
+            CloudDLPJobTriggerDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                trigger_name=trigger_name,
+            )
+
+        return result
 
 
 class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
@@ -553,6 +629,7 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPInfoTypeDetailsLink(),)
 
     def __init__(
         self,
@@ -607,7 +684,22 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-        return MessageToDict(info)
+
+        result = MessageToDict(info)
+
+        project_id = self.project_id or hook.project_id
+        stored_info_type_id = (
+            self.stored_info_type_id or result['name'].split("/")[-1] if result['name'] else None
+        )
+        if project_id and stored_info_type_id:
+            CloudDLPInfoTypeDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                info_type_name=stored_info_type_id,
+            )
+
+        return result
 
 
 class CloudDLPDeidentifyContentOperator(BaseOperator):
@@ -749,6 +841,7 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPDeidentifyTemplatesListLink(),)
 
     def __init__(
         self,
@@ -787,6 +880,13 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
+            project_id = self.project_id or hook.project_id
+            if project_id:
+                CloudDLPDeidentifyTemplatesListLink.persist(
+                    context=context,
+                    task_instance=self,
+                    project_id=project_id,
+                )
         except NotFound:
             self.log.error("Template %s not found.", self.template_id)
 
@@ -827,6 +927,7 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPJobsListLink(),)
 
     def __init__(
         self,
@@ -862,6 +963,15 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
+
+            project_id = self.project_id or hook.project_id
+            if project_id:
+                CloudDLPJobsListLink.persist(
+                    context=context,
+                    task_instance=self,
+                    project_id=project_id,
+                )
+
         except NotFound:
             self.log.error("Job %s id not found.", self.dlp_job_id)
 
@@ -904,6 +1014,7 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPInspectTemplatesListLink(),)
 
     def __init__(
         self,
@@ -942,6 +1053,15 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
+
+            project_id = self.project_id or hook.project_id
+            if project_id:
+                CloudDLPInspectTemplatesListLink.persist(
+                    context=context,
+                    task_instance=self,
+                    project_id=project_id,
+                )
+
         except NotFound:
             self.log.error("Template %s not found", self.template_id)
 
@@ -981,6 +1101,7 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPJobTriggersListLink(),)
 
     def __init__(
         self,
@@ -1016,6 +1137,15 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
+
+            project_id = self.project_id or hook.project_id
+            if project_id:
+                CloudDLPJobTriggersListLink.persist(
+                    context=context,
+                    task_instance=self,
+                    project_id=project_id,
+                )
+
         except NotFound:
             self.log.error("Trigger %s not found", self.job_trigger_id)
 
@@ -1058,6 +1188,7 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPInfoTypesListLink(),)
 
     def __init__(
         self,
@@ -1098,6 +1229,14 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
             )
         except NotFound:
             self.log.error("Stored info %s not found", self.stored_info_type_id)
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPInfoTypesListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
 
 
 class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
@@ -1140,6 +1279,7 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPDeidentifyTemplateDetailsLink(),)
 
     def __init__(
         self,
@@ -1177,6 +1317,13 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPDeidentifyTemplateDetailsLink.persist(
+                context=context, task_instance=self, project_id=project_id, template_name=self.template_id
+            )
+
         return MessageToDict(template)
 
 
@@ -1217,6 +1364,7 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPJobDetailsLink(),)
 
     def __init__(
         self,
@@ -1251,6 +1399,16 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPJobDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                job_name=self.dlp_job_id,
+            )
+
         return MessageToDict(job)
 
 
@@ -1294,6 +1452,7 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPInspectTemplateDetailsLink(),)
 
     def __init__(
         self,
@@ -1331,6 +1490,16 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPInspectTemplateDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                template_name=self.template_id,
+            )
+
         return MessageToDict(template)
 
 
@@ -1371,6 +1540,7 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPJobTriggerDetailsLink(),)
 
     def __init__(
         self,
@@ -1405,6 +1575,16 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPJobTriggerDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                trigger_name=self.job_trigger_id,
+            )
+
         return MessageToDict(trigger)
 
 
@@ -1448,6 +1628,7 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPInfoTypeDetailsLink(),)
 
     def __init__(
         self,
@@ -1485,6 +1666,16 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPInfoTypeDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                info_type_name=self.stored_info_type_id,
+            )
+
         return MessageToDict(info)
 
 
@@ -1617,6 +1808,7 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPDeidentifyTemplatesListLink(),)
 
     def __init__(
         self,
@@ -1658,6 +1850,15 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
             metadata=self.metadata,
         )
         # the MessageToDict does not have the right type defined as possible to pass in constructor
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPDeidentifyTemplatesListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
+
         return [MessageToDict(template) for template in templates]  # type: ignore[arg-type]
 
 
@@ -1702,6 +1903,7 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPJobsListLink(),)
 
     def __init__(
         self,
@@ -1745,6 +1947,15 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPJobsListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
+
         # the MessageToDict does not have the right type defined as possible to pass in constructor
         return [MessageToDict(job) for job in jobs]  # type: ignore[arg-type]
 
@@ -1785,10 +1996,12 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPPossibleInfoTypesListLink(),)
 
     def __init__(
         self,
         *,
+        project_id: str | None = None,
         language_code: str | None = None,
         results_filter: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -1799,6 +2012,7 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        self.project_id = project_id
         self.language_code = language_code
         self.results_filter = results_filter
         self.retry = retry
@@ -1819,6 +2033,15 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPPossibleInfoTypesListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
+
         return MessageToDict(response)
 
 
@@ -1864,6 +2087,7 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPInspectTemplatesListLink(),)
 
     def __init__(
         self,
@@ -1904,6 +2128,15 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPInspectTemplatesListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
+
         return [MessageToDict(t) for t in templates]
 
 
@@ -1947,6 +2180,7 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPJobTriggersListLink(),)
 
     def __init__(
         self,
@@ -1987,6 +2221,15 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPJobTriggersListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
+
         return [MessageToDict(j) for j in jobs]
 
 
@@ -2032,6 +2275,7 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPInfoTypesListLink(),)
 
     def __init__(
         self,
@@ -2072,6 +2316,15 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPInfoTypesListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
+
         return [MessageToDict(i) for i in infos]
 
 
@@ -2310,6 +2563,7 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPDeidentifyTemplateDetailsLink(),)
 
     def __init__(
         self,
@@ -2353,6 +2607,16 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPDeidentifyTemplateDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                template_name=self.template_id,
+            )
+
         return MessageToDict(template)
 
 
@@ -2400,6 +2664,7 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPInspectTemplateDetailsLink(),)
 
     def __init__(
         self,
@@ -2443,6 +2708,16 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPInspectTemplateDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                template_name=self.template_id,
+            )
+
         return MessageToDict(template)
 
 
@@ -2487,6 +2762,7 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPJobTriggerDetailsLink(),)
 
     def __init__(
         self,
@@ -2527,6 +2803,16 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPJobTriggerDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                trigger_name=self.job_trigger_id,
+            )
+
         return MessageToDict(trigger)
 
 
@@ -2575,6 +2861,7 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPInfoTypeDetailsLink(),)
 
     def __init__(
         self,
@@ -2618,4 +2905,14 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPInfoTypeDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                info_type_name=self.stored_info_type_id,
+            )
+
         return MessageToDict(info)

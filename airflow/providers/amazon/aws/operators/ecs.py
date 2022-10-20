@@ -277,7 +277,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
         credential boto3 strategy will be used
-        (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
+        (https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html).
     :param region_name: region name to use in AWS Hook.
         Override the region_name in connection (if provided)
     :param launch_type: the launch type on which to run your task ('EC2', 'EXTERNAL', or 'FARGATE')
@@ -536,7 +536,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
             raise ValueError("must specify awslogs_group to fetch task logs")
         log_stream_name = f"{self.awslogs_stream_prefix}/{self.ecs_task_id}"
 
-        return EcsTaskLogFetcher(
+        return ecs.EcsTaskLogFetcher(
             aws_conn_id=self.aws_conn_id,
             region_name=self.awslogs_region,
             log_group=self.awslogs_group,

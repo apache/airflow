@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import base64
+import json
 import subprocess
 from datetime import datetime
 from tempfile import NamedTemporaryFile
@@ -52,16 +53,18 @@ DAG_ID = 'example_sagemaker'
 
 # Externally fetched variables:
 ROLE_ARN_KEY = 'ROLE_ARN'
+
+sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
+
 # The URI of a Docker image for handling KNN model training.
 # To find the URI of a free Amazon-provided image that can be used, substitute your
 # desired region in the following link and find the URI under "Registry Path".
 # https://docs.aws.amazon.com/sagemaker/latest/dg/ecr-us-east-1.html#knn-us-east-1.title
 # This URI should be in the format of {12-digits}.dkr.ecr.{region}.amazonaws.com/knn
-KNN_IMAGE_URI_KEY = 'KNN_IMAGE_URI'
-
-sys_test_context_task = (
-    SystemTestContextBuilder().add_variable(KNN_IMAGE_URI_KEY).add_variable(ROLE_ARN_KEY).build()
-)
+KNN_IMAGES_BY_REGION = {
+    'us-east-1': '382416733822.dkr.ecr.us-east-1.amazonaws.com/knn:1',
+    'us-west-2': '174872318107.dkr.ecr.us-west-2.amazonaws.com/knn:1',
+}
 
 # For this example we are using a subset of Fischer's Iris Data Set.
 # The full dataset can be found at UC Irvine's machine learning repository:
@@ -115,7 +118,24 @@ if __name__ == "__main__":
 
 
 def _create_ecr_repository(repo_name):
-    return boto3.client('ecr').create_repository(repositoryName=repo_name)['repository']['repositoryUri']
+    execution_role_arn = boto3.client('sts').get_caller_identity()['Arn']
+    access_policy = {
+        'Version': '2012-10-17',
+        'Statement': [
+            {
+                'Sid': 'Allow access to the system test execution role',
+                'Effect': 'Allow',
+                'Principal': {'AWS': execution_role_arn},
+                'Action': 'ecr:*',
+            }
+        ],
+    }
+
+    client = boto3.client('ecr')
+    repo = client.create_repository(repositoryName=repo_name)['repository']
+    client.set_repository_policy(repositoryName=repo['repositoryName'], policyText=json.dumps(access_policy))
+
+    return repo['repositoryUri']
 
 
 def _build_and_upload_docker_image(preprocess_script, repository_uri):
@@ -162,14 +182,15 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        _, err = docker_build.communicate()
-
+        docker_build.communicate()
         if docker_build.returncode != 0:
-            raise RuntimeError(err)
+            # Note: The stderr output from communicate() contains an unrelated
+            # warning message, not the actual cause of the failure.
+            raise RuntimeError('Failed to push docker image to the repository.')
 
 
 @task
-def set_up(env_id, knn_image_uri, role_arn):
+def set_up(env_id, role_arn):
     bucket_name = f'{env_id}-sagemaker-example'
     ecr_repository_name = f'{env_id}-repo'
     model_name = f'{env_id}-KNN-model'
@@ -186,6 +207,16 @@ def set_up(env_id, knn_image_uri, role_arn):
     training_output_s3_key = f'{env_id}/results'
 
     ecr_repository_uri = _create_ecr_repository(ecr_repository_name)
+    region = boto3.session.Session().region_name
+    try:
+        knn_image_uri = KNN_IMAGES_BY_REGION[region]
+    except KeyError:
+        raise KeyError(
+            f'Region name {region} does not have a known KNN '
+            f'Image URI.  Please add the region and URI following '
+            f'the directions at the top of the system testfile '
+        )
+
     resource_config = {
         'InstanceCount': 1,
         'InstanceType': 'ml.m5.large',
@@ -400,7 +431,6 @@ with DAG(
 
     test_setup = set_up(
         env_id=test_context[ENV_ID_KEY],
-        knn_image_uri=test_context[KNN_IMAGE_URI_KEY],
         role_arn=test_context[ROLE_ARN_KEY],
     )
 
@@ -428,14 +458,15 @@ with DAG(
     train_model = SageMakerTrainingOperator(
         task_id='train_model',
         config=test_setup['training_config'],
-        # Waits by default, setting as False to demonstrate the Sensor below.
-        wait_for_completion=False,
     )
     # [END howto_operator_sagemaker_training]
 
+    # SageMakerTrainingOperator waits by default, setting as False to test the Sensor below.
+    train_model.wait_for_completion = False
+
     # [START howto_sensor_sagemaker_training]
     await_training = SageMakerTrainingSensor(
-        task_id="await_training",
+        task_id='await_training',
         job_name=test_setup['training_job_name'],
     )
     # [END howto_sensor_sagemaker_training]
@@ -449,16 +480,17 @@ with DAG(
 
     # [START howto_operator_sagemaker_tuning]
     tune_model = SageMakerTuningOperator(
-        task_id="tune_model",
+        task_id='tune_model',
         config=test_setup['tuning_config'],
-        # Waits by default, setting as False to demonstrate the Sensor below.
-        wait_for_completion=False,
     )
     # [END howto_operator_sagemaker_tuning]
 
+    # SageMakerTuningOperator waits by default, setting as False to test the Sensor below.
+    tune_model.wait_for_completion = False
+
     # [START howto_sensor_sagemaker_tuning]
-    await_tune = SageMakerTuningSensor(
-        task_id="await_tuning",
+    await_tuning = SageMakerTuningSensor(
+        task_id='await_tuning',
         job_name=test_setup['tuning_job_name'],
     )
     # [END howto_sensor_sagemaker_tuning]
@@ -467,25 +499,26 @@ with DAG(
     test_model = SageMakerTransformOperator(
         task_id='test_model',
         config=test_setup['transform_config'],
-        # Waits by default, setting as False to demonstrate the Sensor below.
-        wait_for_completion=False,
     )
     # [END howto_operator_sagemaker_transform]
 
+    # SageMakerTransformOperator waits by default, setting as False to test the Sensor below.
+    test_model.wait_for_completion = False
+
     # [START howto_sensor_sagemaker_transform]
     await_transform = SageMakerTransformSensor(
-        task_id="await_transform",
+        task_id='await_transform',
         job_name=test_setup['transform_job_name'],
     )
     # [END howto_sensor_sagemaker_transform]
 
     # [START howto_operator_sagemaker_delete_model]
     delete_model = SageMakerDeleteModelOperator(
-        task_id="delete_model",
+        task_id='delete_model',
         config={'ModelName': test_setup['model_name']},
-        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_sagemaker_delete_model]
+    delete_model.trigger_rule = TriggerRule.ALL_DONE
 
     delete_bucket = S3DeleteBucketOperator(
         task_id='delete_bucket',
@@ -506,7 +539,7 @@ with DAG(
         await_training,
         create_model,
         tune_model,
-        await_tune,
+        await_tuning,
         test_model,
         await_transform,
         # TEST TEARDOWN

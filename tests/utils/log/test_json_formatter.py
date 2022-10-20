@@ -22,13 +22,12 @@ from __future__ import annotations
 
 import json
 import sys
-import unittest
 from logging import makeLogRecord
 
 from airflow.utils.log.json_formatter import JSONFormatter
 
 
-class TestJSONFormatter(unittest.TestCase):
+class TestJSONFormatter:
     """
     TestJSONFormatter class combine all tests for JSONFormatter
     """

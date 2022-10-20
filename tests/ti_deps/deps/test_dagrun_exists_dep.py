@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import Mock, patch
 
 from airflow.models import DAG, DagRun
@@ -25,7 +24,7 @@ from airflow.ti_deps.deps.dagrun_exists_dep import DagrunRunningDep
 from airflow.utils.state import State
 
 
-class TestDagrunRunningDep(unittest.TestCase):
+class TestDagrunRunningDep:
     @patch('airflow.models.DagRun.find', return_value=())
     def test_dagrun_doesnt_exist(self, mock_dagrun_find):
         """

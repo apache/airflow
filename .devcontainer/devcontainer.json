@@ -21,5 +21,10 @@
         "rogalmic.bash-debug"
     ],
     "service": "airflow",
-    "forwardPorts": [8080,5555,5432,6379]
+    "forwardPorts": [8080, 5555, 5432, 6379],
+    "workspaceFolder": "/opt/airflow",
+    // for users who use non-standard git config patterns
+    // https://github.com/microsoft/vscode-remote-release/issues/2084#issuecomment-989756268
+    "initializeCommand": "cd \"${localWorkspaceFolder}\" && git config --local user.email \"$(git config user.email)\" && git config --local user.name \"$(git config user.name)\"",
+    "overrideCommand": true
 }

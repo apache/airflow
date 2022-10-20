@@ -756,11 +756,13 @@ def test_mapped_render_template_fields(dag_maker, session):
 
     mapped_ti: TaskInstance = dr.get_task_instance(mapped.operator.task_id, session=session)
     mapped_ti.map_index = 0
-    op = mapped.operator.render_template_fields(context=mapped_ti.get_template_context(session=session))
-    assert op
 
-    assert op.op_kwargs['arg1'] == "{{ ds }}"
-    assert op.op_kwargs['arg2'] == "fn"
+    assert mapped_ti.task.is_mapped
+    mapped.operator.render_template_fields(context=mapped_ti.get_template_context(session=session))
+    assert not mapped_ti.task.is_mapped
+
+    assert mapped_ti.task.op_kwargs['arg1'] == "{{ ds }}"
+    assert mapped_ti.task.op_kwargs['arg2'] == "fn"
 
 
 def test_task_decorator_has_wrapped_attr():
@@ -815,3 +817,18 @@ def test_upstream_exception_produces_none_xcom(dag_maker, session):
     assert len(decision.schedulable_tis) == 1  # "down"
     decision.schedulable_tis[0].run(session=session)
     assert result == "'example' None"
+
+
+@pytest.mark.filterwarnings("error")
+def test_no_warnings(reset_logging_config, caplog):
+    @task_decorator
+    def some_task():
+        return 1
+
+    @task_decorator
+    def other(x):
+        ...
+
+    with DAG(dag_id='test', start_date=DEFAULT_DATE, schedule=None):
+        other(some_task())
+    assert caplog.messages == []
