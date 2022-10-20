@@ -31,15 +31,14 @@ from airflow.providers.google.cloud.operators.vision import (
     CloudVisionImageAnnotateOperator,
     CloudVisionTextDetectOperator,
 )
-
-# [END howto_operator_vision_enums_import]
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 # [START howto_operator_vision_retry_import]
 from google.api_core.retry import Retry  # isort:skip
 
-# [END howto_operator_vision_reference_image_import]
+# [END howto_operator_vision_retry_import]
+
 # [START howto_operator_vision_enums_import]
 from google.cloud.vision import enums  # isort:skip
 
@@ -48,19 +47,19 @@ from google.cloud.vision import enums  # isort:skip
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
-DAG_ID = 'example_gcp_vision_annotate_image'
+DAG_ID = "example_gcp_vision_annotate_image"
 
-LOCATION = 'europe-west1'
+LOCATION = "europe-west1"
 
 BUCKET_NAME = f"bucket-{DAG_ID}-{ENV_ID}"
-FILE_NAME = 'image1.jpg'
+FILE_NAME = "image1.jpg"
 
-GCP_VISION_ANNOTATE_IMAGE_URL = f'gs://{BUCKET_NAME}/{FILE_NAME}'
+GCP_VISION_ANNOTATE_IMAGE_URL = f"gs://{BUCKET_NAME}/{FILE_NAME}"
 
 # [START howto_operator_vision_annotate_image_request]
 annotate_image_request = {
-    'image': {'source': {'image_uri': GCP_VISION_ANNOTATE_IMAGE_URL}},
-    'features': [{'type': enums.Feature.Type.LOGO_DETECTION}],
+    "image": {"source": {"image_uri": GCP_VISION_ANNOTATE_IMAGE_URL}},
+    "features": [{"type": enums.Feature.Type.LOGO_DETECTION}],
 }
 # [END howto_operator_vision_annotate_image_request]
 
@@ -100,7 +99,7 @@ with models.DAG(
         request=annotate_image_request,
         retry=Retry(maximum=10.0),
         timeout=5,
-        task_id='annotate_image',
+        task_id="annotate_image",
     )
     # [END howto_operator_vision_annotate_image]
 
@@ -108,7 +107,7 @@ with models.DAG(
     annotate_image_result = BashOperator(
         bash_command="echo {{ task_instance.xcom_pull('annotate_image')"
         "['logoAnnotations'][0]['description'] }}",
-        task_id='annotate_image_result',
+        task_id="annotate_image_result",
     )
     # [END howto_operator_vision_annotate_image_result]
 
@@ -119,7 +118,7 @@ with models.DAG(
         timeout=5,
         task_id="detect_text",
         language_hints="en",
-        web_detection_params={'include_geo_results': True},
+        web_detection_params={"include_geo_results": True},
     )
     # [END howto_operator_vision_detect_text]
 

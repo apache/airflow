@@ -37,8 +37,6 @@ from airflow.providers.google.cloud.operators.vision import (
     CloudVisionUpdateProductOperator,
     CloudVisionUpdateProductSetOperator,
 )
-
-# [END howto_operator_vision_enums_import]
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -46,48 +44,46 @@ from airflow.utils.trigger_rule import TriggerRule
 from google.api_core.retry import Retry  # isort:skip
 
 # [END howto_operator_vision_retry_import]
-# [START howto_operator_vision_product_set_import]
+# [START howto_operator_vision_product_set_import_2]
 from google.cloud.vision_v1.types import ProductSet  # isort:skip
 
-# [END howto_operator_vision_product_set_import]
-# [START howto_operator_vision_product_import]
+# [END howto_operator_vision_product_set_import_2]
+# [START howto_operator_vision_product_import_2]
 from google.cloud.vision_v1.types import Product  # isort:skip
 
-# [END howto_operator_vision_product_import]
-# [START howto_operator_vision_reference_image_import]
+# [END howto_operator_vision_product_import_2]
+# [START howto_operator_vision_reference_image_import_2]
 from google.cloud.vision_v1.types import ReferenceImage  # isort:skip
 
-# [END howto_operator_vision_reference_image_import]
+# [END howto_operator_vision_reference_image_import_2]
 
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "bk")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "airflow-system-tests-303516")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
-DAG_ID = 'example_gcp_vision_explicit_id'
+DAG_ID = "example_gcp_vision_explicit_id"
 
-LOCATION = 'europe-west1'
+LOCATION = "europe-west1"
 
 BUCKET_NAME = f"bucket-{DAG_ID}-{ENV_ID}"
-FILE_NAME = 'image1.jpg'
+FILE_NAME = "image1.jpg"
 
-GCP_VISION_PRODUCT_SET_ID = 'product_set_explicit_id'
-GCP_VISION_PRODUCT_ID = 'product_explicit_id'
-GCP_VISION_REFERENCE_IMAGE_ID = 'reference_image_explicit_id'
+GCP_VISION_PRODUCT_SET_ID = "product_set_explicit_id"
+GCP_VISION_PRODUCT_ID = "product_explicit_id"
+GCP_VISION_REFERENCE_IMAGE_ID = "reference_image_explicit_id"
 
-GCP_VISION_REFERENCE_IMAGE_URL = f'gs://{BUCKET_NAME}/{FILE_NAME}'
-GCP_VISION_ANNOTATE_IMAGE_URL = f'gs://{BUCKET_NAME}/image2.jpg'
-
+VISION_IMAGE_URL = f"gs://{BUCKET_NAME}/{FILE_NAME}"
 
 # [START howto_operator_vision_product_set]
-product_set = ProductSet(display_name='My Product Set')
+product_set = ProductSet(display_name="My Product Set")
 # [END howto_operator_vision_product_set]
 
 # [START howto_operator_vision_product]
-product = Product(display_name='My Product 1', product_category='toys')
+product = Product(display_name="My Product 1", product_category="toys")
 # [END howto_operator_vision_product]
 
 # [START howto_operator_vision_reference_image]
-reference_image = ReferenceImage(uri=GCP_VISION_REFERENCE_IMAGE_URL)
+reference_image = ReferenceImage(uri=VISION_IMAGE_URL)
 # [END howto_operator_vision_reference_image]
 
 # Public bucket holding the sample data
@@ -123,7 +119,7 @@ with models.DAG(
         product_set=product_set,
         retry=Retry(maximum=10.0),
         timeout=5,
-        task_id='product_set_create_2',
+        task_id="product_set_create_2",
     )
     # [END howto_operator_vision_product_set_create_2]
 
@@ -134,12 +130,12 @@ with models.DAG(
         product_set=product_set,
         retry=Retry(maximum=10.0),
         timeout=5,
-        task_id='product_set_create_2_idempotence',
+        task_id="product_set_create_2_idempotence",
     )
 
     # [START howto_operator_vision_product_set_get_2]
     product_set_get_2 = CloudVisionGetProductSetOperator(
-        location=LOCATION, product_set_id=GCP_VISION_PRODUCT_SET_ID, task_id='product_set_get_2'
+        location=LOCATION, product_set_id=GCP_VISION_PRODUCT_SET_ID, task_id="product_set_get_2"
     )
     # [END howto_operator_vision_product_set_get_2]
 
@@ -147,14 +143,14 @@ with models.DAG(
     product_set_update_2 = CloudVisionUpdateProductSetOperator(
         location=LOCATION,
         product_set_id=GCP_VISION_PRODUCT_SET_ID,
-        product_set=ProductSet(display_name='My Product Set 2'),
-        task_id='product_set_update_2',
+        product_set=ProductSet(display_name="My Product Set 2"),
+        task_id="product_set_update_2",
     )
     # [END howto_operator_vision_product_set_update_2]
 
     # [START howto_operator_vision_product_set_delete_2]
     product_set_delete_2 = CloudVisionDeleteProductSetOperator(
-        location=LOCATION, product_set_id=GCP_VISION_PRODUCT_SET_ID, task_id='product_set_delete_2'
+        location=LOCATION, product_set_id=GCP_VISION_PRODUCT_SET_ID, task_id="product_set_delete_2"
     )
     # [END howto_operator_vision_product_set_delete_2]
 
@@ -165,7 +161,7 @@ with models.DAG(
         product=product,
         retry=Retry(maximum=10.0),
         timeout=5,
-        task_id='product_create_2',
+        task_id="product_create_2",
     )
     # [END howto_operator_vision_product_create_2]
 
@@ -176,12 +172,12 @@ with models.DAG(
         product=product,
         retry=Retry(maximum=10.0),
         timeout=5,
-        task_id='product_create_2_idempotence',
+        task_id="product_create_2_idempotence",
     )
 
     # [START howto_operator_vision_product_get_2]
     product_get_2 = CloudVisionGetProductOperator(
-        location=LOCATION, product_id=GCP_VISION_PRODUCT_ID, task_id='product_get_2'
+        location=LOCATION, product_id=GCP_VISION_PRODUCT_ID, task_id="product_get_2"
     )
     # [END howto_operator_vision_product_get_2]
 
@@ -189,14 +185,14 @@ with models.DAG(
     product_update_2 = CloudVisionUpdateProductOperator(
         location=LOCATION,
         product_id=GCP_VISION_PRODUCT_ID,
-        product=Product(display_name='My Product 2', description='My updated description'),
-        task_id='product_update_2',
+        product=Product(display_name="My Product 2", description="My updated description"),
+        task_id="product_update_2",
     )
     # [END howto_operator_vision_product_update_2]
 
     # [START howto_operator_vision_product_delete_2]
     product_delete_2 = CloudVisionDeleteProductOperator(
-        location=LOCATION, product_id=GCP_VISION_PRODUCT_ID, task_id='product_delete_2'
+        location=LOCATION, product_id=GCP_VISION_PRODUCT_ID, task_id="product_delete_2"
     )
     # [END howto_operator_vision_product_delete_2]
 
@@ -208,7 +204,7 @@ with models.DAG(
         reference_image_id=GCP_VISION_REFERENCE_IMAGE_ID,
         retry=Retry(maximum=10.0),
         timeout=5,
-        task_id='reference_image_create_2',
+        task_id="reference_image_create_2",
     )
     # [END howto_operator_vision_reference_image_create_2]
 
@@ -219,7 +215,7 @@ with models.DAG(
         product_id=GCP_VISION_PRODUCT_ID,
         retry=Retry(maximum=10.0),
         timeout=5,
-        task_id='reference_image_delete_2',
+        task_id="reference_image_delete_2",
     )
     # [END howto_operator_vision_reference_image_delete_2]
 
@@ -231,7 +227,7 @@ with models.DAG(
         reference_image_id=GCP_VISION_REFERENCE_IMAGE_ID,
         retry=Retry(maximum=10.0),
         timeout=5,
-        task_id='reference_image_create_2_idempotence',
+        task_id="reference_image_create_2_idempotence",
     )
 
     # [START howto_operator_vision_add_product_to_product_set_2]
@@ -241,7 +237,7 @@ with models.DAG(
         product_id=GCP_VISION_PRODUCT_ID,
         retry=Retry(maximum=10.0),
         timeout=5,
-        task_id='add_product_to_product_set_2',
+        task_id="add_product_to_product_set_2",
     )
     # [END howto_operator_vision_add_product_to_product_set_2]
 
@@ -252,7 +248,7 @@ with models.DAG(
         product_id=GCP_VISION_PRODUCT_ID,
         retry=Retry(maximum=10.0),
         timeout=5,
-        task_id='remove_product_from_product_set_2',
+        task_id="remove_product_from_product_set_2",
     )
     # [END howto_operator_vision_remove_product_from_product_set_2]
 
