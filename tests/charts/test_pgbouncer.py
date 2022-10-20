@@ -17,16 +17,15 @@
 from __future__ import annotations
 
 import base64
-import unittest
 
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class PgbouncerTest(unittest.TestCase):
-    @parameterized.expand(["pgbouncer-deployment", "pgbouncer-service"])
+class TestPgbouncer:
+    @pytest.mark.parametrize("yaml_filename", ["pgbouncer-deployment", "pgbouncer-service"])
     def test_pgbouncer_resources_not_created_by_default(self, yaml_filename):
         docs = render_chart(
             show_only=[f"templates/pgbouncer/{yaml_filename}.yaml"],
@@ -97,7 +96,10 @@ class PgbouncerTest(unittest.TestCase):
             "foo": "bar",
         } == jmespath.search("metadata.annotations", docs[0])
 
-    @parameterized.expand([(8, 10), (10, 8), (8, None), (None, 10), (None, None)])
+    @pytest.mark.parametrize(
+        "revision_history_limit, global_revision_history_limit",
+        [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
+    )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
         values = {
             "pgbouncer": {
@@ -253,14 +255,8 @@ class PgbouncerTest(unittest.TestCase):
         )
         assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) is None
 
-    @parameterized.expand(
-        [
-            (None, None),
-            (None, ["custom", "args"]),
-            (["custom", "command"], None),
-            (["custom", "command"], ["custom", "args"]),
-        ]
-    )
+    @pytest.mark.parametrize("command", [None, ["custom", "command"]])
+    @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_command_and_args_overrides(self, command, args):
         docs = render_chart(
             values={"pgbouncer": {"enabled": True, "command": command, "args": args}},
@@ -312,7 +308,7 @@ class PgbouncerTest(unittest.TestCase):
         )
 
 
-class PgbouncerConfigTest(unittest.TestCase):
+class TestPgbouncerConfig:
     def test_config_not_created_by_default(self):
         docs = render_chart(
             show_only=["templates/secrets/pgbouncer-config-secret.yaml"],
@@ -472,7 +468,7 @@ class PgbouncerConfigTest(unittest.TestCase):
         assert "stats_period = 30" in ini
 
 
-class PgbouncerExporterTest(unittest.TestCase):
+class TestPgbouncerExporter:
     def test_secret_not_created_by_default(self):
         docs = render_chart(
             show_only=["templates/secrets/pgbouncer-stats-secret.yaml"],

@@ -16,16 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class SchedulerTest(unittest.TestCase):
-    @parameterized.expand(
+class TestScheduler:
+    @pytest.mark.parametrize(
+        "executor, persistence, kind",
         [
             ("CeleryExecutor", False, "Deployment"),
             ("CeleryExecutor", True, "Deployment"),
@@ -35,7 +34,7 @@ class SchedulerTest(unittest.TestCase):
             ("LocalKubernetesExecutor", True, "StatefulSet"),
             ("LocalExecutor", True, "StatefulSet"),
             ("LocalExecutor", False, "Deployment"),
-        ]
+        ],
     )
     def test_scheduler_kind(self, executor, persistence, kind):
         """
@@ -160,7 +159,10 @@ class SchedulerTest(unittest.TestCase):
         assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
         assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
 
-    @parameterized.expand([(8, 10), (10, 8), (8, None), (None, 10), (None, None)])
+    @pytest.mark.parametrize(
+        "revision_history_limit, global_revision_history_limit",
+        [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
+    )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
         values = {"scheduler": {}}
         if revision_history_limit:
@@ -331,7 +333,8 @@ class SchedulerTest(unittest.TestCase):
             "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
         )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "log_persistence_values, expected_volume",
         [
             ({"enabled": False}, {"emptyDir": {}}),
             ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "release-name-logs"}}),
@@ -339,7 +342,7 @@ class SchedulerTest(unittest.TestCase):
                 {"enabled": True, "existingClaim": "test-claim"},
                 {"persistentVolumeClaim": {"claimName": "test-claim"}},
             ),
-        ]
+        ],
     )
     def test_logs_persistence_changes_volume(self, log_persistence_values, expected_volume):
         docs = render_chart(
@@ -404,7 +407,8 @@ class SchedulerTest(unittest.TestCase):
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "executor, persistence, update_strategy, expected_update_strategy",
         [
             ("CeleryExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
             ("CeleryExecutor", True, {"rollingUpdate": {"partition": 0}}, None),
@@ -418,7 +422,7 @@ class SchedulerTest(unittest.TestCase):
             ("LocalExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
             ("LocalExecutor", True, {"rollingUpdate": {"partition": 0}}, {"rollingUpdate": {"partition": 0}}),
             ("LocalExecutor", True, None, None),
-        ]
+        ],
     )
     def test_scheduler_update_strategy(
         self, executor, persistence, update_strategy, expected_update_strategy
@@ -435,7 +439,8 @@ class SchedulerTest(unittest.TestCase):
 
         assert expected_update_strategy == jmespath.search("spec.updateStrategy", docs[0])
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "executor, persistence, strategy, expected_strategy",
         [
             ("LocalExecutor", False, None, None),
             ("LocalExecutor", False, {"type": "Recreate"}, {"type": "Recreate"}),
@@ -451,7 +456,7 @@ class SchedulerTest(unittest.TestCase):
                 {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
                 {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
             ),
-        ]
+        ],
     )
     def test_scheduler_strategy(self, executor, persistence, strategy, expected_strategy):
         """strategy should be used when we aren't using both a local executor and workers.persistence"""
@@ -474,14 +479,8 @@ class SchedulerTest(unittest.TestCase):
             "spec.template.spec.containers[0].args", docs[0]
         )
 
-    @parameterized.expand(
-        [
-            (None, None),
-            (None, ["custom", "args"]),
-            (["custom", "command"], None),
-            (["custom", "command"], ["custom", "args"]),
-        ]
-    )
+    @pytest.mark.parametrize("command", [None, ["custom", "command"]])
+    @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_command_and_args_overrides(self, command, args):
         docs = render_chart(
             values={"scheduler": {"command": command, "args": args}},
@@ -521,14 +520,8 @@ class SchedulerTest(unittest.TestCase):
         )
         assert "15" == jmespath.search("spec.template.spec.containers[1].env[0].value", docs[0])
 
-    @parameterized.expand(
-        [
-            (None, None),
-            (None, ["custom", "args"]),
-            (["custom", "command"], None),
-            (["custom", "command"], ["custom", "args"]),
-        ]
-    )
+    @pytest.mark.parametrize("command", [None, ["custom", "command"]])
+    @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_log_groomer_command_and_args_overrides(self, command, args):
         docs = render_chart(
             values={"scheduler": {"logGroomerSidecar": {"command": command, "args": args}}},
@@ -554,11 +547,12 @@ class SchedulerTest(unittest.TestCase):
         assert ["release-name"] == jmespath.search("spec.template.spec.containers[1].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "retention_days, retention_result",
         [
             (None, None),
             (30, "30"),
-        ]
+        ],
     )
     def test_log_groomer_retention_days_overrides(self, retention_days, retention_result):
         docs = render_chart(
@@ -576,11 +570,12 @@ class SchedulerTest(unittest.TestCase):
         else:
             assert jmespath.search("spec.template.spec.containers[1].env", docs[0]) is None
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "dags_values",
         [
-            ({"gitSync": {"enabled": True}},),
-            ({"gitSync": {"enabled": True}, "persistence": {"enabled": True}},),
-        ]
+            {"gitSync": {"enabled": True}},
+            {"gitSync": {"enabled": True}, "persistence": {"enabled": True}},
+        ],
     )
     def test_dags_gitsync_sidecar_and_init_container(self, dags_values):
         docs = render_chart(
@@ -593,7 +588,8 @@ class SchedulerTest(unittest.TestCase):
             c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "dag_processor, executor, skip_dags_mount",
         [
             (True, "LocalExecutor", False),
             (True, "CeleryExecutor", True),
@@ -603,7 +599,7 @@ class SchedulerTest(unittest.TestCase):
             (False, "CeleryExecutor", False),
             (False, "KubernetesExecutor", False),
             (False, "LocalKubernetesExecutor", False),
-        ]
+        ],
     )
     def test_dags_mount_and_gitsync_expected_with_dag_processor(
         self, dag_processor, executor, skip_dags_mount
@@ -674,14 +670,15 @@ class SchedulerTest(unittest.TestCase):
         )
         assert {"foo": "bar"} == jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0])
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "executor",
         [
             "LocalExecutor",
             "LocalKubernetesExecutor",
             "CeleryExecutor",
             "KubernetesExecutor",
             "CeleryKubernetesExecutor",
-        ]
+        ],
     )
     def test_scheduler_deployment_has_executor_label(self, executor):
         docs = render_chart(
@@ -693,7 +690,7 @@ class SchedulerTest(unittest.TestCase):
         assert executor == docs[0]['metadata']['labels'].get('executor')
 
 
-class SchedulerNetworkPolicyTest(unittest.TestCase):
+class TestSchedulerNetworkPolicy:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
@@ -709,7 +706,7 @@ class SchedulerNetworkPolicyTest(unittest.TestCase):
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
 
-class SchedulerServiceTest(unittest.TestCase):
+class TestSchedulerService:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
@@ -725,7 +722,7 @@ class SchedulerServiceTest(unittest.TestCase):
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
 
-class SchedulerServiceAccountTest(unittest.TestCase):
+class TestSchedulerServiceAccount:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={

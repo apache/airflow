@@ -18,18 +18,16 @@
 """This module contains the Trino operator."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+import warnings
+from typing import Any, Sequence
 
 from trino.exceptions import TrinoQueryError
 
-from airflow.models import BaseOperator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.trino.hooks.trino import TrinoHook
 
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
-
-class TrinoOperator(BaseOperator):
+class TrinoOperator(SQLExecuteQueryOperator):
     """
     Executes sql code using a specific Trino query Engine.
 
@@ -52,43 +50,21 @@ class TrinoOperator(BaseOperator):
     template_ext: Sequence[str] = ('.sql',)
     ui_color = '#ededed'
 
-    def __init__(
-        self,
-        *,
-        sql: str | list[str],
-        trino_conn_id: str = "trino_default",
-        autocommit: bool = False,
-        parameters: tuple | None = None,
-        handler: Callable | None = None,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.sql = sql
-        self.trino_conn_id = trino_conn_id
-        self.hook: TrinoHook | None = None
-        self.autocommit = autocommit
-        self.parameters = parameters
-        self.handler = handler
-
-    def get_hook(self) -> TrinoHook:
-        """Get Trino hook"""
-        return TrinoHook(
-            trino_conn_id=self.trino_conn_id,
-        )
-
-    def execute(self, context: Context) -> None:
-        """Execute Trino SQL"""
-        self.hook = self.get_hook()
-        self.hook.run(
-            sql=self.sql, autocommit=self.autocommit, parameters=self.parameters, handler=self.handler
+    def __init__(self, *, trino_conn_id: str = "trino_default", **kwargs: Any) -> None:
+        super().__init__(conn_id=trino_conn_id, **kwargs)
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.""",
+            DeprecationWarning,
+            stacklevel=2,
         )
 
     def on_kill(self) -> None:
-        if self.hook is not None and isinstance(self.hook, TrinoHook):
-            query_id = "'" + self.hook.query_id + "'"
+        if self._hook is not None and isinstance(self._hook, TrinoHook):
+            query_id = "'" + self._hook.query_id + "'"
             try:
-                self.log.info("Stopping query run with queryId - %s", self.hook.query_id)
-                self.hook.run(
+                self.log.info("Stopping query run with queryId - %s", self._hook.query_id)
+                self._hook.run(
                     sql=f"CALL system.runtime.kill_query(query_id => {query_id},message => 'Job "
                     f"killed by "
                     f"user');",
