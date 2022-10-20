@@ -47,7 +47,7 @@ class TestGlacierUploadArchiveOperator(TestCase):
     @mock.patch("airflow.providers.amazon.aws.operators.glacier.GlacierHook.get_conn")
     def test_execute(self, hook_mock):
         op = GlacierUploadArchiveOperator(
-            aws_conn_id=AWS_CONN_ID, vault_name=VAULT_NAME, archive=b'Test Data', task_id=TASK_ID
+            aws_conn_id=AWS_CONN_ID, vault_name=VAULT_NAME, body=b'Test Data', task_id=TASK_ID
         )
         op.execute(mock.MagicMock())
         hook_mock.return_value.upload_archive.assert_called_once_with(

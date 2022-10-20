@@ -69,8 +69,8 @@ class GlacierUploadArchiveOperator(BaseOperator):
         in which case Amazon S3 Glacier uses the AWS account ID associated with
         the credentials used to sign the request
     :param vault_name: The name of the vault
-    :param archive: A bytes or seekable file-like object. The data to upload.
-    :param description: The description of the archive you are uploading
+    :param body: A bytes or seekable file-like object. The data to upload.
+    :param archive_description: The description of the archive you are uploading
     :param checksum: The SHA256 tree hash of the data being uploaded.
         This parameter is automatically populated if it is not provided
     :param aws_conn_id: The reference to the AWS connection details
@@ -82,9 +82,9 @@ class GlacierUploadArchiveOperator(BaseOperator):
         self,
         *,
         vault_name: str,
-        archive: object,
+        body: object,
         checksum: str | None = None,
-        description: str | None = None,
+        archive_description: str | None = None,
         account_id: str = "-",
         aws_conn_id="aws_default",
         **kwargs,
@@ -93,16 +93,16 @@ class GlacierUploadArchiveOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.account_id = account_id
         self.vault_name = vault_name
-        self.archive = archive
+        self.body = body
         self.checksum = checksum
-        self.description = description
+        self.archive_description = archive_description
 
     def execute(self, context: Context):
         hook = GlacierHook(aws_conn_id=self.aws_conn_id)
         return hook.get_conn().upload_archive(
             accountId=self.account_id,
             vaultName=self.vault_name,
-            archiveDescription=self.description,
-            body=self.archive,
+            archiveDescription=self.archive_description,
+            body=self.body,
             checksum=self.checksum,
         )
