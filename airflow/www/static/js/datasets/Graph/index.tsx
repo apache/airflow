@@ -55,8 +55,8 @@ const Graph = ({ onSelect, selectedUri }: Props) => {
   });
 
   if (isLoading && !data) return <Spinner />;
-  if (!data || !data.length) return null;
-  const graph = data.find((g) => g?.children.some((n) => n.id === `dataset:${selectedUri}`));
+  if (!data || !data.fullGraph || !data.subGraphs) return null;
+  const graph = selectedUri ? data.subGraphs.find((g) => g.children.some((n) => n.id === `dataset:${selectedUri}`)) : data.fullGraph;
   if (!graph) return null;
   const {
     edges, children, width: graphWidth, height: graphHeight,

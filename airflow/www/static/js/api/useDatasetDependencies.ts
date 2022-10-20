@@ -37,9 +37,14 @@ interface GenerateProps {
   font: string;
 }
 
-interface Data extends ElkShape {
+interface Graph extends ElkShape {
   children: NodeType[];
   edges: ElkExtendedEdge[];
+}
+
+interface Data {
+  fullGraph: Graph;
+  subGraphs: Graph[];
 }
 
 // Take text and font to calculate how long each node should be
@@ -60,6 +65,7 @@ const generateGraph = ({ nodes, edges, font }: GenerateProps) => ({
     'spacing.edgeNodeBetweenLayers': '10.0',
     'layering.strategy': 'INTERACTIVE',
     algorithm: 'layered',
+    'crossingMinimization.semiInteractive': 'true',
     'spacing.edgeEdgeBetweenLayers': '10.0',
     'spacing.edgeNode': '10.0',
     'spacing.edgeEdge': '10.0',
@@ -81,6 +87,7 @@ interface SeparateGraphsProps extends DatasetDependencies {
 }
 
 const graphIndicesToMerge: Record<number, number[]> = {};
+const indicesToRemove: number[] = [];
 
 const findDownstreamGraph = (
   { edges, nodes, graphs = [] }: SeparateGraphsProps,
@@ -98,6 +105,7 @@ const findDownstreamGraph = (
         const existingGraphIndex = newGraphs
           .findIndex(((ng) => ng.nodes.some((n) => n.id === newNode.id)));
         if (existingGraphIndex > -1) {
+          indicesToRemove.push(existingGraphIndex);
           graphIndicesToMerge[i] = [...(graphIndicesToMerge[i] || []), existingGraphIndex];
         }
         newGraphs[i] = {
@@ -111,26 +119,18 @@ const findDownstreamGraph = (
   });
 
   if (!filteredEdges.length) {
-    const mergedGraphs: DatasetDependencies[] = [...newGraphs];
     Object.keys(graphIndicesToMerge).forEach((key) => {
       const realKey = key as unknown as number;
       const values = graphIndicesToMerge[realKey];
       values.forEach((v) => {
-        mergedGraphs[realKey] = {
-          nodes: unionBy(mergedGraphs[realKey].nodes, newGraphs[v as unknown as number].nodes, 'id'),
-          edges: [...mergedGraphs[realKey].edges, ...newGraphs[v as unknown as number].edges],
+        newGraphs[realKey] = {
+          nodes: unionBy(newGraphs[realKey].nodes, newGraphs[v].nodes, 'id'),
+          edges: [...newGraphs[realKey].edges, ...newGraphs[v].edges],
         };
       });
     });
 
-    Object.keys(graphIndicesToMerge).forEach((key) => {
-      const realKey = key as unknown as number;
-      const values = graphIndicesToMerge[realKey];
-      values.reverse().forEach((v) => {
-        mergedGraphs.splice(v, 1);
-      });
-    });
-    return mergedGraphs;
+    return newGraphs.filter((g, i) => !indicesToRemove.some((j) => i === j));
   }
   return findDownstreamGraph({ edges: filteredEdges, nodes, graphs: newGraphs });
 };
@@ -172,10 +172,14 @@ const formatDependencies = async ({ edges, nodes }: DatasetDependencies) => {
   const font = `bold ${16}px ${window.getComputedStyle(document.body).fontFamily}`;
 
   // Finally generate the graph data with elk
-  const data = await Promise.all(graphs.map(async (g) => (
+  const subGraphs = await Promise.all(graphs.map(async (g) => (
     elk.layout(generateGraph({ nodes: g.nodes, edges: g.edges, font }))
   )));
-  return data as Data[];
+  const fullGraph = await elk.layout(generateGraph({ nodes, edges, font }));
+  return {
+    fullGraph,
+    subGraphs,
+  } as Data;
 };
 
 export default function useDatasetDependencies() {
