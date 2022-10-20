@@ -36,8 +36,8 @@ def _ensure_prefixes(conn_type):
 
     def dec(func):
         @wraps(func)
-        def inner(cls):
-            field_behaviors = func(cls)
+        def inner():
+            field_behaviors = func()
             conn_attrs = {'host', 'schema', 'login', 'password', 'port', 'extra'}
 
             def _ensure_prefix(field):
