@@ -484,14 +484,12 @@ class KubernetesPodOperator(BaseOperator):
         labels_value += ',!airflow-worker'
         return labels_value
 
-    def _set_name(self, name: str | None) -> str | None:
-        if name is None:
-            if self.pod_template_file or self.full_pod_spec:
-                return None
-            raise AirflowException("`name` is required unless `pod_template_file` or `full_pod_spec` is set")
-
-        validate_key(name, max_length=220)
-        return re.sub(r'[^a-z0-9-]+', '-', name.lower())
+    @staticmethod
+    def _set_name(name: str | None) -> str | None:
+        if name is not None:
+            validate_key(name, max_length=220)
+            return re.sub(r'[^a-z0-9-]+', '-', name.lower())
+        return None
 
     def patch_already_checked(self, pod: k8s.V1Pod):
         """Add an "already checked" annotation to ensure we don't reattach on retries"""
@@ -526,7 +524,7 @@ class KubernetesPodOperator(BaseOperator):
         elif self.full_pod_spec:
             pod_template = self.full_pod_spec
         else:
-            pod_template = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="name"))
+            pod_template = k8s.V1Pod(metadata=k8s.V1ObjectMeta())
 
         pod = k8s.V1Pod(
             api_version="v1",
@@ -570,6 +568,9 @@ class KubernetesPodOperator(BaseOperator):
         )
 
         pod = PodGenerator.reconcile_pods(pod_template, pod)
+
+        if not pod.metadata.name:
+            pod.metadata.name = self.task_id
 
         if self.random_name_suffix:
             pod.metadata.name = PodGenerator.make_unique_pod_id(pod.metadata.name)

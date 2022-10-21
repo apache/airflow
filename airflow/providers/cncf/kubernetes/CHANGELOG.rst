@@ -32,6 +32,11 @@ Breaking changes
 
 Previously KubernetesPodOperator considered some settings from the Airflow config's ``kubernetes`` section.  Such consideration was deprecated in 4.1.0 and is now removed.  If you previously relied on the Airflow config, and you want client generation to have non-default configuration, you will need to define your configuration in an Airflow connection and set KPO to use the connection.  See kubernetes provider documentation on defining a kubernetes Airflow connection for details.
 
+Features
+~~~~~~~~
+
+Previously, ``name`` was a required argument for KubernetesPodOperator (when also not supplying pod template or full pod spec). Now, if ``name`` is not supplied, ``task_id`` will be used.
+
 4.4.0
 .....
 
@@ -225,7 +230,7 @@ Features
 ~~~~~~~~
 
 * ``Add map_index label to mapped KubernetesPodOperator (#21916)``
-* ``Change KubePodOperator labels from exeuction_date to run_id (#21960)``
+* ``Change KubernetesPodOperator labels from execution_date to run_id (#21960)``
 
 Misc
 ~~~~
@@ -490,7 +495,7 @@ Breaking changes
 Features
 ~~~~~~~~
 
-* ``Add 'KubernetesPodOperat' 'pod-template-file' jinja template support (#15942)``
+* ``Add 'KubernetesPodOperator' 'pod-template-file' jinja template support (#15942)``
 * ``Save pod name to xcom for KubernetesPodOperator (#15755)``
 
 Bug Fixes
@@ -499,7 +504,7 @@ Bug Fixes
 * ``Bug Fix Pod-Template Affinity Ignored due to empty Affinity K8S Object (#15787)``
 * ``Bug Pod Template File Values Ignored (#16095)``
 * ``Fix issue with parsing error logs in the KPO (#15638)``
-* ``Fix unsuccessful KubernetesPod final_state call when 'is_delete_operator_pod=True' (#15490)``
+* ``Fix unsuccessful KubernetesPodOperator final_state call when 'is_delete_operator_pod=True' (#15490)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -521,7 +526,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Fix timeout when using XCom with KubernetesPodOperator (#15388)``
-* ``Fix labels on the pod created by ''KubernetsPodOperator'' (#15492)``
+* ``Fix labels on the pod created by ''KubernetesPodOperator'' (#15492)``
 
 1.1.0
 .....
