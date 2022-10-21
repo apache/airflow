@@ -195,7 +195,7 @@ jobs:
         # the build-images.yml (there we cannot import python code coming from the PR - we need to
         # treat the python code as text and extract the variables from there.
         run: |
-          python - <<EOF >>$GITHUB_ENV
+          python - <<EOF >> ${GITHUB_ENV}
           from pathlib import Path
           import re
           import sys
@@ -219,13 +219,13 @@ jobs:
       - run: ./scripts/ci/install_breeze.sh
       - name: "Get information about the Workflow"
         id: source-run-info
-        run: breeze ci get-workflow-info
+        run: breeze ci get-workflow-info 2>> ${GITHUB_OUTPUT}
       - name: Selective checks
         id: selective-checks
         env:
           PR_LABELS: "${{ steps.source-run-info.outputs.pr-labels }}"
           COMMIT_REF: "${{ github.sha }}"
-        run: breeze ci selective-check
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
       - name: env
         run: printenv
         env:
@@ -696,8 +696,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Get Python version"
-        run: "echo \"::set-output name=host-python-version::$(python -c
- 'import platform; print(platform.python_version())')\""
+        run: >
+         echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
+         >> ${GITHUB_OUTPUT}
         id: host-python-version
       - name: "Static checks"
         run: breeze static-checks --all-files --show-diff-on-failure --color always
@@ -747,8 +748,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Free space"
         run: breeze ci free-space
       - name: "Get Python version"
-        run: "echo \"::set-output name=host-python-version::$(python -c
- 'import platform; print(platform.python_version())')\""
+        run: >
+          echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
+          >> ${GITHUB_OUTPUT}
         id: host-python-version
       - name: "Static checks: basic checks only"
         run: >
@@ -1398,15 +1400,15 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Set issue id for main"
         if: github.ref == 'refs/heads/main'
         run: |
-          echo "ISSUE_ID=10118" >> $GITHUB_ENV
+          echo "ISSUE_ID=10118" >> ${GITHUB_ENV}
       - name: "Set issue id for v1-10-stable"
         if: github.ref == 'refs/heads/v1-10-stable'
         run: |
-          echo "ISSUE_ID=10127" >> $GITHUB_ENV
+          echo "ISSUE_ID=10127" >> ${GITHUB_ENV}
       - name: "Set issue id for v1-10-test"
         if: github.ref == 'refs/heads/v1-10-test'
         run: |
-          echo "ISSUE_ID=10128" >> $GITHUB_ENV
+          echo "ISSUE_ID=10128" >> ${GITHUB_ENV}
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: breeze ci free-space
@@ -1689,7 +1691,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       - name: "Set constraints branch name"
         id: constraints-branch
-        run: ./scripts/ci/constraints/ci_branch_constraints.sh
+        run: ./scripts/ci/constraints/ci_branch_constraints.sh >> ${GITHUB_OUTPUT}
         if: needs.build-info.outputs.canary-run == 'true'
       - name: Checkout ${{ steps.constraints-branch.outputs.branch }}
         uses: actions/checkout@v3
