@@ -226,6 +226,44 @@ class TestSessionFactory:
         mock_boto3_session.assert_called_once_with(**expected_arguments)
         assert session == MOCK_BOTO3_SESSION
 
+    @pytest.mark.skipif(mock_sts is None, reason="mock_sts package not present")
+    @mock_sts
+    @pytest.mark.parametrize(
+        "conn_id, conn_extra",
+        [
+            (
+                "assume-with-initial-creds",
+                {
+                    "aws_access_key_id": "mock_aws_access_key_id",
+                    "aws_secret_access_key": "mock_aws_access_key_id",
+                    "aws_session_token": "mock_aws_session_token",
+                },
+            ),
+            ("assume-without-initial-creds", {}),
+        ],
+    )
+    @pytest.mark.parametrize("region_name", ["ap-southeast-2", "sa-east-1"])
+    @pytest.mark.parametrize("role_session_name", [None, "test-session-name"])
+    def test_get_credentials_from_role_arn(self, conn_id, conn_extra, region_name, role_session_name):
+        """Test creation session which set role_arn extra in connection."""
+        extra = {
+            **conn_extra,
+            "role_arn": "arn:aws:iam::123456:role/role_arn",
+            "region_name": region_name,
+        }
+        if role_session_name:
+            extra["assume_role_kwargs"] = {"RoleSessionName": role_session_name}
+        conn = AwsConnectionWrapper.from_connection_metadata(conn_id=conn_id, extra=extra)
+        sf = BaseSessionFactory(conn=conn)
+        session = sf.create_session()
+        assert session.region_name == region_name
+        # Validate method of botocore credentials provider.
+        # It shouldn't be 'explicit' which refers in this case to initial credentials.
+        assert session.get_credentials().method == 'sts-assume-role'
+
+        user_id = session.client("sts").get_caller_identity()["UserId"]
+        assert user_id.endswith(role_session_name if role_session_name else f"airflow_{conn_id}")
+
 
 class TestAwsBaseHook:
     @unittest.skipIf(mock_emr is None, 'mock_emr package not present')
@@ -331,26 +369,6 @@ class TestAwsBaseHook:
             ),
         ]
         mock_boto3.assert_has_calls(calls_assume_role)
-
-    @unittest.skipIf(mock_sts is None, 'mock_sts package not present')
-    @mock.patch.object(AwsBaseHook, 'get_connection')
-    @mock_sts
-    def test_get_credentials_from_role_arn(self, mock_get_connection):
-        mock_connection = Connection(
-            conn_id='aws_default',
-            conn_type=MOCK_CONN_TYPE,
-            extra='{"role_arn":"arn:aws:iam::123456:role/role_arn"}',
-        )
-        mock_get_connection.return_value = mock_connection
-        hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
-        credentials_from_hook = hook.get_credentials()
-        assert "ASIA" in credentials_from_hook.access_key
-
-        # We assert the length instead of actual values as the values are random:
-        # Details: https://github.com/spulec/moto/commit/ab0d23a0ba2506e6338ae20b3fde70da049f7b03
-        assert 20 == len(credentials_from_hook.access_key)
-        assert 40 == len(credentials_from_hook.secret_key)
-        assert 356 == len(credentials_from_hook.token)
 
     def test_get_credentials_from_gcp_credentials(self):
         mock_connection = Connection(
