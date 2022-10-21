@@ -28,7 +28,13 @@ import boto3
 import pytest
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
-from moto.core import ACCOUNT_ID
+
+try:
+    from moto.core import DEFAULT_ACCOUNT_ID
+except ImportError:
+    from moto.core import ACCOUNT_ID as DEFAULT_ACCOUNT_ID
+
+from moto import mock_dynamodb, mock_emr, mock_iam, mock_sts
 
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.hooks.base_aws import (
@@ -38,14 +44,6 @@ from airflow.providers.amazon.aws.hooks.base_aws import (
 )
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 from tests.test_utils.config import conf_vars
-
-try:
-    from moto import mock_dynamodb2, mock_emr, mock_iam, mock_sts
-except ImportError:
-    mock_emr = None
-    mock_dynamodb2 = None
-    mock_sts = None
-    mock_iam = None
 
 MOCK_AWS_CONN_ID = "mock-conn-id"
 MOCK_CONN_TYPE = "aws"
@@ -110,7 +108,7 @@ SAML_ASSERTION = """
     </AuthnStatement>
   </Assertion>
 </samlp:Response>""".format(  # noqa: E501
-    account_id=ACCOUNT_ID,
+    account_id=DEFAULT_ACCOUNT_ID,
     role_name="test-role",
     provider_name="TestProvFed",
     username="testuser",
@@ -241,8 +239,7 @@ class TestAwsBaseHook:
 
         assert client_from_hook.list_clusters()['Clusters'] == []
 
-    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
-    @mock_dynamodb2
+    @mock_dynamodb
     def test_get_resource_type_set_in_class_attribute(self):
         hook = AwsBaseHook(aws_conn_id='aws_default', resource_type='dynamodb')
         resource_from_hook = hook.get_resource_type()
@@ -261,8 +258,7 @@ class TestAwsBaseHook:
 
         assert table.item_count == 0
 
-    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
-    @mock_dynamodb2
+    @mock_dynamodb
     def test_get_session_returns_a_boto3_session(self):
         hook = AwsBaseHook(aws_conn_id='aws_default', resource_type='dynamodb')
         session_from_hook = hook.get_session()
@@ -593,8 +589,7 @@ class TestAwsBaseHook:
             assert mock_refresh.call_count == 2
             assert len(expire_on_calls) == 0
 
-    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
-    @mock_dynamodb2
+    @mock_dynamodb
     @pytest.mark.parametrize("conn_type", ["client", "resource"])
     @pytest.mark.parametrize(
         "connection_uri,region_name,env_region,expected_region_name",
@@ -622,8 +617,7 @@ class TestAwsBaseHook:
 
             assert hook.conn_region_name == expected_region_name
 
-    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
-    @mock_dynamodb2
+    @mock_dynamodb
     @pytest.mark.parametrize("conn_type", ["client", "resource"])
     @pytest.mark.parametrize(
         "connection_uri,expected_partition",

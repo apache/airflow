@@ -29,7 +29,12 @@ import yaml
 from _pytest._code import ExceptionInfo
 from botocore.exceptions import ClientError
 from freezegun import freeze_time
-from moto.core import ACCOUNT_ID
+
+try:
+    from moto.core import DEFAULT_ACCOUNT_ID
+except ImportError:
+    from moto.core import ACCOUNT_ID as DEFAULT_ACCOUNT_ID
+
 from moto.core.exceptions import AWSError
 from moto.eks.exceptions import (
     InvalidParameterException,
@@ -294,7 +299,7 @@ class TestEksHooks:
         expected_arn_values: list = [
             PARTITION,
             REGION,
-            ACCOUNT_ID,
+            DEFAULT_ACCOUNT_ID,
             generated_test_data.cluster_names,
         ]
 
@@ -509,7 +514,7 @@ class TestEksHooks:
         expected_arn_values: list = [
             PARTITION,
             REGION,
-            ACCOUNT_ID,
+            DEFAULT_ACCOUNT_ID,
             generated_test_data.cluster_name,
             generated_test_data.nodegroup_names,
             None,
@@ -911,7 +916,7 @@ class TestEksHooks:
         expected_arn_values: list = [
             PARTITION,
             REGION,
-            ACCOUNT_ID,
+            DEFAULT_ACCOUNT_ID,
             generated_test_data.cluster_name,
             generated_test_data.fargate_profile_names,
             None,

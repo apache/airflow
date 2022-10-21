@@ -20,23 +20,18 @@ from __future__ import annotations
 import unittest
 import uuid
 
-from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
+from moto import mock_dynamodb
 
-try:
-    from moto import mock_dynamodb2
-except ImportError:
-    mock_dynamodb2 = None
+from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 
 
 class TestDynamoDBHook(unittest.TestCase):
-    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
-    @mock_dynamodb2
+    @mock_dynamodb
     def test_get_conn_returns_a_boto3_connection(self):
         hook = DynamoDBHook(aws_conn_id='aws_default')
         assert hook.get_conn() is not None
 
-    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
-    @mock_dynamodb2
+    @mock_dynamodb
     def test_insert_batch_items_dynamodb_table(self):
 
         hook = DynamoDBHook(
