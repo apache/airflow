@@ -54,7 +54,7 @@ from airflow.models.expandinput import (
     NotFullyPopulated,
     OperatorExpandArgument,
     OperatorExpandKwargsArgument,
-    get_mappable_types,
+    is_mappable,
 )
 from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
@@ -97,7 +97,7 @@ def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, valu
                 continue
             if value is NOTSET:
                 continue
-            if isinstance(value, get_mappable_types()):
+            if is_mappable(value):
                 continue
             type_name = type(value).__name__
             error = f"{op.__name__}.expand() got an unexpected type {type_name!r} for keyword argument {name}"

@@ -26,6 +26,7 @@ __all__ = [
     "ParamSpec",
     "Protocol",
     "TypedDict",
+    "TypeGuard",
     "runtime_checkable",
 ]
 
@@ -43,6 +44,6 @@ else:
     from typing_extensions import Literal
 
 if sys.version_info >= (3, 10):
-    from typing import ParamSpec
+    from typing import ParamSpec, TypeGuard
 else:
-    from typing_extensions import ParamSpec
+    from typing_extensions import ParamSpec, TypeGuard

@@ -21,8 +21,7 @@ import pendulum
 import pytest
 
 from airflow.decorators import dag, task_group
-from airflow.decorators.task_group import _MappedArgument
-from airflow.models.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
+from airflow.models.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput, MappedArgument
 from airflow.utils.task_group import MappedTaskGroup
 
 
@@ -150,7 +149,7 @@ def test_expand_create_mapped():
     assert isinstance(tg, MappedTaskGroup)
     assert tg._expand_input == DictOfListsExpandInput({"b": ["x", "y"]})
 
-    assert saved == {"a": 1, "b": _MappedArgument(input=tg._expand_input, key="b")}
+    assert saved == {"a": 1, "b": MappedArgument(input=tg._expand_input, key="b")}
 
 
 def test_expand_kwargs_no_wildcard():
@@ -186,4 +185,4 @@ def test_expand_kwargs_create_mapped():
     assert isinstance(tg, MappedTaskGroup)
     assert tg._expand_input == ListOfDictsExpandInput([{"b": "x"}, {"b": None}])
 
-    assert saved == {"a": 1, "b": _MappedArgument(input=tg._expand_input, key="b")}
+    assert saved == {"a": 1, "b": MappedArgument(input=tg._expand_input, key="b")}
