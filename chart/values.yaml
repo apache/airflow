@@ -600,6 +600,8 @@ workers:
   labels: {}
 
   logGroomerSidecar:
+    # Whether to deploy the Airflow worker log groomer sidecar.
+    enabled: true
     # Command to use when running the Airflow worker log groomer sidecar (templated).
     command: ~
     # Args to use when running the Airflow worker log groomer sidecar (templated).
