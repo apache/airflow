@@ -29,7 +29,7 @@ from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
+from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, with_row_locks
 from airflow.utils.state import State
 
 
@@ -107,9 +107,9 @@ class Trigger(Base):
             trigger_id
             for (trigger_id,) in (
                 session.query(cls.id)
-                .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=True)
-                .group_by(cls.id)
-                .having(func.count(TaskInstance.trigger_id) == 0)
+                    .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=True)
+                    .group_by(cls.id)
+                    .having(func.count(TaskInstance.trigger_id) == 0)
             )
         ]
         # ...and delete them (we can't do this in one query due to MySQL)
@@ -197,12 +197,10 @@ class Trigger(Base):
         # Find triggers who do NOT have an alive triggerer_id, and then assign
         # up to `capacity` of those to us.
         trigger_ids_query = (
-            session.query(cls.id)
-            # notin_ doesn't find NULL rows
-            .filter(or_(cls.triggerer_id.is_(None), cls.triggerer_id.notin_(alive_triggerer_ids)))
-            .limit(capacity)
-            .with_for_update(skip_locked=True)
-            .all()
+            with_row_locks(session.query(cls.id)
+                           .filter(
+                or_(cls.triggerer_id.is_(None), cls.triggerer_id.notin_(alive_triggerer_ids)))
+                           .limit(capacity), session, skip_locked=True).all()
         )
         if trigger_ids_query:
             session.query(cls).filter(cls.id.in_([i.id for i in trigger_ids_query])).update(
