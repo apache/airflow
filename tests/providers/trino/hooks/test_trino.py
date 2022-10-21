@@ -153,6 +153,22 @@ class TestTrinoHookConn:
         TrinoHook().get_conn()
         self.assert_connection_called_with(mock_connect, auth=mock_auth)
 
+    @patch(HOOK_GET_CONNECTION)
+    @patch(TRINO_DBAPI_CONNECT)
+    def test_get_conn_session_properties(self, mock_connect, mock_get_connection):
+        extras = {
+            'session_properties': {
+                'scale_writers': 'true',
+                'task_writer_count': '1',
+                'writer_min_size': '100MB',
+            },
+        }
+
+        self.set_get_connection_return_value(mock_get_connection, extra=extras)
+        TrinoHook().get_conn()
+
+        self.assert_connection_called_with(mock_connect, session_properties=extras['session_properties'])
+
     @parameterized.expand(
         [
             ('False', False),
@@ -178,7 +194,9 @@ class TestTrinoHookConn:
         mock_get_connection.return_value = mocked_connection
 
     @staticmethod
-    def assert_connection_called_with(mock_connect, http_headers=mock.ANY, auth=None, verify=True):
+    def assert_connection_called_with(
+        mock_connect, http_headers=mock.ANY, auth=None, verify=True, session_properties=None
+    ):
         mock_connect.assert_called_once_with(
             catalog='hive',
             host='host',
@@ -191,6 +209,7 @@ class TestTrinoHookConn:
             isolation_level=IsolationLevel.AUTOCOMMIT,
             auth=None if not auth else auth.return_value,
             verify=verify,
+            session_properties=session_properties,
         )
 
 
