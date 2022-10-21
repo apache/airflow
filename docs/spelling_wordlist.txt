@@ -1253,6 +1253,7 @@ securityManager
 seealso
 Seedlist
 seedlist
+seekable
 segmentGranularity
 Sendgrid
 sendgrid
