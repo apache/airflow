@@ -264,17 +264,10 @@ function drawDagStats(selector, dagId, states) {
     .text((d) => (d.count > 0 ? d.count : ''));
 }
 
-function dagStatsHandler(error, json) {
+function dagStatsHandler(selector, json) {
   Object.keys(json).forEach((dagId) => {
     const states = json[dagId];
-    drawDagStats(DAG_RUN, dagId, states);
-  });
-}
-
-function taskStatsHandler(error, json) {
-  Object.keys(json).forEach((dagId) => {
-    const states = json[dagId];
-    drawDagStats(TASK_INSTANCE, dagId, states);
+    drawDagStats(selector, dagId, states);
   });
 }
 
@@ -304,10 +297,10 @@ function getDagStats() {
       .post(params, lastDagRunsHandler);
     d3.json(dagStatsUrl)
       .header('X-CSRFToken', csrfToken)
-      .post(params, dagStatsHandler);
+      .post(params, (error, json) => dagStatsHandler(DAG_RUN, json));
     d3.json(taskStatsUrl)
       .header('X-CSRFToken', csrfToken)
-      .post(params, taskStatsHandler);
+      .post(params, (error, json) => dagStatsHandler(TASK_INSTANCE, json));
   } else {
     // no dags, hide the loading dots
     $(`.js-loading-${DAG_RUN}-stats`).remove();
@@ -354,13 +347,6 @@ function refreshDagStats(selector, dagId, states) {
     });
 }
 
-function refreshTaskStateHandler(error, ts) {
-  Object.keys(ts).forEach((dagId) => {
-    const states = ts[dagId];
-    refreshDagStats(TASK_INSTANCE, dagId, states);
-  });
-}
-
 let refreshInterval;
 
 function checkActiveRuns(json) {
@@ -376,11 +362,11 @@ function checkActiveRuns(json) {
   }
 }
 
-function refreshDagRuns(error, json) {
-  checkActiveRuns(json);
+function refreshDagStatsHandler(selector, json) {
+  if (selector === DAG_RUN) checkActiveRuns(json);
   Object.keys(json).forEach((dagId) => {
     const states = json[dagId];
-    refreshDagStats(DAG_RUN, dagId, states);
+    refreshDagStats(selector, dagId, states);
   });
 }
 
@@ -397,10 +383,10 @@ function handleRefresh({ activeDagsOnly = false } = {}) {
       .post(params, lastDagRunsHandler);
     d3.json(dagStatsUrl)
       .header('X-CSRFToken', csrfToken)
-      .post(params, refreshDagRuns);
+      .post(params, (error, json) => refreshDagStatsHandler(DAG_RUN, json));
     d3.json(taskStatsUrl)
       .header('X-CSRFToken', csrfToken)
-      .post(params, refreshTaskStateHandler);
+      .post(params, (error, json) => refreshDagStatsHandler(TASK_INSTANCE, json));
   }
   setTimeout(() => {
     $('#loading-dots').css('display', 'none');
