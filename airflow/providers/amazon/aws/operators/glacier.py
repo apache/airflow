@@ -74,7 +74,7 @@ class GlacierUploadArchiveOperator(BaseOperator):
     :param aws_conn_id: The reference to the AWS connection details
     """
 
-    template_fields: Sequence[str] = ("vault_name", "body")
+    template_fields: Sequence[str] = ("vault_name",)
 
     def __init__(
         self,
