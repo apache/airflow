@@ -730,7 +730,7 @@ class TestWebserverService:
                 [{"name": "webserver-nodeport", "port": "8080"}],
                 [{"name": "webserver-nodeport", "port": 8080}],
             ),
-        ]
+        ],
     )
     def test_nodeport_service(self, ports, expected_ports):
         docs = render_chart(
