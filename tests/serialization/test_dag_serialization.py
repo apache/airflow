@@ -1542,7 +1542,7 @@ class TestStringifiedDAGs:
         Tests serialize_task_group, make sure the list is in order
         """
         from airflow.operators.empty import EmptyOperator
-        from airflow.serialization.serialized_objects import SerializedTaskGroup
+        from airflow.serialization.serialized_objects import TaskGroupSerialization
 
         """
                     start
@@ -1590,7 +1590,7 @@ class TestStringifiedDAGs:
             task_group_down1 >> end
             task_group_down2 >> end
 
-        task_group_middle_dict = SerializedTaskGroup.serialize_task_group(
+        task_group_middle_dict = TaskGroupSerialization.serialize_task_group(
             dag.task_group.children["task_group_middle"]
         )
         upstream_group_ids = task_group_middle_dict["upstream_group_ids"]
@@ -1602,7 +1602,7 @@ class TestStringifiedDAGs:
         downstream_group_ids = task_group_middle_dict["downstream_group_ids"]
         assert downstream_group_ids == ['task_group_down1', 'task_group_down2']
 
-        task_group_down1_dict = SerializedTaskGroup.serialize_task_group(
+        task_group_down1_dict = TaskGroupSerialization.serialize_task_group(
             dag.task_group.children["task_group_down1"]
         )
         downstream_task_ids = task_group_down1_dict["downstream_task_ids"]
@@ -2284,3 +2284,48 @@ def test_taskflow_expand_kwargs_serde(strict):
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
     }
+
+
+def test_mapped_task_group_serde():
+    from airflow.decorators.task_group import task_group
+    from airflow.models.expandinput import DictOfListsExpandInput
+    from airflow.utils.task_group import MappedTaskGroup
+
+    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+
+        @task_group
+        def tg(a: str) -> None:
+            BaseOperator(task_id="op1")
+            BashOperator.partial(task_id="op2").expand(bash_command=["ls", a])
+
+        tg.expand(a=[".", ".."])
+
+    ser_dag = SerializedBaseOperator.serialize(dag)
+    assert ser_dag["_task_group"]["children"]["tg"] == (
+        "taskgroup",
+        {
+            "_group_id": "tg",
+            "children": {
+                "tg.op1": ("operator", "tg.op1"),
+                "tg.op2": ("operator", "tg.op2"),
+            },
+            "downstream_group_ids": [],
+            "downstream_task_ids": [],
+            "expand_input": {
+                "type": "dict-of-lists",
+                "value": {"__type": "dict", "__var": {"a": [".", ".."]}},
+            },
+            "is_mapped": True,
+            "prefix_group_id": True,
+            "tooltip": "",
+            "ui_color": "CornflowerBlue",
+            "ui_fgcolor": "#000",
+            "upstream_group_ids": [],
+            "upstream_task_ids": [],
+        },
+    )
+
+    serde_dag = SerializedDAG.deserialize_dag(ser_dag)
+    serde_tg = serde_dag.task_group.children["tg"]
+    assert isinstance(serde_tg, MappedTaskGroup)
+    assert serde_tg._expand_input == DictOfListsExpandInput({"a": [".", ".."]})
