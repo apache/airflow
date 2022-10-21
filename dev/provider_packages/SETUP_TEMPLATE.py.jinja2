@@ -37,6 +37,7 @@ def do_setup():
         packages=find_namespace_packages(
             include=['airflow.providers.{{ PROVIDER_PACKAGE_ID }}',
                      'airflow.providers.{{ PROVIDER_PACKAGE_ID }}.*']),
+        package_data={'airflow.providers.{{ PROVIDER_PACKAGE_ID }}': ['**/*.jinja2']},
     )
 
 
