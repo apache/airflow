@@ -1683,7 +1683,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
 
     def test_should_update_mapped_task_instance_state(self, session):
         tis = self.create_task_instances(session)
-        session.query()
         ti = tis[0]
         ti.map_index = 1
         rendered_fields = RTIF(ti, render_templates=False)
