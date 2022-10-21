@@ -33,10 +33,11 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: 'MoBagel/deli'
+          ref: 'release'
           ssh-key: "${{ secrets.DEPLOY_KEY_SECRET }}"
           path: deli
 
-      - run: cp deli/dist/deli-0.1.0-py3-none-any.whl docker-context-files
+      - run: cp -rf deli docker-context-files
 
       - name: Build and push Docker image
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
@@ -51,5 +52,5 @@ jobs:
             AIRFLOW_VERSION=2.3.3
             AIRFLOW_EXTRAS=async,celery,cncf.kubernetes,dask,docker,grpc,http,ldap,postgres,redis,statsd,virtualenv
             PYTHON_BASE_IMAGE=python:3.8-slim-buster
-            ADDITIONAL_PYTHON_DEPS=google-ads==18.0.0 scikit-learn==1.0.2 slack-sdk==3.14.1 pyjanitor==0.22.0 awesome-minio>=1.0.3 simplejson==3.17.6 glom==22.1.0 facebook-business==12.0.1 yfinance==0.1.70 pandas-datareader==0.10.0 awesome-object-store>=2.0.3 ShopifyAPI==10.0.0 bingads==13.0.13 networkx>=2.5 google-cloud-bigquery==3.0.1 db-dtypes>=1.0.0 marketing-attribution-models==1.0.10 xgboost==1.6.2 klaviyo_sdk==1.0.6.20220329 /docker-context-files/deli-0.1.0-py3-none-any.whl
+            ADDITIONAL_PYTHON_DEPS=google-ads==18.0.0 scikit-learn==1.0.2 slack-sdk==3.14.1 pyjanitor==0.22.0 awesome-minio>=1.0.3 simplejson==3.17.6 glom==22.1.0 facebook-business==12.0.1 yfinance==0.1.70 pandas-datareader==0.10.0 awesome-object-store>=2.0.3 ShopifyAPI==10.0.0 bingads==13.0.13 networkx>=2.5 google-cloud-bigquery==3.0.1 db-dtypes>=1.0.0 marketing-attribution-models==1.0.10 xgboost==1.6.2 klaviyo_sdk==1.0.6.20220329 /docker-context-files/deli
             DOCKER_CONTEXT_FILES=docker-context-files
