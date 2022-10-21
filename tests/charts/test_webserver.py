@@ -719,7 +719,8 @@ class TestWebserverService:
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "ports, expected_ports",
         [
             (
                 [{"name": "webserver-nodeport", "nodePort": "31000", "port": "8080"}],
