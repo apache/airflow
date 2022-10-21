@@ -16,14 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import jmespath
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class LogsPersistentVolumeClaimTest(unittest.TestCase):
+class TestLogsPersistentVolumeClaim:
     def test_should_not_generate_a_document_if_persistence_is_disabled(self):
         docs = render_chart(
             values={"logs": {"persistence": {"enabled": False}}},
