@@ -142,6 +142,7 @@ class PodManager(LoggingMixin):
         kube_client: client.CoreV1Api = None,
         in_cluster: bool = True,
         cluster_context: str | None = None,
+        istio_enabled: bool = False,
     ):
         """
         Creates the launcher.
@@ -153,6 +154,7 @@ class PodManager(LoggingMixin):
         super().__init__()
         self._client = kube_client or get_kube_client(in_cluster=in_cluster, cluster_context=cluster_context)
         self._watch = watch.Watch()
+        self.istio_enabled = istio_enabled
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
         """Runs POD asynchronously"""
@@ -302,6 +304,10 @@ class PodManager(LoggingMixin):
             remote_pod = self.read_pod(pod)
             if remote_pod.status.phase in PodPhase.terminal_states:
                 break
+            if self.istio_enabled and remote_pod.status.phase == PodPhase.RUNNING and self.container_is_completed(
+                remote_pod, 'base'
+            ):
+                break
             self.log.info('Pod %s has phase %s', pod.metadata.name, remote_pod.status.phase)
             time.sleep(2)
         return remote_pod
@@ -335,6 +341,16 @@ class PodManager(LoggingMixin):
         """Reads pod and checks if container is running"""
         remote_pod = self.read_pod(pod)
         return container_is_running(pod=remote_pod, container_name=container_name)
+
+    def container_is_completed(self, pod: V1Pod, container_name: str) -> bool:
+        """Reads pod and checks if container is completed"""
+        remote_pod = self.read_pod(pod)
+        return container_is_completed(pod=remote_pod, container_name=container_name)
+
+    def container_is_succeeded(self, pod: V1Pod, container_name: str) -> bool:
+        """Reads pod and checks if container is succeeded"""
+        remote_pod = self.read_pod(pod)
+        return container_is_succeeded(pod=remote_pod, container_name=container_name)
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def read_pod_logs(

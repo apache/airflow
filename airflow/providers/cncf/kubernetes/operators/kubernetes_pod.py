@@ -215,6 +215,7 @@ class KubernetesPodOperator(BaseOperator):
         termination_grace_period: int | None = None,
         configmaps: list[str] | None = None,
         resources: dict[str, Any] | None = None,
+        istio_enabled: bool = False,
         **kwargs,
     ) -> None:
 
@@ -287,6 +288,7 @@ class KubernetesPodOperator(BaseOperator):
         self.termination_grace_period = termination_grace_period
         self.pod_request_obj: k8s.V1Pod | None = None
         self.pod: k8s.V1Pod | None = None
+        self.istio_enabled = istio_enabled
 
     def _render_nested_template_fields(
         self,
@@ -342,7 +344,7 @@ class KubernetesPodOperator(BaseOperator):
 
     @cached_property
     def pod_manager(self) -> PodManager:
-        return PodManager(kube_client=self.client)
+        return PodManager(kube_client=self.client, istio_enabled=self.istio_enabled)
 
     def get_hook(self):
         warnings.warn("get_hook is deprecated. Please use hook instead.", DeprecationWarning, stacklevel=2)
@@ -453,7 +455,7 @@ class KubernetesPodOperator(BaseOperator):
         if not self.is_delete_operator_pod:
             with _suppress(Exception):
                 self.patch_already_checked(remote_pod)
-        if pod_phase != PodPhase.SUCCEEDED:
+        if (not self.istio_enabled and pod_phase != PodPhase.SUCCEEDED) or (self.istio_enabled and pod_phase != PodPhase.SUCCEEDED and not self.pod_manager.container_is_succeeded(pod, 'base')):
             if self.log_events_on_failure:
                 with _suppress(Exception):
                     for event in self.pod_manager.read_pod_events(pod).items:
