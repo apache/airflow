@@ -267,12 +267,16 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj(create_context(k))
         assert re.match('this-task-name-[a-z0-9]+', pod.metadata.name) is not None
 
+    @pytest.mark.parametrize('use_template', [True, False])
+    @pytest.mark.parametrize('use_pod_spec', [True, False])
     @patch('pathlib.Path')
     @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
     @patch.dict(
         "os.environ", AIRFLOW_CONN_MY_CONN='{"extra": {"extra__kubernetes__namespace": "extra-namespace"}}'
     )
-    def test_omitted_namespace_with_conn(self, mock_find, mock_path):
+    def test_omitted_namespace_with_conn(
+        self, mock_find, mock_path, pod_template_file, use_template, pod_spec, use_pod_spec
+    ):
         """
         Namespace precedence is as follows:
             - KPO
@@ -286,17 +290,25 @@ class TestKubernetesPodOperator:
         k = KubernetesPodOperator(
             task_id="task",
             kubernetes_conn_id='my_conn',
+            **(dict(pod_template_file=pod_template_file) if use_template else {}),
+            **(dict(full_pod_spec=pod_spec) if use_pod_spec else {}),
         )
         context = create_context(k)
         pod = k.build_pod_request_obj(context)
         mock_path.assert_not_called()
-        assert pod.metadata.namespace == 'extra-namespace'
+        if use_pod_spec:
+            expected_namespace = 'podspecnamespace'
+        elif use_template:
+            expected_namespace = 'templatenamespace'
+        else:
+            expected_namespace = 'extra-namespace'
+        assert pod.metadata.namespace == expected_namespace
         mock_find.return_value = pod
         k.get_or_create_pod(
             pod_request_obj=pod,
             context=context,
         )
-        mock_find.assert_called_once_with('extra-namespace', context=context)
+        mock_find.assert_called_once_with(expected_namespace, context=context)
 
     @patch('pathlib.Path')
     @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
@@ -474,7 +486,7 @@ class TestKubernetesPodOperator:
     @pytest.fixture
     def pod_spec(self):
         return k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(name="hello", labels={"foo": "bar"}, namespace="mynamespace"),
+            metadata=k8s.V1ObjectMeta(name="hello", labels={"foo": "bar"}, namespace="podspecnamespace"),
             spec=k8s.V1PodSpec(
                 containers=[
                     k8s.V1Container(
@@ -562,7 +574,7 @@ class TestKubernetesPodOperator:
             kind: Pod
             metadata:
               name: hello
-              namespace: mynamespace
+              namespace: templatenamespace
               labels:
                 foo: bar
             spec:
@@ -625,7 +637,7 @@ class TestKubernetesPodOperator:
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
             "run_id": "test",
         }
-        assert pod.metadata.namespace == "mynamespace"
+        assert pod.metadata.namespace == "templatenamespace"
         assert pod.spec.containers[0].image == "ubuntu:16.04"
         assert pod.spec.containers[0].image_pull_policy == "Always"
         assert pod.spec.containers[0].command == ["something"]
