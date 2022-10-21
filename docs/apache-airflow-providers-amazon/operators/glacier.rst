@@ -51,7 +51,7 @@ This Operator returns a dictionary of information related to the initiated job s
 Upload archive to an Amazon Glacier
 ===================================
 
-To adds an archive to a Amazon Glacier vault
+To add an archive to an Amazon S3 Glacier vault
 use :class:`~airflow.providers.amazon.aws.transfers.glacier_to_gcs.GlacierUploadArchiveOperator`
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_glacier_to_gcs.py
