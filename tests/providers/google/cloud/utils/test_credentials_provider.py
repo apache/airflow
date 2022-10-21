@@ -53,6 +53,7 @@ ACCOUNT_1_SAME_PROJECT = "account_1@project_id.iam.gserviceaccount.com"
 ACCOUNT_2_SAME_PROJECT = "account_2@project_id.iam.gserviceaccount.com"
 ACCOUNT_3_ANOTHER_PROJECT = "account_3@another_project_id.iam.gserviceaccount.com"
 ANOTHER_PROJECT_ID = "another_project_id"
+CRED_PROVIDER_LOGGER_NAME = "airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider"
 
 
 class TestHelper(unittest.TestCase):
@@ -150,7 +151,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
 
     @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
     def test_get_credentials_and_project_id_with_default_auth(self, mock_auth_default):
-        with self.assertLogs() as cm:
+        with self.assertLogs(logger=CRED_PROVIDER_LOGGER_NAME) as cm:
             result = get_credentials_and_project_id()
         mock_auth_default.assert_called_once_with(scopes=None)
         assert ("CREDENTIALS", "PROJECT_ID") == result
@@ -253,7 +254,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
     )
     def test_get_credentials_and_project_id_with_service_account_file(self, mock_from_service_account_file):
         mock_from_service_account_file.return_value.project_id = self.test_project_id
-        with self.assertLogs(level="DEBUG") as cm:
+        with self.assertLogs(level="DEBUG", logger=CRED_PROVIDER_LOGGER_NAME) as cm:
             result = get_credentials_and_project_id(key_path=self.test_key_file)
         mock_from_service_account_file.assert_called_once_with(self.test_key_file, scopes=None)
         assert (mock_from_service_account_file.return_value, self.test_project_id) == result
@@ -273,7 +274,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
     def test_get_credentials_and_project_id_with_service_account_info(self, mock_from_service_account_info):
         mock_from_service_account_info.return_value.project_id = self.test_project_id
         service_account = {'private_key': "PRIVATE_KEY"}
-        with self.assertLogs(level="DEBUG") as cm:
+        with self.assertLogs(level="DEBUG", logger=CRED_PROVIDER_LOGGER_NAME) as cm:
             result = get_credentials_and_project_id(keyfile_dict=service_account)
         mock_from_service_account_info.assert_called_once_with(service_account, scopes=None)
         assert (mock_from_service_account_info.return_value, self.test_project_id) == result
@@ -347,21 +348,19 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         - Cannot use pytest autouse-fixture `caplog` with `unittest.TestCase`
         - `unittest.TestCase.assertNoLogs` available only in Python 3.10+
         """
-        logger_name = "airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider"
-
         # assert no logs
-        with self.assert_no_logs(name=logger_name, level="DEBUG"):
+        with self.assert_no_logs(name=CRED_PROVIDER_LOGGER_NAME, level="DEBUG"):
             get_credentials_and_project_id(disable_logging=True)
 
         # assert no debug logs emitted from get_credentials_and_project_id
-        with self.assert_no_logs(name=logger_name, level="DEBUG"):
+        with self.assert_no_logs(name=CRED_PROVIDER_LOGGER_NAME, level="DEBUG"):
             get_credentials_and_project_id(
                 keyfile_dict={'private_key': 'PRIVATE_KEY'},
                 disable_logging=True,
             )
 
         # assert no debug logs emitted from get_credentials_and_project_id
-        with self.assert_no_logs(name=logger_name, level="DEBUG"):
+        with self.assert_no_logs(name=CRED_PROVIDER_LOGGER_NAME, level="DEBUG"):
             get_credentials_and_project_id(
                 key_path='KEY.json',
                 disable_logging=True,
