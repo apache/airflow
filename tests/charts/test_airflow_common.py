@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import jmespath
 import pytest
-from parameterized import parameterized
 
 from tests.charts.helm_template_generator import render_chart
 
@@ -32,7 +31,8 @@ class TestAirflowCommon:
     as it requires extra test setup.
     """
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "dag_values, expected_mount",
         [
             (
                 {"gitSync": {"enabled": True}},
@@ -70,7 +70,7 @@ class TestAirflowCommon:
                     "readOnly": False,
                 },
             ),
-        ]
+        ],
     )
     def test_dags_mount(self, dag_values, expected_mount):
         docs = render_chart(
@@ -243,7 +243,6 @@ class TestAirflowCommon:
                     "AIRFLOW__CORE__SQL_ALCHEMY_CONN": False,
                     "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": False,
                     "AIRFLOW__WEBSERVER__SECRET_KEY": False,
-                    "AIRFLOW__CELERY__RESULT_BACKEND": False,
                     "AIRFLOW__ELASTICSEARCH__HOST": False,
                 },
             },
@@ -258,7 +257,6 @@ class TestAirflowCommon:
         expected_vars = [
             'AIRFLOW__CORE__FERNET_KEY',
             'AIRFLOW_CONN_AIRFLOW_DB',
-            'AIRFLOW__CELERY__CELERY_RESULT_BACKEND',
             'AIRFLOW__CELERY__BROKER_URL',
         ]
         expected_vars_in_worker = ['DUMB_INIT_SETSID'] + expected_vars
@@ -286,8 +284,6 @@ class TestAirflowCommon:
             'AIRFLOW__DATABASE__SQL_ALCHEMY_CONN',
             'AIRFLOW_CONN_AIRFLOW_DB',
             'AIRFLOW__WEBSERVER__SECRET_KEY',
-            'AIRFLOW__CELERY__CELERY_RESULT_BACKEND',
-            'AIRFLOW__CELERY__RESULT_BACKEND',
             'AIRFLOW__CELERY__BROKER_URL',
         ]
         expected_vars_in_worker = ['DUMB_INIT_SETSID'] + expected_vars

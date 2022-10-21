@@ -39,6 +39,7 @@ const lastDagRunsUrl = getMetaValue('last_dag_runs_url');
 const dagStatsUrl = getMetaValue('dag_stats_url');
 const taskStatsUrl = getMetaValue('task_stats_url');
 const gridUrl = getMetaValue('grid_url');
+const datasetsUrl = getMetaValue('datasets_url');
 
 const nextDatasets = {};
 let nextDatasetsError;
@@ -545,17 +546,30 @@ $('#auto_refresh').change(() => {
 $('.next-dataset-triggered').on('click', (e) => {
   const dagId = $(e.target).data('dag-id');
   const summary = $(e.target).data('summary');
-  if (dagId) openDatasetModal(dagId, summary, nextDatasets[dagId], nextDatasetsError);
+  const singleDatasetUri = $(e.target).data('uri');
+
+  // If there are multiple datasets, open a modal, otherwise link directly to the dataset
+  if (!singleDatasetUri) {
+    if (dagId) openDatasetModal(dagId, summary, nextDatasets[dagId], nextDatasetsError);
+  } else {
+    window.location.href = `${datasetsUrl}?uri=${encodeURIComponent(singleDatasetUri)}`;
+  }
 });
 
 $('.js-dataset-triggered').each((i, cell) => {
   $(cell).on('mouseover', () => {
     const run = $(cell).children();
     const dagId = $(run).data('dag-id');
+    const singleDatasetUri = $(run).data('uri');
+
     const setNextDatasets = (datasets, error) => {
       nextDatasets[dagId] = datasets;
       nextDatasetsError = error;
     };
-    getDatasetTooltipInfo(dagId, run, setNextDatasets);
+
+    // Only update the tooltip info if there are multiple datasets
+    if (!singleDatasetUri) {
+      getDatasetTooltipInfo(dagId, run, setNextDatasets);
+    }
   });
 });

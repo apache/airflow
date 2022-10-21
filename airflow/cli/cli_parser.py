@@ -547,6 +547,14 @@ ARG_MIGRATION_TIMEOUT = Arg(
     type=int,
     default=60,
 )
+ARG_DB_RESERIALIZE_DAGS = Arg(
+    ("--no-reserialize-dags",),
+    # Not intended for user, so dont show in help
+    help=argparse.SUPPRESS,
+    action="store_false",
+    default=True,
+    dest="reserialize_dags",
+)
 ARG_DB_VERSION__UPGRADE = Arg(
     ("-n", "--to-version"),
     help=(
@@ -577,7 +585,7 @@ ARG_DB_FROM_REVISION = Arg(
 ARG_DB_SQL_ONLY = Arg(
     ("-s", "--show-sql-only"),
     help="Don't actually run migrations; just print out sql scripts for offline migration. "
-    "Required if using either `--from-version` or `--from-version`.",
+    "Required if using either `--from-revision` or `--from-version`.",
     action="store_true",
     default=False,
 )
@@ -847,6 +855,10 @@ ARG_USER_EXPORT = Arg(("export",), metavar="FILEPATH", help="Export all users to
 ARG_CREATE_ROLE = Arg(('-c', '--create'), help='Create a new role', action='store_true')
 ARG_LIST_ROLES = Arg(('-l', '--list'), help='List roles', action='store_true')
 ARG_ROLES = Arg(('role',), help='The name of a role', nargs='*')
+ARG_PERMISSIONS = Arg(('-p', '--permission'), help='Show role permissions', action='store_true')
+ARG_ROLE_RESOURCE = Arg(('-r', '--resource'), help='The name of permissions', nargs='*', required=True)
+ARG_ROLE_ACTION = Arg(('-a', '--action'), help='The action of permissions', nargs='*')
+ARG_ROLE_ACTION_REQUIRED = Arg(('-a', '--action'), help='The action of permissions', nargs='*', required=True)
 ARG_AUTOSCALE = Arg(('-a', '--autoscale'), help="Minimum and Maximum number of worker to autoscale")
 ARG_SKIP_SERVE_LOGS = Arg(
     ("-s", "--skip-serve-logs"),
@@ -885,7 +897,7 @@ ARG_OPTION = Arg(
 # kubernetes cleanup-pods
 ARG_NAMESPACE = Arg(
     ("--namespace",),
-    default=conf.get('kubernetes', 'namespace'),
+    default=conf.get('kubernetes_executor', 'namespace'),
     help="Kubernetes Namespace. Default value is `[kubernetes] namespace` in configuration.",
 )
 
@@ -912,6 +924,13 @@ ARG_JOB_HOSTNAME_FILTER = Arg(
     default=None,
     type=str,
     help="The hostname of job(s) that will be checked.",
+)
+
+ARG_JOB_HOSTNAME_CALLABLE_FILTER = Arg(
+    ("--local",),
+    action='store_true',
+    help="If passed, this command will only show jobs from the local host "
+    "(those with a hostname matching what `hostname_callable` returns).",
 )
 
 ARG_JOB_LIMIT = Arg(
@@ -1434,6 +1453,7 @@ DB_COMMANDS = (
             ARG_DB_SQL_ONLY,
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
+            ARG_DB_RESERIALIZE_DAGS,
         ),
     ),
     ActionCommand(
@@ -1673,7 +1693,7 @@ ROLES_COMMANDS = (
         name='list',
         help='List roles',
         func=lazy_load_command('airflow.cli.commands.role_command.roles_list'),
-        args=(ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_PERMISSIONS, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='create',
@@ -1686,6 +1706,18 @@ ROLES_COMMANDS = (
         help='Delete role',
         func=lazy_load_command('airflow.cli.commands.role_command.roles_delete'),
         args=(ARG_ROLES, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name='add-perms',
+        help='Add roles permissions',
+        func=lazy_load_command('airflow.cli.commands.role_command.roles_add_perms'),
+        args=(ARG_ROLES, ARG_ROLE_RESOURCE, ARG_ROLE_ACTION_REQUIRED, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name='del-perms',
+        help='Delete roles permissions',
+        func=lazy_load_command('airflow.cli.commands.role_command.roles_del_perms'),
+        args=(ARG_ROLES, ARG_ROLE_RESOURCE, ARG_ROLE_ACTION, ARG_VERBOSE),
     ),
     ActionCommand(
         name='export',
@@ -1791,12 +1823,18 @@ JOBS_COMMANDS = (
         name='check',
         help="Checks if job(s) are still alive",
         func=lazy_load_command('airflow.cli.commands.jobs_command.check'),
-        args=(ARG_JOB_TYPE_FILTER, ARG_JOB_HOSTNAME_FILTER, ARG_JOB_LIMIT, ARG_ALLOW_MULTIPLE),
+        args=(
+            ARG_JOB_TYPE_FILTER,
+            ARG_JOB_HOSTNAME_FILTER,
+            ARG_JOB_HOSTNAME_CALLABLE_FILTER,
+            ARG_JOB_LIMIT,
+            ARG_ALLOW_MULTIPLE,
+        ),
         epilog=(
             'examples:\n'
             'To check if the local scheduler is still working properly, run:\n'
             '\n'
-            '    $ airflow jobs check --job-type SchedulerJob --hostname "$(hostname)"\n'
+            '    $ airflow jobs check --job-type SchedulerJob --local"\n'
             '\n'
             'To check if any scheduler is running when you are using high availability, run:\n'
             '\n'
@@ -2019,7 +2057,7 @@ dag_cli_commands: list[CLICommand] = [
         subcommands=[
             _remove_dag_id_opt(sp)
             for sp in DAGS_COMMANDS
-            if sp.name in ['backfill', 'list-runs', 'pause', 'unpause']
+            if sp.name in ['backfill', 'list-runs', 'pause', 'unpause', 'test']
         ],
     ),
     GroupCommand(

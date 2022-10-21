@@ -30,7 +30,7 @@ from airflow.exceptions import AirflowException
 
 try:
     from docker import APIClient
-    from docker.types import DeviceRequest, Mount
+    from docker.types import DeviceRequest, LogConfig, Mount
 
     from airflow.providers.docker.hooks.docker import DockerHook
     from airflow.providers.docker.operators.docker import DockerOperator
@@ -91,6 +91,8 @@ class TestDockerOperator(unittest.TestCase):
             container_name='test_container',
             tty=True,
             device_requests=[DeviceRequest(count=-1, capabilities=[['gpu']])],
+            log_opts_max_file='5',
+            log_opts_max_size='10m',
         )
         operator.execute(None)
 
@@ -125,6 +127,7 @@ class TestDockerOperator(unittest.TestCase):
             extra_hosts=None,
             privileged=False,
             device_requests=[DeviceRequest(count=-1, capabilities=[['gpu']])],
+            log_config=LogConfig(config={'max-size': '10m', 'max-file': '5'}),
         )
         self.tempdir_mock.assert_called_once_with(dir='/host/airflow', prefix='airflowtmp')
         self.client_mock.images.assert_called_once_with(name='ubuntu:latest')
@@ -188,6 +191,7 @@ class TestDockerOperator(unittest.TestCase):
             extra_hosts=None,
             privileged=False,
             device_requests=None,
+            log_config=LogConfig(config={}),
         )
         self.tempdir_mock.assert_not_called()
         self.client_mock.images.assert_called_once_with(name='ubuntu:latest')
@@ -276,6 +280,7 @@ class TestDockerOperator(unittest.TestCase):
                     extra_hosts=None,
                     privileged=False,
                     device_requests=None,
+                    log_config=LogConfig(config={}),
                 ),
                 call(
                     mounts=[
@@ -292,6 +297,7 @@ class TestDockerOperator(unittest.TestCase):
                     extra_hosts=None,
                     privileged=False,
                     device_requests=None,
+                    log_config=LogConfig(config={}),
                 ),
             ]
         )

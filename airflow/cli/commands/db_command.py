@@ -81,7 +81,12 @@ def upgradedb(args):
     else:
         print("Generating sql for upgrade -- upgrade commands will *not* be submitted.")
 
-    db.upgradedb(to_revision=to_revision, from_revision=from_revision, show_sql_only=args.show_sql_only)
+    db.upgradedb(
+        to_revision=to_revision,
+        from_revision=from_revision,
+        show_sql_only=args.show_sql_only,
+        reserialize_dags=args.reserialize_dags,
+    )
     if not args.show_sql_only:
         print("Upgrades done")
 

@@ -149,14 +149,14 @@ def test_trigger_dag_form(admin_client):
         ("36539'%3balert(1)%2f%2f166", "/home"),
         (
             '"><script>alert(99)</script><a href="',
-            "&#34;&gt;&lt;script&gt;alert(99)&lt;/script&gt;&lt;a href=&#34;",
+            "http://localhost/&#34;&gt;&lt;script&gt;alert(99)&lt;/script&gt;&lt;a href=&#34;",
         ),
         (
             "%2Ftree%3Fdag_id%3Dexample_bash_operator';alert(33)//",
             "/home",
         ),
-        ("%2Ftree%3Fdag_id%3Dexample_bash_operator", "/tree?dag_id=example_bash_operator"),
-        ("%2Fgraph%3Fdag_id%3Dexample_bash_operator", "/graph?dag_id=example_bash_operator"),
+        ("%2Ftree%3Fdag_id%3Dexample_bash_operator", "http://localhost/tree?dag_id=example_bash_operator"),
+        ("%2Fgraph%3Fdag_id%3Dexample_bash_operator", "http://localhost/graph?dag_id=example_bash_operator"),
     ],
 )
 def test_trigger_dag_form_origin_url(admin_client, test_origin, expected_origin):

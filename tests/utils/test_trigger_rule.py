@@ -17,14 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import pytest
 
 from airflow.utils.trigger_rule import TriggerRule
 
 
-class TestTriggerRule(unittest.TestCase):
+class TestTriggerRule:
     def test_valid_trigger_rules(self):
         assert TriggerRule.is_valid(TriggerRule.ALL_SUCCESS)
         assert TriggerRule.is_valid(TriggerRule.ALL_FAILED)
@@ -32,13 +30,14 @@ class TestTriggerRule(unittest.TestCase):
         assert TriggerRule.is_valid(TriggerRule.ALL_SKIPPED)
         assert TriggerRule.is_valid(TriggerRule.ONE_SUCCESS)
         assert TriggerRule.is_valid(TriggerRule.ONE_FAILED)
+        assert TriggerRule.is_valid(TriggerRule.ONE_DONE)
         assert TriggerRule.is_valid(TriggerRule.NONE_FAILED)
         assert TriggerRule.is_valid(TriggerRule.NONE_FAILED_OR_SKIPPED)
         assert TriggerRule.is_valid(TriggerRule.NONE_SKIPPED)
         assert TriggerRule.is_valid(TriggerRule.DUMMY)
         assert TriggerRule.is_valid(TriggerRule.ALWAYS)
         assert TriggerRule.is_valid(TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
-        assert len(TriggerRule.all_triggers()) == 12
+        assert len(TriggerRule.all_triggers()) == 13
 
         with pytest.raises(ValueError):
             TriggerRule("NOT_EXIST_TRIGGER_RULE")

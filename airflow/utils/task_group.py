@@ -32,7 +32,6 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
-from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
@@ -40,6 +39,7 @@ from airflow.utils.helpers import validate_group_key
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
+    from airflow.models.expandinput import ExpandInput
     from airflow.utils.edgemodifier import EdgeModifier
 
 
@@ -79,7 +79,7 @@ class TaskGroup(DAGNode):
         prefix_group_id: bool = True,
         parent_group: TaskGroup | None = None,
         dag: DAG | None = None,
-        default_args: dict | None = None,
+        default_args: dict[str, Any] | None = None,
         tooltip: str = "",
         ui_color: str = "CornflowerBlue",
         ui_fgcolor: str = "#000",
@@ -391,9 +391,9 @@ class TaskGroup(DAGNode):
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Required by DAGNode."""
-        from airflow.serialization.serialized_objects import SerializedTaskGroup
+        from airflow.serialization.serialized_objects import TaskGroupSerialization
 
-        return DagAttributeTypes.TASK_GROUP, SerializedTaskGroup.serialize_task_group(self)
+        return DagAttributeTypes.TASK_GROUP, TaskGroupSerialization.serialize_task_group(self)
 
     def topological_sort(self, _include_subdag_tasks: bool = False):
         """
@@ -455,6 +455,21 @@ class TaskGroup(DAGNode):
         return graph_sorted
 
 
+class MappedTaskGroup(TaskGroup):
+    """A mapped task group.
+
+    This doesn't really do anything special, just holds some additional metadata
+    for expansion later.
+
+    Don't instantiate this class directly; call *expand* or *expand_kwargs* on
+    a ``@task_group`` function instead.
+    """
+
+    def __init__(self, *, expand_input: ExpandInput, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self._expand_input = expand_input
+
+
 class TaskGroupContext:
     """TaskGroup context is used to keep the current TaskGroup when TaskGroup is used as ContextManager."""
 
@@ -497,6 +512,8 @@ def task_group_to_dict(task_item_or_group):
     Create a nested dict representation of this TaskGroup and its children used to construct
     the Graph.
     """
+    from airflow.models.abstractoperator import AbstractOperator
+
     if isinstance(task_item_or_group, AbstractOperator):
         return {
             'id': task_item_or_group.task_id,

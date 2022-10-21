@@ -27,7 +27,7 @@ services:
       interval: 5s
       timeout: 30s
       retries: 50
-    restart: always
+    restart: "on-failure"
 
   airflow:
     environment:

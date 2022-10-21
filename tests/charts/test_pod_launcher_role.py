@@ -16,23 +16,22 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class PodLauncherTest(unittest.TestCase):
-    @parameterized.expand(
+class TestPodLauncher:
+    @pytest.mark.parametrize(
+        "executor, rbac, allow, expected_accounts",
         [
             ("CeleryKubernetesExecutor", True, True, ['scheduler', 'worker']),
             ("KubernetesExecutor", True, True, ['scheduler', 'worker']),
             ("CeleryExecutor", True, True, ['worker']),
             ("LocalExecutor", True, True, ['scheduler']),
             ("LocalExecutor", False, False, []),
-        ]
+        ],
     )
     def test_pod_launcher_role(self, executor, rbac, allow, expected_accounts):
         docs = render_chart(

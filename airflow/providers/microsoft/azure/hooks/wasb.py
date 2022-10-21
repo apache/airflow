@@ -220,7 +220,7 @@ class WasbHook(BaseHook):
         container_name: str,
         prefix: str | None = None,
         include: list[str] | None = None,
-        delimiter: str | None = '/',
+        delimiter: str = '/',
         **kwargs,
     ) -> list:
         """
@@ -348,7 +348,7 @@ class WasbHook(BaseHook):
         return blob_client.upload_blob(data, blob_type, length=length, **kwargs)
 
     def download(
-        self, container_name, blob_name, offset: int | None = None, length: int | None = None, **kwargs
+        self, container_name, blob_name, offset: int, length: int, **kwargs
     ) -> StorageStreamDownloader:
         """
         Downloads a blob to the StorageStreamDownloader

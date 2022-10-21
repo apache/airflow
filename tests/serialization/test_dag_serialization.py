@@ -27,6 +27,7 @@ import os
 import pickle
 from datetime import datetime, timedelta
 from glob import glob
+from pathlib import Path
 from unittest import mock
 
 import pendulum
@@ -34,6 +35,7 @@ import pytest
 from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
 
+import airflow
 from airflow.datasets import Dataset
 from airflow.exceptions import SerializationError
 from airflow.hooks.base import BaseHook
@@ -62,6 +64,8 @@ from airflow.utils.task_group import TaskGroup
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import CustomOperator, GoogleLink, MockOperator
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
+
+repo_root = Path(airflow.__file__).parent.parent
 
 
 class CustomDepOperator(BashOperator):
@@ -133,6 +137,7 @@ serialized_simple_dag_ground_truth = {
         "_dag_id": "simple_dag",
         "doc_md": "### DAG Tutorial Documentation",
         "fileloc": None,
+        "_processor_dags_folder": f"{repo_root}/tests/dags",
         "tasks": [
             {
                 "task_id": "bash_task",
@@ -406,7 +411,9 @@ class TestStringifiedDAGs:
         message = (
             "Failed to serialize DAG 'simple_dag': Timetable class "
             "'tests.test_utils.timetables.CustomSerializationTimetable' "
-            "is not registered"
+            "is not registered or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
         )
         assert str(ctx.value) == message
 
@@ -494,13 +501,17 @@ class TestStringifiedDAGs:
             'default_args',
             "_task_group",
             'params',
+            '_processor_dags_folder',
         }
         fields_to_check = dag.get_serialized_fields() - exclusion_list
         for field in fields_to_check:
             assert getattr(serialized_dag, field) == getattr(
                 dag, field
             ), f'{dag.dag_id}.{field} does not match'
-
+        # _processor_dags_folder is only populated at serialization time
+        # it's only used when relying on serialized dag to determine a dag's relative path
+        assert dag._processor_dags_folder is None
+        assert serialized_dag._processor_dags_folder == str(repo_root / 'tests/dags')
         if dag.default_args:
             for k, v in dag.default_args.items():
                 if callable(v):
@@ -712,7 +723,9 @@ class TestStringifiedDAGs:
         message = (
             "Timetable class "
             "'tests.test_utils.timetables.CustomSerializationTimetable' "
-            "is not registered"
+            "is not registered or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
         )
         assert str(ctx.value) == message
 
@@ -1529,7 +1542,7 @@ class TestStringifiedDAGs:
         Tests serialize_task_group, make sure the list is in order
         """
         from airflow.operators.empty import EmptyOperator
-        from airflow.serialization.serialized_objects import SerializedTaskGroup
+        from airflow.serialization.serialized_objects import TaskGroupSerialization
 
         """
                     start
@@ -1577,7 +1590,7 @@ class TestStringifiedDAGs:
             task_group_down1 >> end
             task_group_down2 >> end
 
-        task_group_middle_dict = SerializedTaskGroup.serialize_task_group(
+        task_group_middle_dict = TaskGroupSerialization.serialize_task_group(
             dag.task_group.children["task_group_middle"]
         )
         upstream_group_ids = task_group_middle_dict["upstream_group_ids"]
@@ -1589,7 +1602,7 @@ class TestStringifiedDAGs:
         downstream_group_ids = task_group_middle_dict["downstream_group_ids"]
         assert downstream_group_ids == ['task_group_down1', 'task_group_down2']
 
-        task_group_down1_dict = SerializedTaskGroup.serialize_task_group(
+        task_group_down1_dict = TaskGroupSerialization.serialize_task_group(
             dag.task_group.children["task_group_down1"]
         )
         downstream_task_ids = task_group_down1_dict["downstream_task_ids"]
@@ -2151,8 +2164,8 @@ def test_taskflow_expand_serde():
         'ui_fgcolor': '#000',
         'task_id': 'x',
         'template_ext': [],
-        'template_fields': ['op_args', 'op_kwargs'],
-        'template_fields_renderers': {"op_args": "py", "op_kwargs": "py"},
+        'template_fields': ['templates_dict', 'op_args', 'op_kwargs'],
+        'template_fields_renderers': {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"},
         "_disallow_kwargs_override": False,
         '_expand_input_attr': 'op_kwargs_expand_input',
     }
@@ -2234,8 +2247,8 @@ def test_taskflow_expand_kwargs_serde(strict):
         'ui_fgcolor': '#000',
         'task_id': 'x',
         'template_ext': [],
-        'template_fields': ['op_args', 'op_kwargs'],
-        'template_fields_renderers': {"op_args": "py", "op_kwargs": "py"},
+        'template_fields': ['templates_dict', 'op_args', 'op_kwargs'],
+        'template_fields_renderers': {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"},
         "_disallow_kwargs_override": strict,
         '_expand_input_attr': 'op_kwargs_expand_input',
     }
@@ -2271,3 +2284,48 @@ def test_taskflow_expand_kwargs_serde(strict):
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
     }
+
+
+def test_mapped_task_group_serde():
+    from airflow.decorators.task_group import task_group
+    from airflow.models.expandinput import DictOfListsExpandInput
+    from airflow.utils.task_group import MappedTaskGroup
+
+    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+
+        @task_group
+        def tg(a: str) -> None:
+            BaseOperator(task_id="op1")
+            BashOperator.partial(task_id="op2").expand(bash_command=["ls", a])
+
+        tg.expand(a=[".", ".."])
+
+    ser_dag = SerializedBaseOperator.serialize(dag)
+    assert ser_dag["_task_group"]["children"]["tg"] == (
+        "taskgroup",
+        {
+            "_group_id": "tg",
+            "children": {
+                "tg.op1": ("operator", "tg.op1"),
+                "tg.op2": ("operator", "tg.op2"),
+            },
+            "downstream_group_ids": [],
+            "downstream_task_ids": [],
+            "expand_input": {
+                "type": "dict-of-lists",
+                "value": {"__type": "dict", "__var": {"a": [".", ".."]}},
+            },
+            "is_mapped": True,
+            "prefix_group_id": True,
+            "tooltip": "",
+            "ui_color": "CornflowerBlue",
+            "ui_fgcolor": "#000",
+            "upstream_group_ids": [],
+            "upstream_task_ids": [],
+        },
+    )
+
+    serde_dag = SerializedDAG.deserialize_dag(ser_dag)
+    serde_tg = serde_dag.task_group.children["tg"]
+    assert isinstance(serde_tg, MappedTaskGroup)
+    assert serde_tg._expand_input == DictOfListsExpandInput({"a": [".", ".."]})

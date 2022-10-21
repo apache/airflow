@@ -49,7 +49,7 @@ PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
-version = '2.4.0b1'
+version = '2.5.0.dev0'
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parent.resolve()
 PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
@@ -266,11 +266,11 @@ doc = [
     'importlib-metadata>=4.4; python_version < "3.8"',
     'sphinx-airflow-theme',
     'sphinx-argparse>=0.1.13',
-    'sphinx-autoapi>=1.8.0',
+    'sphinx-autoapi>=2.0.0',
     'sphinx-copybutton',
     'sphinx-jinja>=2.0',
     'sphinx-rtd-theme>=0.1.6',
-    'sphinx>=4.4.0',
+    'sphinx>=5.2.0',
     'sphinxcontrib-httpdomain>=1.7.0',
     'sphinxcontrib-redoc>=1.6.0',
     'sphinxcontrib-spelling>=7.3',
@@ -372,6 +372,7 @@ devel_only = [
     'freezegun',
     'gitpython',
     'ipdb',
+    'isort',
     'jira',
     'jsondiff',
     'mongomock',

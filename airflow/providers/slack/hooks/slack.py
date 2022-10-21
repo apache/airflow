@@ -49,7 +49,7 @@ class SlackHook(BaseHook):
 
     .. warning::
         This hook intend to use `Slack API` connection
-        and might not work correctly with `Slack Webhook` and `HTTP` connections.
+        and might not work correctly with `Slack Incoming Webhook` and `HTTP` connections.
 
     Takes both Slack API token directly and connection that has Slack API token. If both are
     supplied, Slack API token will be used. Also exposes the rest of slack.WebClient args.
@@ -74,8 +74,8 @@ class SlackHook(BaseHook):
         and receive a response from Slack. If not set than default WebClient value will use.
     :param base_url: A string representing the Slack API base URL.
         If not set than default WebClient BASE_URL will use (``https://www.slack.com/api/``).
-    :param proxy: Proxy to make the Slack Incoming Webhook call.
-    :param retry_handlers: List of handlers to customize retry logic in WebClient.
+    :param proxy: Proxy to make the Slack API call.
+    :param retry_handlers: List of handlers to customize retry logic in ``slack_sdk.WebClient``.
     :param token: (deprecated) Slack API Token.
     """
 
@@ -135,7 +135,7 @@ class SlackHook(BaseHook):
     def _get_conn_params(self) -> dict[str, Any]:
         """Fetch connection params as a dict and merge it with hook parameters."""
         conn = self.get_connection(self.slack_conn_id) if self.slack_conn_id else None
-        conn_params: dict[str, Any] = {}
+        conn_params: dict[str, Any] = {"retry_handlers": self.retry_handlers}
 
         if self._token:
             conn_params["token"] = self._token
@@ -158,9 +158,6 @@ class SlackHook(BaseHook):
                 "timeout": self.timeout or extra_config.getint("timeout", default=None),
                 "base_url": self.base_url or extra_config.get("base_url", default=None),
                 "proxy": self.proxy or extra_config.get("proxy", default=None),
-                "retry_handlers": (
-                    self.retry_handlers or extra_config.getimports("retry_handlers", default=None)
-                ),
             }
         )
 
@@ -296,11 +293,13 @@ class SlackHook(BaseHook):
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import IntegerField, StringField
+        from wtforms.validators import NumberRange, Optional
 
         return {
             prefixed_extra_field("timeout", cls.conn_type): IntegerField(
                 lazy_gettext("Timeout"),
                 widget=BS3TextFieldWidget(),
+                validators=[Optional(strip_whitespace=True), NumberRange(min=1)],
                 description="Optional. The maximum number of seconds the client will wait to connect "
                 "and receive a response from Slack API.",
             ),
@@ -313,12 +312,6 @@ class SlackHook(BaseHook):
                 lazy_gettext('Proxy'),
                 widget=BS3TextFieldWidget(),
                 description="Optional. Proxy to make the Slack API call.",
-            ),
-            prefixed_extra_field("retry_handlers", cls.conn_type): StringField(
-                lazy_gettext('Retry Handlers'),
-                widget=BS3TextFieldWidget(),
-                description="Optional. Comma separated list of import paths to zero-argument callable "
-                "which returns retry handler for Slack WebClient.",
             ),
         }
 
@@ -335,9 +328,5 @@ class SlackHook(BaseHook):
                 prefixed_extra_field("timeout", cls.conn_type): "30",
                 prefixed_extra_field("base_url", cls.conn_type): "https://www.slack.com/api/",
                 prefixed_extra_field("proxy", cls.conn_type): "http://localhost:9000",
-                prefixed_extra_field("retry_handlers", cls.conn_type): (
-                    "slack_sdk.http_retry.builtin_handlers.ConnectionErrorRetryHandler,"
-                    "slack_sdk.http_retry.builtin_handlers.RateLimitErrorRetryHandler"
-                ),
             },
         }

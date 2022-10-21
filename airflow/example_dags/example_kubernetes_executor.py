@@ -32,8 +32,8 @@ from airflow.example_dags.libs.helper import print_stuff
 
 log = logging.getLogger(__name__)
 
-worker_container_repository = conf.get('kubernetes', 'worker_container_repository')
-worker_container_tag = conf.get('kubernetes', 'worker_container_tag')
+worker_container_repository = conf.get('kubernetes_executor', 'worker_container_repository')
+worker_container_tag = conf.get('kubernetes_executor', 'worker_container_tag')
 
 try:
     from kubernetes.client import models as k8s

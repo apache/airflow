@@ -114,9 +114,6 @@ class S3Hook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    conn_type = 's3'
-    hook_name = 'Amazon S3'
-
     def __init__(
         self,
         aws_conn_id: str | None = AwsBaseHook.default_conn_name,
@@ -147,19 +144,32 @@ class S3Hook(AwsBaseHook):
     def parse_s3_url(s3url: str) -> tuple[str, str]:
         """
         Parses the S3 Url into a bucket name and key.
+            See https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-bucket-intro.html
+            for valid url formats
 
         :param s3url: The S3 Url to parse.
         :return: the parsed bucket name and key
         :rtype: tuple of str
         """
-        parsed_url = urlparse(s3url)
+        format = s3url.split('//')
+        if format[0].lower() == 's3:':
+            parsed_url = urlparse(s3url)
+            if not parsed_url.netloc:
+                raise AirflowException(f'Please provide a bucket name using a valid format: "{s3url}"')
 
-        if not parsed_url.netloc:
-            raise AirflowException(f'Please provide a bucket_name instead of "{s3url}"')
-
-        bucket_name = parsed_url.netloc
-        key = parsed_url.path.lstrip('/')
-
+            bucket_name = parsed_url.netloc
+            key = parsed_url.path.lstrip('/')
+        elif format[0] == 'https:':
+            temp_split = format[1].split('.')
+            if temp_split[0] == 's3':
+                split_url = format[1].split('/')
+                bucket_name = split_url[1]
+                key = '/'.join(split_url[2:])
+            elif temp_split[1] == 's3':
+                bucket_name = temp_split[0]
+                key = '/'.join(format[1].split('/')[1:])
+        else:
+            raise AirflowException(f'Please provide a bucket name using a valid format: "{s3url}"')
         return bucket_name, key
 
     @staticmethod
@@ -529,7 +539,7 @@ class S3Hook(AwsBaseHook):
 
         .. seealso::
             For more details about S3 Select parameters:
-            http://boto3.readthedocs.io/en/latest/reference/services/s3.html#S3.Client.select_object_content
+            https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.select_object_content
         """
         expression = expression or 'SELECT * FROM S3Object'
         expression_type = expression_type or 'SQL'

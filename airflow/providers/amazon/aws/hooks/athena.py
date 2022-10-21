@@ -207,8 +207,8 @@ class AthenaHook(AwsBaseHook):
         """
         if max_tries:
             warnings.warn(
-                f"Method `{self.__class__.__name__}.max_tries` is deprecated and will be removed "
-                "in a future release.  Please use method `max_polling_attempts` instead.",
+                f"Passing 'max_tries' to {self.__class__.__name__}.poll_query_status is deprecated "
+                f"and will be removed in a future release. Please use 'max_polling_attempts' instead.",
                 DeprecationWarning,
                 stacklevel=2,
             )

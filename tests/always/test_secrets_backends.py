@@ -18,10 +18,9 @@
 from __future__ import annotations
 
 import os
-import unittest
 from unittest import mock
 
-from parameterized import parameterized
+import pytest
 
 from airflow.models.connection import Connection
 from airflow.models.variable import Variable
@@ -41,21 +40,23 @@ class SampleConn:
         self.conn = Connection(conn_id=self.conn_id, uri=self.conn_uri)
 
 
-class TestBaseSecretsBackend(unittest.TestCase):
-    def setUp(self) -> None:
+class TestBaseSecretsBackend:
+    def setup_method(self) -> None:
         clear_db_variables()
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         clear_db_connections()
         clear_db_variables()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "kwargs, output",
         [
-            ('default', {"path_prefix": "PREFIX", "secret_id": "ID"}, "PREFIX/ID"),
-            ('with_sep', {"path_prefix": "PREFIX", "secret_id": "ID", "sep": "-"}, "PREFIX-ID"),
-        ]
+            ({"path_prefix": "PREFIX", "secret_id": "ID"}, "PREFIX/ID"),
+            ({"path_prefix": "PREFIX", "secret_id": "ID", "sep": "-"}, "PREFIX-ID"),
+        ],
+        ids=["default", "with_sep"],
     )
-    def test_build_path(self, _, kwargs, output):
+    def test_build_path(self, kwargs, output):
         build_path = BaseSecretsBackend.build_path
         assert build_path(**kwargs) == output
 

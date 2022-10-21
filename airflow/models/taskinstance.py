@@ -97,7 +97,7 @@ from airflow.exceptions import (
 )
 from airflow.models.base import Base, StringID
 from airflow.models.log import Log
-from airflow.models.param import ParamsDict
+from airflow.models.param import process_params
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
@@ -452,6 +452,7 @@ class TaskInstance(Base, LoggingMixin):
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
     executor_config = Column(ExecutorConfigType(pickler=dill))
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
 
     external_executor_id = Column(StringID())
 
@@ -1521,7 +1522,7 @@ class TaskInstance(Base, LoggingMixin):
 
         if not test_mode:
             session.add(Log(self.state, self))
-            session.merge(self)
+            session.merge(self).task = self.task
             if self.state == TaskInstanceState.SUCCESS:
                 self._register_dataset_changes(session=session)
             session.commit()
@@ -1946,15 +1947,7 @@ class TaskInstance(Base, LoggingMixin):
         dag_run = self.get_dagrun(session)
         data_interval = dag.get_run_data_interval(dag_run)
 
-        # Validates Params and convert them into a simple dict.
-        params = ParamsDict(suppress_exception=ignore_param_exceptions)
-        with contextlib.suppress(AttributeError):
-            params.update(dag.params)
-        if task.params:
-            params.update(task.params)
-        if conf.getboolean('core', 'dag_run_conf_overrides_params'):
-            self.overwrite_params_with_dag_run_conf(params=params, dag_run=dag_run)
-        validated_params = params.validate()
+        validated_params = process_params(dag, task, dag_run, suppress_exception=ignore_param_exceptions)
 
         logical_date = timezone.coerce_datetime(self.execution_date)
         ds = logical_date.strftime('%Y-%m-%d')
@@ -2184,10 +2177,14 @@ class TaskInstance(Base, LoggingMixin):
         """
         if not context:
             context = self.get_template_context()
-        rendered_task = self.task.render_template_fields(context)
-        if rendered_task is None:  # Compatibility -- custom renderer, assume unmapped.
-            return self.task
-        original_task, self.task = self.task, rendered_task
+        original_task = self.task
+
+        # If self.task is mapped, this call replaces self.task to point to the
+        # unmapped BaseOperator created by this function! This is because the
+        # MappedOperator is useless for template rendering, and we need to be
+        # able to access the unmapped task instead.
+        original_task.render_template_fields(context)
+
         return original_task
 
     def render_k8s_pod_yaml(self) -> dict | None:

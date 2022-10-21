@@ -56,6 +56,7 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.console import get_console
 
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
+DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
 
 
 class FileGroupForCi(Enum):
@@ -105,13 +106,14 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/api",
         ],
         FileGroupForCi.API_CODEGEN_FILES: [
-            "^airflow/api_connexion/openapi/v1.yaml",
-            "^clients/gen",
+            r"^airflow/api_connexion/openapi/v1\.yaml",
+            r"^clients/gen",
         ],
         FileGroupForCi.HELM_FILES: [
-            "^chart",
-            "^airflow/kubernetes",
-            "^tests/kubernetes",
+            r"^chart",
+            r"^airflow/kubernetes",
+            r"^tests/kubernetes",
+            r"^tests/charts",
         ],
         FileGroupForCi.SETUP_FILES: [
             r"^pyproject.toml",
@@ -216,8 +218,12 @@ def add_dependent_providers(
     providers: set[str], provider_to_check: str, dependencies: dict[str, dict[str, list[str]]]
 ):
     for provider, provider_info in dependencies.items():
+        # Providers that use this provider
         if provider_to_check in provider_info['cross-providers-deps']:
             providers.add(provider)
+        # and providers we use directly
+        for dep_name in dependencies[provider_to_check]["cross-providers-deps"]:
+            providers.add(dep_name)
 
 
 def find_all_providers_affected(changed_files: tuple[str, ...]) -> set[str]:
@@ -574,3 +580,7 @@ class SelectiveChecks:
     @cached_property
     def cache_directive(self) -> str:
         return "disabled" if self._github_event == GithubEvents.SCHEDULE else "registry"
+
+    @cached_property
+    def debug_resources(self) -> bool:
+        return DEBUG_CI_RESOURCES_LABEL in self._pr_labels

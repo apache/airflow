@@ -1905,3 +1905,70 @@ def test_mapped_skip_upstream_not_deadlock(dag_maker):
     dr.update_state(session=session)
     assert dr.state == DagRunState.SUCCESS
     assert tis['add_one__1'].state == TaskInstanceState.SKIPPED
+
+
+def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session, dag_maker):
+    from airflow.decorators import task
+
+    @task
+    def do_something(i):
+        return 1
+
+    @task
+    def do_something_else(i):
+        return 1
+
+    with dag_maker():
+        nums = do_something.expand(i=[i + 1 for i in range(5)])
+        do_something_else.expand(i=nums)
+
+    dr = dag_maker.create_dagrun()
+
+    ti = dr.get_task_instance('do_something_else', session=session)
+    ti.map_index = 0
+    task = ti.task
+    for map_index in range(1, 5):
+        ti = TI(task, run_id=dr.run_id, map_index=map_index)
+        ti.dag_run = dr
+        session.add(ti)
+    session.flush()
+    tis = dr.get_task_instances()
+    for ti in tis:
+        if ti.task_id == 'do_something':
+            if ti.map_index > 2:
+                ti.state = TaskInstanceState.REMOVED
+            else:
+                ti.state = TaskInstanceState.SUCCESS
+            session.merge(ti)
+    session.commit()
+    # The Upstream is done with 2 removed tis and 3 success tis
+    (tis, _) = dr.update_state()
+    assert len(tis)
+    assert dr.state != DagRunState.FAILED
+
+
+@pytest.mark.parametrize(
+    "partial_params, mapped_params, expected",
+    [
+        pytest.param(None, [{"a": 1}], [[("a", 1)]], id="simple"),
+        pytest.param({"b": 2}, [{"a": 1}], [[("a", 1), ("b", 2)]], id="merge"),
+        pytest.param({"b": 2}, [{"a": 1, "b": 3}], [[("a", 1), ("b", 3)]], id="override"),
+    ],
+)
+def test_mapped_expand_against_params(dag_maker, partial_params, mapped_params, expected):
+    results = []
+
+    class PullOperator(BaseOperator):
+        def execute(self, context):
+            results.append(sorted(context["params"].items()))
+
+    with dag_maker():
+        PullOperator.partial(task_id="t", params=partial_params).expand(params=mapped_params)
+
+    dr: DagRun = dag_maker.create_dagrun()
+    decision = dr.task_instance_scheduling_decisions()
+
+    for ti in decision.schedulable_tis:
+        ti.run()
+
+    assert sorted(results) == expected

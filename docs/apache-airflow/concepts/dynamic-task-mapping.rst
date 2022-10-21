@@ -305,7 +305,7 @@ Since it is common to want to transform the output data format for task mapping,
 
     from airflow.exceptions import AirflowSkipException
 
-    filenames = S3ListOperator(...)  # Unchanged.
+    list_filenames = S3ListOperator(...)  # Unchanged.
 
 
     def create_copy_kwargs(filename):
