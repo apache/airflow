@@ -342,8 +342,8 @@
               {% endif %}
             </td>
             <td style="padding:0; width:323px; height:10px;">
-              {{ loading_dots(classes='js-loading-task-run-stats text-muted') }}
-              <svg height="10" width="10" id='task-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
+              {{ loading_dots(classes='js-loading-task-instance-stats text-muted') }}
+              <svg height="10" width="10" id='task-instance-{{ dag.safe_dag_id }}' style="display: block;"></svg>
             </td>
             <td class="text-center">
               <div class="btn-group">

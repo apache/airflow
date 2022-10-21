@@ -44,6 +44,9 @@ const datasetsUrl = getMetaValue('datasets_url');
 const nextDatasets = {};
 let nextDatasetsError;
 
+const DAG_RUN = 'dag-run';
+const TASK_INSTANCE = 'task-instance';
+
 // auto refresh interval in milliseconds
 // (x2 the interval in tree/graph view since this page can take longer to refresh )
 const refreshIntervalMs = 2000;
@@ -189,7 +192,7 @@ d3.selectAll('.js-last-run-tooltip')
     d3.select(this).attr('data-original-title', tiTooltip(lastRunData));
   });
 
-function drawDagAndTaskStatsForDag(selector, dagId, states) {
+function drawDagStats(selector, dagId, states) {
   const g = d3.select(`svg#${selector}-${dagId.replace(/\./g, '__dot__')}`)
     .attr('height', diameter + (strokeWidthHover * 2))
     .attr('width', (states.length * (diameter + circleMargin)) + circleMargin)
@@ -210,8 +213,8 @@ function drawDagAndTaskStatsForDag(selector, dagId, states) {
       /* eslint no-unused-expressions: ["error", { "allowTernary": true }] */
       d.state ? params.append('_flt_3_state', d.state) : params.append('_flt_8_state', '');
       switch (selector) {
-        case 'dag-run': return `${dagRunUrl}?${params.toString()}`;
-        case 'task-run': return `${taskInstanceUrl}?${params.toString()}`;
+        case DAG_RUN: return `${dagRunUrl}?${params.toString()}`;
+        case TASK_INSTANCE: return `${taskInstanceUrl}?${params.toString()}`;
         default: return '';
       }
     })
@@ -264,14 +267,14 @@ function drawDagAndTaskStatsForDag(selector, dagId, states) {
 function dagStatsHandler(error, json) {
   Object.keys(json).forEach((dagId) => {
     const states = json[dagId];
-    drawDagAndTaskStatsForDag('dag-run', dagId, states);
+    drawDagStats(DAG_RUN, dagId, states);
   });
 }
 
 function taskStatsHandler(error, json) {
   Object.keys(json).forEach((dagId) => {
     const states = json[dagId];
-    drawDagAndTaskStatsForDag('task-run', dagId, states);
+    drawDagStats(TASK_INSTANCE, dagId, states);
   });
 }
 
@@ -307,8 +310,8 @@ function getDagStats() {
       .post(params, taskStatsHandler);
   } else {
     // no dags, hide the loading dots
-    $('.js-loading-task-run-stats').remove();
-    $('.js-loading-dag-run-stats').remove();
+    $(`.js-loading-${DAG_RUN}-stats`).remove();
+    $(`.js-loading-${TASK_INSTANCE}-stats`).remove();
   }
 }
 
@@ -327,7 +330,7 @@ function hideSvgTooltip() {
   $('#svg-tooltip').css('display', 'none');
 }
 
-function refreshDagRunsAndTasks(selector, dagId, states) {
+function refreshDagStats(selector, dagId, states) {
   d3.select(`svg#${selector}-${dagId.replace(/\./g, '__dot__')}`)
     .selectAll('circle')
     .data(states)
@@ -354,7 +357,7 @@ function refreshDagRunsAndTasks(selector, dagId, states) {
 function refreshTaskStateHandler(error, ts) {
   Object.keys(ts).forEach((dagId) => {
     const states = ts[dagId];
-    refreshDagRunsAndTasks('task-run', dagId, states);
+    refreshDagStats(TASK_INSTANCE, dagId, states);
   });
 }
 
@@ -377,7 +380,7 @@ function refreshDagRuns(error, json) {
   checkActiveRuns(json);
   Object.keys(json).forEach((dagId) => {
     const states = json[dagId];
-    refreshDagRunsAndTasks('dag-run', dagId, states);
+    refreshDagStats(DAG_RUN, dagId, states);
   });
 }
 
