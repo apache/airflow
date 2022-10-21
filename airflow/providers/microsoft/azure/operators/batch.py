@@ -304,7 +304,8 @@ class AzureBatchOperator(BaseOperator):
         # Add task to job
         self.hook.add_single_task_to_job(job_id=self.batch_job_id, task=task)
         # Wait for tasks to complete
-        fail_tasks = self.hook.wait_for_job_tasks_to_complete(job_id=self.batch_job_id, timeout=self.timeout)
+        failed_tasks = self.hook.wait_for_job_tasks_to_complete(job_id=self.batch_job_id,
+                                                                timeout=self.timeout)
         # Clean up
         if self.should_delete_job:
             # delete job first
@@ -312,8 +313,8 @@ class AzureBatchOperator(BaseOperator):
         if self.should_delete_pool:
             self.clean_up(self.batch_pool_id)
         # raise exception if any task fail
-        if fail_tasks:
-            raise AirflowException(f"Job fail. The failed task are: {fail_tasks}")
+        if any(failed_task.id == task.id for failed_task in failed_tasks):
+            raise AirflowException(f"Task {task.id} has failed.")
 
     def on_kill(self) -> None:
         response = self.hook.connection.job.terminate(

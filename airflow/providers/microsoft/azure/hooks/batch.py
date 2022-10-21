@@ -373,12 +373,13 @@ class AzureBatchHook(BaseHook):
             incomplete_tasks = [task for task in tasks if task.state != batch_models.TaskState.completed]
             if not incomplete_tasks:
                 # detect if any task in job has failed
-                fail_tasks = [
+                failed_tasks = [
                     task
                     for task in tasks
-                    if task.executionInfo.result == batch_models.TaskExecutionResult.failure
+                    if (task.execution_info.result == batch_models.TaskExecutionResult.failure) or (
+                        task.execution_info.exit_code != 0)
                 ]
-                return fail_tasks
+                return failed_tasks
             for task in incomplete_tasks:
                 self.log.info("Waiting for %s to complete, currently on %s state", task.id, task.state)
             time.sleep(15)
