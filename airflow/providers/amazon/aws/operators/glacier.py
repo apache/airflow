@@ -58,25 +58,23 @@ class GlacierCreateJobOperator(BaseOperator):
 
 class GlacierUploadArchiveOperator(BaseOperator):
     """
-    This operation adds an archive to a vault
+    This operator add an archive to an Amazon S3 Glacier vault
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:GlacierUploadArchiveOperator`
 
-    :param account_id: The AWS account ID of the account that owns the vault.
-        You can either specify an AWS account ID or optionally a single `-` (hyphen),
-        in which case Amazon S3 Glacier uses the AWS account ID associated with
-        the credentials used to sign the request
     :param vault_name: The name of the vault
     :param body: A bytes or seekable file-like object. The data to upload.
-    :param archive_description: The description of the archive you are uploading
     :param checksum: The SHA256 tree hash of the data being uploaded.
         This parameter is automatically populated if it is not provided
+    :param archive_description: The description of the archive you are uploading
+    :param account_id: (Optional) AWS account ID of the account that owns the vault.
+        Defaults to the credentials used to sign the request
     :param aws_conn_id: The reference to the AWS connection details
     """
 
-    template_fields: Sequence[str] = ("vault_name",)
+    template_fields: Sequence[str] = ("vault_name", "body")
 
     def __init__(
         self,
@@ -85,7 +83,7 @@ class GlacierUploadArchiveOperator(BaseOperator):
         body: object,
         checksum: str | None = None,
         archive_description: str | None = None,
-        account_id: str = "-",
+        account_id: str | None = None,
         aws_conn_id="aws_default",
         **kwargs,
     ):
