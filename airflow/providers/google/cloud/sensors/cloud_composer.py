@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains a Dataprep Job sensor."""
+"""This module contains a Cloud Composer sensor."""
 
 from __future__ import annotations
 

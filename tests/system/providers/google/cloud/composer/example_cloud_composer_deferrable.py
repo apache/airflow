@@ -36,7 +36,7 @@ DAG_ID = "example_composer_deferrable"
 
 REGION = "us-central1"
 
-ENVIRONMENT_ID = f"test-{ENV_ID}"
+ENVIRONMENT_ID = f"test-{DAG_ID}-{ENV_ID}"
 # [START howto_operator_composer_simple_environment]
 ENVIRONMENT = {
     "config": {

@@ -40,7 +40,7 @@ REGION = "us-central1"
 
 # [START howto_operator_composer_simple_environment]
 
-ENVIRONMENT_ID = f"test-{ENV_ID}"
+ENVIRONMENT_ID = f"test-{DAG_ID}-{ENV_ID}"
 
 ENVIRONMENT = {
     "config": {
