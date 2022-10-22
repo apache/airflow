@@ -17,15 +17,14 @@
 from __future__ import annotations
 
 import itertools
-import unittest
 
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class IngressFlowerTest(unittest.TestCase):
+class TestIngressFlower:
     def test_should_pass_validation_with_just_ingress_enabled_v1(self):
         render_chart(
             values={"flower": {"enabled": True}, "ingress": {"flower": {"enabled": True}}},
@@ -137,7 +136,8 @@ class IngressFlowerTest(unittest.TestCase):
         )
         assert not jmespath.search("spec.rules[*].host", docs[0])
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "global_value, flower_value, expected",
         [
             (None, None, False),
             (None, False, False),
@@ -146,7 +146,7 @@ class IngressFlowerTest(unittest.TestCase):
             (True, None, True),
             (False, True, True),  # We will deploy it if _either_ are true
             (True, False, True),
-        ]
+        ],
     )
     def test_ingress_created(self, global_value, flower_value, expected):
         values = {"flower": {"enabled": True}, "ingress": {}}

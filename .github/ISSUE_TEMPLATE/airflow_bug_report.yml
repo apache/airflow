@@ -27,7 +27,7 @@ body:
       options:
         - "2.4.1"
         - "main (development)"
-        - "Other Airflow 2 version"
+        - "Other Airflow 2 version (please specify below)"
     validations:
       required: true
   - type: textarea

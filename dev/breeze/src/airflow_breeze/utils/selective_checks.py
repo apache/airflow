@@ -106,13 +106,14 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/api",
         ],
         FileGroupForCi.API_CODEGEN_FILES: [
-            "^airflow/api_connexion/openapi/v1.yaml",
-            "^clients/gen",
+            r"^airflow/api_connexion/openapi/v1\.yaml",
+            r"^clients/gen",
         ],
         FileGroupForCi.HELM_FILES: [
-            "^chart",
-            "^airflow/kubernetes",
-            "^tests/kubernetes",
+            r"^chart",
+            r"^airflow/kubernetes",
+            r"^tests/kubernetes",
+            r"^tests/charts",
         ],
         FileGroupForCi.SETUP_FILES: [
             r"^pyproject.toml",

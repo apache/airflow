@@ -16,16 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import jmespath
+import pytest
 import yaml
-from parameterized import parameterized
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class StatsdTest(unittest.TestCase):
+class TestStatsd:
     def test_should_create_statsd_default(self):
         docs = render_chart(show_only=["templates/statsd/statsd-deployment.yaml"])
 
@@ -85,7 +83,10 @@ class StatsdTest(unittest.TestCase):
             "subPath": "mappings.yml",
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
-    @parameterized.expand([(8, 10), (10, 8), (8, None), (None, 10), (None, None)])
+    @pytest.mark.parametrize(
+        "revision_history_limit, global_revision_history_limit",
+        [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
+    )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
         values = {"statsd": {"enabled": True}}
         if revision_history_limit:

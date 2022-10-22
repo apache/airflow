@@ -17,33 +17,31 @@
 from __future__ import annotations
 
 import re
-import unittest
 from pathlib import Path
 from shutil import copyfile, copytree
 from tempfile import TemporaryDirectory
 
 import jmespath
 import pytest
-from parameterized import parameterized
 
 from tests.charts.helm_template_generator import render_chart
 
-CHART_DIR = Path(__file__).parent / ".." / ".." / "chart"
+
+@pytest.fixture(scope="class", autouse=True)
+def isolate_chart(request):
+    chart_dir = Path(__file__).parent / ".." / ".." / "chart"
+    with TemporaryDirectory(prefix=request.cls.__name__) as tmp_dir:
+        temp_chart_dir = Path(tmp_dir) / "chart"
+        copytree(chart_dir, temp_chart_dir)
+        copyfile(
+            temp_chart_dir / "files/pod-template-file.kubernetes-helm-yaml",
+            temp_chart_dir / "templates/pod-template-file.yaml",
+        )
+        request.cls.temp_chart_dir = str(temp_chart_dir)
+        yield
 
 
-class PodTemplateFileTest(unittest.TestCase):
-    @classmethod
-    @pytest.fixture(autouse=True, scope="class")
-    def isolate_chart(cls):
-        with TemporaryDirectory() as tmp_dir:
-            cls.temp_chart_dir = tmp_dir + "/chart"
-            copytree(CHART_DIR, cls.temp_chart_dir)
-            copyfile(
-                cls.temp_chart_dir + "/files/pod-template-file.kubernetes-helm-yaml",
-                cls.temp_chart_dir + "/templates/pod-template-file.yaml",
-            )
-            yield
-
+class TestPodTemplateFile:
     def test_should_work(self):
         docs = render_chart(
             values={},
@@ -122,7 +120,8 @@ class PodTemplateFileTest(unittest.TestCase):
 
         assert jmespath.search("spec.initContainers", docs[0]) is None
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "dag_values, expected_read_only",
         [
             ({"gitSync": {"enabled": True}}, True),
             ({"persistence": {"enabled": True}}, False),
@@ -133,7 +132,7 @@ class PodTemplateFileTest(unittest.TestCase):
                 },
                 True,
             ),
-        ]
+        ],
     )
     def test_dags_mount(self, dag_values, expected_read_only):
         docs = render_chart(
@@ -259,7 +258,8 @@ class PodTemplateFileTest(unittest.TestCase):
 
         assert {"name": "dags", "emptyDir": {}} in jmespath.search("spec.volumes", docs[0])
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "log_persistence_values, expected",
         [
             ({"enabled": False}, {"emptyDir": {}}),
             ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "release-name-logs"}}),
@@ -267,7 +267,7 @@ class PodTemplateFileTest(unittest.TestCase):
                 {"enabled": True, "existingClaim": "test-claim"},
                 {"persistentVolumeClaim": {"claimName": "test-claim"}},
             ),
-        ]
+        ],
     )
     def test_logs_persistence_changes_volume(self, log_persistence_values, expected):
         docs = render_chart(
@@ -500,7 +500,7 @@ class PodTemplateFileTest(unittest.TestCase):
             chart_dir=self.temp_chart_dir,
         )
 
-        self.assertEqual(5000, jmespath.search("spec.securityContext.fsGroup", docs[0]))
+        assert jmespath.search("spec.securityContext.fsGroup", docs[0]) == 5000
 
     def test_should_create_valid_volume_mount_and_volume(self):
         docs = render_chart(

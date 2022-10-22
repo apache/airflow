@@ -21,6 +21,7 @@ import logging
 import os
 import re
 import unittest
+from contextlib import contextmanager
 from io import StringIO
 from unittest import mock
 from unittest.mock import ANY
@@ -52,6 +53,7 @@ ACCOUNT_1_SAME_PROJECT = "account_1@project_id.iam.gserviceaccount.com"
 ACCOUNT_2_SAME_PROJECT = "account_2@project_id.iam.gserviceaccount.com"
 ACCOUNT_3_ANOTHER_PROJECT = "account_3@another_project_id.iam.gserviceaccount.com"
 ANOTHER_PROJECT_ID = "another_project_id"
+CRED_PROVIDER_LOGGER_NAME = "airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider"
 
 
 class TestHelper(unittest.TestCase):
@@ -136,9 +138,20 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         cls.test_key_file = "KEY_PATH.json"
         cls.test_project_id = "project_id"
 
+    @contextmanager
+    def assert_no_logs(self, name, level):
+        with self.assertLogs(level=level) as logs:
+            # AssertionError will raise if we do not create dummy record here
+            logging.log(level=logging.getLevelName(level), msg="nothing")
+            yield
+        records = [log_record for log_record in logs.records if log_record.name == name]
+        if not records:
+            return
+        raise AssertionError(f"Did not expect any log message from logger={name!r}, but got: {records}")
+
     @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
     def test_get_credentials_and_project_id_with_default_auth(self, mock_auth_default):
-        with self.assertLogs() as cm:
+        with self.assertLogs(logger=CRED_PROVIDER_LOGGER_NAME) as cm:
             result = get_credentials_and_project_id()
         mock_auth_default.assert_called_once_with(scopes=None)
         assert ("CREDENTIALS", "PROJECT_ID") == result
@@ -241,7 +254,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
     )
     def test_get_credentials_and_project_id_with_service_account_file(self, mock_from_service_account_file):
         mock_from_service_account_file.return_value.project_id = self.test_project_id
-        with self.assertLogs(level="DEBUG") as cm:
+        with self.assertLogs(level="DEBUG", logger=CRED_PROVIDER_LOGGER_NAME) as cm:
             result = get_credentials_and_project_id(key_path=self.test_key_file)
         mock_from_service_account_file.assert_called_once_with(self.test_key_file, scopes=None)
         assert (mock_from_service_account_file.return_value, self.test_project_id) == result
@@ -261,7 +274,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
     def test_get_credentials_and_project_id_with_service_account_info(self, mock_from_service_account_info):
         mock_from_service_account_info.return_value.project_id = self.test_project_id
         service_account = {'private_key': "PRIVATE_KEY"}
-        with self.assertLogs(level="DEBUG") as cm:
+        with self.assertLogs(level="DEBUG", logger=CRED_PROVIDER_LOGGER_NAME) as cm:
             result = get_credentials_and_project_id(keyfile_dict=service_account)
         mock_from_service_account_info.assert_called_once_with(service_account, scopes=None)
         assert (mock_from_service_account_info.return_value, self.test_project_id) == result
@@ -327,29 +340,31 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         'google.oauth2.service_account.Credentials.from_service_account_file',
     )
     def test_disable_logging(self, mock_default, mock_info, mock_file):
-        # assert not logs
-        with self.assertLogs(level="DEBUG") as logs:
-            logging.debug('nothing')
+        """
+        Test disable logging in ``get_credentials_and_project_id``.
+
+        Due to following limitations, we use some workarounds for filtering specific logger
+        and raise error with these records:
+        - Cannot use pytest autouse-fixture `caplog` with `unittest.TestCase`
+        - `unittest.TestCase.assertNoLogs` available only in Python 3.10+
+        """
+        # assert no logs
+        with self.assert_no_logs(name=CRED_PROVIDER_LOGGER_NAME, level="DEBUG"):
             get_credentials_and_project_id(disable_logging=True)
-        assert logs.output == ['DEBUG:root:nothing']
 
         # assert no debug logs emitted from get_credentials_and_project_id
-        with self.assertLogs(level="DEBUG") as logs:
-            logging.debug('nothing')
+        with self.assert_no_logs(name=CRED_PROVIDER_LOGGER_NAME, level="DEBUG"):
             get_credentials_and_project_id(
                 keyfile_dict={'private_key': 'PRIVATE_KEY'},
                 disable_logging=True,
             )
-        assert logs.output == ['DEBUG:root:nothing']
 
         # assert no debug logs emitted from get_credentials_and_project_id
-        with self.assertLogs(level="DEBUG") as logs:
-            logging.debug('nothing')
+        with self.assert_no_logs(name=CRED_PROVIDER_LOGGER_NAME, level="DEBUG"):
             get_credentials_and_project_id(
                 key_path='KEY.json',
                 disable_logging=True,
             )
-        assert logs.output == ['DEBUG:root:nothing']
 
 
 class TestGetScopes(unittest.TestCase):

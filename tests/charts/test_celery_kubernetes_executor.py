@@ -16,14 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import jmespath
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class CeleryKubernetesExecutorTest(unittest.TestCase):
+class TestCeleryKubernetesExecutor:
     def test_should_create_a_worker_deployment_with_the_celery_executor(self):
         docs = render_chart(
             values={

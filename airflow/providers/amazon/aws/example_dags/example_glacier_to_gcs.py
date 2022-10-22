@@ -20,7 +20,10 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.amazon.aws.operators.glacier import GlacierCreateJobOperator
+from airflow.providers.amazon.aws.operators.glacier import (
+    GlacierCreateJobOperator,
+    GlacierUploadArchiveOperator,
+)
 from airflow.providers.amazon.aws.sensors.glacier import GlacierJobOperationSensor
 from airflow.providers.amazon.aws.transfers.glacier_to_gcs import GlacierToGCSOperator
 
@@ -46,6 +49,12 @@ with DAG(
     )
     # [END howto_sensor_glacier_job_operation]
 
+    # [START howto_operator_glacier_upload_archive]
+    upload_archive_to_glacier = GlacierUploadArchiveOperator(
+        vault_name=VAULT_NAME, body=b'Test Data', task_id="upload_data_to_glacier"
+    )
+    # [END howto_operator_glacier_upload_archive]
+
     # [START howto_transfer_glacier_to_gcs]
     transfer_archive_to_gcs = GlacierToGCSOperator(
         task_id="transfer_archive_to_gcs",
@@ -60,4 +69,4 @@ with DAG(
     )
     # [END howto_transfer_glacier_to_gcs]
 
-    create_glacier_job >> wait_for_operation_complete >> transfer_archive_to_gcs
+    create_glacier_job >> wait_for_operation_complete >> upload_archive_to_glacier >> transfer_archive_to_gcs
