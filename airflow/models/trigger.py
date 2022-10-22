@@ -107,9 +107,9 @@ class Trigger(Base):
             trigger_id
             for (trigger_id,) in (
                 session.query(cls.id)
-                    .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=True)
-                    .group_by(cls.id)
-                    .having(func.count(TaskInstance.trigger_id) == 0)
+                .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=True)
+                .group_by(cls.id)
+                .having(func.count(TaskInstance.trigger_id) == 0)
             )
         ]
         # ...and delete them (we can't do this in one query due to MySQL)
@@ -196,12 +196,13 @@ class Trigger(Base):
 
         # Find triggers who do NOT have an alive triggerer_id, and then assign
         # up to `capacity` of those to us.
-        trigger_ids_query = (
-            with_row_locks(session.query(cls.id)
-                           .filter(
-                or_(cls.triggerer_id.is_(None), cls.triggerer_id.notin_(alive_triggerer_ids)))
-                           .limit(capacity), session, skip_locked=True).all()
-        )
+        trigger_ids_query = with_row_locks(
+            session.query(cls.id)
+            .filter(or_(cls.triggerer_id.is_(None), cls.triggerer_id.notin_(alive_triggerer_ids)))
+            .limit(capacity),
+            session,
+            skip_locked=True,
+        ).all()
         if trigger_ids_query:
             session.query(cls).filter(cls.id.in_([i.id for i in trigger_ids_query])).update(
                 {cls.triggerer_id: triggerer_id},
