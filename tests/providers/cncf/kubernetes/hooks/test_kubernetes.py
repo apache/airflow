@@ -41,22 +41,22 @@ class TestKubernetesHook:
     @classmethod
     def setup_class(cls) -> None:
         for conn_id, extra in [
-            ('in_cluster', {'extra__kubernetes__in_cluster': True}),
-            ('in_cluster_empty', {'extra__kubernetes__in_cluster': ''}),
-            ('kube_config', {'extra__kubernetes__kube_config': '{"test": "kube"}'}),
-            ('kube_config_path', {'extra__kubernetes__kube_config_path': 'path/to/file'}),
-            ('kube_config_empty', {'extra__kubernetes__kube_config': ''}),
-            ('kube_config_path_empty', {'extra__kubernetes__kube_config_path': ''}),
-            ('kube_config_empty', {'extra__kubernetes__kube_config': ''}),
-            ('kube_config_path_empty', {'extra__kubernetes__kube_config_path': ''}),
-            ('context_empty', {'extra__kubernetes__cluster_context': ''}),
-            ('context', {'extra__kubernetes__cluster_context': 'my-context'}),
-            ('with_namespace', {'extra__kubernetes__namespace': 'mock_namespace'}),
+            ('in_cluster', {'in_cluster': True}),
+            ('in_cluster_empty', {'in_cluster': ''}),
+            ('kube_config', {'kube_config': '{"test": "kube"}'}),
+            ('kube_config_path', {'kube_config_path': 'path/to/file'}),
+            ('kube_config_empty', {'kube_config': ''}),
+            ('kube_config_path_empty', {'kube_config_path': ''}),
+            ('kube_config_empty', {'kube_config': ''}),
+            ('kube_config_path_empty', {'kube_config_path': ''}),
+            ('context_empty', {'cluster_context': ''}),
+            ('context', {'cluster_context': 'my-context'}),
+            ('with_namespace', {'namespace': 'mock_namespace'}),
             ('default_kube_config', {}),
-            ('disable_verify_ssl', {'extra__kubernetes__disable_verify_ssl': True}),
-            ('disable_verify_ssl_empty', {'extra__kubernetes__disable_verify_ssl': ''}),
-            ('disable_tcp_keepalive', {'extra__kubernetes__disable_tcp_keepalive': True}),
-            ('disable_tcp_keepalive_empty', {'extra__kubernetes__disable_tcp_keepalive': ''}),
+            ('disable_verify_ssl', {'disable_verify_ssl': True}),
+            ('disable_verify_ssl_empty', {'disable_verify_ssl': ''}),
+            ('disable_tcp_keepalive', {'disable_tcp_keepalive': True}),
+            ('disable_tcp_keepalive_empty', {'disable_tcp_keepalive': ''}),
         ]:
             db.merge_conn(Connection(conn_type='kubernetes', conn_id=conn_id, extra=json.dumps(extra)))
 
@@ -313,14 +313,23 @@ class TestKubernetesHook:
         assert isinstance(hook.api_client, kubernetes.client.ApiClient)
         assert isinstance(hook.get_conn(), kubernetes.client.ApiClient)
 
+    @patch(f"{HOOK_MODULE}.KubernetesHook._get_default_client")
+    def test_prefixed_names_still_work(self, mock_get_client):
+        conn_uri = 'kubernetes://?extra__kubernetes__cluster_context=test&extra__kubernetes__namespace=test'
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_KUBERNETES_DEFAULT=conn_uri):
+            kubernetes_hook = KubernetesHook(conn_id='kubernetes_default')
+            kubernetes_hook.get_conn()
+            mock_get_client.assert_called_with(cluster_context='test')
+            assert kubernetes_hook.get_namespace() == 'test'
+
 
 class TestKubernetesHookIncorrectConfiguration:
     @pytest.mark.parametrize(
         'conn_uri',
         (
-            "kubernetes://?extra__kubernetes__kube_config_path=/tmp/&extra__kubernetes__kube_config=[1,2,3]",
-            "kubernetes://?extra__kubernetes__kube_config_path=/tmp/&extra__kubernetes__in_cluster=[1,2,3]",
-            "kubernetes://?extra__kubernetes__kube_config=/tmp/&extra__kubernetes__in_cluster=[1,2,3]",
+            "kubernetes://?kube_config_path=/tmp/&kube_config=[1,2,3]",
+            "kubernetes://?kube_config_path=/tmp/&in_cluster=[1,2,3]",
+            "kubernetes://?kube_config=/tmp/&in_cluster=[1,2,3]",
         ),
     )
     def test_should_raise_exception_on_invalid_configuration(self, conn_uri):
