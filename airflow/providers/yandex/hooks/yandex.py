@@ -150,7 +150,7 @@ class YandexCloudBaseHook(BaseHook):
         if not hasattr(self, 'extras'):
             return default
         backcompat_prefix = 'extra__yandexcloud__'
-        if field_name.startswith('extra_'):
+        if field_name.startswith('extra__'):
             raise ValueError(
                 f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
                 "when using this method."
