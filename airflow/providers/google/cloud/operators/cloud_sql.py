@@ -28,6 +28,7 @@ from airflow.models import BaseOperator, Connection
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
 from airflow.providers.google.cloud.links.cloud_sql import CloudSQLInstanceDatabaseLink, CloudSQLInstanceLink
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
+from airflow.providers.google.common.hooks.base_google import get_field
 from airflow.providers.google.common.links.storage import FileDetailsLink
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
@@ -1092,9 +1093,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
         hook = CloudSQLDatabaseHook(
             gcp_cloudsql_conn_id=self.gcp_cloudsql_conn_id,
             gcp_conn_id=self.gcp_conn_id,
-            default_gcp_project_id=self.gcp_connection.extra_dejson.get(
-                'extra__google_cloud_platform__project'
-            ),
+            default_gcp_project_id=get_field(self.gcp_connection.extra_dejson, 'project'),
         )
         hook.validate_ssl_certs()
         connection = hook.create_connection()

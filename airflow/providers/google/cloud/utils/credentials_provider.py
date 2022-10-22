@@ -60,16 +60,14 @@ def build_gcp_conn(
     :return: String representing Airflow connection.
     """
     conn = "google-cloud-platform://?{}"
-    extras = "extra__google_cloud_platform"
-
     query_params = {}
     if key_file_path:
-        query_params[f"{extras}__key_path"] = key_file_path
+        query_params["key_path"] = key_file_path
     if scopes:
         scopes_string = ",".join(scopes)
-        query_params[f"{extras}__scope"] = scopes_string
+        query_params["scope"] = scopes_string
     if project_id:
-        query_params[f"{extras}__projects"] = project_id
+        query_params["projects"] = project_id
 
     query = urlencode(query_params)
     return conn.format(query)
