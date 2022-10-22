@@ -46,18 +46,18 @@ class RdsBaseOperator(BaseOperator):
         self._await_interval = 60  # seconds
 
     def _describe_item(self, item_type: str, item_name: str) -> list:
-        if item_type == 'instance_snapshot':
+        if item_type == "instance_snapshot":
             db_snaps = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=item_name)
-            return db_snaps['DBSnapshots']
-        elif item_type == 'cluster_snapshot':
+            return db_snaps["DBSnapshots"]
+        elif item_type == "cluster_snapshot":
             cl_snaps = self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=item_name)
-            return cl_snaps['DBClusterSnapshots']
-        elif item_type == 'export_task':
+            return cl_snaps["DBClusterSnapshots"]
+        elif item_type == "export_task":
             exports = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=item_name)
-            return exports['ExportTasks']
-        elif item_type == 'event_subscription':
+            return exports["ExportTasks"]
+        elif item_type == "event_subscription":
             subscriptions = self.hook.conn.describe_event_subscriptions(SubscriptionName=item_name)
-            return subscriptions['EventSubscriptionsList']
+            return subscriptions["EventSubscriptionsList"]
         elif item_type == "db_instance":
             instances = self.hook.conn.describe_db_instances(DBInstanceIdentifier=item_name)
             return instances["DBInstances"]
@@ -166,7 +166,7 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
                 Tags=self.tags,
             )
             create_response = json.dumps(create_instance_snap, default=str)
-            item_type = 'instance_snapshot'
+            item_type = "instance_snapshot"
 
         else:
             create_cluster_snap = self.hook.conn.create_db_cluster_snapshot(
@@ -175,14 +175,14 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
                 Tags=self.tags,
             )
             create_response = json.dumps(create_cluster_snap, default=str)
-            item_type = 'cluster_snapshot'
+            item_type = "cluster_snapshot"
 
         if self.wait_for_completion:
             self._await_status(
                 item_type,
                 self.db_snapshot_identifier,
-                wait_statuses=['creating'],
-                ok_statuses=['available'],
+                wait_statuses=["creating"],
+                ok_statuses=["available"],
             )
         return create_response
 
@@ -270,7 +270,7 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
                 SourceRegion=self.source_region,
             )
             copy_response = json.dumps(copy_instance_snap, default=str)
-            item_type = 'instance_snapshot'
+            item_type = "instance_snapshot"
 
         else:
             copy_cluster_snap = self.hook.conn.copy_db_cluster_snapshot(
@@ -283,14 +283,14 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
                 SourceRegion=self.source_region,
             )
             copy_response = json.dumps(copy_cluster_snap, default=str)
-            item_type = 'cluster_snapshot'
+            item_type = "cluster_snapshot"
 
         if self.wait_for_completion:
             self._await_status(
                 item_type,
                 self.target_db_snapshot_identifier,
-                wait_statuses=['creating', 'copying'],
-                ok_statuses=['available'],
+                wait_statuses=["creating", "copying"],
+                ok_statuses=["available"],
             )
         return copy_response
 
@@ -375,7 +375,7 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
         s3_bucket_name: str,
         iam_role_arn: str,
         kms_key_id: str,
-        s3_prefix: str = '',
+        s3_prefix: str = "",
         export_only: list[str] | None = None,
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
@@ -407,11 +407,11 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
 
         if self.wait_for_completion:
             self._await_status(
-                'export_task',
+                "export_task",
                 self.export_task_identifier,
-                wait_statuses=['starting', 'in_progress'],
-                ok_statuses=['complete'],
-                error_statuses=['canceling', 'canceled'],
+                wait_statuses=["starting", "in_progress"],
+                ok_statuses=["complete"],
+                error_statuses=["canceling", "canceled"],
             )
 
         return json.dumps(start_export, default=str)
@@ -453,10 +453,10 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
 
         if self.wait_for_completion:
             self._await_status(
-                'export_task',
+                "export_task",
                 self.export_task_identifier,
-                wait_statuses=['canceling'],
-                ok_statuses=['canceled'],
+                wait_statuses=["canceling"],
+                ok_statuses=["canceled"],
             )
 
         return json.dumps(cancel_export, default=str)
@@ -532,10 +532,10 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
 
         if self.wait_for_completion:
             self._await_status(
-                'event_subscription',
+                "event_subscription",
                 self.subscription_name,
-                wait_statuses=['creating'],
-                ok_statuses=['active'],
+                wait_statuses=["creating"],
+                ok_statuses=["active"],
             )
 
         return json.dumps(create_subscription, default=str)

@@ -133,9 +133,9 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
 
         return client.create_transfer_config(
             request={
-                'parent': parent,
-                'transfer_config': self._disable_auto_scheduling(transfer_config),
-                'authorization_code': authorization_code,
+                "parent": parent,
+                "transfer_config": self._disable_auto_scheduling(transfer_config),
+                "authorization_code": authorization_code,
             },
             retry=retry,
             timeout=timeout,
@@ -173,7 +173,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
 
         name = f"{project}/transferConfigs/{transfer_config_id}"
         return client.delete_transfer_config(
-            request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={"name": name}, retry=retry, timeout=timeout, metadata=metadata or ()
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -220,9 +220,9 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         parent = f"{project}/transferConfigs/{transfer_config_id}"
         return client.start_manual_transfer_runs(
             request={
-                'parent': parent,
-                'requested_time_range': requested_time_range,
-                'requested_run_time': requested_run_time,
+                "parent": parent,
+                "requested_time_range": requested_time_range,
+                "requested_run_time": requested_run_time,
             },
             retry=retry,
             timeout=timeout,
@@ -262,5 +262,5 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
 
         name = f"{project}/transferConfigs/{transfer_config_id}/runs/{run_id}"
         return client.get_transfer_run(
-            request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={"name": name}, retry=retry, timeout=timeout, metadata=metadata or ()
         )

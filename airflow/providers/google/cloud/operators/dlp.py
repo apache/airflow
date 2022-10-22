@@ -243,7 +243,7 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
         result = MessageToDict(template)
 
         project_id = self.project_id or hook.project_id
-        template_id = self.template_id or result['name'].split("/")[-1] if result['name'] else None
+        template_id = self.template_id or result["name"].split("/")[-1] if result["name"] else None
         if project_id and template_id:
             CloudDLPDeidentifyTemplateDetailsLink.persist(
                 context=context,
@@ -362,7 +362,7 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
                 context=context,
                 task_instance=self,
                 project_id=project_id,
-                job_name=result['name'].split("/")[-1] if result['name'] else None,
+                job_name=result["name"].split("/")[-1] if result["name"] else None,
             )
 
         return result
@@ -467,7 +467,7 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
 
         result = MessageToDict(template)
 
-        template_id = self.template_id or result['name'].split("/")[-1] if result['name'] else None
+        template_id = self.template_id or result["name"].split("/")[-1] if result["name"] else None
         project_id = self.project_id or hook.project_id
         if project_id and template_id:
             CloudDLPInspectTemplateDetailsLink.persist(
@@ -575,7 +575,7 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
         result = MessageToDict(trigger)
 
         project_id = self.project_id or hook.project_id
-        trigger_name = result['name'].split("/")[-1] if result['name'] else None
+        trigger_name = result["name"].split("/")[-1] if result["name"] else None
         if project_id:
             CloudDLPJobTriggerDetailsLink.persist(
                 context=context,
@@ -689,7 +689,7 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
 
         project_id = self.project_id or hook.project_id
         stored_info_type_id = (
-            self.stored_info_type_id or result['name'].split("/")[-1] if result['name'] else None
+            self.stored_info_type_id or result["name"].split("/")[-1] if result["name"] else None
         )
         if project_id and stored_info_type_id:
             CloudDLPInfoTypeDetailsLink.persist(

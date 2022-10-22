@@ -58,12 +58,12 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         account from the list granting this role to the originating account (templated).
     """
 
-    REQUIRED_ATTRIBUTES = ('instance_id', 'table_id')
+    REQUIRED_ATTRIBUTES = ("instance_id", "table_id")
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance_id',
-        'table_id',
-        'impersonation_chain',
+        "project_id",
+        "instance_id",
+        "table_id",
+        "impersonation_chain",
     )
     operator_extra_links = (BigtableTablesLink(),)
 
@@ -73,7 +73,7 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         instance_id: str,
         table_id: str,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:

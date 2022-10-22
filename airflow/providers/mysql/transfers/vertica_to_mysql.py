@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
-MYSQL_RENDERER = 'mysql' if 'mysql' in wwwutils.get_attr_renderer() else 'sql'
+MYSQL_RENDERER = "mysql" if "mysql" in wwwutils.get_attr_renderer() else "sql"
 
 
 class VerticaToMySqlOperator(BaseOperator):
@@ -58,21 +58,21 @@ class VerticaToMySqlOperator(BaseOperator):
         destination MySQL connection: {'local_infile': true}.
     """
 
-    template_fields: Sequence[str] = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
-    template_ext: Sequence[str] = ('.sql',)
+    template_fields: Sequence[str] = ("sql", "mysql_table", "mysql_preoperator", "mysql_postoperator")
+    template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {
         "sql": "sql",
         "mysql_preoperator": MYSQL_RENDERER,
         "mysql_postoperator": MYSQL_RENDERER,
     }
-    ui_color = '#a0e08c'
+    ui_color = "#a0e08c"
 
     def __init__(
         self,
         sql: str,
         mysql_table: str,
-        vertica_conn_id: str = 'vertica_default',
-        mysql_conn_id: str = 'mysql_default',
+        vertica_conn_id: str = "vertica_default",
+        mysql_conn_id: str = "mysql_default",
         mysql_preoperator: str | None = None,
         mysql_postoperator: str | None = None,
         bulk_load: bool = False,
@@ -134,7 +134,7 @@ class VerticaToMySqlOperator(BaseOperator):
                     self.log.info("Selecting rows from Vertica to local file %s...", tmpfile.name)
                     self.log.info(self.sql)
 
-                    csv_writer = csv.writer(tmpfile, delimiter='\t', encoding='utf-8')
+                    csv_writer = csv.writer(tmpfile, delimiter="\t", encoding="utf-8")
                     for row in cursor.iterate():
                         csv_writer.writerow(row)
                         count += 1

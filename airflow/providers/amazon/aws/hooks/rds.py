@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from mypy_boto3_rds import RDSClient  # noqa
 
 
-class RdsHook(AwsGenericHook['RDSClient']):
+class RdsHook(AwsGenericHook["RDSClient"]):
     """
     Interact with AWS RDS using proper client from the boto3 library.
 

@@ -89,8 +89,8 @@ PIPELINE = {
                         "filenameOnly": "false",
                         "recursive": "false",
                         "encrypted": "false",
-                        "schema": "{\"type\":\"record\",\"name\":\"textfile\",\"fields\":[{\"name\"\
-                            :\"offset\",\"type\":\"long\"},{\"name\":\"body\",\"type\":\"string\"}]}",
+                        "schema": '{"type":"record","name":"textfile","fields":[{"name"\
+                            :"offset","type":"long"},{"name":"body","type":"string"}]}',
                         "path": BUCKET_1_URI,
                         "referenceName": "foo_bucket",
                         "useConnection": "false",
@@ -99,8 +99,8 @@ PIPELINE = {
                         "fileEncoding": "UTF-8",
                     },
                 },
-                "outputSchema": "{\"type\":\"record\",\"name\":\"textfile\",\"fields\"\
-                    :[{\"name\":\"offset\",\"type\":\"long\"},{\"name\":\"body\",\"type\":\"string\"}]}",
+                "outputSchema": '{"type":"record","name":"textfile","fields"\
+                    :[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
                 "id": "GCS",
             },
             {
@@ -116,21 +116,21 @@ PIPELINE = {
                         "format": "json",
                         "serviceFilePath": "auto-detect",
                         "location": "us",
-                        "schema": "{\"type\":\"record\",\"name\":\"textfile\",\"fields\":[{\"name\"\
-                            :\"offset\",\"type\":\"long\"},{\"name\":\"body\",\"type\":\"string\"}]}",
+                        "schema": '{"type":"record","name":"textfile","fields":[{"name"\
+                            :"offset","type":"long"},{"name":"body","type":"string"}]}',
                         "referenceName": "bar",
                         "path": BUCKET_2_URI,
                         "serviceAccountType": "filePath",
                         "contentType": "application/octet-stream",
                     },
                 },
-                "outputSchema": "{\"type\":\"record\",\"name\":\"textfile\",\"fields\"\
-                    :[{\"name\":\"offset\",\"type\":\"long\"},{\"name\":\"body\",\"type\":\"string\"}]}",
+                "outputSchema": '{"type":"record","name":"textfile","fields"\
+                    :[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
                 "inputSchema": [
                     {
                         "name": "GCS",
-                        "schema": "{\"type\":\"record\",\"name\":\"textfile\",\"fields\":[{\"name\"\
-                            :\"offset\",\"type\":\"long\"},{\"name\":\"body\",\"type\":\"string\"}]}",
+                        "schema": '{"type":"record","name":"textfile","fields":[{"name"\
+                            :"offset","type":"long"},{"name":"body","type":"string"}]}',
                     }
                 ],
                 "id": "GCS2",

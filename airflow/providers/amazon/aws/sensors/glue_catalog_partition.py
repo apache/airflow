@@ -48,20 +48,20 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = (
-        'database_name',
-        'table_name',
-        'expression',
+        "database_name",
+        "table_name",
+        "expression",
     )
-    ui_color = '#C5CAE9'
+    ui_color = "#C5CAE9"
 
     def __init__(
         self,
         *,
         table_name: str,
         expression: str = "ds='{{ ds }}'",
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         region_name: str | None = None,
-        database_name: str = 'default',
+        database_name: str = "default",
         poke_interval: int = 60 * 3,
         **kwargs,
     ):
@@ -75,10 +75,10 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
 
     def poke(self, context: Context):
         """Checks for existence of the partition in the AWS Glue Catalog table"""
-        if '.' in self.table_name:
-            self.database_name, self.table_name = self.table_name.split('.')
+        if "." in self.table_name:
+            self.database_name, self.table_name = self.table_name.split(".")
         self.log.info(
-            'Poking for table %s. %s, expression %s', self.database_name, self.table_name, self.expression
+            "Poking for table %s. %s, expression %s", self.database_name, self.table_name, self.expression
         )
 
         return self.get_hook().check_for_partition(self.database_name, self.table_name, self.expression)

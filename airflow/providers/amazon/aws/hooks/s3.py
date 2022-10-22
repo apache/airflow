@@ -54,12 +54,12 @@ def provide_bucket_name(func: T) -> T:
     def wrapper(*args, **kwargs) -> T:
         bound_args = function_signature.bind(*args, **kwargs)
 
-        if 'bucket_name' not in bound_args.arguments:
+        if "bucket_name" not in bound_args.arguments:
             self = args[0]
             if self.aws_conn_id:
                 connection = self.get_connection(self.aws_conn_id)
                 if connection.schema:
-                    bound_args.arguments['bucket_name'] = connection.schema
+                    bound_args.arguments["bucket_name"] = connection.schema
 
         return func(*bound_args.args, **bound_args.kwargs)
 
@@ -77,15 +77,15 @@ def unify_bucket_name_and_key(func: T) -> T:
     def wrapper(*args, **kwargs) -> T:
         bound_args = function_signature.bind(*args, **kwargs)
 
-        if 'wildcard_key' in bound_args.arguments:
-            key_name = 'wildcard_key'
-        elif 'key' in bound_args.arguments:
-            key_name = 'key'
+        if "wildcard_key" in bound_args.arguments:
+            key_name = "wildcard_key"
+        elif "key" in bound_args.arguments:
+            key_name = "key"
         else:
-            raise ValueError('Missing key parameter!')
+            raise ValueError("Missing key parameter!")
 
-        if 'bucket_name' not in bound_args.arguments:
-            bound_args.arguments['bucket_name'], bound_args.arguments[key_name] = S3Hook.parse_s3_url(
+        if "bucket_name" not in bound_args.arguments:
+            bound_args.arguments["bucket_name"], bound_args.arguments[key_name] = S3Hook.parse_s3_url(
                 bound_args.arguments[key_name]
             )
 
@@ -122,8 +122,8 @@ class S3Hook(AwsBaseHook):
         *args,
         **kwargs,
     ) -> None:
-        kwargs['client_type'] = 's3'
-        kwargs['aws_conn_id'] = aws_conn_id
+        kwargs["client_type"] = "s3"
+        kwargs["aws_conn_id"] = aws_conn_id
 
         if transfer_config_args and not isinstance(transfer_config_args, dict):
             raise TypeError(f"transfer_config_args expected dict, got {type(transfer_config_args).__name__}.")
@@ -151,23 +151,23 @@ class S3Hook(AwsBaseHook):
         :return: the parsed bucket name and key
         :rtype: tuple of str
         """
-        format = s3url.split('//')
-        if format[0].lower() == 's3:':
+        format = s3url.split("//")
+        if format[0].lower() == "s3:":
             parsed_url = urlparse(s3url)
             if not parsed_url.netloc:
                 raise AirflowException(f'Please provide a bucket name using a valid format: "{s3url}"')
 
             bucket_name = parsed_url.netloc
-            key = parsed_url.path.lstrip('/')
-        elif format[0] == 'https:':
-            temp_split = format[1].split('.')
-            if temp_split[0] == 's3':
-                split_url = format[1].split('/')
+            key = parsed_url.path.lstrip("/")
+        elif format[0] == "https:":
+            temp_split = format[1].split(".")
+            if temp_split[0] == "s3":
+                split_url = format[1].split("/")
                 bucket_name = split_url[1]
-                key = '/'.join(split_url[2:])
-            elif temp_split[1] == 's3':
+                key = "/".join(split_url[2:])
+            elif temp_split[1] == "s3":
                 bucket_name = temp_split[0]
-                key = '/'.join(format[1].split('/')[1:])
+                key = "/".join(format[1].split("/")[1:])
         else:
             raise AirflowException(f'Please provide a bucket name using a valid format: "{s3url}"')
         return bucket_name, key
@@ -192,10 +192,10 @@ class S3Hook(AwsBaseHook):
             return S3Hook.parse_s3_url(key)
 
         parsed_url = urlparse(key)
-        if parsed_url.scheme != '' or parsed_url.netloc != '':
+        if parsed_url.scheme != "" or parsed_url.netloc != "":
             raise TypeError(
-                f'If `{bucket_param_name}` is provided, {key_param_name} should be a relative path '
-                'from root level, rather than a full s3:// url'
+                f"If `{bucket_param_name}` is provided, {key_param_name} should be a relative path "
+                "from root level, rather than a full s3:// url"
             )
 
         return bucket, key
@@ -218,7 +218,7 @@ class S3Hook(AwsBaseHook):
             # are ever returned. See the following links for more details:
             # https://github.com/boto/boto3/issues/2499
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.head_bucket
-            return_code = int(e.response['Error']['Code'])
+            return_code = int(e.response["Error"]["Code"])
             if return_code == 404:
                 self.log.error('Bucket "%s" does not exist', bucket_name)
             elif return_code == 403:
@@ -261,11 +261,11 @@ class S3Hook(AwsBaseHook):
                 )
             region_name = self.conn_region_name
 
-        if region_name == 'us-east-1':
+        if region_name == "us-east-1":
             self.get_conn().create_bucket(Bucket=bucket_name)
         else:
             self.get_conn().create_bucket(
-                Bucket=bucket_name, CreateBucketConfiguration={'LocationConstraint': region_name}
+                Bucket=bucket_name, CreateBucketConfiguration={"LocationConstraint": region_name}
             )
 
     @provide_bucket_name
@@ -280,7 +280,7 @@ class S3Hook(AwsBaseHook):
         :rtype: bool
         """
         prefix = prefix + delimiter if prefix[-1] != delimiter else prefix
-        prefix_split = re.split(fr'(\w+[{delimiter}])$', prefix, 1)
+        prefix_split = re.split(rf"(\w+[{delimiter}])$", prefix, 1)
         previous_level = prefix_split[0]
         plist = self.list_prefixes(bucket_name, previous_level, delimiter)
         return prefix in plist
@@ -305,22 +305,22 @@ class S3Hook(AwsBaseHook):
         :return: a list of matched prefixes
         :rtype: list
         """
-        prefix = prefix or ''
-        delimiter = delimiter or ''
+        prefix = prefix or ""
+        delimiter = delimiter or ""
         config = {
-            'PageSize': page_size,
-            'MaxItems': max_items,
+            "PageSize": page_size,
+            "MaxItems": max_items,
         }
 
-        paginator = self.get_conn().get_paginator('list_objects_v2')
+        paginator = self.get_conn().get_paginator("list_objects_v2")
         response = paginator.paginate(
             Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
         )
 
         prefixes = []  # type: List[str]
         for page in response:
-            if 'CommonPrefixes' in page:
-                prefixes.extend(common_prefix['Prefix'] for common_prefix in page['CommonPrefixes'])
+            if "CommonPrefixes" in page:
+                prefixes.extend(common_prefix["Prefix"] for common_prefix in page["CommonPrefixes"])
 
         return prefixes
 
@@ -334,7 +334,7 @@ class S3Hook(AwsBaseHook):
                 return False
             return True
 
-        return [k['Key'] for k in keys if _is_in_period(k['LastModified'])]
+        return [k["Key"] for k in keys if _is_in_period(k["LastModified"])]
 
     @provide_bucket_name
     def list_keys(
@@ -387,16 +387,16 @@ class S3Hook(AwsBaseHook):
         :return: a list of matched keys
         :rtype: list
         """
-        prefix = prefix or ''
-        delimiter = delimiter or ''
-        start_after_key = start_after_key or ''
+        prefix = prefix or ""
+        delimiter = delimiter or ""
+        start_after_key = start_after_key or ""
         self.object_filter_usr = object_filter
         config = {
-            'PageSize': page_size,
-            'MaxItems': max_items,
+            "PageSize": page_size,
+            "MaxItems": max_items,
         }
 
-        paginator = self.get_conn().get_paginator('list_objects_v2')
+        paginator = self.get_conn().get_paginator("list_objects_v2")
         response = paginator.paginate(
             Bucket=bucket_name,
             Prefix=prefix,
@@ -407,8 +407,8 @@ class S3Hook(AwsBaseHook):
 
         keys = []  # type: List[str]
         for page in response:
-            if 'Contents' in page:
-                keys.extend(iter(page['Contents']))
+            if "Contents" in page:
+                keys.extend(iter(page["Contents"]))
         if self.object_filter_usr is not None:
             return self.object_filter_usr(keys, from_datetime, to_datetime)
 
@@ -433,17 +433,17 @@ class S3Hook(AwsBaseHook):
         :rtype: list
         """
         config = {
-            'PageSize': page_size,
-            'MaxItems': max_items,
+            "PageSize": page_size,
+            "MaxItems": max_items,
         }
 
-        paginator = self.get_conn().get_paginator('list_objects_v2')
+        paginator = self.get_conn().get_paginator("list_objects_v2")
         response = paginator.paginate(Bucket=bucket_name, Prefix=prefix, PaginationConfig=config)
 
         files = []
         for page in response:
-            if 'Contents' in page:
-                files += page['Contents']
+            if "Contents" in page:
+                files += page["Contents"]
         return files
 
     @provide_bucket_name
@@ -512,7 +512,7 @@ class S3Hook(AwsBaseHook):
         :rtype: str
         """
         obj = self.get_key(key, bucket_name)
-        return obj.get()['Body'].read().decode('utf-8')
+        return obj.get()["Body"].read().decode("utf-8")
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -541,13 +541,13 @@ class S3Hook(AwsBaseHook):
             For more details about S3 Select parameters:
             https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.select_object_content
         """
-        expression = expression or 'SELECT * FROM S3Object'
-        expression_type = expression_type or 'SQL'
+        expression = expression or "SELECT * FROM S3Object"
+        expression_type = expression_type or "SQL"
 
         if input_serialization is None:
-            input_serialization = {'CSV': {}}
+            input_serialization = {"CSV": {}}
         if output_serialization is None:
-            output_serialization = {'CSV': {}}
+            output_serialization = {"CSV": {}}
 
         response = self.get_conn().select_object_content(
             Bucket=bucket_name,
@@ -558,14 +558,14 @@ class S3Hook(AwsBaseHook):
             OutputSerialization=output_serialization,
         )
 
-        return b''.join(
-            event['Records']['Payload'] for event in response['Payload'] if 'Records' in event
-        ).decode('utf-8')
+        return b"".join(
+            event["Records"]["Payload"] for event in response["Payload"] if "Records" in event
+        ).decode("utf-8")
 
     @provide_bucket_name
     @unify_bucket_name_and_key
     def check_for_wildcard_key(
-        self, wildcard_key: str, bucket_name: str | None = None, delimiter: str = ''
+        self, wildcard_key: str, bucket_name: str | None = None, delimiter: str = ""
     ) -> bool:
         """
         Checks that a key matching a wildcard expression exists in a bucket
@@ -584,7 +584,7 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     @unify_bucket_name_and_key
     def get_wildcard_key(
-        self, wildcard_key: str, bucket_name: str | None = None, delimiter: str = ''
+        self, wildcard_key: str, bucket_name: str | None = None, delimiter: str = ""
     ) -> S3Transfer:
         """
         Returns a boto3.s3.Object object matching the wildcard expression
@@ -595,7 +595,7 @@ class S3Hook(AwsBaseHook):
         :return: the key object from the bucket or None if none has been found.
         :rtype: boto3.s3.Object
         """
-        prefix = re.split(r'[\[\*\?]', wildcard_key, 1)[0]
+        prefix = re.split(r"[\[\*\?]", wildcard_key, 1)[0]
         key_list = self.list_keys(bucket_name, prefix=prefix, delimiter=delimiter)
         key_matches = [k for k in key_list if fnmatch.fnmatch(k, wildcard_key)]
         if key_matches:
@@ -635,15 +635,15 @@ class S3Hook(AwsBaseHook):
 
         extra_args = self.extra_args
         if encrypt:
-            extra_args['ServerSideEncryption'] = "AES256"
+            extra_args["ServerSideEncryption"] = "AES256"
         if gzip:
-            with open(filename, 'rb') as f_in:
-                filename_gz = f'{f_in.name}.gz'
-                with gz.open(filename_gz, 'wb') as f_out:
+            with open(filename, "rb") as f_in:
+                filename_gz = f"{f_in.name}.gz"
+                with gz.open(filename_gz, "wb") as f_out:
                     shutil.copyfileobj(f_in, f_out)
                     filename = filename_gz
         if acl_policy:
-            extra_args['ACL'] = acl_policy
+            extra_args["ACL"] = acl_policy
 
         client = self.get_conn()
         client.upload_file(filename, bucket_name, key, ExtraArgs=extra_args, Config=self.transfer_config)
@@ -679,18 +679,18 @@ class S3Hook(AwsBaseHook):
             object to be uploaded
         :param compression: Type of compression to use, currently only gzip is supported.
         """
-        encoding = encoding or 'utf-8'
+        encoding = encoding or "utf-8"
 
         bytes_data = string_data.encode(encoding)
 
         # Compress string
-        available_compressions = ['gzip']
+        available_compressions = ["gzip"]
         if compression is not None and compression not in available_compressions:
             raise NotImplementedError(
                 f"Received {compression} compression type. "
                 f"String can currently be compressed in {available_compressions} only."
             )
-        if compression == 'gzip':
+        if compression == "gzip":
             bytes_data = gz.compress(bytes_data)
 
         file_obj = io.BytesIO(bytes_data)
@@ -769,9 +769,9 @@ class S3Hook(AwsBaseHook):
 
         extra_args = self.extra_args
         if encrypt:
-            extra_args['ServerSideEncryption'] = "AES256"
+            extra_args["ServerSideEncryption"] = "AES256"
         if acl_policy:
-            extra_args['ACL'] = acl_policy
+            extra_args["ACL"] = acl_policy
 
         client = self.get_conn()
         client.upload_fileobj(
@@ -816,17 +816,17 @@ class S3Hook(AwsBaseHook):
         :param acl_policy: The string to specify the canned ACL policy for the
             object to be copied which is private by default.
         """
-        acl_policy = acl_policy or 'private'
+        acl_policy = acl_policy or "private"
 
         dest_bucket_name, dest_bucket_key = self.get_s3_bucket_key(
-            dest_bucket_name, dest_bucket_key, 'dest_bucket_name', 'dest_bucket_key'
+            dest_bucket_name, dest_bucket_key, "dest_bucket_name", "dest_bucket_key"
         )
 
         source_bucket_name, source_bucket_key = self.get_s3_bucket_key(
-            source_bucket_name, source_bucket_key, 'source_bucket_name', 'source_bucket_key'
+            source_bucket_name, source_bucket_key, "source_bucket_name", "source_bucket_key"
         )
 
-        copy_source = {'Bucket': source_bucket_name, 'Key': source_bucket_key, 'VersionId': source_version_id}
+        copy_source = {"Bucket": source_bucket_name, "Key": source_bucket_key, "VersionId": source_version_id}
         response = self.get_conn().copy_object(
             Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, ACL=acl_policy
         )
@@ -871,10 +871,10 @@ class S3Hook(AwsBaseHook):
         # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.delete_objects
         for chunk in chunks(keys, chunk_size=1000):
             response = s3.delete_objects(Bucket=bucket, Delete={"Objects": [{"Key": k} for k in chunk]})
-            deleted_keys = [x['Key'] for x in response.get("Deleted", [])]
+            deleted_keys = [x["Key"] for x in response.get("Deleted", [])]
             self.log.info("Deleted: %s", deleted_keys)
             if "Errors" in response:
-                errors_keys = [x['Key'] for x in response.get("Errors", [])]
+                errors_keys = [x["Key"] for x in response.get("Errors", [])]
                 raise AirflowException(f"Errors when deleting: {errors_keys}")
 
     @provide_bucket_name
@@ -890,19 +890,19 @@ class S3Hook(AwsBaseHook):
         :return: the file name.
         :rtype: str
         """
-        self.log.info('Downloading source S3 file from Bucket %s with path %s', bucket_name, key)
+        self.log.info("Downloading source S3 file from Bucket %s with path %s", bucket_name, key)
 
         try:
             s3_obj = self.get_key(key, bucket_name)
         except ClientError as e:
-            if e.response.get('Error', {}).get('Code') == 404:
+            if e.response.get("Error", {}).get("Code") == 404:
                 raise AirflowException(
-                    f'The source file in Bucket {bucket_name} with path {key} does not exist'
+                    f"The source file in Bucket {bucket_name} with path {key} does not exist"
                 )
             else:
                 raise e
 
-        with NamedTemporaryFile(dir=local_path, prefix='airflow_tmp_', delete=False) as local_tmp_file:
+        with NamedTemporaryFile(dir=local_path, prefix="airflow_tmp_", delete=False) as local_tmp_file:
             s3_obj.download_fileobj(
                 local_tmp_file,
                 ExtraArgs=self.extra_args,
@@ -951,7 +951,7 @@ class S3Hook(AwsBaseHook):
         """
         try:
             s3_client = self.get_conn()
-            result = s3_client.get_bucket_tagging(Bucket=bucket_name)['TagSet']
+            result = s3_client.get_bucket_tagging(Bucket=bucket_name)["TagSet"]
             self.log.info("S3 Bucket Tag Info: %s", result)
             return result
         except ClientError as e:
@@ -980,15 +980,15 @@ class S3Hook(AwsBaseHook):
         if not tag_set:
             tag_set = []
         if key and value:
-            tag_set.append({'Key': key, 'Value': value})
+            tag_set.append({"Key": key, "Value": value})
         elif not tag_set or (key or value):
-            message = 'put_bucket_tagging() requires either a predefined TagSet or a key/value pair.'
+            message = "put_bucket_tagging() requires either a predefined TagSet or a key/value pair."
             self.log.error(message)
             raise ValueError(message)
 
         try:
             s3_client = self.get_conn()
-            s3_client.put_bucket_tagging(Bucket=bucket_name, Tagging={'TagSet': tag_set})
+            s3_client.put_bucket_tagging(Bucket=bucket_name, Tagging={"TagSet": tag_set})
         except ClientError as e:
             self.log.error(e)
             raise e

@@ -49,10 +49,10 @@ class LevelDBHook(BaseHook):
     `LevelDB Connection Documentation <https://plyvel.readthedocs.io/en/latest/>`__
     """
 
-    conn_name_attr = 'leveldb_conn_id'
-    default_conn_name = 'leveldb_default'
-    conn_type = 'leveldb'
-    hook_name = 'LevelDB'
+    conn_name_attr = "leveldb_conn_id"
+    default_conn_name = "leveldb_default"
+    conn_type = "leveldb"
+    hook_name = "LevelDB"
 
     def __init__(self, leveldb_conn_id: str = default_conn_name):
         super().__init__()
@@ -60,7 +60,7 @@ class LevelDBHook(BaseHook):
         self.connection = self.get_connection(leveldb_conn_id)
         self.db: plyvel.DB | None = None
 
-    def get_conn(self, name: str = '/tmp/testdb/', create_if_missing: bool = False, **kwargs) -> DB:
+    def get_conn(self, name: str = "/tmp/testdb/", create_if_missing: bool = False, **kwargs) -> DB:
         """
         Creates `Plyvel DB <https://plyvel.readthedocs.io/en/latest/api.html#DB>`__
 
@@ -102,15 +102,15 @@ class LevelDBHook(BaseHook):
         :returns: value from get or None
         :rtype: Optional[bytes]
         """
-        if command == 'put':
+        if command == "put":
             if not value:
                 raise Exception("Please provide `value`!")
             return self.put(key, value)
-        elif command == 'get':
+        elif command == "get":
             return self.get(key)
-        elif command == 'delete':
+        elif command == "delete":
             return self.delete(key)
-        elif command == 'write_batch':
+        elif command == "write_batch":
             if not keys:
                 raise Exception("Please provide `keys`!")
             if not values:

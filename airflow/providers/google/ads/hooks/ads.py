@@ -150,7 +150,7 @@ class GoogleAdsHook(BaseHook):
                 self.log.error('\tError with message "%s".', error.message)
                 if error.location:
                     for field_path_element in error.location.field_path_elements:
-                        self.log.error('\t\tOn field: %s', field_path_element.field_name)
+                        self.log.error("\t\tOn field: %s", field_path_element.field_name)
             raise
 
     @cached_property
@@ -202,7 +202,7 @@ class GoogleAdsHook(BaseHook):
         Note, the secret must be passed as a file path for Google Ads API
         """
         extras = self.get_connection(self.gcp_conn_id).extra_dejson
-        secret = get_field(extras, 'keyfile_dict')
+        secret = get_field(extras, "keyfile_dict")
         if not secret:
             raise KeyError("secret_conn.extra_dejson does not contain keyfile_dict")
         secrets_temp.write(secret)

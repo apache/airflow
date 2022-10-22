@@ -40,9 +40,9 @@ def parse_boolean(val: str) -> str | bool:
     Raises ValueError if the input is not a valid true- or false-like string value.
     """
     val = val.lower()
-    if val in ('y', 'yes', 't', 'true', 'on', '1'):
+    if val in ("y", "yes", "t", "true", "on", "1"):
         return True
-    if val in ('n', 'no', 'f', 'false', 'off', '0'):
+    if val in ("n", "no", "f", "false", "off", "0"):
         return False
     raise ValueError(f"{val!r} is not a boolean-like string value")
 
@@ -61,7 +61,7 @@ def _get_failed_checks(checks, col=None):
     ]
 
 
-_PROVIDERS_MATCHER = re.compile(r'airflow\.providers\.(.*)\.hooks.*')
+_PROVIDERS_MATCHER = re.compile(r"airflow\.providers\.(.*)\.hooks.*")
 
 _MIN_SUPPORTED_PROVIDERS_VERSION = {
     "amazon": "4.1.0",
@@ -118,7 +118,7 @@ class BaseSQLOperator(BaseOperator):
         """Get DB Hook based on connection type"""
         self.log.debug("Get connection for %s", self.conn_id)
         conn = BaseHook.get_connection(self.conn_id)
-        if Version(version) >= Version('2.3'):
+        if Version(version) >= Version("2.3"):
             # "hook_params" were introduced to into "get_hook()" only in Airflow 2.3.
             hook = conn.get_hook(hook_params=self.hook_params)  # ignore airflow compat check
         else:
@@ -138,16 +138,16 @@ class BaseSQLOperator(BaseOperator):
                     min_version = _MIN_SUPPORTED_PROVIDERS_VERSION.get(provider)
                     if min_version:
                         raise AirflowException(
-                            f'You are trying to use common-sql with {hook.__class__.__name__},'
-                            f' but the Hook class comes from provider {provider} that does not support it.'
-                            f' Please upgrade provider {provider} to at least {min_version}.'
+                            f"You are trying to use common-sql with {hook.__class__.__name__},"
+                            f" but the Hook class comes from provider {provider} that does not support it."
+                            f" Please upgrade provider {provider} to at least {min_version}."
                         )
             raise AirflowException(
-                f'You are trying to use `common-sql` with {hook.__class__.__name__},'
-                ' but its provider does not support it. Please upgrade the provider to a version that'
-                ' supports `common-sql`. The hook class should be a subclass of'
-                ' `airflow.providers.common.sql.hooks.sql.DbApiHook`.'
-                f' Got {hook.__class__.__name__} Hook with class hierarchy: {hook.__class__.mro()}'
+                f"You are trying to use `common-sql` with {hook.__class__.__name__},"
+                " but its provider does not support it. Please upgrade the provider to a version that"
+                " supports `common-sql`. The hook class should be a subclass of"
+                " `airflow.providers.common.sql.hooks.sql.DbApiHook`."
+                f" Got {hook.__class__.__name__} Hook with class hierarchy: {hook.__class__.mro()}"
             )
 
         if self.database:
@@ -181,10 +181,10 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLExecuteQueryOperator`
     """
 
-    template_fields: Sequence[str] = ('sql', 'parameters')
-    template_ext: Sequence[str] = ('.sql', '.json')
+    template_fields: Sequence[str] = ("sql", "parameters")
+    template_ext: Sequence[str] = (".sql", ".json")
     template_fields_renderers = {"sql": "sql", "parameters": "json"}
-    ui_color = '#cdaaed'
+    ui_color = "#cdaaed"
 
     def __init__(
         self,
@@ -206,7 +206,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.return_last = return_last
 
     def execute(self, context):
-        self.log.info('Executing: %s', self.sql)
+        self.log.info("Executing: %s", self.sql)
         hook = self.get_db_hook()
         if self.do_xcom_push:
             output = hook.run(
@@ -225,7 +225,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
                 split_statements=self.split_statements,
             )
 
-        if hasattr(self, '_process_output'):
+        if hasattr(self, "_process_output"):
             for out in output:
                 self._process_output(*out)
 
@@ -892,7 +892,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
                 f'DAG: {self.dag_id}\nTask_id: {meta_data.get("task_id")}\n'
                 f'Check description: {meta_data.get("description")}\n'
                 f"SQL: {self.sql}\n"
-                f'Result: {result} is not within thresholds '
+                f"Result: {result} is not within thresholds "
                 f'{meta_data.get("min_threshold")} and {meta_data.get("max_threshold")}'
             )
             raise AirflowException(error_msg)
