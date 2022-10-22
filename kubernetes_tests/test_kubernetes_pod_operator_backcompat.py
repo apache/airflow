@@ -286,7 +286,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             volume_config = {"persistentVolumeClaim": {"claimName": "test-volume"}}
             volume = Volume(name="test-volume", configs=volume_config)
             args = [
-                'echo "retrieved from mount" > /tmp/test_volume/test.txt ' "&& cat /tmp/test_volume/test.txt"
+                'echo "retrieved from mount" > /tmp/test_volume/test.txt && cat /tmp/test_volume/test.txt'
             ]
             k = KubernetesPodOperator(
                 namespace="default",
