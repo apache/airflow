@@ -17,10 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import os
 from typing import Any
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
+from pytest import param
 from slack_sdk.errors import SlackApiError
 from slack_sdk.http_retry.builtin_handlers import ConnectionErrorRetryHandler, RateLimitErrorRetryHandler
 from slack_sdk.web.slack_response import SlackResponse
@@ -28,6 +32,7 @@ from slack_sdk.web.slack_response import SlackResponse
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.connection import Connection
 from airflow.providers.slack.hooks.slack import SlackHook
+from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
 
 MOCK_SLACK_API_TOKEN = "xoxb-1234567890123-09876543210987-AbCdEfGhIjKlMnOpQrStUvWx"
 SLACK_API_DEFAULT_CONN_ID = SlackHook.default_conn_name
@@ -439,3 +444,84 @@ class TestSlackHook:
             title=title,
             filetype=filetype,
         )
+
+    def test__ensure_prefixes_removal(self):
+        """Ensure that _ensure_prefixes is removed from snowflake when airflow min version >= 2.5.0."""
+        path = 'airflow.providers.slack.hooks.slack._ensure_prefixes'
+        if not object_exists(path):
+            raise Exception(
+                "You must remove this test. It only exists to "
+                "remind us to remove decorator `_ensure_prefixes`."
+            )
+
+        if get_provider_min_airflow_version('apache-airflow-providers-slack') >= (2, 5):
+            raise Exception(
+                "You must now remove `_ensure_prefixes` from SlackHook."
+                " The functionality is now taken care of by providers manager."
+            )
+
+    def test___ensure_prefixes(self):
+        """
+        Check that ensure_prefixes decorator working properly
+
+        Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
+        """
+        assert list(SlackHook.get_ui_field_behaviour()['placeholders'].keys()) == [
+            'password',
+            'extra__slack__timeout',
+            'extra__slack__base_url',
+            'extra__slack__proxy',
+        ]
+
+    @pytest.mark.parametrize(
+        'uri',
+        [
+            param(
+                'a://:abc@?extra__slack__timeout=123'
+                '&extra__slack__base_url=base_url'
+                '&extra__slack__proxy=proxy',
+                id='prefix',
+            ),
+            param('a://:abc@?timeout=123&base_url=base_url&proxy=proxy', id='no-prefix'),
+        ],
+    )
+    def test_backcompat_prefix_works(self, uri):
+        with patch.dict(os.environ, AIRFLOW_CONN_MY_CONN=uri):
+            hook = SlackHook(slack_conn_id='my_conn')
+            params = hook._get_conn_params()
+            assert params["token"] == "abc"
+            assert params["timeout"] == 123
+            assert params["base_url"] == "base_url"
+            assert params["proxy"] == "proxy"
+
+    def test_backcompat_prefix_both_causes_warning(self):
+        with patch.dict(
+            in_dict=os.environ,
+            AIRFLOW_CONN_MY_CONN='a://:abc@?extra__slack__timeout=111&timeout=222',
+        ):
+            hook = SlackHook(slack_conn_id='my_conn')
+            with pytest.warns(Warning, match='Using value for `timeout`'):
+                params = hook._get_conn_params()
+                assert params["timeout"] == 222
+
+    def test_empty_string_ignored_prefixed(self):
+        with patch.dict(
+            in_dict=os.environ,
+            AIRFLOW_CONN_MY_CONN=json.dumps(
+                {"password": "hi", "extra": {"extra__slack__base_url": "", "extra__slack__proxy": ""}}
+            ),
+        ):
+            hook = SlackHook(slack_conn_id='my_conn')
+            params = hook._get_conn_params()
+            assert 'proxy' not in params
+            assert 'base_url' not in params
+
+    def test_empty_string_ignored_non_prefixed(self):
+        with patch.dict(
+            in_dict=os.environ,
+            AIRFLOW_CONN_MY_CONN=json.dumps({"password": "hi", "extra": {"base_url": "", "proxy": ""}}),
+        ):
+            hook = SlackHook(slack_conn_id='my_conn')
+            params = hook._get_conn_params()
+            assert 'proxy' not in params
+            assert 'base_url' not in params

@@ -57,7 +57,7 @@ class TestConnectionExtra:
             conn_id="test-conn-id",
             extra={"arg1": "foo", f"extra__{conn_type}__arg1": "bar"},
         )
-        assert extra_config.get("arg1") == "bar"
+        assert extra_config.get("arg1") == "foo"
 
     @pytest.mark.parametrize("conn_type", ["slack", "slack_incoming_webhook"])
     @pytest.mark.parametrize("empty_value", [None, ""])

@@ -29,7 +29,7 @@ from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-from airflow.providers.slack.utils import ConnectionExtraConfig, prefixed_extra_field
+from airflow.providers.slack.utils import ConnectionExtraConfig
 from airflow.utils.log.secrets_masker import mask_secret
 
 if TYPE_CHECKING:
@@ -53,6 +53,34 @@ def check_webhook_response(func: Callable) -> Callable:
         return resp
 
     return wrapper
+
+
+def _ensure_prefixes(conn_type):
+    """
+    Remove when provider min airflow version >= 2.5.0 since this is handled by
+    provider manager from that version.
+    """
+
+    def dec(func):
+        @wraps(func)
+        def inner(cls):
+            field_behaviors = func(cls)
+            conn_attrs = {'host', 'schema', 'login', 'password', 'port', 'extra'}
+
+            def _ensure_prefix(field):
+                if field not in conn_attrs and not field.startswith('extra__'):
+                    return f"extra__{conn_type}__{field}"
+                else:
+                    return field
+
+            if 'placeholders' in field_behaviors:
+                placeholders = field_behaviors['placeholders']
+                field_behaviors['placeholders'] = {_ensure_prefix(k): v for k, v in placeholders.items()}
+            return field_behaviors
+
+        return inner
+
+    return dec
 
 
 class SlackWebhookHook(BaseHook):
@@ -423,14 +451,14 @@ class SlackWebhookHook(BaseHook):
         from wtforms.validators import NumberRange, Optional
 
         return {
-            prefixed_extra_field("timeout", cls.conn_type): IntegerField(
+            "timeout": IntegerField(
                 lazy_gettext("Timeout"),
                 widget=BS3TextFieldWidget(),
                 validators=[Optional(), NumberRange(min=1)],
                 description="Optional. The maximum number of seconds the client will wait to connect "
                 "and receive a response from Slack Incoming Webhook.",
             ),
-            prefixed_extra_field("proxy", cls.conn_type): StringField(
+            "proxy": StringField(
                 lazy_gettext('Proxy'),
                 widget=BS3TextFieldWidget(),
                 description="Optional. Proxy to make the Slack Incoming Webhook call.",
@@ -438,6 +466,7 @@ class SlackWebhookHook(BaseHook):
         }
 
     @classmethod
+    @_ensure_prefixes(conn_type='slackwebhook')
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
@@ -450,8 +479,8 @@ class SlackWebhookHook(BaseHook):
                 "schema": "https",
                 "host": "hooks.slack.com/services",
                 "password": "T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
-                prefixed_extra_field("timeout", cls.conn_type): "30",
-                prefixed_extra_field("proxy", cls.conn_type): "http://localhost:9000",
+                "timeout": "30",
+                "proxy": "http://localhost:9000",
             },
         }
 
