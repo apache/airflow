@@ -287,6 +287,13 @@ class KubernetesPodOperator(BaseOperator):
         self.pod_request_obj: k8s.V1Pod | None = None
         self.pod: k8s.V1Pod | None = None
 
+    @cached_property
+    def _incluster_namespace(self):
+        from pathlib import Path
+
+        path = Path('/var/run/secrets/kubernetes.io/serviceaccount/namespace')
+        return path.exists() and path.read_text() or None
+
     def _render_nested_template_fields(
         self,
         content: Any,
@@ -575,6 +582,11 @@ class KubernetesPodOperator(BaseOperator):
         if self.random_name_suffix:
             pod.metadata.name = PodGenerator.make_unique_pod_id(pod.metadata.name)
 
+        if not pod.metadata.namespace:
+            hook_namespace = self.hook.conn_extras.get('extra__kubernetes__namespace')
+            pod_namespace = self.namespace or hook_namespace or self._incluster_namespace or 'default'
+            pod.metadata.namespace = pod_namespace
+
         for secret in self.secrets:
             self.log.debug("Adding secret to task %s", self.task_id)
             pod = secret.attach_to_pod(pod)
@@ -583,7 +595,7 @@ class KubernetesPodOperator(BaseOperator):
             pod = xcom_sidecar.add_xcom_sidecar(pod)
 
         labels = self._get_ti_pod_labels(context)
-        self.log.info("Creating pod %s with labels: %s", pod.metadata.name, labels)
+        self.log.info("Building pod %s with labels: %s", pod.metadata.name, labels)
 
         # Merge Pod Identifying labels with labels passed to operator
         pod.metadata.labels.update(labels)

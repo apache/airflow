@@ -35,7 +35,9 @@ Previously KubernetesPodOperator considered some settings from the Airflow confi
 Features
 ~~~~~~~~
 
-Previously, ``name`` was a required argument for KubernetesPodOperator (when also not supplying pod template or full pod spec). Now, if ``name`` is not supplied, ``task_id`` will be used.
+* Previously, ``name`` was a required argument for KubernetesPodOperator (when also not supplying pod template or full pod spec). Now, if ``name`` is not supplied, ``task_id`` will be used.
+* KubernetsPodOperator argument ``namespace`` is now optional.  If not supplied via KPO param or pod template file or full pod spec, then we'll check the airflow conn,
+  then if in a k8s pod, try to infer the namespace from the container, then finally will use the ``default`` namespace.
 
 4.4.0
 .....
