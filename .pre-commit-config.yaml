@@ -149,8 +149,15 @@ repos:
     hooks:
       - id: black
         name: Run Black (the uncompromising Python code formatter)
+        args: [--config=./pyproject.toml --skip-string-normalization]
+        exclude: ^airflow/_vendor/|^airflow/contrib/|^airflow/providers/
+  - repo: https://github.com/psf/black
+    rev: 22.3.0
+    hooks:
+      - id: black
+        name: Run Black (the uncompromising Python code formatter)
         args: [--config=./pyproject.toml]
-        exclude: ^airflow/_vendor/|^airflow/contrib
+        include: ^airflow/providers/
   - repo: https://github.com/asottile/blacken-docs
     rev: v1.12.1
     hooks:
