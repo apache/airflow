@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import os
-from contextlib import closing
 from typing import Any, Callable, Iterable, Mapping
 
 import trino
@@ -49,14 +48,11 @@ def generate_trino_client_info() -> str:
         )
         for format_map in AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()
     }
-    # try_number isn't available in context for airflow < 2.2.5
-    # https://github.com/apache/airflow/issues/23059
-    try_number = context_var.get("try_number", "")
     task_info = {
         "dag_id": context_var["dag_id"],
         "task_id": context_var["task_id"],
         "execution_date": context_var["execution_date"],
-        "try_number": try_number,
+        "try_number": context_var["try_number"],
         "dag_run_id": context_var["dag_run_id"],
         "dag_owner": context_var["dag_owner"],
     }
@@ -94,6 +90,7 @@ class TrinoHook(DbApiHook):
     hook_name = "Trino"
     query_id = ""
     placeholder = "?"
+    _test_connection_sql = "select 1"
 
     def get_conn(self) -> Connection:
         """Returns a connection object"""
@@ -243,19 +240,3 @@ class TrinoHook(DbApiHook):
             commit_every = 0
 
         super().insert_rows(table, rows, target_fields, commit_every, replace)
-
-    def test_connection(self):
-        """Tests the connection from UI using Trino specific query"""
-        status, message = False, ""
-        try:
-            with closing(self.get_conn()) as conn:
-                with closing(conn.cursor()) as cur:
-                    cur.execute("select 1")
-                    if cur.fetchone():
-                        status = True
-                        message = "Connection successfully tested"
-        except Exception as e:
-            status = False
-            message = str(e)
-
-        return status, message

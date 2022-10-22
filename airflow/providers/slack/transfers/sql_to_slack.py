@@ -18,16 +18,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
-from packaging.version import Version
 from pandas import DataFrame
 from tabulate import tabulate
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
-from airflow.providers.common.sql.hooks.sql import DbApiHook, _backported_get_hook
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
-from airflow.version import version
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -102,13 +100,7 @@ class SqlToSlackOperator(BaseOperator):
     def _get_hook(self) -> DbApiHook:
         self.log.debug("Get connection for %s", self.sql_conn_id)
         conn = BaseHook.get_connection(self.sql_conn_id)
-        if Version(version) >= Version("2.3"):
-            # "hook_params" were introduced to into "get_hook()" only in Airflow 2.3.
-            hook = conn.get_hook(hook_params=self.sql_hook_params)  # ignore airflow compat check
-        else:
-            # For supporting Airflow versions < 2.3, we backport "get_hook()" method. This should be removed
-            # when "apache-airflow-providers-slack" will depend on Airflow >= 2.3.
-            hook = _backported_get_hook(conn, hook_params=self.sql_hook_params)
+        hook = conn.get_hook(hook_params=self.sql_hook_params)
         if not callable(getattr(hook, "get_pandas_df", None)):
             raise AirflowException(
                 "This hook is not supported. The hook class must have get_pandas_df method."
