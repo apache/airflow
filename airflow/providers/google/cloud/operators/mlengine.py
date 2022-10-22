@@ -16,20 +16,26 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud MLEngine operators."""
+
 from __future__ import annotations
 
-import datetime
 import logging
 import re
 import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, BaseOperatorLink, XCom
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook
+from airflow.providers.google.cloud.links.mlengine import (
+    MLEngineJobDetailsLink,
+    MLEngineJobSListLink,
+    MLEngineModelLink,
+    MLEngineModelsListLink,
+    MLEngineModelVersionDetailsLink,
+)
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -396,6 +402,7 @@ class MLEngineCreateModelOperator(BaseOperator):
         '_model',
         '_impersonation_chain',
     )
+    operator_extra_links = (MLEngineModelLink(),)
 
     def __init__(
         self,
@@ -420,6 +427,16 @@ class MLEngineCreateModelOperator(BaseOperator):
             delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
+
+        project_id = self._project_id or hook.project_id
+        if project_id:
+            MLEngineModelLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                model_id=self._model['name'],
+            )
+
         return hook.create_model(project_id=self._project_id, model=self._model)
 
 
@@ -456,6 +473,7 @@ class MLEngineGetModelOperator(BaseOperator):
         '_model_name',
         '_impersonation_chain',
     )
+    operator_extra_links = (MLEngineModelLink(),)
 
     def __init__(
         self,
@@ -480,6 +498,15 @@ class MLEngineGetModelOperator(BaseOperator):
             delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
+        project_id = self._project_id or hook.project_id
+        if project_id:
+            MLEngineModelLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                model_id=self._model_name,
+            )
+
         return hook.get_model(project_id=self._project_id, model_name=self._model_name)
 
 
@@ -519,6 +546,7 @@ class MLEngineDeleteModelOperator(BaseOperator):
         '_model_name',
         '_impersonation_chain',
     )
+    operator_extra_links = (MLEngineModelsListLink(),)
 
     def __init__(
         self,
@@ -545,6 +573,14 @@ class MLEngineDeleteModelOperator(BaseOperator):
             delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
+
+        project_id = self._project_id or hook.project_id
+        if project_id:
+            MLEngineModelsListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
 
         return hook.delete_model(
             project_id=self._project_id, model_name=self._model_name, delete_contents=self._delete_contents
@@ -711,6 +747,7 @@ class MLEngineCreateVersionOperator(BaseOperator):
         '_version',
         '_impersonation_chain',
     )
+    operator_extra_links = (MLEngineModelVersionDetailsLink(),)
 
     def __init__(
         self,
@@ -746,6 +783,16 @@ class MLEngineCreateVersionOperator(BaseOperator):
             delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
+
+        project_id = self._project_id or hook.project_id
+        if project_id:
+            MLEngineModelVersionDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                model_id=self._model_name,
+                version_id=self._version['name'],
+            )
 
         return hook.create_version(
             project_id=self._project_id, model_name=self._model_name, version_spec=self._version
@@ -788,6 +835,7 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
         '_version_name',
         '_impersonation_chain',
     )
+    operator_extra_links = (MLEngineModelVersionDetailsLink(),)
 
     def __init__(
         self,
@@ -823,6 +871,16 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
             delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
+
+        project_id = self._project_id or hook.project_id
+        if project_id:
+            MLEngineModelVersionDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                model_id=self._model_name,
+                version_id=self._version_name,
+            )
 
         return hook.set_default_version(
             project_id=self._project_id, model_name=self._model_name, version_name=self._version_name
@@ -863,6 +921,7 @@ class MLEngineListVersionsOperator(BaseOperator):
         '_model_name',
         '_impersonation_chain',
     )
+    operator_extra_links = (MLEngineModelLink(),)
 
     def __init__(
         self,
@@ -893,6 +952,15 @@ class MLEngineListVersionsOperator(BaseOperator):
             delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
+
+        project_id = self._project_id or hook.project_id
+        if project_id:
+            MLEngineModelLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                model_id=self._model_name,
+            )
 
         return hook.list_versions(
             project_id=self._project_id,
@@ -936,6 +1004,7 @@ class MLEngineDeleteVersionOperator(BaseOperator):
         '_version_name',
         '_impersonation_chain',
     )
+    operator_extra_links = (MLEngineModelLink(),)
 
     def __init__(
         self,
@@ -972,38 +1041,18 @@ class MLEngineDeleteVersionOperator(BaseOperator):
             impersonation_chain=self._impersonation_chain,
         )
 
+        project_id = self._project_id or hook.project_id
+        if project_id:
+            MLEngineModelLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                model_id=self._model_name,
+            )
+
         return hook.delete_version(
             project_id=self._project_id, model_name=self._model_name, version_name=self._version_name
         )
-
-
-class AIPlatformConsoleLink(BaseOperatorLink):
-    """Helper class for constructing AI Platform Console link."""
-
-    name = "AI Platform Console"
-
-    def get_link(
-        self,
-        operator,
-        dttm: datetime.datetime | None = None,
-        ti_key: TaskInstanceKey | None = None,
-    ) -> str:
-        if ti_key is not None:
-            gcp_metadata_dict = XCom.get_value(key="gcp_metadata", ti_key=ti_key)
-        else:
-            assert dttm is not None
-            gcp_metadata_dict = XCom.get_one(
-                key="gcp_metadata",
-                dag_id=operator.dag.dag_id,
-                task_id=operator.task_id,
-                execution_date=dttm,
-            )
-        if not gcp_metadata_dict:
-            return ''
-        job_id = gcp_metadata_dict['job_id']
-        project_id = gcp_metadata_dict['project_id']
-        console_link = f"https://console.cloud.google.com/ai-platform/jobs/{job_id}?project={project_id}"
-        return console_link
 
 
 class MLEngineStartTrainingJobOperator(BaseOperator):
@@ -1087,8 +1136,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         '_hyperparameters',
         '_impersonation_chain',
     )
-
-    operator_extra_links = (AIPlatformConsoleLink(),)
+    operator_extra_links = (MLEngineJobDetailsLink(),)
 
     def __init__(
         self,
@@ -1238,11 +1286,14 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
             self.log.error('MLEngine training job failed: %s', str(finished_training_job))
             raise RuntimeError(finished_training_job['errorMessage'])
 
-        gcp_metadata = {
-            "job_id": job_id,
-            "project_id": self._project_id,
-        }
-        context['task_instance'].xcom_push("gcp_metadata", gcp_metadata)
+        project_id = self._project_id or hook.project_id
+        if project_id:
+            MLEngineJobDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                job_id=job_id,
+            )
 
 
 class MLEngineTrainingCancelJobOperator(BaseOperator):
@@ -1273,6 +1324,7 @@ class MLEngineTrainingCancelJobOperator(BaseOperator):
         '_job_id',
         '_impersonation_chain',
     )
+    operator_extra_links = (MLEngineJobSListLink(),)
 
     def __init__(
         self,
@@ -1301,5 +1353,13 @@ class MLEngineTrainingCancelJobOperator(BaseOperator):
             delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
+
+        project_id = self._project_id or hook.project_id
+        if project_id:
+            MLEngineJobSListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
 
         hook.cancel_job(project_id=self._project_id, job_id=_normalize_mlengine_job_id(self._job_id))
