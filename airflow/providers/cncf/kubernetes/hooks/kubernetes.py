@@ -140,7 +140,7 @@ class KubernetesHook(BaseHook):
         we needed to store them with the prefix ``extra__kubernetes__``. This method
         handles the backcompat, i.e. if the extra dict contains prefixed fields.
         """
-        if field_name.startswith('extra_'):
+        if field_name.startswith('extra__'):
             raise ValueError(
                 f"Got prefixed name {field_name}; please remove the 'extra__kubernetes__' prefix "
                 f"when using this method."
