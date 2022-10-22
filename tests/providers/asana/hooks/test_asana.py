@@ -16,16 +16,19 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
+import os
 from unittest.mock import patch
 
+import pytest
 from asana import Client
+from pytest import param
 
 from airflow.models import Connection
 from airflow.providers.asana.hooks.asana import AsanaHook
+from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
 
 
-class TestAsanaHook(unittest.TestCase):
+class TestAsanaHook:
     """
     Tests for AsanaHook Asana client retrieval
     """
@@ -40,7 +43,7 @@ class TestAsanaHook(unittest.TestCase):
         ):
             hook = AsanaHook()
         client = hook.get_conn()
-        self.assertEqual(type(client), Client)
+        assert type(client) == Client
 
     def test_missing_password_raises(self):
         """
@@ -49,7 +52,7 @@ class TestAsanaHook(unittest.TestCase):
         """
         with patch.object(AsanaHook, "get_connection", return_value=Connection(conn_type="asana")):
             hook = AsanaHook()
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             hook.get_conn()
 
     def test_merge_create_task_parameters_default_project(self):
@@ -62,7 +65,7 @@ class TestAsanaHook(unittest.TestCase):
         with patch.object(AsanaHook, "get_connection", return_value=conn):
             hook = AsanaHook()
         expected_merged_params = {"name": "test", "projects": ["1"]}
-        self.assertEqual(expected_merged_params, hook._merge_create_task_parameters("test", {}))
+        assert hook._merge_create_task_parameters("test", {}) == expected_merged_params
 
     def test_merge_create_task_parameters_specified_project(self):
         """
@@ -74,10 +77,7 @@ class TestAsanaHook(unittest.TestCase):
         with patch.object(AsanaHook, "get_connection", return_value=conn):
             hook = AsanaHook()
         expected_merged_params = {"name": "test", "projects": ["1", "2"]}
-        self.assertEqual(
-            expected_merged_params,
-            hook._merge_create_task_parameters("test", {"projects": ["1", "2"]}),
-        )
+        assert hook._merge_create_task_parameters("test", {"projects": ["1", "2"]}) == expected_merged_params
 
     def test_merge_create_task_parameters_specified_workspace(self):
         """
@@ -89,7 +89,7 @@ class TestAsanaHook(unittest.TestCase):
         with patch.object(AsanaHook, "get_connection", return_value=conn):
             hook = AsanaHook()
         expected_merged_params = {"name": "test", "workspace": "1"}
-        self.assertEqual(expected_merged_params, hook._merge_create_task_parameters("test", {}))
+        assert hook._merge_create_task_parameters("test", {}) == expected_merged_params
 
     def test_merge_create_task_parameters_default_project_overrides_default_workspace(self):
         """
@@ -105,7 +105,7 @@ class TestAsanaHook(unittest.TestCase):
         with patch.object(AsanaHook, "get_connection", return_value=conn):
             hook = AsanaHook()
         expected_merged_params = {"name": "test", "projects": ["1"]}
-        self.assertEqual(expected_merged_params, hook._merge_create_task_parameters("test", {}))
+        assert hook._merge_create_task_parameters("test", {}) == expected_merged_params
 
     def test_merge_create_task_parameters_specified_project_overrides_default_workspace(self):
         """
@@ -121,10 +121,7 @@ class TestAsanaHook(unittest.TestCase):
         with patch.object(AsanaHook, "get_connection", return_value=conn):
             hook = AsanaHook()
         expected_merged_params = {"name": "test", "projects": ["2"]}
-        self.assertEqual(
-            expected_merged_params,
-            hook._merge_create_task_parameters("test", {"projects": ["2"]}),
-        )
+        assert hook._merge_create_task_parameters("test", {"projects": ["2"]}) == expected_merged_params
 
     def test_merge_find_task_parameters_default_project(self):
         """
@@ -136,7 +133,7 @@ class TestAsanaHook(unittest.TestCase):
         with patch.object(AsanaHook, "get_connection", return_value=conn):
             hook = AsanaHook()
         expected_merged_params = {"project": "1"}
-        self.assertEqual(expected_merged_params, hook._merge_find_task_parameters({}))
+        assert hook._merge_find_task_parameters({}) == expected_merged_params
 
     def test_merge_find_task_parameters_specified_project(self):
         """
@@ -148,10 +145,7 @@ class TestAsanaHook(unittest.TestCase):
         with patch.object(AsanaHook, "get_connection", return_value=conn):
             hook = AsanaHook()
         expected_merged_params = {"project": "2"}
-        self.assertEqual(
-            expected_merged_params,
-            hook._merge_find_task_parameters({"project": "2"}),
-        )
+        assert hook._merge_find_task_parameters({"project": "2"}) == expected_merged_params
 
     def test_merge_find_task_parameters_default_workspace(self):
         """
@@ -163,10 +157,7 @@ class TestAsanaHook(unittest.TestCase):
         with patch.object(AsanaHook, "get_connection", return_value=conn):
             hook = AsanaHook()
         expected_merged_params = {"workspace": "1", "assignee": "1"}
-        self.assertEqual(
-            expected_merged_params,
-            hook._merge_find_task_parameters({"assignee": "1"}),
-        )
+        assert hook._merge_find_task_parameters({"assignee": "1"}) == expected_merged_params
 
     def test_merge_find_task_parameters_specified_workspace(self):
         """
@@ -178,10 +169,7 @@ class TestAsanaHook(unittest.TestCase):
         with patch.object(AsanaHook, "get_connection", return_value=conn):
             hook = AsanaHook()
         expected_merged_params = {"workspace": "2", "assignee": "1"}
-        self.assertEqual(
-            expected_merged_params,
-            hook._merge_find_task_parameters({"workspace": "2", "assignee": "1"}),
-        )
+        assert hook._merge_find_task_parameters({"workspace": "2", "assignee": "1"}) == expected_merged_params
 
     def test_merge_find_task_parameters_default_project_overrides_workspace(self):
         """
@@ -196,7 +184,7 @@ class TestAsanaHook(unittest.TestCase):
         with patch.object(AsanaHook, "get_connection", return_value=conn):
             hook = AsanaHook()
         expected_merged_params = {"project": "1"}
-        self.assertEqual(expected_merged_params, hook._merge_find_task_parameters({}))
+        assert hook._merge_find_task_parameters({}) == expected_merged_params
 
     def test_merge_find_task_parameters_specified_project_overrides_workspace(self):
         """
@@ -212,10 +200,7 @@ class TestAsanaHook(unittest.TestCase):
         with patch.object(AsanaHook, "get_connection", return_value=conn):
             hook = AsanaHook()
         expected_merged_params = {"project": "2"}
-        self.assertEqual(
-            expected_merged_params,
-            hook._merge_find_task_parameters({"project": "2"}),
-        )
+        assert hook._merge_find_task_parameters({"project": "2"}) == expected_merged_params
 
     def test_merge_project_parameters(self):
         """
@@ -226,7 +211,7 @@ class TestAsanaHook(unittest.TestCase):
         with patch.object(AsanaHook, "get_connection", return_value=conn):
             hook = AsanaHook()
         expected_merged_params = {"workspace": "1", "name": "name"}
-        self.assertEqual(expected_merged_params, hook._merge_project_parameters({"name": "name"}))
+        assert hook._merge_project_parameters({"name": "name"}) == expected_merged_params
 
     def test_merge_project_parameters_override(self):
         """
@@ -237,7 +222,55 @@ class TestAsanaHook(unittest.TestCase):
         with patch.object(AsanaHook, "get_connection", return_value=conn):
             hook = AsanaHook()
         expected_merged_params = {"workspace": "2"}
-        self.assertEqual(
-            expected_merged_params,
-            hook._merge_project_parameters({"workspace": "2"}),
-        )
+        assert hook._merge_project_parameters({"workspace": "2"}) == expected_merged_params
+
+    def test__ensure_prefixes_removal(self):
+        """Ensure that _ensure_prefixes is removed from snowflake when airflow min version >= 2.5.0."""
+        path = 'airflow.providers.asana.hooks.asana._ensure_prefixes'
+        if not object_exists(path):
+            raise Exception(
+                "You must remove this test. It only exists to "
+                "remind us to remove decorator `_ensure_prefixes`."
+            )
+
+        if get_provider_min_airflow_version('apache-airflow-providers-asana') >= (2, 5):
+            raise Exception(
+                "You must now remove `_ensure_prefixes` from AsanaHook."
+                " The functionality is now taken care of by providers manager."
+            )
+
+    def test__ensure_prefixes(self):
+        """
+        Check that ensure_prefixes decorator working properly
+
+        Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
+        """
+        assert list(AsanaHook.get_ui_field_behaviour()['placeholders'].keys()) == [
+            'password',
+            'extra__asana__workspace',
+            'extra__asana__project',
+        ]
+
+    @pytest.mark.parametrize(
+        'uri',
+        [
+            param(
+                'a://?extra__asana__workspace=abc&extra__asana__project=abc',
+                id='prefix',
+            ),
+            param('a://?workspace=abc&project=abc', id='no-prefix'),
+        ],
+    )
+    def test_backcompat_prefix_works(self, uri):
+        with patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}):
+            hook = AsanaHook('my_conn')
+            assert hook.workspace == 'abc'
+            assert hook.project == 'abc'
+
+    def test_backcompat_prefix_both_prefers_short(self):
+        with patch.dict(
+            os.environ,
+            {"AIRFLOW_CONN_MY_CONN": 'a://?workspace=non-prefixed&extra__asana__workspace=prefixed'},
+        ):
+            hook = AsanaHook('my_conn')
+            assert hook.workspace == 'non-prefixed'
