@@ -48,7 +48,7 @@ For more information, please refer to the links above.
 Copying BigQuery tables
 -----------------------
 
-The following Operator copies data from BigQuery table to another. 
+The following Operator copies data from one or more BigQuery tables to another.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_to_bigquery.py
     :language: python
