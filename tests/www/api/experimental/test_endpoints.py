@@ -104,11 +104,11 @@ class TestApiExperimental(TestBase):
         assert "error" not in response.data.decode("utf-8")
         assert 200 == response.status_code
 
-        response = self.client.get(url_template.format("example_bash_operator", "DNE"))
+        response = self.client.get(url_template.format("example_bash_operator", "does-not-exist"))
         assert "error" in response.data.decode("utf-8")
         assert 404 == response.status_code
 
-        response = self.client.get(url_template.format("DNE", "DNE"))
+        response = self.client.get(url_template.format("does-not-exist", "does-not-exist"))
         assert "error" in response.data.decode("utf-8")
         assert 404 == response.status_code
 

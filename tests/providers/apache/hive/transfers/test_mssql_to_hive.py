@@ -62,7 +62,7 @@ class TestMsSqlToHiveTransfer(unittest.TestCase):
         mock_tmp_file.return_value.__enter__ = Mock(return_value=mock_tmp_file)
         mock_mssql_hook_get_conn = mock_mssql_hook.return_value.get_conn.return_value.__enter__
         mock_mssql_hook_cursor = mock_mssql_hook_get_conn.return_value.cursor.return_value.__enter__
-        mock_mssql_hook_cursor.return_value.description = [("te", "st")]
+        mock_mssql_hook_cursor.return_value.description = [("anything", "some-other-thing")]
 
         mssql_to_hive_transfer = MsSqlToHiveOperator(**self.kwargs)
         mssql_to_hive_transfer.execute(context={})
