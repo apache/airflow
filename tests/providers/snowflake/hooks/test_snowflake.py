@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import unittest
 from copy import deepcopy
 from pathlib import Path
@@ -30,6 +31,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 from airflow.models import Connection
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
 
 _PASSWORD = 'snowflake42'
 
@@ -292,6 +294,66 @@ class TestPytestSnowflakeHook:
         ):
             assert 'private_key' in SnowflakeHook(snowflake_conn_id='test_conn')._get_conn_params()
 
+    @pytest.mark.parametrize('include_params', [True, False])
+    def test_hook_param_beats_extra(self, include_params):
+        """When both hook params and extras are supplied, hook params should
+        beat extras."""
+        hook_params = dict(
+            account='account',
+            warehouse='warehouse',
+            database='database',
+            region='region',
+            role='role',
+            authenticator='authenticator',
+            session_parameters='session_parameters',
+        )
+        extras = {k: f"{v}_extra" for k, v in hook_params.items()}
+        with unittest.mock.patch.dict(
+            'os.environ',
+            AIRFLOW_CONN_TEST_CONN=Connection(conn_type='any', extra=json.dumps(extras)).get_uri(),
+        ):
+            assert hook_params != extras
+            assert SnowflakeHook(
+                snowflake_conn_id='test_conn', **(hook_params if include_params else {})
+            )._get_conn_params() == {
+                'user': None,
+                'password': '',
+                'application': 'AIRFLOW',
+                'schema': '',
+                **(hook_params if include_params else extras),
+            }
+
+    @pytest.mark.parametrize('include_unprefixed', [True, False])
+    def test_extra_short_beats_long(self, include_unprefixed):
+        """When both prefixed and unprefixed values are found in extra (e.g.
+        extra__snowflake__account and account), we should prefer the short
+        name."""
+        extras = dict(
+            account='account',
+            warehouse='warehouse',
+            database='database',
+            region='region',
+            role='role',
+        )
+        extras_prefixed = {f"extra__snowflake__{k}": f"{v}_prefixed" for k, v in extras.items()}
+        with unittest.mock.patch.dict(
+            'os.environ',
+            AIRFLOW_CONN_TEST_CONN=Connection(
+                conn_type='any',
+                extra=json.dumps({**(extras if include_unprefixed else {}), **extras_prefixed}),
+            ).get_uri(),
+        ):
+            assert list(extras.values()) != list(extras_prefixed.values())
+            assert SnowflakeHook(snowflake_conn_id='test_conn')._get_conn_params() == {
+                'user': None,
+                'password': '',
+                'application': 'AIRFLOW',
+                'schema': '',
+                'authenticator': 'snowflake',
+                'session_parameters': None,
+                **(extras if include_unprefixed else dict(zip(extras.keys(), extras_prefixed.values()))),
+            }
+
     def test_get_conn_params_should_support_private_auth_with_encrypted_key(
         self, encrypted_temporary_private_key
     ):
@@ -524,3 +586,39 @@ class TestPytestSnowflakeHook:
             with pytest.raises(ValueError) as err:
                 hook.run(sql=empty_statement)
             assert err.value.args[0] == "List of SQL statements is empty"
+
+    def test__ensure_prefixes_removal(self):
+        """Ensure that _ensure_prefixes is removed from snowflake when airflow min version >= 2.5.0."""
+        path = 'airflow.providers.snowflake.hooks.snowflake._ensure_prefixes'
+        if not object_exists(path):
+            raise Exception(
+                "You must remove this test. It only exists to "
+                "remind us to remove decorator `_ensure_prefixes`."
+            )
+
+        if get_provider_min_airflow_version('apache-airflow-providers-snowflake') >= (2, 5):
+            raise Exception(
+                "You must now remove `_ensure_prefixes` from SnowflakeHook.  The functionality is now taken"
+                "care of by providers manager."
+            )
+
+    def test___ensure_prefixes(self):
+        """
+        Check that ensure_prefixes decorator working properly
+
+        Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
+        """
+        assert list(SnowflakeHook.get_ui_field_behaviour()['placeholders'].keys()) == [
+            'extra',
+            'schema',
+            'login',
+            'password',
+            'extra__snowflake__account',
+            'extra__snowflake__warehouse',
+            'extra__snowflake__database',
+            'extra__snowflake__region',
+            'extra__snowflake__role',
+            'extra__snowflake__private_key_file',
+            'extra__snowflake__private_key_content',
+            'extra__snowflake__insecure_mode',
+        ]
