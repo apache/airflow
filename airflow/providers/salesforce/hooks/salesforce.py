@@ -77,6 +77,19 @@ class SalesforceHook(BaseHook):
         self.session_id = session_id
         self.session = session
 
+    def _get_field(self, extras: dict, field_name: str):
+        """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
+        backcompat_prefix = "extra__salesforce__"
+        if field_name.startswith('extra__'):
+            raise ValueError(
+                f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
+                "when using this method."
+            )
+        if field_name in extras:
+            return extras[field_name] or None
+        prefixed_name = f"{backcompat_prefix}{field_name}"
+        return extras.get(prefixed_name) or None
+
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
@@ -85,33 +98,19 @@ class SalesforceHook(BaseHook):
         from wtforms import PasswordField, StringField
 
         return {
-            "extra__salesforce__security_token": PasswordField(
-                lazy_gettext("Security Token"), widget=BS3PasswordFieldWidget()
-            ),
-            "extra__salesforce__domain": StringField(lazy_gettext("Domain"), widget=BS3TextFieldWidget()),
-            "extra__salesforce__consumer_key": StringField(
-                lazy_gettext("Consumer Key"), widget=BS3TextFieldWidget()
-            ),
-            "extra__salesforce__private_key_file_path": PasswordField(
+            "security_token": PasswordField(lazy_gettext("Security Token"), widget=BS3PasswordFieldWidget()),
+            "domain": StringField(lazy_gettext("Domain"), widget=BS3TextFieldWidget()),
+            "consumer_key": StringField(lazy_gettext("Consumer Key"), widget=BS3TextFieldWidget()),
+            "private_key_file_path": PasswordField(
                 lazy_gettext("Private Key File Path"), widget=BS3PasswordFieldWidget()
             ),
-            "extra__salesforce__private_key": PasswordField(
-                lazy_gettext("Private Key"), widget=BS3PasswordFieldWidget()
-            ),
-            "extra__salesforce__organization_id": StringField(
-                lazy_gettext("Organization ID"), widget=BS3TextFieldWidget()
-            ),
-            "extra__salesforce__instance": StringField(lazy_gettext("Instance"), widget=BS3TextFieldWidget()),
-            "extra__salesforce__instance_url": StringField(
-                lazy_gettext("Instance URL"), widget=BS3TextFieldWidget()
-            ),
-            "extra__salesforce__proxies": StringField(lazy_gettext("Proxies"), widget=BS3TextFieldWidget()),
-            "extra__salesforce__version": StringField(
-                lazy_gettext("API Version"), widget=BS3TextFieldWidget()
-            ),
-            "extra__salesforce__client_id": StringField(
-                lazy_gettext("Client ID"), widget=BS3TextFieldWidget()
-            ),
+            "private_key": PasswordField(lazy_gettext("Private Key"), widget=BS3PasswordFieldWidget()),
+            "organization_id": StringField(lazy_gettext("Organization ID"), widget=BS3TextFieldWidget()),
+            "instance": StringField(lazy_gettext("Instance"), widget=BS3TextFieldWidget()),
+            "instance_url": StringField(lazy_gettext("Instance URL"), widget=BS3TextFieldWidget()),
+            "proxies": StringField(lazy_gettext("Proxies"), widget=BS3TextFieldWidget()),
+            "version": StringField(lazy_gettext("API Version"), widget=BS3TextFieldWidget()),
+            "client_id": StringField(lazy_gettext("Client ID"), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
@@ -137,19 +136,19 @@ class SalesforceHook(BaseHook):
         conn = Salesforce(
             username=connection.login,
             password=connection.password,
-            security_token=extras.get('extra__salesforce__security_token') or None,
-            domain=extras.get('extra__salesforce__domain') or None,
+            security_token=self._get_field(extras, 'security_token') or None,
+            domain=self._get_field(extras, 'domain') or None,
             session_id=self.session_id,
-            instance=extras.get('extra__salesforce__instance') or None,
-            instance_url=extras.get('extra__salesforce__instance_url') or None,
-            organizationId=extras.get('extra__salesforce__organization_id') or None,
-            version=extras.get('extra__salesforce__version') or api.DEFAULT_API_VERSION,
-            proxies=extras.get('extra__salesforce__proxies') or None,
+            instance=self._get_field(extras, 'instance') or None,
+            instance_url=self._get_field(extras, 'instance_url') or None,
+            organizationId=self._get_field(extras, 'organization_id') or None,
+            version=self._get_field(extras, 'version') or api.DEFAULT_API_VERSION,
+            proxies=self._get_field(extras, 'proxies') or None,
             session=self.session,
-            client_id=extras.get('extra__salesforce__client_id') or None,
-            consumer_key=extras.get('extra__salesforce__consumer_key') or None,
-            privatekey_file=extras.get('extra__salesforce__private_key_file_path') or None,
-            privatekey=extras.get('extra__salesforce__private_key') or None,
+            client_id=self._get_field(extras, 'client_id') or None,
+            consumer_key=self._get_field(extras, 'consumer_key') or None,
+            privatekey_file=self._get_field(extras, 'private_key_file_path') or None,
+            privatekey=self._get_field(extras, 'private_key') or None,
         )
         return conn
 
