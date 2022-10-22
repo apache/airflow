@@ -44,5 +44,5 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in JDBC connection. The following parameters out of the standard python parameters are supported:
 
     * ``conn_prefix`` - Used to build the connection url in ``JdbcOperator``, added in front of host (``conn_prefix`` ``host`` [: ``port`` ] / ``schema``)
-    * ``extra__jdbc__drv_clsname`` - Full qualified Java class name of the JDBC driver. For ``JdbcOperator``.
-    * ``extra__jdbc__drv_path`` - Jar filename or sequence of filenames for the JDBC driver libs. For ``JdbcOperator``.
+    * ``drv_clsname`` - Full qualified Java class name of the JDBC driver. For ``JdbcOperator``.
+    * ``drv_path`` - Jar filename or sequence of filenames for the JDBC driver libs. For ``JdbcOperator``.
