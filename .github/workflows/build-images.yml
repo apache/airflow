@@ -75,15 +75,15 @@ jobs:
         id: discover-pr-merge-commit
         run: |
           TARGET_COMMIT_SHA="$(gh api '${{ github.event.pull_request.url }}' --jq .merge_commit_sha)"
-          echo "TARGET_COMMIT_SHA=$TARGET_COMMIT_SHA" >> $GITHUB_ENV
-          echo "::set-output name=target-commit-sha::${TARGET_COMMIT_SHA}"
+          echo "TARGET_COMMIT_SHA=$TARGET_COMMIT_SHA" >> ${GITHUB_ENV}
+          echo "target-commit-sha=${TARGET_COMMIT_SHA}" >> ${GITHUB_OUTPUT}
         if: github.event_name == 'pull_request_target'
       # The labels in the event aren't updated when re-triggering the job, So lets hit the API to get
       # up-to-date values
       - name: Get latest PR labels
         id: get-latest-pr-labels
         run: |
-          echo -n "::set-output name=pull-request-labels::"
+          echo -n "pull-request-labels=" >> ${GITHUB_OUTPUT}
           gh api graphql --paginate -F node_id=${{github.event.pull_request.node_id}} -f query='
             query($node_id: ID!, $endCursor: String) {
               node(id:$node_id) {
@@ -94,7 +94,7 @@ jobs:
                   }
                 }
               }
-            }' --jq '.data.node.labels.nodes[]' | jq --slurp -c '[.[].name]'
+            }' --jq '.data.node.labels.nodes[]' | jq --slurp -c '[.[].name]' >> ${GITHUB_OUTPUT}
         if: github.event_name == 'pull_request_target'
       # Retrieve it to be able to determine which files has changed in the incoming commit of the PR
       # we checkout the target commit and it's parent to be able to compare them
@@ -120,7 +120,7 @@ jobs:
         # the PR, because the PR defaults have to be retrieved here.
         id: defaults
         run: |
-          python - <<EOF >>$GITHUB_ENV
+          python - <<EOF >> ${GITHUB_ENV}
           from pathlib import Path
           import re
           import sys
@@ -153,7 +153,7 @@ jobs:
         env:
           PR_LABELS: "${{ steps.get-latest-pr-labels.outputs.pull-request-labels }}"
           COMMIT_REF: "${{ env.TARGET_COMMIT_SHA }}"
-        run: breeze ci selective-check
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
       - name: env
         run: printenv
         env:

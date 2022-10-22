@@ -15,14 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# shellcheck disable=SC2086
 if [[ ${GITHUB_REF} == 'refs/heads/main' ]]; then
-  echo "::set-output name=branch::constraints-main"
+  echo "branch=constraints-main"
 elif [[ ${GITHUB_REF} =~ refs/heads/v([0-9\-]*)\-(test|stable) ]]; then
-  echo "::set-output name=branch::constraints-${BASH_REMATCH[1]}"
+  echo "branch=constraints-${BASH_REMATCH[1]}"
 else
   # Assume PR to constraints-main here
-  echo
-  echo "[${COLOR_YELLOW}Assuming that the PR is to 'main' branch!${COLOR_RESET}"
-  echo
-  echo "::set-output name=branch::constraints-main"
+  echo >&2
+  echo "[${COLOR_YELLOW}Assuming that the PR is to 'main' branch!${COLOR_RESET}" >&2
+  echo >&2
+  echo "branch=constraints-main"
 fi

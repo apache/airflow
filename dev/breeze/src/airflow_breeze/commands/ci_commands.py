@@ -26,7 +26,7 @@ import sys
 import tempfile
 from io import StringIO
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Any, Iterable, NamedTuple
 
 import click
 
@@ -262,7 +262,7 @@ def selective_check(
         pr_labels=tuple(ast.literal_eval(pr_labels)) if pr_labels else (),
         github_event=github_event,
     )
-    print(str(sc))
+    print(str(sc), file=sys.stderr)
 
 
 @ci_group.command(name="find-newer-dependencies", help="Finds which dependencies are being upgraded.")
@@ -295,17 +295,21 @@ class WorkflowInfo(NamedTuple):
     ref_name: str | None
     pr_number: int | None
 
-    def print_ga_outputs(self):
-        print(get_ga_output(name="pr_labels", value=str(self.pull_request_labels)))
-        print(get_ga_output(name="target_repo", value=self.target_repo))
-        print(get_ga_output(name="head_repo", value=self.head_repo))
-        print(get_ga_output(name="pr_number", value=str(self.pr_number) if self.pr_number else ""))
-        print(get_ga_output(name="event_name", value=str(self.event_name)))
-        print(get_ga_output(name="runs-on", value=self.get_runs_on()))
-        print(get_ga_output(name='in-workflow-build', value=self.in_workflow_build()))
-        print(get_ga_output(name="build-job-description", value=self.get_build_job_description()))
-        print(get_ga_output(name="canary-run", value=self.is_canary_run()))
-        print(get_ga_output(name="run-coverage", value=self.run_coverage()))
+    def get_all_ga_outputs(self) -> Iterable[str]:
+        yield get_ga_output(name="pr_labels", value=str(self.pull_request_labels))
+        yield get_ga_output(name="target_repo", value=self.target_repo)
+        yield get_ga_output(name="head_repo", value=self.head_repo)
+        yield get_ga_output(name="pr_number", value=str(self.pr_number) if self.pr_number else "")
+        yield get_ga_output(name="event_name", value=str(self.event_name))
+        yield get_ga_output(name="runs-on", value=self.get_runs_on())
+        yield get_ga_output(name='in-workflow-build', value=self.in_workflow_build())
+        yield get_ga_output(name="build-job-description", value=self.get_build_job_description())
+        yield get_ga_output(name="canary-run", value=self.is_canary_run())
+        yield get_ga_output(name="run-coverage", value=self.run_coverage())
+
+    def print_all_ga_outputs(self):
+        for output in self.get_all_ga_outputs():
+            print(output, file=sys.stderr)
 
     def get_runs_on(self) -> str:
         for label in self.pull_request_labels:
@@ -420,4 +424,4 @@ def get_workflow_info(github_context: str, github_context_input: StringIO):
         )
         sys.exit(1)
     wi = workflow_info(context=context)
-    wi.print_ga_outputs()
+    wi.print_all_ga_outputs()
