@@ -83,9 +83,9 @@ def create_connection_gcp(conn_id_name: str, secret_arn: str):
     )
     scopes = 'https://www.googleapis.com/auth/youtube.readonly'
     conn_extra = {
-        "extra__google_cloud_platform__scope": scopes,
-        "extra__google_cloud_platform__project": "aws-oss-airflow",
-        'extra__google_cloud_platform__keyfile_dict': json_data,
+        "scope": scopes,
+        "project": "aws-oss-airflow",
+        'keyfile_dict': json_data,
     }
     conn_extra_json = json.dumps(conn_extra)
     conn.set_extra(conn_extra_json)

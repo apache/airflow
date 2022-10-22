@@ -27,7 +27,7 @@ API_VERSION = "api_version"
 ADS_CLIENT = {"key": "value"}
 SECRET = "secret"
 EXTRAS = {
-    "extra__google_cloud_platform__keyfile_dict": SECRET,
+    "keyfile_dict": SECRET,
     "google_ads_client": ADS_CLIENT,
 }
 

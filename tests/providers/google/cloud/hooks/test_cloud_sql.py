@@ -1015,9 +1015,9 @@ class TestCloudSqlDatabaseQueryHook(unittest.TestCase):
             "https://www.googleapis.com/auth/cloud-platform",
         ]
         conn_extra = {
-            "extra__google_cloud_platform__scope": ",".join(scopes),
-            "extra__google_cloud_platform__project": "your-gcp-project",
-            "extra__google_cloud_platform__key_path": '/var/local/google_cloud_default.json',
+            "scope": ",".join(scopes),
+            "project": "your-gcp-project",
+            "key_path": '/var/local/google_cloud_default.json',
         }
         conn_extra_json = json.dumps(conn_extra)
         self.connection.set_extra(conn_extra_json)

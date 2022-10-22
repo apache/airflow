@@ -60,17 +60,17 @@ class TestHelper(unittest.TestCase):
     def test_build_gcp_conn_path(self):
         value = "test"
         conn = build_gcp_conn(key_file_path=value)
-        assert "google-cloud-platform://?extra__google_cloud_platform__key_path=test" == conn
+        assert "google-cloud-platform://?key_path=test" == conn
 
     def test_build_gcp_conn_scopes(self):
         value = ["test", "test2"]
         conn = build_gcp_conn(scopes=value)
-        assert "google-cloud-platform://?extra__google_cloud_platform__scope=test%2Ctest2" == conn
+        assert "google-cloud-platform://?scope=test%2Ctest2" == conn
 
     def test_build_gcp_conn_project(self):
         value = "test"
         conn = build_gcp_conn(project_id=value)
-        assert "google-cloud-platform://?extra__google_cloud_platform__projects=test" == conn
+        assert "google-cloud-platform://?projects=test" == conn
 
 
 class TestProvideGcpCredentials(unittest.TestCase):
