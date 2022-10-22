@@ -59,15 +59,11 @@ class GrpcHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "extra__grpc__auth_type": StringField(
-                lazy_gettext('Grpc Auth Type'), widget=BS3TextFieldWidget()
-            ),
-            "extra__grpc__credential_pem_file": StringField(
+            "auth_type": StringField(lazy_gettext('Grpc Auth Type'), widget=BS3TextFieldWidget()),
+            "credential_pem_file": StringField(
                 lazy_gettext('Credential Keyfile Path'), widget=BS3TextFieldWidget()
             ),
-            "extra__grpc__scopes": StringField(
-                lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget()
-            ),
+            "scopes": StringField(lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget()),
         }
 
     def __init__(
@@ -151,12 +147,17 @@ class GrpcHook(BaseHook):
                 )
                 raise ex
 
-    def _get_field(self, field_name: str) -> str:
-        """
-        Fetches a field from extras, and returns it. This is some Airflow
-        magic. The grpc hook type adds custom UI elements
-        to the hook page, which allow admins to specify scopes, credential pem files, etc.
-        They get formatted as shown below.
-        """
-        full_field_name = f'extra__grpc__{field_name}'
-        return self.extras[full_field_name]
+    def _get_field(self, field_name: str):
+        """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
+        backcompat_prefix = "extra__grpc__"
+        if field_name.startswith('extra_'):
+            raise ValueError(
+                f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
+                "when using this method."
+            )
+        if field_name in self.extras:
+            return self.extras[field_name]
+        prefixed_name = f"{backcompat_prefix}{field_name}"
+        if prefixed_name in self.extras:
+            return self.extras[prefixed_name]
+        raise KeyError(f"Param {field_name} not found in extra dict")

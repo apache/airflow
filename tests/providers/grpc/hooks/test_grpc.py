@@ -16,11 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
+import os
 from io import StringIO
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
+from pytest import param
 
 from airflow.exceptions import AirflowConfigException
 from airflow.models import Connection
@@ -58,8 +60,8 @@ class StubClass:
         return ["streaming", "call"]
 
 
-class TestGrpcHook(unittest.TestCase):
-    def setUp(self):
+class TestGrpcHook:
+    def setup(self):
         self.channel_mock = mock.patch('grpc.Channel').start()
 
     def custom_conn_func(self, _):
@@ -266,3 +268,28 @@ class TestGrpcHook(unittest.TestCase):
         response = hook.run(StubClass, "stream_call", data={'data': ['hello!', "hi"]})
 
         assert next(response) == ["streaming", "call"]
+
+    @pytest.mark.parametrize(
+        'uri',
+        [
+            param(
+                'a://abc:50?extra__grpc__auth_type=NO_AUTH',
+                id='prefix',
+            ),
+            param('a://abc:50?auth_type=NO_AUTH', id='no-prefix'),
+        ],
+    )
+    @patch('airflow.providers.grpc.hooks.grpc.grpc.insecure_channel')
+    def test_backcompat_prefix_works(self, channel_mock, uri):
+        with patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}):
+            hook = GrpcHook('my_conn')
+            hook.get_conn()
+            channel_mock.assert_called_with('abc:50')
+
+    def test_backcompat_prefix_both_prefers_short(self):
+        with patch.dict(
+            os.environ,
+            {"AIRFLOW_CONN_MY_CONN": 'a://abc:50?extra__grpc__auth_type=non-pref&auth_type=pref'},
+        ):
+            hook = GrpcHook('my_conn')
+            assert hook._get_field('auth_type') == 'pref'
