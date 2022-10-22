@@ -329,18 +329,11 @@ class KubernetesHook(BaseHook):
     def get_namespace(self) -> str | None:
         """Returns the namespace that defined in the connection"""
         if self.conn_id:
-            namespace = self.conn_extras.get("extra__kubernetes__namespace")
-            if not namespace:
-                warnings.warn(
-                    f"Param `namespace` found in conn `{self.conn_id}`. Returning value 'default'. "
-                    "In the future, we will return `None` in this case.  Please update your code.",
-                    category=DeprecationWarning,
-                )
-                return 'default'
-            else:
-                return namespace
-        else:
-            return None
+            connection = self.get_connection(self.conn_id)
+            extras = connection.extra_dejson
+            namespace = extras.get("extra__kubernetes__namespace", "default")
+            return namespace
+        return None
 
     def get_pod_log_stream(
         self,
