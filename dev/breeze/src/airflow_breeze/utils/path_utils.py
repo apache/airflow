@@ -142,6 +142,12 @@ def reinstall_if_setup_changed() -> bool:
     except ModuleNotFoundError as e:
         if "importlib_metadata" in e.msg:
             return False
+        if "apache-airflow-breeze" in e.msg:
+            print(
+                """Missing Package `apache-airflow-breeze`.
+                   Use `pipx install -e ./dev/breeze` to install the package."""
+            )
+            return False
     sources_hash = get_installation_sources_config_metadata_hash()
     if sources_hash != package_hash:
         installation_sources = get_installation_airflow_sources()
