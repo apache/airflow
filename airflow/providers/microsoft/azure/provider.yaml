@@ -55,7 +55,7 @@ dependencies:
   # Azure integration uses old libraries and the limits below reflect that
   # TODO: upgrade to newer versions of all the below libraries
   - azure-mgmt-containerinstance>=1.5.0,<2.0
-  - azure-mgmt-datafactory>=1.0.0,<2.0
+  - azure-mgmt-datafactory>=2.0.0
   - azure-mgmt-datalake-store>=0.5.0
   - azure-mgmt-resource>=2.2.0
   - azure-storage-blob>=12.14.0
