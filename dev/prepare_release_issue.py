@@ -42,7 +42,7 @@ PR_PATTERN = re.compile(r".*\(#([0-9]+)\)")
 ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)[^0-9]")
 
 
-@click.group(context_settings={'help_option_names': ['-h', '--help'], 'max_content_width': 500})
+@click.group(context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 500})
 def cli():
     ...
 
@@ -78,11 +78,11 @@ option_github_token = click.option(
         Can be generated with:
         https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status"""
     ),
-    envvar='GITHUB_TOKEN',
+    envvar="GITHUB_TOKEN",
 )
 
 option_excluded_pr_list = click.option(
-    "--excluded-pr-list", type=str, default='', help="Coma-separated list of PRs to exclude from the issue."
+    "--excluded-pr-list", type=str, default="", help="Coma-separated list of PRs to exclude from the issue."
 )
 
 option_limit_pr_count = click.option(
@@ -123,9 +123,9 @@ def get_git_log_command(
     elif from_commit:
         git_cmd.append(from_commit)
     if is_helm_chart:
-        git_cmd.extend(['--', 'chart/'])
+        git_cmd.extend(["--", "chart/"])
     else:
-        git_cmd.extend(['--', '.'])
+        git_cmd.extend(["--", "."])
     if verbose:
         console.print(f"Command to run: '{' '.join(git_cmd)}'")
     return git_cmd
@@ -154,7 +154,7 @@ def get_change_from_line(line: str):
         short_hash=split_line[1],
         date=split_line[2],
         message=message,
-        message_without_backticks=message.replace("`", "'").replace("&#39;", "'").replace('&amp;', "&"),
+        message_without_backticks=message.replace("`", "'").replace("&#39;", "'").replace("&amp;", "&"),
         pr=int(pr) if pr else None,
     )
 
@@ -220,16 +220,16 @@ def print_issue_content(
         all_users.update(user_list)
     all_user_logins = "@" + " @".join(all_users)
     content = render_template(
-        template_name='ISSUE',
+        template_name="ISSUE",
         context={
-            'link': link,
-            'link_text': link_text,
-            'pr_list': pr_list,
-            'pull_requests': pull_requests,
-            'linked_issues': linked_issues,
-            'users': users,
-            'user_logins': user_logins,
-            'all_user_logins': all_user_logins,
+            "link": link,
+            "link_text": link_text,
+            "pr_list": pr_list,
+            "pull_requests": pull_requests,
+            "linked_issues": linked_issues,
+            "users": users,
+            "user_logins": user_logins,
+            "all_user_logins": all_user_logins,
         },
         autoescape=False,
         keep_trailing_newline=True,

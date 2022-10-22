@@ -22,16 +22,16 @@ from unittest import mock
 
 from airflow.models import Connection
 
-GCP_PROJECT_ID_HOOK_UNIT_TEST = 'example-project'
+GCP_PROJECT_ID_HOOK_UNIT_TEST = "example-project"
 
 
 def mock_base_gcp_hook_default_project_id(
     self,
-    gcp_conn_id='google_cloud_default',
+    gcp_conn_id="google_cloud_default",
     delegate_to=None,
     impersonation_chain=None,
 ):
-    self.extras_list = {'project': GCP_PROJECT_ID_HOOK_UNIT_TEST}
+    self.extras_list = {"project": GCP_PROJECT_ID_HOOK_UNIT_TEST}
     self._conn = gcp_conn_id
     self.delegate_to = delegate_to
     self.impersonation_chain = impersonation_chain
@@ -43,7 +43,7 @@ def mock_base_gcp_hook_default_project_id(
 
 def mock_base_gcp_hook_no_default_project_id(
     self,
-    gcp_conn_id='google_cloud_default',
+    gcp_conn_id="google_cloud_default",
     delegate_to=None,
     impersonation_chain=None,
 ):
@@ -57,12 +57,12 @@ def mock_base_gcp_hook_no_default_project_id(
     self._cached_project_id = None
 
 
-GCP_CONNECTION_WITH_PROJECT_ID = Connection(extra=json.dumps({'project': GCP_PROJECT_ID_HOOK_UNIT_TEST}))
+GCP_CONNECTION_WITH_PROJECT_ID = Connection(extra=json.dumps({"project": GCP_PROJECT_ID_HOOK_UNIT_TEST}))
 
 GCP_CONNECTION_WITHOUT_PROJECT_ID = Connection(extra=json.dumps({}))
 
 
 def get_open_mock():
     mck = mock.mock_open()
-    open_module = 'builtins'
+    open_module = "builtins"
     return mck, open_module

@@ -29,8 +29,8 @@ from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.utils import timezone
 from airflow.utils.state import State
 
-SUBDIR = 'scripts/perf/dags'
-DAG_IDS = ['perf_dag_1', 'perf_dag_2']
+SUBDIR = "scripts/perf/dags"
+DAG_IDS = ["perf_dag_1", "perf_dag_2"]
 MAX_RUNTIME_SECS = 6
 
 
@@ -61,7 +61,7 @@ class SchedulerMetricsJob(SchedulerJob):
     Its default value is 6 seconds.
     """
 
-    __mapper_args__ = {'polymorphic_identity': 'SchedulerMetricsJob'}
+    __mapper_args__ = {"polymorphic_identity": "SchedulerMetricsJob"}
 
     def __init__(self, dag_ids, subdir, max_runtime_secs):
         self.max_runtime_secs = max_runtime_secs
@@ -90,22 +90,22 @@ class SchedulerMetricsJob(SchedulerJob):
         ti_perf_df = pd.DataFrame(
             ti_perf,
             columns=[
-                'dag_id',
-                'task_id',
-                'execution_date',
-                'queue_delay',
-                'start_delay',
-                'land_time',
-                'duration',
+                "dag_id",
+                "task_id",
+                "execution_date",
+                "queue_delay",
+                "start_delay",
+                "land_time",
+                "duration",
             ],
         )
 
-        print('Performance Results')
-        print('###################')
+        print("Performance Results")
+        print("###################")
         for dag_id in DAG_IDS:
-            print(f'DAG {dag_id}')
-            print(ti_perf_df[ti_perf_df['dag_id'] == dag_id])
-        print('###################')
+            print(f"DAG {dag_id}")
+            print(ti_perf_df[ti_perf_df["dag_id"] == dag_id])
+        print("###################")
         if len(tis) > len(successful_tis):
             print("WARNING!! The following task instances haven't completed")
             print(
@@ -114,7 +114,7 @@ class SchedulerMetricsJob(SchedulerJob):
                         (ti.dag_id, ti.task_id, ti.execution_date, ti.state)
                         for ti in filter(lambda x: x.state != State.SUCCESS, tis)
                     ],
-                    columns=['dag_id', 'task_id', 'execution_date', 'state'],
+                    columns=["dag_id", "task_id", "execution_date", "state"],
                 )
             )
 
@@ -166,7 +166,7 @@ def clear_dag_runs():
         .all()
     )
     for dr in drs:
-        logging.info('Deleting DagRun :: %s', dr)
+        logging.info("Deleting DagRun :: %s", dr)
         session.delete(dr)
 
 
@@ -178,7 +178,7 @@ def clear_dag_task_instances():
     TI = TaskInstance
     tis = session.query(TI).filter(TI.dag_id.in_(DAG_IDS)).all()
     for ti in tis:
-        logging.info('Deleting TaskInstance :: %s', ti)
+        logging.info("Deleting TaskInstance :: %s", ti)
         session.delete(ti)
     session.commit()
 
@@ -190,7 +190,7 @@ def set_dags_paused_state(is_paused):
     session = settings.Session()
     dag_models = session.query(DagModel).filter(DagModel.dag_id.in_(DAG_IDS))
     for dag_model in dag_models:
-        logging.info('Setting DAG :: %s is_paused=%s', dag_model, is_paused)
+        logging.info("Setting DAG :: %s is_paused=%s", dag_model, is_paused)
         dag_model.is_paused = is_paused
     session.commit()
 
@@ -207,7 +207,7 @@ def main():
             if max_runtime_secs < 1:
                 raise ValueError
         except ValueError:
-            logging.error('Specify a positive integer for timeout.')
+            logging.error("Specify a positive integer for timeout.")
             sys.exit(1)
 
     conf.load_test_config()

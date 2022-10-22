@@ -134,6 +134,7 @@ require Breeze Docker image to be build locally.
 +========================================================+==================================================================+=========+
 | black                                                  | * Run black (python formatter) on core                           |         |
 |                                                        | * Run black (python formatter) on providers                      |         |
+|                                                        | * Run black (python formatter) on other                          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | blacken-docs                                           | Run black on python code blocks in documentation files           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+

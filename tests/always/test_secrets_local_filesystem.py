@@ -131,8 +131,8 @@ class TestLoadVariables:
     )
     def test_yaml_file_should_load_variables(self, file_content, expected_variables):
         with mock_local_file(file_content):
-            vars_yaml = local_filesystem.load_variables('a.yaml')
-            vars_yml = local_filesystem.load_variables('a.yml')
+            vars_yaml = local_filesystem.load_variables("a.yaml")
+            vars_yml = local_filesystem.load_variables("a.yml")
             assert expected_variables == vars_yaml == vars_yml
 
 
@@ -242,7 +242,7 @@ class TestLoadConnection:
         [
             (
                 """CONN_A: 'mysql://host_a'""",
-                {"CONN_A": {'conn_type': 'mysql', 'host': 'host_a'}},
+                {"CONN_A": {"conn_type": "mysql", "host": "host_a"}},
             ),
             (
                 """
@@ -260,18 +260,18 @@ class TestLoadConnection:
                  keyfile_dict: '{"a": "b"}'
                  keyfile_path: asaa""",
                 {
-                    "conn_a": {'conn_type': 'mysql', 'host': 'hosta'},
+                    "conn_a": {"conn_type": "mysql", "host": "hosta"},
                     "conn_b": {
-                        'conn_type': 'scheme',
-                        'host': 'host',
-                        'schema': 'lschema',
-                        'login': 'Login',
-                        'password': 'None',
-                        'port': 1234,
-                        'extra_dejson': {
-                            'arbitrary_dict': {"a": "b"},
-                            'keyfile_dict': '{"a": "b"}',
-                            'keyfile_path': 'asaa',
+                        "conn_type": "scheme",
+                        "host": "host",
+                        "schema": "lschema",
+                        "login": "Login",
+                        "password": "None",
+                        "port": 1234,
+                        "extra_dejson": {
+                            "arbitrary_dict": {"a": "b"},
+                            "keyfile_dict": '{"a": "b"}',
+                            "keyfile_path": "asaa",
                         },
                     },
                 },
@@ -443,7 +443,7 @@ class TestLocalFileBackend:
             backends = ensure_secrets_loaded()
 
             backend_classes = [backend.__class__.__name__ for backend in backends]
-            assert 'LocalFilesystemBackend' in backend_classes
+            assert "LocalFilesystemBackend" in backend_classes
             assert Variable.get("KEY_A") == "VAL_A"
 
     def test_should_read_connection(self):

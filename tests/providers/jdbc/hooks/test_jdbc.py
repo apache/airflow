@@ -35,9 +35,9 @@ class TestJdbcHook:
     def setup(self):
         db.merge_conn(
             Connection(
-                conn_id='jdbc_default',
-                conn_type='jdbc',
-                host='jdbc://localhost/',
+                conn_id="jdbc_default",
+                conn_type="jdbc",
+                host="jdbc://localhost/",
                 port=443,
                 extra=json.dumps(
                     {

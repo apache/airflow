@@ -218,7 +218,7 @@ class TestAsanaHook:
         Tests that default workspace is successfully overridden
         :return:
         """
-        conn = Connection(conn_type='asana', password='test', extra='{"extra__asana__workspace": "1"}')
+        conn = Connection(conn_type="asana", password="test", extra='{"extra__asana__workspace": "1"}')
         with patch.object(AsanaHook, "get_connection", return_value=conn):
             hook = AsanaHook()
         expected_merged_params = {"workspace": "2"}

@@ -40,27 +40,27 @@ from airflow.providers.qubole.operators.qubole_check import (
 @pytest.mark.parametrize(
     "operator_class, kwargs, parent_check_operator",
     [
-        (QuboleCheckOperator, dict(sql='Select * from test_table'), SQLCheckOperator),
+        (QuboleCheckOperator, dict(sql="Select * from test_table"), SQLCheckOperator),
         (
             QuboleValueCheckOperator,
-            dict(sql='Select * from test_table', pass_value=95),
+            dict(sql="Select * from test_table", pass_value=95),
             SQLValueCheckOperator,
         ),
     ],
 )
 class TestQuboleCheckMixin:
     def setup(self):
-        self.task_id = 'test_task'
+        self.task_id = "test_task"
 
     def __construct_operator(self, operator_class, **kwargs):
-        dag = DAG('test_dag', start_date=datetime(2017, 1, 1))
-        return operator_class(task_id=self.task_id, dag=dag, command_type='hivecmd', **kwargs)
+        dag = DAG("test_dag", start_date=datetime(2017, 1, 1))
+        return operator_class(task_id=self.task_id, dag=dag, command_type="hivecmd", **kwargs)
 
     def test_get_hook_with_context(self, operator_class, kwargs, parent_check_operator):
         operator = self.__construct_operator(operator_class=operator_class, **kwargs)
         assert isinstance(operator.get_hook(), QuboleCheckHook)
 
-        context = {'exec_date': 'today'}
+        context = {"exec_date": "today"}
         operator._hook_context = context
         hook = operator.get_hook()
         assert hook.context == context
@@ -80,15 +80,15 @@ class TestQuboleCheckMixin:
     def test_execute(self, operator_class, kwargs, parent_check_operator):
         operator = self.__construct_operator(operator_class=operator_class, **kwargs)
 
-        with mock.patch.object(parent_check_operator, 'execute') as mock_execute:
+        with mock.patch.object(parent_check_operator, "execute") as mock_execute:
             operator.execute(context=MagicMock())
             mock_execute.assert_called_once()
 
-    @mock.patch('airflow.providers.qubole.operators.qubole_check.handle_airflow_exception')
+    @mock.patch("airflow.providers.qubole.operators.qubole_check.handle_airflow_exception")
     def test_execute_fail(self, mock_handle_airflow_exception, operator_class, kwargs, parent_check_operator):
         operator = self.__construct_operator(operator_class=operator_class, **kwargs)
 
-        with mock.patch.object(parent_check_operator, 'execute') as mock_execute:
+        with mock.patch.object(parent_check_operator, "execute") as mock_execute:
             mock_execute.side_effect = AirflowException()
             operator.execute(context=MagicMock())
             mock_execute.assert_called_once()
@@ -97,12 +97,12 @@ class TestQuboleCheckMixin:
 
 class TestQuboleValueCheckOperator(unittest.TestCase):
     def setUp(self):
-        self.task_id = 'test_task'
-        self.conn_id = 'default_conn'
+        self.task_id = "test_task"
+        self.conn_id = "default_conn"
 
     def __construct_operator(self, query, pass_value, tolerance=None, results_parser_callable=None):
 
-        dag = DAG('test_dag', start_date=datetime(2017, 1, 1))
+        dag = DAG("test_dag", start_date=datetime(2017, 1, 1))
 
         return QuboleValueCheckOperator(
             dag=dag,
@@ -111,26 +111,26 @@ class TestQuboleValueCheckOperator(unittest.TestCase):
             query=query,
             pass_value=pass_value,
             results_parser_callable=results_parser_callable,
-            command_type='hivecmd',
+            command_type="hivecmd",
             tolerance=tolerance,
         )
 
     def test_pass_value_template(self):
         pass_value_str = "2018-03-22"
-        operator = self.__construct_operator('select date from tab1;', "{{ ds }}")
-        result = operator.render_template(operator.pass_value, {'ds': pass_value_str})
+        operator = self.__construct_operator("select date from tab1;", "{{ ds }}")
+        result = operator.render_template(operator.pass_value, {"ds": pass_value_str})
 
         assert operator.task_id == self.task_id
         assert result == pass_value_str
 
-    @mock.patch.object(QuboleValueCheckOperator, 'get_hook')
+    @mock.patch.object(QuboleValueCheckOperator, "get_hook")
     def test_execute_pass(self, mock_get_hook):
 
         mock_hook = mock.Mock()
         mock_hook.get_first.return_value = [10]
         mock_get_hook.return_value = mock_hook
 
-        query = 'select value from tab1 limit 1;'
+        query = "select value from tab1 limit 1;"
 
         operator = self.__construct_operator(query, 5, 1)
 
@@ -138,11 +138,11 @@ class TestQuboleValueCheckOperator(unittest.TestCase):
 
         mock_hook.get_first.assert_called_once_with(query)
 
-    @mock.patch.object(QuboleValueCheckOperator, 'get_hook')
+    @mock.patch.object(QuboleValueCheckOperator, "get_hook")
     def test_execute_assertion_fail(self, mock_get_hook):
 
         mock_cmd = mock.Mock()
-        mock_cmd.status = 'done'
+        mock_cmd.status = "done"
         mock_cmd.id = 123
         mock_cmd.is_success = mock.Mock(return_value=HiveCommand.is_success(mock_cmd.status))
 
@@ -151,18 +151,18 @@ class TestQuboleValueCheckOperator(unittest.TestCase):
         mock_hook.cmd = mock_cmd
         mock_get_hook.return_value = mock_hook
 
-        operator = self.__construct_operator('select value from tab1 limit 1;', 5, 1)
+        operator = self.__construct_operator("select value from tab1 limit 1;", 5, 1)
 
-        with pytest.raises(AirflowException, match='Qubole Command Id: ' + str(mock_cmd.id)):
+        with pytest.raises(AirflowException, match="Qubole Command Id: " + str(mock_cmd.id)):
             operator.execute(context=MagicMock())
 
         mock_cmd.is_success.assert_called_once_with(mock_cmd.status)
 
-    @mock.patch.object(QuboleValueCheckOperator, 'get_hook')
+    @mock.patch.object(QuboleValueCheckOperator, "get_hook")
     def test_execute_assert_query_fail(self, mock_get_hook):
 
         mock_cmd = mock.Mock()
-        mock_cmd.status = 'error'
+        mock_cmd.status = "error"
         mock_cmd.id = 123
         mock_cmd.is_success = mock.Mock(return_value=HiveCommand.is_success(mock_cmd.status))
 
@@ -171,28 +171,28 @@ class TestQuboleValueCheckOperator(unittest.TestCase):
         mock_hook.cmd = mock_cmd
         mock_get_hook.return_value = mock_hook
 
-        operator = self.__construct_operator('select value from tab1 limit 1;', 5, 1)
+        operator = self.__construct_operator("select value from tab1 limit 1;", 5, 1)
 
         with pytest.raises(AirflowException) as ctx:
             operator.execute(context=MagicMock())
 
-        assert 'Qubole Command Id: ' not in str(ctx.value)
+        assert "Qubole Command Id: " not in str(ctx.value)
         mock_cmd.is_success.assert_called_once_with(mock_cmd.status)
 
-    @mock.patch.object(QuboleCheckHook, 'get_query_results')
-    @mock.patch.object(QuboleHook, 'execute')
+    @mock.patch.object(QuboleCheckHook, "get_query_results")
+    @mock.patch.object(QuboleHook, "execute")
     def test_results_parser_callable(self, mock_execute, mock_get_query_results):
 
         mock_execute.return_value = None
 
-        pass_value = 'pass_value'
+        pass_value = "pass_value"
         mock_get_query_results.return_value = pass_value
 
         results_parser_callable = mock.Mock()
         results_parser_callable.return_value = [pass_value]
 
         operator = self.__construct_operator(
-            'select value from tab1 limit 1;', pass_value, None, results_parser_callable
+            "select value from tab1 limit 1;", pass_value, None, results_parser_callable
         )
         operator.execute(context=MagicMock())
         results_parser_callable.assert_called_once_with([pass_value])
