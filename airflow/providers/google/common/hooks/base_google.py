@@ -129,7 +129,7 @@ RT = TypeVar('RT')
 
 def get_field(extras: dict, field_name: str):
     """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
-    if field_name.startswith('extra_'):
+    if field_name.startswith('extra__'):
         raise ValueError(
             f"Got prefixed name {field_name}; please remove the 'extra__google_cloud_platform__' prefix "
             "when using this method."
