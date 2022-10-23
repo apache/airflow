@@ -42,16 +42,16 @@ class RedshiftSQLOperator(SQLExecuteQueryOperator):
     """
 
     template_fields: Sequence[str] = (
-        'sql',
-        'redshift_conn_id',
+        "sql",
+        "redshift_conn_id",
     )
-    template_ext: Sequence[str] = ('.sql',)
+    template_ext: Sequence[str] = (".sql",)
     # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
     template_fields_renderers = {
         "sql": "postgresql" if "postgresql" in wwwutils.get_attr_renderer() else "sql"
     }
 
-    def __init__(self, *, redshift_conn_id: str = 'redshift_default', **kwargs) -> None:
+    def __init__(self, *, redshift_conn_id: str = "redshift_default", **kwargs) -> None:
         super().__init__(conn_id=redshift_conn_id, **kwargs)
         warnings.warn(
             """This class is deprecated.

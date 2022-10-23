@@ -411,9 +411,9 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
     """
 
     template_fields = [
-        'region',
-        'command',
-        'impersonation_chain',
+        "region",
+        "command",
+        "impersonation_chain",
     ]
     operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
@@ -760,8 +760,8 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
     """
 
     template_fields = [
-        'region',
-        'impersonation_chain',
+        "region",
+        "impersonation_chain",
     ]
     operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
@@ -1111,10 +1111,10 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
     """
 
     template_fields = [
-        'region',
-        'script_path',
-        'requirements',
-        'impersonation_chain',
+        "region",
+        "script_path",
+        "requirements",
+        "impersonation_chain",
     ]
     operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 

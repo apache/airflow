@@ -88,13 +88,13 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
     def __init__(
         self,
-        connections_path: str = 'connections',
-        variables_path: str = 'variables',
-        config_path: str = 'config',
+        connections_path: str = "connections",
+        variables_path: str = "variables",
+        config_path: str = "config",
         url: str | None = None,
-        auth_type: str = 'token',
+        auth_type: str = "token",
         auth_mount_point: str | None = None,
-        mount_point: str = 'secret',
+        mount_point: str = "secret",
         kv_engine_version: int = 2,
         token: str | None = None,
         token_path: str | None = None,
@@ -104,7 +104,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         secret_id: str | None = None,
         role_id: str | None = None,
         kubernetes_role: str | None = None,
-        kubernetes_jwt_path: str = '/var/run/secrets/kubernetes.io/serviceaccount/token',
+        kubernetes_jwt_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/token",
         gcp_key_path: str | None = None,
         gcp_keyfile_dict: dict | None = None,
         gcp_scopes: str | None = None,
@@ -117,15 +117,15 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     ):
         super().__init__()
         if connections_path is not None:
-            self.connections_path = connections_path.rstrip('/')
+            self.connections_path = connections_path.rstrip("/")
         else:
             self.connections_path = connections_path
         if variables_path is not None:
-            self.variables_path = variables_path.rstrip('/')
+            self.variables_path = variables_path.rstrip("/")
         else:
             self.variables_path = variables_path
         if config_path is not None:
-            self.config_path = config_path.rstrip('/')
+            self.config_path = config_path.rstrip("/")
         else:
             self.config_path = config_path
         self.mount_point = mount_point

@@ -59,8 +59,8 @@ class SparkKubernetesSensor(BaseSensorOperator):
         namespace: str | None = None,
         container_name: str = "spark-kubernetes-driver",
         kubernetes_conn_id: str = "kubernetes_default",
-        api_group: str = 'sparkoperator.k8s.io',
-        api_version: str = 'v1beta2',
+        api_group: str = "sparkoperator.k8s.io",
+        api_version: str = "v1beta2",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

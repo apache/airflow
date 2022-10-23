@@ -202,11 +202,11 @@ class DataprocMetastoreCreateBackupOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'backup',
-        'impersonation_chain',
+        "project_id",
+        "backup",
+        "impersonation_chain",
     )
-    template_fields_renderers = {'backup': 'json'}
+    template_fields_renderers = {"backup": "json"}
     operator_extra_links = (DataprocMetastoreDetailedLink(),)
 
     def __init__(
@@ -259,7 +259,7 @@ class DataprocMetastoreCreateBackupOperator(BaseOperator):
             backup = hook.wait_for_operation(self.timeout, operation)
             self.log.info("Backup %s created successfully", self.backup_id)
         except HttpError as err:
-            if err.resp.status not in (409, '409'):
+            if err.resp.status not in (409, "409"):
                 raise
             self.log.info("Backup %s already exists", self.backup_id)
             backup = hook.get_backup(
@@ -317,11 +317,11 @@ class DataprocMetastoreCreateMetadataImportOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'metadata_import',
-        'impersonation_chain',
+        "project_id",
+        "metadata_import",
+        "impersonation_chain",
     )
-    template_fields_renderers = {'metadata_import': 'json'}
+    template_fields_renderers = {"metadata_import": "json"}
     operator_extra_links = (DataprocMetastoreDetailedLink(),)
 
     def __init__(
@@ -412,11 +412,11 @@ class DataprocMetastoreCreateServiceOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'service',
-        'impersonation_chain',
+        "project_id",
+        "service",
+        "impersonation_chain",
     )
-    template_fields_renderers = {'service': 'json'}
+    template_fields_renderers = {"service": "json"}
     operator_extra_links = (DataprocMetastoreLink(),)
 
     def __init__(
@@ -465,7 +465,7 @@ class DataprocMetastoreCreateServiceOperator(BaseOperator):
             service = hook.wait_for_operation(self.timeout, operation)
             self.log.info("Service %s created successfully", self.service_id)
         except HttpError as err:
-            if err.resp.status not in (409, '409'):
+            if err.resp.status not in (409, "409"):
                 raise
             self.log.info("Instance %s already exists", self.service_id)
             service = hook.get_service(
@@ -515,8 +515,8 @@ class DataprocMetastoreDeleteBackupOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'impersonation_chain',
+        "project_id",
+        "impersonation_chain",
     )
 
     def __init__(
@@ -579,8 +579,8 @@ class DataprocMetastoreDeleteServiceOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'impersonation_chain',
+        "project_id",
+        "impersonation_chain",
     )
 
     def __init__(
@@ -655,8 +655,8 @@ class DataprocMetastoreExportMetadataOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'impersonation_chain',
+        "project_id",
+        "impersonation_chain",
     )
     operator_extra_links = (DataprocMetastoreLink(), StorageLink())
 
@@ -769,8 +769,8 @@ class DataprocMetastoreGetServiceOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'impersonation_chain',
+        "project_id",
+        "impersonation_chain",
     )
     operator_extra_links = (DataprocMetastoreLink(),)
 
@@ -842,8 +842,8 @@ class DataprocMetastoreListBackupsOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'impersonation_chain',
+        "project_id",
+        "impersonation_chain",
     )
     operator_extra_links = (DataprocMetastoreLink(),)
 
@@ -939,8 +939,8 @@ class DataprocMetastoreRestoreServiceOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'impersonation_chain',
+        "project_id",
+        "impersonation_chain",
     )
     operator_extra_links = (DataprocMetastoreLink(),)
 
@@ -1069,8 +1069,8 @@ class DataprocMetastoreUpdateServiceOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'impersonation_chain',
+        "project_id",
+        "impersonation_chain",
     )
     operator_extra_links = (DataprocMetastoreLink(),)
 

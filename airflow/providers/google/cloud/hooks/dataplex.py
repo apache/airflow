@@ -67,7 +67,7 @@ class DataplexHook(GoogleBaseHook):
 
     def get_dataplex_client(self) -> DataplexServiceClient:
         """Returns DataplexServiceClient."""
-        client_options = ClientOptions(api_endpoint='dataplex.googleapis.com:443')
+        client_options = ClientOptions(api_endpoint="dataplex.googleapis.com:443")
 
         return DataplexServiceClient(
             credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
@@ -110,14 +110,14 @@ class DataplexHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Additional metadata that is provided to the method.
         """
-        parent = f'projects/{project_id}/locations/{region}/lakes/{lake_id}'
+        parent = f"projects/{project_id}/locations/{region}/lakes/{lake_id}"
 
         client = self.get_dataplex_client()
         result = client.create_task(
             request={
-                'parent': parent,
-                'task_id': dataplex_task_id,
-                'task': body,
+                "parent": parent,
+                "task_id": dataplex_task_id,
+                "task": body,
             },
             retry=retry,
             timeout=timeout,
@@ -149,12 +149,12 @@ class DataplexHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Additional metadata that is provided to the method.
         """
-        name = f'projects/{project_id}/locations/{region}/lakes/{lake_id}/tasks/{dataplex_task_id}'
+        name = f"projects/{project_id}/locations/{region}/lakes/{lake_id}/tasks/{dataplex_task_id}"
 
         client = self.get_dataplex_client()
         result = client.delete_task(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -196,16 +196,16 @@ class DataplexHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Additional metadata that is provided to the method.
         """
-        parent = f'projects/{project_id}/locations/{region}/lakes/{lake_id}'
+        parent = f"projects/{project_id}/locations/{region}/lakes/{lake_id}"
 
         client = self.get_dataplex_client()
         result = client.list_tasks(
             request={
-                'parent': parent,
-                'page_size': page_size,
-                'page_token': page_token,
-                'filter': filter,
-                'order_by': order_by,
+                "parent": parent,
+                "page_size": page_size,
+                "page_token": page_token,
+                "filter": filter,
+                "order_by": order_by,
             },
             retry=retry,
             timeout=timeout,
@@ -237,11 +237,11 @@ class DataplexHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Additional metadata that is provided to the method.
         """
-        name = f'projects/{project_id}/locations/{region}/lakes/{lake_id}/tasks/{dataplex_task_id}'
+        name = f"projects/{project_id}/locations/{region}/lakes/{lake_id}/tasks/{dataplex_task_id}"
         client = self.get_dataplex_client()
         result = client.get_task(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,

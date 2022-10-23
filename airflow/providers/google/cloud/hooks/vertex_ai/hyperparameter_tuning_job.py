@@ -59,8 +59,8 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
 
     def get_job_service_client(self, region: str | None = None) -> JobServiceClient:
         """Returns JobServiceClient."""
-        if region and region != 'global':
-            client_options = ClientOptions(api_endpoint=f'{region}-aiplatform.googleapis.com:443')
+        if region and region != "global":
+            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
             client_options = ClientOptions()
 
@@ -323,7 +323,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
 
         result = client.get_hyperparameter_tuning_job(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -371,11 +371,11 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
 
         result = client.list_hyperparameter_tuning_jobs(
             request={
-                'parent': parent,
-                'filter': filter,
-                'page_size': page_size,
-                'page_token': page_token,
-                'read_mask': read_mask,
+                "parent": parent,
+                "filter": filter,
+                "page_size": page_size,
+                "page_token": page_token,
+                "read_mask": read_mask,
             },
             retry=retry,
             timeout=timeout,
@@ -409,7 +409,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
 
         result = client.delete_hyperparameter_tuning_job(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,

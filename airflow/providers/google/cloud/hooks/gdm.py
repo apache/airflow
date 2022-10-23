@@ -50,7 +50,7 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
         :rtype: googleapiclient.discovery.Resource
         """
         http_authorized = self._authorize()
-        return build('deploymentmanager', 'v2', http=http_authorized, cache_discovery=False)
+        return build("deploymentmanager", "v2", http=http_authorized, cache_discovery=False)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def list_deployments(
@@ -98,7 +98,7 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
             project=project_id, deployment=deployment, deletePolicy=delete_policy
         )
         resp = request.execute()
-        if 'error' in resp.keys():
+        if "error" in resp.keys():
             raise AirflowException(
-                'Errors deleting deployment: ', ', '.join(err['message'] for err in resp['error']['errors'])
+                "Errors deleting deployment: ", ", ".join(err["message"] for err in resp["error"]["errors"])
             )

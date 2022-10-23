@@ -27,9 +27,9 @@ class ElasticsearchJSONFormatter(JSONFormatter):
     to json with ISO 8601 date and time format
     """
 
-    default_time_format = '%Y-%m-%dT%H:%M:%S'
-    default_msec_format = '%s.%03d'
-    default_tz_format = '%z'
+    default_time_format = "%Y-%m-%dT%H:%M:%S"
+    default_msec_format = "%s.%03d"
+    default_tz_format = "%z"
 
     def formatTime(self, record, datefmt=None):
         """
