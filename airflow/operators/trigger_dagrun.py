@@ -20,10 +20,11 @@ from __future__ import annotations
 import datetime
 import json
 import time
+import warnings
 from typing import TYPE_CHECKING, Sequence, cast
 
 from airflow.api.common.trigger_dag import trigger_dag
-from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
+from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists, RemovedInAirflow3Warning
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
@@ -67,7 +68,7 @@ class TriggerDagRunOperator(BaseOperator):
     :param trigger_run_id: The run ID to use for the triggered DAG run (templated).
         If not provided, a run ID will be automatically generated.
     :param conf: Configuration for the DAG run (templated).
-    :param execution_date: Execution date for the dag (templated).
+    :param logical_date: Logical date for the dag (templated).
     :param reset_dag_run: Whether or not clear existing dag run if already exists.
         This is useful when backfill or rerun an existing dag run.
         When reset_dag_run=False and dag run exists, DagRunAlreadyExists will be raised.
@@ -77,9 +78,10 @@ class TriggerDagRunOperator(BaseOperator):
         (default: 60)
     :param allowed_states: List of allowed states, default is ``['success']``.
     :param failed_states: List of failed or dis-allowed states, default is ``None``.
+    :param execution_date: Deprecated parameter; same as ``logical_date``.
     """
 
-    template_fields: Sequence[str] = ("trigger_dag_id", "trigger_run_id", "execution_date", "conf")
+    template_fields: Sequence[str] = ("trigger_dag_id", "trigger_run_id", "logical_date", "conf")
     template_fields_renderers = {"conf": "py"}
     ui_color = "#ffefeb"
     operator_extra_links = [TriggerDagRunLink()]
@@ -90,12 +92,13 @@ class TriggerDagRunOperator(BaseOperator):
         trigger_dag_id: str,
         trigger_run_id: str | None = None,
         conf: dict | None = None,
-        execution_date: str | datetime.datetime | None = None,
+        logical_date: str | datetime.datetime | None = None,
         reset_dag_run: bool = False,
         wait_for_completion: bool = False,
         poke_interval: int = 60,
         allowed_states: list | None = None,
         failed_states: list | None = None,
+        execution_date: str | datetime.datetime | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -108,42 +111,66 @@ class TriggerDagRunOperator(BaseOperator):
         self.allowed_states = allowed_states or [State.SUCCESS]
         self.failed_states = failed_states or [State.FAILED]
 
-        if execution_date is not None and not isinstance(execution_date, (str, datetime.datetime)):
-            raise TypeError(
-                f"Expected str or datetime.datetime type for execution_date.Got {type(execution_date)}"
-            )
-
-        self.execution_date = execution_date
+        if logical_date is None:
+            if execution_date is not None:
+                warnings.warn(
+                    "Parameter 'execution_date' is deprecated. Use 'logical_date' instead.",
+                    RemovedInAirflow3Warning,
+                    stacklevel=2,
+                )
+            logical_date = execution_date
+        elif not isinstance(logical_date, (str, datetime.datetime)):
+            type_name = type(logical_date).__name__
+            raise TypeError(f"Expected str or datetime.datetime type for logical_date. Got {type_name}")
+        self.logical_date = logical_date
 
         try:
             json.dumps(self.conf)
         except TypeError:
             raise AirflowException("conf parameter should be JSON Serializable")
 
+    @property
+    def execution_date(self) -> str | datetime.datetime | None:
+        warnings.warn(
+            "Attribute 'execution_date' is deprecated. Use 'logical_date' instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+        return self.logical_date
+
+    @execution_date.setter
+    def execution_date(self, v: str | datetime.datetime | None) -> None:
+        warnings.warn(
+            "Attribute 'execution_date' is deprecated. Use 'logical_date' instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+        self.logical_date = v
+
     def execute(self, context: Context):
-        if isinstance(self.execution_date, datetime.datetime):
-            parsed_execution_date = self.execution_date
-        elif isinstance(self.execution_date, str):
-            parsed_execution_date = timezone.parse(self.execution_date)
+        if isinstance(self.logical_date, datetime.datetime):
+            parsed_logical_date = self.logical_date
+        elif isinstance(self.logical_date, str):
+            parsed_logical_date = timezone.parse(self.logical_date)
         else:
-            parsed_execution_date = timezone.utcnow()
+            parsed_logical_date = timezone.utcnow()
 
         if self.trigger_run_id:
             run_id = self.trigger_run_id
         else:
-            run_id = DagRun.generate_run_id(DagRunType.MANUAL, parsed_execution_date)
+            run_id = DagRun.generate_run_id(DagRunType.MANUAL, parsed_logical_date)
         try:
             dag_run = trigger_dag(
                 dag_id=self.trigger_dag_id,
                 run_id=run_id,
                 conf=self.conf,
-                execution_date=parsed_execution_date,
+                execution_date=parsed_logical_date,
                 replace_microseconds=False,
             )
 
         except DagRunAlreadyExists as e:
             if self.reset_dag_run:
-                self.log.info("Clearing %s on %s", self.trigger_dag_id, parsed_execution_date)
+                self.log.info("Clearing %s on %s", self.trigger_dag_id, parsed_logical_date)
 
                 # Get target dag object and call clear()
 
@@ -153,7 +180,7 @@ class TriggerDagRunOperator(BaseOperator):
 
                 dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
                 dag = dag_bag.get_dag(self.trigger_dag_id)
-                dag.clear(start_date=parsed_execution_date, end_date=parsed_execution_date)
+                dag.clear(start_date=parsed_logical_date, end_date=parsed_logical_date)
                 dag_run = DagRun.find(dag_id=dag.dag_id, run_id=run_id)[0]
             else:
                 raise e
