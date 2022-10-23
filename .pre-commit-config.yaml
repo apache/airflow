@@ -44,7 +44,11 @@ repos:
       - id: insert-license
         name: Add license for all SQL files
         files: \.sql$
-        exclude: ^\.github/.*$|^airflow/_vendor/
+        exclude: |
+          (?x)
+          ^\.github/|
+          ^airflow/_vendor/|
+          ^tests/system/providers/snowflake/example_snowflake_snowflake_op_template_file\.sql$
         args:
           - --comment-style
           - "/*||*/"

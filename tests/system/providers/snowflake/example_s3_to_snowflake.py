@@ -24,21 +24,18 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
+from airflow.providers.snowflake.transfers.s3_to_snowflake import S3ToSnowflakeOperator
 
 SNOWFLAKE_CONN_ID = 'my_snowflake_conn'
+# TODO: should be able to rely on connection's schema, but currently param required by S3ToSnowflakeTransfer
+SNOWFLAKE_STAGE = 'stage_name'
 SNOWFLAKE_SAMPLE_TABLE = 'sample_table'
+S3_FILE_PATH = '</path/to/file/sample_file.csv'
 
-# SQL commands
-CREATE_TABLE_SQL_STRING = (
-    f"CREATE OR REPLACE TRANSIENT TABLE {SNOWFLAKE_SAMPLE_TABLE} (name VARCHAR(250), id INT);"
-)
-SQL_INSERT_STATEMENT = f"INSERT INTO {SNOWFLAKE_SAMPLE_TABLE} VALUES ('name', %(id)s)"
-SQL_LIST = [SQL_INSERT_STATEMENT % {"id": n} for n in range(0, 10)]
-SQL_MULTIPLE_STMTS = "; ".join(SQL_LIST)
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_snowflake"
+DAG_ID = "example_s3_to_snowflake"
 
+# [START howto_operator_snowflake]
 
 with DAG(
     DAG_ID,
@@ -48,38 +45,19 @@ with DAG(
     schedule="@once",
     catchup=False,
 ) as dag:
-    # [START howto_operator_snowflake]
-    snowflake_op_sql_str = SnowflakeOperator(task_id='snowflake_op_sql_str', sql=CREATE_TABLE_SQL_STRING)
+    # [START howto_operator_s3_to_snowflake]
 
-    snowflake_op_with_params = SnowflakeOperator(
-        task_id='snowflake_op_with_params',
-        sql=SQL_INSERT_STATEMENT,
-        parameters={"id": 56},
+    copy_into_table = S3ToSnowflakeOperator(
+        task_id='copy_into_table',
+        snowflake_conn_id=SNOWFLAKE_CONN_ID,
+        s3_keys=[S3_FILE_PATH],
+        table=SNOWFLAKE_SAMPLE_TABLE,
+        stage=SNOWFLAKE_STAGE,
+        file_format="(type = 'CSV',field_delimiter = ';')",
+        pattern=".*[.]csv",
     )
 
-    snowflake_op_sql_list = SnowflakeOperator(task_id='snowflake_op_sql_list', sql=SQL_LIST)
-
-    snowflake_op_sql_multiple_stmts = SnowflakeOperator(
-        task_id='snowflake_op_sql_multiple_stmts',
-        sql=SQL_MULTIPLE_STMTS,
-    )
-
-    snowflake_op_template_file = SnowflakeOperator(
-        task_id='snowflake_op_template_file',
-        sql='example_snowflake_snowflake_op_template_file.sql',
-    )
-
-    # [END howto_operator_snowflake]
-
-    (
-        snowflake_op_sql_str
-        >> [
-            snowflake_op_with_params,
-            snowflake_op_sql_list,
-            snowflake_op_template_file,
-            snowflake_op_sql_multiple_stmts,
-        ]
-    )
+    # [END howto_operator_s3_to_snowflake]
 
 
 from tests.system.utils import get_test_run  # noqa: E402
