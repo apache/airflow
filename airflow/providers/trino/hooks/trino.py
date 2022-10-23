@@ -98,8 +98,9 @@ class TrinoHook(DbApiHook):
         extra = db.extra_dejson
         auth = None
         user = db.login
-        session_properties = extra.get("session_properties")
-        if db.password and extra.get("auth") in ("kerberos", "certs"):
+        session_properties = extra.get('session_properties')
+        client_tags = extra.get('client_tags')
+        if db.password and extra.get('auth') in ('kerberos', 'certs'):
             raise AirflowException(f"The {extra.get('auth')!r} authorization type doesn't support password.")
         elif db.password:
             auth = trino.auth.BasicAuthentication(db.login, db.password)  # type: ignore[attr-defined]
@@ -144,6 +145,7 @@ class TrinoHook(DbApiHook):
             isolation_level=self.get_isolation_level(),
             verify=_boolify(extra.get("verify", True)),
             session_properties=session_properties if session_properties else None,
+            client_tags=client_tags if client_tags else None,
         )
 
         return trino_conn
