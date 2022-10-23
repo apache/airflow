@@ -32,8 +32,8 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 class SFTPOperation:
     """Operation that can be used with SFTP"""
 
-    PUT = 'put'
-    GET = 'get'
+    PUT = "put"
+    GET = "get"
 
 
 class SFTPOperator(BaseOperator):
@@ -76,7 +76,7 @@ class SFTPOperator(BaseOperator):
 
     """
 
-    template_fields: Sequence[str] = ('local_filepath', 'remote_filepath', 'remote_host')
+    template_fields: Sequence[str] = ("local_filepath", "remote_filepath", "remote_host")
 
     def __init__(
         self,
@@ -115,8 +115,8 @@ class SFTPOperator(BaseOperator):
 
         if len(self.local_filepath) != len(self.remote_filepath):
             raise ValueError(
-                f'{len(self.local_filepath)} paths in local_filepath '
-                f'!= {len(self.remote_filepath)} paths in remote_filepath'
+                f"{len(self.local_filepath)} paths in local_filepath "
+                f"!= {len(self.remote_filepath)} paths in remote_filepath"
             )
 
         if not (self.operation.lower() == SFTPOperation.GET or self.operation.lower() == SFTPOperation.PUT):
@@ -128,18 +128,18 @@ class SFTPOperator(BaseOperator):
         # TODO: remove support for ssh_hook in next major provider version in hook and operator
         if self.ssh_hook is not None and self.sftp_hook is not None:
             raise AirflowException(
-                'Both `ssh_hook` and `sftp_hook` are defined. Please use only one of them.'
+                "Both `ssh_hook` and `sftp_hook` are defined. Please use only one of them."
             )
 
         if self.ssh_hook is not None:
             if not isinstance(self.ssh_hook, SSHHook):
-                self.log.info('ssh_hook is invalid. Trying ssh_conn_id to create SFTPHook.')
+                self.log.info("ssh_hook is invalid. Trying ssh_conn_id to create SFTPHook.")
                 self.sftp_hook = SFTPHook(ssh_conn_id=self.ssh_conn_id)
             if self.sftp_hook is None:
                 warnings.warn(
-                    'Parameter `ssh_hook` is deprecated'
-                    'Please use `sftp_hook` instead.'
-                    'The old parameter `ssh_hook` will be removed in a future version.',
+                    "Parameter `ssh_hook` is deprecated"
+                    "Please use `sftp_hook` instead."
+                    "The old parameter `ssh_hook` will be removed in a future version.",
                     DeprecationWarning,
                     stacklevel=2,
                 )
@@ -153,7 +153,7 @@ class SFTPOperator(BaseOperator):
                     self.log.info("ssh_conn_id is ignored when sftp_hook/ssh_hook is provided.")
                 else:
                     self.log.info(
-                        'sftp_hook/ssh_hook not provided or invalid. Trying ssh_conn_id to create SFTPHook.'
+                        "sftp_hook/ssh_hook not provided or invalid. Trying ssh_conn_id to create SFTPHook."
                     )
                     self.sftp_hook = SFTPHook(ssh_conn_id=self.ssh_conn_id)
 

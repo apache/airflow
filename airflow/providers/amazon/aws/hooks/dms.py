@@ -26,10 +26,10 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class DmsTaskWaiterStatus(str, Enum):
     """Available AWS DMS Task Waiter statuses."""
 
-    DELETED = 'deleted'
-    READY = 'ready'
-    RUNNING = 'running'
-    STOPPED = 'stopped'
+    DELETED = "deleted"
+    READY = "ready"
+    RUNNING = "running"
+    STOPPED = "stopped"
 
 
 class DmsHook(AwsBaseHook):
@@ -40,7 +40,7 @@ class DmsHook(AwsBaseHook):
         *args,
         **kwargs,
     ):
-        kwargs['client_type'] = 'dms'
+        kwargs["client_type"] = "dms"
         super().__init__(*args, **kwargs)
 
     def describe_replication_tasks(self, **kwargs):
@@ -53,7 +53,7 @@ class DmsHook(AwsBaseHook):
         dms_client = self.get_conn()
         response = dms_client.describe_replication_tasks(**kwargs)
 
-        return response.get('Marker'), response.get('ReplicationTasks', [])
+        return response.get("Marker"), response.get("ReplicationTasks", [])
 
     def find_replication_tasks_by_arn(self, replication_task_arn: str, without_settings: bool | None = False):
         """
@@ -66,8 +66,8 @@ class DmsHook(AwsBaseHook):
         _, tasks = self.describe_replication_tasks(
             Filters=[
                 {
-                    'Name': 'replication-task-arn',
-                    'Values': [replication_task_arn],
+                    "Name": "replication-task-arn",
+                    "Values": [replication_task_arn],
                 }
             ],
             WithoutSettings=without_settings,
@@ -88,11 +88,11 @@ class DmsHook(AwsBaseHook):
         )
 
         if len(replication_tasks) == 1:
-            status = replication_tasks[0]['Status']
+            status = replication_tasks[0]["Status"]
             self.log.info('Replication task with ARN(%s) has status "%s".', replication_task_arn, status)
             return status
         else:
-            self.log.info('Replication task with ARN(%s) is not found.', replication_task_arn)
+            self.log.info("Replication task with ARN(%s) is not found.", replication_task_arn)
             return None
 
     def create_replication_task(
@@ -127,7 +127,7 @@ class DmsHook(AwsBaseHook):
             **kwargs,
         )
 
-        replication_task_arn = create_task_response['ReplicationTask']['ReplicationTaskArn']
+        replication_task_arn = create_task_response["ReplicationTask"]["ReplicationTaskArn"]
         self.wait_for_task_status(replication_task_arn, DmsTaskWaiterStatus.READY)
 
         return replication_task_arn
@@ -181,15 +181,15 @@ class DmsHook(AwsBaseHook):
         :param replication_task_arn: Replication task ARN
         """
         if not isinstance(status, DmsTaskWaiterStatus):
-            raise TypeError('Status must be an instance of DmsTaskWaiterStatus')
+            raise TypeError("Status must be an instance of DmsTaskWaiterStatus")
 
         dms_client = self.get_conn()
-        waiter = dms_client.get_waiter(f'replication_task_{status}')
+        waiter = dms_client.get_waiter(f"replication_task_{status}")
         waiter.wait(
             Filters=[
                 {
-                    'Name': 'replication-task-arn',
-                    'Values': [
+                    "Name": "replication-task-arn",
+                    "Values": [
                         replication_task_arn,
                     ],
                 },

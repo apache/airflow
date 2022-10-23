@@ -56,23 +56,23 @@ class SFTPHook(SSHHook):
     :param ssh_hook: Optional SSH hook (included to support passing of an SSH hook to the SFTP operator)
     """
 
-    conn_name_attr = 'ssh_conn_id'
-    default_conn_name = 'sftp_default'
-    conn_type = 'sftp'
-    hook_name = 'SFTP'
+    conn_name_attr = "ssh_conn_id"
+    default_conn_name = "sftp_default"
+    conn_type = "sftp"
+    hook_name = "SFTP"
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
         return {
-            "hidden_fields": ['schema'],
+            "hidden_fields": ["schema"],
             "relabeling": {
-                'login': 'Username',
+                "login": "Username",
             },
         }
 
     def __init__(
         self,
-        ssh_conn_id: str | None = 'sftp_default',
+        ssh_conn_id: str | None = "sftp_default",
         ssh_hook: SSHHook | None = None,
         *args,
         **kwargs,
@@ -84,28 +84,28 @@ class SFTPHook(SSHHook):
 
         if self.ssh_hook is not None:
             warnings.warn(
-                'Parameter `ssh_hook` is deprecated and will be removed in a future version.',
+                "Parameter `ssh_hook` is deprecated and will be removed in a future version.",
                 DeprecationWarning,
                 stacklevel=2,
             )
             if not isinstance(self.ssh_hook, SSHHook):
                 raise AirflowException(
-                    f'ssh_hook must be an instance of SSHHook, but got {type(self.ssh_hook)}'
+                    f"ssh_hook must be an instance of SSHHook, but got {type(self.ssh_hook)}"
                 )
-            self.log.info('ssh_hook is provided. It will be used to generate SFTP connection.')
+            self.log.info("ssh_hook is provided. It will be used to generate SFTP connection.")
             self.ssh_conn_id = self.ssh_hook.ssh_conn_id
             return
 
-        ftp_conn_id = kwargs.pop('ftp_conn_id', None)
+        ftp_conn_id = kwargs.pop("ftp_conn_id", None)
         if ftp_conn_id:
             warnings.warn(
-                'Parameter `ftp_conn_id` is deprecated. Please use `ssh_conn_id` instead.',
+                "Parameter `ftp_conn_id` is deprecated. Please use `ssh_conn_id` instead.",
                 DeprecationWarning,
                 stacklevel=2,
             )
             ssh_conn_id = ftp_conn_id
 
-        kwargs['ssh_conn_id'] = ssh_conn_id
+        kwargs["ssh_conn_id"] = ssh_conn_id
         self.ssh_conn_id = ssh_conn_id
 
         super().__init__(*args, **kwargs)
@@ -141,11 +141,11 @@ class SFTPHook(SSHHook):
         flist = sorted(conn.listdir_attr(path), key=lambda x: x.filename)
         files = {}
         for f in flist:
-            modify = datetime.datetime.fromtimestamp(f.st_mtime).strftime('%Y%m%d%H%M%S')  # type: ignore
+            modify = datetime.datetime.fromtimestamp(f.st_mtime).strftime("%Y%m%d%H%M%S")  # type: ignore
             files[f.filename] = {
-                'size': f.st_size,
-                'type': 'dir' if stat.S_ISDIR(f.st_mode) else 'file',  # type: ignore
-                'modify': modify,
+                "size": f.st_size,
+                "type": "dir" if stat.S_ISDIR(f.st_mode) else "file",  # type: ignore
+                "modify": modify,
             }
         return files
 
@@ -266,7 +266,7 @@ class SFTPHook(SSHHook):
         """
         conn = self.get_conn()
         ftp_mdtm = conn.stat(path).st_mtime
-        return datetime.datetime.fromtimestamp(ftp_mdtm).strftime('%Y%m%d%H%M%S')  # type: ignore
+        return datetime.datetime.fromtimestamp(ftp_mdtm).strftime("%Y%m%d%H%M%S")  # type: ignore
 
     def path_exists(self, path: str) -> bool:
         """
@@ -376,7 +376,7 @@ class SFTPHook(SSHHook):
         """Test the SFTP connection by calling path with directory"""
         try:
             conn = self.get_conn()
-            conn.normalize('.')
+            conn.normalize(".")
             return True, "Connection successfully tested"
         except Exception as e:
             return False, str(e)

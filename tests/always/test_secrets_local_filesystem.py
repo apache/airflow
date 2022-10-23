@@ -257,8 +257,8 @@ class TestLoadConnection:
                extra_dejson:
                  arbitrary_dict:
                     a: b
-                 extra__google_cloud_platform__keyfile_dict: '{"a": "b"}'
-                 extra__google_cloud_platform__keyfile_path: asaa""",
+                 keyfile_dict: '{"a": "b"}'
+                 keyfile_path: asaa""",
                 {
                     "conn_a": {'conn_type': 'mysql', 'host': 'hosta'},
                     "conn_b": {
@@ -270,8 +270,8 @@ class TestLoadConnection:
                         'port': 1234,
                         'extra_dejson': {
                             'arbitrary_dict': {"a": "b"},
-                            'extra__google_cloud_platform__keyfile_dict': '{"a": "b"}',
-                            'extra__google_cloud_platform__keyfile_path': 'asaa',
+                            'keyfile_dict': '{"a": "b"}',
+                            'keyfile_path': 'asaa',
                         },
                     },
                 },
@@ -314,14 +314,14 @@ class TestLoadConnection:
                    password: None
                    port: 1234
                    extra_dejson:
-                     extra__google_cloud_platform__keyfile_dict:
+                     keyfile_dict:
                        a: b
-                     extra__google_cloud_platform__key_path: xxx
+                     key_path: xxx
                 """,
                 {
                     "conn_d": {
-                        "extra__google_cloud_platform__keyfile_dict": {"a": "b"},
-                        "extra__google_cloud_platform__key_path": "xxx",
+                        "keyfile_dict": {"a": "b"},
+                        "key_path": "xxx",
                     }
                 },
             ),
@@ -334,9 +334,9 @@ class TestLoadConnection:
                    login: Login
                    password: None
                    port: 1234
-                   extra: '{\"extra__google_cloud_platform__keyfile_dict\": {\"a\": \"b\"}}'
+                   extra: '{\"keyfile_dict\": {\"a\": \"b\"}}'
                 """,
-                {"conn_d": {"extra__google_cloud_platform__keyfile_dict": {"a": "b"}}},
+                {"conn_d": {"keyfile_dict": {"a": "b"}}},
             ),
         ],
     )

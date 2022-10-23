@@ -55,12 +55,12 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'dataset_id',
-        'table_id',
-        'impersonation_chain',
+        "project_id",
+        "dataset_id",
+        "table_id",
+        "impersonation_chain",
     )
-    ui_color = '#f0eee4'
+    ui_color = "#f0eee4"
 
     def __init__(
         self,
@@ -68,7 +68,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         project_id: str,
         dataset_id: str,
         table_id: str,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -83,8 +83,8 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
 
     def poke(self, context: Context) -> bool:
-        table_uri = f'{self.project_id}:{self.dataset_id}.{self.table_id}'
-        self.log.info('Sensor checks existence of table: %s', table_uri)
+        table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
+        self.log.info("Sensor checks existence of table: %s", table_uri)
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -121,13 +121,13 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'dataset_id',
-        'table_id',
-        'partition_id',
-        'impersonation_chain',
+        "project_id",
+        "dataset_id",
+        "table_id",
+        "partition_id",
+        "impersonation_chain",
     )
-    ui_color = '#f0eee4'
+    ui_color = "#f0eee4"
 
     def __init__(
         self,
@@ -136,7 +136,7 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         dataset_id: str,
         table_id: str,
         partition_id: str,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -152,7 +152,7 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
 
     def poke(self, context: Context) -> bool:
-        table_uri = f'{self.project_id}:{self.dataset_id}.{self.table_id}'
+        table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
         self.log.info('Sensor checks existence of partition: "%s" in table: %s', self.partition_id, table_uri)
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,

@@ -22,6 +22,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import tempfile
 import unittest
 from argparse import ArgumentParser
@@ -63,9 +64,9 @@ def reset(dag_id):
 
 @contextmanager
 def move_back(old_path, new_path):
-    os.rename(old_path, new_path)
+    shutil.move(old_path, new_path)
     yield
-    os.rename(new_path, old_path)
+    shutil.move(new_path, old_path)
 
 
 # TODO: Check if tests needs side effects - locally there's missing DAG

@@ -31,33 +31,33 @@ from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.transfers.hive_to_dynamodb import HiveToDynamoDBOperator
 from airflow.utils import db
 
-DYNAMODB_TABLE_NAME = 'example_hive_to_dynamodb_table'
-HIVE_CONNECTION_ID = os.getenv('HIVE_CONNECTION_ID', 'hive_on_emr')
-HIVE_HOSTNAME = os.getenv('HIVE_HOSTNAME', 'ec2-123-45-67-890.compute-1.amazonaws.com')
+DYNAMODB_TABLE_NAME = "example_hive_to_dynamodb_table"
+HIVE_CONNECTION_ID = os.getenv("HIVE_CONNECTION_ID", "hive_on_emr")
+HIVE_HOSTNAME = os.getenv("HIVE_HOSTNAME", "ec2-123-45-67-890.compute-1.amazonaws.com")
 
 # These values assume you set up the Hive data source following the link above.
-DYNAMODB_TABLE_HASH_KEY = 'feature_id'
-HIVE_SQL = 'SELECT feature_id, feature_name, feature_class, state_alpha FROM hive_features'
+DYNAMODB_TABLE_HASH_KEY = "feature_id"
+HIVE_SQL = "SELECT feature_id, feature_name, feature_class, state_alpha FROM hive_features"
 
 
 @task
 def create_dynamodb_table():
-    client = DynamoDBHook(client_type='dynamodb').conn
+    client = DynamoDBHook(client_type="dynamodb").conn
     client.create_table(
         TableName=DYNAMODB_TABLE_NAME,
         KeySchema=[
-            {'AttributeName': DYNAMODB_TABLE_HASH_KEY, 'KeyType': 'HASH'},
+            {"AttributeName": DYNAMODB_TABLE_HASH_KEY, "KeyType": "HASH"},
         ],
         AttributeDefinitions=[
-            {'AttributeName': DYNAMODB_TABLE_HASH_KEY, 'AttributeType': 'N'},
+            {"AttributeName": DYNAMODB_TABLE_HASH_KEY, "AttributeType": "N"},
         ],
-        ProvisionedThroughput={'ReadCapacityUnits': 20, 'WriteCapacityUnits': 20},
+        ProvisionedThroughput={"ReadCapacityUnits": 20, "WriteCapacityUnits": 20},
     )
 
     # DynamoDB table creation is nearly, but not quite, instantaneous.
     # Wait for the table to be active to avoid race conditions writing to it.
-    waiter = client.get_waiter('table_exists')
-    waiter.wait(TableName=DYNAMODB_TABLE_NAME, WaiterConfig={'Delay': 1})
+    waiter = client.get_waiter("table_exists")
+    waiter.wait(TableName=DYNAMODB_TABLE_NAME, WaiterConfig={"Delay": 1})
 
 
 @task
@@ -66,24 +66,24 @@ def get_dynamodb_item_count():
     A DynamoDB table has an ItemCount value, but it is only updated every six hours.
     To verify this DAG worked, we will scan the table and count the items manually.
     """
-    table = DynamoDBHook(resource_type='dynamodb').conn.Table(DYNAMODB_TABLE_NAME)
+    table = DynamoDBHook(resource_type="dynamodb").conn.Table(DYNAMODB_TABLE_NAME)
 
-    response = table.scan(Select='COUNT')
-    item_count = response['Count']
+    response = table.scan(Select="COUNT")
+    item_count = response["Count"]
 
-    while 'LastEvaluatedKey' in response:
-        response = table.scan(Select='COUNT', ExclusiveStartKey=response['LastEvaluatedKey'])
-        item_count += response['Count']
+    while "LastEvaluatedKey" in response:
+        response = table.scan(Select="COUNT", ExclusiveStartKey=response["LastEvaluatedKey"])
+        item_count += response["Count"]
 
-    print(f'DynamoDB table contains {item_count} items.')
+    print(f"DynamoDB table contains {item_count} items.")
 
 
 # Included for sample purposes only; in production you wouldn't delete
 # the table you just backed your data up to.  Using 'all_done' so even
 # if an intermediate step fails, the DAG will clean up after itself.
-@task(trigger_rule='all_done')
+@task(trigger_rule="all_done")
 def delete_dynamodb_table():
-    DynamoDBHook(client_type='dynamodb').conn.delete_table(TableName=DYNAMODB_TABLE_NAME)
+    DynamoDBHook(client_type="dynamodb").conn.delete_table(TableName=DYNAMODB_TABLE_NAME)
 
 
 # Included for sample purposes only; in production this should
@@ -96,7 +96,7 @@ def configure_hive_connection():
     db.merge_conn(
         Connection(
             conn_id=HIVE_CONNECTION_ID,
-            conn_type='hiveserver2',
+            conn_type="hiveserver2",
             host=HIVE_HOSTNAME,
             port=10000,
         )
@@ -104,9 +104,9 @@ def configure_hive_connection():
 
 
 with DAG(
-    dag_id='example_hive_to_dynamodb',
+    dag_id="example_hive_to_dynamodb",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     # Add the prerequisites docstring to the DAG in the UI.
@@ -114,7 +114,7 @@ with DAG(
 
     # [START howto_transfer_hive_to_dynamodb]
     backup_to_dynamodb = HiveToDynamoDBOperator(
-        task_id='backup_to_dynamodb',
+        task_id="backup_to_dynamodb",
         hiveserver2_conn_id=HIVE_CONNECTION_ID,
         sql=HIVE_SQL,
         table_name=DYNAMODB_TABLE_NAME,

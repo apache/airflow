@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 class QDSLink(BaseOperatorLink):
     """Link to QDS"""
 
-    name = 'Go to QDS'
+    name = "Go to QDS"
 
     def get_link(
         self,
@@ -58,20 +58,20 @@ class QDSLink(BaseOperatorLink):
         """
         conn = BaseHook.get_connection(
             getattr(operator, "qubole_conn_id", None)
-            or operator.kwargs['qubole_conn_id']  # type: ignore[attr-defined]
+            or operator.kwargs["qubole_conn_id"]  # type: ignore[attr-defined]
         )
         if conn and conn.host:
-            host = re.sub(r'api$', 'v2/analyze?command_id=', conn.host)
+            host = re.sub(r"api$", "v2/analyze?command_id=", conn.host)
         else:
-            host = 'https://api.qubole.com/v2/analyze?command_id='
+            host = "https://api.qubole.com/v2/analyze?command_id="
         if ti_key is not None:
-            qds_command_id = XCom.get_value(key='qbol_cmd_id', ti_key=ti_key)
+            qds_command_id = XCom.get_value(key="qbol_cmd_id", ti_key=ti_key)
         else:
             assert dttm
             qds_command_id = XCom.get_one(
-                key='qbol_cmd_id', dag_id=operator.dag_id, task_id=operator.task_id, execution_date=dttm
+                key="qbol_cmd_id", dag_id=operator.dag_id, task_id=operator.task_id, execution_date=dttm
             )
-        url = host + str(qds_command_id) if qds_command_id else ''
+        url = host + str(qds_command_id) if qds_command_id else ""
         return url
 
 
@@ -199,46 +199,46 @@ class QuboleOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'query',
-        'script_location',
-        'sub_command',
-        'script',
-        'files',
-        'archives',
-        'program',
-        'cmdline',
-        'sql',
-        'where_clause',
-        'tags',
-        'extract_query',
-        'boundary_query',
-        'macros',
-        'name',
-        'parameters',
-        'dbtap_id',
-        'hive_table',
-        'db_table',
-        'split_column',
-        'note_id',
-        'db_update_keys',
-        'export_dir',
-        'partition_spec',
-        'qubole_conn_id',
-        'arguments',
-        'user_program_arguments',
-        'cluster_label',
+        "query",
+        "script_location",
+        "sub_command",
+        "script",
+        "files",
+        "archives",
+        "program",
+        "cmdline",
+        "sql",
+        "where_clause",
+        "tags",
+        "extract_query",
+        "boundary_query",
+        "macros",
+        "name",
+        "parameters",
+        "dbtap_id",
+        "hive_table",
+        "db_table",
+        "split_column",
+        "note_id",
+        "db_update_keys",
+        "export_dir",
+        "partition_spec",
+        "qubole_conn_id",
+        "arguments",
+        "user_program_arguments",
+        "cluster_label",
     )
 
-    template_ext: Sequence[str] = ('.txt',)
-    ui_color = '#3064A1'
-    ui_fgcolor = '#fff'
-    qubole_hook_allowed_args_list = ['command_type', 'qubole_conn_id', 'fetch_logs']
+    template_ext: Sequence[str] = (".txt",)
+    ui_color = "#3064A1"
+    ui_fgcolor = "#fff"
+    qubole_hook_allowed_args_list = ["command_type", "qubole_conn_id", "fetch_logs"]
 
     operator_extra_links = (QDSLink(),)
 
     def __init__(self, *, qubole_conn_id: str = "qubole_default", **kwargs) -> None:
         self.kwargs = kwargs
-        self.kwargs['qubole_conn_id'] = qubole_conn_id
+        self.kwargs["qubole_conn_id"] = qubole_conn_id
         self.hook: QuboleHook | None = None
         filtered_base_kwargs = self._get_filtered_args(kwargs)
         super().__init__(**filtered_base_kwargs)
@@ -296,7 +296,7 @@ class QuboleOperator(BaseOperator):
             if name in self.kwargs:
                 return self.kwargs[name]
             else:
-                return ''
+                return ""
         else:
             return object.__getattribute__(self, name)
 
@@ -308,6 +308,6 @@ class QuboleOperator(BaseOperator):
 
 
 def _get_template_fields(obj: BaseOperator) -> dict:
-    class_ = object.__getattribute__(obj, '__class__')
-    template_fields = object.__getattribute__(class_, 'template_fields')
+    class_ = object.__getattribute__(obj, "__class__")
+    template_fields = object.__getattribute__(class_, "template_fields")
     return template_fields
