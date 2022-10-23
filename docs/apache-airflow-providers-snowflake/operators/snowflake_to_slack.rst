@@ -46,7 +46,8 @@ and contain the resulting dataset (e.g. ASCII formatted dataframe).
 
 An example usage of the SnowflakeToSlackOperator is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/snowflake/example_snowflake.py
+.. exampleinclude:: /../../tests/system/providers/snowflake/example_snowflake_to_slack.py
     :language: python
     :start-after: [START howto_operator_snowflake_to_slack]
     :end-before: [END howto_operator_snowflake_to_slack]
+    :dedent: 4

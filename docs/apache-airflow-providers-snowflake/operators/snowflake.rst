@@ -51,6 +51,8 @@ An example usage of the SnowflakeOperator is as follows:
     :language: python
     :start-after: [START howto_operator_snowflake]
     :end-before: [END howto_operator_snowflake]
+    :dedent: 4
+
 
 .. note::
 
