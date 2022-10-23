@@ -88,6 +88,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.ENVIRONMENT_FILES: [
             r"^.github/workflows",
             r"^dev/breeze",
+            r"^dev/.*\.py$",
             r"^Dockerfile",
             r"^scripts",
             r"^setup.py",
