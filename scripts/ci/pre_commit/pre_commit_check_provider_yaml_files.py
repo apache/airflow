@@ -339,7 +339,10 @@ def check_unique_provider_name(yaml_files: dict[str, dict]):
 def check_providers_are_mentioned_in_issue_template(yaml_files: dict[str, dict]):
     prefix_len = len("apache-airflow-providers-")
     short_provider_names = [d['package-name'][prefix_len:] for d in yaml_files.values()]
-    short_provider_names.remove('jira')  # exclude deprecated provider that shouldn't be in issue template
+    # exclude deprecated provider that shouldn't be in issue template
+    deprecated_providers: list[str] = []
+    for item in deprecated_providers:
+        short_provider_names.remove(item)
     jsonpath_expr = parse('$.body[?(@.attributes.label == "Apache Airflow Provider(s)")]..options[*]')
     with PROVIDER_ISSUE_TEMPLATE_PATH.open() as issue_file:
         issue_template = yaml.safe_load(issue_file)
