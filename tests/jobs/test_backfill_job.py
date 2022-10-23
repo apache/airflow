@@ -1609,8 +1609,8 @@ class TestBackfillJob:
         dr: DagRun = dag.get_last_dagrun()
         assert dr.creating_job_id == job.id
 
-    def test_backfill_has_job_id(self):
-        """Make sure that backfill jobs are assigned job_ids."""
+    def test_backfill_has_job_id_int(self):
+        """Make sure that backfill jobs are assigned job_ids and that the job_id is an int."""
         dag = self.dagbag.get_dag("test_start_date_scheduling")
         dag.clear()
 
@@ -1624,7 +1624,7 @@ class TestBackfillJob:
             run_backwards=True,
         )
         job.run()
-        assert executor.job_id is not None
+        assert isinstance(executor.job_id, int)
 
     @pytest.mark.long_running
     @pytest.mark.parametrize("executor_name", ["SequentialExecutor", "DebugExecutor"])
