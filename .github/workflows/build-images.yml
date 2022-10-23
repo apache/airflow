@@ -237,6 +237,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
+      - name: "Show dependencies to be upgraded"
+        run: >
+          breeze release-management generate-constraints
+          --airflow-constraints-mode constraints-source-providers
+        if: needs.build-info.outputs.upgrade-to-newer-dependencies != 'false'
       - name: Push empty CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         if: failure() || cancelled()
         run: breeze ci-image build --push --empty-image --run-in-parallel
