@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 from contextlib import closing
+from functools import wraps
 from io import StringIO
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
@@ -39,6 +40,34 @@ def _try_to_boolean(value: Any):
     if isinstance(value, (str, type(None))):
         return to_boolean(value)
     return value
+
+
+def _ensure_prefixes(conn_type):
+    """
+    Remove when provider min airflow version >= 2.5.0 since this is handled by
+    provider manager from that version.
+    """
+
+    def dec(func):
+        @wraps(func)
+        def inner():
+            field_behaviors = func()
+            conn_attrs = {'host', 'schema', 'login', 'password', 'port', 'extra'}
+
+            def _ensure_prefix(field):
+                if field not in conn_attrs and not field.startswith('extra__'):
+                    return f"extra__{conn_type}__{field}"
+                else:
+                    return field
+
+            if 'placeholders' in field_behaviors:
+                placeholders = field_behaviors['placeholders']
+                field_behaviors['placeholders'] = {_ensure_prefix(k): v for k, v in placeholders.items()}
+            return field_behaviors
+
+        return inner
+
+    return dec
 
 
 class SnowflakeHook(DbApiHook):
@@ -92,25 +121,22 @@ class SnowflakeHook(DbApiHook):
         from wtforms import BooleanField, StringField
 
         return {
-            "extra__snowflake__account": StringField(lazy_gettext('Account'), widget=BS3TextFieldWidget()),
-            "extra__snowflake__warehouse": StringField(
-                lazy_gettext('Warehouse'), widget=BS3TextFieldWidget()
-            ),
-            "extra__snowflake__database": StringField(lazy_gettext('Database'), widget=BS3TextFieldWidget()),
-            "extra__snowflake__region": StringField(lazy_gettext('Region'), widget=BS3TextFieldWidget()),
-            "extra__snowflake__role": StringField(lazy_gettext('Role'), widget=BS3TextFieldWidget()),
-            "extra__snowflake__private_key_file": StringField(
-                lazy_gettext('Private key (Path)'), widget=BS3TextFieldWidget()
-            ),
-            "extra__snowflake__private_key_content": StringField(
+            "account": StringField(lazy_gettext('Account'), widget=BS3TextFieldWidget()),
+            "warehouse": StringField(lazy_gettext('Warehouse'), widget=BS3TextFieldWidget()),
+            "database": StringField(lazy_gettext('Database'), widget=BS3TextFieldWidget()),
+            "region": StringField(lazy_gettext('Region'), widget=BS3TextFieldWidget()),
+            "role": StringField(lazy_gettext('Role'), widget=BS3TextFieldWidget()),
+            "private_key_file": StringField(lazy_gettext('Private key (Path)'), widget=BS3TextFieldWidget()),
+            "private_key_content": StringField(
                 lazy_gettext('Private key (Text)'), widget=BS3TextAreaFieldWidget()
             ),
-            "extra__snowflake__insecure_mode": BooleanField(
+            "insecure_mode": BooleanField(
                 label=lazy_gettext('Insecure mode'), description="Turns off OCSP certificate checks"
             ),
         }
 
     @staticmethod
+    @_ensure_prefixes(conn_type='snowflake')
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         import json
@@ -130,14 +156,14 @@ class SnowflakeHook(DbApiHook):
                 'schema': 'snowflake schema',
                 'login': 'snowflake username',
                 'password': 'snowflake password',
-                'extra__snowflake__account': 'snowflake account name',
-                'extra__snowflake__warehouse': 'snowflake warehouse name',
-                'extra__snowflake__database': 'snowflake db name',
-                'extra__snowflake__region': 'snowflake hosted region',
-                'extra__snowflake__role': 'snowflake role',
-                'extra__snowflake__private_key_file': 'Path of snowflake private key (PEM Format)',
-                'extra__snowflake__private_key_content': 'Content to snowflake private key (PEM format)',
-                'extra__snowflake__insecure_mode': 'insecure mode',
+                'account': 'snowflake account name',
+                'warehouse': 'snowflake warehouse name',
+                'database': 'snowflake db name',
+                'region': 'snowflake hosted region',
+                'role': 'snowflake role',
+                'private_key_file': 'Path of snowflake private key (PEM Format)',
+                'private_key_content': 'Content to snowflake private key (PEM format)',
+                'insecure_mode': 'insecure mode',
             },
         }
 
@@ -153,31 +179,44 @@ class SnowflakeHook(DbApiHook):
         self.session_parameters = kwargs.pop("session_parameters", None)
         self.query_ids: list[str] = []
 
+    def _get_field(self, extra_dict, field_name):
+        backcompat_prefix = 'extra__snowflake__'
+        backcompat_key = f"{backcompat_prefix}{field_name}"
+        if field_name.startswith('extra__'):
+            raise ValueError(
+                f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
+                f"when using this method."
+            )
+        if field_name in extra_dict:
+            import warnings
+
+            if backcompat_key in extra_dict:
+                warnings.warn(
+                    f"Conflicting params `{field_name}` and `{backcompat_key}` found in extras. "
+                    f"Using value for `{field_name}`.  Please ensure this is the correct "
+                    f"value and remove the backcompat key `{backcompat_key}`."
+                )
+            return extra_dict[field_name] or None
+        return extra_dict.get(backcompat_key) or None
+
     def _get_conn_params(self) -> dict[str, str | None]:
         """
         One method to fetch connection params as a dict
         used in get_uri() and get_connection()
         """
         conn = self.get_connection(self.snowflake_conn_id)  # type: ignore[attr-defined]
-        account = conn.extra_dejson.get('extra__snowflake__account', '') or conn.extra_dejson.get(
-            'account', ''
-        )
-        warehouse = conn.extra_dejson.get('extra__snowflake__warehouse', '') or conn.extra_dejson.get(
-            'warehouse', ''
-        )
-        database = conn.extra_dejson.get('extra__snowflake__database', '') or conn.extra_dejson.get(
-            'database', ''
-        )
-        region = conn.extra_dejson.get('extra__snowflake__region', '') or conn.extra_dejson.get('region', '')
-        role = conn.extra_dejson.get('extra__snowflake__role', '') or conn.extra_dejson.get('role', '')
+        extra_dict = conn.extra_dejson
+        account = self._get_field(extra_dict, 'account') or ''
+        warehouse = self._get_field(extra_dict, 'warehouse') or ''
+        database = self._get_field(extra_dict, 'database') or ''
+        region = self._get_field(extra_dict, 'region') or ''
+        role = self._get_field(extra_dict, 'role') or ''
+        insecure_mode = _try_to_boolean(self._get_field(extra_dict, 'insecure_mode'))
         schema = conn.schema or ''
-        authenticator = conn.extra_dejson.get('authenticator', 'snowflake')
-        session_parameters = conn.extra_dejson.get('session_parameters')
-        insecure_mode = _try_to_boolean(
-            conn.extra_dejson.get(
-                'extra__snowflake__insecure_mode', conn.extra_dejson.get('insecure_mode', None)
-            )
-        )
+
+        # authenticator and session_parameters never supported long name so we don't use _get_field
+        authenticator = extra_dict.get('authenticator', 'snowflake')
+        session_parameters = extra_dict.get('session_parameters')
 
         conn_config = {
             "user": conn.login,
@@ -202,12 +241,8 @@ class SnowflakeHook(DbApiHook):
         # The connection password then becomes the passphrase for the private key.
         # If your private key is not encrypted (not recommended), then leave the password empty.
 
-        private_key_file = conn.extra_dejson.get(
-            'extra__snowflake__private_key_file'
-        ) or conn.extra_dejson.get('private_key_file')
-        private_key_content = conn.extra_dejson.get(
-            'extra__snowflake__private_key_content'
-        ) or conn.extra_dejson.get('private_key_content')
+        private_key_file = self._get_field(extra_dict, 'private_key_file')
+        private_key_content = self._get_field(extra_dict, 'private_key_content')
 
         private_key_pem = None
         if private_key_content and private_key_file:

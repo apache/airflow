@@ -57,9 +57,7 @@ You can print out the Kubernetes manifest for the pod that would be created at r
 
 .. code-block:: python
 
-    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
-        KubernetesPodOperator,
-    )
+    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
     k = KubernetesPodOperator(
         name="hello-dry-run",
@@ -73,6 +71,18 @@ You can print out the Kubernetes manifest for the pod that would be created at r
 
     k.dry_run()
 
+Argument precedence
+^^^^^^^^^^^^^^^^^^^
+
+When building the pod object, there may be overlap between KPO params, pod spec, template and airflow connection.
+In general, the order of precedence is KPO argument > full pod spec > pod template file > airflow connection.
+
+For ``namespace``, if namespace is not provided via any of these methods, then we'll first try to
+get the current namespace (if the task is already running in kubernetes) and failing that we'll use
+the ``default`` namespace.
+
+For pod name, if not provided explicitly, we'll use the task_id. A random suffix is added by default so the pod
+name is not generally of great consequence.
 
 How to use cluster ConfigMaps, Secrets, and Volumes with Pod?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

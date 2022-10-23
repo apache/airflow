@@ -63,7 +63,7 @@ jobs:
       - run: ./scripts/ci/install_breeze.sh
       - name: Selective checks
         id: selective-checks
-        run: breeze ci selective-check
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
   release-images:
     timeout-minutes: 120
     name: "Release images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}"

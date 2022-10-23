@@ -58,7 +58,7 @@ from sqlalchemy import create_engine
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook, get_field
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -156,15 +156,14 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         if engine_kwargs is None:
             engine_kwargs = {}
-        connection = self.get_connection(self.gcp_conn_id)
-        if connection.extra_dejson.get("extra__google_cloud_platform__key_path"):
-            credentials_path = connection.extra_dejson['extra__google_cloud_platform__key_path']
+        extras = self.get_connection(self.gcp_conn_id).extra_dejson
+        credentials_path = get_field(extras, 'key_path')
+        if credentials_path:
             return create_engine(self.get_uri(), credentials_path=credentials_path, **engine_kwargs)
-        elif connection.extra_dejson.get("extra__google_cloud_platform__keyfile_dict"):
-            credential_file_content = json.loads(
-                connection.extra_dejson["extra__google_cloud_platform__keyfile_dict"]
-            )
-            return create_engine(self.get_uri(), credentials_info=credential_file_content, **engine_kwargs)
+        keyfile_dict = get_field(extras, 'keyfile_dict')
+        if keyfile_dict:
+            keyfile_content = keyfile_dict if isinstance(keyfile_dict, dict) else json.loads(keyfile_dict)
+            return create_engine(self.get_uri(), credentials_info=keyfile_content, **engine_kwargs)
         try:
             # 1. If the environment variable GOOGLE_APPLICATION_CREDENTIALS is set
             # ADC uses the service account key or configuration file that the variable points to.
@@ -175,9 +174,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             self.log.error(e)
             raise AirflowException(
                 "For now, we only support instantiating SQLAlchemy engine by"
-                " using ADC"
-                ", extra__google_cloud_platform__key_path"
-                "and extra__google_cloud_platform__keyfile_dict"
+                " using ADC or extra fields `key_path` and `keyfile_dict`."
             )
 
     def get_records(self, sql, parameters=None):

@@ -18,6 +18,7 @@
 """Connect to Asana."""
 from __future__ import annotations
 
+from functools import wraps
 from typing import Any
 
 from asana import Client  # type: ignore[attr-defined]
@@ -25,6 +26,34 @@ from asana.error import NotFoundError  # type: ignore[attr-defined]
 
 from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
+
+
+def _ensure_prefixes(conn_type):
+    """
+    Remove when provider min airflow version >= 2.5.0 since this is handled by
+    provider manager from that version.
+    """
+
+    def dec(func):
+        @wraps(func)
+        def inner():
+            field_behaviors = func()
+            conn_attrs = {'host', 'schema', 'login', 'password', 'port', 'extra'}
+
+            def _ensure_prefix(field):
+                if field not in conn_attrs and not field.startswith('extra__'):
+                    return f"extra__{conn_type}__{field}"
+                else:
+                    return field
+
+            if 'placeholders' in field_behaviors:
+                placeholders = field_behaviors['placeholders']
+                field_behaviors['placeholders'] = {_ensure_prefix(k): v for k, v in placeholders.items()}
+            return field_behaviors
+
+        return inner
+
+    return dec
 
 
 class AsanaHook(BaseHook):
@@ -39,8 +68,21 @@ class AsanaHook(BaseHook):
         super().__init__(*args, **kwargs)
         self.connection = self.get_connection(conn_id)
         extras = self.connection.extra_dejson
-        self.workspace = extras.get("extra__asana__workspace") or None
-        self.project = extras.get("extra__asana__project") or None
+        self.workspace = self._get_field(extras, "workspace") or None
+        self.project = self._get_field(extras, "project") or None
+
+    def _get_field(self, extras: dict, field_name: str):
+        """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
+        backcompat_prefix = "extra__asana__"
+        if field_name.startswith('extra__'):
+            raise ValueError(
+                f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
+                "when using this method."
+            )
+        if field_name in extras:
+            return extras[field_name] or None
+        prefixed_name = f"{backcompat_prefix}{field_name}"
+        return extras.get(prefixed_name) or None
 
     def get_conn(self) -> Client:
         return self.client
@@ -53,11 +95,12 @@ class AsanaHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "extra__asana__workspace": StringField(lazy_gettext("Workspace"), widget=BS3TextFieldWidget()),
-            "extra__asana__project": StringField(lazy_gettext("Project"), widget=BS3TextFieldWidget()),
+            "workspace": StringField(lazy_gettext("Workspace"), widget=BS3TextFieldWidget()),
+            "project": StringField(lazy_gettext("Project"), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
+    @_ensure_prefixes(conn_type='asana')
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
@@ -65,8 +108,8 @@ class AsanaHook(BaseHook):
             "relabeling": {},
             "placeholders": {
                 "password": "Asana personal access token",
-                "extra__asana__workspace": "Asana workspace gid",
-                "extra__asana__project": "Asana project gid",
+                "workspace": "Asana workspace gid",
+                "project": "Asana project gid",
             },
         }
 

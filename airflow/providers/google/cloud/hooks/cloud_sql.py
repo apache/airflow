@@ -48,7 +48,7 @@ from airflow.exceptions import AirflowException
 # For requests that are "retriable"
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook, get_field
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -375,9 +375,6 @@ CLOUD_SQL_PROXY_VERSION_DOWNLOAD_URL = (
     "https://storage.googleapis.com/cloudsql-proxy/{}/cloud_sql_proxy.{}.{}"
 )
 
-GCP_CREDENTIALS_KEY_PATH = "extra__google_cloud_platform__key_path"
-GCP_CREDENTIALS_KEYFILE_DICT = "extra__google_cloud_platform__keyfile_dict"
-
 
 class CloudSqlProxyRunner(LoggingMixin):
     """
@@ -484,15 +481,16 @@ class CloudSqlProxyRunner(LoggingMixin):
         self.sql_proxy_was_downloaded = True
 
     def _get_credential_parameters(self) -> list[str]:
-        connection = GoogleBaseHook.get_connection(conn_id=self.gcp_conn_id)
-
-        if connection.extra_dejson.get(GCP_CREDENTIALS_KEY_PATH):
-            credential_params = ['-credential_file', connection.extra_dejson[GCP_CREDENTIALS_KEY_PATH]]
-        elif connection.extra_dejson.get(GCP_CREDENTIALS_KEYFILE_DICT):
-            credential_file_content = json.loads(connection.extra_dejson[GCP_CREDENTIALS_KEYFILE_DICT])
+        extras = GoogleBaseHook.get_connection(conn_id=self.gcp_conn_id).extra_dejson
+        key_path = get_field(extras, 'key_path')
+        keyfile_dict = get_field(extras, 'keyfile_dict')
+        if key_path:
+            credential_params = ['-credential_file', key_path]
+        elif keyfile_dict:
+            keyfile_content = keyfile_dict if isinstance(keyfile_dict, dict) else json.loads(keyfile_dict)
             self.log.info("Saving credentials to %s", self.credentials_path)
             with open(self.credentials_path, "w") as file:
-                json.dump(credential_file_content, file)
+                json.dump(keyfile_content, file)
             credential_params = ['-credential_file', self.credentials_path]
         else:
             self.log.info(
@@ -504,7 +502,7 @@ class CloudSqlProxyRunner(LoggingMixin):
             credential_params = []
 
         if not self.instance_specification:
-            project_id = connection.extra_dejson.get('extra__google_cloud_platform__project')
+            project_id = get_field(extras, 'project')
             if self.project_id:
                 project_id = self.project_id
             if not project_id:

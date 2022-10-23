@@ -26,8 +26,7 @@ from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.mlengine import (
-    AIPlatformConsoleLink,
+from airflow.providers.google.cloud.operators.mlengine import (  # AIPlatformConsoleLink,
     MLEngineCreateModelOperator,
     MLEngineCreateVersionOperator,
     MLEngineDeleteModelOperator,
@@ -41,7 +40,6 @@ from airflow.providers.google.cloud.operators.mlengine import (
     MLEngineStartTrainingJobOperator,
     MLEngineTrainingCancelJobOperator,
 )
-from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 6, 6)
@@ -565,62 +563,6 @@ class TestMLEngineStartTrainingJobOperator:
         )
         assert 'A failure message' == str(ctx.value)
 
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
-    def test_console_extra_link(self, mock_hook, create_task_instance_of_operator):
-        ti = create_task_instance_of_operator(
-            MLEngineStartTrainingJobOperator,
-            dag_id="test_console_extra_link",
-            execution_date=DEFAULT_DATE,
-            **self.TRAINING_DEFAULT_ARGS,
-        )
-
-        job_id = self.TRAINING_DEFAULT_ARGS['job_id']
-        project_id = self.TRAINING_DEFAULT_ARGS['project_id']
-        gcp_metadata = {
-            "job_id": job_id,
-            "project_id": project_id,
-        }
-        ti.xcom_push(key='gcp_metadata', value=gcp_metadata)
-
-        assert (
-            f"https://console.cloud.google.com/ai-platform/jobs/{job_id}?project={project_id}"
-            == ti.task.get_extra_links(ti, AIPlatformConsoleLink.name)
-        )
-
-    @pytest.mark.need_serialized_dag
-    def test_console_extra_link_serialized_field(self, dag_maker, create_task_instance_of_operator):
-        ti = create_task_instance_of_operator(
-            MLEngineStartTrainingJobOperator,
-            dag_id="test_console_extra_link_serialized_field",
-            execution_date=DEFAULT_DATE,
-            **self.TRAINING_DEFAULT_ARGS,
-        )
-        serialized_dag = dag_maker.get_serialized_data()
-        dag = SerializedDAG.from_dict(serialized_dag)
-        simple_task = dag.task_dict[self.TRAINING_DEFAULT_ARGS['task_id']]
-
-        # Check Serialized version of operator link
-        assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
-            {"airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink": {}}
-        ]
-
-        # Check DeSerialized version of operator link
-        assert isinstance(list(simple_task.operator_extra_links)[0], AIPlatformConsoleLink)
-
-        job_id = self.TRAINING_DEFAULT_ARGS['job_id']
-        project_id = self.TRAINING_DEFAULT_ARGS['project_id']
-        gcp_metadata = {
-            "job_id": job_id,
-            "project_id": project_id,
-        }
-
-        ti.xcom_push(key='gcp_metadata', value=gcp_metadata)
-
-        assert (
-            f"https://console.cloud.google.com/ai-platform/jobs/{job_id}?project={project_id}"
-            == simple_task.get_extra_links(ti, AIPlatformConsoleLink.name)
-        )
-
 
 class TestMLEngineTrainingCancelJobOperator(unittest.TestCase):
 
@@ -637,7 +579,7 @@ class TestMLEngineTrainingCancelJobOperator(unittest.TestCase):
         hook_instance.cancel_job.return_value = success_response
 
         cancel_training_op = MLEngineTrainingCancelJobOperator(**self.TRAINING_DEFAULT_ARGS)
-        cancel_training_op.execute(None)
+        cancel_training_op.execute(context=MagicMock())
 
         mock_hook.assert_called_once_with(
             gcp_conn_id='google_cloud_default',
@@ -660,7 +602,7 @@ class TestMLEngineTrainingCancelJobOperator(unittest.TestCase):
 
         with pytest.raises(HttpError) as ctx:
             cancel_training_op = MLEngineTrainingCancelJobOperator(**self.TRAINING_DEFAULT_ARGS)
-            cancel_training_op.execute(None)
+            cancel_training_op.execute(context=MagicMock())
 
         mock_hook.assert_called_once_with(
             gcp_conn_id='google_cloud_default',
@@ -688,7 +630,7 @@ class TestMLEngineModelOperator(unittest.TestCase):
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
 
-        task.execute(None)
+        task.execute(context=MagicMock())
 
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
@@ -711,7 +653,7 @@ class TestMLEngineModelOperator(unittest.TestCase):
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
 
-        result = task.execute(None)
+        result = task.execute(context=MagicMock())
 
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
@@ -749,7 +691,7 @@ class TestMLEngineCreateModelOperator(unittest.TestCase):
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
 
-        task.execute(None)
+        task.execute(context=MagicMock())
 
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
@@ -773,7 +715,7 @@ class TestMLEngineGetModelOperator(unittest.TestCase):
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
 
-        result = task.execute(None)
+        result = task.execute(context=MagicMock())
 
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
@@ -799,7 +741,7 @@ class TestMLEngineDeleteModelOperator(unittest.TestCase):
             delete_contents=True,
         )
 
-        task.execute(None)
+        task.execute(context=MagicMock())
 
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
@@ -852,7 +794,7 @@ class TestMLEngineCreateVersion(unittest.TestCase):
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
 
-        task.execute(None)
+        task.execute(context=MagicMock())
 
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
@@ -899,7 +841,7 @@ class TestMLEngineSetDefaultVersion(unittest.TestCase):
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
 
-        task.execute(None)
+        task.execute(context=MagicMock())
 
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
@@ -945,7 +887,7 @@ class TestMLEngineListVersions(unittest.TestCase):
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
 
-        task.execute(None)
+        task.execute(context=MagicMock())
 
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
@@ -981,7 +923,7 @@ class TestMLEngineDeleteVersion(unittest.TestCase):
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
 
-        task.execute(None)
+        task.execute(context=MagicMock())
 
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
