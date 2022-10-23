@@ -243,16 +243,13 @@ class TestSessionFactory:
         ],
     )
     @pytest.mark.parametrize("region_name", ["ap-southeast-2", "sa-east-1"])
-    @pytest.mark.parametrize("role_session_name", [None, "test-session-name"])
-    def test_get_credentials_from_role_arn(self, conn_id, conn_extra, region_name, role_session_name):
+    def test_get_credentials_from_role_arn(self, conn_id, conn_extra, region_name):
         """Test creation session which set role_arn extra in connection."""
         extra = {
             **conn_extra,
             "role_arn": "arn:aws:iam::123456:role/role_arn",
             "region_name": region_name,
         }
-        if role_session_name:
-            extra["assume_role_kwargs"] = {"RoleSessionName": role_session_name}
         conn = AwsConnectionWrapper.from_connection_metadata(conn_id=conn_id, extra=extra)
         sf = BaseSessionFactory(conn=conn)
         session = sf.create_session()
@@ -260,9 +257,6 @@ class TestSessionFactory:
         # Validate method of botocore credentials provider.
         # It shouldn't be 'explicit' which refers in this case to initial credentials.
         assert session.get_credentials().method == 'sts-assume-role'
-
-        user_id = session.client("sts").get_caller_identity()["UserId"]
-        assert user_id.endswith(role_session_name if role_session_name else f"airflow_{conn_id}")
 
 
 class TestAwsBaseHook:
