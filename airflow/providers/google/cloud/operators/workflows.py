@@ -110,7 +110,7 @@ class WorkflowsCreateWorkflowOperator(BaseOperator):
 
         # We are limited by allowed length of workflow_id so
         # we use hash of whole information
-        exec_date = context['execution_date'].isoformat()
+        exec_date = context["execution_date"].isoformat()
         base = f"airflow_{self.dag_id}_{self.task_id}_{exec_date}_{hash_base}"
         workflow_id = hashlib.md5(base.encode()).hexdigest()
         return re.sub(r"[:\-+.]", "_", workflow_id)

@@ -34,11 +34,11 @@ class AzureContainerVolumeHook(BaseHook):
     """
 
     conn_name_attr = "azure_container_volume_conn_id"
-    default_conn_name = 'azure_container_volume_default'
-    conn_type = 'azure_container_volume'
-    hook_name = 'Azure Container Volume'
+    default_conn_name = "azure_container_volume_default"
+    conn_type = "azure_container_volume"
+    hook_name = "Azure Container Volume"
 
-    def __init__(self, azure_container_volume_conn_id: str = 'azure_container_volume_default') -> None:
+    def __init__(self, azure_container_volume_conn_id: str = "azure_container_volume_default") -> None:
         super().__init__()
         self.conn_id = azure_container_volume_conn_id
 
@@ -51,7 +51,7 @@ class AzureContainerVolumeHook(BaseHook):
 
         return {
             "extra__azure_container_volume__connection_string": PasswordField(
-                lazy_gettext('Blob Storage Connection String (optional)'), widget=BS3PasswordFieldWidget()
+                lazy_gettext("Blob Storage Connection String (optional)"), widget=BS3PasswordFieldWidget()
             ),
         }
 
@@ -59,15 +59,15 @@ class AzureContainerVolumeHook(BaseHook):
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['schema', 'port', 'host', "extra"],
+            "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
-                'login': 'Azure Client ID',
-                'password': 'Azure Secret',
+                "login": "Azure Client ID",
+                "password": "Azure Secret",
             },
             "placeholders": {
-                'login': 'client_id (token credentials auth)',
-                'password': 'secret (token credentials auth)',
-                'extra__azure_container_volume__connection_string': 'connection string auth',
+                "login": "client_id (token credentials auth)",
+                "password": "secret (token credentials auth)",
+                "extra__azure_container_volume__connection_string": "connection string auth",
             },
         }
 
@@ -76,8 +76,8 @@ class AzureContainerVolumeHook(BaseHook):
         conn = self.get_connection(self.conn_id)
         service_options = conn.extra_dejson
 
-        if 'extra__azure_container_volume__connection_string' in service_options:
-            for keyvalue in service_options['extra__azure_container_volume__connection_string'].split(";"):
+        if "extra__azure_container_volume__connection_string" in service_options:
+            for keyvalue in service_options["extra__azure_container_volume__connection_string"].split(";"):
                 key, value = keyvalue.split("=", 1)
                 if key == "AccountKey":
                     return value

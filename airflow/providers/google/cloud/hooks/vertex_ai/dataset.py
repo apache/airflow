@@ -43,8 +43,8 @@ class DatasetHook(GoogleBaseHook):
 
     def get_dataset_service_client(self, region: str | None = None) -> DatasetServiceClient:
         """Returns DatasetServiceClient."""
-        if region and region != 'global':
-            client_options = ClientOptions(api_endpoint=f'{region}-aiplatform.googleapis.com:443')
+        if region and region != "global":
+            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
             client_options = ClientOptions()
 
@@ -90,8 +90,8 @@ class DatasetHook(GoogleBaseHook):
 
         result = client.create_dataset(
             request={
-                'parent': parent,
-                'dataset': dataset,
+                "parent": parent,
+                "dataset": dataset,
             },
             retry=retry,
             timeout=timeout,
@@ -124,7 +124,7 @@ class DatasetHook(GoogleBaseHook):
 
         result = client.delete_dataset(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -159,8 +159,8 @@ class DatasetHook(GoogleBaseHook):
 
         result = client.export_data(
             request={
-                'name': name,
-                'export_config': export_config,
+                "name": name,
+                "export_config": export_config,
             },
             retry=retry,
             timeout=timeout,
@@ -197,8 +197,8 @@ class DatasetHook(GoogleBaseHook):
 
         result = client.get_annotation_spec(
             request={
-                'name': name,
-                'read_mask': read_mask,
+                "name": name,
+                "read_mask": read_mask,
             },
             retry=retry,
             timeout=timeout,
@@ -233,8 +233,8 @@ class DatasetHook(GoogleBaseHook):
 
         result = client.get_dataset(
             request={
-                'name': name,
-                'read_mask': read_mask,
+                "name": name,
+                "read_mask": read_mask,
             },
             retry=retry,
             timeout=timeout,
@@ -270,8 +270,8 @@ class DatasetHook(GoogleBaseHook):
 
         result = client.import_data(
             request={
-                'name': name,
-                'import_configs': import_configs,
+                "name": name,
+                "import_configs": import_configs,
             },
             retry=retry,
             timeout=timeout,
@@ -317,12 +317,12 @@ class DatasetHook(GoogleBaseHook):
 
         result = client.list_annotations(
             request={
-                'parent': parent,
-                'filter': filter,
-                'page_size': page_size,
-                'page_token': page_token,
-                'read_mask': read_mask,
-                'order_by': order_by,
+                "parent": parent,
+                "filter": filter,
+                "page_size": page_size,
+                "page_token": page_token,
+                "read_mask": read_mask,
+                "order_by": order_by,
             },
             retry=retry,
             timeout=timeout,
@@ -366,12 +366,12 @@ class DatasetHook(GoogleBaseHook):
 
         result = client.list_data_items(
             request={
-                'parent': parent,
-                'filter': filter,
-                'page_size': page_size,
-                'page_token': page_token,
-                'read_mask': read_mask,
-                'order_by': order_by,
+                "parent": parent,
+                "filter": filter,
+                "page_size": page_size,
+                "page_token": page_token,
+                "read_mask": read_mask,
+                "order_by": order_by,
             },
             retry=retry,
             timeout=timeout,
@@ -413,12 +413,12 @@ class DatasetHook(GoogleBaseHook):
 
         result = client.list_datasets(
             request={
-                'parent': parent,
-                'filter': filter,
-                'page_size': page_size,
-                'page_token': page_token,
-                'read_mask': read_mask,
-                'order_by': order_by,
+                "parent": parent,
+                "filter": filter,
+                "page_size": page_size,
+                "page_token": page_token,
+                "read_mask": read_mask,
+                "order_by": order_by,
             },
             retry=retry,
             timeout=timeout,
@@ -454,8 +454,8 @@ class DatasetHook(GoogleBaseHook):
 
         result = client.update_dataset(
             request={
-                'dataset': dataset,
-                'update_mask': update_mask,
+                "dataset": dataset,
+                "update_mask": update_mask,
             },
             retry=retry,
             timeout=timeout,

@@ -46,42 +46,42 @@ from urllib.parse import quote_plus
 from airflow import models
 from airflow.providers.google.cloud.operators.cloud_sql import CloudSQLExecuteQueryOperator
 
-GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
-GCP_REGION = os.environ.get('GCP_REGION', 'europe-west1')
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
+GCP_REGION = os.environ.get("GCP_REGION", "europe-west1")
 
 GCSQL_POSTGRES_INSTANCE_NAME_QUERY = os.environ.get(
-    'GCSQL_POSTGRES_INSTANCE_NAME_QUERY', 'test-postgres-query'
+    "GCSQL_POSTGRES_INSTANCE_NAME_QUERY", "test-postgres-query"
 )
-GCSQL_POSTGRES_DATABASE_NAME = os.environ.get('GCSQL_POSTGRES_DATABASE_NAME', 'postgresdb')
-GCSQL_POSTGRES_USER = os.environ.get('GCSQL_POSTGRES_USER', 'postgres_user')
-GCSQL_POSTGRES_PASSWORD = os.environ.get('GCSQL_POSTGRES_PASSWORD', 'JoxHlwrPzwch0gz9')
-GCSQL_POSTGRES_PUBLIC_IP = os.environ.get('GCSQL_POSTGRES_PUBLIC_IP', '0.0.0.0')
-GCSQL_POSTGRES_PUBLIC_PORT = os.environ.get('GCSQL_POSTGRES_PUBLIC_PORT', 5432)
+GCSQL_POSTGRES_DATABASE_NAME = os.environ.get("GCSQL_POSTGRES_DATABASE_NAME", "postgresdb")
+GCSQL_POSTGRES_USER = os.environ.get("GCSQL_POSTGRES_USER", "postgres_user")
+GCSQL_POSTGRES_PASSWORD = os.environ.get("GCSQL_POSTGRES_PASSWORD", "JoxHlwrPzwch0gz9")
+GCSQL_POSTGRES_PUBLIC_IP = os.environ.get("GCSQL_POSTGRES_PUBLIC_IP", "0.0.0.0")
+GCSQL_POSTGRES_PUBLIC_PORT = os.environ.get("GCSQL_POSTGRES_PUBLIC_PORT", 5432)
 GCSQL_POSTGRES_CLIENT_CERT_FILE = os.environ.get(
-    'GCSQL_POSTGRES_CLIENT_CERT_FILE', ".key/postgres-client-cert.pem"
+    "GCSQL_POSTGRES_CLIENT_CERT_FILE", ".key/postgres-client-cert.pem"
 )
 GCSQL_POSTGRES_CLIENT_KEY_FILE = os.environ.get(
-    'GCSQL_POSTGRES_CLIENT_KEY_FILE', ".key/postgres-client-key.pem"
+    "GCSQL_POSTGRES_CLIENT_KEY_FILE", ".key/postgres-client-key.pem"
 )
-GCSQL_POSTGRES_SERVER_CA_FILE = os.environ.get('GCSQL_POSTGRES_SERVER_CA_FILE', ".key/postgres-server-ca.pem")
+GCSQL_POSTGRES_SERVER_CA_FILE = os.environ.get("GCSQL_POSTGRES_SERVER_CA_FILE", ".key/postgres-server-ca.pem")
 
-GCSQL_MYSQL_INSTANCE_NAME_QUERY = os.environ.get('GCSQL_MYSQL_INSTANCE_NAME_QUERY', 'test-mysql-query')
-GCSQL_MYSQL_DATABASE_NAME = os.environ.get('GCSQL_MYSQL_DATABASE_NAME', 'mysqldb')
-GCSQL_MYSQL_USER = os.environ.get('GCSQL_MYSQL_USER', 'mysql_user')
-GCSQL_MYSQL_PASSWORD = os.environ.get('GCSQL_MYSQL_PASSWORD', 'JoxHlwrPzwch0gz9')
-GCSQL_MYSQL_PUBLIC_IP = os.environ.get('GCSQL_MYSQL_PUBLIC_IP', '0.0.0.0')
-GCSQL_MYSQL_PUBLIC_PORT = os.environ.get('GCSQL_MYSQL_PUBLIC_PORT', 3306)
-GCSQL_MYSQL_CLIENT_CERT_FILE = os.environ.get('GCSQL_MYSQL_CLIENT_CERT_FILE', ".key/mysql-client-cert.pem")
-GCSQL_MYSQL_CLIENT_KEY_FILE = os.environ.get('GCSQL_MYSQL_CLIENT_KEY_FILE', ".key/mysql-client-key.pem")
-GCSQL_MYSQL_SERVER_CA_FILE = os.environ.get('GCSQL_MYSQL_SERVER_CA_FILE', ".key/mysql-server-ca.pem")
+GCSQL_MYSQL_INSTANCE_NAME_QUERY = os.environ.get("GCSQL_MYSQL_INSTANCE_NAME_QUERY", "test-mysql-query")
+GCSQL_MYSQL_DATABASE_NAME = os.environ.get("GCSQL_MYSQL_DATABASE_NAME", "mysqldb")
+GCSQL_MYSQL_USER = os.environ.get("GCSQL_MYSQL_USER", "mysql_user")
+GCSQL_MYSQL_PASSWORD = os.environ.get("GCSQL_MYSQL_PASSWORD", "JoxHlwrPzwch0gz9")
+GCSQL_MYSQL_PUBLIC_IP = os.environ.get("GCSQL_MYSQL_PUBLIC_IP", "0.0.0.0")
+GCSQL_MYSQL_PUBLIC_PORT = os.environ.get("GCSQL_MYSQL_PUBLIC_PORT", 3306)
+GCSQL_MYSQL_CLIENT_CERT_FILE = os.environ.get("GCSQL_MYSQL_CLIENT_CERT_FILE", ".key/mysql-client-cert.pem")
+GCSQL_MYSQL_CLIENT_KEY_FILE = os.environ.get("GCSQL_MYSQL_CLIENT_KEY_FILE", ".key/mysql-client-key.pem")
+GCSQL_MYSQL_SERVER_CA_FILE = os.environ.get("GCSQL_MYSQL_SERVER_CA_FILE", ".key/mysql-server-ca.pem")
 
 SQL = [
-    'CREATE TABLE IF NOT EXISTS TABLE_TEST (I INTEGER)',
-    'CREATE TABLE IF NOT EXISTS TABLE_TEST (I INTEGER)',  # shows warnings logged
-    'INSERT INTO TABLE_TEST VALUES (0)',
-    'CREATE TABLE IF NOT EXISTS TABLE_TEST2 (I INTEGER)',
-    'DROP TABLE TABLE_TEST',
-    'DROP TABLE TABLE_TEST2',
+    "CREATE TABLE IF NOT EXISTS TABLE_TEST (I INTEGER)",
+    "CREATE TABLE IF NOT EXISTS TABLE_TEST (I INTEGER)",  # shows warnings logged
+    "INSERT INTO TABLE_TEST VALUES (0)",
+    "CREATE TABLE IF NOT EXISTS TABLE_TEST2 (I INTEGER)",
+    "DROP TABLE TABLE_TEST",
+    "DROP TABLE TABLE_TEST2",
 ]
 
 
@@ -119,7 +119,7 @@ postgres_kwargs = dict(
 # of AIRFLOW (using command line or UI).
 
 # Postgres: connect via proxy over TCP
-os.environ['AIRFLOW_CONN_PROXY_POSTGRES_TCP'] = (
+os.environ["AIRFLOW_CONN_PROXY_POSTGRES_TCP"] = (
     "gcpcloudsql://{user}:{password}@{public_ip}:{public_port}/{database}?"
     "database_type=postgres&"
     "project_id={project_id}&"
@@ -130,7 +130,7 @@ os.environ['AIRFLOW_CONN_PROXY_POSTGRES_TCP'] = (
 )
 
 # Postgres: connect via proxy over UNIX socket (specific proxy version)
-os.environ['AIRFLOW_CONN_PROXY_POSTGRES_SOCKET'] = (
+os.environ["AIRFLOW_CONN_PROXY_POSTGRES_SOCKET"] = (
     "gcpcloudsql://{user}:{password}@{public_ip}:{public_port}/{database}?"
     "database_type=postgres&"
     "project_id={project_id}&"
@@ -142,7 +142,7 @@ os.environ['AIRFLOW_CONN_PROXY_POSTGRES_SOCKET'] = (
 )
 
 # Postgres: connect directly via TCP (non-SSL)
-os.environ['AIRFLOW_CONN_PUBLIC_POSTGRES_TCP'] = (
+os.environ["AIRFLOW_CONN_PUBLIC_POSTGRES_TCP"] = (
     "gcpcloudsql://{user}:{password}@{public_ip}:{public_port}/{database}?"
     "database_type=postgres&"
     "project_id={project_id}&"
@@ -153,7 +153,7 @@ os.environ['AIRFLOW_CONN_PUBLIC_POSTGRES_TCP'] = (
 )
 
 # Postgres: connect directly via TCP (SSL)
-os.environ['AIRFLOW_CONN_PUBLIC_POSTGRES_TCP_SSL'] = (
+os.environ["AIRFLOW_CONN_PUBLIC_POSTGRES_TCP_SSL"] = (
     "gcpcloudsql://{user}:{password}@{public_ip}:{public_port}/{database}?"
     "database_type=postgres&"
     "project_id={project_id}&"
@@ -181,7 +181,7 @@ mysql_kwargs = dict(
 )
 
 # MySQL: connect via proxy over TCP (specific proxy version)
-os.environ['AIRFLOW_CONN_PROXY_MYSQL_TCP'] = (
+os.environ["AIRFLOW_CONN_PROXY_MYSQL_TCP"] = (
     "gcpcloudsql://{user}:{password}@{public_ip}:{public_port}/{database}?"
     "database_type=mysql&"
     "project_id={project_id}&"
@@ -194,11 +194,11 @@ os.environ['AIRFLOW_CONN_PROXY_MYSQL_TCP'] = (
 
 # MySQL: connect via proxy over UNIX socket using pre-downloaded Cloud Sql Proxy binary
 try:
-    sql_proxy_binary_path = subprocess.check_output(['which', 'cloud_sql_proxy']).decode('utf-8').rstrip()
+    sql_proxy_binary_path = subprocess.check_output(["which", "cloud_sql_proxy"]).decode("utf-8").rstrip()
 except subprocess.CalledProcessError:
     sql_proxy_binary_path = "/tmp/anyhow_download_cloud_sql_proxy"
 
-os.environ['AIRFLOW_CONN_PROXY_MYSQL_SOCKET'] = (
+os.environ["AIRFLOW_CONN_PROXY_MYSQL_SOCKET"] = (
     "gcpcloudsql://{user}:{password}@{public_ip}:{public_port}/{database}?"
     "database_type=mysql&"
     "project_id={project_id}&"
@@ -210,7 +210,7 @@ os.environ['AIRFLOW_CONN_PROXY_MYSQL_SOCKET'] = (
 )
 
 # MySQL: connect directly via TCP (non-SSL)
-os.environ['AIRFLOW_CONN_PUBLIC_MYSQL_TCP'] = (
+os.environ["AIRFLOW_CONN_PUBLIC_MYSQL_TCP"] = (
     "gcpcloudsql://{user}:{password}@{public_ip}:{public_port}/{database}?"
     "database_type=mysql&"
     "project_id={project_id}&"
@@ -221,7 +221,7 @@ os.environ['AIRFLOW_CONN_PUBLIC_MYSQL_TCP'] = (
 )
 
 # MySQL: connect directly via TCP (SSL) and with fixed Cloud Sql Proxy binary path
-os.environ['AIRFLOW_CONN_PUBLIC_MYSQL_TCP_SSL'] = (
+os.environ["AIRFLOW_CONN_PUBLIC_MYSQL_TCP_SSL"] = (
     "gcpcloudsql://{user}:{password}@{public_ip}:{public_port}/{database}?"
     "database_type=mysql&"
     "project_id={project_id}&"
@@ -237,7 +237,7 @@ os.environ['AIRFLOW_CONN_PUBLIC_MYSQL_TCP_SSL'] = (
 # Special case: MySQL: connect directly via TCP (SSL) and with fixed Cloud Sql
 # Proxy binary path AND with missing project_id
 
-os.environ['AIRFLOW_CONN_PUBLIC_MYSQL_TCP_SSL_NO_PROJECT_ID'] = (
+os.environ["AIRFLOW_CONN_PUBLIC_MYSQL_TCP_SSL_NO_PROJECT_ID"] = (
     "gcpcloudsql://{user}:{password}@{public_ip}:{public_port}/{database}?"
     "database_type=mysql&"
     "location={location}&"
@@ -270,10 +270,10 @@ tasks = []
 
 
 with models.DAG(
-    dag_id='example_gcp_sql_query',
+    dag_id="example_gcp_sql_query",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     prev_task = None
 

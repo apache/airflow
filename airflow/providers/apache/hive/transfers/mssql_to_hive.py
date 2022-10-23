@@ -64,11 +64,11 @@ class MsSqlToHiveOperator(BaseOperator):
     :param tblproperties: TBLPROPERTIES of the hive table being created
     """
 
-    template_fields: Sequence[str] = ('sql', 'partition', 'hive_table')
-    template_ext: Sequence[str] = ('.sql',)
+    template_fields: Sequence[str] = ("sql", "partition", "hive_table")
+    template_ext: Sequence[str] = (".sql",)
     # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
-    template_fields_renderers = {'sql': 'tsql' if 'tsql' in wwwutils.get_attr_renderer() else 'sql'}
-    ui_color = '#a0e08c'
+    template_fields_renderers = {"sql": "tsql" if "tsql" in wwwutils.get_attr_renderer() else "sql"}
+    ui_color = "#a0e08c"
 
     def __init__(
         self,
@@ -79,8 +79,8 @@ class MsSqlToHiveOperator(BaseOperator):
         recreate: bool = False,
         partition: dict | None = None,
         delimiter: str = chr(1),
-        mssql_conn_id: str = 'mssql_default',
-        hive_cli_conn_id: str = 'hive_cli_default',
+        mssql_conn_id: str = "mssql_default",
+        hive_cli_conn_id: str = "hive_cli_default",
         tblproperties: dict | None = None,
         **kwargs,
     ) -> None:
@@ -100,11 +100,11 @@ class MsSqlToHiveOperator(BaseOperator):
     def type_map(cls, mssql_type: int) -> str:
         """Maps MsSQL type to Hive type."""
         map_dict = {
-            pymssql.BINARY.value: 'INT',
-            pymssql.DECIMAL.value: 'FLOAT',
-            pymssql.NUMBER.value: 'INT',
+            pymssql.BINARY.value: "INT",
+            pymssql.DECIMAL.value: "FLOAT",
+            pymssql.NUMBER.value: "INT",
         }
-        return map_dict.get(mssql_type, 'STRING')
+        return map_dict.get(mssql_type, "STRING")
 
     def execute(self, context: Context):
         mssql = MsSqlHook(mssql_conn_id=self.mssql_conn_id)
@@ -113,11 +113,11 @@ class MsSqlToHiveOperator(BaseOperator):
             with conn.cursor() as cursor:
                 cursor.execute(self.sql)
                 with NamedTemporaryFile("w") as tmp_file:
-                    csv_writer = csv.writer(tmp_file, delimiter=self.delimiter, encoding='utf-8')
+                    csv_writer = csv.writer(tmp_file, delimiter=self.delimiter, encoding="utf-8")
                     field_dict = OrderedDict()
                     for col_count, field in enumerate(cursor.description, start=1):
                         col_position = f"Column{col_count}"
-                        field_dict[col_position if field[0] == '' else field[0]] = self.type_map(field[1])
+                        field_dict[col_position if field[0] == "" else field[0]] = self.type_map(field[1])
                     csv_writer.writerows(cursor)
                     tmp_file.flush()
 

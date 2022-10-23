@@ -32,8 +32,8 @@ def bigquery_get_data(
     batch_size: int,
     selected_fields: list[str] | str | None,
 ) -> Iterator:
-    logger.info('Fetching Data from:')
-    logger.info('Dataset: %s ; Table: %s', dataset_id, table_id)
+    logger.info("Fetching Data from:")
+    logger.info("Dataset: %s ; Table: %s", dataset_id, table_id)
 
     i = 0
     while True:
@@ -46,10 +46,10 @@ def bigquery_get_data(
         )
 
         if len(rows) == 0:
-            logger.info('Job Finished')
+            logger.info("Job Finished")
             return
 
-        logger.info('Total Extracted rows: %s', len(rows) + i * batch_size)
+        logger.info("Total Extracted rows: %s", len(rows) + i * batch_size)
 
         yield [row.values() for row in rows]
 

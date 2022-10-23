@@ -119,7 +119,7 @@ class SpannerHook(GoogleBaseHook):
         try:
             operation = func(instance)  # type: Operation
         except GoogleAPICallError as e:
-            self.log.error('An error occurred: %s. Exiting.', e.message)
+            self.log.error("An error occurred: %s. Exiting.", e.message)
             raise e
 
         if operation:
@@ -202,7 +202,7 @@ class SpannerHook(GoogleBaseHook):
             instance.delete()
             return
         except GoogleAPICallError as e:
-            self.log.error('An error occurred: %s. Exiting.', e.message)
+            self.log.error("An error occurred: %s. Exiting.", e.message)
             raise e
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -259,7 +259,7 @@ class SpannerHook(GoogleBaseHook):
         try:
             operation = database.create()  # type: Operation
         except GoogleAPICallError as e:
-            self.log.error('An error occurred: %s. Exiting.', e.message)
+            self.log.error("An error occurred: %s. Exiting.", e.message)
             raise e
 
         if operation:
@@ -306,7 +306,7 @@ class SpannerHook(GoogleBaseHook):
                 )
                 return
         except GoogleAPICallError as e:
-            self.log.error('An error occurred: %s. Exiting.', e.message)
+            self.log.error("An error occurred: %s. Exiting.", e.message)
             raise e
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -334,7 +334,7 @@ class SpannerHook(GoogleBaseHook):
         try:
             database.drop()
         except GoogleAPICallError as e:
-            self.log.error('An error occurred: %s. Exiting.', e.message)
+            self.log.error("An error occurred: %s. Exiting.", e.message)
             raise e
 
         return True

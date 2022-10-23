@@ -41,18 +41,18 @@ class PigOperator(BaseOperator):
     :param pig_opts: pig options, such as: -x tez, -useHCatalog, ...
     """
 
-    template_fields: Sequence[str] = ('pig',)
+    template_fields: Sequence[str] = ("pig",)
     template_ext: Sequence[str] = (
-        '.pig',
-        '.piglatin',
+        ".pig",
+        ".piglatin",
     )
-    ui_color = '#f0e4ec'
+    ui_color = "#f0e4ec"
 
     def __init__(
         self,
         *,
         pig: str,
-        pig_cli_conn_id: str = 'pig_cli_default',
+        pig_cli_conn_id: str = "pig_cli_default",
         pigparams_jinja_translate: bool = False,
         pig_opts: str | None = None,
         **kwargs: Any,
@@ -70,7 +70,7 @@ class PigOperator(BaseOperator):
             self.pig = re.sub(r"(\$([a-zA-Z_][a-zA-Z0-9_]*))", r"{{ \g<2> }}", self.pig)
 
     def execute(self, context: Context):
-        self.log.info('Executing: %s', self.pig)
+        self.log.info("Executing: %s", self.pig)
         self.hook = PigCliHook(pig_cli_conn_id=self.pig_cli_conn_id)
         self.hook.run_cli(pig=self.pig, pig_opts=self.pig_opts)
 

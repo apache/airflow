@@ -57,7 +57,7 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
 
     """
 
-    template_fields: Sequence[str] = ('pipeline_id',)
+    template_fields: Sequence[str] = ("pipeline_id",)
 
     def __init__(
         self,
@@ -69,7 +69,7 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
         failure_statuses: Iterable[str] | None = None,
         project_id: str | None = None,
         namespace: str = "default",
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,

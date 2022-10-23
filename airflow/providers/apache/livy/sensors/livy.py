@@ -35,13 +35,13 @@ class LivySensor(BaseSensorOperator):
         depends on the option that's being modified.
     """
 
-    template_fields: Sequence[str] = ('batch_id',)
+    template_fields: Sequence[str] = ("batch_id",)
 
     def __init__(
         self,
         *,
         batch_id: int | str,
-        livy_conn_id: str = 'livy_default',
+        livy_conn_id: str = "livy_default",
         livy_conn_auth_type: Any | None = None,
         extra_options: dict[str, Any] | None = None,
         **kwargs: Any,

@@ -47,14 +47,14 @@ class AthenaHook(AwsBaseHook):
     """
 
     INTERMEDIATE_STATES = (
-        'QUEUED',
-        'RUNNING',
+        "QUEUED",
+        "RUNNING",
     )
     FAILURE_STATES = (
-        'FAILED',
-        'CANCELLED',
+        "FAILED",
+        "CANCELLED",
     )
-    SUCCESS_STATES = ('SUCCEEDED',)
+    SUCCESS_STATES = ("SUCCEEDED",)
     TERMINAL_STATES = (
         "SUCCEEDED",
         "FAILED",
@@ -62,7 +62,7 @@ class AthenaHook(AwsBaseHook):
     )
 
     def __init__(self, *args: Any, sleep_time: int = 30, **kwargs: Any) -> None:
-        super().__init__(client_type='athena', *args, **kwargs)  # type: ignore
+        super().__init__(client_type="athena", *args, **kwargs)  # type: ignore
         self.sleep_time = sleep_time
 
     def run_query(
@@ -71,7 +71,7 @@ class AthenaHook(AwsBaseHook):
         query_context: dict[str, str],
         result_configuration: dict[str, Any],
         client_request_token: str | None = None,
-        workgroup: str = 'primary',
+        workgroup: str = "primary",
     ) -> str:
         """
         Run Presto query on athena with provided config and return submitted query_execution_id
@@ -84,15 +84,15 @@ class AthenaHook(AwsBaseHook):
         :return: str
         """
         params = {
-            'QueryString': query,
-            'QueryExecutionContext': query_context,
-            'ResultConfiguration': result_configuration,
-            'WorkGroup': workgroup,
+            "QueryString": query,
+            "QueryExecutionContext": query_context,
+            "ResultConfiguration": result_configuration,
+            "WorkGroup": workgroup,
         }
         if client_request_token:
-            params['ClientRequestToken'] = client_request_token
+            params["ClientRequestToken"] = client_request_token
         response = self.get_conn().start_query_execution(**params)
-        return response['QueryExecutionId']
+        return response["QueryExecutionId"]
 
     def check_query_status(self, query_execution_id: str) -> str | None:
         """
@@ -104,9 +104,9 @@ class AthenaHook(AwsBaseHook):
         response = self.get_conn().get_query_execution(QueryExecutionId=query_execution_id)
         state = None
         try:
-            state = response['QueryExecution']['Status']['State']
+            state = response["QueryExecution"]["Status"]["State"]
         except Exception as ex:
-            self.log.error('Exception while getting query state %s', ex)
+            self.log.error("Exception while getting query state %s", ex)
         finally:
             # The error is being absorbed here and is being handled by the caller.
             # The error is being absorbed to implement retries.
@@ -122,9 +122,9 @@ class AthenaHook(AwsBaseHook):
         response = self.get_conn().get_query_execution(QueryExecutionId=query_execution_id)
         reason = None
         try:
-            reason = response['QueryExecution']['Status']['StateChangeReason']
+            reason = response["QueryExecution"]["Status"]["StateChangeReason"]
         except Exception as ex:
-            self.log.error('Exception while getting query state change reason: %s', ex)
+            self.log.error("Exception while getting query state change reason: %s", ex)
         finally:
             # The error is being absorbed here and is being handled by the caller.
             # The error is being absorbed to implement retries.
@@ -144,14 +144,14 @@ class AthenaHook(AwsBaseHook):
         """
         query_state = self.check_query_status(query_execution_id)
         if query_state is None:
-            self.log.error('Invalid Query state')
+            self.log.error("Invalid Query state")
             return None
         elif query_state in self.INTERMEDIATE_STATES or query_state in self.FAILURE_STATES:
             self.log.error('Query is in "%s" state. Cannot fetch results', query_state)
             return None
-        result_params = {'QueryExecutionId': query_execution_id, 'MaxResults': max_results}
+        result_params = {"QueryExecutionId": query_execution_id, "MaxResults": max_results}
         if next_token_id:
-            result_params['NextToken'] = next_token_id
+            result_params["NextToken"] = next_token_id
         return self.get_conn().get_query_results(**result_params)
 
     def get_query_results_paginator(
@@ -174,20 +174,20 @@ class AthenaHook(AwsBaseHook):
         """
         query_state = self.check_query_status(query_execution_id)
         if query_state is None:
-            self.log.error('Invalid Query state (null)')
+            self.log.error("Invalid Query state (null)")
             return None
         if query_state in self.INTERMEDIATE_STATES or query_state in self.FAILURE_STATES:
             self.log.error('Query is in "%s" state. Cannot fetch results', query_state)
             return None
         result_params = {
-            'QueryExecutionId': query_execution_id,
-            'PaginationConfig': {
-                'MaxItems': max_items,
-                'PageSize': page_size,
-                'StartingToken': starting_token,
+            "QueryExecutionId": query_execution_id,
+            "PaginationConfig": {
+                "MaxItems": max_items,
+                "PageSize": page_size,
+                "StartingToken": starting_token,
             },
         }
-        paginator = self.get_conn().get_paginator('get_query_results')
+        paginator = self.get_conn().get_paginator("get_query_results")
         return paginator.paginate(**result_params)
 
     def poll_query_status(
@@ -222,15 +222,15 @@ class AthenaHook(AwsBaseHook):
         while True:
             query_state = self.check_query_status(query_execution_id)
             if query_state is None:
-                self.log.info('Trial %s: Invalid query state. Retrying again', try_number)
+                self.log.info("Trial %s: Invalid query state. Retrying again", try_number)
             elif query_state in self.TERMINAL_STATES:
                 self.log.info(
-                    'Trial %s: Query execution completed. Final state is %s}', try_number, query_state
+                    "Trial %s: Query execution completed. Final state is %s}", try_number, query_state
                 )
                 final_query_state = query_state
                 break
             else:
-                self.log.info('Trial %s: Query is still in non-terminal state - %s', try_number, query_state)
+                self.log.info("Trial %s: Query is still in non-terminal state - %s", try_number, query_state)
             if (
                 max_polling_attempts and try_number >= max_polling_attempts
             ):  # Break loop if max_polling_attempts reached
@@ -254,7 +254,7 @@ class AthenaHook(AwsBaseHook):
 
             if response:
                 try:
-                    output_location = response['QueryExecution']['ResultConfiguration']['OutputLocation']
+                    output_location = response["QueryExecution"]["ResultConfiguration"]["OutputLocation"]
                 except KeyError:
                     self.log.error("Error retrieving OutputLocation")
                     raise

@@ -48,10 +48,10 @@ class AzureCosmosDBHook(BaseHook):
         :ref:`Azure CosmosDB connection<howto/connection:azure_cosmos>`.
     """
 
-    conn_name_attr = 'azure_cosmos_conn_id'
-    default_conn_name = 'azure_cosmos_default'
-    conn_type = 'azure_cosmos'
-    hook_name = 'Azure CosmosDB'
+    conn_name_attr = "azure_cosmos_conn_id"
+    default_conn_name = "azure_cosmos_default"
+    conn_type = "azure_cosmos"
+    hook_name = "Azure CosmosDB"
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
@@ -62,10 +62,10 @@ class AzureCosmosDBHook(BaseHook):
 
         return {
             "extra__azure_cosmos__database_name": StringField(
-                lazy_gettext('Cosmos Database Name (optional)'), widget=BS3TextFieldWidget()
+                lazy_gettext("Cosmos Database Name (optional)"), widget=BS3TextFieldWidget()
             ),
             "extra__azure_cosmos__collection_name": StringField(
-                lazy_gettext('Cosmos Collection Name (optional)'), widget=BS3TextFieldWidget()
+                lazy_gettext("Cosmos Collection Name (optional)"), widget=BS3TextFieldWidget()
             ),
         }
 
@@ -73,16 +73,16 @@ class AzureCosmosDBHook(BaseHook):
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['schema', 'port', 'host', 'extra'],
+            "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
-                'login': 'Cosmos Endpoint URI',
-                'password': 'Cosmos Master Key Token',
+                "login": "Cosmos Endpoint URI",
+                "password": "Cosmos Master Key Token",
             },
             "placeholders": {
-                'login': 'endpoint uri',
-                'password': 'master key',
-                'extra__azure_cosmos__database_name': 'database name',
-                'extra__azure_cosmos__collection_name': 'collection name',
+                "login": "endpoint uri",
+                "password": "master key",
+                "extra__azure_cosmos__database_name": "database name",
+                "extra__azure_cosmos__collection_name": "collection name",
             },
         }
 
@@ -102,15 +102,15 @@ class AzureCosmosDBHook(BaseHook):
             endpoint_uri = conn.login
             master_key = conn.password
 
-            self.default_database_name = extras.get('database_name') or extras.get(
-                'extra__azure_cosmos__database_name'
+            self.default_database_name = extras.get("database_name") or extras.get(
+                "extra__azure_cosmos__database_name"
             )
-            self.default_collection_name = extras.get('collection_name') or extras.get(
-                'extra__azure_cosmos__collection_name'
+            self.default_collection_name = extras.get("collection_name") or extras.get(
+                "extra__azure_cosmos__collection_name"
             )
 
             # Initialize the Python Azure Cosmos DB client
-            self._conn = CosmosClient(endpoint_uri, {'masterKey': master_key})
+            self._conn = CosmosClient(endpoint_uri, {"masterKey": master_key})
         return self._conn
 
     def __get_database_name(self, database_name: str | None = None) -> str:
@@ -243,11 +243,11 @@ class AzureCosmosDBHook(BaseHook):
             raise AirflowBadRequest("You cannot insert a None document")
 
         # Add document id if isn't found
-        if 'id' in document:
-            if document['id'] is None:
-                document['id'] = document_id
+        if "id" in document:
+            if document["id"] is None:
+                document["id"] = document_id
         else:
-            document['id'] = document_id
+            document["id"] = document_id
 
         created_document = (
             self.get_conn()

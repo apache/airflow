@@ -51,7 +51,7 @@ with DAG(
 
     # [START howto_operator_glacier_upload_archive]
     upload_archive_to_glacier = GlacierUploadArchiveOperator(
-        vault_name=VAULT_NAME, body=b'Test Data', task_id="upload_data_to_glacier"
+        vault_name=VAULT_NAME, body=b"Test Data", task_id="upload_data_to_glacier"
     )
     # [END howto_operator_glacier_upload_archive]
 

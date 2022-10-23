@@ -54,7 +54,7 @@ class CassandraRecordSensor(BaseSensorOperator):
         when connecting to Cassandra cluster
     """
 
-    template_fields: Sequence[str] = ('table', 'keys')
+    template_fields: Sequence[str] = ("table", "keys")
 
     def __init__(
         self,
@@ -70,6 +70,6 @@ class CassandraRecordSensor(BaseSensorOperator):
         self.keys = keys
 
     def poke(self, context: Context) -> bool:
-        self.log.info('Sensor check existence of record: %s', self.keys)
+        self.log.info("Sensor check existence of record: %s", self.keys)
         hook = CassandraHook(self.cassandra_conn_id)
         return hook.record_exists(self.table, self.keys)

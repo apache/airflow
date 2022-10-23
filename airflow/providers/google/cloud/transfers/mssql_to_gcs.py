@@ -53,11 +53,11 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
 
     """
 
-    ui_color = '#e0a98c'
+    ui_color = "#e0a98c"
 
-    type_map = {3: 'INTEGER', 4: 'TIMESTAMP', 5: 'NUMERIC'}
+    type_map = {3: "INTEGER", 4: "TIMESTAMP", 5: "NUMERIC"}
 
-    def __init__(self, *, mssql_conn_id='mssql_default', **kwargs):
+    def __init__(self, *, mssql_conn_id="mssql_default", **kwargs):
         super().__init__(**kwargs)
         self.mssql_conn_id = mssql_conn_id
 
@@ -75,9 +75,9 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
 
     def field_to_bigquery(self, field) -> dict[str, str]:
         return {
-            'name': field[0].replace(" ", "_"),
-            'type': self.type_map.get(field[1], "STRING"),
-            'mode': "NULLABLE",
+            "name": field[0].replace(" ", "_"),
+            "type": self.type_map.get(field[1], "STRING"),
+            "mode": "NULLABLE",
         }
 
     @classmethod

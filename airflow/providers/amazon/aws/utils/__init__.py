@@ -42,5 +42,5 @@ def datetime_to_epoch_us(date_time: datetime) -> int:
 
 
 def get_airflow_version() -> tuple[int, ...]:
-    val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), version)
-    return tuple(int(x) for x in val.split('.'))
+    val = re.sub(r"(\d+\.\d+\.\d+).*", lambda x: x.group(1), version)
+    return tuple(int(x) for x in val.split("."))

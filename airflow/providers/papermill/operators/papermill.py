@@ -36,7 +36,7 @@ class NoteBook(File):
     type_hint: str | None = "jupyter_notebook"
     parameters: dict | None = {}
 
-    meta_schema: str = __name__ + '.NoteBook'
+    meta_schema: str = __name__ + ".NoteBook"
 
 
 class PapermillOperator(BaseOperator):
@@ -52,7 +52,7 @@ class PapermillOperator(BaseOperator):
 
     supports_lineage = True
 
-    template_fields: Sequence[str] = ('input_nb', 'output_nb', 'parameters', 'kernel_name', 'language_name')
+    template_fields: Sequence[str] = ("input_nb", "output_nb", "parameters", "kernel_name", "language_name")
 
     def __init__(
         self,

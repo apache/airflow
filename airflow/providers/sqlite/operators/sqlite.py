@@ -39,12 +39,12 @@ class SqliteOperator(SQLExecuteQueryOperator):
     :param parameters: (optional) the parameters to render the SQL query with.
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'sql'}
-    ui_color = '#cdaaed'
+    template_fields: Sequence[str] = ("sql",)
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "sql"}
+    ui_color = "#cdaaed"
 
-    def __init__(self, *, sqlite_conn_id: str = 'sqlite_default', **kwargs) -> None:
+    def __init__(self, *, sqlite_conn_id: str = "sqlite_default", **kwargs) -> None:
         super().__init__(conn_id=sqlite_conn_id, **kwargs)
         warnings.warn(
             """This class is deprecated.

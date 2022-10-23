@@ -38,10 +38,10 @@ class RedshiftSQLHook(DbApiHook):
         get_sqlalchemy_engine() and get_uri() depend on sqlalchemy-amazon-redshift
     """
 
-    conn_name_attr = 'redshift_conn_id'
-    default_conn_name = 'redshift_default'
-    conn_type = 'redshift'
-    hook_name = 'Amazon Redshift'
+    conn_name_attr = "redshift_conn_id"
+    default_conn_name = "redshift_default"
+    conn_type = "redshift"
+    hook_name = "Amazon Redshift"
     supports_autocommit = True
 
     @staticmethod
@@ -49,7 +49,7 @@ class RedshiftSQLHook(DbApiHook):
         """Returns custom field behavior"""
         return {
             "hidden_fields": [],
-            "relabeling": {'login': 'User', 'schema': 'Database'},
+            "relabeling": {"login": "User", "schema": "Database"},
         }
 
     @cached_property
@@ -63,15 +63,15 @@ class RedshiftSQLHook(DbApiHook):
         conn_params: dict[str, str | int] = {}
 
         if conn.login:
-            conn_params['user'] = conn.login
+            conn_params["user"] = conn.login
         if conn.password:
-            conn_params['password'] = conn.password
+            conn_params["password"] = conn.password
         if conn.host:
-            conn_params['host'] = conn.host
+            conn_params["host"] = conn.host
         if conn.port:
-            conn_params['port'] = conn.port
+            conn_params["port"] = conn.port
         if conn.schema:
-            conn_params['database'] = conn.schema
+            conn_params["database"] = conn.schema
 
         return conn_params
 
@@ -79,13 +79,13 @@ class RedshiftSQLHook(DbApiHook):
         """Overrides DbApiHook get_uri to use redshift_connector sqlalchemy dialect as driver name"""
         conn_params = self._get_conn_params()
 
-        if 'user' in conn_params:
-            conn_params['username'] = conn_params.pop('user')
+        if "user" in conn_params:
+            conn_params["username"] = conn_params.pop("user")
 
         # Compatibility: The 'create' factory method was added in SQLAlchemy 1.4
         # to replace calling the default URL constructor directly.
         create_url = getattr(URL, "create", URL)
-        return str(create_url(drivername='redshift+redshift_connector', **conn_params))
+        return str(create_url(drivername="redshift+redshift_connector", **conn_params))
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """Overrides DbApiHook get_sqlalchemy_engine to pass redshift_connector specific kwargs"""

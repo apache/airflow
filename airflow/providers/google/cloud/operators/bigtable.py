@@ -46,7 +46,7 @@ class BigtableValidationMixin:
     def _validate_inputs(self):
         for attr_name in self.REQUIRED_ATTRIBUTES:
             if not getattr(self, attr_name):
-                raise AirflowException(f'Empty parameter: {attr_name}')
+                raise AirflowException(f"Empty parameter: {attr_name}")
 
 
 class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
@@ -92,13 +92,13 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
         account from the list granting this role to the originating account (templated).
     """
 
-    REQUIRED_ATTRIBUTES: Iterable[str] = ('instance_id', 'main_cluster_id', 'main_cluster_zone')
+    REQUIRED_ATTRIBUTES: Iterable[str] = ("instance_id", "main_cluster_id", "main_cluster_zone")
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance_id',
-        'main_cluster_id',
-        'main_cluster_zone',
-        'impersonation_chain',
+        "project_id",
+        "instance_id",
+        "main_cluster_id",
+        "main_cluster_zone",
+        "impersonation_chain",
     )
     operator_extra_links = (BigtableInstanceLink(),)
 
@@ -116,7 +116,7 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
         cluster_nodes: int | None = None,
         cluster_storage_type: enums.StorageType | None = None,
         timeout: float | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -167,7 +167,7 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
             )
             BigtableInstanceLink.persist(context=context, task_instance=self)
         except google.api_core.exceptions.GoogleAPICallError as e:
-            self.log.error('An error occurred. Exiting.')
+            self.log.error("An error occurred. Exiting.")
             raise e
 
 
@@ -202,11 +202,11 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
         account from the list granting this role to the originating account (templated).
     """
 
-    REQUIRED_ATTRIBUTES: Iterable[str] = ['instance_id']
+    REQUIRED_ATTRIBUTES: Iterable[str] = ["instance_id"]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance_id',
-        'impersonation_chain',
+        "project_id",
+        "instance_id",
+        "impersonation_chain",
     )
     operator_extra_links = (BigtableInstanceLink(),)
 
@@ -219,7 +219,7 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
         instance_type: enums.Instance.Type | enum.IntEnum | None = None,
         instance_labels: dict | None = None,
         timeout: float | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -254,7 +254,7 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
             )
             BigtableInstanceLink.persist(context=context, task_instance=self)
         except google.api_core.exceptions.GoogleAPICallError as e:
-            self.log.error('An error occurred. Exiting.')
+            self.log.error("An error occurred. Exiting.")
             raise e
 
 
@@ -283,11 +283,11 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
         account from the list granting this role to the originating account (templated).
     """
 
-    REQUIRED_ATTRIBUTES = ('instance_id',)  # type: Iterable[str]
+    REQUIRED_ATTRIBUTES = ("instance_id",)  # type: Iterable[str]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance_id',
-        'impersonation_chain',
+        "project_id",
+        "instance_id",
+        "impersonation_chain",
     )
 
     def __init__(
@@ -295,7 +295,7 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
         *,
         instance_id: str,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -320,7 +320,7 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
                 self.project_id,
             )
         except google.api_core.exceptions.GoogleAPICallError as e:
-            self.log.error('An error occurred. Exiting.')
+            self.log.error("An error occurred. Exiting.")
             raise e
 
 
@@ -356,12 +356,12 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
         account from the list granting this role to the originating account (templated).
     """
 
-    REQUIRED_ATTRIBUTES = ('instance_id', 'table_id')  # type: Iterable[str]
+    REQUIRED_ATTRIBUTES = ("instance_id", "table_id")  # type: Iterable[str]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance_id',
-        'table_id',
-        'impersonation_chain',
+        "project_id",
+        "instance_id",
+        "table_id",
+        "impersonation_chain",
     )
     operator_extra_links = (BigtableTablesLink(),)
 
@@ -373,7 +373,7 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
         project_id: str | None = None,
         initial_split_keys: list | None = None,
         column_families: dict[str, GarbageCollectionRule] | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -461,12 +461,12 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
         account from the list granting this role to the originating account (templated).
     """
 
-    REQUIRED_ATTRIBUTES = ('instance_id', 'table_id')  # type: Iterable[str]
+    REQUIRED_ATTRIBUTES = ("instance_id", "table_id")  # type: Iterable[str]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance_id',
-        'table_id',
-        'impersonation_chain',
+        "project_id",
+        "instance_id",
+        "table_id",
+        "impersonation_chain",
     )
 
     def __init__(
@@ -476,7 +476,7 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
         table_id: str,
         project_id: str | None = None,
         app_profile_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -508,7 +508,7 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
             # It's OK if table doesn't exists.
             self.log.info("The table '%s' no longer exists. Consider it as deleted", self.table_id)
         except google.api_core.exceptions.GoogleAPICallError as e:
-            self.log.error('An error occurred. Exiting.')
+            self.log.error("An error occurred. Exiting.")
             raise e
 
 
@@ -539,13 +539,13 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
         account from the list granting this role to the originating account (templated).
     """
 
-    REQUIRED_ATTRIBUTES = ('instance_id', 'cluster_id', 'nodes')  # type: Iterable[str]
+    REQUIRED_ATTRIBUTES = ("instance_id", "cluster_id", "nodes")  # type: Iterable[str]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance_id',
-        'cluster_id',
-        'nodes',
-        'impersonation_chain',
+        "project_id",
+        "instance_id",
+        "cluster_id",
+        "nodes",
+        "impersonation_chain",
     )
     operator_extra_links = (BigtableClusterLink(),)
 
@@ -556,7 +556,7 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
         cluster_id: str,
         nodes: int,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -586,5 +586,5 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
                 f"Dependency: cluster '{self.cluster_id}' does not exist for instance '{self.instance_id}'."
             )
         except google.api_core.exceptions.GoogleAPICallError as e:
-            self.log.error('An error occurred. Exiting.')
+            self.log.error("An error occurred. Exiting.")
             raise e

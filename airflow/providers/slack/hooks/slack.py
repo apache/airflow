@@ -47,17 +47,17 @@ def _ensure_prefixes(conn_type):
         @wraps(func)
         def inner(cls):
             field_behaviors = func(cls)
-            conn_attrs = {'host', 'schema', 'login', 'password', 'port', 'extra'}
+            conn_attrs = {"host", "schema", "login", "password", "port", "extra"}
 
             def _ensure_prefix(field):
-                if field not in conn_attrs and not field.startswith('extra__'):
+                if field not in conn_attrs and not field.startswith("extra__"):
                     return f"extra__{conn_type}__{field}"
                 else:
                     return field
 
-            if 'placeholders' in field_behaviors:
-                placeholders = field_behaviors['placeholders']
-                field_behaviors['placeholders'] = {_ensure_prefix(k): v for k, v in placeholders.items()}
+            if "placeholders" in field_behaviors:
+                placeholders = field_behaviors["placeholders"]
+                field_behaviors["placeholders"] = {_ensure_prefix(k): v for k, v in placeholders.items()}
             return field_behaviors
 
         return inner
@@ -108,10 +108,10 @@ class SlackHook(BaseHook):
     :param token: (deprecated) Slack API Token.
     """
 
-    conn_name_attr = 'slack_conn_id'
-    default_conn_name = 'slack_api_default'
-    conn_type = 'slack'
-    hook_name = 'Slack API'
+    conn_name_attr = "slack_conn_id"
+    default_conn_name = "slack_api_default"
+    conn_type = "slack"
+    hook_name = "Slack API"
 
     def __init__(
         self,
@@ -218,11 +218,11 @@ class SlackHook(BaseHook):
         if slack_conn_id is not None:
             conn = self.get_connection(slack_conn_id)
 
-            if not getattr(conn, 'password', None):
-                raise AirflowException('Missing token(password) in Slack connection')
+            if not getattr(conn, "password", None):
+                raise AirflowException("Missing token(password) in Slack connection")
             return conn.password
 
-        raise AirflowException('Cannot get token: No valid Slack token nor slack_conn_id supplied.')
+        raise AirflowException("Cannot get token: No valid Slack token nor slack_conn_id supplied.")
 
     def call(self, api_method: str, **kwargs) -> SlackResponse:
         """
@@ -333,19 +333,19 @@ class SlackHook(BaseHook):
                 "and receive a response from Slack API.",
             ),
             "base_url": StringField(
-                lazy_gettext('Base URL'),
+                lazy_gettext("Base URL"),
                 widget=BS3TextFieldWidget(),
                 description="Optional. A string representing the Slack API base URL.",
             ),
             "proxy": StringField(
-                lazy_gettext('Proxy'),
+                lazy_gettext("Proxy"),
                 widget=BS3TextFieldWidget(),
                 description="Optional. Proxy to make the Slack API call.",
             ),
         }
 
     @classmethod
-    @_ensure_prefixes(conn_type='slack')
+    @_ensure_prefixes(conn_type="slack")
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {

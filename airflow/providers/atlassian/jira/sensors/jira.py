@@ -43,7 +43,7 @@ class JiraSensor(BaseSensorOperator):
         self,
         *,
         method_name: str,
-        jira_conn_id: str = 'jira_default',
+        jira_conn_id: str = "jira_default",
         method_params: dict | None = None,
         result_processor: Callable | None = None,
         **kwargs,
@@ -81,7 +81,7 @@ class JiraTicketSensor(JiraSensor):
     def __init__(
         self,
         *,
-        jira_conn_id: str = 'jira_default',
+        jira_conn_id: str = "jira_default",
         ticket_id: str | None = None,
         field: str | None = None,
         expected_value: str | None = None,
@@ -99,10 +99,10 @@ class JiraTicketSensor(JiraSensor):
         super().__init__(jira_conn_id=jira_conn_id, result_processor=field_checker_func, **kwargs)
 
     def poke(self, context: Context) -> Any:
-        self.log.info('Jira Sensor checking for change in ticket: %s', self.ticket_id)
+        self.log.info("Jira Sensor checking for change in ticket: %s", self.ticket_id)
 
         self.method_name = "issue"
-        self.method_params = {'id': self.ticket_id, 'fields': self.field}
+        self.method_params = {"id": self.ticket_id, "fields": self.field}
         return JiraSensor.poke(self, context=context)
 
     def issue_field_checker(self, issue: Issue) -> bool | None:
@@ -117,7 +117,7 @@ class JiraTicketSensor(JiraSensor):
                         result = self.expected_value in field_val
                     elif isinstance(field_val, str):
                         result = self.expected_value.lower() == field_val.lower()
-                    elif isinstance(field_val, Resource) and getattr(field_val, 'name'):
+                    elif isinstance(field_val, Resource) and getattr(field_val, "name"):
                         result = self.expected_value.lower() == field_val.name.lower()
                     else:
                         self.log.warning(

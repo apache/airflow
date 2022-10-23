@@ -36,11 +36,11 @@ class AzureFileShareHook(BaseHook):
     """
 
     conn_name_attr = "azure_fileshare_conn_id"
-    default_conn_name = 'azure_fileshare_default'
-    conn_type = 'azure_fileshare'
-    hook_name = 'Azure FileShare'
+    default_conn_name = "azure_fileshare_default"
+    conn_type = "azure_fileshare"
+    hook_name = "Azure FileShare"
 
-    def __init__(self, azure_fileshare_conn_id: str = 'azure_fileshare_default') -> None:
+    def __init__(self, azure_fileshare_conn_id: str = "azure_fileshare_default") -> None:
         super().__init__()
         self.conn_id = azure_fileshare_conn_id
         self._conn = None
@@ -54,13 +54,13 @@ class AzureFileShareHook(BaseHook):
 
         return {
             "extra__azure_fileshare__sas_token": PasswordField(
-                lazy_gettext('SAS Token (optional)'), widget=BS3PasswordFieldWidget()
+                lazy_gettext("SAS Token (optional)"), widget=BS3PasswordFieldWidget()
             ),
             "extra__azure_fileshare__connection_string": StringField(
-                lazy_gettext('Connection String (optional)'), widget=BS3TextFieldWidget()
+                lazy_gettext("Connection String (optional)"), widget=BS3TextFieldWidget()
             ),
             "extra__azure_fileshare__protocol": StringField(
-                lazy_gettext('Account URL or token (optional)'), widget=BS3TextFieldWidget()
+                lazy_gettext("Account URL or token (optional)"), widget=BS3TextFieldWidget()
             ),
         }
 
@@ -68,17 +68,17 @@ class AzureFileShareHook(BaseHook):
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['schema', 'port', 'host', 'extra'],
+            "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
-                'login': 'Blob Storage Login (optional)',
-                'password': 'Blob Storage Key (optional)',
+                "login": "Blob Storage Login (optional)",
+                "password": "Blob Storage Key (optional)",
             },
             "placeholders": {
-                'login': 'account name',
-                'password': 'secret',
-                'extra__azure_fileshare__sas_token': 'account url or token (optional)',
-                'extra__azure_fileshare__connection_string': 'account url or token (optional)',
-                'extra__azure_fileshare__protocol': 'account url or token (optional)',
+                "login": "account name",
+                "password": "secret",
+                "extra__azure_fileshare__sas_token": "account url or token (optional)",
+                "extra__azure_fileshare__connection_string": "account url or token (optional)",
+                "extra__azure_fileshare__protocol": "account url or token (optional)",
             },
         }
 
@@ -94,7 +94,7 @@ class AzureFileShareHook(BaseHook):
             # in case dedicated FileShareHook is used, the connection will use the extras from UI.
             # in case deprecated wasb hook is used, the old extras will work as well
             if key.startswith(prefix):
-                if value != '':
+                if value != "":
                     service_options[key[len(prefix) :]] = value
                 else:
                     # warn if the deprecated wasb_connection is used

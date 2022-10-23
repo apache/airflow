@@ -90,13 +90,13 @@ class GoogleApiToS3Operator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'google_api_endpoint_params',
-        's3_destination_key',
-        'google_impersonation_chain',
-        'gcp_conn_id',
+        "google_api_endpoint_params",
+        "s3_destination_key",
+        "google_impersonation_chain",
+        "gcp_conn_id",
     )
     template_ext: Sequence[str] = ()
-    ui_color = '#cc181e'
+    ui_color = "#cc181e"
 
     def __init__(
         self,
@@ -112,9 +112,9 @@ class GoogleApiToS3Operator(BaseOperator):
         google_api_pagination: bool = False,
         google_api_num_retries: int = 0,
         s3_overwrite: bool = False,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
@@ -141,17 +141,17 @@ class GoogleApiToS3Operator(BaseOperator):
 
         :param context: The context that is being provided when executing.
         """
-        self.log.info('Transferring data from %s to s3', self.google_api_service_name)
+        self.log.info("Transferring data from %s to s3", self.google_api_service_name)
 
         if self.google_api_endpoint_params_via_xcom:
-            self._update_google_api_endpoint_params_via_xcom(context['task_instance'])
+            self._update_google_api_endpoint_params_via_xcom(context["task_instance"])
 
         data = self._retrieve_data_from_google_api()
 
         self._load_data_to_s3(data)
 
         if self.google_api_response_via_xcom:
-            self._expose_google_api_response_via_xcom(context['task_instance'], data)
+            self._expose_google_api_response_via_xcom(context["task_instance"], data)
 
     def _retrieve_data_from_google_api(self) -> dict:
         google_discovery_api_hook = GoogleDiscoveryApiHook(
@@ -190,4 +190,4 @@ class GoogleApiToS3Operator(BaseOperator):
         if sys.getsizeof(data) < MAX_XCOM_SIZE:
             task_instance.xcom_push(key=self.google_api_response_via_xcom or XCOM_RETURN_KEY, value=data)
         else:
-            raise RuntimeError('The size of the downloaded data is too large to push to XCom!')
+            raise RuntimeError("The size of the downloaded data is too large to push to XCom!")

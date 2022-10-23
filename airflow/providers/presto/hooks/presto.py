@@ -37,27 +37,27 @@ except ImportError:
     # This is from airflow.utils.operator_helpers,
     # For the sake of provider backward compatibility, this is hardcoded if import fails
     # https://github.com/apache/airflow/pull/22416#issuecomment-1075531290
-    DEFAULT_FORMAT_PREFIX = 'airflow.ctx.'
+    DEFAULT_FORMAT_PREFIX = "airflow.ctx."
 
 
 def generate_presto_client_info() -> str:
     """Return json string with dag_id, task_id, execution_date and try_number"""
     context_var = {
-        format_map['default'].replace(DEFAULT_FORMAT_PREFIX, ''): os.environ.get(
-            format_map['env_var_format'], ''
+        format_map["default"].replace(DEFAULT_FORMAT_PREFIX, ""): os.environ.get(
+            format_map["env_var_format"], ""
         )
         for format_map in AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()
     }
     # try_number isn't available in context for airflow < 2.2.5
     # https://github.com/apache/airflow/issues/23059
-    try_number = context_var.get('try_number', '')
+    try_number = context_var.get("try_number", "")
     task_info = {
-        'dag_id': context_var['dag_id'],
-        'task_id': context_var['task_id'],
-        'execution_date': context_var['execution_date'],
-        'try_number': try_number,
-        'dag_run_id': context_var['dag_run_id'],
-        'dag_owner': context_var['dag_owner'],
+        "dag_id": context_var["dag_id"],
+        "task_id": context_var["task_id"],
+        "execution_date": context_var["execution_date"],
+        "try_number": try_number,
+        "dag_run_id": context_var["dag_run_id"],
+        "dag_owner": context_var["dag_owner"],
     }
     return json.dumps(task_info, sort_keys=True)
 
@@ -70,9 +70,9 @@ def _boolify(value):
     if isinstance(value, bool):
         return value
     if isinstance(value, str):
-        if value.lower() == 'false':
+        if value.lower() == "false":
             return False
-        elif value.lower() == 'true':
+        elif value.lower() == "true":
             return True
     return value
 
@@ -87,34 +87,34 @@ class PrestoHook(DbApiHook):
     [[340698]]
     """
 
-    conn_name_attr = 'presto_conn_id'
-    default_conn_name = 'presto_default'
-    conn_type = 'presto'
-    hook_name = 'Presto'
-    placeholder = '?'
+    conn_name_attr = "presto_conn_id"
+    default_conn_name = "presto_default"
+    conn_type = "presto"
+    hook_name = "Presto"
+    placeholder = "?"
 
     def get_conn(self) -> Connection:
         """Returns a connection object"""
         db = self.get_connection(self.presto_conn_id)  # type: ignore[attr-defined]
         extra = db.extra_dejson
         auth = None
-        if db.password and extra.get('auth') == 'kerberos':
+        if db.password and extra.get("auth") == "kerberos":
             raise AirflowException("Kerberos authorization doesn't support password.")
         elif db.password:
             auth = prestodb.auth.BasicAuthentication(db.login, db.password)
-        elif extra.get('auth') == 'kerberos':
+        elif extra.get("auth") == "kerberos":
             auth = prestodb.auth.KerberosAuthentication(
-                config=extra.get('kerberos__config', os.environ.get('KRB5_CONFIG')),
-                service_name=extra.get('kerberos__service_name'),
-                mutual_authentication=_boolify(extra.get('kerberos__mutual_authentication', False)),
-                force_preemptive=_boolify(extra.get('kerberos__force_preemptive', False)),
-                hostname_override=extra.get('kerberos__hostname_override'),
+                config=extra.get("kerberos__config", os.environ.get("KRB5_CONFIG")),
+                service_name=extra.get("kerberos__service_name"),
+                mutual_authentication=_boolify(extra.get("kerberos__mutual_authentication", False)),
+                force_preemptive=_boolify(extra.get("kerberos__force_preemptive", False)),
+                hostname_override=extra.get("kerberos__hostname_override"),
                 sanitize_mutual_error_response=_boolify(
-                    extra.get('kerberos__sanitize_mutual_error_response', True)
+                    extra.get("kerberos__sanitize_mutual_error_response", True)
                 ),
-                principal=extra.get('kerberos__principal', conf.get('kerberos', 'principal')),
-                delegate=_boolify(extra.get('kerberos__delegate', False)),
-                ca_bundle=extra.get('kerberos__ca_bundle'),
+                principal=extra.get("kerberos__principal", conf.get("kerberos", "principal")),
+                delegate=_boolify(extra.get("kerberos__delegate", False)),
+                ca_bundle=extra.get("kerberos__ca_bundle"),
             )
 
         http_headers = {"X-Presto-Client-Info": generate_presto_client_info()}
@@ -122,26 +122,26 @@ class PrestoHook(DbApiHook):
             host=db.host,
             port=db.port,
             user=db.login,
-            source=db.extra_dejson.get('source', 'airflow'),
+            source=db.extra_dejson.get("source", "airflow"),
             http_headers=http_headers,
-            http_scheme=db.extra_dejson.get('protocol', 'http'),
-            catalog=db.extra_dejson.get('catalog', 'hive'),
+            http_scheme=db.extra_dejson.get("protocol", "http"),
+            catalog=db.extra_dejson.get("catalog", "hive"),
             schema=db.schema,
             auth=auth,
             isolation_level=self.get_isolation_level(),  # type: ignore[func-returns-value]
         )
-        if extra.get('verify') is not None:
+        if extra.get("verify") is not None:
             # Unfortunately verify parameter is available via public API.
             # The PR is merged in the presto library, but has not been released.
             # See: https://github.com/prestosql/presto-python-client/pull/31
-            presto_conn._http_session.verify = _boolify(extra['verify'])
+            presto_conn._http_session.verify = _boolify(extra["verify"])
 
         return presto_conn
 
     def get_isolation_level(self) -> Any:
         """Returns an isolation level"""
         db = self.get_connection(self.presto_conn_id)  # type: ignore[attr-defined]
-        isolation_level = db.extra_dejson.get('isolation_level', 'AUTOCOMMIT').upper()
+        isolation_level = db.extra_dejson.get("isolation_level", "AUTOCOMMIT").upper()
         return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
 
     def get_records(
@@ -221,9 +221,9 @@ class PrestoHook(DbApiHook):
         """
         if self.get_isolation_level() == IsolationLevel.AUTOCOMMIT:
             self.log.info(
-                'Transactions are not enable in presto connection. '
-                'Please use the isolation_level property to enable it. '
-                'Falling back to insert all rows in one transaction.'
+                "Transactions are not enable in presto connection. "
+                "Please use the isolation_level property to enable it. "
+                "Falling back to insert all rows in one transaction."
             )
             commit_every = 0
 

@@ -33,13 +33,13 @@ from airflow.sensors.base import BaseSensorOperator
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-DEFAULT_CONN_ID: str = 'aws_default'
+DEFAULT_CONN_ID: str = "aws_default"
 
 
 def _check_failed(current_state, target_state, failure_states):
     if (current_state != target_state) and (current_state in failure_states):
         raise AirflowException(
-            f'Terminal state reached. Current state: {current_state}, Expected state: {target_state}'
+            f"Terminal state reached. Current state: {current_state}, Expected state: {target_state}"
         )
 
 
@@ -77,7 +77,7 @@ class EcsClusterStateSensor(EcsBaseSensor):
          Success State. (Default: "FAILED" or "INACTIVE")
     """
 
-    template_fields: Sequence[str] = ('cluster_name', 'target_state', 'failure_states')
+    template_fields: Sequence[str] = ("cluster_name", "target_state", "failure_states")
 
     def __init__(
         self,
@@ -116,7 +116,7 @@ class EcsTaskDefinitionStateSensor(EcsBaseSensor):
     :param target_state: Success state to watch for. (Default: "ACTIVE")
     """
 
-    template_fields: Sequence[str] = ('task_definition', 'target_state', 'failure_states')
+    template_fields: Sequence[str] = ("task_definition", "target_state", "failure_states")
 
     def __init__(
         self,
@@ -163,7 +163,7 @@ class EcsTaskStateSensor(EcsBaseSensor):
          the Success State. (Default: "STOPPED")
     """
 
-    template_fields: Sequence[str] = ('cluster', 'task', 'target_state', 'failure_states')
+    template_fields: Sequence[str] = ("cluster", "task", "target_state", "failure_states")
 
     def __init__(
         self,

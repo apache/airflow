@@ -52,17 +52,17 @@ class RedshiftDataOperator(BaseOperator):
     """
 
     template_fields = (
-        'cluster_identifier',
-        'database',
-        'sql',
-        'db_user',
-        'parameters',
-        'statement_name',
-        'aws_conn_id',
-        'region',
+        "cluster_identifier",
+        "database",
+        "sql",
+        "db_user",
+        "parameters",
+        "statement_name",
+        "aws_conn_id",
+        "region",
     )
-    template_ext = ('.sql',)
-    template_fields_renderers = {'sql': 'sql'}
+    template_ext = (".sql",)
+    template_fields_renderers = {"sql": "sql"}
 
     def __init__(
         self,
@@ -76,7 +76,7 @@ class RedshiftDataOperator(BaseOperator):
         with_event: bool = False,
         await_result: bool = True,
         poll_interval: int = 10,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         region: str | None = None,
         **kwargs,
     ) -> None:
@@ -119,7 +119,7 @@ class RedshiftDataOperator(BaseOperator):
         }
 
         resp = self.hook.conn.execute_statement(**trim_none_values(kwargs))
-        return resp['Id']
+        return resp["Id"]
 
     def execute_batch_query(self):
         kwargs: dict[str, Any] = {
@@ -133,7 +133,7 @@ class RedshiftDataOperator(BaseOperator):
             "StatementName": self.statement_name,
         }
         resp = self.hook.conn.batch_execute_statement(**trim_none_values(kwargs))
-        return resp['Id']
+        return resp["Id"]
 
     def wait_for_results(self, statement_id):
         while True:
@@ -141,10 +141,10 @@ class RedshiftDataOperator(BaseOperator):
             resp = self.hook.conn.describe_statement(
                 Id=statement_id,
             )
-            status = resp['Status']
-            if status == 'FINISHED':
+            status = resp["Status"]
+            if status == "FINISHED":
                 return status
-            elif status == 'FAILED' or status == 'ABORTED':
+            elif status == "FAILED" or status == "ABORTED":
                 raise ValueError(f"Statement {statement_id!r} terminated with status {status}.")
             else:
                 self.log.info("Query %s", status)
@@ -166,10 +166,10 @@ class RedshiftDataOperator(BaseOperator):
     def on_kill(self) -> None:
         """Cancel the submitted redshift query"""
         if self.statement_id:
-            self.log.info('Received a kill signal.')
-            self.log.info('Stopping Query with statementId - %s', self.statement_id)
+            self.log.info("Received a kill signal.")
+            self.log.info("Stopping Query with statementId - %s", self.statement_id)
 
             try:
                 self.hook.conn.cancel_statement(Id=self.statement_id)
             except Exception as ex:
-                self.log.error('Unable to cancel query. Exiting. %s', ex)
+                self.log.error("Unable to cancel query. Exiting. %s", ex)

@@ -115,11 +115,11 @@ class PubSubCreateTopicOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'topic',
-        'impersonation_chain',
+        "project_id",
+        "topic",
+        "impersonation_chain",
     )
-    ui_color = '#0273d4'
+    ui_color = "#0273d4"
     operator_extra_links = (PubSubTopicLink(),)
 
     def __init__(
@@ -128,7 +128,7 @@ class PubSubCreateTopicOperator(BaseOperator):
         topic: str,
         project_id: str | None = None,
         fail_if_exists: bool = False,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         labels: dict[str, str] | None = None,
         message_storage_policy: dict | MessageStoragePolicy = None,
@@ -308,13 +308,13 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'topic',
-        'subscription',
-        'subscription_project_id',
-        'impersonation_chain',
+        "project_id",
+        "topic",
+        "subscription",
+        "subscription_project_id",
+        "impersonation_chain",
     )
-    ui_color = '#0273d4'
+    ui_color = "#0273d4"
     operator_extra_links = (PubSubSubscriptionLink(),)
 
     def __init__(
@@ -326,7 +326,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         subscription_project_id: str | None = None,
         ack_deadline_secs: int = 10,
         fail_if_exists: bool = False,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         push_config: dict | PushConfig | None = None,
         retain_acked_messages: bool | None = None,
@@ -457,11 +457,11 @@ class PubSubDeleteTopicOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'topic',
-        'impersonation_chain',
+        "project_id",
+        "topic",
+        "impersonation_chain",
     )
-    ui_color = '#cb4335'
+    ui_color = "#cb4335"
 
     def __init__(
         self,
@@ -469,7 +469,7 @@ class PubSubDeleteTopicOperator(BaseOperator):
         topic: str,
         project_id: str | None = None,
         fail_if_not_exists: bool = False,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -561,11 +561,11 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'subscription',
-        'impersonation_chain',
+        "project_id",
+        "subscription",
+        "impersonation_chain",
     )
-    ui_color = '#cb4335'
+    ui_color = "#cb4335"
 
     def __init__(
         self,
@@ -573,7 +573,7 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
         subscription: str,
         project_id: str | None = None,
         fail_if_not_exists: bool = False,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -669,12 +669,12 @@ class PubSubPublishMessageOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'topic',
-        'messages',
-        'impersonation_chain',
+        "project_id",
+        "topic",
+        "messages",
+        "impersonation_chain",
     )
-    ui_color = '#0273d4'
+    ui_color = "#0273d4"
 
     def __init__(
         self,
@@ -682,7 +682,7 @@ class PubSubPublishMessageOperator(BaseOperator):
         topic: str,
         messages: list,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -755,9 +755,9 @@ class PubSubPullOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'subscription',
-        'impersonation_chain',
+        "project_id",
+        "subscription",
+        "impersonation_chain",
     )
 
     def __init__(
@@ -768,7 +768,7 @@ class PubSubPullOperator(BaseOperator):
         max_messages: int = 5,
         ack_messages: bool = False,
         messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,

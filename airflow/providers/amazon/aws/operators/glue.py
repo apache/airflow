@@ -55,30 +55,30 @@ class GlueJobOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'job_name',
-        'script_location',
-        'script_args',
-        's3_bucket',
-        'iam_role_name',
+        "job_name",
+        "script_location",
+        "script_args",
+        "s3_bucket",
+        "iam_role_name",
     )
     template_ext: Sequence[str] = ()
     template_fields_renderers = {
         "script_args": "json",
         "create_job_kwargs": "json",
     }
-    ui_color = '#ededed'
+    ui_color = "#ededed"
 
     def __init__(
         self,
         *,
-        job_name: str = 'aws_glue_default_job',
-        job_desc: str = 'AWS Glue Job with Airflow',
+        job_name: str = "aws_glue_default_job",
+        job_desc: str = "AWS Glue Job with Airflow",
         script_location: str | None = None,
         concurrent_run_limit: int | None = None,
         script_args: dict | None = None,
         retry_limit: int = 0,
         num_of_dpus: int | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         region_name: str | None = None,
         s3_bucket: str | None = None,
         iam_role_name: str | None = None,
@@ -101,7 +101,7 @@ class GlueJobOperator(BaseOperator):
         self.s3_bucket = s3_bucket
         self.iam_role_name = iam_role_name
         self.s3_protocol = "s3://"
-        self.s3_artifacts_prefix = 'artifacts/glue-scripts/'
+        self.s3_artifacts_prefix = "artifacts/glue-scripts/"
         self.create_job_kwargs = create_job_kwargs
         self.run_job_kwargs = run_job_kwargs or {}
         self.wait_for_completion = wait_for_completion
@@ -144,13 +144,13 @@ class GlueJobOperator(BaseOperator):
         )
         glue_job_run = glue_job.initialize_job(self.script_args, self.run_job_kwargs)
         if self.wait_for_completion:
-            glue_job_run = glue_job.job_completion(self.job_name, glue_job_run['JobRunId'], self.verbose)
+            glue_job_run = glue_job.job_completion(self.job_name, glue_job_run["JobRunId"], self.verbose)
             self.log.info(
                 "AWS Glue Job: %s status: %s. Run Id: %s",
                 self.job_name,
-                glue_job_run['JobRunState'],
-                glue_job_run['JobRunId'],
+                glue_job_run["JobRunState"],
+                glue_job_run["JobRunId"],
             )
         else:
-            self.log.info("AWS Glue Job: %s. Run Id: %s", self.job_name, glue_job_run['JobRunId'])
-        return glue_job_run['JobRunId']
+            self.log.info("AWS Glue Job: %s. Run Id: %s", self.job_name, glue_job_run["JobRunId"])
+        return glue_job_run["JobRunId"]

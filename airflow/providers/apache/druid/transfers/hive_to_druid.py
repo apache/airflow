@@ -64,9 +64,9 @@ class HiveToDruidOperator(BaseOperator):
     :param job_properties: additional properties for job
     """
 
-    template_fields: Sequence[str] = ('sql', 'intervals')
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'hql'}
+    template_fields: Sequence[str] = ("sql", "intervals")
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "hql"}
 
     def __init__(
         self,
@@ -75,9 +75,9 @@ class HiveToDruidOperator(BaseOperator):
         druid_datasource: str,
         ts_dim: str,
         metric_spec: list[Any] | None = None,
-        hive_cli_conn_id: str = 'hive_cli_default',
-        druid_ingest_conn_id: str = 'druid_ingest_default',
-        metastore_conn_id: str = 'metastore_default',
+        hive_cli_conn_id: str = "hive_cli_default",
+        druid_ingest_conn_id: str = "druid_ingest_default",
+        metastore_conn_id: str = "metastore_default",
         hadoop_dependency_coordinates: list[str] | None = None,
         intervals: list[Any] | None = None,
         num_shards: float = -1,
@@ -92,7 +92,7 @@ class HiveToDruidOperator(BaseOperator):
         self.sql = sql
         self.druid_datasource = druid_datasource
         self.ts_dim = ts_dim
-        self.intervals = intervals or ['{{ ds }}/{{ tomorrow_ds }}']
+        self.intervals = intervals or ["{{ ds }}/{{ tomorrow_ds }}"]
         self.num_shards = num_shards
         self.target_partition_size = target_partition_size
         self.query_granularity = query_granularity
@@ -108,9 +108,9 @@ class HiveToDruidOperator(BaseOperator):
     def execute(self, context: Context) -> None:
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         self.log.info("Extracting data from Hive")
-        hive_table = 'druid.' + context['task_instance_key_str'].replace('.', '_')
-        sql = self.sql.strip().strip(';')
-        tblproperties = ''.join(f", '{k}' = '{v}'" for k, v in self.hive_tblproperties.items())
+        hive_table = "druid." + context["task_instance_key_str"].replace(".", "_")
+        sql = self.sql.strip().strip(";")
+        tblproperties = "".join(f", '{k}' = '{v}'" for k, v in self.hive_tblproperties.items())
         hql = f"""\
         SET mapred.output.compress=false;
         SET hive.exec.compress.output=false;
@@ -170,7 +170,7 @@ class HiveToDruidOperator(BaseOperator):
         else:
             num_shards = -1
 
-        metric_names = [m['fieldName'] for m in self.metric_spec if m['type'] != 'count']
+        metric_names = [m["fieldName"] for m in self.metric_spec if m["type"] != "count"]
 
         # Take all the columns, which are not the time dimension
         # or a metric, as the dimension columns
@@ -220,9 +220,9 @@ class HiveToDruidOperator(BaseOperator):
         }
 
         if self.job_properties:
-            ingest_query_dict['spec']['tuningConfig']['jobProperties'].update(self.job_properties)
+            ingest_query_dict["spec"]["tuningConfig"]["jobProperties"].update(self.job_properties)
 
         if self.hadoop_dependency_coordinates:
-            ingest_query_dict['hadoopDependencyCoordinates'] = self.hadoop_dependency_coordinates
+            ingest_query_dict["hadoopDependencyCoordinates"] = self.hadoop_dependency_coordinates
 
         return ingest_query_dict

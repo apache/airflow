@@ -50,8 +50,8 @@ class ConnectionExtraConfig:
         :param default: If specified then use as default value if field not present in Connection Extra.
         """
         backcompat_key = f"extra__{self.conn_type}__{field}"
-        if self.extra.get(field) not in (None, ''):
-            if self.extra.get(backcompat_key) not in (None, ''):
+        if self.extra.get(field) not in (None, ""):
+            if self.extra.get(backcompat_key) not in (None, ""):
                 warnings.warn(
                     f"Conflicting params `{field}` and `{backcompat_key}` found in extras for conn "
                     f"{self.conn_id}. Using value for `{field}`.  Please ensure this is the correct value "

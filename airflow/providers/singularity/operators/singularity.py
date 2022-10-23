@@ -56,12 +56,12 @@ class SingularityOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'command',
-        'environment',
+        "command",
+        "environment",
     )
     template_ext: Sequence[str] = (
-        '.sh',
-        '.bash',
+        ".sh",
+        ".bash",
     )
     template_fields_renderers = {"command": "bash", "environment": "json"}
 
@@ -98,15 +98,15 @@ class SingularityOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
 
-        self.log.info('Preparing Singularity container %s', self.image)
+        self.log.info("Preparing Singularity container %s", self.image)
         self.cli = Client
 
         if not self.command:
-            raise AirflowException('You must define a command.')
+            raise AirflowException("You must define a command.")
 
         # Pull the container if asked, and ensure not a binary file
         if self.force_pull and not os.path.exists(self.image):
-            self.log.info('Pulling container %s', self.image)
+            self.log.info("Pulling container %s", self.image)
             image = self.cli.pull(  # type: ignore[attr-defined]
                 self.image, stream=True, pull_folder=self.pull_folder
             )
@@ -123,36 +123,36 @@ class SingularityOperator(BaseOperator):
 
         # Prepare list of binds
         for bind in self.volumes:
-            self.options += ['--bind', bind]
+            self.options += ["--bind", bind]
 
         # Does the user want a custom working directory?
         if self.working_dir is not None:
-            self.options += ['--workdir', self.working_dir]
+            self.options += ["--workdir", self.working_dir]
 
         # Export environment before instance is run
         for enkey, envar in self.environment.items():
-            self.log.debug('Exporting %s=%s', envar, enkey)
+            self.log.debug("Exporting %s=%s", envar, enkey)
             os.putenv(enkey, envar)
             os.environ[enkey] = envar
 
         # Create a container instance
-        self.log.debug('Options include: %s', self.options)
+        self.log.debug("Options include: %s", self.options)
         self.instance = self.cli.instance(  # type: ignore[attr-defined]
             self.image, options=self.options, args=self.start_command, start=False
         )
 
         self.instance.start()  # type: ignore[attr-defined]
         self.log.info(self.instance.cmd)  # type: ignore[attr-defined]
-        self.log.info('Created instance %s from %s', self.instance, self.image)
+        self.log.info("Created instance %s from %s", self.instance, self.image)
 
-        self.log.info('Running command %s', self._get_command())
+        self.log.info("Running command %s", self._get_command())
         self.cli.quiet = True  # type: ignore[attr-defined]
         result = self.cli.execute(  # type: ignore[attr-defined]
             self.instance, self._get_command(), return_result=True
         )
 
         # Stop the instance
-        self.log.info('Stopping instance %s', self.instance)
+        self.log.info("Stopping instance %s", self.instance)
         self.instance.stop()  # type: ignore[attr-defined]
 
         if self.auto_remove is True:
@@ -160,14 +160,14 @@ class SingularityOperator(BaseOperator):
                 shutil.rmtree(self.image)
 
         # If the container failed, raise the exception
-        if result['return_code'] != 0:
-            message = result['message']
-            raise AirflowException(f'Singularity failed: {message}')
+        if result["return_code"] != 0:
+            message = result["message"]
+            raise AirflowException(f"Singularity failed: {message}")
 
-        self.log.info('Output from command %s', result['message'])
+        self.log.info("Output from command %s", result["message"])
 
     def _get_command(self) -> Any | None:
-        if self.command is not None and self.command.strip().find('[') == 0:  # type: ignore
+        if self.command is not None and self.command.strip().find("[") == 0:  # type: ignore
             commands = ast.literal_eval(self.command)
         else:
             commands = self.command
@@ -175,7 +175,7 @@ class SingularityOperator(BaseOperator):
 
     def on_kill(self) -> None:
         if self.instance is not None:
-            self.log.info('Stopping Singularity instance')
+            self.log.info("Stopping Singularity instance")
             self.instance.stop()
 
             # If an image exists, clean it up

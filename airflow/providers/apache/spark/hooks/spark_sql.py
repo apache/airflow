@@ -50,10 +50,10 @@ class SparkSqlHook(BaseHook):
         (Default: The ``queue`` value set in the Connection, or ``"default"``)
     """
 
-    conn_name_attr = 'conn_id'
-    default_conn_name = 'spark_sql_default'
-    conn_type = 'spark_sql'
-    hook_name = 'Spark SQL'
+    conn_name_attr = "conn_id"
+    default_conn_name = "spark_sql_default"
+    conn_type = "spark_sql"
+    hook_name = "Spark SQL"
 
     def __init__(
         self,
@@ -66,7 +66,7 @@ class SparkSqlHook(BaseHook):
         keytab: str | None = None,
         principal: str | None = None,
         master: str | None = None,
-        name: str = 'default-name',
+        name: str = "default-name",
         num_executors: int | None = None,
         verbose: bool = True,
         yarn_queue: str | None = None,

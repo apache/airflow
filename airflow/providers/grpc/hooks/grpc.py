@@ -46,10 +46,10 @@ class GrpcHook(BaseHook):
         A callable that accepts the connection as its only arg.
     """
 
-    conn_name_attr = 'grpc_conn_id'
-    default_conn_name = 'grpc_default'
-    conn_type = 'grpc'
-    hook_name = 'GRPC Connection'
+    conn_name_attr = "grpc_conn_id"
+    default_conn_name = "grpc_default"
+    conn_type = "grpc"
+    hook_name = "GRPC Connection"
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
@@ -59,11 +59,11 @@ class GrpcHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "auth_type": StringField(lazy_gettext('Grpc Auth Type'), widget=BS3TextFieldWidget()),
+            "auth_type": StringField(lazy_gettext("Grpc Auth Type"), widget=BS3TextFieldWidget()),
             "credential_pem_file": StringField(
-                lazy_gettext('Credential Keyfile Path'), widget=BS3TextFieldWidget()
+                lazy_gettext("Credential Keyfile Path"), widget=BS3TextFieldWidget()
             ),
-            "scopes": StringField(lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget()),
+            "scopes": StringField(lazy_gettext("Scopes (comma separated)"), widget=BS3TextFieldWidget()),
         }
 
     def __init__(
@@ -150,7 +150,7 @@ class GrpcHook(BaseHook):
     def _get_field(self, field_name: str):
         """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
         backcompat_prefix = "extra__grpc__"
-        if field_name.startswith('extra_'):
+        if field_name.startswith("extra_"):
             raise ValueError(
                 f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
                 "when using this method."

@@ -39,13 +39,13 @@ class InfluxDBOperator(BaseOperator):
     :param influxdb_conn_id: Reference to :ref:`Influxdb connection id <howto/connection:influxdb>`.
     """
 
-    template_fields: Sequence[str] = ('sql',)
+    template_fields: Sequence[str] = ("sql",)
 
     def __init__(
         self,
         *,
         sql: str,
-        influxdb_conn_id: str = 'influxdb_default',
+        influxdb_conn_id: str = "influxdb_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -53,6 +53,6 @@ class InfluxDBOperator(BaseOperator):
         self.sql = sql
 
     def execute(self, context: Context) -> None:
-        self.log.info('Executing: %s', self.sql)
+        self.log.info("Executing: %s", self.sql)
         self.hook = InfluxDBHook(conn_id=self.influxdb_conn_id)
         self.hook.query(self.sql)

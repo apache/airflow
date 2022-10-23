@@ -31,7 +31,7 @@ from airflow.version import version as airflow_version
 
 log = logging.getLogger(__name__)
 
-_AIRFLOW_VERSION = 'v' + airflow_version.replace('.', '-').replace('+', '-')
+_AIRFLOW_VERSION = "v" + airflow_version.replace(".", "-").replace("+", "-")
 
 
 def _poll_with_exponential_delay(request, execute_num_retries, max_n, is_done_func, is_error_func):
@@ -54,20 +54,20 @@ def _poll_with_exponential_delay(request, execute_num_retries, max_n, is_done_fu
         try:
             response = request.execute(num_retries=execute_num_retries)
             if is_error_func(response):
-                raise ValueError(f'The response contained an error: {response}')
+                raise ValueError(f"The response contained an error: {response}")
             if is_done_func(response):
-                log.info('Operation is done: %s', response)
+                log.info("Operation is done: %s", response)
                 return response
 
             time.sleep((2**i) + (random.randint(0, 1000) / 1000))
         except HttpError as e:
             if e.resp.status != 429:
-                log.info('Something went wrong. Not retrying: %s', format(e))
+                log.info("Something went wrong. Not retrying: %s", format(e))
                 raise
             else:
                 time.sleep((2**i) + (random.randint(0, 1000) / 1000))
 
-    raise ValueError(f'Connection could not be established after {max_n} retries.')
+    raise ValueError(f"Connection could not be established after {max_n} retries.")
 
 
 class MLEngineHook(GoogleBaseHook):
@@ -85,7 +85,7 @@ class MLEngineHook(GoogleBaseHook):
         :return: Google MLEngine services object.
         """
         authed_http = self._authorize()
-        return build('ml', 'v1', http=authed_http, cache_discovery=False)
+        return build("ml", "v1", http=authed_http, cache_discovery=False)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_job(self, job: dict, project_id: str, use_existing_job_fn: Callable | None = None) -> dict:
@@ -122,8 +122,8 @@ class MLEngineHook(GoogleBaseHook):
         self._append_label(job)
         self.log.info("Creating job.")
 
-        request = hook.projects().jobs().create(parent=f'projects/{project_id}', body=job)
-        job_id = job['jobId']
+        request = hook.projects().jobs().create(parent=f"projects/{project_id}", body=job)
+        job_id = job["jobId"]
 
         try:
             request.execute(num_retries=self.num_retries)
@@ -134,14 +134,14 @@ class MLEngineHook(GoogleBaseHook):
                     existing_job = self._get_job(project_id, job_id)
                     if not use_existing_job_fn(existing_job):
                         self.log.error(
-                            'Job with job_id %s already exist, but it does not match our expectation: %s',
+                            "Job with job_id %s already exist, but it does not match our expectation: %s",
                             job_id,
                             existing_job,
                         )
                         raise
-                self.log.info('Job with job_id %s already exist. Will waiting for it to finish', job_id)
+                self.log.info("Job with job_id %s already exist. Will waiting for it to finish", job_id)
             else:
-                self.log.error('Failed to create MLEngine job: %s', e)
+                self.log.error("Failed to create MLEngine job: %s", e)
                 raise
 
         return self._wait_for_job_done(project_id, job_id)
@@ -166,19 +166,19 @@ class MLEngineHook(GoogleBaseHook):
         """
         hook = self.get_conn()
 
-        request = hook.projects().jobs().cancel(name=f'projects/{project_id}/jobs/{job_id}')
+        request = hook.projects().jobs().cancel(name=f"projects/{project_id}/jobs/{job_id}")
 
         try:
             return request.execute(num_retries=self.num_retries)
         except HttpError as e:
             if e.resp.status == 404:
-                self.log.error('Job with job_id %s does not exist. ', job_id)
+                self.log.error("Job with job_id %s does not exist. ", job_id)
                 raise
             elif e.resp.status == 400:
-                self.log.info('Job with job_id %s is already complete, cancellation aborted.', job_id)
+                self.log.info("Job with job_id %s is already complete, cancellation aborted.", job_id)
                 return {}
             else:
-                self.log.error('Failed to cancel MLEngine job: %s', e)
+                self.log.error("Failed to cancel MLEngine job: %s", e)
                 raise
 
     def _get_job(self, project_id: str, job_id: str) -> dict:
@@ -193,7 +193,7 @@ class MLEngineHook(GoogleBaseHook):
         :raises: googleapiclient.errors.HttpError
         """
         hook = self.get_conn()
-        job_name = f'projects/{project_id}/jobs/{job_id}'
+        job_name = f"projects/{project_id}/jobs/{job_id}"
         request = hook.projects().jobs().get(name=job_name)
         while True:
             try:
@@ -203,7 +203,7 @@ class MLEngineHook(GoogleBaseHook):
                     # polling after 30 seconds when quota failure occurs
                     time.sleep(30)
                 else:
-                    self.log.error('Failed to get MLEngine job: %s', e)
+                    self.log.error("Failed to get MLEngine job: %s", e)
                     raise
 
     def _wait_for_job_done(self, project_id: str, job_id: str, interval: int = 30):
@@ -225,7 +225,7 @@ class MLEngineHook(GoogleBaseHook):
             raise ValueError("Interval must be > 0")
         while True:
             job = self._get_job(project_id, job_id)
-            if job['state'] in ['SUCCEEDED', 'FAILED', 'CANCELLED']:
+            if job["state"] in ["SUCCEEDED", "FAILED", "CANCELLED"]:
                 return job
             time.sleep(interval)
 
@@ -250,20 +250,20 @@ class MLEngineHook(GoogleBaseHook):
         :rtype: dict
         """
         hook = self.get_conn()
-        parent_name = f'projects/{project_id}/models/{model_name}'
+        parent_name = f"projects/{project_id}/models/{model_name}"
 
         self._append_label(version_spec)
 
         create_request = hook.projects().models().versions().create(parent=parent_name, body=version_spec)
         response = create_request.execute(num_retries=self.num_retries)
-        get_request = hook.projects().operations().get(name=response['name'])
+        get_request = hook.projects().operations().get(name=response["name"])
 
         return _poll_with_exponential_delay(
             request=get_request,
             execute_num_retries=self.num_retries,
             max_n=9,
-            is_done_func=lambda resp: resp.get('done', False),
-            is_error_func=lambda resp: resp.get('error', None) is not None,
+            is_done_func=lambda resp: resp.get("done", False),
+            is_error_func=lambda resp: resp.get("error", None) is not None,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -287,16 +287,16 @@ class MLEngineHook(GoogleBaseHook):
         :raises: googleapiclient.errors.HttpError
         """
         hook = self.get_conn()
-        full_version_name = f'projects/{project_id}/models/{model_name}/versions/{version_name}'
+        full_version_name = f"projects/{project_id}/models/{model_name}/versions/{version_name}"
 
         request = hook.projects().models().versions().setDefault(name=full_version_name, body={})
 
         try:
             response = request.execute(num_retries=self.num_retries)
-            self.log.info('Successfully set version: %s to default', response)
+            self.log.info("Successfully set version: %s to default", response)
             return response
         except HttpError as e:
-            self.log.error('Something went wrong: %s', e)
+            self.log.error("Something went wrong: %s", e)
             raise
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -318,13 +318,13 @@ class MLEngineHook(GoogleBaseHook):
         """
         hook = self.get_conn()
         result = []  # type: List[Dict]
-        full_parent_name = f'projects/{project_id}/models/{model_name}'
+        full_parent_name = f"projects/{project_id}/models/{model_name}"
 
         request = hook.projects().models().versions().list(parent=full_parent_name, pageSize=100)
 
         while request is not None:
             response = request.execute(num_retries=self.num_retries)
-            result.extend(response.get('versions', []))
+            result.extend(response.get("versions", []))
 
             request = (
                 hook.projects()
@@ -354,17 +354,17 @@ class MLEngineHook(GoogleBaseHook):
         :rtype: Dict
         """
         hook = self.get_conn()
-        full_name = f'projects/{project_id}/models/{model_name}/versions/{version_name}'
+        full_name = f"projects/{project_id}/models/{model_name}/versions/{version_name}"
         delete_request = hook.projects().models().versions().delete(name=full_name)
         response = delete_request.execute(num_retries=self.num_retries)
-        get_request = hook.projects().operations().get(name=response['name'])
+        get_request = hook.projects().operations().get(name=response["name"])
 
         return _poll_with_exponential_delay(
             request=get_request,
             execute_num_retries=self.num_retries,
             max_n=9,
-            is_done_func=lambda resp: resp.get('done', False),
-            is_error_func=lambda resp: resp.get('error', None) is not None,
+            is_done_func=lambda resp: resp.get("done", False),
+            is_error_func=lambda resp: resp.get("error", None) is not None,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -385,9 +385,9 @@ class MLEngineHook(GoogleBaseHook):
         :raises: googleapiclient.errors.HttpError
         """
         hook = self.get_conn()
-        if 'name' not in model or not model['name']:
+        if "name" not in model or not model["name"]:
             raise ValueError("Model name must be provided and could not be an empty string")
-        project = f'projects/{project_id}'
+        project = f"projects/{project_id}"
 
         self._append_label(model)
         try:
@@ -401,19 +401,19 @@ class MLEngineHook(GoogleBaseHook):
                 raise e
 
             error_detail = e.error_details[0]
-            if error_detail["@type"] != 'type.googleapis.com/google.rpc.BadRequest':
+            if error_detail["@type"] != "type.googleapis.com/google.rpc.BadRequest":
                 raise e
 
-            if "fieldViolations" not in error_detail or len(error_detail['fieldViolations']) != 1:
+            if "fieldViolations" not in error_detail or len(error_detail["fieldViolations"]) != 1:
                 raise e
 
-            field_violation = error_detail['fieldViolations'][0]
+            field_violation = error_detail["fieldViolations"][0]
             if (
                 field_violation["field"] != "model.name"
                 or field_violation["description"] != "A model with the same name already exists."
             ):
                 raise e
-            response = self.get_model(model_name=model['name'], project_id=project_id)
+            response = self.get_model(model_name=model["name"], project_id=project_id)
 
         return response
 
@@ -437,13 +437,13 @@ class MLEngineHook(GoogleBaseHook):
         hook = self.get_conn()
         if not model_name:
             raise ValueError("Model name must be provided and it could not be an empty string")
-        full_model_name = f'projects/{project_id}/models/{model_name}'
+        full_model_name = f"projects/{project_id}/models/{model_name}"
         request = hook.projects().models().get(name=full_model_name)
         try:
             return request.execute(num_retries=self.num_retries)
         except HttpError as e:
             if e.resp.status == 404:
-                self.log.error('Model was not found: %s', e)
+                self.log.error("Model was not found: %s", e)
                 return None
             raise
 
@@ -469,7 +469,7 @@ class MLEngineHook(GoogleBaseHook):
 
         if not model_name:
             raise ValueError("Model name must be provided and it could not be an empty string")
-        model_path = f'projects/{project_id}/models/{model_name}'
+        model_path = f"projects/{project_id}/models/{model_name}"
         if delete_contents:
             self._delete_all_versions(model_name, project_id)
         request = hook.projects().models().delete(name=model_path)
@@ -477,22 +477,22 @@ class MLEngineHook(GoogleBaseHook):
             request.execute(num_retries=self.num_retries)
         except HttpError as e:
             if e.resp.status == 404:
-                self.log.error('Model was not found: %s', e)
+                self.log.error("Model was not found: %s", e)
                 return
             raise
 
     def _delete_all_versions(self, model_name: str, project_id: str):
         versions = self.list_versions(project_id=project_id, model_name=model_name)
         # The default version can only be deleted when it is the last one in the model
-        non_default_versions = (version for version in versions if not version.get('isDefault', False))
+        non_default_versions = (version for version in versions if not version.get("isDefault", False))
         for version in non_default_versions:
-            _, _, version_name = version['name'].rpartition('/')
+            _, _, version_name = version["name"].rpartition("/")
             self.delete_version(project_id=project_id, model_name=model_name, version_name=version_name)
-        default_versions = (version for version in versions if version.get('isDefault', False))
+        default_versions = (version for version in versions if version.get("isDefault", False))
         for version in default_versions:
-            _, _, version_name = version['name'].rpartition('/')
+            _, _, version_name = version["name"].rpartition("/")
             self.delete_version(project_id=project_id, model_name=model_name, version_name=version_name)
 
     def _append_label(self, model: dict) -> None:
-        model['labels'] = model.get('labels', {})
-        model['labels']['airflow-version'] = _AIRFLOW_VERSION
+        model["labels"] = model.get("labels", {})
+        model["labels"]["airflow-version"] = _AIRFLOW_VERSION

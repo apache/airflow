@@ -33,11 +33,11 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.utils import yaml
 from airflow.utils.json import AirflowJsonEncoder
 
-DEFAULT_PAGINATION_TOKEN = ''
+DEFAULT_PAGINATION_TOKEN = ""
 STS_TOKEN_EXPIRES_IN = 60
 AUTHENTICATION_API_VERSION = "client.authentication.k8s.io/v1alpha1"
-_POD_USERNAME = 'aws'
-_CONTEXT_NAME = 'aws'
+_POD_USERNAME = "aws"
+_CONTEXT_NAME = "aws"
 
 
 class ClusterStates(Enum):
@@ -86,7 +86,7 @@ class EksHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    client_type = 'eks'
+    client_type = "eks"
 
     def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = self.client_type
@@ -116,7 +116,7 @@ class EksHook(AwsBaseHook):
             name=name, roleArn=roleArn, resourcesVpcConfig=resourcesVpcConfig, **kwargs
         )
 
-        self.log.info("Created Amazon EKS cluster with the name %s.", response.get('cluster').get('name'))
+        self.log.info("Created Amazon EKS cluster with the name %s.", response.get("cluster").get("name"))
         return response
 
     def create_nodegroup(
@@ -146,10 +146,10 @@ class EksHook(AwsBaseHook):
         # The below tag is mandatory and must have a value of either 'owned' or 'shared'
         # A value of 'owned' denotes that the subnets are exclusive to the nodegroup.
         # The 'shared' value allows more than one resource to use the subnet.
-        cluster_tag_key = f'kubernetes.io/cluster/{clusterName}'
+        cluster_tag_key = f"kubernetes.io/cluster/{clusterName}"
         resolved_tags = tags or {}
         if cluster_tag_key not in resolved_tags:
-            resolved_tags[cluster_tag_key] = 'owned'
+            resolved_tags[cluster_tag_key] = "owned"
 
         response = eks_client.create_nodegroup(
             clusterName=clusterName,
@@ -162,8 +162,8 @@ class EksHook(AwsBaseHook):
 
         self.log.info(
             "Created an Amazon EKS managed node group named %s in Amazon EKS cluster %s",
-            response.get('nodegroup').get('nodegroupName'),
-            response.get('nodegroup').get('clusterName'),
+            response.get("nodegroup").get("nodegroupName"),
+            response.get("nodegroup").get("clusterName"),
         )
         return response
 
@@ -199,8 +199,8 @@ class EksHook(AwsBaseHook):
 
         self.log.info(
             "Created AWS Fargate profile with the name %s for Amazon EKS cluster %s.",
-            response.get('fargateProfile').get('fargateProfileName'),
-            response.get('fargateProfile').get('clusterName'),
+            response.get("fargateProfile").get("fargateProfileName"),
+            response.get("fargateProfile").get("clusterName"),
         )
         return response
 
@@ -217,7 +217,7 @@ class EksHook(AwsBaseHook):
 
         response = eks_client.delete_cluster(name=name)
 
-        self.log.info("Deleted Amazon EKS cluster with the name %s.", response.get('cluster').get('name'))
+        self.log.info("Deleted Amazon EKS cluster with the name %s.", response.get("cluster").get("name"))
         return response
 
     def delete_nodegroup(self, clusterName: str, nodegroupName: str) -> dict:
@@ -236,8 +236,8 @@ class EksHook(AwsBaseHook):
 
         self.log.info(
             "Deleted Amazon EKS managed node group named %s from Amazon EKS cluster %s.",
-            response.get('nodegroup').get('nodegroupName'),
-            response.get('nodegroup').get('clusterName'),
+            response.get("nodegroup").get("nodegroupName"),
+            response.get("nodegroup").get("clusterName"),
         )
         return response
 
@@ -259,8 +259,8 @@ class EksHook(AwsBaseHook):
 
         self.log.info(
             "Deleted AWS Fargate profile with the name %s from Amazon EKS cluster %s.",
-            response.get('fargateProfile').get('fargateProfileName'),
-            response.get('fargateProfile').get('clusterName'),
+            response.get("fargateProfile").get("fargateProfileName"),
+            response.get("fargateProfile").get("clusterName"),
         )
         return response
 
@@ -279,10 +279,10 @@ class EksHook(AwsBaseHook):
         response = eks_client.describe_cluster(name=name)
 
         self.log.info(
-            "Retrieved details for Amazon EKS cluster named %s.", response.get('cluster').get('name')
+            "Retrieved details for Amazon EKS cluster named %s.", response.get("cluster").get("name")
         )
         if verbose:
-            cluster_data = response.get('cluster')
+            cluster_data = response.get("cluster")
             self.log.info("Amazon EKS cluster details: %s", json.dumps(cluster_data, cls=AirflowJsonEncoder))
         return response
 
@@ -303,11 +303,11 @@ class EksHook(AwsBaseHook):
 
         self.log.info(
             "Retrieved details for Amazon EKS managed node group named %s in Amazon EKS cluster %s.",
-            response.get('nodegroup').get('nodegroupName'),
-            response.get('nodegroup').get('clusterName'),
+            response.get("nodegroup").get("nodegroupName"),
+            response.get("nodegroup").get("clusterName"),
         )
         if verbose:
-            nodegroup_data = response.get('nodegroup')
+            nodegroup_data = response.get("nodegroup")
             self.log.info(
                 "Amazon EKS managed node group details: %s",
                 json.dumps(nodegroup_data, cls=AirflowJsonEncoder),
@@ -335,11 +335,11 @@ class EksHook(AwsBaseHook):
 
         self.log.info(
             "Retrieved details for AWS Fargate profile named %s in Amazon EKS cluster %s.",
-            response.get('fargateProfile').get('fargateProfileName'),
-            response.get('fargateProfile').get('clusterName'),
+            response.get("fargateProfile").get("fargateProfileName"),
+            response.get("fargateProfile").get("clusterName"),
         )
         if verbose:
-            fargate_profile_data = response.get('fargateProfile')
+            fargate_profile_data = response.get("fargateProfile")
             self.log.info(
                 "AWS Fargate profile details: %s", json.dumps(fargate_profile_data, cls=AirflowJsonEncoder)
             )
@@ -357,7 +357,7 @@ class EksHook(AwsBaseHook):
         eks_client = self.conn
 
         try:
-            return ClusterStates(eks_client.describe_cluster(name=clusterName).get('cluster').get('status'))
+            return ClusterStates(eks_client.describe_cluster(name=clusterName).get("cluster").get("status"))
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
                 return ClusterStates.NONEXISTENT
@@ -380,8 +380,8 @@ class EksHook(AwsBaseHook):
                 eks_client.describe_fargate_profile(
                     clusterName=clusterName, fargateProfileName=fargateProfileName
                 )
-                .get('fargateProfile')
-                .get('status')
+                .get("fargateProfile")
+                .get("status")
             )
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
@@ -403,8 +403,8 @@ class EksHook(AwsBaseHook):
         try:
             return NodegroupStates(
                 eks_client.describe_nodegroup(clusterName=clusterName, nodegroupName=nodegroupName)
-                .get('nodegroup')
-                .get('status')
+                .get("nodegroup")
+                .get("status")
             )
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
@@ -572,7 +572,7 @@ class EksHook(AwsBaseHook):
         }
         config_text = yaml.dump(cluster_config, default_flow_style=False)
 
-        with tempfile.NamedTemporaryFile(mode='w') as config_file:
+        with tempfile.NamedTemporaryFile(mode="w") as config_file:
             config_file.write(config_text)
             config_file.flush()
             yield config_file.name
@@ -581,34 +581,34 @@ class EksHook(AwsBaseHook):
         session = self.get_session()
         service_id = self.conn.meta.service_model.service_id
         sts_url = (
-            f'https://sts.{session.region_name}.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15'
+            f"https://sts.{session.region_name}.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15"
         )
 
         signer = RequestSigner(
             service_id=service_id,
             region_name=session.region_name,
-            signing_name='sts',
-            signature_version='v4',
+            signing_name="sts",
+            signature_version="v4",
             credentials=session.get_credentials(),
             event_emitter=session.events,
         )
 
         request_params = {
-            'method': 'GET',
-            'url': sts_url,
-            'body': {},
-            'headers': {'x-k8s-aws-id': eks_cluster_name},
-            'context': {},
+            "method": "GET",
+            "url": sts_url,
+            "body": {},
+            "headers": {"x-k8s-aws-id": eks_cluster_name},
+            "context": {},
         }
 
         signed_url = signer.generate_presigned_url(
             request_dict=request_params,
             region_name=session.region_name,
             expires_in=STS_TOKEN_EXPIRES_IN,
-            operation_name='',
+            operation_name="",
         )
 
-        base64_url = base64.urlsafe_b64encode(signed_url.encode('utf-8')).decode('utf-8')
+        base64_url = base64.urlsafe_b64encode(signed_url.encode("utf-8")).decode("utf-8")
 
         # remove any base64 encoding padding:
-        return 'k8s-aws-v1.' + base64_url.rstrip("=")
+        return "k8s-aws-v1." + base64_url.rstrip("=")

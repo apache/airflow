@@ -133,15 +133,15 @@ class GCSToBigQueryOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'bucket',
-        'source_objects',
-        'schema_object',
-        'schema_object_bucket',
-        'destination_project_dataset_table',
-        'impersonation_chain',
+        "bucket",
+        "source_objects",
+        "schema_object",
+        "schema_object_bucket",
+        "destination_project_dataset_table",
+        "impersonation_chain",
     )
-    template_ext: Sequence[str] = ('.sql',)
-    ui_color = '#f0eee4'
+    template_ext: Sequence[str] = (".sql",)
+    ui_color = "#f0eee4"
 
     def __init__(
         self,
@@ -152,12 +152,12 @@ class GCSToBigQueryOperator(BaseOperator):
         schema_fields=None,
         schema_object=None,
         schema_object_bucket=None,
-        source_format='CSV',
-        compression='NONE',
-        create_disposition='CREATE_IF_NEEDED',
+        source_format="CSV",
+        compression="NONE",
+        create_disposition="CREATE_IF_NEEDED",
         skip_leading_rows=0,
-        write_disposition='WRITE_EMPTY',
-        field_delimiter=',',
+        write_disposition="WRITE_EMPTY",
+        field_delimiter=",",
         max_bad_records=0,
         quote_character=None,
         ignore_unknown_values=False,
@@ -165,7 +165,7 @@ class GCSToBigQueryOperator(BaseOperator):
         allow_jagged_rows=False,
         encoding="UTF-8",
         max_id_key=None,
-        gcp_conn_id='google_cloud_default',
+        gcp_conn_id="google_cloud_default",
         delegate_to=None,
         schema_update_options=(),
         src_fmt_configs=None,
@@ -238,7 +238,7 @@ class GCSToBigQueryOperator(BaseOperator):
         )
 
         if not self.schema_fields:
-            if self.schema_object and self.source_format != 'DATASTORE_BACKUP':
+            if self.schema_object and self.source_format != "DATASTORE_BACKUP":
                 gcs_hook = GCSHook(
                     gcp_conn_id=self.gcp_conn_id,
                     delegate_to=self.delegate_to,
@@ -257,7 +257,7 @@ class GCSToBigQueryOperator(BaseOperator):
         self.source_objects = (
             self.source_objects if isinstance(self.source_objects, list) else [self.source_objects]
         )
-        source_uris = [f'gs://{self.bucket}/{source_object}' for source_object in self.source_objects]
+        source_uris = [f"gs://{self.bucket}/{source_object}" for source_object in self.source_objects]
 
         if self.external_table:
             with warnings.catch_warnings():
@@ -311,7 +311,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 )
 
         if self.max_id_key:
-            select_command = f'SELECT MAX({self.max_id_key}) FROM `{self.destination_project_dataset_table}`'
+            select_command = f"SELECT MAX({self.max_id_key}) FROM `{self.destination_project_dataset_table}`"
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", DeprecationWarning)
                 job_id = bq_hook.run_query(
@@ -325,7 +325,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 raise RuntimeError(f"The {select_command} returned no rows!")
             max_id = row[0]
             self.log.info(
-                'Loaded BQ data with max %s.%s=%s',
+                "Loaded BQ data with max %s.%s=%s",
                 self.destination_project_dataset_table,
                 self.max_id_key,
                 max_id,

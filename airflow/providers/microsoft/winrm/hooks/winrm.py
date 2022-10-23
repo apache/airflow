@@ -79,20 +79,20 @@ class WinRMHook(BaseHook):
         endpoint: str | None = None,
         remote_host: str | None = None,
         remote_port: int = 5985,
-        transport: str = 'plaintext',
+        transport: str = "plaintext",
         username: str | None = None,
         password: str | None = None,
-        service: str = 'HTTP',
+        service: str = "HTTP",
         keytab: str | None = None,
         ca_trust_path: str | None = None,
         cert_pem: str | None = None,
         cert_key_pem: str | None = None,
-        server_cert_validation: str = 'validate',
+        server_cert_validation: str = "validate",
         kerberos_delegation: bool = False,
         read_timeout_sec: int = 30,
         operation_timeout_sec: int = 20,
         kerberos_hostname_override: str | None = None,
-        message_encryption: str | None = 'auto',
+        message_encryption: str | None = "auto",
         credssp_disable_tlsv1_2: bool = False,
         send_cbt: bool = True,
     ) -> None:
@@ -125,7 +125,7 @@ class WinRMHook(BaseHook):
         if self.client:
             return self.client
 
-        self.log.debug('Creating WinRM client for conn_id: %s', self.ssh_conn_id)
+        self.log.debug("Creating WinRM client for conn_id: %s", self.ssh_conn_id)
         if self.ssh_conn_id is not None:
             conn = self.get_connection(self.ssh_conn_id)
 
@@ -158,7 +158,7 @@ class WinRMHook(BaseHook):
                 if "server_cert_validation" in extra_options:
                     self.server_cert_validation = str(extra_options["server_cert_validation"])
                 if "kerberos_delegation" in extra_options:
-                    self.kerberos_delegation = str(extra_options["kerberos_delegation"]).lower() == 'true'
+                    self.kerberos_delegation = str(extra_options["kerberos_delegation"]).lower() == "true"
                 if "read_timeout_sec" in extra_options:
                     self.read_timeout_sec = int(extra_options["read_timeout_sec"])
                 if "operation_timeout_sec" in extra_options:
@@ -169,10 +169,10 @@ class WinRMHook(BaseHook):
                     self.message_encryption = str(extra_options["message_encryption"])
                 if "credssp_disable_tlsv1_2" in extra_options:
                     self.credssp_disable_tlsv1_2 = (
-                        str(extra_options["credssp_disable_tlsv1_2"]).lower() == 'true'
+                        str(extra_options["credssp_disable_tlsv1_2"]).lower() == "true"
                     )
                 if "send_cbt" in extra_options:
-                    self.send_cbt = str(extra_options["send_cbt"]).lower() == 'true'
+                    self.send_cbt = str(extra_options["send_cbt"]).lower() == "true"
 
         if not self.remote_host:
             raise AirflowException("Missing required param: remote_host")
@@ -189,7 +189,7 @@ class WinRMHook(BaseHook):
 
         # If endpoint is not set, then build a standard wsman endpoint from host and port.
         if not self.endpoint:
-            self.endpoint = f'http://{self.remote_host}:{self.remote_port}/wsman'
+            self.endpoint = f"http://{self.remote_host}:{self.remote_port}/wsman"
 
         try:
             if self.password and self.password.strip():

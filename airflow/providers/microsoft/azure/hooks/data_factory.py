@@ -120,10 +120,10 @@ class AzureDataFactoryHook(BaseHook):
     :param azure_data_factory_conn_id: The :ref:`Azure Data Factory connection id<howto/connection:adf>`.
     """
 
-    conn_type: str = 'azure_data_factory'
-    conn_name_attr: str = 'azure_data_factory_conn_id'
-    default_conn_name: str = 'azure_data_factory_default'
-    hook_name: str = 'Azure Data Factory'
+    conn_type: str = "azure_data_factory"
+    conn_name_attr: str = "azure_data_factory_conn_id"
+    default_conn_name: str = "azure_data_factory_default"
+    hook_name: str = "Azure Data Factory"
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
@@ -134,16 +134,16 @@ class AzureDataFactoryHook(BaseHook):
 
         return {
             "extra__azure_data_factory__tenantId": StringField(
-                lazy_gettext('Tenant ID'), widget=BS3TextFieldWidget()
+                lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()
             ),
             "extra__azure_data_factory__subscriptionId": StringField(
-                lazy_gettext('Subscription ID'), widget=BS3TextFieldWidget()
+                lazy_gettext("Subscription ID"), widget=BS3TextFieldWidget()
             ),
             "extra__azure_data_factory__resource_group_name": StringField(
-                lazy_gettext('Resource Group Name'), widget=BS3TextFieldWidget()
+                lazy_gettext("Resource Group Name"), widget=BS3TextFieldWidget()
             ),
             "extra__azure_data_factory__factory_name": StringField(
-                lazy_gettext('Factory Name'), widget=BS3TextFieldWidget()
+                lazy_gettext("Factory Name"), widget=BS3TextFieldWidget()
             ),
         }
 
@@ -151,10 +151,10 @@ class AzureDataFactoryHook(BaseHook):
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['schema', 'port', 'host', 'extra'],
+            "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
-                'login': 'Client ID',
-                'password': 'Secret',
+                "login": "Client ID",
+                "password": "Secret",
             },
         }
 
@@ -168,10 +168,10 @@ class AzureDataFactoryHook(BaseHook):
             return self._conn
 
         conn = self.get_connection(self.conn_id)
-        tenant = conn.extra_dejson.get('extra__azure_data_factory__tenantId')
+        tenant = conn.extra_dejson.get("extra__azure_data_factory__tenantId")
 
         try:
-            subscription_id = conn.extra_dejson['extra__azure_data_factory__subscriptionId']
+            subscription_id = conn.extra_dejson["extra__azure_data_factory__subscriptionId"]
         except KeyError:
             raise ValueError("A Subscription ID is required to connect to Azure Data Factory.")
 

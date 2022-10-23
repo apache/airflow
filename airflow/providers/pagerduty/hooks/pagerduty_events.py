@@ -46,9 +46,9 @@ class PagerdutyEventsHook(BaseHook):
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['port', 'login', 'schema', 'host', 'extra'],
+            "hidden_fields": ["port", "login", "schema", "host", "extra"],
             "relabeling": {
-                'password': 'Pagerduty Integration key',
+                "password": "Pagerduty Integration key",
             },
         }
 
@@ -68,15 +68,15 @@ class PagerdutyEventsHook(BaseHook):
 
         if self.integration_key is None:
             raise AirflowException(
-                'Cannot get token: No valid integration key nor pagerduty_events_conn_id supplied.'
+                "Cannot get token: No valid integration key nor pagerduty_events_conn_id supplied."
             )
 
     def create_event(
         self,
         summary: str,
         severity: str,
-        source: str = 'airflow',
-        action: str = 'trigger',
+        source: str = "airflow",
+        action: str = "trigger",
         dedup_key: str | None = None,
         custom_details: Any | None = None,
         group: str | None = None,
@@ -128,7 +128,7 @@ class PagerdutyEventsHook(BaseHook):
         if class_type:
             payload["class"] = class_type
 
-        actions = ('trigger', 'acknowledge', 'resolve')
+        actions = ("trigger", "acknowledge", "resolve")
         if action not in actions:
             raise ValueError(f"Event action must be one of: {', '.join(actions)}")
         data = {
@@ -137,7 +137,7 @@ class PagerdutyEventsHook(BaseHook):
         }
         if dedup_key:
             data["dedup_key"] = dedup_key
-        elif action != 'trigger':
+        elif action != "trigger":
             raise ValueError(
                 f"The dedup_key property is required for event_action={action} events, "
                 f"and it must be a string."

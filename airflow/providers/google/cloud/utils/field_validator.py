@@ -137,7 +137,7 @@ from typing import Callable, Sequence
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-COMPOSITE_FIELD_TYPES = ['union', 'dict', 'list']
+COMPOSITE_FIELD_TYPES = ["union", "dict", "list"]
 
 
 class GcpFieldValidationException(AirflowException):
@@ -166,9 +166,9 @@ EXAMPLE_VALIDATION_SPECIFICATION = [
         name="an_union",
         type="union",
         fields=[
-            dict(name="variant_1", regexp=r'^.+$'),
-            dict(name="variant_2", regexp=r'^.+$', api_version='v1beta2'),
-            dict(name="variant_3", type="dict", fields=[dict(name="url", regexp=r'^.+$')]),
+            dict(name="variant_1", regexp=r"^.+$"),
+            dict(name="variant_2", regexp=r"^.+$", api_version="v1beta2"),
+            dict(name="variant_3", type="dict", fields=[dict(name="url", regexp=r"^.+$")]),
             dict(name="variant_4"),
         ],
     ),
@@ -196,7 +196,7 @@ class GcpBodyFieldValidator(LoggingMixin):
     @staticmethod
     def _get_field_name_with_parent(field_name, parent):
         if parent:
-            return parent + '.' + field_name
+            return parent + "." + field_name
         return field_name
 
     @staticmethod
@@ -209,7 +209,7 @@ class GcpBodyFieldValidator(LoggingMixin):
         custom_validation: Callable,
         value,
     ) -> None:
-        if value is None and field_type != 'union':
+        if value is None and field_type != "union":
             raise GcpFieldValidationException(
                 f"The required body field '{full_field_path}' is missing. Please add it."
             )
@@ -257,7 +257,7 @@ class GcpBodyFieldValidator(LoggingMixin):
             self._validate_field(
                 validation_spec=child_validation_spec, dictionary_to_validate=value, parent=full_field_path
             )
-        all_dict_keys = [spec['name'] for spec in children_validation_specs]
+        all_dict_keys = [spec["name"] for spec in children_validation_specs]
         for field_name in value.keys():
             if field_name not in all_dict_keys:
                 self.log.warning(
@@ -285,7 +285,7 @@ class GcpBodyFieldValidator(LoggingMixin):
                 parent=full_field_path,
                 force_optional=True,
             )
-            field_name = child_validation_spec['name']
+            field_name = child_validation_spec["name"]
             if new_field_found and field_found:
                 raise GcpFieldValidationException(
                     f"The mutually exclusive fields '{field_name}' and '{found_field_name}' belonging to "
@@ -304,7 +304,7 @@ class GcpBodyFieldValidator(LoggingMixin):
                 "supports the new API version.",
                 full_field_path,
                 dictionary_to_validate,
-                [field['name'] for field in children_validation_specs],
+                [field["name"] for field in children_validation_specs],
             )
 
     def _validate_field(self, validation_spec, dictionary_to_validate, parent=None, force_optional=False):
@@ -318,14 +318,14 @@ class GcpBodyFieldValidator(LoggingMixin):
             (all union fields have force_optional set to True)
         :return: True if the field is present
         """
-        field_name = validation_spec['name']
-        field_type = validation_spec.get('type')
-        optional = validation_spec.get('optional')
-        regexp = validation_spec.get('regexp')
-        allow_empty = validation_spec.get('allow_empty')
-        children_validation_specs = validation_spec.get('fields')
-        required_api_version = validation_spec.get('api_version')
-        custom_validation = validation_spec.get('custom_validation')
+        field_name = validation_spec["name"]
+        field_type = validation_spec.get("type")
+        optional = validation_spec.get("optional")
+        regexp = validation_spec.get("regexp")
+        allow_empty = validation_spec.get("allow_empty")
+        children_validation_specs = validation_spec.get("fields")
+        required_api_version = validation_spec.get("api_version")
+        custom_validation = validation_spec.get("custom_validation")
 
         full_field_path = self._get_field_name_with_parent(field_name=field_name, parent=parent)
         if required_api_version and required_api_version != self._api_version:
@@ -360,7 +360,7 @@ class GcpBodyFieldValidator(LoggingMixin):
             self._validate_is_empty(full_field_path, value)
         if regexp:
             self._validate_regexp(full_field_path, regexp, value)
-        elif field_type == 'dict':
+        elif field_type == "dict":
             if not isinstance(value, dict):
                 raise GcpFieldValidationException(
                     f"The field '{full_field_path}' should be of dictionary type according to "
@@ -376,7 +376,7 @@ class GcpBodyFieldValidator(LoggingMixin):
                 )
             else:
                 self._validate_dict(children_validation_specs, full_field_path, value)
-        elif field_type == 'union':
+        elif field_type == "union":
             if not children_validation_specs:
                 raise GcpValidationSpecificationException(
                     f"The union field '{full_field_path}' has no nested fields defined in "
@@ -384,7 +384,7 @@ class GcpBodyFieldValidator(LoggingMixin):
                     "Unions should have at least one nested field defined."
                 )
             self._validate_union(children_validation_specs, full_field_path, dictionary_to_validate)
-        elif field_type == 'list':
+        elif field_type == "list":
             if not isinstance(value, list):
                 raise GcpFieldValidationException(
                     f"The field '{full_field_path}' should be of list type according to "
@@ -429,18 +429,18 @@ class GcpBodyFieldValidator(LoggingMixin):
                 f"There was an error when validating: body '{body_to_validate}': '{e}'"
             )
         all_field_names = [
-            spec['name']
+            spec["name"]
             for spec in self._validation_specs
-            if spec.get('type') != 'union' and spec.get('api_version') != self._api_version
+            if spec.get("type") != "union" and spec.get("api_version") != self._api_version
         ]
-        all_union_fields = [spec for spec in self._validation_specs if spec.get('type') == 'union']
+        all_union_fields = [spec for spec in self._validation_specs if spec.get("type") == "union"]
         for union_field in all_union_fields:
             all_field_names.extend(
                 [
-                    nested_union_spec['name']
-                    for nested_union_spec in union_field['fields']
-                    if nested_union_spec.get('type') != 'union'
-                    and nested_union_spec.get('api_version') != self._api_version
+                    nested_union_spec["name"]
+                    for nested_union_spec in union_field["fields"]
+                    if nested_union_spec.get("type") != "union"
+                    and nested_union_spec.get("api_version") != self._api_version
                 ]
             )
         for field_name in body_to_validate.keys():

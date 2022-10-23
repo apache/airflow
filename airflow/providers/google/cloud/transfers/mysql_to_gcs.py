@@ -41,27 +41,27 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         default timezone.
     """
 
-    ui_color = '#a0e08c'
+    ui_color = "#a0e08c"
 
     type_map = {
-        FIELD_TYPE.BIT: 'INTEGER',
-        FIELD_TYPE.DATETIME: 'TIMESTAMP',
-        FIELD_TYPE.DATE: 'TIMESTAMP',
-        FIELD_TYPE.DECIMAL: 'FLOAT',
-        FIELD_TYPE.NEWDECIMAL: 'FLOAT',
-        FIELD_TYPE.DOUBLE: 'FLOAT',
-        FIELD_TYPE.FLOAT: 'FLOAT',
-        FIELD_TYPE.INT24: 'INTEGER',
-        FIELD_TYPE.LONG: 'INTEGER',
-        FIELD_TYPE.LONGLONG: 'INTEGER',
-        FIELD_TYPE.SHORT: 'INTEGER',
-        FIELD_TYPE.TIME: 'TIME',
-        FIELD_TYPE.TIMESTAMP: 'TIMESTAMP',
-        FIELD_TYPE.TINY: 'INTEGER',
-        FIELD_TYPE.YEAR: 'INTEGER',
+        FIELD_TYPE.BIT: "INTEGER",
+        FIELD_TYPE.DATETIME: "TIMESTAMP",
+        FIELD_TYPE.DATE: "TIMESTAMP",
+        FIELD_TYPE.DECIMAL: "FLOAT",
+        FIELD_TYPE.NEWDECIMAL: "FLOAT",
+        FIELD_TYPE.DOUBLE: "FLOAT",
+        FIELD_TYPE.FLOAT: "FLOAT",
+        FIELD_TYPE.INT24: "INTEGER",
+        FIELD_TYPE.LONG: "INTEGER",
+        FIELD_TYPE.LONGLONG: "INTEGER",
+        FIELD_TYPE.SHORT: "INTEGER",
+        FIELD_TYPE.TIME: "TIME",
+        FIELD_TYPE.TIMESTAMP: "TIMESTAMP",
+        FIELD_TYPE.TINY: "INTEGER",
+        FIELD_TYPE.YEAR: "INTEGER",
     }
 
-    def __init__(self, *, mysql_conn_id='mysql_default', ensure_utc=False, **kwargs):
+    def __init__(self, *, mysql_conn_id="mysql_default", ensure_utc=False, **kwargs):
         super().__init__(**kwargs)
         self.mysql_conn_id = mysql_conn_id
         self.ensure_utc = ensure_utc
@@ -74,9 +74,9 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         if self.ensure_utc:
             # Ensure TIMESTAMP results are in UTC
             tz_query = "SET time_zone = '+00:00'"
-            self.log.info('Executing: %s', tz_query)
+            self.log.info("Executing: %s", tz_query)
             cursor.execute(tz_query)
-        self.log.info('Executing: %s', self.sql)
+        self.log.info("Executing: %s", self.sql)
         cursor.execute(self.sql)
         return cursor
 
@@ -87,9 +87,9 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         # represented by Python's datetime (e.g. 0000-00-00 00:00:00).
         field_mode = "NULLABLE" if field[6] or field_type == "TIMESTAMP" else "REQUIRED"
         return {
-            'name': field[0],
-            'type': field_type,
-            'mode': field_mode,
+            "name": field[0],
+            "type": field_type,
+            "mode": field_mode,
         }
 
     def convert_type(self, value, schema_type: str, **kwargs):
@@ -128,5 +128,5 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
             if schema_type == "INTEGER":
                 value = int.from_bytes(value, "big")
             else:
-                value = base64.standard_b64encode(value).decode('ascii')
+                value = base64.standard_b64encode(value).decode("ascii")
         return value

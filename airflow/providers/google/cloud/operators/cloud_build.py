@@ -185,9 +185,9 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         if not isinstance(self.build_raw, str):
             return
         with open(self.build_raw) as file:
-            if any(self.build_raw.endswith(ext) for ext in ['.yaml', '.yml']):
+            if any(self.build_raw.endswith(ext) for ext in [".yaml", ".yml"]):
                 self.build = yaml.safe_load(file.read())
-            if self.build_raw.endswith('.json'):
+            if self.build_raw.endswith(".json"):
                 self.build = json.loads(file.read())
 
     def execute(self, context: Context):
@@ -966,7 +966,7 @@ class BuildProcessor:
         :return: the body.
         :rtype: `google.cloud.devtools.cloudbuild_v1.types.Build`
         """
-        if 'source' in self.build:
+        if "source" in self.build:
             self._verify_source()
             self._reformat_source()
         return Build(self.build)

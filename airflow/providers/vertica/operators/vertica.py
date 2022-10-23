@@ -33,12 +33,12 @@ class VerticaOperator(SQLExecuteQueryOperator):
         Template references are recognized by str ending in '.sql'
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'sql'}
-    ui_color = '#b4e0ff'
+    template_fields: Sequence[str] = ("sql",)
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "sql"}
+    ui_color = "#b4e0ff"
 
-    def __init__(self, *, vertica_conn_id: str = 'vertica_default', **kwargs: Any) -> None:
+    def __init__(self, *, vertica_conn_id: str = "vertica_default", **kwargs: Any) -> None:
         super().__init__(conn_id=vertica_conn_id, **kwargs)
         warnings.warn(
             """This class is deprecated.

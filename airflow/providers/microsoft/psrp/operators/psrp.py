@@ -110,7 +110,7 @@ class PsrpOperator(BaseOperator):
         if parameters and not cmdlet:
             raise ValueError("Parameters only allowed with 'cmdlet'")
         if cmdlet:
-            kwargs.setdefault('task_id', cmdlet)
+            kwargs.setdefault("task_id", cmdlet)
         super().__init__(**kwargs)
         self.conn_id = psrp_conn_id
         self.command = command

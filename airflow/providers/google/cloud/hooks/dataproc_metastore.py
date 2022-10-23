@@ -39,7 +39,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
 
     def get_dataproc_metastore_client(self) -> DataprocMetastoreClient:
         """Returns DataprocMetastoreClient."""
-        client_options = ClientOptions(api_endpoint='metastore.googleapis.com:443')
+        client_options = ClientOptions(api_endpoint="metastore.googleapis.com:443")
 
         return DataprocMetastoreClient(
             credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
@@ -94,15 +94,15 @@ class DataprocMetastoreHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        parent = f'projects/{project_id}/locations/{region}/services/{service_id}'
+        parent = f"projects/{project_id}/locations/{region}/services/{service_id}"
 
         client = self.get_dataproc_metastore_client()
         result = client.create_backup(
             request={
-                'parent': parent,
-                'backup': backup,
-                'backup_id': backup_id,
-                'request_id': request_id,
+                "parent": parent,
+                "backup": backup,
+                "backup_id": backup_id,
+                "request_id": request_id,
             },
             retry=retry,
             timeout=timeout,
@@ -152,15 +152,15 @@ class DataprocMetastoreHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        parent = f'projects/{project_id}/locations/{region}/services/{service_id}'
+        parent = f"projects/{project_id}/locations/{region}/services/{service_id}"
 
         client = self.get_dataproc_metastore_client()
         result = client.create_metadata_import(
             request={
-                'parent': parent,
-                'metadata_import': metadata_import,
-                'metadata_import_id': metadata_import_id,
-                'request_id': request_id,
+                "parent": parent,
+                "metadata_import": metadata_import,
+                "metadata_import_id": metadata_import_id,
+                "request_id": request_id,
             },
             retry=retry,
             timeout=timeout,
@@ -202,15 +202,15 @@ class DataprocMetastoreHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        parent = f'projects/{project_id}/locations/{region}'
+        parent = f"projects/{project_id}/locations/{region}"
 
         client = self.get_dataproc_metastore_client()
         result = client.create_service(
             request={
-                'parent': parent,
-                'service_id': service_id,
-                'service': service if service else {},
-                'request_id': request_id,
+                "parent": parent,
+                "service_id": service_id,
+                "service": service if service else {},
+                "request_id": request_id,
             },
             retry=retry,
             timeout=timeout,
@@ -253,13 +253,13 @@ class DataprocMetastoreHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        name = f'projects/{project_id}/locations/{region}/services/{service_id}/backups/{backup_id}'
+        name = f"projects/{project_id}/locations/{region}/services/{service_id}/backups/{backup_id}"
 
         client = self.get_dataproc_metastore_client()
         result = client.delete_backup(
             request={
-                'name': name,
-                'request_id': request_id,
+                "name": name,
+                "request_id": request_id,
             },
             retry=retry,
             timeout=timeout,
@@ -295,13 +295,13 @@ class DataprocMetastoreHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        name = f'projects/{project_id}/locations/{region}/services/{service_id}'
+        name = f"projects/{project_id}/locations/{region}/services/{service_id}"
 
         client = self.get_dataproc_metastore_client()
         result = client.delete_service(
             request={
-                'name': name,
-                'request_id': request_id,
+                "name": name,
+                "request_id": request_id,
             },
             retry=retry,
             timeout=timeout,
@@ -345,15 +345,15 @@ class DataprocMetastoreHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        service = f'projects/{project_id}/locations/{region}/services/{service_id}'
+        service = f"projects/{project_id}/locations/{region}/services/{service_id}"
 
         client = self.get_dataproc_metastore_client()
         result = client.export_metadata(
             request={
-                'destination_gcs_folder': destination_gcs_folder,
-                'service': service,
-                'request_id': request_id,
-                'database_dump_type': database_dump_type,
+                "destination_gcs_folder": destination_gcs_folder,
+                "service": service,
+                "request_id": request_id,
+                "database_dump_type": database_dump_type,
             },
             retry=retry,
             timeout=timeout,
@@ -387,12 +387,12 @@ class DataprocMetastoreHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        name = f'projects/{project_id}/locations/{region}/services/{service_id}'
+        name = f"projects/{project_id}/locations/{region}/services/{service_id}"
 
         client = self.get_dataproc_metastore_client()
         result = client.get_service(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -428,11 +428,11 @@ class DataprocMetastoreHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        backup = f'projects/{project_id}/locations/{region}/services/{service_id}/backups/{backup_id}'
+        backup = f"projects/{project_id}/locations/{region}/services/{service_id}/backups/{backup_id}"
         client = self.get_dataproc_metastore_client()
         result = client.get_backup(
             request={
-                'name': backup,
+                "name": backup,
             },
             retry=retry,
             timeout=timeout,
@@ -489,16 +489,16 @@ class DataprocMetastoreHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        parent = f'projects/{project_id}/locations/{region}/services/{service_id}/backups'
+        parent = f"projects/{project_id}/locations/{region}/services/{service_id}/backups"
 
         client = self.get_dataproc_metastore_client()
         result = client.list_backups(
             request={
-                'parent': parent,
-                'page_size': page_size,
-                'page_token': page_token,
-                'filter': filter,
-                'order_by': order_by,
+                "parent": parent,
+                "page_size": page_size,
+                "page_token": page_token,
+                "filter": filter,
+                "order_by": order_by,
             },
             retry=retry,
             timeout=timeout,
@@ -550,19 +550,19 @@ class DataprocMetastoreHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        service = f'projects/{project_id}/locations/{region}/services/{service_id}'
+        service = f"projects/{project_id}/locations/{region}/services/{service_id}"
         backup = (
-            f'projects/{backup_project_id}/locations/{backup_region}/services/'
-            f'{backup_service_id}/backups/{backup_id}'
+            f"projects/{backup_project_id}/locations/{backup_region}/services/"
+            f"{backup_service_id}/backups/{backup_id}"
         )
 
         client = self.get_dataproc_metastore_client()
         result = client.restore_service(
             request={
-                'service': service,
-                'backup': backup,
-                'restore_type': restore_type,
-                'request_id': request_id,
+                "service": service,
+                "backup": backup,
+                "restore_type": restore_type,
+                "request_id": request_id,
             },
             retry=retry,
             timeout=timeout,
@@ -615,15 +615,15 @@ class DataprocMetastoreHook(GoogleBaseHook):
         """
         client = self.get_dataproc_metastore_client()
 
-        service_name = f'projects/{project_id}/locations/{region}/services/{service_id}'
+        service_name = f"projects/{project_id}/locations/{region}/services/{service_id}"
 
         service["name"] = service_name
 
         result = client.update_service(
             request={
-                'service': service,
-                'update_mask': update_mask,
-                'request_id': request_id,
+                "service": service,
+                "update_mask": update_mask,
+                "request_id": request_id,
             },
             retry=retry,
             timeout=timeout,

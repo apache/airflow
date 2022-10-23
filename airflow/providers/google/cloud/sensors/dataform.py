@@ -56,7 +56,7 @@ class DataformWorkflowInvocationStateSensor(BaseSensorOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = ('workflow_invocation_id',)
+    template_fields: Sequence[str] = ("workflow_invocation_id",)
 
     def __init__(
         self,
@@ -67,7 +67,7 @@ class DataformWorkflowInvocationStateSensor(BaseSensorOperator):
         workflow_invocation_id: str,
         expected_statuses: set[int] | int,
         failure_statuses: Iterable[int] | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,

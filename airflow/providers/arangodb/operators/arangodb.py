@@ -40,7 +40,7 @@ class AQLOperator(BaseOperator):
     :param arangodb_conn_id: Reference to :ref:`ArangoDB connection id <howto/connection:arangodb>`.
     """
 
-    template_fields: Sequence[str] = ('query',)
+    template_fields: Sequence[str] = ("query",)
 
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"query": "sql"}
@@ -49,7 +49,7 @@ class AQLOperator(BaseOperator):
         self,
         *,
         query: str,
-        arangodb_conn_id: str = 'arangodb_default',
+        arangodb_conn_id: str = "arangodb_default",
         result_processor: Callable | None = None,
         **kwargs,
     ) -> None:
@@ -59,7 +59,7 @@ class AQLOperator(BaseOperator):
         self.result_processor = result_processor
 
     def execute(self, context: Context):
-        self.log.info('Executing: %s', self.query)
+        self.log.info("Executing: %s", self.query)
         hook = ArangoDBHook(arangodb_conn_id=self.arangodb_conn_id)
         result = hook.query(self.query)
         if self.result_processor:

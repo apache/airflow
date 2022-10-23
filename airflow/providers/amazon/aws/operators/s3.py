@@ -279,10 +279,10 @@ class S3CopyObjectOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'source_bucket_key',
-        'dest_bucket_key',
-        'source_bucket_name',
-        'dest_bucket_name',
+        "source_bucket_key",
+        "dest_bucket_key",
+        "source_bucket_name",
+        "dest_bucket_name",
     )
 
     def __init__(
@@ -293,7 +293,7 @@ class S3CopyObjectOperator(BaseOperator):
         source_bucket_name: str | None = None,
         dest_bucket_name: str | None = None,
         source_version_id: str | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         verify: str | bool | None = None,
         acl_policy: str | None = None,
         **kwargs,
@@ -359,7 +359,7 @@ class S3CreateObjectOperator(BaseOperator):
 
     """
 
-    template_fields: Sequence[str] = ('s3_bucket', 's3_key', 'data')
+    template_fields: Sequence[str] = ("s3_bucket", "s3_key", "data")
 
     def __init__(
         self,
@@ -372,7 +372,7 @@ class S3CreateObjectOperator(BaseOperator):
         acl_policy: str | None = None,
         encoding: str | None = None,
         compression: str | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         verify: str | bool | None = None,
         **kwargs,
     ):
@@ -392,7 +392,7 @@ class S3CreateObjectOperator(BaseOperator):
     def execute(self, context: Context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
-        s3_bucket, s3_key = s3_hook.get_s3_bucket_key(self.s3_bucket, self.s3_key, 'dest_bucket', 'dest_key')
+        s3_bucket, s3_key = s3_hook.get_s3_bucket_key(self.s3_bucket, self.s3_key, "dest_bucket", "dest_key")
 
         if isinstance(self.data, str):
             s3_hook.load_string(
@@ -443,7 +443,7 @@ class S3DeleteObjectsOperator(BaseOperator):
                  CA cert bundle than the one used by botocore.
     """
 
-    template_fields: Sequence[str] = ('keys', 'bucket', 'prefix')
+    template_fields: Sequence[str] = ("keys", "bucket", "prefix")
 
     def __init__(
         self,
@@ -451,7 +451,7 @@ class S3DeleteObjectsOperator(BaseOperator):
         bucket: str,
         keys: str | list | None = None,
         prefix: str | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         verify: str | bool | None = None,
         **kwargs,
     ):
@@ -524,9 +524,9 @@ class S3FileTransformOperator(BaseOperator):
     :param replace: Replace dest S3 key if it already exists
     """
 
-    template_fields: Sequence[str] = ('source_s3_key', 'dest_s3_key', 'script_args')
+    template_fields: Sequence[str] = ("source_s3_key", "dest_s3_key", "script_args")
     template_ext: Sequence[str] = ()
-    ui_color = '#f9c915'
+    ui_color = "#f9c915"
 
     def __init__(
         self,
@@ -536,9 +536,9 @@ class S3FileTransformOperator(BaseOperator):
         transform_script: str | None = None,
         select_expression=None,
         script_args: Sequence[str] | None = None,
-        source_aws_conn_id: str = 'aws_default',
+        source_aws_conn_id: str = "aws_default",
         source_verify: bool | str | None = None,
-        dest_aws_conn_id: str = 'aws_default',
+        dest_aws_conn_id: str = "aws_default",
         dest_verify: bool | str | None = None,
         replace: bool = False,
         **kwargs,
@@ -588,7 +588,7 @@ class S3FileTransformOperator(BaseOperator):
                 ) as process:
                     self.log.info("Output:")
                     if process.stdout is not None:
-                        for line in iter(process.stdout.readline, b''):
+                        for line in iter(process.stdout.readline, b""):
                             self.log.info(line.decode(self.output_encoding).rstrip())
 
                     process.wait()
@@ -652,16 +652,16 @@ class S3ListOperator(BaseOperator):
             )
     """
 
-    template_fields: Sequence[str] = ('bucket', 'prefix', 'delimiter')
-    ui_color = '#ffd700'
+    template_fields: Sequence[str] = ("bucket", "prefix", "delimiter")
+    ui_color = "#ffd700"
 
     def __init__(
         self,
         *,
         bucket: str,
-        prefix: str = '',
-        delimiter: str = '',
-        aws_conn_id: str = 'aws_default',
+        prefix: str = "",
+        delimiter: str = "",
+        aws_conn_id: str = "aws_default",
         verify: str | bool | None = None,
         **kwargs,
     ):
@@ -676,7 +676,7 @@ class S3ListOperator(BaseOperator):
         hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         self.log.info(
-            'Getting the list of files from bucket: %s in prefix: %s (Delimiter %s)',
+            "Getting the list of files from bucket: %s in prefix: %s (Delimiter %s)",
             self.bucket,
             self.prefix,
             self.delimiter,
@@ -726,8 +726,8 @@ class S3ListPrefixesOperator(BaseOperator):
             )
     """
 
-    template_fields: Sequence[str] = ('bucket', 'prefix', 'delimiter')
-    ui_color = '#ffd700'
+    template_fields: Sequence[str] = ("bucket", "prefix", "delimiter")
+    ui_color = "#ffd700"
 
     def __init__(
         self,
@@ -735,7 +735,7 @@ class S3ListPrefixesOperator(BaseOperator):
         bucket: str,
         prefix: str,
         delimiter: str,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         verify: str | bool | None = None,
         **kwargs,
     ):
@@ -750,7 +750,7 @@ class S3ListPrefixesOperator(BaseOperator):
         hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         self.log.info(
-            'Getting the list of subfolders from bucket: %s in prefix: %s (Delimiter %s)',
+            "Getting the list of subfolders from bucket: %s in prefix: %s (Delimiter %s)",
             self.bucket,
             self.prefix,
             self.delimiter,

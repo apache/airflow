@@ -24,16 +24,16 @@ from airflow.providers.google.cloud.hooks.compute_ssh import ComputeEngineSSHHoo
 from airflow.providers.ssh.operators.ssh import SSHOperator
 
 # [START howto_operator_gce_args_common]
-GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
-GCE_ZONE = os.environ.get('GCE_ZONE', 'europe-west2-a')
-GCE_INSTANCE = os.environ.get('GCE_INSTANCE', 'target-instance')
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
+GCE_ZONE = os.environ.get("GCE_ZONE", "europe-west2-a")
+GCE_INSTANCE = os.environ.get("GCE_INSTANCE", "target-instance")
 # [END howto_operator_gce_args_common]
 
 with models.DAG(
-    'example_compute_ssh',
+    "example_compute_ssh",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # # [START howto_execute_command_on_remote1]
     os_login_without_iap_tunnel = SSHOperator(

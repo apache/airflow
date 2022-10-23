@@ -52,10 +52,10 @@ class HiveToDynamoDBOperator(BaseOperator):
     :param aws_conn_id: aws connection
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_ext: Sequence[str] = ('.sql',)
+    template_fields: Sequence[str] = ("sql",)
+    template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "hql"}
-    ui_color = '#a0e08c'
+    ui_color = "#a0e08c"
 
     def __init__(
         self,
@@ -67,9 +67,9 @@ class HiveToDynamoDBOperator(BaseOperator):
         pre_process_args: list | None = None,
         pre_process_kwargs: list | None = None,
         region_name: str | None = None,
-        schema: str = 'default',
-        hiveserver2_conn_id: str = 'hiveserver2_default',
-        aws_conn_id: str = 'aws_default',
+        schema: str = "default",
+        hiveserver2_conn_id: str = "hiveserver2_default",
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -87,7 +87,7 @@ class HiveToDynamoDBOperator(BaseOperator):
     def execute(self, context: Context):
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
 
-        self.log.info('Extracting data from Hive')
+        self.log.info("Extracting data from Hive")
         self.log.info(self.sql)
 
         data = hive.get_pandas_df(self.sql, schema=self.schema)
@@ -98,13 +98,13 @@ class HiveToDynamoDBOperator(BaseOperator):
             region_name=self.region_name,
         )
 
-        self.log.info('Inserting rows into dynamodb')
+        self.log.info("Inserting rows into dynamodb")
 
         if self.pre_process is None:
-            dynamodb.write_batch_data(json.loads(data.to_json(orient='records')))
+            dynamodb.write_batch_data(json.loads(data.to_json(orient="records")))
         else:
             dynamodb.write_batch_data(
                 self.pre_process(data=data, args=self.pre_process_args, kwargs=self.pre_process_kwargs)
             )
 
-        self.log.info('Done.')
+        self.log.info("Done.")

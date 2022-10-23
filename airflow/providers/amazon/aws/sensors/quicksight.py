@@ -46,7 +46,7 @@ class QuickSightSensor(BaseSensorOperator):
          maintained on each worker node).
     """
 
-    template_fields: Sequence[str] = ('data_set_id', 'ingestion_id', 'aws_conn_id')
+    template_fields: Sequence[str] = ("data_set_id", "ingestion_id", "aws_conn_id")
 
     def __init__(
         self,

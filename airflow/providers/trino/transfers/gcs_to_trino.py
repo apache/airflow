@@ -62,9 +62,9 @@ class GCSToTrinoOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'source_bucket',
-        'source_object',
-        'trino_table',
+        "source_bucket",
+        "source_object",
+        "trino_table",
     )
 
     def __init__(

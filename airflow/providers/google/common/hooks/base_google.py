@@ -60,13 +60,13 @@ log = logging.getLogger(__name__)
 
 # Constants used by the mechanism of repeating requests in reaction to exceeding the temporary quota.
 INVALID_KEYS = [
-    'DefaultRequestsPerMinutePerProject',
-    'DefaultRequestsPerMinutePerUser',
-    'RequestsPerMinutePerProject',
+    "DefaultRequestsPerMinutePerProject",
+    "DefaultRequestsPerMinutePerUser",
+    "RequestsPerMinutePerProject",
     "Resource has been exhausted (e.g. check quota).",
 ]
 INVALID_REASONS = [
-    'userRateLimitExceeded',
+    "userRateLimitExceeded",
 ]
 
 
@@ -124,12 +124,12 @@ class retry_if_operation_in_progress(tenacity.retry_if_exception):
 PROVIDE_PROJECT_ID: str = cast(str, None)
 
 T = TypeVar("T", bound=Callable)
-RT = TypeVar('RT')
+RT = TypeVar("RT")
 
 
 def get_field(extras: dict, field_name: str):
     """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
-    if field_name.startswith('extra__'):
+    if field_name.startswith("extra__"):
         raise ValueError(
             f"Got prefixed name {field_name}; please remove the 'extra__google_cloud_platform__' prefix "
             "when using this method."
@@ -178,10 +178,10 @@ class GoogleBaseHook(BaseHook):
         account from the list granting this role to the originating account.
     """
 
-    conn_name_attr = 'gcp_conn_id'
-    default_conn_name = 'google_cloud_default'
-    conn_type = 'google_cloud_platform'
-    hook_name = 'Google Cloud'
+    conn_name_attr = "gcp_conn_id"
+    default_conn_name = "google_cloud_default"
+    conn_type = "google_cloud_platform"
+    hook_name = "Google Cloud"
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
@@ -192,18 +192,18 @@ class GoogleBaseHook(BaseHook):
         from wtforms.validators import NumberRange
 
         return {
-            "project": StringField(lazy_gettext('Project Id'), widget=BS3TextFieldWidget()),
-            "key_path": StringField(lazy_gettext('Keyfile Path'), widget=BS3TextFieldWidget()),
-            "keyfile_dict": PasswordField(lazy_gettext('Keyfile JSON'), widget=BS3PasswordFieldWidget()),
-            "scope": StringField(lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget()),
+            "project": StringField(lazy_gettext("Project Id"), widget=BS3TextFieldWidget()),
+            "key_path": StringField(lazy_gettext("Keyfile Path"), widget=BS3TextFieldWidget()),
+            "keyfile_dict": PasswordField(lazy_gettext("Keyfile JSON"), widget=BS3PasswordFieldWidget()),
+            "scope": StringField(lazy_gettext("Scopes (comma separated)"), widget=BS3TextFieldWidget()),
             "key_secret_name": StringField(
-                lazy_gettext('Keyfile Secret Name (in GCP Secret Manager)'), widget=BS3TextFieldWidget()
+                lazy_gettext("Keyfile Secret Name (in GCP Secret Manager)"), widget=BS3TextFieldWidget()
             ),
             "key_secret_project_id": StringField(
-                lazy_gettext('Keyfile Secret Project Id (in GCP Secret Manager)'), widget=BS3TextFieldWidget()
+                lazy_gettext("Keyfile Secret Project Id (in GCP Secret Manager)"), widget=BS3TextFieldWidget()
             ),
             "num_retries": IntegerField(
-                lazy_gettext('Number of Retries'),
+                lazy_gettext("Number of Retries"),
                 validators=[NumberRange(min=0)],
                 widget=BS3TextFieldWidget(),
                 default=5,
@@ -214,13 +214,13 @@ class GoogleBaseHook(BaseHook):
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
+            "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
         }
 
     def __init__(
         self,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
@@ -237,16 +237,16 @@ class GoogleBaseHook(BaseHook):
         if self._cached_credentials is not None:
             return self._cached_credentials, self._cached_project_id
 
-        key_path: str | None = self._get_field('key_path', None)
+        key_path: str | None = self._get_field("key_path", None)
         try:
-            keyfile_dict: str | None = self._get_field('keyfile_dict', None)
+            keyfile_dict: str | None = self._get_field("keyfile_dict", None)
             keyfile_dict_json: dict[str, str] | None = None
             if keyfile_dict:
                 keyfile_dict_json = json.loads(keyfile_dict)
         except json.decoder.JSONDecodeError:
-            raise AirflowException('Invalid key JSON.')
-        key_secret_name: str | None = self._get_field('key_secret_name', None)
-        key_secret_project_id: str | None = self._get_field('key_secret_project_id', None)
+            raise AirflowException("Invalid key JSON.")
+        key_secret_name: str | None = self._get_field("key_secret_name", None)
+        key_secret_project_id: str | None = self._get_field("key_secret_project_id", None)
 
         target_principal, delegates = _get_target_principal_and_delegates(self.impersonation_chain)
 
@@ -261,7 +261,7 @@ class GoogleBaseHook(BaseHook):
             delegates=delegates,
         )
 
-        overridden_project_id = self._get_field('project')
+        overridden_project_id = self._get_field("project")
         if overridden_project_id:
             project_id = overridden_project_id
 
@@ -304,13 +304,13 @@ class GoogleBaseHook(BaseHook):
                 """
                 self.log.debug(msg)
 
-        service_account_email = getattr(credentials, 'service_account_email', None)
+        service_account_email = getattr(credentials, "service_account_email", None)
         if service_account_email:
             return service_account_email
 
         http_authorized = self._authorize()
-        oauth2_client = discovery.build('oauth2', "v1", http=http_authorized, cache_discovery=False)
-        return oauth2_client.tokeninfo().execute()['email']
+        oauth2_client = discovery.build("oauth2", "v1", http=http_authorized, cache_discovery=False)
+        return oauth2_client.tokeninfo().execute()["email"]
 
     def _authorize(self) -> google_auth_httplib2.AuthorizedHttp:
         """
@@ -330,7 +330,7 @@ class GoogleBaseHook(BaseHook):
         to the hook page, which allow admins to specify service_account,
         key_path, etc. They get formatted as shown below.
         """
-        return hasattr(self, 'extras') and get_field(self.extras, f) or default
+        return hasattr(self, "extras") and get_field(self.extras, f) or default
 
     @property
     def project_id(self) -> str | None:
@@ -351,17 +351,17 @@ class GoogleBaseHook(BaseHook):
         :return: the number of times each API request should be retried
         :rtype: int
         """
-        field_value = self._get_field('num_retries', default=5)
+        field_value = self._get_field("num_retries", default=5)
         if field_value is None:
             return 5
-        if isinstance(field_value, str) and field_value.strip() == '':
+        if isinstance(field_value, str) and field_value.strip() == "":
             return 5
         try:
             return int(field_value)
         except ValueError:
             raise AirflowException(
                 f"The num_retries field should be a integer. "
-                f"Current value: \"{field_value}\" (type: {type(field_value)}). "
+                f'Current value: "{field_value}" (type: {type(field_value)}). '
                 f"Please check the connection configuration."
             )
 
@@ -391,7 +391,7 @@ class GoogleBaseHook(BaseHook):
         :return: Returns the scope defined in the connection configuration, or the default scope
         :rtype: Sequence[str]
         """
-        scope_value = self._get_field('scope', None)  # type: Optional[str]
+        scope_value = self._get_field("scope", None)  # type: Optional[str]
 
         return _get_scopes(scope_value)
 
@@ -404,10 +404,10 @@ class GoogleBaseHook(BaseHook):
 
         def decorator(fun: Callable):
             default_kwargs = {
-                'wait': tenacity.wait_exponential(multiplier=1, max=100),
-                'retry': retry_if_temporary_quota(),
-                'before': tenacity.before_log(log, logging.DEBUG),
-                'after': tenacity.after_log(log, logging.DEBUG),
+                "wait": tenacity.wait_exponential(multiplier=1, max=100),
+                "retry": retry_if_temporary_quota(),
+                "before": tenacity.before_log(log, logging.DEBUG),
+                "after": tenacity.after_log(log, logging.DEBUG),
             }
             default_kwargs.update(**kwargs)
             return tenacity.retry(*args, **default_kwargs)(fun)
@@ -424,10 +424,10 @@ class GoogleBaseHook(BaseHook):
 
         def decorator(fun: T):
             default_kwargs = {
-                'wait': tenacity.wait_exponential(multiplier=1, max=300),
-                'retry': retry_if_operation_in_progress(),
-                'before': tenacity.before_log(log, logging.DEBUG),
-                'after': tenacity.after_log(log, logging.DEBUG),
+                "wait": tenacity.wait_exponential(multiplier=1, max=300),
+                "retry": retry_if_operation_in_progress(),
+                "before": tenacity.before_log(log, logging.DEBUG),
+                "after": tenacity.after_log(log, logging.DEBUG),
             }
             default_kwargs.update(**kwargs)
             return cast(T, tenacity.retry(*args, **default_kwargs)(fun))
@@ -452,11 +452,11 @@ class GoogleBaseHook(BaseHook):
                 raise AirflowException(
                     "You must use keyword arguments in this methods rather than positional"
                 )
-            if 'project_id' in kwargs:
-                kwargs['project_id'] = kwargs['project_id'] or self.project_id
+            if "project_id" in kwargs:
+                kwargs["project_id"] = kwargs["project_id"] or self.project_id
             else:
-                kwargs['project_id'] = self.project_id
-            if not kwargs['project_id']:
+                kwargs["project_id"] = self.project_id
+            if not kwargs["project_id"]:
                 raise AirflowException(
                     "The project id must be passed either as "
                     "keyword project_id parameter or as project_id extra "
@@ -493,20 +493,20 @@ class GoogleBaseHook(BaseHook):
         It can be used to provide credentials for external programs (e.g. gcloud) that expect authorization
         file in ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable.
         """
-        key_path: str | None = self._get_field('key_path', None)
-        keyfile_dict: str | None = self._get_field('keyfile_dict', None)
+        key_path: str | None = self._get_field("key_path", None)
+        keyfile_dict: str | None = self._get_field("keyfile_dict", None)
         if key_path and keyfile_dict:
             raise AirflowException(
                 "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
                 "Please provide only one value."
             )
         elif key_path:
-            if key_path.endswith('.p12'):
-                raise AirflowException('Legacy P12 key file are not supported, use a JSON key file.')
+            if key_path.endswith(".p12"):
+                raise AirflowException("Legacy P12 key file are not supported, use a JSON key file.")
             with patch_environ({CREDENTIALS: key_path}):
                 yield key_path
         elif keyfile_dict:
-            with tempfile.NamedTemporaryFile(mode='w+t') as conf_file:
+            with tempfile.NamedTemporaryFile(mode="w+t") as conf_file:
                 conf_file.write(keyfile_dict)
                 conf_file.flush()
                 with patch_environ({CREDENTIALS: conf_file.name}):
@@ -591,14 +591,14 @@ class GoogleBaseHook(BaseHook):
 
     def test_connection(self):
         """Test the Google cloud connectivity from UI"""
-        status, message = False, ''
+        status, message = False, ""
         try:
             token = self._get_access_token()
             url = f"https://www.googleapis.com/oauth2/v3/tokeninfo?access_token={token}"
             response = requests.post(url)
             if response.status_code == 200:
                 status = True
-                message = 'Connection successfully tested'
+                message = "Connection successfully tested"
         except Exception as e:
             status = False
             message = str(e)

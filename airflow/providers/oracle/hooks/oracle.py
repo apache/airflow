@@ -47,9 +47,9 @@ def _get_bool(val):
         return val
     if isinstance(val, str):
         val = val.lower().strip()
-        if val == 'true':
+        if val == "true":
             return True
-        if val == 'false':
+        if val == "false":
             return False
     return None
 
@@ -94,10 +94,10 @@ class OracleHook(DbApiHook):
         for more info.
     """
 
-    conn_name_attr = 'oracle_conn_id'
-    default_conn_name = 'oracle_default'
-    conn_type = 'oracle'
-    hook_name = 'Oracle'
+    conn_name_attr = "oracle_conn_id"
+    default_conn_name = "oracle_default"
+    conn_type = "oracle"
+    hook_name = "Oracle"
 
     supports_autocommit = True
 
@@ -147,29 +147,29 @@ class OracleHook(DbApiHook):
 
         """
         conn = self.get_connection(self.oracle_conn_id)  # type: ignore[attr-defined]
-        conn_config = {'user': conn.login, 'password': conn.password}
-        sid = conn.extra_dejson.get('sid')
-        mod = conn.extra_dejson.get('module')
+        conn_config = {"user": conn.login, "password": conn.password}
+        sid = conn.extra_dejson.get("sid")
+        mod = conn.extra_dejson.get("module")
         schema = conn.schema
 
         # Enable oracledb thick mode if thick_mode is set to True
         # Parameters take precedence over connection config extra
         # Defaults to use thin mode if not provided in params or connection config extra
-        thick_mode = _get_first_bool(self.thick_mode, conn.extra_dejson.get('thick_mode'))
+        thick_mode = _get_first_bool(self.thick_mode, conn.extra_dejson.get("thick_mode"))
         if thick_mode is True:
             if self.thick_mode_lib_dir is None:
-                self.thick_mode_lib_dir = conn.extra_dejson.get('thick_mode_lib_dir')
+                self.thick_mode_lib_dir = conn.extra_dejson.get("thick_mode_lib_dir")
                 if not isinstance(self.thick_mode_lib_dir, (str, type(None))):
                     raise TypeError(
-                        f'thick_mode_lib_dir expected str or None, '
-                        f'got {type(self.thick_mode_lib_dir).__name__}'
+                        f"thick_mode_lib_dir expected str or None, "
+                        f"got {type(self.thick_mode_lib_dir).__name__}"
                     )
             if self.thick_mode_config_dir is None:
-                self.thick_mode_config_dir = conn.extra_dejson.get('thick_mode_config_dir')
+                self.thick_mode_config_dir = conn.extra_dejson.get("thick_mode_config_dir")
                 if not isinstance(self.thick_mode_config_dir, (str, type(None))):
                     raise TypeError(
-                        f'thick_mode_config_dir expected str or None, '
-                        f'got {type(self.thick_mode_config_dir).__name__}'
+                        f"thick_mode_config_dir expected str or None, "
+                        f"got {type(self.thick_mode_config_dir).__name__}"
                     )
             oracledb.init_oracle_client(
                 lib_dir=self.thick_mode_lib_dir, config_dir=self.thick_mode_config_dir
@@ -177,23 +177,23 @@ class OracleHook(DbApiHook):
 
         # Set oracledb Defaults Attributes if provided
         # (https://python-oracledb.readthedocs.io/en/latest/api_manual/defaults.html)
-        fetch_decimals = _get_first_bool(self.fetch_decimals, conn.extra_dejson.get('fetch_decimals'))
+        fetch_decimals = _get_first_bool(self.fetch_decimals, conn.extra_dejson.get("fetch_decimals"))
         if isinstance(fetch_decimals, bool):
             oracledb.defaults.fetch_decimals = fetch_decimals
 
-        fetch_lobs = _get_first_bool(self.fetch_lobs, conn.extra_dejson.get('fetch_lobs'))
+        fetch_lobs = _get_first_bool(self.fetch_lobs, conn.extra_dejson.get("fetch_lobs"))
         if isinstance(fetch_lobs, bool):
             oracledb.defaults.fetch_lobs = fetch_lobs
 
         # Set up DSN
-        service_name = conn.extra_dejson.get('service_name')
+        service_name = conn.extra_dejson.get("service_name")
         port = conn.port if conn.port else 1521
         if conn.host and sid and not service_name:
-            conn_config['dsn'] = oracledb.makedsn(conn.host, port, sid)
+            conn_config["dsn"] = oracledb.makedsn(conn.host, port, sid)
         elif conn.host and service_name and not sid:
-            conn_config['dsn'] = oracledb.makedsn(conn.host, port, service_name=service_name)
+            conn_config["dsn"] = oracledb.makedsn(conn.host, port, service_name=service_name)
         else:
-            dsn = conn.extra_dejson.get('dsn')
+            dsn = conn.extra_dejson.get("dsn")
             if dsn is None:
                 dsn = conn.host
                 if conn.port is not None:
@@ -208,34 +208,34 @@ class OracleHook(DbApiHook):
                         stacklevel=2,
                     )
                     dsn += "/" + conn.schema
-            conn_config['dsn'] = dsn
+            conn_config["dsn"] = dsn
 
-        if 'events' in conn.extra_dejson:
-            conn_config['events'] = conn.extra_dejson.get('events')
+        if "events" in conn.extra_dejson:
+            conn_config["events"] = conn.extra_dejson.get("events")
 
-        mode = conn.extra_dejson.get('mode', '').lower()
-        if mode == 'sysdba':
-            conn_config['mode'] = oracledb.AUTH_MODE_SYSDBA
-        elif mode == 'sysasm':
-            conn_config['mode'] = oracledb.AUTH_MODE_SYSASM
-        elif mode == 'sysoper':
-            conn_config['mode'] = oracledb.AUTH_MODE_SYSOPER
-        elif mode == 'sysbkp':
-            conn_config['mode'] = oracledb.AUTH_MODE_SYSBKP
-        elif mode == 'sysdgd':
-            conn_config['mode'] = oracledb.AUTH_MODE_SYSDGD
-        elif mode == 'syskmt':
-            conn_config['mode'] = oracledb.AUTH_MODE_SYSKMT
-        elif mode == 'sysrac':
-            conn_config['mode'] = oracledb.AUTH_MODE_SYSRAC
+        mode = conn.extra_dejson.get("mode", "").lower()
+        if mode == "sysdba":
+            conn_config["mode"] = oracledb.AUTH_MODE_SYSDBA
+        elif mode == "sysasm":
+            conn_config["mode"] = oracledb.AUTH_MODE_SYSASM
+        elif mode == "sysoper":
+            conn_config["mode"] = oracledb.AUTH_MODE_SYSOPER
+        elif mode == "sysbkp":
+            conn_config["mode"] = oracledb.AUTH_MODE_SYSBKP
+        elif mode == "sysdgd":
+            conn_config["mode"] = oracledb.AUTH_MODE_SYSDGD
+        elif mode == "syskmt":
+            conn_config["mode"] = oracledb.AUTH_MODE_SYSKMT
+        elif mode == "sysrac":
+            conn_config["mode"] = oracledb.AUTH_MODE_SYSRAC
 
-        purity = conn.extra_dejson.get('purity', '').lower()
-        if purity == 'new':
-            conn_config['purity'] = oracledb.PURITY_NEW
-        elif purity == 'self':
-            conn_config['purity'] = oracledb.PURITY_SELF
-        elif purity == 'default':
-            conn_config['purity'] = oracledb.PURITY_DEFAULT
+        purity = conn.extra_dejson.get("purity", "").lower()
+        if purity == "new":
+            conn_config["purity"] = oracledb.PURITY_NEW
+        elif purity == "self":
+            conn_config["purity"] = oracledb.PURITY_SELF
+        elif purity == "default":
+            conn_config["purity"] = oracledb.PURITY_DEFAULT
 
         conn = oracledb.connect(**conn_config)
         if mod is not None:
@@ -279,10 +279,10 @@ class OracleHook(DbApiHook):
         :param replace: Whether to replace instead of insert
         """
         if target_fields:
-            target_fields = ', '.join(target_fields)
-            target_fields = f'({target_fields})'
+            target_fields = ", ".join(target_fields)
+            target_fields = f"({target_fields})"
         else:
-            target_fields = ''
+            target_fields = ""
         conn = self.get_conn()
         if self.supports_autocommit:
             self.set_autocommit(conn, False)
@@ -295,14 +295,14 @@ class OracleHook(DbApiHook):
                 if isinstance(cell, str):
                     lst.append("'" + str(cell).replace("'", "''") + "'")
                 elif cell is None:
-                    lst.append('NULL')
+                    lst.append("NULL")
                 elif isinstance(cell, float) and math.isnan(cell):  # coerce numpy NaN to NULL
-                    lst.append('NULL')
+                    lst.append("NULL")
                 elif numpy and isinstance(cell, numpy.datetime64):
                     lst.append("'" + str(cell) + "'")
                 elif isinstance(cell, datetime):
                     lst.append(
-                        "to_date('" + cell.strftime('%Y-%m-%d %H:%M:%S') + "','YYYY-MM-DD HH24:MI:SS')"
+                        "to_date('" + cell.strftime("%Y-%m-%d %H:%M:%S") + "','YYYY-MM-DD HH24:MI:SS')"
                     )
                 else:
                     lst.append(str(cell))
@@ -311,11 +311,11 @@ class OracleHook(DbApiHook):
             cur.execute(sql)
             if i % commit_every == 0:
                 conn.commit()  # type: ignore[attr-defined]
-                self.log.info('Loaded %s into %s rows so far', i, table)
+                self.log.info("Loaded %s into %s rows so far", i, table)
         conn.commit()  # type: ignore[attr-defined]
         cur.close()
         conn.close()  # type: ignore[attr-defined]
-        self.log.info('Done loading. Loaded a total of %s rows', i)
+        self.log.info("Done loading. Loaded a total of %s rows", i)
 
     def bulk_insert_rows(
         self,
@@ -344,10 +344,10 @@ class OracleHook(DbApiHook):
             self.set_autocommit(conn, False)
         cursor = conn.cursor()  # type: ignore[attr-defined]
         values_base = target_fields if target_fields else rows[0]
-        prepared_stm = 'insert into {tablename} {columns} values ({values})'.format(
+        prepared_stm = "insert into {tablename} {columns} values ({values})".format(
             tablename=table,
-            columns='({})'.format(', '.join(target_fields)) if target_fields else '',
-            values=', '.join(':%s' % i for i in range(1, len(values_base) + 1)),
+            columns="({})".format(", ".join(target_fields)) if target_fields else "",
+            values=", ".join(":%s" % i for i in range(1, len(values_base) + 1)),
         )
         row_count = 0
         # Chunk the rows
@@ -359,14 +359,14 @@ class OracleHook(DbApiHook):
                 cursor.prepare(prepared_stm)
                 cursor.executemany(None, row_chunk)
                 conn.commit()  # type: ignore[attr-defined]
-                self.log.info('[%s] inserted %s rows', table, row_count)
+                self.log.info("[%s] inserted %s rows", table, row_count)
                 # Empty chunk
                 row_chunk = []
         # Commit the leftover chunk
         cursor.prepare(prepared_stm)
         cursor.executemany(None, row_chunk)
         conn.commit()  # type: ignore[attr-defined]
-        self.log.info('[%s] inserted %s rows', table, row_count)
+        self.log.info("[%s] inserted %s rows", table, row_count)
         cursor.close()
         conn.close()  # type: ignore[attr-defined]
 
@@ -429,11 +429,11 @@ class OracleHook(DbApiHook):
     # support for Airflow 2.2.
     def test_connection(self):
         """Tests the connection by executing a select 1 from dual query"""
-        status, message = False, ''
+        status, message = False, ""
         try:
             if self.get_first("select 1 from dual"):
                 status = True
-                message = 'Connection successfully tested'
+                message = "Connection successfully tested"
         except Exception as e:
             status = False
             message = str(e)

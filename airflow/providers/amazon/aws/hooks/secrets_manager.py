@@ -35,7 +35,7 @@ class SecretsManagerHook(AwsBaseHook):
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(client_type='secretsmanager', *args, **kwargs)
+        super().__init__(client_type="secretsmanager", *args, **kwargs)
 
     def get_secret(self, secret_name: str) -> str | bytes:
         """
@@ -49,10 +49,10 @@ class SecretsManagerHook(AwsBaseHook):
         # Depending on whether the secret is a string or binary, one of
         # these fields will be populated.
         get_secret_value_response = self.get_conn().get_secret_value(SecretId=secret_name)
-        if 'SecretString' in get_secret_value_response:
-            secret = get_secret_value_response['SecretString']
+        if "SecretString" in get_secret_value_response:
+            secret = get_secret_value_response["SecretString"]
         else:
-            secret = base64.b64decode(get_secret_value_response['SecretBinary'])
+            secret = base64.b64decode(get_secret_value_response["SecretBinary"])
         return secret
 
     def get_secret_as_dict(self, secret_name: str) -> dict:

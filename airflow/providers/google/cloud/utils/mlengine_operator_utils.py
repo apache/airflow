@@ -205,11 +205,11 @@ def create_evaluate_ops(
 
     if dag is not None and dag.default_args is not None:
         default_args = dag.default_args
-        project_id = project_id or default_args.get('project_id')
-        region = region or default_args['region']
-        model_name = model_name or default_args.get('model_name')
-        version_name = version_name or default_args.get('version_name')
-        dataflow_options = dataflow_options or default_args.get('dataflow_default_options')
+        project_id = project_id or default_args.get("project_id")
+        region = region or default_args["region"]
+        model_name = model_name or default_args.get("model_name")
+        version_name = version_name or default_args.get("version_name")
+        dataflow_options = dataflow_options or default_args.get("dataflow_default_options")
 
     evaluate_prediction = MLEngineStartBatchPredictionJobOperator(
         task_id=(task_prefix + "-prediction"),
@@ -228,15 +228,15 @@ def create_evaluate_ops(
     metric_fn_encoded = base64.b64encode(dill.dumps(metric_fn, recurse=True)).decode()
     evaluate_summary = BeamRunPythonPipelineOperator(
         task_id=(task_prefix + "-summary"),
-        py_file=os.path.join(os.path.dirname(__file__), 'mlengine_prediction_summary.py'),
+        py_file=os.path.join(os.path.dirname(__file__), "mlengine_prediction_summary.py"),
         default_pipeline_options=dataflow_options,
         pipeline_options={
             "prediction_path": prediction_path,
             "metric_fn_encoded": metric_fn_encoded,
-            "metric_keys": ','.join(metric_keys),
+            "metric_keys": ",".join(metric_keys),
         },
         py_interpreter=py_interpreter,
-        py_requirements=['apache-beam[gcp]>=2.14.0'],
+        py_requirements=["apache-beam[gcp]>=2.14.0"],
         dag=dag,
     )
     evaluate_summary.set_upstream(evaluate_prediction)

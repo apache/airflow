@@ -38,17 +38,17 @@ def _ensure_prefixes(conn_type):
         @wraps(func)
         def inner():
             field_behaviors = func()
-            conn_attrs = {'host', 'schema', 'login', 'password', 'port', 'extra'}
+            conn_attrs = {"host", "schema", "login", "password", "port", "extra"}
 
             def _ensure_prefix(field):
-                if field not in conn_attrs and not field.startswith('extra__'):
+                if field not in conn_attrs and not field.startswith("extra__"):
                     return f"extra__{conn_type}__{field}"
                 else:
                     return field
 
-            if 'placeholders' in field_behaviors:
-                placeholders = field_behaviors['placeholders']
-                field_behaviors['placeholders'] = {_ensure_prefix(k): v for k, v in placeholders.items()}
+            if "placeholders" in field_behaviors:
+                placeholders = field_behaviors["placeholders"]
+                field_behaviors["placeholders"] = {_ensure_prefix(k): v for k, v in placeholders.items()}
             return field_behaviors
 
         return inner
@@ -74,7 +74,7 @@ class AsanaHook(BaseHook):
     def _get_field(self, extras: dict, field_name: str):
         """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
         backcompat_prefix = "extra__asana__"
-        if field_name.startswith('extra__'):
+        if field_name.startswith("extra__"):
             raise ValueError(
                 f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
                 "when using this method."
@@ -100,7 +100,7 @@ class AsanaHook(BaseHook):
         }
 
     @staticmethod
-    @_ensure_prefixes(conn_type='asana')
+    @_ensure_prefixes(conn_type="asana")
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {

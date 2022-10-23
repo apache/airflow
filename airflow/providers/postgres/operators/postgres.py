@@ -41,29 +41,29 @@ class PostgresOperator(SQLExecuteQueryOperator):
     :param database: name of database which overwrite defined one in connection
     """
 
-    template_fields: Sequence[str] = ('sql',)
+    template_fields: Sequence[str] = ("sql",)
     # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
     template_fields_renderers = {
-        'sql': 'postgresql' if 'postgresql' in wwwutils.get_attr_renderer() else 'sql'
+        "sql": "postgresql" if "postgresql" in wwwutils.get_attr_renderer() else "sql"
     }
-    template_ext: Sequence[str] = ('.sql',)
-    ui_color = '#ededed'
+    template_ext: Sequence[str] = (".sql",)
+    ui_color = "#ededed"
 
     def __init__(
         self,
         *,
-        postgres_conn_id: str = 'postgres_default',
+        postgres_conn_id: str = "postgres_default",
         database: str | None = None,
         runtime_parameters: Mapping | None = None,
         **kwargs,
     ) -> None:
         if database is not None:
-            hook_params = kwargs.pop('hook_params', {})
-            kwargs['hook_params'] = {'schema': database, **hook_params}
+            hook_params = kwargs.pop("hook_params", {})
+            kwargs["hook_params"] = {"schema": database, **hook_params}
 
         if runtime_parameters:
-            sql = kwargs.pop('sql')
-            parameters = kwargs.pop('parameters', {})
+            sql = kwargs.pop("sql")
+            parameters = kwargs.pop("parameters", {})
 
             final_sql = []
             sql_param = {}
@@ -80,8 +80,8 @@ class PostgresOperator(SQLExecuteQueryOperator):
             else:
                 final_sql.extend(list(map(SQL, sql)))
 
-            kwargs['sql'] = final_sql
-            kwargs['parameters'] = sql_param
+            kwargs["sql"] = final_sql
+            kwargs["parameters"] = sql_param
 
         super().__init__(conn_id=postgres_conn_id, **kwargs)
         warnings.warn(

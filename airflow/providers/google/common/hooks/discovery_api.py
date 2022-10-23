@@ -105,7 +105,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         return api_response
 
     def _call_api_request(self, google_api_conn_client, endpoint, data, paginate, num_retries):
-        api_endpoint_parts = endpoint.split('.')
+        api_endpoint_parts = endpoint.split(".")
 
         google_api_endpoint_instance = self._build_api_request(
             google_api_conn_client, api_sub_functions=api_endpoint_parts[1:], api_endpoint_params=data
@@ -151,7 +151,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
                 google_api_conn_client = getattr(google_api_conn_client, sub_function)
                 google_api_conn_client = google_api_conn_client()
             else:
-                google_api_conn_client = getattr(google_api_conn_client, sub_function + '_next')
+                google_api_conn_client = getattr(google_api_conn_client, sub_function + "_next")
                 google_api_conn_client = google_api_conn_client(api_endpoint_instance, api_response)
 
         return google_api_conn_client

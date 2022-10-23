@@ -28,12 +28,12 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 class MsSqlHook(DbApiHook):
     """Interact with Microsoft SQL Server."""
 
-    conn_name_attr = 'mssql_conn_id'
-    default_conn_name = 'mssql_default'
-    conn_type = 'mssql'
-    hook_name = 'Microsoft SQL Server'
+    conn_name_attr = "mssql_conn_id"
+    default_conn_name = "mssql_default"
+    conn_type = "mssql"
+    hook_name = "Microsoft SQL Server"
     supports_autocommit = True
-    DEFAULT_SQLALCHEMY_SCHEME = 'mssql+pymssql'
+    DEFAULT_SQLALCHEMY_SCHEME = "mssql+pymssql"
 
     def __init__(
         self,
@@ -65,7 +65,7 @@ class MsSqlHook(DbApiHook):
         """Sqlalchemy scheme either from constructor, connection extras or default."""
         return (
             self._sqlalchemy_scheme
-            or self.connection_extra_lower.get('sqlalchemy_scheme')
+            or self.connection_extra_lower.get("sqlalchemy_scheme")
             or self.DEFAULT_SQLALCHEMY_SCHEME
         )
 
@@ -78,7 +78,7 @@ class MsSqlHook(DbApiHook):
         # remove query string 'sqlalchemy_scheme' like parameters:
         qs = parse_qs(r[3], keep_blank_values=True)
         for k in list(qs.keys()):
-            if k.lower() == 'sqlalchemy_scheme':
+            if k.lower() == "sqlalchemy_scheme":
                 qs.pop(k, None)
         r[3] = urlencode(qs, doseq=True)
         return urlunsplit(r)

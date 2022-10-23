@@ -24,7 +24,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
-WILDCARD = '*'
+WILDCARD = "*"
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -165,15 +165,15 @@ class GCSToGCSOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'source_bucket',
-        'source_object',
-        'source_objects',
-        'destination_bucket',
-        'destination_object',
-        'delimiter',
-        'impersonation_chain',
+        "source_bucket",
+        "source_object",
+        "source_objects",
+        "destination_bucket",
+        "destination_object",
+        "delimiter",
+        "impersonation_chain",
     )
-    ui_color = '#f0eee4'
+    ui_color = "#f0eee4"
 
     def __init__(
         self,
@@ -186,7 +186,7 @@ class GCSToGCSOperator(BaseOperator):
         delimiter=None,
         move_object=False,
         replace=True,
-        gcp_conn_id='google_cloud_default',
+        gcp_conn_id="google_cloud_default",
         delegate_to=None,
         last_modified_time=None,
         maximum_modified_time=None,
@@ -234,7 +234,7 @@ class GCSToGCSOperator(BaseOperator):
             raise AirflowException(error_msg)
 
         if self.source_objects and not all(isinstance(item, str) for item in self.source_objects):
-            raise AirflowException('At least, one of the `objects` in the `source_objects` is not a string')
+            raise AirflowException("At least, one of the `objects` in the `source_objects` is not a string")
 
         # If source_object is set, default it to source_objects
         if self.source_object:
@@ -242,15 +242,15 @@ class GCSToGCSOperator(BaseOperator):
 
         if self.destination_bucket is None:
             self.log.warning(
-                'destination_bucket is None. Defaulting it to source_bucket (%s)', self.source_bucket
+                "destination_bucket is None. Defaulting it to source_bucket (%s)", self.source_bucket
             )
             self.destination_bucket = self.source_bucket
 
         # An empty source_object means to copy all files
         if len(self.source_objects) == 0:
-            self.source_objects = ['']
+            self.source_objects = [""]
         # Raise exception if empty string `''` is used twice in source_object, this is to avoid double copy
-        if self.source_objects.count('') > 1:
+        if self.source_objects.count("") > 1:
             raise AirflowException("You can't have two empty strings inside source_object")
 
         # Iterate over the source_objects and do the copy
@@ -266,8 +266,8 @@ class GCSToGCSOperator(BaseOperator):
         # list all files in the Destination GCS bucket
         # and only keep those files which are present in
         # Source GCS bucket and not in Destination GCS bucket
-        delimiter = kwargs.get('delimiter')
-        objects = kwargs.get('objects')
+        delimiter = kwargs.get("delimiter")
+        objects = kwargs.get("objects")
         if self.destination_object is None:
             existing_objects = hook.list(self.destination_bucket, prefix=prefix, delimiter=delimiter)
         else:
@@ -283,9 +283,9 @@ class GCSToGCSOperator(BaseOperator):
 
         objects = set(objects) - set(existing_objects)
         if len(objects) > 0:
-            self.log.info('%s files are going to be synced: %s.', len(objects), objects)
+            self.log.info("%s files are going to be synced: %s.", len(objects), objects)
         else:
-            self.log.info('There are no new files to sync. Have a nice day!')
+            self.log.info("There are no new files to sync. Have a nice day!")
         return objects
 
     def _copy_source_without_wildcard(self, hook, prefix):
@@ -366,7 +366,7 @@ class GCSToGCSOperator(BaseOperator):
             )
 
             raise AirflowException(error_msg)
-        self.log.info('Delimiter ignored because wildcard is in prefix')
+        self.log.info("Delimiter ignored because wildcard is in prefix")
         prefix_, delimiter = prefix.split(WILDCARD, 1)
         objects = hook.list(self.source_bucket, prefix=prefix_, delimiter=delimiter)
         if not self.replace:
@@ -429,7 +429,7 @@ class GCSToGCSOperator(BaseOperator):
                 return
 
         self.log.info(
-            'Executing copy of gs://%s/%s to gs://%s/%s',
+            "Executing copy of gs://%s/%s to gs://%s/%s",
             self.source_bucket,
             source_object,
             self.destination_bucket,

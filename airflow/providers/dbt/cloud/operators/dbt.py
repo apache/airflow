@@ -265,7 +265,7 @@ class DbtCloudListJobsOperator(BaseOperator):
         )
         buffer = []
         for job_metadata in list_jobs_response:
-            for job in job_metadata.json()['data']:
+            for job in job_metadata.json()["data"]:
                 buffer.append(job["id"])
         self.log.info("Jobs in the specified dbt Cloud account are: %s", ", ".join(map(str, buffer)))
         return buffer

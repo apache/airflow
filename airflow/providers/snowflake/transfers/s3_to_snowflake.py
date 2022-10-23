@@ -81,7 +81,7 @@ class S3ToSnowflakeOperator(BaseOperator):
         warehouse: str | None = None,
         database: str | None = None,
         autocommit: bool = True,
-        snowflake_conn_id: str = 'snowflake_default',
+        snowflake_conn_id: str = "snowflake_default",
         role: str | None = None,
         authenticator: str | None = None,
         session_parameters: dict | None = None,
@@ -143,6 +143,6 @@ class S3ToSnowflakeOperator(BaseOperator):
             sql_parts.append(f"pattern={enclose_param(self.pattern)}")
         copy_query = "\n".join(sql_parts)
 
-        self.log.info('Executing COPY command...')
+        self.log.info("Executing COPY command...")
         snowflake_hook.run(copy_query, self.autocommit)
         self.log.info("COPY command completed")

@@ -52,17 +52,17 @@ def _ensure_prefixes(conn_type):
         @wraps(func)
         def inner():
             field_behaviors = func()
-            conn_attrs = {'host', 'schema', 'login', 'password', 'port', 'extra'}
+            conn_attrs = {"host", "schema", "login", "password", "port", "extra"}
 
             def _ensure_prefix(field):
-                if field not in conn_attrs and not field.startswith('extra__'):
+                if field not in conn_attrs and not field.startswith("extra__"):
                     return f"extra__{conn_type}__{field}"
                 else:
                     return field
 
-            if 'placeholders' in field_behaviors:
-                placeholders = field_behaviors['placeholders']
-                field_behaviors['placeholders'] = {_ensure_prefix(k): v for k, v in placeholders.items()}
+            if "placeholders" in field_behaviors:
+                placeholders = field_behaviors["placeholders"]
+                field_behaviors["placeholders"] = {_ensure_prefix(k): v for k, v in placeholders.items()}
             return field_behaviors
 
         return inner
@@ -107,10 +107,10 @@ class SnowflakeHook(DbApiHook):
         :ref:`howto/operator:SnowflakeOperator`
     """
 
-    conn_name_attr = 'snowflake_conn_id'
-    default_conn_name = 'snowflake_default'
-    conn_type = 'snowflake'
-    hook_name = 'Snowflake'
+    conn_name_attr = "snowflake_conn_id"
+    default_conn_name = "snowflake_default"
+    conn_type = "snowflake"
+    hook_name = "Snowflake"
     supports_autocommit = True
 
     @staticmethod
@@ -121,31 +121,31 @@ class SnowflakeHook(DbApiHook):
         from wtforms import BooleanField, StringField
 
         return {
-            "account": StringField(lazy_gettext('Account'), widget=BS3TextFieldWidget()),
-            "warehouse": StringField(lazy_gettext('Warehouse'), widget=BS3TextFieldWidget()),
-            "database": StringField(lazy_gettext('Database'), widget=BS3TextFieldWidget()),
-            "region": StringField(lazy_gettext('Region'), widget=BS3TextFieldWidget()),
-            "role": StringField(lazy_gettext('Role'), widget=BS3TextFieldWidget()),
-            "private_key_file": StringField(lazy_gettext('Private key (Path)'), widget=BS3TextFieldWidget()),
+            "account": StringField(lazy_gettext("Account"), widget=BS3TextFieldWidget()),
+            "warehouse": StringField(lazy_gettext("Warehouse"), widget=BS3TextFieldWidget()),
+            "database": StringField(lazy_gettext("Database"), widget=BS3TextFieldWidget()),
+            "region": StringField(lazy_gettext("Region"), widget=BS3TextFieldWidget()),
+            "role": StringField(lazy_gettext("Role"), widget=BS3TextFieldWidget()),
+            "private_key_file": StringField(lazy_gettext("Private key (Path)"), widget=BS3TextFieldWidget()),
             "private_key_content": StringField(
-                lazy_gettext('Private key (Text)'), widget=BS3TextAreaFieldWidget()
+                lazy_gettext("Private key (Text)"), widget=BS3TextAreaFieldWidget()
             ),
             "insecure_mode": BooleanField(
-                label=lazy_gettext('Insecure mode'), description="Turns off OCSP certificate checks"
+                label=lazy_gettext("Insecure mode"), description="Turns off OCSP certificate checks"
             ),
         }
 
     @staticmethod
-    @_ensure_prefixes(conn_type='snowflake')
+    @_ensure_prefixes(conn_type="snowflake")
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         import json
 
         return {
-            "hidden_fields": ['port'],
+            "hidden_fields": ["port"],
             "relabeling": {},
             "placeholders": {
-                'extra': json.dumps(
+                "extra": json.dumps(
                     {
                         "authenticator": "snowflake oauth",
                         "private_key_file": "private key",
@@ -153,17 +153,17 @@ class SnowflakeHook(DbApiHook):
                     },
                     indent=1,
                 ),
-                'schema': 'snowflake schema',
-                'login': 'snowflake username',
-                'password': 'snowflake password',
-                'account': 'snowflake account name',
-                'warehouse': 'snowflake warehouse name',
-                'database': 'snowflake db name',
-                'region': 'snowflake hosted region',
-                'role': 'snowflake role',
-                'private_key_file': 'Path of snowflake private key (PEM Format)',
-                'private_key_content': 'Content to snowflake private key (PEM format)',
-                'insecure_mode': 'insecure mode',
+                "schema": "snowflake schema",
+                "login": "snowflake username",
+                "password": "snowflake password",
+                "account": "snowflake account name",
+                "warehouse": "snowflake warehouse name",
+                "database": "snowflake db name",
+                "region": "snowflake hosted region",
+                "role": "snowflake role",
+                "private_key_file": "Path of snowflake private key (PEM Format)",
+                "private_key_content": "Content to snowflake private key (PEM format)",
+                "insecure_mode": "insecure mode",
             },
         }
 
@@ -180,9 +180,9 @@ class SnowflakeHook(DbApiHook):
         self.query_ids: list[str] = []
 
     def _get_field(self, extra_dict, field_name):
-        backcompat_prefix = 'extra__snowflake__'
+        backcompat_prefix = "extra__snowflake__"
         backcompat_key = f"{backcompat_prefix}{field_name}"
-        if field_name.startswith('extra__'):
+        if field_name.startswith("extra__"):
             raise ValueError(
                 f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
                 f"when using this method."
@@ -206,21 +206,21 @@ class SnowflakeHook(DbApiHook):
         """
         conn = self.get_connection(self.snowflake_conn_id)  # type: ignore[attr-defined]
         extra_dict = conn.extra_dejson
-        account = self._get_field(extra_dict, 'account') or ''
-        warehouse = self._get_field(extra_dict, 'warehouse') or ''
-        database = self._get_field(extra_dict, 'database') or ''
-        region = self._get_field(extra_dict, 'region') or ''
-        role = self._get_field(extra_dict, 'role') or ''
-        insecure_mode = _try_to_boolean(self._get_field(extra_dict, 'insecure_mode'))
-        schema = conn.schema or ''
+        account = self._get_field(extra_dict, "account") or ""
+        warehouse = self._get_field(extra_dict, "warehouse") or ""
+        database = self._get_field(extra_dict, "database") or ""
+        region = self._get_field(extra_dict, "region") or ""
+        role = self._get_field(extra_dict, "role") or ""
+        insecure_mode = _try_to_boolean(self._get_field(extra_dict, "insecure_mode"))
+        schema = conn.schema or ""
 
         # authenticator and session_parameters never supported long name so we don't use _get_field
-        authenticator = extra_dict.get('authenticator', 'snowflake')
-        session_parameters = extra_dict.get('session_parameters')
+        authenticator = extra_dict.get("authenticator", "snowflake")
+        session_parameters = extra_dict.get("session_parameters")
 
         conn_config = {
             "user": conn.login,
-            "password": conn.password or '',
+            "password": conn.password or "",
             "schema": self.schema or schema,
             "database": self.database or database,
             "account": self.account or account,
@@ -233,7 +233,7 @@ class SnowflakeHook(DbApiHook):
             "application": os.environ.get("AIRFLOW_SNOWFLAKE_PARTNER", "AIRFLOW"),
         }
         if insecure_mode:
-            conn_config['insecure_mode'] = insecure_mode
+            conn_config["insecure_mode"] = insecure_mode
 
         # If private_key_file is specified in the extra json, load the contents of the file as a private key.
         # If private_key_content is specified in the extra json, use it as a private key.
@@ -241,8 +241,8 @@ class SnowflakeHook(DbApiHook):
         # The connection password then becomes the passphrase for the private key.
         # If your private key is not encrypted (not recommended), then leave the password empty.
 
-        private_key_file = self._get_field(extra_dict, 'private_key_file')
-        private_key_content = self._get_field(extra_dict, 'private_key_content')
+        private_key_file = self._get_field(extra_dict, "private_key_file")
+        private_key_content = self._get_field(extra_dict, "private_key_content")
 
         private_key_pem = None
         if private_key_content and private_key_file:
@@ -270,8 +270,8 @@ class SnowflakeHook(DbApiHook):
                 encryption_algorithm=serialization.NoEncryption(),
             )
 
-            conn_config['private_key'] = pkb
-            conn_config.pop('password', None)
+            conn_config["private_key"] = pkb
+            conn_config.pop("password", None)
 
         return conn_config
 
@@ -285,7 +285,7 @@ class SnowflakeHook(DbApiHook):
             **{
                 k: v
                 for k, v in conn_params.items()
-                if v and k not in ['session_parameters', 'insecure_mode', 'private_key']
+                if v and k not in ["session_parameters", "insecure_mode", "private_key"]
             }
         )
 
@@ -304,13 +304,13 @@ class SnowflakeHook(DbApiHook):
         """
         engine_kwargs = engine_kwargs or {}
         conn_params = self._get_conn_params()
-        if 'insecure_mode' in conn_params:
-            engine_kwargs.setdefault('connect_args', dict())
-            engine_kwargs['connect_args']['insecure_mode'] = True
-        for key in ['session_parameters', 'private_key']:
+        if "insecure_mode" in conn_params:
+            engine_kwargs.setdefault("connect_args", dict())
+            engine_kwargs["connect_args"]["insecure_mode"] = True
+        for key in ["session_parameters", "private_key"]:
             if conn_params.get(key):
-                engine_kwargs.setdefault('connect_args', dict())
-                engine_kwargs['connect_args'][key] = conn_params[key]
+                engine_kwargs.setdefault("connect_args", dict())
+                engine_kwargs["connect_args"][key] = conn_params[key]
         return create_engine(self._conn_params_to_sqlalchemy_uri(conn_params), **engine_kwargs)
 
     def set_autocommit(self, conn, autocommit: Any) -> None:
@@ -318,7 +318,7 @@ class SnowflakeHook(DbApiHook):
         conn.autocommit_mode = autocommit
 
     def get_autocommit(self, conn):
-        return getattr(conn, 'autocommit_mode', False)
+        return getattr(conn, "autocommit_mode", False)
 
     def run(
         self,

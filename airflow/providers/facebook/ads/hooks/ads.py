@@ -35,11 +35,11 @@ from airflow.hooks.base import BaseHook
 class JobStatus(Enum):
     """Available options for facebook async task status"""
 
-    COMPLETED = 'Job Completed'
-    STARTED = 'Job Started'
-    RUNNING = 'Job Running'
-    FAILED = 'Job Failed'
-    SKIPPED = 'Job Skipped'
+    COMPLETED = "Job Completed"
+    STARTED = "Job Started"
+    RUNNING = "Job Running"
+    FAILED = "Job Failed"
+    SKIPPED = "Job Skipped"
 
 
 class FacebookAdsReportingHook(BaseHook):
@@ -56,10 +56,10 @@ class FacebookAdsReportingHook(BaseHook):
 
     """
 
-    conn_name_attr = 'facebook_conn_id'
-    default_conn_name = 'facebook_default'
-    conn_type = 'facebook_social'
-    hook_name = 'Facebook Ads'
+    conn_name_attr = "facebook_conn_id"
+    default_conn_name = "facebook_default"
+    conn_type = "facebook_social"
+    hook_name = "Facebook Ads"
 
     def __init__(
         self,

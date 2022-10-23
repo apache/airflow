@@ -89,7 +89,7 @@ class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
 
     def prepare_template(self) -> None:
         # If .json is passed then we have to read the file
-        if isinstance(self.body, str) and self.body.endswith('.json'):
+        if isinstance(self.body, str) and self.body.endswith(".json"):
             with open(self.body) as file:
                 self.body = json.load(file)
 

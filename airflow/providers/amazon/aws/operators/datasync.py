@@ -294,7 +294,7 @@ class DataSyncOperator(BaseOperator):
 
         self.source_location_arn = self.choose_location(self.candidate_source_location_arns)
         if not self.source_location_arn and self.source_location_uri and self.create_source_location_kwargs:
-            self.log.info('Attempting to create source Location')
+            self.log.info("Attempting to create source Location")
             self.source_location_arn = hook.create_location(
                 self.source_location_uri, **self.create_source_location_kwargs
             )
@@ -309,7 +309,7 @@ class DataSyncOperator(BaseOperator):
             and self.destination_location_uri
             and self.create_destination_location_kwargs
         ):
-            self.log.info('Attempting to create destination Location')
+            self.log.info("Attempting to create destination Location")
             self.destination_location_arn = hook.create_location(
                 self.destination_location_uri, **self.create_destination_location_kwargs
             )
@@ -356,7 +356,7 @@ class DataSyncOperator(BaseOperator):
         try:
             result = hook.wait_for_task_execution(self.task_execution_arn, max_iterations=self.max_iterations)
         except (AirflowTaskTimeout, AirflowException) as e:
-            self.log.error('Cancelling TaskExecution after Exception: %s', e)
+            self.log.error("Cancelling TaskExecution after Exception: %s", e)
             self._cancel_datasync_task_execution()
             raise
         self.log.info("Completed TaskExecutionArn %s", self.task_execution_arn)
@@ -366,11 +366,11 @@ class DataSyncOperator(BaseOperator):
 
         # Log some meaningful statuses
         level = logging.ERROR if not result else logging.INFO
-        self.log.log(level, 'Status=%s', task_execution_description['Status'])
-        if 'Result' in task_execution_description:
-            for k, v in task_execution_description['Result'].items():
-                if 'Status' in k or 'Error' in k:
-                    self.log.log(level, '%s=%s', k, v)
+        self.log.log(level, "Status=%s", task_execution_description["Status"])
+        if "Result" in task_execution_description:
+            for k, v in task_execution_description["Result"].items():
+                if "Status" in k or "Error" in k:
+                    self.log.log(level, "%s=%s", k, v)
 
         if not result:
             raise AirflowException(f"Failed TaskExecutionArn {self.task_execution_arn}")
@@ -384,7 +384,7 @@ class DataSyncOperator(BaseOperator):
             self.log.info("Cancelled TaskExecutionArn %s", self.task_execution_arn)
 
     def on_kill(self):
-        self.log.error('Cancelling TaskExecution after task was killed')
+        self.log.error("Cancelling TaskExecution after task was killed")
         self._cancel_datasync_task_execution()
 
     def _delete_datasync_task(self) -> None:

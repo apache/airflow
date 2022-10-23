@@ -99,7 +99,7 @@ class LifeSciencesHook(GoogleBaseHook):
         response = request.execute(num_retries=self.num_retries)
 
         # wait
-        operation_name = response['name']
+        operation_name = response["name"]
         self._wait_for_operation_to_complete(operation_name)
 
         return response
@@ -115,7 +115,7 @@ class LifeSciencesHook(GoogleBaseHook):
         :param location: The location of the project. For example: "us-east1".
         """
         return google.api_core.path_template.expand(
-            'projects/{project}/locations/{location}',
+            "projects/{project}/locations/{location}",
             project=project_id,
             location=location,
         )
@@ -139,7 +139,7 @@ class LifeSciencesHook(GoogleBaseHook):
                 .get(name=operation_name)
                 .execute(num_retries=self.num_retries)
             )
-            self.log.info('Waiting for pipeline operation to complete')
+            self.log.info("Waiting for pipeline operation to complete")
             if operation_response.get("done"):
                 response = operation_response.get("response")
                 error = operation_response.get("error")

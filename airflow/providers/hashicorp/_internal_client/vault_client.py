@@ -24,22 +24,22 @@ from requests import Response
 from airflow.compat.functools import cached_property
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-DEFAULT_KUBERNETES_JWT_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/token'
+DEFAULT_KUBERNETES_JWT_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 DEFAULT_KV_ENGINE_VERSION = 2
 
 
 VALID_KV_VERSIONS: list[int] = [1, 2]
 VALID_AUTH_TYPES: list[str] = [
-    'approle',
-    'aws_iam',
-    'azure',
-    'github',
-    'gcp',
-    'kubernetes',
-    'ldap',
-    'radius',
-    'token',
-    'userpass',
+    "approle",
+    "aws_iam",
+    "azure",
+    "github",
+    "gcp",
+    "kubernetes",
+    "ldap",
+    "radius",
+    "token",
+    "userpass",
 ]
 
 
@@ -87,7 +87,7 @@ class _VaultClient(LoggingMixin):
     def __init__(
         self,
         url: str | None = None,
-        auth_type: str = 'token',
+        auth_type: str = "token",
         auth_mount_point: str | None = None,
         mount_point: str = "secret",
         kv_engine_version: int | None = None,
@@ -99,7 +99,7 @@ class _VaultClient(LoggingMixin):
         secret_id: str | None = None,
         role_id: str | None = None,
         kubernetes_role: str | None = None,
-        kubernetes_jwt_path: str | None = '/var/run/secrets/kubernetes.io/serviceaccount/token',
+        kubernetes_jwt_path: str | None = "/var/run/secrets/kubernetes.io/serviceaccount/token",
         gcp_key_path: str | None = None,
         gcp_keyfile_dict: dict | None = None,
         gcp_scopes: str | None = None,
@@ -180,7 +180,7 @@ class _VaultClient(LoggingMixin):
         if not self._client.is_authenticated():
             # Invalidate the cache:
             # https://github.com/pydanny/cached-property#invalidating-the-cache
-            self.__dict__.pop('_client', None)
+            self.__dict__.pop("_client", None)
         return self._client
 
     @cached_property
@@ -195,9 +195,9 @@ class _VaultClient(LoggingMixin):
         _client = hvac.Client(url=self.url, **self.kwargs)
         if self.auth_type == "approle":
             self._auth_approle(_client)
-        elif self.auth_type == 'aws_iam':
+        elif self.auth_type == "aws_iam":
             self._auth_aws_iam(_client)
-        elif self.auth_type == 'azure':
+        elif self.auth_type == "azure":
             self._auth_azure(_client)
         elif self.auth_type == "gcp":
             self._auth_gcp(_client)

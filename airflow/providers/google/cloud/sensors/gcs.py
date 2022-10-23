@@ -54,18 +54,18 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = (
-        'bucket',
-        'object',
-        'impersonation_chain',
+        "bucket",
+        "object",
+        "impersonation_chain",
     )
-    ui_color = '#f0eee4'
+    ui_color = "#f0eee4"
 
     def __init__(
         self,
         *,
         bucket: str,
         object: str,
-        google_cloud_conn_id: str = 'google_cloud_default',
+        google_cloud_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -79,7 +79,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
 
     def poke(self, context: Context) -> bool:
-        self.log.info('Sensor checks existence of : %s, %s', self.bucket, self.object)
+        self.log.info("Sensor checks existence of : %s, %s", self.bucket, self.object)
         hook = GCSHook(
             gcp_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to,
@@ -127,18 +127,18 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = (
-        'bucket',
-        'object',
-        'impersonation_chain',
+        "bucket",
+        "object",
+        "impersonation_chain",
     )
-    ui_color = '#f0eee4'
+    ui_color = "#f0eee4"
 
     def __init__(
         self,
         bucket: str,
         object: str,
         ts_func: Callable = ts_function,
-        google_cloud_conn_id: str = 'google_cloud_default',
+        google_cloud_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -153,7 +153,7 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
 
     def poke(self, context: Context) -> bool:
-        self.log.info('Sensor checks existence of : %s, %s', self.bucket, self.object)
+        self.log.info("Sensor checks existence of : %s, %s", self.bucket, self.object)
         hook = GCSHook(
             gcp_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to,
@@ -189,17 +189,17 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = (
-        'bucket',
-        'prefix',
-        'impersonation_chain',
+        "bucket",
+        "prefix",
+        "impersonation_chain",
     )
-    ui_color = '#f0eee4'
+    ui_color = "#f0eee4"
 
     def __init__(
         self,
         bucket: str,
         prefix: str,
-        google_cloud_conn_id: str = 'google_cloud_default',
+        google_cloud_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -213,7 +213,7 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
 
     def poke(self, context: Context) -> bool:
-        self.log.info('Sensor checks existence of objects: %s, %s', self.bucket, self.prefix)
+        self.log.info("Sensor checks existence of objects: %s, %s", self.bucket, self.prefix)
         hook = GCSHook(
             gcp_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to,
@@ -275,11 +275,11 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = (
-        'bucket',
-        'prefix',
-        'impersonation_chain',
+        "bucket",
+        "prefix",
+        "impersonation_chain",
     )
-    ui_color = '#f0eee4'
+    ui_color = "#f0eee4"
 
     def __init__(
         self,
@@ -289,7 +289,7 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
         min_objects: int = 1,
         previous_objects: set[str] | None = None,
         allow_delete: bool = True,
-        google_cloud_conn_id: str = 'google_cloud_default',
+        google_cloud_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,

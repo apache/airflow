@@ -51,7 +51,7 @@ class DataSyncHook(AwsBaseHook):
     TASK_EXECUTION_SUCCESS_STATES = ("SUCCESS",)
 
     def __init__(self, wait_interval_seconds: int = 30, *args, **kwargs) -> None:
-        super().__init__(client_type='datasync', *args, **kwargs)  # type: ignore[misc]
+        super().__init__(client_type="datasync", *args, **kwargs)  # type: ignore[misc]
         self.locations: list = []
         self.tasks: list = []
         # wait_interval_seconds = 0 is used during unit tests

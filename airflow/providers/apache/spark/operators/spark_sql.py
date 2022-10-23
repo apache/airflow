@@ -52,23 +52,23 @@ class SparkSqlOperator(BaseOperator):
         (Default: The ``queue`` value set in the Connection, or ``"default"``)
     """
 
-    template_fields: Sequence[str] = ('_sql',)
+    template_fields: Sequence[str] = ("_sql",)
     template_ext: Sequence[str] = (".sql", ".hql")
-    template_fields_renderers = {'_sql': 'sql'}
+    template_fields_renderers = {"_sql": "sql"}
 
     def __init__(
         self,
         *,
         sql: str,
         conf: str | None = None,
-        conn_id: str = 'spark_sql_default',
+        conn_id: str = "spark_sql_default",
         total_executor_cores: int | None = None,
         executor_cores: int | None = None,
         executor_memory: str | None = None,
         keytab: str | None = None,
         principal: str | None = None,
         master: str | None = None,
-        name: str = 'default-name',
+        name: str = "default-name",
         num_executors: int | None = None,
         verbose: bool = True,
         yarn_queue: str | None = None,

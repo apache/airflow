@@ -61,8 +61,8 @@ class SqlToSlackOperator(BaseOperator):
     :param parameters: The parameters to pass to the SQL query
     """
 
-    template_fields: Sequence[str] = ('sql', 'slack_message')
-    template_ext: Sequence[str] = ('.sql', '.jinja', '.j2')
+    template_fields: Sequence[str] = ("sql", "slack_message")
+    template_ext: Sequence[str] = (".sql", ".jinja", ".j2")
     template_fields_renderers = {"sql": "sql", "slack_message": "jinja"}
     times_rendered = 0
 
@@ -76,7 +76,7 @@ class SqlToSlackOperator(BaseOperator):
         slack_webhook_token: str | None = None,
         slack_channel: str | None = None,
         slack_message: str,
-        results_df_name: str = 'results_df',
+        results_df_name: str = "results_df",
         parameters: Iterable | Mapping | None = None,
         **kwargs,
     ) -> None:
@@ -102,14 +102,14 @@ class SqlToSlackOperator(BaseOperator):
     def _get_hook(self) -> DbApiHook:
         self.log.debug("Get connection for %s", self.sql_conn_id)
         conn = BaseHook.get_connection(self.sql_conn_id)
-        if Version(version) >= Version('2.3'):
+        if Version(version) >= Version("2.3"):
             # "hook_params" were introduced to into "get_hook()" only in Airflow 2.3.
             hook = conn.get_hook(hook_params=self.sql_hook_params)  # ignore airflow compat check
         else:
             # For supporting Airflow versions < 2.3, we backport "get_hook()" method. This should be removed
             # when "apache-airflow-providers-slack" will depend on Airflow >= 2.3.
             hook = _backported_get_hook(conn, hook_params=self.sql_hook_params)
-        if not callable(getattr(hook, 'get_pandas_df', None)):
+        if not callable(getattr(hook, "get_pandas_df", None)):
             raise AirflowException(
                 "This hook is not supported. The hook class must have get_pandas_df method."
             )
@@ -118,7 +118,7 @@ class SqlToSlackOperator(BaseOperator):
     def _get_query_results(self) -> DataFrame:
         sql_hook = self._get_hook()
 
-        self.log.info('Running SQL query: %s', self.sql)
+        self.log.info("Running SQL query: %s", self.sql)
         df = sql_hook.get_pandas_df(self.sql, parameters=self.parameters)
         return df
 
@@ -128,7 +128,7 @@ class SqlToSlackOperator(BaseOperator):
         self.render_template_fields(context)
 
         slack_hook = self._get_slack_hook()
-        self.log.info('Sending slack message: %s', self.slack_message)
+        self.log.info("Sending slack message: %s", self.slack_message)
         slack_hook.send(text=self.slack_message, channel=self.slack_channel)
 
     def _get_slack_hook(self) -> SlackWebhookHook:
@@ -140,7 +140,7 @@ class SqlToSlackOperator(BaseOperator):
         # If this is the first render of the template fields, exclude slack_message from rendering since
         # the SQL results haven't been retrieved yet.
         if self.times_rendered == 0:
-            fields_to_render: Iterable[str] = filter(lambda x: x != 'slack_message', self.template_fields)
+            fields_to_render: Iterable[str] = filter(lambda x: x != "slack_message", self.template_fields)
         else:
             fields_to_render = self.template_fields
 
@@ -148,7 +148,7 @@ class SqlToSlackOperator(BaseOperator):
             jinja_env = self.get_template_env()
 
         # Add the tabulate library into the JINJA environment
-        jinja_env.filters['tabulate'] = tabulate
+        jinja_env.filters["tabulate"] = tabulate
 
         self._do_render_template_fields(self, fields_to_render, context, jinja_env, set())
         self.times_rendered += 1
@@ -164,4 +164,4 @@ class SqlToSlackOperator(BaseOperator):
         df = self._get_query_results()
         self._render_and_send_slack_message(context, df)
 
-        self.log.debug('Finished sending SQL data to Slack')
+        self.log.debug("Finished sending SQL data to Slack")

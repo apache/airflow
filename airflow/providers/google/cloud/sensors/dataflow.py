@@ -63,7 +63,7 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = ('job_id',)
+    template_fields: Sequence[str] = ("job_id",)
 
     def __init__(
         self,
@@ -72,7 +72,7 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         expected_statuses: set[str] | str,
         project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -150,7 +150,7 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = ('job_id',)
+    template_fields: Sequence[str] = ("job_id",)
 
     def __init__(
         self,
@@ -160,7 +160,7 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
         fail_on_terminal_state: bool = True,
         project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -235,7 +235,7 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = ('job_id',)
+    template_fields: Sequence[str] = ("job_id",)
 
     def __init__(
         self,
@@ -245,7 +245,7 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         fail_on_terminal_state: bool = True,
         project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -320,7 +320,7 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = ('job_id',)
+    template_fields: Sequence[str] = ("job_id",)
 
     def __init__(
         self,
@@ -330,7 +330,7 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         fail_on_terminal_state: bool = True,
         project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,

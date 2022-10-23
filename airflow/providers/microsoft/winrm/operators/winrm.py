@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 # requests.packages.urllib3.exceptions.HeaderParsingError: [StartBoundaryNotFoundDefect(),
 #   MultipartInvariantViolationDefect()], unparsed data: ''
 
-logging.getLogger('urllib3.connectionpool').setLevel(logging.ERROR)
+logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
 
 
 class WinRMOperator(BaseOperator):
@@ -52,7 +52,7 @@ class WinRMOperator(BaseOperator):
     :param timeout: timeout for executing the command.
     """
 
-    template_fields: Sequence[str] = ('command',)
+    template_fields: Sequence[str] = ("command",)
     template_fields_renderers = {"command": "powershell"}
 
     def __init__(
@@ -63,7 +63,7 @@ class WinRMOperator(BaseOperator):
         remote_host: str | None = None,
         command: str | None = None,
         ps_path: str | None = None,
-        output_encoding: str = 'utf-8',
+        output_encoding: str = "utf-8",
         timeout: int = 10,
         **kwargs,
     ) -> None:
@@ -95,9 +95,9 @@ class WinRMOperator(BaseOperator):
         try:
             if self.ps_path is not None:
                 self.log.info("Running command as powershell script: '%s'...", self.command)
-                encoded_ps = b64encode(self.command.encode('utf_16_le')).decode('ascii')
+                encoded_ps = b64encode(self.command.encode("utf_16_le")).decode("ascii")
                 command_id = self.winrm_hook.winrm_protocol.run_command(  # type: ignore[attr-defined]
-                    winrm_client, f'{self.ps_path} -encodedcommand {encoded_ps}'
+                    winrm_client, f"{self.ps_path} -encodedcommand {encoded_ps}"
                 )
             else:
                 self.log.info("Running command: '%s'...", self.command)
@@ -145,13 +145,13 @@ class WinRMOperator(BaseOperator):
 
         if return_code == 0:
             # returning output if do_xcom_push is set
-            enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
+            enable_pickling = conf.getboolean("core", "enable_xcom_pickling")
             if enable_pickling:
                 return stdout_buffer
             else:
-                return b64encode(b''.join(stdout_buffer)).decode(self.output_encoding)
+                return b64encode(b"".join(stdout_buffer)).decode(self.output_encoding)
         else:
-            stderr_output = b''.join(stderr_buffer).decode(self.output_encoding)
+            stderr_output = b"".join(stderr_buffer).decode(self.output_encoding)
             error_msg = (
                 f"Error running cmd: {self.command}, return code: {return_code}, error: {stderr_output}"
             )

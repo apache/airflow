@@ -28,7 +28,7 @@ class DruidCheckOperator(SQLCheckOperator):
     Please use `airflow.providers.common.sql.operators.sql.SQLCheckOperator`.
     """
 
-    def __init__(self, druid_broker_conn_id: str = 'druid_broker_default', **kwargs):
+    def __init__(self, druid_broker_conn_id: str = "druid_broker_default", **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.common.sql.operators.sql.SQLCheckOperator`.""",

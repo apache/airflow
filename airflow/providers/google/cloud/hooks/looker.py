@@ -43,7 +43,7 @@ class LookerHook(BaseHook):
         super().__init__()
         self.looker_conn_id = looker_conn_id
         # source is used to track origin of the requests
-        self.source = f'airflow:{version}'
+        self.source = f"airflow:{version}"
 
     def start_pdt_build(
         self,
@@ -64,7 +64,7 @@ class LookerHook(BaseHook):
         sdk = self.get_looker_sdk()
         looker_ver = sdk.versions().looker_release_version
         if parse_version(looker_ver) < parse_version("22.2.0"):
-            raise AirflowException(f'This API requires Looker version 22.2+. Found: {looker_ver}.')
+            raise AirflowException(f"This API requires Looker version 22.2+. Found: {looker_ver}.")
 
         # unpack query_params dict into kwargs (if not None)
         if query_params:
@@ -104,11 +104,11 @@ class LookerHook(BaseHook):
         """
         resp = self.check_pdt_build(materialization_id=materialization_id)
 
-        status_json = resp['resp_text']
+        status_json = resp["resp_text"]
         status_dict = json.loads(status_json)
 
         self.log.info(
-            "PDT materialization job id: %s. Status: '%s'.", materialization_id, status_dict['status']
+            "PDT materialization job id: %s. Status: '%s'.", materialization_id, status_dict["status"]
         )
 
         return status_dict
@@ -145,7 +145,7 @@ class LookerHook(BaseHook):
         :param timeout: Optional. How many seconds wait for job to be ready.
             Used only if ``asynchronous`` is False.
         """
-        self.log.info('Waiting for PDT materialization job to complete. Job id: %s.', materialization_id)
+        self.log.info("Waiting for PDT materialization job to complete. Job id: %s.", materialization_id)
 
         status = None
         start = time.monotonic()
@@ -167,21 +167,21 @@ class LookerHook(BaseHook):
             time.sleep(wait_time)
 
             status_dict = self.pdt_build_status(materialization_id=materialization_id)
-            status = status_dict['status']
+            status = status_dict["status"]
 
         if status == JobStatus.ERROR.value:
-            msg = status_dict['message']
+            msg = status_dict["message"]
             raise AirflowException(
                 f'PDT materialization job failed. Job id: {materialization_id}. Message:\n"{msg}"'
             )
         if status == JobStatus.CANCELLED.value:
-            raise AirflowException(f'PDT materialization job was cancelled. Job id: {materialization_id}.')
+            raise AirflowException(f"PDT materialization job was cancelled. Job id: {materialization_id}.")
         if status == JobStatus.UNKNOWN.value:
             raise AirflowException(
-                f'PDT materialization job has unknown status. Job id: {materialization_id}.'
+                f"PDT materialization job has unknown status. Job id: {materialization_id}."
             )
 
-        self.log.info('PDT materialization job completed successfully. Job id: %s.', materialization_id)
+        self.log.info("PDT materialization job completed successfully. Job id: %s.", materialization_id)
 
     def get_looker_sdk(self):
         """Returns Looker SDK client for Looker API 4.0."""
@@ -216,7 +216,7 @@ class LookerApiSettings(api_settings.ApiSettings):
         config = {}
 
         if self.conn.host is None:
-            raise AirflowException(f'No `host` was supplied in connection: {self.conn.id}.')
+            raise AirflowException(f"No `host` was supplied in connection: {self.conn.id}.")
 
         if self.conn.port:
             config["base_url"] = f"{self.conn.host}:{self.conn.port}"  # port is optional
@@ -226,19 +226,19 @@ class LookerApiSettings(api_settings.ApiSettings):
         if self.conn.login:
             config["client_id"] = self.conn.login
         else:
-            raise AirflowException(f'No `login` was supplied in connection: {self.conn.id}.')
+            raise AirflowException(f"No `login` was supplied in connection: {self.conn.id}.")
 
         if self.conn.password:
             config["client_secret"] = self.conn.password
         else:
-            raise AirflowException(f'No `password` was supplied in connection: {self.conn.id}.')
+            raise AirflowException(f"No `password` was supplied in connection: {self.conn.id}.")
 
         extras = self.conn.extra_dejson  # type: Dict
 
-        if 'verify_ssl' in extras:
+        if "verify_ssl" in extras:
             config["verify_ssl"] = extras["verify_ssl"]  # optional
 
-        if 'timeout' in extras:
+        if "timeout" in extras:
             config["timeout"] = extras["timeout"]  # optional
 
         return config
@@ -248,9 +248,9 @@ class JobStatus(Enum):
     """The job status string."""
 
     QUEUED = "added"
-    PENDING = 'pending'
-    RUNNING = 'running'
-    CANCELLED = 'killed'
-    DONE = 'complete'
-    ERROR = 'error'
-    UNKNOWN = 'unknown'
+    PENDING = "pending"
+    RUNNING = "running"
+    CANCELLED = "killed"
+    DONE = "complete"
+    ERROR = "error"
+    UNKNOWN = "unknown"

@@ -111,9 +111,9 @@ class CloudKMSHook(GoogleBaseHook):
         """
         response = self.get_conn().encrypt(
             request={
-                'name': key_name,
-                'plaintext': plaintext,
-                'additional_authenticated_data': authenticated_data,
+                "name": key_name,
+                "plaintext": plaintext,
+                "additional_authenticated_data": authenticated_data,
             },
             retry=retry,
             timeout=timeout,
@@ -150,9 +150,9 @@ class CloudKMSHook(GoogleBaseHook):
         """
         response = self.get_conn().decrypt(
             request={
-                'name': key_name,
-                'ciphertext': _b64decode(ciphertext),
-                'additional_authenticated_data': authenticated_data,
+                "name": key_name,
+                "ciphertext": _b64decode(ciphertext),
+                "additional_authenticated_data": authenticated_data,
             },
             retry=retry,
             timeout=timeout,

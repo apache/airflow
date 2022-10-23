@@ -45,21 +45,21 @@ class MySqlOperator(SQLExecuteQueryOperator):
     :param database: name of database which overwrite defined one in connection
     """
 
-    template_fields: Sequence[str] = ('sql', 'parameters')
+    template_fields: Sequence[str] = ("sql", "parameters")
     # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
     template_fields_renderers = {
-        'sql': 'mysql' if 'mysql' in wwwutils.get_attr_renderer() else 'sql',
-        'parameters': 'json',
+        "sql": "mysql" if "mysql" in wwwutils.get_attr_renderer() else "sql",
+        "parameters": "json",
     }
-    template_ext: Sequence[str] = ('.sql', '.json')
-    ui_color = '#ededed'
+    template_ext: Sequence[str] = (".sql", ".json")
+    ui_color = "#ededed"
 
     def __init__(
-        self, *, mysql_conn_id: str = 'mysql_default', database: str | None = None, **kwargs
+        self, *, mysql_conn_id: str = "mysql_default", database: str | None = None, **kwargs
     ) -> None:
         if database is not None:
-            hook_params = kwargs.pop('hook_params', {})
-            kwargs['hook_params'] = {'schema': database, **hook_params}
+            hook_params = kwargs.pop("hook_params", {})
+            kwargs["hook_params"] = {"schema": database, **hook_params}
 
         super().__init__(conn_id=mysql_conn_id, **kwargs)
         warnings.warn(

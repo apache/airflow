@@ -34,10 +34,10 @@ class JdbcHook(DbApiHook):
     Raises an airflow error if the given connection id doesn't exist.
     """
 
-    conn_name_attr = 'jdbc_conn_id'
-    default_conn_name = 'jdbc_default'
-    conn_type = 'jdbc'
-    hook_name = 'JDBC Connection'
+    conn_name_attr = "jdbc_conn_id"
+    default_conn_name = "jdbc_default"
+    conn_type = "jdbc"
+    hook_name = "JDBC Connection"
     supports_autocommit = True
 
     @staticmethod
@@ -48,22 +48,22 @@ class JdbcHook(DbApiHook):
         from wtforms import StringField
 
         return {
-            "drv_path": StringField(lazy_gettext('Driver Path'), widget=BS3TextFieldWidget()),
-            "drv_clsname": StringField(lazy_gettext('Driver Class'), widget=BS3TextFieldWidget()),
+            "drv_path": StringField(lazy_gettext("Driver Path"), widget=BS3TextFieldWidget()),
+            "drv_clsname": StringField(lazy_gettext("Driver Class"), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['port', 'schema', 'extra'],
-            "relabeling": {'host': 'Connection URL'},
+            "hidden_fields": ["port", "schema", "extra"],
+            "relabeling": {"host": "Connection URL"},
         }
 
     def _get_field(self, extras: dict, field_name: str):
         """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
         backcompat_prefix = "extra__jdbc__"
-        if field_name.startswith('extra_'):
+        if field_name.startswith("extra_"):
             raise ValueError(
                 f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
                 "when using this method."
@@ -79,8 +79,8 @@ class JdbcHook(DbApiHook):
         host: str = conn.host
         login: str = conn.login
         psw: str = conn.password
-        jdbc_driver_loc: str | None = self._get_field(extras, 'drv_path')
-        jdbc_driver_name: str | None = self._get_field(extras, 'drv_clsname')
+        jdbc_driver_loc: str | None = self._get_field(extras, "drv_path")
+        jdbc_driver_name: str | None = self._get_field(extras, "drv_clsname")
 
         conn = jaydebeapi.connect(
             jclassname=jdbc_driver_name,

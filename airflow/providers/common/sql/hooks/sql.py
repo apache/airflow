@@ -81,7 +81,7 @@ class ConnectorProtocol(Protocol):
 # We want the DbApiHook to derive from the original DbApiHook from airflow, because otherwise
 # SqlSensor and BaseSqlOperator from "airflow.operators" and "airflow.sensors" will refuse to
 # accept the new Hooks as not derived from the original DbApiHook
-if Version(version) < Version('2.4'):
+if Version(version) < Version("2.4"):
     try:
         from airflow.hooks.dbapi import DbApiHook as BaseForDbApiHook
     except ImportError:
@@ -104,7 +104,7 @@ class DbApiHook(BaseForDbApiHook):
     # Override to provide the connection name.
     conn_name_attr = None  # type: str
     # Override to have a default connection id for a particular dbHook
-    default_conn_name = 'default_conn_id'
+    default_conn_name = "default_conn_id"
     # Override if this db supports autocommit.
     supports_autocommit = False
     # Override with the object that exposes the connect method
@@ -237,7 +237,7 @@ class DbApiHook(BaseForDbApiHook):
 
     @staticmethod
     def strip_sql_string(sql: str) -> str:
-        return sql.strip().rstrip(';')
+        return sql.strip().rstrip(";")
 
     @staticmethod
     def split_sql_string(sql: str) -> list[str]:
@@ -345,7 +345,7 @@ class DbApiHook(BaseForDbApiHook):
         :return: connection autocommit setting.
         :rtype: bool
         """
-        return getattr(conn, 'autocommit', False) and self.supports_autocommit
+        return getattr(conn, "autocommit", False) and self.supports_autocommit
 
     def get_cursor(self):
         """Returns a cursor"""
@@ -372,7 +372,7 @@ class DbApiHook(BaseForDbApiHook):
             target_fields = ", ".join(target_fields)
             target_fields = f"({target_fields})"
         else:
-            target_fields = ''
+            target_fields = ""
 
         if not replace:
             sql = "INSERT INTO "
@@ -452,11 +452,11 @@ class DbApiHook(BaseForDbApiHook):
 
     def test_connection(self):
         """Tests the connection using db-specific query"""
-        status, message = False, ''
+        status, message = False, ""
         try:
             if self.get_first(self._test_connection_sql):
                 status = True
-                message = 'Connection successfully tested'
+                message = "Connection successfully tested"
         except Exception as e:
             status = False
             message = str(e)

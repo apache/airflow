@@ -39,10 +39,10 @@ class GoogleDataprepHook(BaseHook):
 
     """
 
-    conn_name_attr = 'dataprep_conn_id'
-    default_conn_name = 'google_cloud_dataprep_default'
-    conn_type = 'dataprep'
-    hook_name = 'Google Dataprep'
+    conn_name_attr = "dataprep_conn_id"
+    default_conn_name = "google_cloud_dataprep_default"
+    conn_type = "dataprep"
+    hook_name = "Google Dataprep"
 
     def __init__(self, dataprep_conn_id: str = default_conn_name) -> None:
         super().__init__()
@@ -110,5 +110,5 @@ class GoogleDataprepHook(BaseHook):
         try:
             response.raise_for_status()
         except HTTPError:
-            self.log.error(response.json().get('exception'))
+            self.log.error(response.json().get("exception"))
             raise

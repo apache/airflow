@@ -45,18 +45,18 @@ class MsSqlOperator(SQLExecuteQueryOperator):
     :param database: name of database which overwrite defined one in connection
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_ext: Sequence[str] = ('.sql',)
+    template_fields: Sequence[str] = ("sql",)
+    template_ext: Sequence[str] = (".sql",)
     # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
-    template_fields_renderers = {'sql': 'tsql' if 'tsql' in wwwutils.get_attr_renderer() else 'sql'}
-    ui_color = '#ededed'
+    template_fields_renderers = {"sql": "tsql" if "tsql" in wwwutils.get_attr_renderer() else "sql"}
+    ui_color = "#ededed"
 
     def __init__(
-        self, *, mssql_conn_id: str = 'mssql_default', database: str | None = None, **kwargs
+        self, *, mssql_conn_id: str = "mssql_default", database: str | None = None, **kwargs
     ) -> None:
         if database is not None:
-            hook_params = kwargs.pop('hook_params', {})
-            kwargs['hook_params'] = {'schema': database, **hook_params}
+            hook_params = kwargs.pop("hook_params", {})
+            kwargs["hook_params"] = {"schema": database, **hook_params}
 
         super().__init__(conn_id=mssql_conn_id, **kwargs)
         warnings.warn(

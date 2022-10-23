@@ -117,12 +117,12 @@ class DockerSwarmOperator(DockerOperator):
     def execute(self, context: Context) -> None:
         self.cli = self._get_cli()
 
-        self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
+        self.environment["AIRFLOW_TMP_DIR"] = self.tmp_dir
 
         return self._run_service()
 
     def _run_service(self) -> None:
-        self.log.info('Starting docker service from image %s', self.image)
+        self.log.info("Starting docker service from image %s", self.image)
         if not self.cli:
             raise Exception("The 'cli' should be initialized before!")
         self.service = self.cli.create_service(
@@ -137,21 +137,21 @@ class DockerSwarmOperator(DockerOperator):
                     configs=self.configs,
                     secrets=self.secrets,
                 ),
-                restart_policy=types.RestartPolicy(condition='none'),
+                restart_policy=types.RestartPolicy(condition="none"),
                 resources=types.Resources(mem_limit=self.mem_limit),
                 networks=self.networks,
                 placement=self.placement,
             ),
-            name=f'airflow-{get_random_string()}',
-            labels={'name': f'airflow__{self.dag_id}__{self.task_id}'},
+            name=f"airflow-{get_random_string()}",
+            labels={"name": f"airflow__{self.dag_id}__{self.task_id}"},
             mode=self.mode,
         )
         if self.service is None:
             raise Exception("Service should be set here")
-        self.log.info('Service started: %s', str(self.service))
+        self.log.info("Service started: %s", str(self.service))
 
         # wait for the service to start the task
-        while not self.cli.tasks(filters={'service': self.service['ID']}):
+        while not self.cli.tasks(filters={"service": self.service["ID"]}):
             continue
 
         if self.enable_logging:
@@ -159,29 +159,29 @@ class DockerSwarmOperator(DockerOperator):
 
         while True:
             if self._has_service_terminated():
-                self.log.info('Service status before exiting: %s', self._service_status())
+                self.log.info("Service status before exiting: %s", self._service_status())
                 break
 
         self.log.info("auto_removeauto_removeauto_removeauto_removeauto_remove : %s", str(self.auto_remove))
-        if self.service and self._service_status() != 'complete':
+        if self.service and self._service_status() != "complete":
             if self.auto_remove == "success":
-                self.cli.remove_service(self.service['ID'])
-            raise AirflowException('Service did not complete: ' + repr(self.service))
+                self.cli.remove_service(self.service["ID"])
+            raise AirflowException("Service did not complete: " + repr(self.service))
         elif self.auto_remove == "success":
             if not self.service:
                 raise Exception("The 'service' should be initialized before!")
-            self.cli.remove_service(self.service['ID'])
+            self.cli.remove_service(self.service["ID"])
 
     def _service_status(self) -> str | None:
         if not self.cli:
             raise Exception("The 'cli' should be initialized before!")
         if not self.service:
             raise Exception("The 'service' should be initialized before!")
-        return self.cli.tasks(filters={'service': self.service['ID']})[0]['Status']['State']
+        return self.cli.tasks(filters={"service": self.service["ID"]})[0]["Status"]["State"]
 
     def _has_service_terminated(self) -> bool:
         status = self._service_status()
-        return status in ['complete', 'failed', 'shutdown', 'rejected', 'orphaned', 'remove']
+        return status in ["complete", "failed", "shutdown", "rejected", "orphaned", "remove"]
 
     def _stream_logs_to_output(self) -> None:
         if not self.cli:
@@ -189,9 +189,9 @@ class DockerSwarmOperator(DockerOperator):
         if not self.service:
             raise Exception("The 'service' should be initialized before!")
         logs = self.cli.service_logs(
-            self.service['ID'], follow=True, stdout=True, stderr=True, is_tty=self.tty
+            self.service["ID"], follow=True, stdout=True, stderr=True, is_tty=self.tty
         )
-        line = ''
+        line = ""
         while True:
             try:
                 log = next(logs)
@@ -203,9 +203,9 @@ class DockerSwarmOperator(DockerOperator):
                     log = log.decode()
                 except UnicodeDecodeError:
                     continue
-                if log == '\n':
+                if log == "\n":
                     self.log.info(line)
-                    line = ''
+                    line = ""
                 else:
                     line += log
         # flush any remaining log stream
@@ -214,5 +214,5 @@ class DockerSwarmOperator(DockerOperator):
 
     def on_kill(self) -> None:
         if self.cli is not None and self.service is not None:
-            self.log.info('Removing docker service: %s', self.service['ID'])
-            self.cli.remove_service(self.service['ID'])
+            self.log.info("Removing docker service: %s", self.service["ID"])
+            self.cli.remove_service(self.service["ID"])

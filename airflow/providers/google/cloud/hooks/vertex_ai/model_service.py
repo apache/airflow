@@ -43,8 +43,8 @@ class ModelServiceHook(GoogleBaseHook):
 
     def get_model_service_client(self, region: str | None = None) -> ModelServiceClient:
         """Returns ModelServiceClient."""
-        if region and region != 'global':
-            client_options = ClientOptions(api_endpoint=f'{region}-aiplatform.googleapis.com:443')
+        if region and region != "global":
+            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
             client_options = ClientOptions()
 
@@ -90,7 +90,7 @@ class ModelServiceHook(GoogleBaseHook):
 
         result = client.delete_model(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -180,12 +180,12 @@ class ModelServiceHook(GoogleBaseHook):
 
         result = client.list_models(
             request={
-                'parent': parent,
-                'filter': filter,
-                'page_size': page_size,
-                'page_token': page_token,
-                'read_mask': read_mask,
-                'order_by': order_by,
+                "parent": parent,
+                "filter": filter,
+                "page_size": page_size,
+                "page_token": page_token,
+                "read_mask": read_mask,
+                "order_by": order_by,
             },
             retry=retry,
             timeout=timeout,

@@ -34,7 +34,7 @@ def _balance_parens(after_decorator):
             num_paren = num_paren + 1
         elif current == ")":
             num_paren = num_paren - 1
-    return ''.join(after_decorator)
+    return "".join(after_decorator)
 
 
 def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
@@ -76,5 +76,5 @@ def write_python_script(
         )
     else:
         template_env = jinja2.Environment(loader=template_loader, undefined=jinja2.StrictUndefined)
-    template = template_env.get_template('python_kubernetes_script.jinja2')
+    template = template_env.get_template("python_kubernetes_script.jinja2")
     template.stream(**jinja_context).dump(filename)

@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
-MYSQL_RENDERER = 'mysql' if 'mysql' in wwwutils.get_attr_renderer() else 'sql'
+MYSQL_RENDERER = "mysql" if "mysql" in wwwutils.get_attr_renderer() else "sql"
 
 
 class HiveToMySqlOperator(BaseOperator):
@@ -60,22 +60,22 @@ class HiveToMySqlOperator(BaseOperator):
     :param hive_conf:
     """
 
-    template_fields: Sequence[str] = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
-    template_ext: Sequence[str] = ('.sql',)
+    template_fields: Sequence[str] = ("sql", "mysql_table", "mysql_preoperator", "mysql_postoperator")
+    template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {
-        'sql': 'hql',
-        'mysql_preoperator': MYSQL_RENDERER,
-        'mysql_postoperator': MYSQL_RENDERER,
+        "sql": "hql",
+        "mysql_preoperator": MYSQL_RENDERER,
+        "mysql_postoperator": MYSQL_RENDERER,
     }
-    ui_color = '#a0e08c'
+    ui_color = "#a0e08c"
 
     def __init__(
         self,
         *,
         sql: str,
         mysql_table: str,
-        hiveserver2_conn_id: str = 'hiveserver2_default',
-        mysql_conn_id: str = 'mysql_default',
+        hiveserver2_conn_id: str = "hiveserver2_default",
+        mysql_conn_id: str = "mysql_default",
         mysql_preoperator: str | None = None,
         mysql_postoperator: str | None = None,
         bulk_load: bool = False,
@@ -104,8 +104,8 @@ class HiveToMySqlOperator(BaseOperator):
                 hive.to_csv(
                     self.sql,
                     tmp_file.name,
-                    delimiter='\t',
-                    lineterminator='\n',
+                    delimiter="\t",
+                    lineterminator="\n",
                     output_header=False,
                     hive_conf=hive_conf,
                 )

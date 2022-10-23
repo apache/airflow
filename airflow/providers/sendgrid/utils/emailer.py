@@ -68,8 +68,8 @@ def send_email(
         files = []
 
     mail = Mail()
-    from_email = kwargs.get('from_email') or os.environ.get('SENDGRID_MAIL_FROM')
-    from_name = kwargs.get('from_name') or os.environ.get('SENDGRID_MAIL_SENDER')
+    from_email = kwargs.get("from_email") or os.environ.get("SENDGRID_MAIL_FROM")
+    from_name = kwargs.get("from_name") or os.environ.get("SENDGRID_MAIL_SENDER")
     mail.from_email = Email(from_email, from_name)
     mail.subject = subject
     mail.mail_settings = MailSettings()
@@ -92,15 +92,15 @@ def send_email(
             personalization.add_bcc(Email(bcc_address))
 
     # Add custom_args to personalization if present
-    pers_custom_args = kwargs.get('personalization_custom_args')
+    pers_custom_args = kwargs.get("personalization_custom_args")
     if isinstance(pers_custom_args, dict):
         for key in pers_custom_args.keys():
             personalization.add_custom_arg(CustomArg(key, pers_custom_args[key]))
 
     mail.add_personalization(personalization)
-    mail.add_content(Content('text/html', html_content))
+    mail.add_content(Content("text/html", html_content))
 
-    categories = kwargs.get('categories', [])
+    categories = kwargs.get("categories", [])
     for cat in categories:
         mail.add_category(Category(cat))
 
@@ -109,7 +109,7 @@ def send_email(
         basename = os.path.basename(fname)
 
         with open(fname, "rb") as file:
-            content = base64.b64encode(file.read()).decode('utf-8')
+            content = base64.b64encode(file.read()).decode("utf-8")
 
         attachment = Attachment(
             file_content=content,
@@ -137,19 +137,19 @@ def _post_sendgrid_mail(mail_data: dict, conn_id: str = "sendgrid_default") -> N
             DeprecationWarning,
             stacklevel=2,
         )
-        api_key = os.environ.get('SENDGRID_API_KEY')
+        api_key = os.environ.get("SENDGRID_API_KEY")
     sendgrid_client = sendgrid.SendGridAPIClient(api_key=api_key)
     response = sendgrid_client.client.mail.send.post(request_body=mail_data)
     # 2xx status code.
     if 200 <= response.status_code < 300:
         log.info(
-            'Email with subject %s is successfully sent to recipients: %s',
-            mail_data['subject'],
-            mail_data['personalizations'],
+            "Email with subject %s is successfully sent to recipients: %s",
+            mail_data["subject"],
+            mail_data["personalizations"],
         )
     else:
         log.error(
-            'Failed to send out email with subject %s, status code: %s',
-            mail_data['subject'],
+            "Failed to send out email with subject %s, status code: %s",
+            mail_data["subject"],
             response.status_code,
         )

@@ -111,9 +111,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     def __init__(
         self,
-        connections_prefix: str = 'airflow/connections',
-        variables_prefix: str = 'airflow/variables',
-        config_prefix: str = 'airflow/config',
+        connections_prefix: str = "airflow/connections",
+        variables_prefix: str = "airflow/variables",
+        config_prefix: str = "airflow/config",
         sep: str = "/",
         full_url_mode: bool = True,
         are_secret_values_urlencoded: bool | None = None,
@@ -188,7 +188,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     @staticmethod
     def _format_uri_with_extra(secret, conn_string: str) -> str:
         try:
-            extra_dict = secret['extra']
+            extra_dict = secret["extra"]
         except KeyError:
             return conn_string
 
@@ -208,8 +208,8 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             if not secret_dict:
                 return None
 
-            if 'extra' in secret_dict and isinstance(secret_dict['extra'], str):
-                secret_dict['extra'] = self._deserialize_json_string(secret_dict['extra'])
+            if "extra" in secret_dict and isinstance(secret_dict["extra"], str):
+                secret_dict["extra"] = self._deserialize_json_string(secret_dict["extra"])
 
             data = self._standardize_secret_keys(secret_dict)
 
@@ -218,18 +218,18 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
             port: int | None = None
 
-            if data['port'] is not None:
-                port = int(data['port'])
+            if data["port"] is not None:
+                port = int(data["port"])
 
             return Connection(
                 conn_id=conn_id,
-                login=data['user'],
-                password=data['password'],
-                host=data['host'],
+                login=data["user"],
+                password=data["password"],
+                host=data["host"],
                 port=port,
-                schema=data['schema'],
-                conn_type=data['conn_type'],
-                extra=data['extra'],
+                schema=data["schema"],
+                conn_type=data["conn_type"],
+                extra=data["extra"],
             )
 
         return super().get_connection(conn_id=conn_id)
@@ -237,13 +237,13 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     def _standardize_secret_keys(self, secret: dict[str, Any]) -> dict[str, Any]:
         """Standardize the names of the keys in the dict. These keys align with"""
         possible_words_for_conn_fields = {
-            'user': ['user', 'username', 'login', 'user_name'],
-            'password': ['password', 'pass', 'key'],
-            'host': ['host', 'remote_host', 'server'],
-            'port': ['port'],
-            'schema': ['database', 'schema'],
-            'conn_type': ['conn_type', 'conn_id', 'connection_type', 'engine'],
-            'extra': ['extra'],
+            "user": ["user", "username", "login", "user_name"],
+            "password": ["password", "pass", "key"],
+            "host": ["host", "remote_host", "server"],
+            "port": ["port"],
+            "schema": ["database", "schema"],
+            "conn_type": ["conn_type", "conn_id", "connection_type", "engine"],
+            "extra": ["extra"],
         }
 
         for conn_field, extra_words in self.extra_conn_words.items():
@@ -259,7 +259,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         return conn_d
 
     def get_uri_from_secret(self, secret: dict[str, str]) -> str:
-        conn_d: dict[str, str] = {k: v if v else '' for k, v in self._standardize_secret_keys(secret).items()}
+        conn_d: dict[str, str] = {k: v if v else "" for k, v in self._standardize_secret_keys(secret).items()}
         conn_string = "{conn_type}://{user}:{password}@{host}:{port}/{schema}".format(**conn_d)
         return self._format_uri_with_extra(secret, conn_string)
 
@@ -275,8 +275,8 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             try:
                 res = ast.literal_eval(value) if value else None
                 warnings.warn(
-                    f'In future versions, `{type(self).__name__}` will only support valid JSONs, not dict'
-                    ' reprs. Please make sure your secret is a valid JSON.'
+                    f"In future versions, `{type(self).__name__}` will only support valid JSONs, not dict"
+                    " reprs. Please make sure your secret is a valid JSON."
                 )
             except ValueError:  # 'malformed node or string: ' error, for empty conns
                 return None
@@ -364,8 +364,8 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             return self._get_secret(self.connections_prefix, conn_id)
         else:
             warnings.warn(
-                f'In future versions, `{type(self).__name__}.get_conn_value` will return a JSON string when'
-                ' full_url_mode is False, not a URI.',
+                f"In future versions, `{type(self).__name__}.get_conn_value` will return a JSON string when"
+                " full_url_mode is False, not a URI.",
                 DeprecationWarning,
             )
 
@@ -449,7 +449,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             response = self.client.get_secret_value(
                 SecretId=secrets_path,
             )
-            return response.get('SecretString')
+            return response.get("SecretString")
         except self.client.exceptions.ResourceNotFoundException:
             self.log.debug(
                 "ResourceNotFoundException: %s. Secret %s not found.",

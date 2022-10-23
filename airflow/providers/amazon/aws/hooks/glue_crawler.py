@@ -36,7 +36,7 @@ class GlueCrawlerHook(AwsBaseHook):
     """
 
     def __init__(self, *args, **kwargs):
-        kwargs['client_type'] = 'glue'
+        kwargs["client_type"] = "glue"
         super().__init__(*args, **kwargs)
 
     @cached_property
@@ -66,7 +66,7 @@ class GlueCrawlerHook(AwsBaseHook):
         :param crawler_name: unique crawler name per AWS account
         :return: Nested dictionary of crawler configurations
         """
-        return self.glue_client.get_crawler(Name=crawler_name)['Crawler']
+        return self.glue_client.get_crawler(Name=crawler_name)["Crawler"]
 
     def update_crawler(self, **crawler_kwargs) -> bool:
         """
@@ -75,7 +75,7 @@ class GlueCrawlerHook(AwsBaseHook):
         :param crawler_kwargs: Keyword args that define the configurations used for the crawler
         :return: True if crawler was updated and false otherwise
         """
-        crawler_name = crawler_kwargs['Name']
+        crawler_name = crawler_kwargs["Name"]
         current_crawler = self.get_crawler(crawler_name)
 
         update_config = {
@@ -96,7 +96,7 @@ class GlueCrawlerHook(AwsBaseHook):
         :param crawler_kwargs: Keyword args that define the configurations used to create the crawler
         :return: Name of the crawler
         """
-        crawler_name = crawler_kwargs['Name']
+        crawler_name = crawler_kwargs["Name"]
         self.log.info("Creating crawler: %s", crawler_name)
         return self.glue_client.create_crawler(**crawler_kwargs)
 
@@ -120,26 +120,26 @@ class GlueCrawlerHook(AwsBaseHook):
         :param poll_interval: Time (in seconds) to wait between two consecutive calls to check crawler status
         :return: Crawler's status
         """
-        failed_status = ['FAILED', 'CANCELLED']
+        failed_status = ["FAILED", "CANCELLED"]
 
         while True:
             crawler = self.get_crawler(crawler_name)
-            crawler_state = crawler['State']
-            if crawler_state == 'READY':
+            crawler_state = crawler["State"]
+            if crawler_state == "READY":
                 self.log.info("State: %s", crawler_state)
                 self.log.info("crawler_config: %s", crawler)
-                crawler_status = crawler['LastCrawl']['Status']
+                crawler_status = crawler["LastCrawl"]["Status"]
                 if crawler_status in failed_status:
                     raise AirflowException(f"Status: {crawler_status}")
                 metrics = self.glue_client.get_crawler_metrics(CrawlerNameList=[crawler_name])[
-                    'CrawlerMetricsList'
+                    "CrawlerMetricsList"
                 ][0]
                 self.log.info("Status: %s", crawler_status)
-                self.log.info("Last Runtime Duration (seconds): %s", metrics['LastRuntimeSeconds'])
-                self.log.info("Median Runtime Duration (seconds): %s", metrics['MedianRuntimeSeconds'])
-                self.log.info("Tables Created: %s", metrics['TablesCreated'])
-                self.log.info("Tables Updated: %s", metrics['TablesUpdated'])
-                self.log.info("Tables Deleted: %s", metrics['TablesDeleted'])
+                self.log.info("Last Runtime Duration (seconds): %s", metrics["LastRuntimeSeconds"])
+                self.log.info("Median Runtime Duration (seconds): %s", metrics["MedianRuntimeSeconds"])
+                self.log.info("Tables Created: %s", metrics["TablesCreated"])
+                self.log.info("Tables Updated: %s", metrics["TablesUpdated"])
+                self.log.info("Tables Deleted: %s", metrics["TablesDeleted"])
 
                 return crawler_status
 
@@ -148,9 +148,9 @@ class GlueCrawlerHook(AwsBaseHook):
                 self.log.info("State: %s", crawler_state)
 
                 metrics = self.glue_client.get_crawler_metrics(CrawlerNameList=[crawler_name])[
-                    'CrawlerMetricsList'
+                    "CrawlerMetricsList"
                 ][0]
-                time_left = int(metrics['TimeLeftSeconds'])
+                time_left = int(metrics["TimeLeftSeconds"])
 
                 if time_left > 0:
                     self.log.info("Estimated Time Left (seconds): %s", time_left)

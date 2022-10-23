@@ -32,19 +32,19 @@ class BaseAzureServiceBusHook(BaseHook):
         :ref:`Azure Service Bus connection<howto/connection:azure_service_bus>`.
     """
 
-    conn_name_attr = 'azure_service_bus_conn_id'
-    default_conn_name = 'azure_service_bus_default'
-    conn_type = 'azure_service_bus'
-    hook_name = 'Azure Service Bus'
+    conn_name_attr = "azure_service_bus_conn_id"
+    default_conn_name = "azure_service_bus_default"
+    conn_type = "azure_service_bus"
+    hook_name = "Azure Service Bus"
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['port', 'host', 'extra', 'login', 'password'],
-            "relabeling": {'schema': 'Connection String'},
+            "hidden_fields": ["port", "host", "extra", "login", "password"],
+            "relabeling": {"schema": "Connection String"},
             "placeholders": {
-                'schema': 'Endpoint=sb://<Resource group>.servicebus.windows.net/;SharedAccessKeyName=<AccessKeyName>;SharedAccessKey=<SharedAccessKey>',  # noqa
+                "schema": "Endpoint=sb://<Resource group>.servicebus.windows.net/;SharedAccessKeyName=<AccessKeyName>;SharedAccessKey=<SharedAccessKey>",  # noqa
             },
         }
 

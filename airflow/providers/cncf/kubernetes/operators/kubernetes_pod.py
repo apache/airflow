@@ -151,20 +151,20 @@ class KubernetesPodOperator(BaseOperator):
         Extends env_from.
     """
 
-    BASE_CONTAINER_NAME = 'base'
-    POD_CHECKED_KEY = 'already_checked'
+    BASE_CONTAINER_NAME = "base"
+    POD_CHECKED_KEY = "already_checked"
 
     template_fields: Sequence[str] = (
-        'image',
-        'cmds',
-        'arguments',
-        'env_vars',
-        'labels',
-        'config_file',
-        'pod_template_file',
-        'namespace',
+        "image",
+        "cmds",
+        "arguments",
+        "env_vars",
+        "labels",
+        "config_file",
+        "pod_template_file",
+        "namespace",
     )
-    template_fields_renderers = {'env_vars': 'py'}
+    template_fields_renderers = {"env_vars": "py"}
 
     def __init__(
         self,
@@ -291,7 +291,7 @@ class KubernetesPodOperator(BaseOperator):
     def _incluster_namespace(self):
         from pathlib import Path
 
-        path = Path('/var/run/secrets/kubernetes.io/serviceaccount/namespace')
+        path = Path("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
         return path.exists() and path.read_text() or None
 
     def _render_nested_template_fields(
@@ -303,7 +303,7 @@ class KubernetesPodOperator(BaseOperator):
     ) -> None:
         if id(content) not in seen_oids and isinstance(content, k8s.V1EnvVar):
             seen_oids.add(id(content))
-            self._do_render_template_fields(content, ('value', 'name'), context, jinja_env, seen_oids)
+            self._do_render_template_fields(content, ("value", "name"), context, jinja_env, seen_oids)
             return
 
         super()._render_nested_template_fields(content, context, jinja_env, seen_oids)
@@ -319,26 +319,26 @@ class KubernetesPodOperator(BaseOperator):
         if not context:
             return {}
 
-        ti = context['ti']
-        run_id = context['run_id']
+        ti = context["ti"]
+        run_id = context["run_id"]
 
         labels = {
-            'dag_id': ti.dag_id,
-            'task_id': ti.task_id,
-            'run_id': run_id,
-            'kubernetes_pod_operator': 'True',
+            "dag_id": ti.dag_id,
+            "task_id": ti.task_id,
+            "run_id": run_id,
+            "kubernetes_pod_operator": "True",
         }
 
         # If running on Airflow 2.3+:
-        map_index = getattr(ti, 'map_index', -1)
+        map_index = getattr(ti, "map_index", -1)
         if map_index >= 0:
-            labels['map_index'] = map_index
+            labels["map_index"] = map_index
 
         if include_try_number:
             labels.update(try_number=ti.try_number)
         # In the case of sub dags this is just useful
-        if context['dag'].parent_dag:
-            labels['parent_dag_id'] = context['dag'].parent_dag.dag_id
+        if context["dag"].parent_dag:
+            labels["parent_dag_id"] = context["dag"].parent_dag.dag_id
         # Ensure that label is valid for Kube,
         # and if not truncate/remove invalid chars and replace with short hash.
         for label_id, label in labels.items():
@@ -379,12 +379,12 @@ class KubernetesPodOperator(BaseOperator):
         pod = None
         num_pods = len(pod_list)
         if num_pods > 1:
-            raise AirflowException(f'More than one pod running with labels {label_selector}')
+            raise AirflowException(f"More than one pod running with labels {label_selector}")
         elif num_pods == 1:
             pod = pod_list[0]
             self.log.info("Found matching pod %s with labels %s", pod.metadata.name, pod.metadata.labels)
-            self.log.info("`try_number` of task_instance: %s", context['ti'].try_number)
-            self.log.info("`try_number` of pod: %s", pod.metadata.labels['try_number'])
+            self.log.info("`try_number` of task_instance: %s", context["ti"].try_number)
+            self.log.info("`try_number` of pod: %s", pod.metadata.labels["try_number"])
         return pod
 
     def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context: Context) -> k8s.V1Pod:
@@ -408,7 +408,7 @@ class KubernetesPodOperator(BaseOperator):
     def extract_xcom(self, pod: k8s.V1Pod):
         """Retrieves xcom value and kills xcom sidecar container"""
         result = self.pod_manager.extract_xcom(pod)
-        if isinstance(result, str) and result.rstrip() == '__airflow_xcom_result_empty__':
+        if isinstance(result, str) and result.rstrip() == "__airflow_xcom_result_empty__":
             self.log.info("Result file is empty.")
             return None
         else:
@@ -447,14 +447,14 @@ class KubernetesPodOperator(BaseOperator):
                 pod=self.pod or self.pod_request_obj,
                 remote_pod=remote_pod,
             )
-        ti = context['ti']
-        ti.xcom_push(key='pod_name', value=self.pod.metadata.name)
-        ti.xcom_push(key='pod_namespace', value=self.pod.metadata.namespace)
+        ti = context["ti"]
+        ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
+        ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
         if self.do_xcom_push:
             return result
 
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
-        pod_phase = remote_pod.status.phase if hasattr(remote_pod, 'status') else None
+        pod_phase = remote_pod.status.phase if hasattr(remote_pod, "status") else None
         if not self.is_delete_operator_pod:
             with _suppress(Exception):
                 self.patch_already_checked(remote_pod)
@@ -468,7 +468,7 @@ class KubernetesPodOperator(BaseOperator):
             error_message = get_container_termination_message(remote_pod, self.BASE_CONTAINER_NAME)
             error_message = "\n" + error_message if error_message else ""
             raise AirflowException(
-                f'Pod {pod and pod.metadata.name} returned a failure:{error_message}\n{remote_pod}'
+                f"Pod {pod and pod.metadata.name} returned a failure:{error_message}\n{remote_pod}"
             )
         else:
             with _suppress(Exception):
@@ -484,18 +484,18 @@ class KubernetesPodOperator(BaseOperator):
 
     def _build_find_pod_label_selector(self, context: Context | None = None, *, exclude_checked=True) -> str:
         labels = self._get_ti_pod_labels(context, include_try_number=False)
-        label_strings = [f'{label_id}={label}' for label_id, label in sorted(labels.items())]
-        labels_value = ','.join(label_strings)
+        label_strings = [f"{label_id}={label}" for label_id, label in sorted(labels.items())]
+        labels_value = ",".join(label_strings)
         if exclude_checked:
-            labels_value += f',{self.POD_CHECKED_KEY}!=True'
-        labels_value += ',!airflow-worker'
+            labels_value += f",{self.POD_CHECKED_KEY}!=True"
+        labels_value += ",!airflow-worker"
         return labels_value
 
     @staticmethod
     def _set_name(name: str | None) -> str | None:
         if name is not None:
             validate_key(name, max_length=220)
-            return re.sub(r'[^a-z0-9-]+', '-', name.lower())
+            return re.sub(r"[^a-z0-9-]+", "-", name.lower())
         return None
 
     def patch_already_checked(self, pod: k8s.V1Pod):
@@ -568,7 +568,7 @@ class KubernetesPodOperator(BaseOperator):
                 security_context=self.security_context,
                 dns_policy=self.dnspolicy,
                 scheduler_name=self.schedulername,
-                restart_policy='Never',
+                restart_policy="Never",
                 priority_class_name=self.priority_class_name,
                 volumes=self.volumes,
             ),
@@ -583,8 +583,8 @@ class KubernetesPodOperator(BaseOperator):
             pod.metadata.name = PodGenerator.make_unique_pod_id(pod.metadata.name)
 
         if not pod.metadata.namespace:
-            hook_namespace = self.hook.conn_extras.get('extra__kubernetes__namespace')
-            pod_namespace = self.namespace or hook_namespace or self._incluster_namespace or 'default'
+            hook_namespace = self.hook.conn_extras.get("extra__kubernetes__namespace")
+            pod_namespace = self.namespace or hook_namespace or self._incluster_namespace or "default"
             pod.metadata.namespace = pod_namespace
 
         for secret in self.secrets:
@@ -603,8 +603,8 @@ class KubernetesPodOperator(BaseOperator):
         # And a label to identify that pod is launched by KubernetesPodOperator
         pod.metadata.labels.update(
             {
-                'airflow_version': airflow_version.replace('+', '-'),
-                'airflow_kpo_in_cluster': str(self.hook.is_in_cluster),
+                "airflow_version": airflow_version.replace("+", "-"),
+                "airflow_kpo_in_cluster": str(self.hook.is_in_cluster),
             }
         )
         pod_mutation_hook(pod)
@@ -617,7 +617,7 @@ class KubernetesPodOperator(BaseOperator):
         one in a dry_run) and excludes all empty elements.
         """
         pod = self.build_pod_request_obj()
-        print(yaml.dump(prune_dict(pod.to_dict(), mode='strict')))
+        print(yaml.dump(prune_dict(pod.to_dict(), mode="strict")))
 
 
 class _suppress(AbstractContextManager):

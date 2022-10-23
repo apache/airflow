@@ -48,17 +48,17 @@ def _ensure_prefixes(conn_type):
         @wraps(func)
         def inner():
             field_behaviors = func()
-            conn_attrs = {'host', 'schema', 'login', 'password', 'port', 'extra'}
+            conn_attrs = {"host", "schema", "login", "password", "port", "extra"}
 
             def _ensure_prefix(field):
-                if field not in conn_attrs and not field.startswith('extra__'):
+                if field not in conn_attrs and not field.startswith("extra__"):
                     return f"extra__{conn_type}__{field}"
                 else:
                     return field
 
-            if 'placeholders' in field_behaviors:
-                placeholders = field_behaviors['placeholders']
-                field_behaviors['placeholders'] = {_ensure_prefix(k): v for k, v in placeholders.items()}
+            if "placeholders" in field_behaviors:
+                placeholders = field_behaviors["placeholders"]
+                field_behaviors["placeholders"] = {_ensure_prefix(k): v for k, v in placeholders.items()}
             return field_behaviors
 
         return inner
@@ -83,10 +83,10 @@ class WasbHook(BaseHook):
     :param public_read: Whether an anonymous public read access should be used. default is False
     """
 
-    conn_name_attr = 'wasb_conn_id'
-    default_conn_name = 'wasb_default'
-    conn_type = 'wasb'
-    hook_name = 'Azure Blob Storage'
+    conn_name_attr = "wasb_conn_id"
+    default_conn_name = "wasb_default"
+    conn_type = "wasb"
+    hook_name = "Azure Blob Storage"
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
@@ -97,37 +97,37 @@ class WasbHook(BaseHook):
 
         return {
             "connection_string": PasswordField(
-                lazy_gettext('Blob Storage Connection String (optional)'), widget=BS3PasswordFieldWidget()
+                lazy_gettext("Blob Storage Connection String (optional)"), widget=BS3PasswordFieldWidget()
             ),
             "shared_access_key": PasswordField(
-                lazy_gettext('Blob Storage Shared Access Key (optional)'), widget=BS3PasswordFieldWidget()
+                lazy_gettext("Blob Storage Shared Access Key (optional)"), widget=BS3PasswordFieldWidget()
             ),
             "tenant_id": StringField(
-                lazy_gettext('Tenant Id (Active Directory Auth)'), widget=BS3TextFieldWidget()
+                lazy_gettext("Tenant Id (Active Directory Auth)"), widget=BS3TextFieldWidget()
             ),
-            "sas_token": PasswordField(lazy_gettext('SAS Token (optional)'), widget=BS3PasswordFieldWidget()),
+            "sas_token": PasswordField(lazy_gettext("SAS Token (optional)"), widget=BS3PasswordFieldWidget()),
         }
 
     @staticmethod
-    @_ensure_prefixes(conn_type='wasb')
+    @_ensure_prefixes(conn_type="wasb")
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['schema', 'port'],
+            "hidden_fields": ["schema", "port"],
             "relabeling": {
-                'login': 'Blob Storage Login (optional)',
-                'password': 'Blob Storage Key (optional)',
-                'host': 'Account Name (Active Directory Auth)',
+                "login": "Blob Storage Login (optional)",
+                "password": "Blob Storage Key (optional)",
+                "host": "Account Name (Active Directory Auth)",
             },
             "placeholders": {
-                'extra': 'additional options for use with FileService and AzureFileVolume',
-                'login': 'account name',
-                'password': 'secret',
-                'host': 'account url',
-                'connection_string': 'connection string auth',
-                'tenant_id': 'tenant',
-                'shared_access_key': 'shared access key',
-                'sas_token': 'account url or token',
+                "extra": "additional options for use with FileService and AzureFileVolume",
+                "login": "account name",
+                "password": "secret",
+                "host": "account url",
+                "connection_string": "connection string auth",
+                "tenant_id": "tenant",
+                "shared_access_key": "shared access key",
+                "sas_token": "account url or token",
             },
         }
 
@@ -148,8 +148,8 @@ class WasbHook(BaseHook):
             logger.setLevel(logging.WARNING)
 
     def _get_field(self, extra_dict, field_name):
-        prefix = 'extra__wasb__'
-        if field_name.startswith('extra_'):
+        prefix = "extra__wasb__"
+        if field_name.startswith("extra_"):
             raise ValueError(
                 f"Got prefixed name {field_name}; please remove the '{prefix}' prefix "
                 f"when using this method."
@@ -169,17 +169,17 @@ class WasbHook(BaseHook):
             # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-manage-access-to-resources
             return BlobServiceClient(account_url=conn.host, **extra)
 
-        connection_string = self._get_field(extra, 'connection_string')
+        connection_string = self._get_field(extra, "connection_string")
         if connection_string:
             # connection_string auth takes priority
             return BlobServiceClient.from_connection_string(connection_string, **extra)
 
-        shared_access_key = self._get_field(extra, 'shared_access_key')
+        shared_access_key = self._get_field(extra, "shared_access_key")
         if shared_access_key:
             # using shared access key
             return BlobServiceClient(account_url=conn.host, credential=shared_access_key, **extra)
 
-        tenant = self._get_field(extra, 'tenant_id')
+        tenant = self._get_field(extra, "tenant_id")
         if tenant:
             # use Active Directory auth
             app_id = conn.login
@@ -187,13 +187,13 @@ class WasbHook(BaseHook):
             token_credential = ClientSecretCredential(tenant, app_id, app_secret)
             return BlobServiceClient(account_url=conn.host, credential=token_credential, **extra)
 
-        sas_token = self._get_field(extra, 'sas_token')
+        sas_token = self._get_field(extra, "sas_token")
         if sas_token:
-            if sas_token.startswith('https'):
+            if sas_token.startswith("https"):
                 return BlobServiceClient(account_url=sas_token, **extra)
             else:
                 return BlobServiceClient(
-                    account_url=f'https://{conn.login}.blob.core.windows.net/{sas_token}', **extra
+                    account_url=f"https://{conn.login}.blob.core.windows.net/{sas_token}", **extra
                 )
 
         # Fall back to old auth (password) or use managed identity if not provided.
@@ -259,7 +259,7 @@ class WasbHook(BaseHook):
         container_name: str,
         prefix: str | None = None,
         include: list[str] | None = None,
-        delimiter: str = '/',
+        delimiter: str = "/",
         **kwargs,
     ) -> list:
         """
@@ -298,7 +298,7 @@ class WasbHook(BaseHook):
             useful if the target container may not exist yet. Defaults to False.
         :param kwargs: Optional keyword arguments that ``BlobClient.upload_blob()`` takes.
         """
-        with open(file_path, 'rb') as data:
+        with open(file_path, "rb") as data:
             self.upload(
                 container_name=container_name,
                 blob_name=blob_name,
@@ -362,7 +362,7 @@ class WasbHook(BaseHook):
         container_name: str,
         blob_name: str,
         data: Any,
-        blob_type: str = 'BlockBlob',
+        blob_type: str = "BlockBlob",
         length: int | None = None,
         create_container: bool = False,
         **kwargs,
@@ -409,7 +409,7 @@ class WasbHook(BaseHook):
         """
         container_client = self._get_container_client(container_name)
         try:
-            self.log.debug('Attempting to create container: %s', container_name)
+            self.log.debug("Attempting to create container: %s", container_name)
             container_client.create_container()
             self.log.info("Created container: %s", container_name)
         except ResourceExistsError:
@@ -429,7 +429,7 @@ class WasbHook(BaseHook):
                 self.conn_id,
             )
         except Exception as e:
-            self.log.info('Error while attempting to create container %r: %s', container_name, e)
+            self.log.info("Error while attempting to create container %r: %s", container_name, e)
             raise
 
     def delete_container(self, container_name: str) -> None:
@@ -439,13 +439,13 @@ class WasbHook(BaseHook):
         :param container_name: The name of the container
         """
         try:
-            self.log.debug('Attempting to delete container: %s', container_name)
+            self.log.debug("Attempting to delete container: %s", container_name)
             self._get_container_client(container_name).delete_container()
-            self.log.info('Deleted container: %s', container_name)
+            self.log.info("Deleted container: %s", container_name)
         except ResourceNotFoundError:
-            self.log.info('Unable to delete container %s (not found)', container_name)
+            self.log.info("Unable to delete container %s (not found)", container_name)
         except:  # noqa: E722
-            self.log.info('Error deleting container: %s', container_name)
+            self.log.info("Error deleting container: %s", container_name)
             raise
 
     def delete_blobs(self, container_name: str, *blobs, **kwargs) -> None:
@@ -465,7 +465,7 @@ class WasbHook(BaseHook):
         blob_name: str,
         is_prefix: bool = False,
         ignore_if_missing: bool = False,
-        delimiter: str = '',
+        delimiter: str = "",
         **kwargs,
     ) -> None:
         """
@@ -487,7 +487,7 @@ class WasbHook(BaseHook):
         else:
             blobs_to_delete = []
         if not ignore_if_missing and len(blobs_to_delete) == 0:
-            raise AirflowException(f'Blob(s) not found: {blob_name}')
+            raise AirflowException(f"Blob(s) not found: {blob_name}")
 
         self.delete_blobs(container_name, *blobs_to_delete, **kwargs)
 

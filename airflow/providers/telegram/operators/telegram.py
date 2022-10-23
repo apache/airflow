@@ -45,8 +45,8 @@ class TelegramOperator(BaseOperator):
     :param telegram_kwargs: Extra args to be passed to telegram client
     """
 
-    template_fields: Sequence[str] = ('text', 'chat_id')
-    ui_color = '#FFBA40'
+    template_fields: Sequence[str] = ("text", "chat_id")
+    ui_color = "#FFBA40"
 
     def __init__(
         self,
@@ -73,7 +73,7 @@ class TelegramOperator(BaseOperator):
     def execute(self, context: Context) -> None:
         """Calls the TelegramHook to post the provided Telegram message"""
         if self.text:
-            self.telegram_kwargs['text'] = self.text
+            self.telegram_kwargs["text"] = self.text
 
         telegram_hook = TelegramHook(
             telegram_conn_id=self.telegram_conn_id,

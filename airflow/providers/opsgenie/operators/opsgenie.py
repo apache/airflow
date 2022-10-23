@@ -60,13 +60,13 @@ class OpsgenieCreateAlertOperator(BaseOperator):
     :param note: Additional note that will be added while creating the alert. (templated)
     """
 
-    template_fields: Sequence[str] = ('message', 'alias', 'description', 'entity', 'priority', 'note')
+    template_fields: Sequence[str] = ("message", "alias", "description", "entity", "priority", "note")
 
     def __init__(
         self,
         *,
         message: str,
-        opsgenie_conn_id: str = 'opsgenie_default',
+        opsgenie_conn_id: str = "opsgenie_default",
         alias: str | None = None,
         description: str | None = None,
         responders: list[dict] | None = None,
@@ -162,7 +162,7 @@ class OpsgenieCloseAlertOperator(BaseOperator):
         self,
         *,
         identifier: str,
-        opsgenie_conn_id: str = 'opsgenie_default',
+        opsgenie_conn_id: str = "opsgenie_default",
         identifier_type: str | None = None,
         user: str | None = None,
         note: str | None = None,
@@ -233,13 +233,13 @@ class OpsgenieDeleteAlertOperator(BaseOperator):
     :param source: Display name of the request source
     """
 
-    template_fields: Sequence[str] = ('identifier',)
+    template_fields: Sequence[str] = ("identifier",)
 
     def __init__(
         self,
         *,
         identifier: str,
-        opsgenie_conn_id: str = 'opsgenie_default',
+        opsgenie_conn_id: str = "opsgenie_default",
         identifier_type: str | None = None,
         user: str | None = None,
         source: str | None = None,

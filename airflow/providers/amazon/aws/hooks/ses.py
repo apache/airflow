@@ -35,7 +35,7 @@ class SesHook(AwsBaseHook):
     """
 
     def __init__(self, *args, **kwargs) -> None:
-        kwargs['client_type'] = 'ses'
+        kwargs["client_type"] = "ses"
         super().__init__(*args, **kwargs)
 
     def send_email(
@@ -47,8 +47,8 @@ class SesHook(AwsBaseHook):
         files: list[str] | None = None,
         cc: str | Iterable[str] | None = None,
         bcc: str | Iterable[str] | None = None,
-        mime_subtype: str = 'mixed',
-        mime_charset: str = 'utf-8',
+        mime_subtype: str = "mixed",
+        mime_charset: str = "utf-8",
         reply_to: str | None = None,
         return_path: str | None = None,
         custom_headers: dict[str, Any] | None = None,
@@ -77,9 +77,9 @@ class SesHook(AwsBaseHook):
 
         custom_headers = custom_headers or {}
         if reply_to:
-            custom_headers['Reply-To'] = reply_to
+            custom_headers["Reply-To"] = reply_to
         if return_path:
-            custom_headers['Return-Path'] = return_path
+            custom_headers["Return-Path"] = return_path
 
         message, recipients = build_mime_message(
             mail_from=mail_from,
@@ -95,5 +95,5 @@ class SesHook(AwsBaseHook):
         )
 
         return ses_client.send_raw_email(
-            Source=mail_from, Destinations=recipients, RawMessage={'Data': message.as_string()}
+            Source=mail_from, Destinations=recipients, RawMessage={"Data": message.as_string()}
         )

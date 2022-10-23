@@ -53,7 +53,7 @@ class S3ToSFTPOperator(BaseOperator):
         downloading the file from S3.
     """
 
-    template_fields: Sequence[str] = ('s3_key', 'sftp_path')
+    template_fields: Sequence[str] = ("s3_key", "sftp_path")
 
     def __init__(
         self,
@@ -61,9 +61,9 @@ class S3ToSFTPOperator(BaseOperator):
         s3_bucket: str,
         s3_key: str,
         sftp_path: str,
-        sftp_conn_id: str = 'ssh_default',
+        sftp_conn_id: str = "ssh_default",
         s3_conn_id: str | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -81,7 +81,7 @@ class S3ToSFTPOperator(BaseOperator):
     def get_s3_key(s3_key: str) -> str:
         """This parses the correct format for S3 keys regardless of how the S3 url is passed."""
         parsed_s3_key = urlparse(s3_key)
-        return parsed_s3_key.path.lstrip('/')
+        return parsed_s3_key.path.lstrip("/")
 
     def execute(self, context: Context) -> None:
         self.s3_key = self.get_s3_key(self.s3_key)

@@ -76,7 +76,7 @@ class StackdriverTaskHandler(logging.Handler):
     LABEL_EXECUTION_DATE = "execution_date"
     LABEL_TRY_NUMBER = "try_number"
     LOG_VIEWER_BASE_URL = "https://console.cloud.google.com/logs/viewer"
-    LOG_NAME = 'Google Stackdriver'
+    LOG_NAME = "Google Stackdriver"
 
     def __init__(
         self,
@@ -95,7 +95,7 @@ class StackdriverTaskHandler(logging.Handler):
         self.resource: Resource = resource
         self.labels: dict[str, str] | None = labels
         self.task_instance_labels: dict[str, str] | None = {}
-        self.task_instance_hostname = 'default-hostname'
+        self.task_instance_hostname = "default-hostname"
 
     @cached_property
     def _credentials_and_project(self) -> tuple[Credentials, str]:
@@ -191,14 +191,14 @@ class StackdriverTaskHandler(logging.Handler):
 
         log_filter = self._prepare_log_filter(ti_labels)
         next_page_token = metadata.get("next_page_token", None)
-        all_pages = 'download_logs' in metadata and metadata['download_logs']
+        all_pages = "download_logs" in metadata and metadata["download_logs"]
 
         messages, end_of_log, next_page_token = self._read_logs(log_filter, next_page_token, all_pages)
 
         new_metadata: dict[str, str | bool] = {"end_of_log": end_of_log}
 
         if next_page_token:
-            new_metadata['next_page_token'] = next_page_token
+            new_metadata["next_page_token"] = next_page_token
 
         return [((self.task_instance_hostname, messages),)], [new_metadata]
 
@@ -223,15 +223,15 @@ class StackdriverTaskHandler(logging.Handler):
 
         _, project = self._credentials_and_project
         log_filters = [
-            f'resource.type={escale_label_value(self.resource.type)}',
+            f"resource.type={escale_label_value(self.resource.type)}",
             f'logName="projects/{project}/logs/{self.name}"',
         ]
 
         for key, value in self.resource.labels.items():
-            log_filters.append(f'resource.labels.{escape_label_key(key)}={escale_label_value(value)}')
+            log_filters.append(f"resource.labels.{escape_label_key(key)}={escale_label_value(value)}")
 
         for key, value in ti_labels.items():
-            log_filters.append(f'labels.{escape_label_key(key)}={escale_label_value(value)}')
+            log_filters.append(f"labels.{escape_label_key(key)}={escale_label_value(value)}")
         return "\n".join(log_filters)
 
     def _read_logs(
@@ -284,10 +284,10 @@ class StackdriverTaskHandler(logging.Handler):
         """
         _, project = self._credentials_and_project
         request = ListLogEntriesRequest(
-            resource_names=[f'projects/{project}'],
+            resource_names=[f"projects/{project}"],
             filter=log_filter,
             page_token=page_token,
-            order_by='timestamp asc',
+            order_by="timestamp asc",
             page_size=1000,
         )
         response = self._logging_service_client.list_log_entries(request=request)
@@ -338,10 +338,10 @@ class StackdriverTaskHandler(logging.Handler):
         log_filter = self._prepare_log_filter(ti_labels)
 
         url_query_string = {
-            'project': project_id,
-            'interval': 'NO_LIMIT',
-            'resource': self._resource_path,
-            'advancedFilter': log_filter,
+            "project": project_id,
+            "interval": "NO_LIMIT",
+            "resource": self._resource_path,
+            "advancedFilter": log_filter,
         }
 
         url = f"{self.LOG_VIEWER_BASE_URL}?{urlencode(url_query_string)}"

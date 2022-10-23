@@ -40,7 +40,7 @@ class DatastoreHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
-        api_version: str = 'v1',
+        api_version: str = "v1",
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
@@ -61,7 +61,7 @@ class DatastoreHook(GoogleBaseHook):
         if not self.connection:
             http_authorized = self._authorize()
             self.connection = build(
-                'datastore', self.api_version, http=http_authorized, cache_discovery=False
+                "datastore", self.api_version, http=http_authorized, cache_discovery=False
             )
 
         return self.connection
@@ -83,11 +83,11 @@ class DatastoreHook(GoogleBaseHook):
 
         resp = (
             conn.projects()
-            .allocateIds(projectId=project_id, body={'keys': partial_keys})
+            .allocateIds(projectId=project_id, body={"keys": partial_keys})
             .execute(num_retries=self.num_retries)
         )
 
-        return resp['keys']
+        return resp["keys"]
 
     @GoogleBaseHook.fallback_to_default_project_id
     def begin_transaction(self, project_id: str, transaction_options: dict[str, Any]) -> str:
@@ -110,7 +110,7 @@ class DatastoreHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
 
-        return resp['transaction']
+        return resp["transaction"]
 
     @GoogleBaseHook.fallback_to_default_project_id
     def commit(self, body: dict, project_id: str) -> dict:
@@ -155,11 +155,11 @@ class DatastoreHook(GoogleBaseHook):
         """
         conn = self.get_conn()  # type: Any
 
-        body = {'keys': keys}  # type: Dict[str, Any]
+        body = {"keys": keys}  # type: Dict[str, Any]
         if read_consistency:
-            body['readConsistency'] = read_consistency
+            body["readConsistency"] = read_consistency
         if transaction:
-            body['transaction'] = transaction
+            body["transaction"] = transaction
         resp = conn.projects().lookup(projectId=project_id, body=body).execute(num_retries=self.num_retries)
 
         return resp
@@ -177,7 +177,7 @@ class DatastoreHook(GoogleBaseHook):
         """
         conn: Any = self.get_conn()
 
-        conn.projects().rollback(projectId=project_id, body={'transaction': transaction}).execute(
+        conn.projects().rollback(projectId=project_id, body={"transaction": transaction}).execute(
             num_retries=self.num_retries
         )
 
@@ -198,7 +198,7 @@ class DatastoreHook(GoogleBaseHook):
 
         resp = conn.projects().runQuery(projectId=project_id, body=body).execute(num_retries=self.num_retries)
 
-        return resp['batch']
+        return resp["batch"]
 
     def get_operation(self, name: str) -> dict:
         """
@@ -246,10 +246,10 @@ class DatastoreHook(GoogleBaseHook):
         while True:
             result: dict = self.get_operation(name)
 
-            state: str = result['metadata']['common']['state']
-            if state == 'PROCESSING':
+            state: str = result["metadata"]["common"]["state"]
+            if state == "PROCESSING":
                 self.log.info(
-                    'Operation is processing. Re-polling state in %s seconds', polling_interval_in_seconds
+                    "Operation is processing. Re-polling state in %s seconds", polling_interval_in_seconds
                 )
                 time.sleep(polling_interval_in_seconds)
             else:
@@ -283,15 +283,15 @@ class DatastoreHook(GoogleBaseHook):
         """
         admin_conn = self.get_conn()  # type: Any
 
-        output_uri_prefix = 'gs://' + '/'.join(filter(None, [bucket, namespace]))  # type: str
+        output_uri_prefix = "gs://" + "/".join(filter(None, [bucket, namespace]))  # type: str
         if not entity_filter:
             entity_filter = {}
         if not labels:
             labels = {}
         body = {
-            'outputUrlPrefix': output_uri_prefix,
-            'entityFilter': entity_filter,
-            'labels': labels,
+            "outputUrlPrefix": output_uri_prefix,
+            "entityFilter": entity_filter,
+            "labels": labels,
         }  # type: Dict
         resp = (
             admin_conn.projects()
@@ -331,15 +331,15 @@ class DatastoreHook(GoogleBaseHook):
         """
         admin_conn = self.get_conn()  # type: Any
 
-        input_url = 'gs://' + '/'.join(filter(None, [bucket, namespace, file]))  # type: str
+        input_url = "gs://" + "/".join(filter(None, [bucket, namespace, file]))  # type: str
         if not entity_filter:
             entity_filter = {}
         if not labels:
             labels = {}
         body = {
-            'inputUrl': input_url,
-            'entityFilter': entity_filter,
-            'labels': labels,
+            "inputUrl": input_url,
+            "entityFilter": entity_filter,
+            "labels": labels,
         }  # type: Dict
         resp = (
             admin_conn.projects()

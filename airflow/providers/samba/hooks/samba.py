@@ -39,10 +39,10 @@ class SambaHook(BaseHook):
         the connection is used in its place.
     """
 
-    conn_name_attr = 'samba_conn_id'
-    default_conn_name = 'samba_default'
-    conn_type = 'samba'
-    hook_name = 'Samba'
+    conn_name_attr = "samba_conn_id"
+    default_conn_name = "samba_default"
+    conn_type = "samba"
+    hook_name = "Samba"
 
     def __init__(self, samba_conn_id: str = default_conn_name, share: str | None = None) -> None:
         super().__init__()

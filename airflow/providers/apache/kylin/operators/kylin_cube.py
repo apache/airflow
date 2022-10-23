@@ -76,32 +76,32 @@ class KylinCubeOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project',
-        'cube',
-        'dsn',
-        'command',
-        'start_time',
-        'end_time',
-        'segment_name',
-        'offset_start',
-        'offset_end',
+        "project",
+        "cube",
+        "dsn",
+        "command",
+        "start_time",
+        "end_time",
+        "segment_name",
+        "offset_start",
+        "offset_end",
     )
-    ui_color = '#E79C46'
+    ui_color = "#E79C46"
     build_command = {
-        'fullbuild',
-        'build',
-        'merge',
-        'refresh',
-        'build_streaming',
-        'merge_streaming',
-        'refresh_streaming',
+        "fullbuild",
+        "build",
+        "merge",
+        "refresh",
+        "build_streaming",
+        "merge_streaming",
+        "refresh_streaming",
     }
     jobs_end_status = {"FINISHED", "ERROR", "DISCARDED", "KILLED", "SUICIDAL", "STOPPED"}
 
     def __init__(
         self,
         *,
-        kylin_conn_id: str = 'kylin_default',
+        kylin_conn_id: str = "kylin_default",
         project: str | None = None,
         cube: str | None = None,
         dsn: str | None = None,
@@ -140,18 +140,18 @@ class KylinCubeOperator(BaseOperator):
 
         _support_invoke_command = kylinpy.CubeSource.support_invoke_command
         if not self.command:
-            raise AirflowException(f'Kylin:Command {self.command} can not be empty')
+            raise AirflowException(f"Kylin:Command {self.command} can not be empty")
         if self.command.lower() not in _support_invoke_command:
             raise AirflowException(
-                f'Kylin:Command {self.command} can not match kylin command list {_support_invoke_command}'
+                f"Kylin:Command {self.command} can not match kylin command list {_support_invoke_command}"
             )
 
         kylinpy_params = {
-            'start': datetime.fromtimestamp(int(self.start_time) / 1000) if self.start_time else None,
-            'end': datetime.fromtimestamp(int(self.end_time) / 1000) if self.end_time else None,
-            'name': self.segment_name,
-            'offset_start': int(self.offset_start) if self.offset_start else None,
-            'offset_end': int(self.offset_end) if self.offset_end else None,
+            "start": datetime.fromtimestamp(int(self.start_time) / 1000) if self.start_time else None,
+            "end": datetime.fromtimestamp(int(self.end_time) / 1000) if self.end_time else None,
+            "name": self.segment_name,
+            "offset_start": int(self.offset_start) if self.offset_start else None,
+            "offset_end": int(self.offset_end) if self.offset_end else None,
         }
         rsp_data = _hook.cube_run(self.cube, self.command.lower(), **kylinpy_params)
         if self.is_track_job and self.command.lower() in self.build_command:
@@ -164,13 +164,13 @@ class KylinCubeOperator(BaseOperator):
             job_status = None
             while job_status not in self.jobs_end_status:
                 if time.monotonic() - started_at > self.timeout:
-                    raise AirflowException(f'kylin job {job_id} timeout')
+                    raise AirflowException(f"kylin job {job_id} timeout")
                 time.sleep(self.interval)
 
                 job_status = _hook.get_job_status(job_id)
-                self.log.info('Kylin job status is %s ', job_status)
+                self.log.info("Kylin job status is %s ", job_status)
                 if job_status in self.jobs_error_status:
-                    raise AirflowException(f'Kylin job {job_id} status {job_status} is error ')
+                    raise AirflowException(f"Kylin job {job_id} status {job_status} is error ")
 
         if self.do_xcom_push:
             return rsp_data

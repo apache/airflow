@@ -43,18 +43,18 @@ class SparkKubernetesOperator(BaseOperator):
     :param api_version: kubernetes api version of sparkApplication
     """
 
-    template_fields: Sequence[str] = ('application_file', 'namespace')
-    template_ext: Sequence[str] = ('.yaml', '.yml', '.json')
-    ui_color = '#f4a460'
+    template_fields: Sequence[str] = ("application_file", "namespace")
+    template_ext: Sequence[str] = (".yaml", ".yml", ".json")
+    ui_color = "#f4a460"
 
     def __init__(
         self,
         *,
         application_file: str,
         namespace: str | None = None,
-        kubernetes_conn_id: str = 'kubernetes_default',
-        api_group: str = 'sparkoperator.k8s.io',
-        api_version: str = 'v1beta2',
+        kubernetes_conn_id: str = "kubernetes_default",
+        api_group: str = "sparkoperator.k8s.io",
+        api_version: str = "v1beta2",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

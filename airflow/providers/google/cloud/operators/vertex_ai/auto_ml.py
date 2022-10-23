@@ -90,8 +90,8 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     """Create AutoML Forecasting Training job"""
 
     template_fields = [
-        'region',
-        'impersonation_chain',
+        "region",
+        "impersonation_chain",
     ]
     operator_extra_links = (VertexAIModelLink(),)
 
@@ -209,8 +209,8 @@ class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     """Create Auto ML Image Training job"""
 
     template_fields = [
-        'region',
-        'impersonation_chain',
+        "region",
+        "impersonation_chain",
     ]
     operator_extra_links = (VertexAIModelLink(),)
 
@@ -284,8 +284,8 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     """Create Auto ML Tabular Training job"""
 
     template_fields = [
-        'region',
-        'impersonation_chain',
+        "region",
+        "impersonation_chain",
     ]
     operator_extra_links = (VertexAIModelLink(),)
 
@@ -385,8 +385,8 @@ class CreateAutoMLTextTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     """Create Auto ML Text Training job"""
 
     template_fields = [
-        'region',
-        'impersonation_chain',
+        "region",
+        "impersonation_chain",
     ]
     operator_extra_links = (VertexAIModelLink(),)
 
@@ -451,8 +451,8 @@ class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     """Create Auto ML Video Training job"""
 
     template_fields = [
-        'region',
-        'impersonation_chain',
+        "region",
+        "impersonation_chain",
     ]
     operator_extra_links = (VertexAIModelLink(),)
 

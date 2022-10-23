@@ -62,10 +62,10 @@ class PodPhase:
     See https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase.
     """
 
-    PENDING = 'Pending'
-    RUNNING = 'Running'
-    FAILED = 'Failed'
-    SUCCEEDED = 'Succeeded'
+    PENDING = "Pending"
+    RUNNING = "Running"
+    FAILED = "Failed"
+    SUCCEEDED = "Succeeded"
 
     terminal_states = {FAILED, SUCCEEDED}
 
@@ -138,15 +138,15 @@ class PodManager(LoggingMixin):
         sanitized_pod = self._client.api_client.sanitize_for_serialization(pod)
         json_pod = json.dumps(sanitized_pod, indent=2)
 
-        self.log.debug('Pod Creation Request: \n%s', json_pod)
+        self.log.debug("Pod Creation Request: \n%s", json_pod)
         try:
             resp = self._client.create_namespaced_pod(
                 body=sanitized_pod, namespace=pod.metadata.namespace, **kwargs
             )
-            self.log.debug('Pod Creation Response: %s', resp)
+            self.log.debug("Pod Creation Response: %s", resp)
         except Exception as e:
             self.log.exception(
-                'Exception when attempting to create Namespaced Pod: %s', str(json_pod).replace("\n", " ")
+                "Exception when attempting to create Namespaced Pod: %s", str(json_pod).replace("\n", " ")
             )
             raise e
         return resp
@@ -232,7 +232,7 @@ class PodManager(LoggingMixin):
                     follow=follow,
                 )
                 for raw_line in logs:
-                    line = raw_line.decode('utf-8', errors="backslashreplace")
+                    line = raw_line.decode("utf-8", errors="backslashreplace")
                     timestamp, message = self.parse_log_line(line)
                     self.log.info(message)
             except BaseHTTPError as e:
@@ -260,7 +260,7 @@ class PodManager(LoggingMixin):
                 return PodLoggingStatus(running=True, last_log_time=last_log_time)
             else:
                 self.log.warning(
-                    'Pod %s log read interrupted but container %s still running',
+                    "Pod %s log read interrupted but container %s still running",
                     pod.metadata.name,
                     container_name,
                 )
@@ -281,7 +281,7 @@ class PodManager(LoggingMixin):
             remote_pod = self.read_pod(pod)
             if remote_pod.status.phase in PodPhase.terminal_states:
                 break
-            self.log.info('Pod %s has phase %s', pod.metadata.name, remote_pod.status.phase)
+            self.log.info("Pod %s has phase %s", pod.metadata.name, remote_pod.status.phase)
             time.sleep(2)
         return remote_pod
 
@@ -293,7 +293,7 @@ class PodManager(LoggingMixin):
         :return: timestamp and log message
         :rtype: Tuple[str, str]
         """
-        split_at = line.find(' ')
+        split_at = line.find(" ")
         if split_at == -1:
             self.log.error(
                 "Error parsing timestamp (no timestamp in message %r). "
@@ -328,10 +328,10 @@ class PodManager(LoggingMixin):
         """Reads log from the POD"""
         additional_kwargs = {}
         if since_seconds:
-            additional_kwargs['since_seconds'] = since_seconds
+            additional_kwargs["since_seconds"] = since_seconds
 
         if tail_lines:
-            additional_kwargs['tail_lines'] = tail_lines
+            additional_kwargs["tail_lines"] = tail_lines
 
         try:
             return self._client.read_namespaced_pod_log(
@@ -344,7 +344,7 @@ class PodManager(LoggingMixin):
                 **additional_kwargs,
             )
         except BaseHTTPError:
-            self.log.exception('There was an error reading the kubernetes API.')
+            self.log.exception("There was an error reading the kubernetes API.")
             raise
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
@@ -355,7 +355,7 @@ class PodManager(LoggingMixin):
                 namespace=pod.metadata.namespace, field_selector=f"involvedObject.name={pod.metadata.name}"
             )
         except BaseHTTPError as e:
-            raise AirflowException(f'There was an error reading the kubernetes API: {e}')
+            raise AirflowException(f"There was an error reading the kubernetes API: {e}")
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def read_pod(self, pod: V1Pod) -> V1Pod:
@@ -363,7 +363,7 @@ class PodManager(LoggingMixin):
         try:
             return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
         except BaseHTTPError as e:
-            raise AirflowException(f'There was an error reading the kubernetes API: {e}')
+            raise AirflowException(f"There was an error reading the kubernetes API: {e}")
 
     def await_xcom_sidecar_container_start(self, pod: V1Pod) -> None:
         self.log.info("Checking if xcom sidecar container is started.")
@@ -385,7 +385,7 @@ class PodManager(LoggingMixin):
                 pod.metadata.name,
                 pod.metadata.namespace,
                 container=PodDefaults.SIDECAR_CONTAINER_NAME,
-                command=['/bin/sh'],
+                command=["/bin/sh"],
                 stdin=True,
                 stdout=True,
                 stderr=True,
@@ -395,18 +395,18 @@ class PodManager(LoggingMixin):
         ) as resp:
             result = self._exec_pod_command(
                 resp,
-                f'if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; else echo __airflow_xcom_result_empty__; fi',  # noqa
+                f"if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; else echo __airflow_xcom_result_empty__; fi",  # noqa
             )
-            self._exec_pod_command(resp, 'kill -s SIGINT 1')
+            self._exec_pod_command(resp, "kill -s SIGINT 1")
         if result is None:
-            raise AirflowException(f'Failed to extract xcom from pod: {pod.metadata.name}')
+            raise AirflowException(f"Failed to extract xcom from pod: {pod.metadata.name}")
         return result
 
     def _exec_pod_command(self, resp, command: str) -> str | None:
         res = None
         if resp.is_open():
-            self.log.info('Running command... %s\n', command)
-            resp.write_stdin(command + '\n')
+            self.log.info("Running command... %s\n", command)
+            resp.write_stdin(command + "\n")
             while resp.is_open():
                 resp.update(timeout=1)
                 while resp.peek_stdout():

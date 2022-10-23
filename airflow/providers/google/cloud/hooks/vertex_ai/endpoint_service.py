@@ -48,8 +48,8 @@ class EndpointServiceHook(GoogleBaseHook):
 
     def get_endpoint_service_client(self, region: str | None = None) -> EndpointServiceClient:
         """Returns EndpointServiceClient."""
-        if region and region != 'global':
-            client_options = ClientOptions(api_endpoint=f'{region}-aiplatform.googleapis.com:443')
+        if region and region != "global":
+            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
             client_options = ClientOptions()
 
@@ -103,9 +103,9 @@ class EndpointServiceHook(GoogleBaseHook):
 
         result = client.create_endpoint(
             request={
-                'parent': parent,
-                'endpoint': endpoint,
-                'endpoint_id': endpoint_id,
+                "parent": parent,
+                "endpoint": endpoint,
+                "endpoint_id": endpoint_id,
             },
             retry=retry,
             timeout=timeout,
@@ -138,7 +138,7 @@ class EndpointServiceHook(GoogleBaseHook):
 
         result = client.delete_endpoint(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -189,9 +189,9 @@ class EndpointServiceHook(GoogleBaseHook):
 
         result = client.deploy_model(
             request={
-                'endpoint': endpoint_path,
-                'deployed_model': deployed_model,
-                'traffic_split': traffic_split,
+                "endpoint": endpoint_path,
+                "deployed_model": deployed_model,
+                "traffic_split": traffic_split,
             },
             retry=retry,
             timeout=timeout,
@@ -224,7 +224,7 @@ class EndpointServiceHook(GoogleBaseHook):
 
         result = client.get_endpoint(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -282,12 +282,12 @@ class EndpointServiceHook(GoogleBaseHook):
 
         result = client.list_endpoints(
             request={
-                'parent': parent,
-                'filter': filter,
-                'page_size': page_size,
-                'page_token': page_token,
-                'read_mask': read_mask,
-                'order_by': order_by,
+                "parent": parent,
+                "filter": filter,
+                "page_size": page_size,
+                "page_token": page_token,
+                "read_mask": read_mask,
+                "order_by": order_by,
             },
             retry=retry,
             timeout=timeout,
@@ -330,9 +330,9 @@ class EndpointServiceHook(GoogleBaseHook):
 
         result = client.undeploy_model(
             request={
-                'endpoint': endpoint_path,
-                'deployed_model_id': deployed_model_id,
-                'traffic_split': traffic_split,
+                "endpoint": endpoint_path,
+                "deployed_model_id": deployed_model_id,
+                "traffic_split": traffic_split,
             },
             retry=retry,
             timeout=timeout,
@@ -369,8 +369,8 @@ class EndpointServiceHook(GoogleBaseHook):
 
         result = client.update_endpoint(
             request={
-                'endpoint': endpoint,
-                'update_mask': update_mask,
+                "endpoint": endpoint,
+                "update_mask": update_mask,
             },
             retry=retry,
             timeout=timeout,

@@ -44,7 +44,7 @@ _FILENAME_IN_CONTAINER = "/tmp/script.py"
 def _generate_decode_command() -> str:
     return (
         f'python -c "import base64, os;'
-        rf'x = os.environ[\"{_PYTHON_SCRIPT_ENV}\"];'
+        rf"x = os.environ[\"{_PYTHON_SCRIPT_ENV}\"];"
         rf'f = open(\"{_FILENAME_IN_CONTAINER}\", \"w\"); f.write(x); f.close()"'
     )
 
@@ -57,11 +57,11 @@ def _read_file_contents(filename):
 class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     custom_operator_name = "@task.kubernetes"
 
-    template_fields: Sequence[str] = ('op_args', 'op_kwargs')
+    template_fields: Sequence[str] = ("op_args", "op_kwargs")
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
-    shallow_copy_attrs: Sequence[str] = ('python_callable',)
+    shallow_copy_attrs: Sequence[str] = ("python_callable",)
 
     def __init__(self, namespace: str = "default", **kwargs) -> None:
         self.pickling_library = pickle
@@ -81,7 +81,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
 
     def execute(self, context: Context):
         with TemporaryDirectory(prefix="venv") as tmp_dir:
-            script_filename = os.path.join(tmp_dir, 'script.py')
+            script_filename = os.path.join(tmp_dir, "script.py")
             py_source = self._get_python_source()
 
             jinja_context = {

@@ -102,13 +102,13 @@ class DataprocCreateClusterOperator(BaseOperator):
         *,
         folder_id: str | None = None,
         cluster_name: str | None = None,
-        cluster_description: str | None = '',
+        cluster_description: str | None = "",
         cluster_image_version: str | None = None,
         ssh_public_keys: str | Iterable[str] | None = None,
         subnet_id: str | None = None,
-        services: Iterable[str] = ('HDFS', 'YARN', 'MAPREDUCE', 'HIVE', 'SPARK'),
+        services: Iterable[str] = ("HDFS", "YARN", "MAPREDUCE", "HIVE", "SPARK"),
         s3_bucket: str | None = None,
-        zone: str = 'ru-central1-b',
+        zone: str = "ru-central1-b",
         service_account_id: str | None = None,
         masternode_resource_preset: str | None = None,
         masternode_disk_size: int | None = None,
@@ -226,9 +226,9 @@ class DataprocCreateClusterOperator(BaseOperator):
         )
         cluster_id = operation_result.response.id
 
-        context['task_instance'].xcom_push(key='cluster_id', value=cluster_id)
+        context["task_instance"].xcom_push(key="cluster_id", value=cluster_id)
         # Deprecated
-        context['task_instance'].xcom_push(key='yandexcloud_connection_id', value=self.yandex_conn_id)
+        context["task_instance"].xcom_push(key="yandexcloud_connection_id", value=self.yandex_conn_id)
         return cluster_id
 
     @property
@@ -243,7 +243,7 @@ class DataprocBaseOperator(BaseOperator):
     :param cluster_id: ID of the cluster to remove. (templated)
     """
 
-    template_fields: Sequence[str] = ('cluster_id',)
+    template_fields: Sequence[str] = ("cluster_id",)
 
     def __init__(self, *, yandex_conn_id: str | None = None, cluster_id: str | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -252,11 +252,11 @@ class DataprocBaseOperator(BaseOperator):
 
     def _setup(self, context: Context) -> DataprocHook:
         if self.cluster_id is None:
-            self.cluster_id = context['task_instance'].xcom_pull(key='cluster_id')
+            self.cluster_id = context["task_instance"].xcom_pull(key="cluster_id")
         if self.yandex_conn_id is None:
-            xcom_yandex_conn_id = context['task_instance'].xcom_pull(key='yandexcloud_connection_id')
+            xcom_yandex_conn_id = context["task_instance"].xcom_pull(key="yandexcloud_connection_id")
             if xcom_yandex_conn_id:
-                warnings.warn('Implicit pass of `yandex_conn_id` is deprecated, please pass it explicitly')
+                warnings.warn("Implicit pass of `yandex_conn_id` is deprecated, please pass it explicitly")
                 self.yandex_conn_id = xcom_yandex_conn_id
 
         return DataprocHook(yandex_conn_id=self.yandex_conn_id)
@@ -302,7 +302,7 @@ class DataprocCreateHiveJobOperator(DataprocBaseOperator):
         script_variables: dict[str, str] | None = None,
         continue_on_failure: bool = False,
         properties: dict[str, str] | None = None,
-        name: str = 'Hive job',
+        name: str = "Hive job",
         cluster_id: str | None = None,
         connection_id: str | None = None,
         **kwargs,
@@ -355,7 +355,7 @@ class DataprocCreateMapReduceJobOperator(DataprocBaseOperator):
         file_uris: Iterable[str] | None = None,
         args: Iterable[str] | None = None,
         properties: dict[str, str] | None = None,
-        name: str = 'Mapreduce job',
+        name: str = "Mapreduce job",
         cluster_id: str | None = None,
         connection_id: str | None = None,
         **kwargs,
@@ -416,7 +416,7 @@ class DataprocCreateSparkJobOperator(DataprocBaseOperator):
         file_uris: Iterable[str] | None = None,
         args: Iterable[str] | None = None,
         properties: dict[str, str] | None = None,
-        name: str = 'Spark job',
+        name: str = "Spark job",
         cluster_id: str | None = None,
         connection_id: str | None = None,
         packages: Iterable[str] | None = None,
@@ -486,7 +486,7 @@ class DataprocCreatePysparkJobOperator(DataprocBaseOperator):
         file_uris: Iterable[str] | None = None,
         args: Iterable[str] | None = None,
         properties: dict[str, str] | None = None,
-        name: str = 'Pyspark job',
+        name: str = "Pyspark job",
         cluster_id: str | None = None,
         connection_id: str | None = None,
         packages: Iterable[str] | None = None,

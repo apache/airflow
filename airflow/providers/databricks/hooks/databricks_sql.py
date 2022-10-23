@@ -27,7 +27,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
-LIST_SQL_ENDPOINTS_ENDPOINT = ('GET', 'api/2.0/sql/endpoints')
+LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
 
 
 class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
@@ -50,7 +50,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
     :param kwargs: Additional parameters internal to Databricks SQL Connector parameters
     """
 
-    hook_name = 'Databricks SQL'
+    hook_name = "Databricks SQL"
 
     def __init__(
         self,
@@ -78,7 +78,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
     def _get_extra_config(self) -> dict[str, Any | None]:
         extra_params = copy(self.databricks_conn.extra_dejson)
-        for arg in ['http_path', 'session_configuration'] + self.extra_parameters:
+        for arg in ["http_path", "session_configuration"] + self.extra_parameters:
             if arg in extra_params:
                 del extra_params[arg]
 
@@ -86,9 +86,9 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
     def _get_sql_endpoint_by_name(self, endpoint_name) -> dict[str, Any]:
         result = self._do_api_call(LIST_SQL_ENDPOINTS_ENDPOINT)
-        if 'endpoints' not in result:
+        if "endpoints" not in result:
             raise AirflowException("Can't list Databricks SQL endpoints")
-        lst = [endpoint for endpoint in result['endpoints'] if endpoint['name'] == endpoint_name]
+        lst = [endpoint for endpoint in result["endpoints"] if endpoint["name"] == endpoint_name]
         if len(lst) == 0:
             raise AirflowException(f"Can't f Databricks SQL endpoint with name '{endpoint_name}'")
         return lst[0]
@@ -98,9 +98,9 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         if not self._http_path:
             if self._sql_endpoint_name:
                 endpoint = self._get_sql_endpoint_by_name(self._sql_endpoint_name)
-                self._http_path = endpoint['odbc_params']['path']
-            elif 'http_path' in self.databricks_conn.extra_dejson:
-                self._http_path = self.databricks_conn.extra_dejson['http_path']
+                self._http_path = endpoint["odbc_params"]["path"]
+            elif "http_path" in self.databricks_conn.extra_dejson:
+                self._http_path = self.databricks_conn.extra_dejson["http_path"]
             else:
                 raise AirflowException(
                     "http_path should be provided either explicitly, "
@@ -119,7 +119,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                 requires_init = False
 
         if not self.session_config:
-            self.session_config = self.databricks_conn.extra_dejson.get('session_configuration')
+            self.session_config = self.databricks_conn.extra_dejson.get("session_configuration")
 
         if not self._sql_conn or requires_init:
             if self._sql_conn:  # close already existing connection

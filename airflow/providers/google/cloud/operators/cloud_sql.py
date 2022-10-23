@@ -37,8 +37,8 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-SETTINGS = 'settings'
-SETTINGS_VERSION = 'settingsVersion'
+SETTINGS = "settings"
+SETTINGS_VERSION = "settingsVersion"
 
 CLOUD_SQL_CREATE_VALIDATION: Sequence[dict] = [
     dict(name="name", allow_empty=False),
@@ -237,8 +237,8 @@ class CloudSQLBaseOperator(BaseOperator):
         *,
         instance: str,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1beta4',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1beta4",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -251,7 +251,7 @@ class CloudSQLBaseOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def _validate_inputs(self) -> None:
-        if self.project_id == '':
+        if self.project_id == "":
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance:
             raise AirflowException("The required parameter 'instance' is empty or None")
@@ -313,15 +313,15 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
 
     # [START gcp_sql_create_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance',
-        'body',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "instance",
+        "body",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gcp_sql_create_template_fields]
-    ui_color = '#FADBDA'
+    ui_color = "#FADBDA"
     operator_extra_links = (CloudSQLInstanceLink(),)
 
     def __init__(
@@ -330,8 +330,8 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
         body: dict,
         instance: str,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1beta4',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1beta4",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -379,7 +379,7 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
 
         instance_resource = hook.get_instance(project_id=self.project_id, instance=self.instance)
         service_account_email = instance_resource["serviceAccountEmailAddress"]
-        task_instance = context['task_instance']
+        task_instance = context["task_instance"]
         task_instance.xcom_push(key="service_account_email", value=service_account_email)
 
 
@@ -417,15 +417,15 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
 
     # [START gcp_sql_patch_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance',
-        'body',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "instance",
+        "body",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gcp_sql_patch_template_fields]
-    ui_color = '#FBDAC8'
+    ui_color = "#FBDAC8"
     operator_extra_links = (CloudSQLInstanceLink(),)
 
     def __init__(
@@ -434,8 +434,8 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
         body: dict,
         instance: str,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1beta4',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1beta4",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -462,8 +462,8 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
         )
         if not self._check_if_instance_exists(self.instance, hook):
             raise AirflowException(
-                f'Cloud SQL instance with ID {self.instance} does not exist. '
-                'Please specify another instance to patch.'
+                f"Cloud SQL instance with ID {self.instance} does not exist. "
+                "Please specify another instance to patch."
             )
         else:
             CloudSQLInstanceLink.persist(
@@ -501,14 +501,14 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
 
     # [START gcp_sql_delete_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "instance",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gcp_sql_delete_template_fields]
-    ui_color = '#FEECD2'
+    ui_color = "#FEECD2"
 
     def execute(self, context: Context) -> bool | None:
         hook = CloudSQLHook(
@@ -551,15 +551,15 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
 
     # [START gcp_sql_db_create_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance',
-        'body',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "instance",
+        "body",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gcp_sql_db_create_template_fields]
-    ui_color = '#FFFCDB'
+    ui_color = "#FFFCDB"
     operator_extra_links = (CloudSQLInstanceDatabaseLink(),)
 
     def __init__(
@@ -568,8 +568,8 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
         instance: str,
         body: dict,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1beta4',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1beta4",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -658,16 +658,16 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
 
     # [START gcp_sql_db_patch_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance',
-        'body',
-        'database',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "instance",
+        "body",
+        "database",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gcp_sql_db_patch_template_fields]
-    ui_color = '#ECF4D9'
+    ui_color = "#ECF4D9"
     operator_extra_links = (CloudSQLInstanceDatabaseLink(),)
 
     def __init__(
@@ -677,8 +677,8 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
         database: str,
         body: dict,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1beta4',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1beta4",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -758,15 +758,15 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
 
     # [START gcp_sql_db_delete_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance',
-        'database',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "instance",
+        "database",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gcp_sql_db_delete_template_fields]
-    ui_color = '#D5EAD8'
+    ui_color = "#D5EAD8"
 
     def __init__(
         self,
@@ -774,8 +774,8 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
         instance: str,
         database: str,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1beta4',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1beta4",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -844,15 +844,15 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
 
     # [START gcp_sql_export_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance',
-        'body',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "instance",
+        "body",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gcp_sql_export_template_fields]
-    ui_color = '#D4ECEA'
+    ui_color = "#D4ECEA"
     operator_extra_links = (CloudSQLInstanceLink(), FileDetailsLink())
 
     def __init__(
@@ -861,8 +861,8 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
         instance: str,
         body: dict,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1beta4',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1beta4",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -955,15 +955,15 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
 
     # [START gcp_sql_import_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance',
-        'body',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "instance",
+        "body",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gcp_sql_import_template_fields]
-    ui_color = '#D3EDFB'
+    ui_color = "#D3EDFB"
     operator_extra_links = (CloudSQLInstanceLink(), FileDetailsLink())
 
     def __init__(
@@ -972,8 +972,8 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
         instance: str,
         body: dict,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1beta4',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1beta4",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -1048,11 +1048,11 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
     """
 
     # [START gcp_sql_query_template_fields]
-    template_fields: Sequence[str] = ('sql', 'gcp_cloudsql_conn_id', 'gcp_conn_id')
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'sql'}
+    template_fields: Sequence[str] = ("sql", "gcp_cloudsql_conn_id", "gcp_conn_id")
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "sql"}
     # [END gcp_sql_query_template_fields]
-    ui_color = '#D3DEF1'
+    ui_color = "#D3DEF1"
 
     def __init__(
         self,
@@ -1060,8 +1060,8 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
         sql: str | Iterable[str],
         autocommit: bool = False,
         parameters: Iterable | Mapping | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        gcp_cloudsql_conn_id: str = 'google_cloud_sql_default',
+        gcp_conn_id: str = "google_cloud_default",
+        gcp_cloudsql_conn_id: str = "google_cloud_sql_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1093,7 +1093,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
         hook = CloudSQLDatabaseHook(
             gcp_cloudsql_conn_id=self.gcp_cloudsql_conn_id,
             gcp_conn_id=self.gcp_conn_id,
-            default_gcp_project_id=get_field(self.gcp_connection.extra_dejson, 'project'),
+            default_gcp_project_id=get_field(self.gcp_connection.extra_dejson, "project"),
         )
         hook.validate_ssl_certs()
         connection = hook.create_connection()

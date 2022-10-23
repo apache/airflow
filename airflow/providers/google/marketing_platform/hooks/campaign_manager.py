@@ -260,8 +260,8 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
             )
             .execute(num_retries=self.num_retries)
         )
-        if response.get('hasFailures', False):
-            errored_conversions = [stat['errors'] for stat in response['status'] if 'errors' in stat]
+        if response.get("hasFailures", False):
+            errored_conversions = [stat["errors"] for stat in response["status"] if "errors" in stat]
             if len(errored_conversions) > max_failed_inserts:
                 raise AirflowException(errored_conversions)
         return response
@@ -304,8 +304,8 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
             )
             .execute(num_retries=self.num_retries)
         )
-        if response.get('hasFailures', False):
-            errored_conversions = [stat['errors'] for stat in response['status'] if 'errors' in stat]
+        if response.get("hasFailures", False):
+            errored_conversions = [stat["errors"] for stat in response["status"] if "errors" in stat]
             if len(errored_conversions) > max_failed_updates:
                 raise AirflowException(errored_conversions)
         return response
