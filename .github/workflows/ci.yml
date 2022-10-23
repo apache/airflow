@@ -411,9 +411,13 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: needs.build-info.outputs.in-workflow-build == 'true'
       - name: "Show dependencies to be upgraded"
         run: >
-          breeze release-management generate-constraints
+          breeze release-management generate-constraints --run-in-parallel
           --airflow-constraints-mode constraints-source-providers
-        if: needs.build-info.outputs.upgrade-to-newer-dependencies != 'false'
+        env:
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+        if: >
+          needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' &&
+          needs.build-info.outputs.in-workflow-build == 'true'
       - name: "Candidates for pip resolver backtrack triggers"
         if: failure() || cancelled()
         run: >
