@@ -287,6 +287,13 @@ class KubernetesPodOperator(BaseOperator):
         self.pod_request_obj: k8s.V1Pod | None = None
         self.pod: k8s.V1Pod | None = None
 
+    @cached_property
+    def _incluster_namespace(self):
+        from pathlib import Path
+
+        path = Path('/var/run/secrets/kubernetes.io/serviceaccount/namespace')
+        return path.exists() and path.read_text() or None
+
     def _render_nested_template_fields(
         self,
         content: Any,
@@ -484,14 +491,12 @@ class KubernetesPodOperator(BaseOperator):
         labels_value += ',!airflow-worker'
         return labels_value
 
-    def _set_name(self, name: str | None) -> str | None:
-        if name is None:
-            if self.pod_template_file or self.full_pod_spec:
-                return None
-            raise AirflowException("`name` is required unless `pod_template_file` or `full_pod_spec` is set")
-
-        validate_key(name, max_length=220)
-        return re.sub(r'[^a-z0-9-]+', '-', name.lower())
+    @staticmethod
+    def _set_name(name: str | None) -> str | None:
+        if name is not None:
+            validate_key(name, max_length=220)
+            return re.sub(r'[^a-z0-9-]+', '-', name.lower())
+        return None
 
     def patch_already_checked(self, pod: k8s.V1Pod):
         """Add an "already checked" annotation to ensure we don't reattach on retries"""
@@ -526,7 +531,7 @@ class KubernetesPodOperator(BaseOperator):
         elif self.full_pod_spec:
             pod_template = self.full_pod_spec
         else:
-            pod_template = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="name"))
+            pod_template = k8s.V1Pod(metadata=k8s.V1ObjectMeta())
 
         pod = k8s.V1Pod(
             api_version="v1",
@@ -571,8 +576,16 @@ class KubernetesPodOperator(BaseOperator):
 
         pod = PodGenerator.reconcile_pods(pod_template, pod)
 
+        if not pod.metadata.name:
+            pod.metadata.name = self.task_id
+
         if self.random_name_suffix:
             pod.metadata.name = PodGenerator.make_unique_pod_id(pod.metadata.name)
+
+        if not pod.metadata.namespace:
+            hook_namespace = self.hook.conn_extras.get('extra__kubernetes__namespace')
+            pod_namespace = self.namespace or hook_namespace or self._incluster_namespace or 'default'
+            pod.metadata.namespace = pod_namespace
 
         for secret in self.secrets:
             self.log.debug("Adding secret to task %s", self.task_id)
@@ -584,7 +597,7 @@ class KubernetesPodOperator(BaseOperator):
             )
 
         labels = self._get_ti_pod_labels(context)
-        self.log.info("Creating pod %s with labels: %s", pod.metadata.name, labels)
+        self.log.info("Building pod %s with labels: %s", pod.metadata.name, labels)
 
         # Merge Pod Identifying labels with labels passed to operator
         pod.metadata.labels.update(labels)

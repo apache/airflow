@@ -1032,6 +1032,11 @@ extra-links:
   - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPInfoTypesListLink
   - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPInfoTypeDetailsLink
   - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPPossibleInfoTypesListLink
+  - airflow.providers.google.cloud.links.mlengine.MLEngineModelLink
+  - airflow.providers.google.cloud.links.mlengine.MLEngineModelsListLink
+  - airflow.providers.google.cloud.links.mlengine.MLEngineJobDetailsLink
+  - airflow.providers.google.cloud.links.mlengine.MLEngineJobSListLink
+  - airflow.providers.google.cloud.links.mlengine.MLEngineModelVersionDetailsLink
   - airflow.providers.google.common.links.storage.StorageLink
   - airflow.providers.google.common.links.storage.FileDetailsLink
 

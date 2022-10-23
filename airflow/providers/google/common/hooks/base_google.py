@@ -127,6 +127,19 @@ T = TypeVar("T", bound=Callable)
 RT = TypeVar('RT')
 
 
+def get_field(extras: dict, field_name: str):
+    """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
+    if field_name.startswith('extra__'):
+        raise ValueError(
+            f"Got prefixed name {field_name}; please remove the 'extra__google_cloud_platform__' prefix "
+            "when using this method."
+        )
+    if field_name in extras:
+        return extras[field_name] or None
+    prefixed_name = f"extra__google_cloud_platform__{field_name}"
+    return extras.get(prefixed_name) or None
+
+
 class GoogleBaseHook(BaseHook):
     """
     A base hook for Google cloud-related hooks. Google cloud has a shared REST
@@ -179,25 +192,17 @@ class GoogleBaseHook(BaseHook):
         from wtforms.validators import NumberRange
 
         return {
-            "extra__google_cloud_platform__project": StringField(
-                lazy_gettext('Project Id'), widget=BS3TextFieldWidget()
-            ),
-            "extra__google_cloud_platform__key_path": StringField(
-                lazy_gettext('Keyfile Path'), widget=BS3TextFieldWidget()
-            ),
-            "extra__google_cloud_platform__keyfile_dict": PasswordField(
-                lazy_gettext('Keyfile JSON'), widget=BS3PasswordFieldWidget()
-            ),
-            "extra__google_cloud_platform__scope": StringField(
-                lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget()
-            ),
-            "extra__google_cloud_platform__key_secret_name": StringField(
+            "project": StringField(lazy_gettext('Project Id'), widget=BS3TextFieldWidget()),
+            "key_path": StringField(lazy_gettext('Keyfile Path'), widget=BS3TextFieldWidget()),
+            "keyfile_dict": PasswordField(lazy_gettext('Keyfile JSON'), widget=BS3PasswordFieldWidget()),
+            "scope": StringField(lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget()),
+            "key_secret_name": StringField(
                 lazy_gettext('Keyfile Secret Name (in GCP Secret Manager)'), widget=BS3TextFieldWidget()
             ),
-            "extra__google_cloud_platform__key_secret_project_id": StringField(
+            "key_secret_project_id": StringField(
                 lazy_gettext('Keyfile Secret Project Id (in GCP Secret Manager)'), widget=BS3TextFieldWidget()
             ),
-            "extra__google_cloud_platform__num_retries": IntegerField(
+            "num_retries": IntegerField(
                 lazy_gettext('Number of Retries'),
                 validators=[NumberRange(min=0)],
                 widget=BS3TextFieldWidget(),
@@ -325,11 +330,7 @@ class GoogleBaseHook(BaseHook):
         to the hook page, which allow admins to specify service_account,
         key_path, etc. They get formatted as shown below.
         """
-        long_f = f'extra__google_cloud_platform__{f}'
-        if hasattr(self, 'extras') and long_f in self.extras:
-            return self.extras[long_f]
-        else:
-            return default
+        return hasattr(self, 'extras') and get_field(self.extras, f) or default
 
     @property
     def project_id(self) -> str | None:

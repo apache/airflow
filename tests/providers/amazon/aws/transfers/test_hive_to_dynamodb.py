@@ -23,6 +23,7 @@ import unittest
 from unittest import mock
 
 import pandas as pd
+from moto import mock_dynamodb
 
 import airflow.providers.amazon.aws.transfers.hive_to_dynamodb
 from airflow.models.dag import DAG
@@ -31,11 +32,6 @@ from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 DEFAULT_DATE = datetime.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
-
-try:
-    from moto import mock_dynamodb2
-except ImportError:
-    mock_dynamodb2 = None
 
 
 class TestHiveToDynamoDBOperator(unittest.TestCase):
@@ -50,8 +46,7 @@ class TestHiveToDynamoDBOperator(unittest.TestCase):
     def process_data(data, *args, **kwargs):
         return json.loads(data.to_json(orient='records'))
 
-    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
-    @mock_dynamodb2
+    @mock_dynamodb
     def test_get_conn_returns_a_boto3_connection(self):
         hook = DynamoDBHook(aws_conn_id='aws_default')
         assert hook.get_conn() is not None
@@ -60,8 +55,7 @@ class TestHiveToDynamoDBOperator(unittest.TestCase):
         'airflow.providers.apache.hive.hooks.hive.HiveServer2Hook.get_pandas_df',
         return_value=pd.DataFrame(data=[('1', 'sid')], columns=['id', 'name']),
     )
-    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
-    @mock_dynamodb2
+    @mock_dynamodb
     def test_get_records_with_schema(self, mock_get_pandas_df):
         # this table needs to be created in production
         self.hook.get_conn().create_table(
@@ -91,8 +85,7 @@ class TestHiveToDynamoDBOperator(unittest.TestCase):
         'airflow.providers.apache.hive.hooks.hive.HiveServer2Hook.get_pandas_df',
         return_value=pd.DataFrame(data=[('1', 'sid'), ('1', 'gupta')], columns=['id', 'name']),
     )
-    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
-    @mock_dynamodb2
+    @mock_dynamodb
     def test_pre_process_records_with_schema(self, mock_get_pandas_df):
         # this table needs to be created in production
         self.hook.get_conn().create_table(

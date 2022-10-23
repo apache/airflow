@@ -28,6 +28,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.utils import db
+from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
 
 # connection_string has a format
 CONN_STRING = (
@@ -390,3 +391,34 @@ class TestWasbHook:
         status, msg = hook.test_connection()
         assert status is False
         assert msg == "Authentication failed."
+
+    def test__ensure_prefixes_removal(self):
+        """Ensure that _ensure_prefixes is removed from snowflake when airflow min version >= 2.5.0."""
+        path = 'airflow.providers.microsoft.azure.hooks.wasb._ensure_prefixes'
+        if not object_exists(path):
+            raise Exception(
+                "You must remove this test. It only exists to "
+                "remind us to remove decorator `_ensure_prefixes`."
+            )
+
+        if get_provider_min_airflow_version('apache-airflow-providers-microsoft-azure') >= (2, 5):
+            raise Exception(
+                "You must now remove `_ensure_prefixes` from WasbHook.  The functionality is now taken"
+                "care of by providers manager."
+            )
+
+    def test___ensure_prefixes(self):
+        """
+        Check that ensure_prefixes decorator working properly
+        Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
+        """
+        assert list(WasbHook.get_ui_field_behaviour()['placeholders'].keys()) == [
+            'extra',
+            'login',
+            'password',
+            'host',
+            'extra__wasb__connection_string',
+            'extra__wasb__tenant_id',
+            'extra__wasb__shared_access_key',
+            'extra__wasb__sas_token',
+        ]
