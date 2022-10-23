@@ -239,8 +239,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
       - name: "Show dependencies to be upgraded"
         run: >
-          breeze release-management generate-constraints
+          breeze release-management generate-constraints --run-in-parallel
           --airflow-constraints-mode constraints-source-providers
+        env:
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
         if: needs.build-info.outputs.upgrade-to-newer-dependencies != 'false'
       - name: Push empty CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         if: failure() || cancelled()
