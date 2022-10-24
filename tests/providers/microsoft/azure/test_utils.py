@@ -17,6 +17,9 @@
 
 from __future__ import annotations
 
+import pytest
+
+from airflow.providers.microsoft.azure.utils import get_field
 from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
 
 
@@ -34,3 +37,14 @@ def test__ensure_prefixes_removal():
             "You must now remove `_ensure_prefixes` from azure utils."
             " The functionality is now taken care of by providers manager."
         )
+
+
+def test_get_field_warns_on_dupe():
+    with pytest.warns(DeprecationWarning, match='abc'):
+        value = get_field(
+            conn_id='my_conn',
+            conn_type='this_type',
+            extras=dict(extra__this_type__this_param='prefixed', this_param='non-prefixed'),
+            field_name='this_param',
+        )
+    assert value == 'non-prefixed'
