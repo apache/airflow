@@ -24,13 +24,25 @@
 Changelog
 ---------
 
+7.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.3+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+* In SlackHook and SlackWebhookHook, if both ``extra__<conn type>__foo`` and ``foo`` existed in connection extra
+  dict, the prefixed version would be used; now, the non-prefixed version will be preferred.  You'll see a warning
+  if there is such a collision.
+
 6.0.0
 .....
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* The hook class  ``SlackWebhookHook`` dies not inherit from ``HttpHook`` anymore. In practice the
+* The hook class  ``SlackWebhookHook`` does not inherit from ``HttpHook`` anymore. In practice the
   only impact on user-defined classes based on **SlackWebhookHook** and you use attributes
   from **HttpHook**.
 * Drop support deprecated ``webhook_token`` parameter in ``slack-incoming-webhook`` extra.

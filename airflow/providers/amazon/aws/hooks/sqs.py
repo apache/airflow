@@ -74,12 +74,12 @@ class SqsHook(AwsBaseHook):
         :rtype: dict
         """
         params = {
-            'QueueUrl': queue_url,
-            'MessageBody': message_body,
-            'DelaySeconds': delay_seconds,
-            'MessageAttributes': message_attributes or {},
+            "QueueUrl": queue_url,
+            "MessageBody": message_body,
+            "DelaySeconds": delay_seconds,
+            "MessageAttributes": message_attributes or {},
         }
         if message_group_id:
-            params['MessageGroupId'] = message_group_id
+            params["MessageGroupId"] = message_group_id
 
         return self.get_conn().send_message(**params)

@@ -17,15 +17,14 @@
 from __future__ import annotations
 
 import base64
-import unittest
 
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class ResultBackendConnectionSecretTest(unittest.TestCase):
+class TestResultBackendConnectionSecret:
     def _get_values_with_version(self, values, version):
         if version != "default":
             values["airflowVersion"] = version
@@ -55,12 +54,13 @@ class ResultBackendConnectionSecretTest(unittest.TestCase):
 
         assert 0 == len(docs)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "executor, expected_doc_count",
         [
             ("CeleryExecutor", 1),
             ("CeleryKubernetesExecutor", 1),
             ("LocalExecutor", 0),
-        ]
+        ],
     )
     def test_should_a_document_be_generated_for_executor(self, executor, expected_doc_count):
         docs = render_chart(
@@ -90,7 +90,7 @@ class ResultBackendConnectionSecretTest(unittest.TestCase):
         encoded_connection = jmespath.search("data.connection", docs[0])
         return base64.b64decode(encoded_connection).decode()
 
-    @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_default_connection_old_version(self, version):
         connection = self._get_connection(self._get_values_with_version(version=version, values={}))
         self._assert_for_old_version(
@@ -100,7 +100,7 @@ class ResultBackendConnectionSecretTest(unittest.TestCase):
             "-postgresql:5432/postgres?sslmode=disable",
         )
 
-    @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_should_default_to_custom_metadata_db_connection_with_pgbouncer_overrides(self, version):
         values = {
             "pgbouncer": {"enabled": True},
@@ -116,7 +116,7 @@ class ResultBackendConnectionSecretTest(unittest.TestCase):
             ":6543/release-name-result-backend?sslmode=allow",
         )
 
-    @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_should_set_pgbouncer_overrides_when_enabled(self, version):
         values = {"pgbouncer": {"enabled": True}}
         connection = self._get_connection(self._get_values_with_version(values=values, version=version))
@@ -142,7 +142,7 @@ class ResultBackendConnectionSecretTest(unittest.TestCase):
             "/release-name-result-backend?sslmode=allow" == connection
         )
 
-    @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_should_default_to_custom_metadata_db_connection_in_old_version(self, version):
         values = {
             "data": {"metadataConnection": {**self.non_chart_database_values}},

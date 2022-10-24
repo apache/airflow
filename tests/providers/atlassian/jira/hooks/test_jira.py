@@ -31,9 +31,9 @@ class TestJiraHook(unittest.TestCase):
     def setUp(self):
         db.merge_conn(
             Connection(
-                conn_id='jira_default',
-                conn_type='jira',
-                host='https://localhost/jira/',
+                conn_id="jira_default",
+                conn_type="jira",
+                host="https://localhost/jira/",
                 port=443,
                 extra='{"verify": "False", "project": "AIRFLOW"}',
             )

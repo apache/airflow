@@ -92,31 +92,31 @@ TEST_TAG_PATH: str = (
 
 TEST_ENTRY: Entry = Entry(name=TEST_ENTRY_PATH)
 TEST_ENTRY_DICT: dict = {
-    'description': '',
-    'display_name': '',
-    'linked_resource': '',
-    'fully_qualified_name': '',
-    'labels': {},
-    'name': TEST_ENTRY_PATH,
+    "description": "",
+    "display_name": "",
+    "linked_resource": "",
+    "fully_qualified_name": "",
+    "labels": {},
+    "name": TEST_ENTRY_PATH,
 }
 TEST_ENTRY_GROUP: EntryGroup = EntryGroup(name=TEST_ENTRY_GROUP_PATH)
-TEST_ENTRY_GROUP_DICT: dict = {'description': '', 'display_name': '', 'name': TEST_ENTRY_GROUP_PATH}
+TEST_ENTRY_GROUP_DICT: dict = {"description": "", "display_name": "", "name": TEST_ENTRY_GROUP_PATH}
 TEST_TAG: Tag = Tag(name=TEST_TAG_PATH)
-TEST_TAG_DICT: dict = {'fields': {}, 'name': TEST_TAG_PATH, 'template': '', 'template_display_name': ''}
+TEST_TAG_DICT: dict = {"fields": {}, "name": TEST_TAG_PATH, "template": "", "template_display_name": ""}
 TEST_TAG_TEMPLATE: TagTemplate = TagTemplate(name=TEST_TAG_TEMPLATE_PATH)
 TEST_TAG_TEMPLATE_DICT: dict = {
-    'display_name': '',
-    'fields': {},
-    'is_publicly_readable': False,
-    'name': TEST_TAG_TEMPLATE_PATH,
+    "display_name": "",
+    "fields": {},
+    "is_publicly_readable": False,
+    "name": TEST_TAG_TEMPLATE_PATH,
 }
 TEST_TAG_TEMPLATE_FIELD: TagTemplateField = TagTemplateField(name=TEST_TAG_TEMPLATE_FIELD_ID)
 TEST_TAG_TEMPLATE_FIELD_DICT: dict = {
-    'description': '',
-    'display_name': '',
-    'is_required': False,
-    'name': TEST_TAG_TEMPLATE_FIELD_ID,
-    'order': 0,
+    "description": "",
+    "display_name": "",
+    "is_required": False,
+    "name": TEST_TAG_TEMPLATE_FIELD_ID,
+    "order": 0,
 }
 TEST_ENTRY_LINK = "projects/{project_id}/locations/{location}/entryGroups/{entry_group_id}/entries/{entry_id}"
 TEST_TAG_TEMPLATE_LINK = "projects/{project_id}/locations/{location}/tagTemplates/{tag_template_id}"

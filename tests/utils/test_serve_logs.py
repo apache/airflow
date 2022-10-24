@@ -35,7 +35,7 @@ LOG_DATA = "Airflow log data" * 20
 
 @pytest.fixture
 def client(tmpdir):
-    with conf_vars({('logging', 'base_log_folder'): str(tmpdir)}):
+    with conf_vars({("logging", "base_log_folder"): str(tmpdir)}):
         app = create_app()
 
         yield app.test_client()
@@ -43,7 +43,7 @@ def client(tmpdir):
 
 @pytest.fixture
 def sample_log(tmpdir):
-    f = tmpdir / 'sample.log'
+    f = tmpdir / "sample.log"
     f.write(LOG_DATA.encode())
 
     return f
@@ -67,16 +67,16 @@ def different_audience(secret_key):
     )
 
 
-@pytest.mark.usefixtures('sample_log')
+@pytest.mark.usefixtures("sample_log")
 class TestServeLogs:
     def test_forbidden_no_auth(self, client: FlaskClient):
-        assert 403 == client.get('/log/sample.log').status_code
+        assert 403 == client.get("/log/sample.log").status_code
 
     def test_should_serve_file(self, client: FlaskClient, signer):
         response = client.get(
-            '/log/sample.log',
+            "/log/sample.log",
             headers={
-                'Authorization': signer.generate_signed_token({"filename": 'sample.log'}),
+                "Authorization": signer.generate_signed_token({"filename": "sample.log"}),
             },
         )
         assert response.data.decode() == LOG_DATA
@@ -84,21 +84,21 @@ class TestServeLogs:
 
     def test_forbidden_different_logname(self, client: FlaskClient, signer):
         response = client.get(
-            '/log/sample.log',
+            "/log/sample.log",
             headers={
-                'Authorization': signer.generate_signed_token({"filename": 'different.log'}),
+                "Authorization": signer.generate_signed_token({"filename": "different.log"}),
             },
         )
         assert response.status_code == 403
 
     def test_forbidden_expired(self, client: FlaskClient, signer):
         with freeze_time("2010-01-14"):
-            token = signer.generate_signed_token({"filename": 'sample.log'})
+            token = signer.generate_signed_token({"filename": "sample.log"})
         assert (
             client.get(
-                '/log/sample.log',
+                "/log/sample.log",
                 headers={
-                    'Authorization': token,
+                    "Authorization": token,
                 },
             ).status_code
             == 403
@@ -106,12 +106,12 @@ class TestServeLogs:
 
     def test_forbidden_future(self, client: FlaskClient, signer):
         with freeze_time(datetime.datetime.utcnow() + datetime.timedelta(seconds=3600)):
-            token = signer.generate_signed_token({"filename": 'sample.log'})
+            token = signer.generate_signed_token({"filename": "sample.log"})
         assert (
             client.get(
-                '/log/sample.log',
+                "/log/sample.log",
                 headers={
-                    'Authorization': token,
+                    "Authorization": token,
                 },
             ).status_code
             == 403
@@ -119,12 +119,12 @@ class TestServeLogs:
 
     def test_ok_with_short_future_skew(self, client: FlaskClient, signer):
         with freeze_time(datetime.datetime.utcnow() + datetime.timedelta(seconds=1)):
-            token = signer.generate_signed_token({"filename": 'sample.log'})
+            token = signer.generate_signed_token({"filename": "sample.log"})
         assert (
             client.get(
-                '/log/sample.log',
+                "/log/sample.log",
                 headers={
-                    'Authorization': token,
+                    "Authorization": token,
                 },
             ).status_code
             == 200
@@ -132,12 +132,12 @@ class TestServeLogs:
 
     def test_ok_with_short_past_skew(self, client: FlaskClient, signer):
         with freeze_time(datetime.datetime.utcnow() - datetime.timedelta(seconds=31)):
-            token = signer.generate_signed_token({"filename": 'sample.log'})
+            token = signer.generate_signed_token({"filename": "sample.log"})
         assert (
             client.get(
-                '/log/sample.log',
+                "/log/sample.log",
                 headers={
-                    'Authorization': token,
+                    "Authorization": token,
                 },
             ).status_code
             == 200
@@ -145,12 +145,12 @@ class TestServeLogs:
 
     def test_forbidden_with_long_future_skew(self, client: FlaskClient, signer):
         with freeze_time(datetime.datetime.utcnow() + datetime.timedelta(seconds=10)):
-            token = signer.generate_signed_token({"filename": 'sample.log'})
+            token = signer.generate_signed_token({"filename": "sample.log"})
         assert (
             client.get(
-                '/log/sample.log',
+                "/log/sample.log",
                 headers={
-                    'Authorization': token,
+                    "Authorization": token,
                 },
             ).status_code
             == 403
@@ -158,12 +158,12 @@ class TestServeLogs:
 
     def test_forbidden_with_long_past_skew(self, client: FlaskClient, signer):
         with freeze_time(datetime.datetime.utcnow() - datetime.timedelta(seconds=40)):
-            token = signer.generate_signed_token({"filename": 'sample.log'})
+            token = signer.generate_signed_token({"filename": "sample.log"})
         assert (
             client.get(
-                '/log/sample.log',
+                "/log/sample.log",
                 headers={
-                    'Authorization': token,
+                    "Authorization": token,
                 },
             ).status_code
             == 403
@@ -172,9 +172,9 @@ class TestServeLogs:
     def test_wrong_audience(self, client: FlaskClient, different_audience):
         assert (
             client.get(
-                '/log/sample.log',
+                "/log/sample.log",
                 headers={
-                    'Authorization': different_audience.generate_signed_token({"filename": 'sample.log'}),
+                    "Authorization": different_audience.generate_signed_token({"filename": "sample.log"}),
                 },
             ).status_code
             == 403
@@ -189,7 +189,7 @@ class TestServeLogs:
             "exp": datetime.datetime.utcnow() + datetime.timedelta(seconds=30),
         }
         del jwt_dict[claim_to_remove]
-        jwt_dict.update({"filename": 'sample.log'})
+        jwt_dict.update({"filename": "sample.log"})
         token = jwt.encode(
             jwt_dict,
             secret_key,
@@ -197,9 +197,9 @@ class TestServeLogs:
         )
         assert (
             client.get(
-                '/log/sample.log',
+                "/log/sample.log",
                 headers={
-                    'Authorization': token,
+                    "Authorization": token,
                 },
             ).status_code
             == 403

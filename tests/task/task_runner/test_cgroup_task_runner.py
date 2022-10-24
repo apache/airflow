@@ -35,7 +35,7 @@ class TestCgroupTaskRunner:
         local_task_job = mock.Mock()
         local_task_job.task_instance = mock.MagicMock()
         local_task_job.task_instance.run_as_user = None
-        local_task_job.task_instance.command_as_list.return_value = ['sleep', '1000']
+        local_task_job.task_instance.command_as_list.return_value = ["sleep", "1000"]
 
         runner = CgroupTaskRunner(local_task_job)
         assert mock_super_init.called

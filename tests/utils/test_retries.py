@@ -57,7 +57,7 @@ class TestRetries(unittest.TestCase):
             mock_obj(2)
             raise op_error
 
-        with self.assertRaises(OperationalError), self.assertLogs(self.__module__, 'DEBUG') as logs_output:
+        with self.assertRaises(OperationalError), self.assertLogs(self.__module__, "DEBUG") as logs_output:
             test_function(session=mock_session)
 
         assert (

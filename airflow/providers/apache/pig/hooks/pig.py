@@ -35,15 +35,15 @@ class PigCliHook(BaseHook):
 
     """
 
-    conn_name_attr = 'pig_cli_conn_id'
-    default_conn_name = 'pig_cli_default'
-    conn_type = 'pig_cli'
-    hook_name = 'Pig Client Wrapper'
+    conn_name_attr = "pig_cli_conn_id"
+    default_conn_name = "pig_cli_default"
+    conn_type = "pig_cli"
+    hook_name = "Pig Client Wrapper"
 
     def __init__(self, pig_cli_conn_id: str = default_conn_name) -> None:
         super().__init__()
         conn = self.get_connection(pig_cli_conn_id)
-        self.pig_properties = conn.extra_dejson.get('pig_properties', '')
+        self.pig_properties = conn.extra_dejson.get("pig_properties", "")
         self.conn = conn
         self.sub_process = None
 
@@ -56,12 +56,12 @@ class PigCliHook(BaseHook):
         >>> ("hdfs://" in result)
         True
         """
-        with TemporaryDirectory(prefix='airflow_pigop_') as tmp_dir:
+        with TemporaryDirectory(prefix="airflow_pigop_") as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir) as f:
-                f.write(pig.encode('utf-8'))
+                f.write(pig.encode("utf-8"))
                 f.flush()
                 fname = f.name
-                pig_bin = 'pig'
+                pig_bin = "pig"
                 cmd_extra: list[str] = []
 
                 pig_cmd = [pig_bin]
@@ -73,7 +73,7 @@ class PigCliHook(BaseHook):
                     pig_opts_list = pig_opts.split()
                     pig_cmd.extend(pig_opts_list)
 
-                pig_cmd.extend(['-f', fname] + cmd_extra)
+                pig_cmd.extend(["-f", fname] + cmd_extra)
 
                 if verbose:
                     self.log.info("%s", " ".join(pig_cmd))
@@ -81,9 +81,9 @@ class PigCliHook(BaseHook):
                     pig_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=tmp_dir, close_fds=True
                 )
                 self.sub_process = sub_process
-                stdout = ''
-                for line in iter(sub_process.stdout.readline, b''):
-                    stdout += line.decode('utf-8')
+                stdout = ""
+                for line in iter(sub_process.stdout.readline, b""):
+                    stdout += line.decode("utf-8")
                     if verbose:
                         self.log.info(line.strip())
                 sub_process.wait()

@@ -27,12 +27,12 @@ class TestDrillHook(unittest.TestCase):
     def setUp(self):
         self.cur = MagicMock(rowcount=0)
         self.conn = conn = MagicMock()
-        self.conn.login = 'drill_user'
-        self.conn.password = 'secret'
-        self.conn.host = 'host'
-        self.conn.port = '8047'
-        self.conn.conn_type = 'drill'
-        self.conn.extra_dejson = {'dialect_driver': 'drill+sadrill', 'storage_plugin': 'dfs'}
+        self.conn.login = "drill_user"
+        self.conn.password = "secret"
+        self.conn.host = "host"
+        self.conn.port = "8047"
+        self.conn.conn_type = "drill"
+        self.conn.extra_dejson = {"dialect_driver": "drill+sadrill", "storage_plugin": "dfs"}
         self.conn.cursor.return_value = self.cur
 
         class TestDrillHook(DrillHook):
@@ -46,11 +46,11 @@ class TestDrillHook(unittest.TestCase):
 
     def test_get_uri(self):
         db_hook = self.db_hook()
-        assert 'drill://host:8047/dfs?dialect_driver=drill+sadrill' == db_hook.get_uri()
+        assert "drill://host:8047/dfs?dialect_driver=drill+sadrill" == db_hook.get_uri()
 
     def test_get_first_record(self):
-        statement = 'SQL'
-        result_sets = [('row1',), ('row2',)]
+        statement = "SQL"
+        result_sets = [("row1",), ("row2",)]
         self.cur.fetchone.return_value = result_sets[0]
 
         assert result_sets[0] == self.db_hook().get_first(statement)
@@ -59,8 +59,8 @@ class TestDrillHook(unittest.TestCase):
         self.cur.execute.assert_called_once_with(statement)
 
     def test_get_records(self):
-        statement = 'SQL'
-        result_sets = [('row1',), ('row2',)]
+        statement = "SQL"
+        result_sets = [("row1",), ("row2",)]
         self.cur.fetchall.return_value = result_sets
 
         assert result_sets == self.db_hook().get_records(statement)
@@ -69,9 +69,9 @@ class TestDrillHook(unittest.TestCase):
         self.cur.execute.assert_called_once_with(statement)
 
     def test_get_pandas_df(self):
-        statement = 'SQL'
-        column = 'col'
-        result_sets = [('row1',), ('row2',)]
+        statement = "SQL"
+        column = "col"
+        result_sets = [("row1",), ("row2",)]
         self.cur.description = [(column,)]
         self.cur.fetchall.return_value = result_sets
         df = self.db_hook().get_pandas_df(statement)

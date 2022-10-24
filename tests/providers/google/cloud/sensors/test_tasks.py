@@ -36,7 +36,7 @@ FULL_TASK_PATH = "projects/test-project/locations/asia-east2/queues/test-queue/t
 
 
 class TestCloudTasksEmptySensor(unittest.TestCase):
-    @mock.patch('airflow.providers.google.cloud.sensors.tasks.CloudTasksHook')
+    @mock.patch("airflow.providers.google.cloud.sensors.tasks.CloudTasksHook")
     def test_queue_empty(self, mock_hook):
 
         operator = TaskQueueEmptySensor(
@@ -47,7 +47,7 @@ class TestCloudTasksEmptySensor(unittest.TestCase):
 
         assert result is True
 
-    @mock.patch('airflow.providers.google.cloud.sensors.tasks.CloudTasksHook')
+    @mock.patch("airflow.providers.google.cloud.sensors.tasks.CloudTasksHook")
     def test_queue_not_empty(self, mock_hook):
         mock_hook.return_value.list_tasks.return_value = [Task(name=FULL_TASK_PATH)]
 

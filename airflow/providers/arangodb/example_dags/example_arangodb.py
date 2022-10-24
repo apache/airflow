@@ -23,9 +23,9 @@ from airflow.providers.arangodb.operators.arangodb import AQLOperator
 from airflow.providers.arangodb.sensors.arangodb import AQLSensor
 
 dag = DAG(
-    'example_arangodb_operator',
+    "example_arangodb_operator",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 )
 
@@ -57,7 +57,7 @@ sensor2 = AQLSensor(
 # [START howto_aql_operator_arangodb]
 
 operator = AQLOperator(
-    task_id='aql_operator',
+    task_id="aql_operator",
     query="FOR doc IN students RETURN doc",
     dag=dag,
     result_processor=lambda cursor: print([document["name"] for document in cursor]),
@@ -68,7 +68,7 @@ operator = AQLOperator(
 # [START howto_aql_operator_template_file_arangodb]
 
 operator2 = AQLOperator(
-    task_id='aql_operator_template_file',
+    task_id="aql_operator_template_file",
     dag=dag,
     result_processor=lambda cursor: print([document["name"] for document in cursor]),
     query="search_all.sql",
