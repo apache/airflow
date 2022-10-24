@@ -329,8 +329,7 @@ class KubernetesPodOperator(BaseOperator):
             "kubernetes_pod_operator": "True",
         }
 
-        # If running on Airflow 2.3+:
-        map_index = getattr(ti, "map_index", -1)
+        map_index = ti.map_index
         if map_index >= 0:
             labels["map_index"] = map_index
 

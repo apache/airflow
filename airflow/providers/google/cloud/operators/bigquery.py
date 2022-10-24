@@ -21,7 +21,6 @@ from __future__ import annotations
 import enum
 import json
 import warnings
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable, Optional, Sequence, SupportsAbs
 
 import attr
@@ -76,20 +75,11 @@ class BigQueryConsoleLink(BaseOperatorLink):
 
     def get_link(
         self,
-        operator,
-        dttm: datetime | None = None,
-        ti_key: TaskInstanceKey | None = None,
+        operator: BaseOperator,
+        *,
+        ti_key: TaskInstanceKey,
     ):
-        if ti_key is not None:
-            job_id = XCom.get_value(key="job_id", ti_key=ti_key)
-        else:
-            assert dttm is not None
-            job_id = XCom.get_one(
-                dag_id=operator.dag.dag_id,
-                task_id=operator.task_id,
-                execution_date=dttm,
-                key="job_id",
-            )
+        job_id = XCom.get_value(key="job_id", ti_key=ti_key)
         return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ""
 
 
@@ -105,17 +95,11 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
 
     def get_link(
         self,
-        operator,
-        dttm: datetime | None = None,
-        ti_key: TaskInstanceKey | None = None,
+        operator: BaseOperator,
+        *,
+        ti_key: TaskInstanceKey,
     ):
-        if ti_key is not None:
-            job_ids = XCom.get_value(key="job_id", ti_key=ti_key)
-        else:
-            assert dttm is not None
-            job_ids = XCom.get_one(
-                key="job_id", dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-            )
+        job_ids = XCom.get_value(key="job_id", ti_key=ti_key)
         if not job_ids:
             return None
         if len(job_ids) < self.index:

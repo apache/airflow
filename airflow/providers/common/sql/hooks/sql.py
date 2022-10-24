@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from contextlib import closing
 from datetime import datetime
 from typing import Any, Callable, Iterable, Mapping, Optional
@@ -28,8 +27,6 @@ from typing_extensions import Protocol
 
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers_manager import ProvidersManager
-from airflow.utils.module_loading import import_string
 from airflow.version import version
 
 
@@ -39,27 +36,6 @@ def fetch_all_handler(cursor) -> list[tuple] | None:
         return cursor.fetchall()
     else:
         return None
-
-
-def _backported_get_hook(connection, *, hook_params=None):
-    """Return hook based on conn_type
-    For supporting Airflow versions < 2.3, we backport "get_hook()" method. This should be removed
-    when "apache-airflow-providers-slack" will depend on Airflow >= 2.3.
-    """
-    hook = ProvidersManager().hooks.get(connection.conn_type, None)
-
-    if hook is None:
-        raise AirflowException(f'Unknown hook type "{connection.conn_type}"')
-    try:
-        hook_class = import_string(hook.hook_class_name)
-    except ImportError:
-        warnings.warn(
-            f"Could not import {hook.hook_class_name} when discovering {hook.hook_name} {hook.package_name}",
-        )
-        raise
-    if hook_params is None:
-        hook_params = {}
-    return hook_class(**{hook.connection_id_attribute_name: connection.conn_id}, **hook_params)
 
 
 class ConnectorProtocol(Protocol):
