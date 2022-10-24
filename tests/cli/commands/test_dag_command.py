@@ -59,6 +59,9 @@ class TestCliDags:
         clear_db_runs()
         clear_db_dags()
 
+    def setup_method(self):
+        clear_db_runs()  # clean-up all dag run before start each test
+
     def test_reserialize(self):
         # Assert that there are serialized Dags
         with create_session() as session:
