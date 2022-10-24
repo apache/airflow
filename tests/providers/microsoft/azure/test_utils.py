@@ -40,7 +40,7 @@ def test__ensure_prefixes_removal():
 
 
 def test_get_field_warns_on_dupe():
-    with pytest.warns(DeprecationWarning, match="abc"):
+    with pytest.warns(UserWarning, match=" Using value for `this_param`"):
         value = get_field(
             conn_id="my_conn",
             conn_type="this_type",
