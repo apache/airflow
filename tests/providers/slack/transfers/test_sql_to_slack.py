@@ -186,7 +186,7 @@ class TestSqlToSlackOperator:
             sql="SELECT 1",
             slack_message="message: {{ ds }}, {{ xxxx }}",
             sql_hook_params={
-                'log_sql': False,
+                "log_sql": False,
             },
         )
         hook = op._get_hook()

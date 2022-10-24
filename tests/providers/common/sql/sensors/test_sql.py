@@ -263,7 +263,7 @@ class TestSqlSensor(TestHiveEnvironment):
             conn_id="postgres_default",
             sql="SELECT 1",
             hook_params={
-                'log_sql': False,
+                "log_sql": False,
             },
         )
         hook = op._get_hook()

@@ -86,7 +86,7 @@ class TestPostgres(unittest.TestCase):
 
         sql = "SELECT 1;"
         op = PostgresOperator(
-            task_id='postgres_operator_test_database_overwrite',
+            task_id="postgres_operator_test_database_overwrite",
             sql=sql,
             dag=self.dag,
             autocommit=True,
