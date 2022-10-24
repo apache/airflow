@@ -28,6 +28,7 @@ import json
 import logging
 import multiprocessing
 import time
+from collections import defaultdict
 from datetime import timedelta
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Tuple
@@ -66,7 +67,7 @@ class ResourceVersion:
     """Singleton for tracking resourceVersion from Kubernetes."""
 
     _instance = None
-    resource_version = "0"
+    resource_version = {}
 
     def __new__(cls):
         if cls._instance is None:
@@ -113,7 +114,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             except Exception:
                 self.log.exception("Unknown error in KubernetesJobWatcher. Failing")
                 self.resource_version = "0"
-                ResourceVersion().resource_version = "0"
+                ResourceVersion().resource_version[self.namespace] = "0"
                 raise
             else:
                 self.log.warning(
@@ -140,9 +141,14 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
 
         last_resource_version: str | None = None
         if self.multi_namespace_mode:
-            list_worker_pods = functools.partial(
-                watcher.stream, kube_client.list_pod_for_all_namespaces, **kwargs
-            )
+            if self.kube_config.namespace_list:
+                list_worker_pods = functools.partial(
+                    watcher.stream, kube_client.list_namespaced_pod, self.namespace, **kwargs
+                )
+            else:
+                list_worker_pods = functools.partial(
+                    watcher.stream, kube_client.list_pod_for_all_namespaces, **kwargs
+                )
         else:
             list_worker_pods = functools.partial(
                 watcher.stream, kube_client.list_namespaced_pod, self.namespace, **kwargs
@@ -251,7 +257,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self._manager = multiprocessing.Manager()
         self.watcher_queue = self._manager.Queue()
         self.scheduler_job_id = scheduler_job_id
-        self.kube_watcher = self._make_kube_watcher()
+        self.kube_watchers = self._make_kube_watchers()
 
     def run_pod_async(self, pod: k8s.V1Pod, **kwargs):
         """Runs POD asynchronously."""
@@ -274,11 +280,11 @@ class AirflowKubernetesScheduler(LoggingMixin):
             raise e
         return resp
 
-    def _make_kube_watcher(self) -> KubernetesJobWatcher:
-        resource_version = ResourceVersion().resource_version
+    def _make_kube_watcher(self, namespace) -> KubernetesJobWatcher:
+        resource_version = ResourceVersion().resource_version.get(namespace, "0")
         watcher = KubernetesJobWatcher(
             watcher_queue=self.watcher_queue,
-            namespace=self.kube_config.kube_namespace,
+            namespace=namespace,
             multi_namespace_mode=self.kube_config.multi_namespace_mode,
             resource_version=resource_version,
             scheduler_job_id=self.scheduler_job_id,
@@ -287,15 +293,33 @@ class AirflowKubernetesScheduler(LoggingMixin):
         watcher.start()
         return watcher
 
-    def _health_check_kube_watcher(self):
-        if self.kube_watcher.is_alive():
-            self.log.debug("KubeJobWatcher alive, continuing")
-        else:
-            self.log.error(
-                "Error while health checking kube watcher process. Process died for unknown reasons"
+    def _make_kube_watchers(self) -> Dict[str | None, KubernetesJobWatcher]:
+        watchers = {}
+        if self.kube_config.multi_namespace_mode:
+            namespaces_to_watch = (
+                self.kube_config.namespace_list if self.kube_config.namespace_list else [None]
             )
-            ResourceVersion().resource_version = "0"
-            self.kube_watcher = self._make_kube_watcher()
+        else:
+            namespaces_to_watch = [self.kube_config.kube_namespace]
+
+        for namespace in namespaces_to_watch:
+            watchers[namespace] = self._make_kube_watcher(namespace)
+        return watchers
+
+    def _health_check_kube_watchers(self):
+        for namespace, kube_watcher in self.kube_watchers.items():
+            if kube_watcher.is_alive():
+                self.log.debug("KubeJobWatcher for namespace %s alive, continuing", namespace)
+            else:
+                self.log.error(
+                    (
+                        "Error while health checking kube watcher process for namespace %s. "
+                        "Process died for unknown reasons"
+                    ),
+                    namespace,
+                )
+                ResourceVersion().resource_version[namespace] = "0"
+                self.kube_watchers[namespace] = self._make_kube_watcher(namespace)
 
     def run_next(self, next_job: KubernetesJobType) -> None:
         """Receives the next job to run, builds the pod, and creates it."""
@@ -363,7 +387,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
         """
         self.log.debug("Syncing KubernetesExecutor")
-        self._health_check_kube_watcher()
+        self._health_check_kube_watchers()
         while True:
             try:
                 task = self.watcher_queue.get_nowait()
@@ -446,6 +470,23 @@ class KubernetesExecutor(BaseExecutor):
         self.kubernetes_queue: str | None = None
         super().__init__(parallelism=self.kube_config.parallelism)
 
+    def _list_pods(self, query_kwargs):
+        if self.kube_config.multi_namespace_mode:
+            if self.kube_config.namespace_list:
+                pods = []
+                for namespace in self.kube_config.namespace_list:
+                    pods.extend(
+                        self.kube_client.list_namespaced_pod(namespace=namespace, **query_kwargs).items
+                    )
+            else:
+                pods = self.kube_client.list_pod_for_all_namespaces(**query_kwargs).items
+        else:
+            pods = self.kube_client.list_namespaced_pod(
+                namespace=self.kube_config.kube_namespace, **query_kwargs
+            ).items
+
+        return pods
+
     @provide_session
     def clear_not_launched_queued_tasks(self, session=None) -> None:
         """
@@ -501,16 +542,16 @@ class KubernetesExecutor(BaseExecutor):
 
             # Try run_id first
             kwargs["label_selector"] += ",run_id=" + pod_generator.make_safe_label_value(ti.run_id)
-            pod_list = self.kube_client.list_namespaced_pod(self.kube_config.kube_namespace, **kwargs)
-            if pod_list.items:
+            pod_list = self._list_pods(kwargs)
+            if pod_list:
                 continue
             # Fallback to old style of using execution_date
             kwargs["label_selector"] = (
                 f"{base_label_selector},"
                 f"execution_date={pod_generator.datetime_to_label_safe_datestring(ti.execution_date)}"
             )
-            pod_list = self.kube_client.list_namespaced_pod(self.kube_config.kube_namespace, **kwargs)
-            if pod_list.items:
+            pod_list = self._list_pods(kwargs)
+            if pod_list:
                 continue
             self.log.info("TaskInstance: %s found in queued state but was not launched, rescheduling", ti)
             session.query(TaskInstance).filter(
@@ -597,13 +638,13 @@ class KubernetesExecutor(BaseExecutor):
             self.log.debug("self.queued: %s", self.queued_tasks)
         self.kube_scheduler.sync()
 
-        last_resource_version = None
+        last_resource_version = defaultdict(lambda: "0")
         while True:
             try:
                 results = self.result_queue.get_nowait()
                 try:
                     key, state, pod_id, namespace, resource_version = results
-                    last_resource_version = resource_version
+                    last_resource_version[namespace] = resource_version
                     self.log.info("Changing state of %s to %s", results, state)
                     try:
                         self._change_state(key, state, pod_id, namespace)
@@ -621,7 +662,10 @@ class KubernetesExecutor(BaseExecutor):
                 break
 
         resource_instance = ResourceVersion()
-        resource_instance.resource_version = last_resource_version or resource_instance.resource_version
+        for namespace in resource_instance.resource_version.keys():
+            resource_instance.resource_version[namespace] = (
+                last_resource_version[namespace] or resource_instance[namespace].resource_version
+            )
 
         for _ in range(self.kube_config.worker_pods_creation_batch_size):
             try:
@@ -681,15 +725,10 @@ class KubernetesExecutor(BaseExecutor):
             "label_selector": f"airflow-worker={self.scheduler_job_id}",
             **self.kube_config.kube_client_request_args,
         }
-        if self.kube_config.multi_namespace_mode:
-            pending_pods = functools.partial(self.kube_client.list_pod_for_all_namespaces, **kwargs)
-        else:
-            pending_pods = functools.partial(
-                self.kube_client.list_namespaced_pod, self.kube_config.kube_namespace, **kwargs
-            )
+        pending_pods = self._list_pods(kwargs)
 
         cutoff = timezone.utcnow() - timedelta(seconds=timeout)
-        for pod in pending_pods().items:
+        for pod in pending_pods:
             self.log.debug(
                 'Found a pending pod "%s", created "%s"', pod.metadata.name, pod.metadata.creation_timestamp
             )
@@ -726,9 +765,9 @@ class KubernetesExecutor(BaseExecutor):
         kube_client: client.CoreV1Api = self.kube_client
         for scheduler_job_id in scheduler_job_ids:
             scheduler_job_id = pod_generator.make_safe_label_value(str(scheduler_job_id))
-            kwargs = {"label_selector": f"airflow-worker={scheduler_job_id}"}
-            pod_list = kube_client.list_namespaced_pod(namespace=self.kube_config.kube_namespace, **kwargs)
-            for pod in pod_list.items:
+            query_kwargs = {"label_selector": f"airflow-worker={scheduler_job_id}"}
+            pod_list = self._list_pods(query_kwargs)
+            for pod in pod_list:
                 self.adopt_launched_task(kube_client, pod, pod_ids)
         self._adopt_completed_pods(kube_client)
         tis_to_flush.extend(pod_ids.values())
@@ -775,12 +814,12 @@ class KubernetesExecutor(BaseExecutor):
             assert self.scheduler_job_id
 
         new_worker_id_label = pod_generator.make_safe_label_value(self.scheduler_job_id)
-        kwargs = {
+        query_kwargs = {
             "field_selector": "status.phase=Succeeded",
             "label_selector": f"kubernetes_executor=True,airflow-worker!={new_worker_id_label}",
         }
-        pod_list = kube_client.list_namespaced_pod(namespace=self.kube_config.kube_namespace, **kwargs)
-        for pod in pod_list.items:
+        pod_list = self._list_pods(query_kwargs)
+        for pod in pod_list:
             self.log.info("Attempting to adopt pod %s", pod.metadata.name)
             pod.metadata.labels["airflow-worker"] = new_worker_id_label
             try:

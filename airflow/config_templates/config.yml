@@ -2434,6 +2434,15 @@
       type: boolean
       example: ~
       default: "False"
+    - name: namespace_list
+      description: |
+        If multi_namespace_mode is True while scheduler does not have a cluster-role,
+        give the list of namespaces where the scheduler will schedule jobs
+        Scheduler needs to have the necessary permissions in these namespaces.
+      version_added: 2.5.0
+      type: string
+      example: ~
+      default: ""
     - name: in_cluster
       description: |
         Use the service account kubernetes gives to pods to connect to kubernetes cluster.
