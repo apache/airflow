@@ -21,13 +21,13 @@ from unittest import mock
 
 from airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs import AzureFileShareToGCSOperator
 
-TASK_ID = 'test-azure-fileshare-to-gcs'
-AZURE_FILESHARE_SHARE = 'test-share'
-AZURE_FILESHARE_DIRECTORY_NAME = '/path/to/dir'
-GCS_PATH_PREFIX = 'gs://gcs-bucket/data/'
+TASK_ID = "test-azure-fileshare-to-gcs"
+AZURE_FILESHARE_SHARE = "test-share"
+AZURE_FILESHARE_DIRECTORY_NAME = "/path/to/dir"
+GCS_PATH_PREFIX = "gs://gcs-bucket/data/"
 MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
-AZURE_FILESHARE_CONN_ID = 'azure_fileshare_default'
-GCS_CONN_ID = 'google_cloud_default'
+AZURE_FILESHARE_CONN_ID = "azure_fileshare_default"
+GCS_CONN_ID = "google_cloud_default"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
@@ -53,8 +53,8 @@ class TestAzureFileShareToGCSOperator(unittest.TestCase):
         assert operator.dest_gcs == GCS_PATH_PREFIX
         assert operator.google_impersonation_chain == IMPERSONATION_CHAIN
 
-    @mock.patch('airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.AzureFileShareHook')
-    @mock.patch('airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.GCSHook')
+    @mock.patch("airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.AzureFileShareHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.GCSHook")
     def test_execute(self, gcs_mock_hook, azure_fileshare_mock_hook):
         """Test the execute function when the run is successful."""
 
@@ -74,9 +74,9 @@ class TestAzureFileShareToGCSOperator(unittest.TestCase):
 
         gcs_mock_hook.return_value.upload.assert_has_calls(
             [
-                mock.call('gcs-bucket', 'data/TEST1.csv', mock.ANY, gzip=False),
-                mock.call('gcs-bucket', 'data/TEST3.csv', mock.ANY, gzip=False),
-                mock.call('gcs-bucket', 'data/TEST2.csv', mock.ANY, gzip=False),
+                mock.call("gcs-bucket", "data/TEST1.csv", mock.ANY, gzip=False),
+                mock.call("gcs-bucket", "data/TEST3.csv", mock.ANY, gzip=False),
+                mock.call("gcs-bucket", "data/TEST2.csv", mock.ANY, gzip=False),
             ],
             any_order=True,
         )
@@ -91,8 +91,8 @@ class TestAzureFileShareToGCSOperator(unittest.TestCase):
 
         assert sorted(MOCK_FILES) == sorted(uploaded_files)
 
-    @mock.patch('airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.AzureFileShareHook')
-    @mock.patch('airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.GCSHook')
+    @mock.patch("airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.AzureFileShareHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.GCSHook")
     def test_execute_with_gzip(self, gcs_mock_hook, azure_fileshare_mock_hook):
         """Test the execute function when the run is successful."""
 
@@ -113,9 +113,9 @@ class TestAzureFileShareToGCSOperator(unittest.TestCase):
 
         gcs_mock_hook.return_value.upload.assert_has_calls(
             [
-                mock.call('gcs-bucket', 'data/TEST1.csv', mock.ANY, gzip=True),
-                mock.call('gcs-bucket', 'data/TEST3.csv', mock.ANY, gzip=True),
-                mock.call('gcs-bucket', 'data/TEST2.csv', mock.ANY, gzip=True),
+                mock.call("gcs-bucket", "data/TEST1.csv", mock.ANY, gzip=True),
+                mock.call("gcs-bucket", "data/TEST3.csv", mock.ANY, gzip=True),
+                mock.call("gcs-bucket", "data/TEST2.csv", mock.ANY, gzip=True),
             ],
             any_order=True,
         )

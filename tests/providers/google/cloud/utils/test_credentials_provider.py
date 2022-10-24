@@ -156,12 +156,12 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         mock_auth_default.assert_called_once_with(scopes=None)
         assert ("CREDENTIALS", "PROJECT_ID") == result
         assert [
-            'INFO:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting '
-            'connection using `google.auth.default()` since no key file is defined for '
-            'hook.'
+            "INFO:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting "
+            "connection using `google.auth.default()` since no key file is defined for "
+            "hook."
         ] == cm.output
 
-    @mock.patch('google.auth.default')
+    @mock.patch("google.auth.default")
     def test_get_credentials_and_project_id_with_default_auth_and_delegate(self, mock_auth_default):
         mock_credentials = mock.MagicMock()
         mock_auth_default.return_value = (mock_credentials, self.test_project_id)
@@ -171,8 +171,8 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         mock_credentials.with_subject.assert_called_once_with("USER")
         assert (mock_credentials.with_subject.return_value, self.test_project_id) == result
 
-    @parameterized.expand([(['scope1'],), (['scope1', 'scope2'],)])
-    @mock.patch('google.auth.default')
+    @parameterized.expand([(["scope1"],), (["scope1", "scope2"],)])
+    @mock.patch("google.auth.default")
     def test_get_credentials_and_project_id_with_default_auth_and_scopes(self, scopes, mock_auth_default):
         mock_credentials = mock.MagicMock()
         mock_auth_default.return_value = (mock_credentials, self.test_project_id)
@@ -182,9 +182,9 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         assert mock_auth_default.return_value == result
 
     @mock.patch(
-        'airflow.providers.google.cloud.utils.credentials_provider.impersonated_credentials.Credentials'
+        "airflow.providers.google.cloud.utils.credentials_provider.impersonated_credentials.Credentials"
     )
-    @mock.patch('google.auth.default')
+    @mock.patch("google.auth.default")
     def test_get_credentials_and_project_id_with_default_auth_and_target_principal(
         self, mock_auth_default, mock_impersonated_credentials
     ):
@@ -204,9 +204,9 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         assert (mock_impersonated_credentials.return_value, ANOTHER_PROJECT_ID) == result
 
     @mock.patch(
-        'airflow.providers.google.cloud.utils.credentials_provider.impersonated_credentials.Credentials'
+        "airflow.providers.google.cloud.utils.credentials_provider.impersonated_credentials.Credentials"
     )
-    @mock.patch('google.auth.default')
+    @mock.patch("google.auth.default")
     def test_get_credentials_and_project_id_with_default_auth_and_scopes_and_target_principal(
         self, mock_auth_default, mock_impersonated_credentials
     ):
@@ -214,22 +214,22 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         mock_auth_default.return_value = (mock_credentials, self.test_project_id)
 
         result = get_credentials_and_project_id(
-            scopes=['scope1', 'scope2'],
+            scopes=["scope1", "scope2"],
             target_principal=ACCOUNT_1_SAME_PROJECT,
         )
-        mock_auth_default.assert_called_once_with(scopes=['scope1', 'scope2'])
+        mock_auth_default.assert_called_once_with(scopes=["scope1", "scope2"])
         mock_impersonated_credentials.assert_called_once_with(
             source_credentials=mock_credentials,
             target_principal=ACCOUNT_1_SAME_PROJECT,
             delegates=None,
-            target_scopes=['scope1', 'scope2'],
+            target_scopes=["scope1", "scope2"],
         )
         assert (mock_impersonated_credentials.return_value, self.test_project_id) == result
 
     @mock.patch(
-        'airflow.providers.google.cloud.utils.credentials_provider.impersonated_credentials.Credentials'
+        "airflow.providers.google.cloud.utils.credentials_provider.impersonated_credentials.Credentials"
     )
-    @mock.patch('google.auth.default')
+    @mock.patch("google.auth.default")
     def test_get_credentials_and_project_id_with_default_auth_and_target_principal_and_delegates(
         self, mock_auth_default, mock_impersonated_credentials
     ):
@@ -250,7 +250,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         assert (mock_impersonated_credentials.return_value, ANOTHER_PROJECT_ID) == result
 
     @mock.patch(
-        'google.oauth2.service_account.Credentials.from_service_account_file',
+        "google.oauth2.service_account.Credentials.from_service_account_file",
     )
     def test_get_credentials_and_project_id_with_service_account_file(self, mock_from_service_account_file):
         mock_from_service_account_file.return_value.project_id = self.test_project_id
@@ -259,8 +259,8 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         mock_from_service_account_file.assert_called_once_with(self.test_key_file, scopes=None)
         assert (mock_from_service_account_file.return_value, self.test_project_id) == result
         assert [
-            'DEBUG:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting '
-            'connection using JSON key file KEY_PATH.json'
+            "DEBUG:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting "
+            "connection using JSON key file KEY_PATH.json"
         ] == cm.output
 
     @parameterized.expand([("p12", "path/to/file.p12"), ("unknown", "incorrect_file.ext")])
@@ -269,40 +269,40 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
             get_credentials_and_project_id(key_path=file)
 
     @mock.patch(
-        'google.oauth2.service_account.Credentials.from_service_account_info',
+        "google.oauth2.service_account.Credentials.from_service_account_info",
     )
     def test_get_credentials_and_project_id_with_service_account_info(self, mock_from_service_account_info):
         mock_from_service_account_info.return_value.project_id = self.test_project_id
-        service_account = {'private_key': "PRIVATE_KEY"}
+        service_account = {"private_key": "PRIVATE_KEY"}
         with self.assertLogs(level="DEBUG", logger=CRED_PROVIDER_LOGGER_NAME) as cm:
             result = get_credentials_and_project_id(keyfile_dict=service_account)
         mock_from_service_account_info.assert_called_once_with(service_account, scopes=None)
         assert (mock_from_service_account_info.return_value, self.test_project_id) == result
         assert [
-            'DEBUG:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting '
-            'connection using JSON Dict'
+            "DEBUG:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting "
+            "connection using JSON Dict"
         ] == cm.output
 
     @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
-    @mock.patch('google.oauth2.service_account.Credentials.from_service_account_info')
+    @mock.patch("google.oauth2.service_account.Credentials.from_service_account_info")
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._SecretManagerClient")
     def test_get_credentials_and_project_id_with_key_secret_name(
         self, mock_secret_manager_client, mock_from_service_account_info, mock_default
     ):
         mock_secret_manager_client.return_value.is_valid_secret_name.return_value = True
         mock_secret_manager_client.return_value.get_secret.return_value = (
-            "{\"type\":\"service_account\",\"project_id\":\"pid\","
-            "\"private_key_id\":\"pkid\","
-            "\"private_key\":\"payload\"}"
+            '{"type":"service_account","project_id":"pid",'
+            '"private_key_id":"pkid",'
+            '"private_key":"payload"}'
         )
 
         get_credentials_and_project_id(key_secret_name="secret name")
         mock_from_service_account_info.assert_called_once_with(
             {
-                'type': 'service_account',
-                'project_id': 'pid',
-                'private_key_id': 'pkid',
-                'private_key': 'payload',
+                "type": "service_account",
+                "project_id": "pid",
+                "private_key_id": "pkid",
+                "private_key": "payload",
             },
             scopes=ANY,
         )
@@ -317,7 +317,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
 
         with pytest.raises(
             AirflowException,
-            match=re.escape('Key data read from GCP Secret Manager is not valid JSON.'),
+            match=re.escape("Key data read from GCP Secret Manager is not valid JSON."),
         ):
             get_credentials_and_project_id(key_secret_name="secret name")
 
@@ -327,17 +327,17 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         with pytest.raises(
             AirflowException,
             match=re.escape(
-                'The `keyfile_dict`, `key_path`, and `key_secret_name` fields are all mutually exclusive.'
+                "The `keyfile_dict`, `key_path`, and `key_secret_name` fields are all mutually exclusive."
             ),
         ):
-            get_credentials_and_project_id(key_path='KEY.json', keyfile_dict={'private_key': 'PRIVATE_KEY'})
+            get_credentials_and_project_id(key_path="KEY.json", keyfile_dict={"private_key": "PRIVATE_KEY"})
 
     @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
     @mock.patch(
-        'google.oauth2.service_account.Credentials.from_service_account_info',
+        "google.oauth2.service_account.Credentials.from_service_account_info",
     )
     @mock.patch(
-        'google.oauth2.service_account.Credentials.from_service_account_file',
+        "google.oauth2.service_account.Credentials.from_service_account_file",
     )
     def test_disable_logging(self, mock_default, mock_info, mock_file):
         """
@@ -355,14 +355,14 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         # assert no debug logs emitted from get_credentials_and_project_id
         with self.assert_no_logs(name=CRED_PROVIDER_LOGGER_NAME, level="DEBUG"):
             get_credentials_and_project_id(
-                keyfile_dict={'private_key': 'PRIVATE_KEY'},
+                keyfile_dict={"private_key": "PRIVATE_KEY"},
                 disable_logging=True,
             )
 
         # assert no debug logs emitted from get_credentials_and_project_id
         with self.assert_no_logs(name=CRED_PROVIDER_LOGGER_NAME, level="DEBUG"):
             get_credentials_and_project_id(
-                key_path='KEY.json',
+                key_path="KEY.json",
                 disable_logging=True,
             )
 
@@ -373,8 +373,8 @@ class TestGetScopes(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ('single_scope', 'scope1', ['scope1']),
-            ('multiple_scopes', 'scope1,scope2', ['scope1', 'scope2']),
+            ("single_scope", "scope1", ["scope1"]),
+            ("multiple_scopes", "scope1,scope2", ["scope1", "scope2"]),
         ]
     )
     def test_get_scopes_with_input(self, _, scopes_str, scopes):
@@ -387,11 +387,11 @@ class TestGetTargetPrincipalAndDelegates(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ('string', ACCOUNT_1_SAME_PROJECT, (ACCOUNT_1_SAME_PROJECT, None)),
-            ('empty_list', [], (None, None)),
-            ('single_element_list', [ACCOUNT_1_SAME_PROJECT], (ACCOUNT_1_SAME_PROJECT, [])),
+            ("string", ACCOUNT_1_SAME_PROJECT, (ACCOUNT_1_SAME_PROJECT, None)),
+            ("empty_list", [], (None, None)),
+            ("single_element_list", [ACCOUNT_1_SAME_PROJECT], (ACCOUNT_1_SAME_PROJECT, [])),
             (
-                'multiple_elements_list',
+                "multiple_elements_list",
                 [ACCOUNT_1_SAME_PROJECT, ACCOUNT_2_SAME_PROJECT, ACCOUNT_3_ANOTHER_PROJECT],
                 (ACCOUNT_3_ANOTHER_PROJECT, [ACCOUNT_1_SAME_PROJECT, ACCOUNT_2_SAME_PROJECT]),
             ),

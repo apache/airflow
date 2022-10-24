@@ -59,22 +59,22 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 DAG_ID = "example_gcp_function"
 
 # make sure there are no dashes in function name (!)
-SHORT_FUNCTION_NAME = 'hello'
+SHORT_FUNCTION_NAME = "hello"
 
-LOCATION = 'europe-west1'
+LOCATION = "europe-west1"
 
-FUNCTION_NAME = f'projects/{PROJECT_ID}/locations/{LOCATION}/functions/{SHORT_FUNCTION_NAME}'
-SOURCE_ARCHIVE_URL = ''
-SOURCE_UPLOAD_URL = ''
+FUNCTION_NAME = f"projects/{PROJECT_ID}/locations/{LOCATION}/functions/{SHORT_FUNCTION_NAME}"
+SOURCE_ARCHIVE_URL = ""
+SOURCE_UPLOAD_URL = ""
 
-repo = 'test-repo'
+repo = "test-repo"
 SOURCE_REPOSITORY = (
-    f'https://source.developers.google.com/projects/{PROJECT_ID}/repos/{repo}/moveable-aliases/master'
+    f"https://source.developers.google.com/projects/{PROJECT_ID}/repos/{repo}/moveable-aliases/master"
 )
 
-ZIP_PATH = ''
-ENTRYPOINT = 'helloWorld'
-RUNTIME = 'nodejs14'
+ZIP_PATH = ""
+ENTRYPOINT = "helloWorld"
+RUNTIME = "nodejs14"
 VALIDATE_BODY = True
 
 # [START howto_operator_gcf_deploy_body]
@@ -82,19 +82,19 @@ body = {"name": FUNCTION_NAME, "entryPoint": ENTRYPOINT, "runtime": RUNTIME, "ht
 # [END howto_operator_gcf_deploy_body]
 
 # [START howto_operator_gcf_default_args]
-default_args: dict[str, Any] = {'retries': 3}
+default_args: dict[str, Any] = {"retries": 3}
 # [END howto_operator_gcf_default_args]
 
 # [START howto_operator_gcf_deploy_variants]
 if SOURCE_ARCHIVE_URL:
-    body['sourceArchiveUrl'] = SOURCE_ARCHIVE_URL
+    body["sourceArchiveUrl"] = SOURCE_ARCHIVE_URL
 elif SOURCE_REPOSITORY:
-    body['sourceRepository'] = {'url': SOURCE_REPOSITORY}
+    body["sourceRepository"] = {"url": SOURCE_REPOSITORY}
 elif ZIP_PATH:
-    body['sourceUploadUrl'] = ''
-    default_args['zip_path'] = ZIP_PATH
+    body["sourceUploadUrl"] = ""
+    default_args["zip_path"] = ZIP_PATH
 elif SOURCE_UPLOAD_URL:
-    body['sourceUploadUrl'] = SOURCE_UPLOAD_URL
+    body["sourceUploadUrl"] = SOURCE_UPLOAD_URL
 else:
     raise Exception("Please provide one of the source_code parameters")
 # [END howto_operator_gcf_deploy_variants]
@@ -105,7 +105,7 @@ with models.DAG(
     default_args=default_args,
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
 
     # [START howto_operator_gcf_deploy]

@@ -51,7 +51,7 @@ class TestRelativeDeltaSchema:
         schema_instance = RelativeDeltaSchema()
         result = schema_instance.dump(instance)
         assert {
-            '__type': 'RelativeDelta',
+            "__type": "RelativeDelta",
             "day": None,
             "days": 12,
             "hour": None,

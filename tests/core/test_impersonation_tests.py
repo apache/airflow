@@ -35,13 +35,13 @@ from airflow.utils.db import add_default_pool_if_not_exists
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
-DEV_NULL = '/dev/null'
+DEV_NULL = "/dev/null"
 TEST_ROOT_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-TEST_DAG_FOLDER = os.path.join(TEST_ROOT_FOLDER, 'dags')
-TEST_DAG_CORRUPTED_FOLDER = os.path.join(TEST_ROOT_FOLDER, 'dags_corrupted')
-TEST_UTILS_FOLDER = os.path.join(TEST_ROOT_FOLDER, 'test_utils')
+TEST_DAG_FOLDER = os.path.join(TEST_ROOT_FOLDER, "dags")
+TEST_DAG_CORRUPTED_FOLDER = os.path.join(TEST_ROOT_FOLDER, "dags_corrupted")
+TEST_UTILS_FOLDER = os.path.join(TEST_ROOT_FOLDER, "test_utils")
 DEFAULT_DATE = datetime(2015, 1, 1)
-TEST_USER = 'airflow_test_user'
+TEST_USER = "airflow_test_user"
 
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ def mock_custom_module_path(path: str):
             copy_sys_path = deepcopy(sys.path)
             sys.path.append(path)
             try:
-                with unittest.mock.patch.dict('os.environ', {'PYTHONPATH': path}):
+                with unittest.mock.patch.dict("os.environ", {"PYTHONPATH": path}):
                     return func(*args, **kwargs)
             finally:
                 sys.path = copy_sys_path
@@ -71,21 +71,21 @@ def mock_custom_module_path(path: str):
 
 
 def grant_permissions():
-    airflow_home = os.environ['AIRFLOW_HOME']
+    airflow_home = os.environ["AIRFLOW_HOME"]
     subprocess.check_call(
         'find "%s" -exec sudo chmod og+w {} +; sudo chmod og+rx /root' % airflow_home, shell=True
     )
 
 
 def revoke_permissions():
-    airflow_home = os.environ['AIRFLOW_HOME']
+    airflow_home = os.environ["AIRFLOW_HOME"]
     subprocess.check_call(
         'find "%s" -exec sudo chmod og-w {} +; sudo chmod og-rx /root' % airflow_home, shell=True
     )
 
 
 def check_original_docker_image():
-    if not os.path.isfile('/.dockerenv') or os.environ.get('PYTHON_BASE_IMAGE') is None:
+    if not os.path.isfile("/.dockerenv") or os.environ.get("PYTHON_BASE_IMAGE") is None:
         raise pytest.skip(
             """Adding/removing a user as part of a test is very bad for host os
 (especially if the user already existed to begin with on the OS), therefore we check if we run inside a
@@ -97,7 +97,7 @@ file (always present inside container) and checking for PYTHON_BASE_IMAGE variab
 
 def create_user():
     try:
-        subprocess.check_output(['sudo', 'useradd', '-m', TEST_USER, '-g', str(os.getegid())])
+        subprocess.check_output(["sudo", "useradd", "-m", TEST_USER, "-g", str(os.getegid())])
     except OSError as e:
         if e.errno == errno.ENOENT:
             raise pytest.skip(
@@ -121,7 +121,7 @@ class TestImpersonation(unittest.TestCase):
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,
         )
-        logger.info('Loaded DAGs:')
+        logger.info("Loaded DAGs:")
         logger.info(cls.dagbag.dagbag_report())
 
     def setUp(self):
@@ -131,7 +131,7 @@ class TestImpersonation(unittest.TestCase):
         create_user()
 
     def tearDown(self):
-        subprocess.check_output(['sudo', 'userdel', '-r', TEST_USER])
+        subprocess.check_output(["sudo", "userdel", "-r", TEST_USER])
         revoke_permissions()
 
     def run_backfill(self, dag_id, task_id):
@@ -149,7 +149,7 @@ class TestImpersonation(unittest.TestCase):
         """
         Tests that impersonating a unix user works
         """
-        self.run_backfill('test_impersonation', 'test_impersonated_user')
+        self.run_backfill("test_impersonation", "test_impersonated_user")
 
     def test_no_impersonation(self):
         """
@@ -157,24 +157,24 @@ class TestImpersonation(unittest.TestCase):
         as the current user (which will be a sudoer)
         """
         self.run_backfill(
-            'test_no_impersonation',
-            'test_superuser',
+            "test_no_impersonation",
+            "test_superuser",
         )
 
-    @unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__DEFAULT_IMPERSONATION=TEST_USER)
+    @unittest.mock.patch.dict("os.environ", AIRFLOW__CORE__DEFAULT_IMPERSONATION=TEST_USER)
     def test_default_impersonation(self):
         """
         If default_impersonation=TEST_USER, tests that the job defaults
         to running as TEST_USER for a test without run_as_user set
         """
-        self.run_backfill('test_default_impersonation', 'test_deelevated_user')
+        self.run_backfill("test_default_impersonation", "test_deelevated_user")
 
     def test_impersonation_subdag(self):
         """
         Tests that impersonation using a subdag correctly passes the right configuration
         :return:
         """
-        self.run_backfill('impersonation_subdag', 'test_subdag_operation')
+        self.run_backfill("impersonation_subdag", "test_subdag_operation")
 
 
 @pytest.mark.quarantined
@@ -188,13 +188,13 @@ class TestImpersonationWithCustomPythonPath(unittest.TestCase):
             dag_folder=TEST_DAG_CORRUPTED_FOLDER,
             include_examples=False,
         )
-        logger.info('Loaded DAGs:')
+        logger.info("Loaded DAGs:")
         logger.info(self.dagbag.dagbag_report())
 
         create_user()
 
     def tearDown(self):
-        subprocess.check_output(['sudo', 'userdel', '-r', TEST_USER])
+        subprocess.check_output(["sudo", "userdel", "-r", TEST_USER])
         revoke_permissions()
 
     def run_backfill(self, dag_id, task_id):
@@ -215,6 +215,6 @@ class TestImpersonationWithCustomPythonPath(unittest.TestCase):
         PYTHONPATH
         """
         # PYTHONPATH is already set in script triggering tests
-        assert 'PYTHONPATH' in os.environ
+        assert "PYTHONPATH" in os.environ
 
-        self.run_backfill('impersonation_with_custom_pkg', 'exec_python_fn')
+        self.run_backfill("impersonation_with_custom_pkg", "exec_python_fn")

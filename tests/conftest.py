@@ -36,7 +36,7 @@ tests_directory = os.path.dirname(os.path.realpath(__file__))
 os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.path.join(tests_directory, "dags")
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
-os.environ["CREDENTIALS_DIR"] = os.environ.get('CREDENTIALS_DIR') or "/files/airflow-breeze-config/keys"
+os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/airflow-breeze-config/keys"
 
 from airflow import settings  # noqa: E402
 from airflow.models.tasklog import LogTemplate  # noqa: E402
@@ -70,7 +70,7 @@ def secret_key() -> str:
     """
     from airflow.configuration import conf
 
-    the_key = conf.get('webserver', 'SECRET_KEY')
+    the_key = conf.get("webserver", "SECRET_KEY")
     if the_key is None:
         raise RuntimeError(
             "The secret key SHOULD be configured as `[webserver] secret_key` in the "
@@ -96,7 +96,7 @@ def reset_db():
     yield
 
 
-ALLOWED_TRACE_SQL_COLUMNS = ['num', 'time', 'trace', 'sql', 'parameters', 'count']
+ALLOWED_TRACE_SQL_COLUMNS = ["num", "time", "trace", "sql", "parameters", "count"]
 
 
 @pytest.fixture(autouse=True)
@@ -123,18 +123,18 @@ def trace_sql(request):
         return terminal_reporter.write_line(text)
 
     with ExitStack() as exit_stack:
-        if columns == ['num']:
+        if columns == ["num"]:
             # It is very unlikely that the user wants to display only numbers, but probably
             # the user just wants to count the queries.
             exit_stack.enter_context(count_queries(print_fn=pytest_print))
-        elif any(c for c in ['time', 'trace', 'sql', 'parameters']):
+        elif any(c for c in ["time", "trace", "sql", "parameters"]):
             exit_stack.enter_context(
                 trace_queries(
-                    display_num='num' in columns,
-                    display_time='time' in columns,
-                    display_trace='trace' in columns,
-                    display_sql='sql' in columns,
-                    display_parameters='parameters' in columns,
+                    display_num="num" in columns,
+                    display_time="time" in columns,
+                    display_trace="trace" in columns,
+                    display_sql="sql" in columns,
+                    display_parameters="parameters" in columns,
                     print_fn=pytest_print,
                 )
             )
@@ -206,7 +206,7 @@ def initial_db_init():
     db.bootstrap_dagbag()
     # minimal app to add roles
     flask_app = Flask(__name__)
-    flask_app.config['SQLALCHEMY_DATABASE_URI'] = conf.get('database', 'SQL_ALCHEMY_CONN')
+    flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
     init_appbuilder(flask_app)
     sync_appbuilder_roles(flask_app)
 
@@ -249,7 +249,7 @@ def initialize_airflow_tests(request):
         # Initialize kerberos
         kerberos = os.environ.get("KRB5_KTNAME")
         if kerberos:
-            subprocess.check_call(["kinit", "-kt", kerberos, 'bob@EXAMPLE.COM'])
+            subprocess.check_call(["kinit", "-kt", kerberos, "bob@EXAMPLE.COM"])
         else:
             print("Kerberos enabled! Please setup KRB5_KTNAME environment variable")
             sys.exit(1)
@@ -361,7 +361,7 @@ def skip_if_wrong_backend(marker, item):
 def skip_if_credential_file_missing(item):
     for marker in item.iter_markers(name="credential_file"):
         credential_file = marker.args[0]
-        credential_path = os.path.join(os.environ.get('CREDENTIALS_DIR'), credential_file)
+        credential_path = os.path.join(os.environ.get("CREDENTIALS_DIR"), credential_file)
         if not os.path.exists(credential_path):
             pytest.skip(f"The test requires credential file {credential_path}: {item}")
 
@@ -583,7 +583,7 @@ def dag_maker(request):
 
         def __call__(
             self,
-            dag_id='test_dag',
+            dag_id="test_dag",
             serialized=want_serialized,
             fileloc=None,
             processor_subdir=None,
@@ -600,19 +600,19 @@ def dag_maker(request):
 
             self.kwargs = kwargs
             self.session = session
-            self.start_date = self.kwargs.get('start_date', None)
-            default_args = kwargs.get('default_args', None)
+            self.start_date = self.kwargs.get("start_date", None)
+            default_args = kwargs.get("default_args", None)
             if default_args and not self.start_date:
-                if 'start_date' in default_args:
-                    self.start_date = default_args.get('start_date')
+                if "start_date" in default_args:
+                    self.start_date = default_args.get("start_date")
             if not self.start_date:
 
-                if hasattr(request.module, 'DEFAULT_DATE'):
-                    self.start_date = getattr(request.module, 'DEFAULT_DATE')
+                if hasattr(request.module, "DEFAULT_DATE"):
+                    self.start_date = getattr(request.module, "DEFAULT_DATE")
                 else:
                     DEFAULT_DATE = timezone.datetime(2016, 1, 1)
                     self.start_date = DEFAULT_DATE
-            self.kwargs['start_date'] = self.start_date
+            self.kwargs["start_date"] = self.start_date
             self.dag = DAG(dag_id, **self.kwargs)
             self.dag.fileloc = fileloc or request.module.__file__
             self.want_serialized = serialized
@@ -691,12 +691,12 @@ def create_dummy_dag(dag_maker):
     from airflow.utils.types import DagRunType
 
     def create_dag(
-        dag_id='dag',
-        task_id='op1',
+        dag_id="dag",
+        task_id="op1",
         max_active_tis_per_dag=16,
-        pool='default_pool',
+        pool="default_pool",
         executor_config={},
-        trigger_rule='all_done',
+        trigger_rule="all_done",
         on_success_callback=None,
         on_execute_callback=None,
         on_failure_callback=None,
@@ -813,7 +813,7 @@ def get_test_dag():
         from airflow.models.dagbag import DagBag
         from airflow.models.serialized_dag import SerializedDagModel
 
-        dag_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'dags', f'{dag_id}.py')
+        dag_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), "dags", f"{dag_id}.py")
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
 
         dag = dagbag.get_dag(dag_id)

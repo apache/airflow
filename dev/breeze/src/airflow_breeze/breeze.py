@@ -45,5 +45,5 @@ main.add_command(prod_image)
 main.add_command(setup)
 main.add_command(release_management)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
