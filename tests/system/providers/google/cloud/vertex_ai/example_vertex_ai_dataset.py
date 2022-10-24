@@ -182,7 +182,7 @@ with models.DAG(
     # [START how_to_cloud_vertex_ai_delete_dataset_operator]
     delete_dataset_job = DeleteDatasetOperator(
         task_id="delete_dataset",
-        dataset_id=create_text_dataset_job.output['dataset_id'],
+        dataset_id=create_text_dataset_job.output["dataset_id"],
         region=REGION,
         project_id=PROJECT_ID,
     )
@@ -193,14 +193,14 @@ with models.DAG(
         task_id="get_dataset",
         project_id=PROJECT_ID,
         region=REGION,
-        dataset_id=create_tabular_dataset_job.output['dataset_id'],
+        dataset_id=create_tabular_dataset_job.output["dataset_id"],
     )
     # [END how_to_cloud_vertex_ai_get_dataset_operator]
 
     # [START how_to_cloud_vertex_ai_export_data_operator]
     export_data_job = ExportDataOperator(
         task_id="export_data",
-        dataset_id=create_image_dataset_job.output['dataset_id'],
+        dataset_id=create_image_dataset_job.output["dataset_id"],
         region=REGION,
         project_id=PROJECT_ID,
         export_config=TEST_EXPORT_CONFIG,
@@ -210,7 +210,7 @@ with models.DAG(
     # [START how_to_cloud_vertex_ai_import_data_operator]
     import_data_job = ImportDataOperator(
         task_id="import_data",
-        dataset_id=create_image_dataset_job.output['dataset_id'],
+        dataset_id=create_image_dataset_job.output["dataset_id"],
         region=REGION,
         project_id=PROJECT_ID,
         import_configs=TEST_IMPORT_CONFIG,
@@ -230,7 +230,7 @@ with models.DAG(
         task_id="update_dataset",
         project_id=PROJECT_ID,
         region=REGION,
-        dataset_id=create_video_dataset_job.output['dataset_id'],
+        dataset_id=create_video_dataset_job.output["dataset_id"],
         dataset=DATASET_TO_UPDATE,
         update_mask=TEST_UPDATE_MASK,
     )
@@ -238,7 +238,7 @@ with models.DAG(
 
     delete_time_series_dataset_job = DeleteDatasetOperator(
         task_id="delete_time_series_dataset",
-        dataset_id=create_time_series_dataset_job.output['dataset_id'],
+        dataset_id=create_time_series_dataset_job.output["dataset_id"],
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
@@ -246,7 +246,7 @@ with models.DAG(
 
     delete_tabular_dataset_job = DeleteDatasetOperator(
         task_id="delete_tabular_dataset",
-        dataset_id=create_tabular_dataset_job.output['dataset_id'],
+        dataset_id=create_tabular_dataset_job.output["dataset_id"],
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
@@ -254,7 +254,7 @@ with models.DAG(
 
     delete_image_dataset_job = DeleteDatasetOperator(
         task_id="delete_image_dataset",
-        dataset_id=create_image_dataset_job.output['dataset_id'],
+        dataset_id=create_image_dataset_job.output["dataset_id"],
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
@@ -262,7 +262,7 @@ with models.DAG(
 
     delete_video_dataset_job = DeleteDatasetOperator(
         task_id="delete_video_dataset",
-        dataset_id=create_video_dataset_job.output['dataset_id'],
+        dataset_id=create_video_dataset_job.output["dataset_id"],
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,

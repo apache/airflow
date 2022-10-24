@@ -119,7 +119,7 @@ with models.DAG(
         region=REGION,
         project_id=PROJECT_ID,
     )
-    forecast_dataset_id = create_forecast_dataset.output['dataset_id']
+    forecast_dataset_id = create_forecast_dataset.output["dataset_id"]
 
     # [START how_to_cloud_vertex_ai_create_auto_ml_forecasting_training_job_operator]
     create_auto_ml_forecasting_training_job = CreateAutoMLForecastingTrainingJobOperator(
@@ -151,7 +151,7 @@ with models.DAG(
     # [START how_to_cloud_vertex_ai_delete_auto_ml_training_job_operator]
     delete_auto_ml_forecasting_training_job = DeleteAutoMLTrainingJobOperator(
         task_id="delete_auto_ml_forecasting_training_job",
-        training_pipeline_id=create_auto_ml_forecasting_training_job.output['training_id'],
+        training_pipeline_id=create_auto_ml_forecasting_training_job.output["training_id"],
         region=REGION,
         project_id=PROJECT_ID,
     )

@@ -104,7 +104,7 @@ with models.DAG(
         region=REGION,
         project_id=PROJECT_ID,
     )
-    text_dataset_id = create_text_dataset.output['dataset_id']
+    text_dataset_id = create_text_dataset.output["dataset_id"]
 
     import_text_dataset = ImportDataOperator(
         task_id="import_text_data",
@@ -133,7 +133,7 @@ with models.DAG(
 
     delete_auto_ml_text_training_job = DeleteAutoMLTrainingJobOperator(
         task_id="delete_auto_ml_text_training_job",
-        training_pipeline_id=create_auto_ml_text_training_job.output['training_id'],
+        training_pipeline_id=create_auto_ml_text_training_job.output["training_id"],
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,

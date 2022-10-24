@@ -65,14 +65,14 @@ WORKER_POOL_SPECS = [
     }
 ]
 PARAM_SPECS = {
-    'learning_rate': aiplatform.hyperparameter_tuning.DoubleParameterSpec(min=0.01, max=1, scale='log'),
-    'momentum': aiplatform.hyperparameter_tuning.DoubleParameterSpec(min=0, max=1, scale='linear'),
-    'num_neurons': aiplatform.hyperparameter_tuning.DiscreteParameterSpec(
-        values=[64, 128, 512], scale='linear'
+    "learning_rate": aiplatform.hyperparameter_tuning.DoubleParameterSpec(min=0.01, max=1, scale="log"),
+    "momentum": aiplatform.hyperparameter_tuning.DoubleParameterSpec(min=0, max=1, scale="linear"),
+    "num_neurons": aiplatform.hyperparameter_tuning.DiscreteParameterSpec(
+        values=[64, 128, 512], scale="linear"
     ),
 }
 METRIC_SPEC = {
-    'accuracy': 'maximize',
+    "accuracy": "maximize",
 }
 
 

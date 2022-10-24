@@ -703,7 +703,7 @@ class TestVertexAICreateAutoMLForecastingTrainingJobOperator:
     @mock.patch("google.cloud.aiplatform.datasets.TimeSeriesDataset")
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
     def test_execute(self, mock_hook, mock_dataset):
-        mock_hook.return_value.create_auto_ml_forecasting_training_job.return_value = (None, 'training_id')
+        mock_hook.return_value.create_auto_ml_forecasting_training_job.return_value = (None, "training_id")
         op = CreateAutoMLForecastingTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -770,7 +770,7 @@ class TestVertexAICreateAutoMLImageTrainingJobOperator:
     @mock.patch("google.cloud.aiplatform.datasets.ImageDataset")
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
     def test_execute(self, mock_hook, mock_dataset):
-        mock_hook.return_value.create_auto_ml_image_training_job.return_value = (None, 'training_id')
+        mock_hook.return_value.create_auto_ml_image_training_job.return_value = (None, "training_id")
         op = CreateAutoMLImageTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -820,7 +820,7 @@ class TestVertexAICreateAutoMLTabularTrainingJobOperator:
     @mock.patch("google.cloud.aiplatform.datasets.TabularDataset")
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
     def test_execute(self, mock_hook, mock_dataset):
-        mock_hook.return_value.create_auto_ml_tabular_training_job.return_value = (None, 'training_id')
+        mock_hook.return_value.create_auto_ml_tabular_training_job.return_value = (None, "training_id")
         op = CreateAutoMLTabularTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -875,7 +875,7 @@ class TestVertexAICreateAutoMLTextTrainingJobOperator:
     @mock.patch("google.cloud.aiplatform.datasets.TextDataset")
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
     def test_execute(self, mock_hook, mock_dataset):
-        mock_hook.return_value.create_auto_ml_text_training_job.return_value = (None, 'training_id')
+        mock_hook.return_value.create_auto_ml_text_training_job.return_value = (None, "training_id")
         op = CreateAutoMLTextTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -922,7 +922,7 @@ class TestVertexAICreateAutoMLVideoTrainingJobOperator:
     @mock.patch("google.cloud.aiplatform.datasets.VideoDataset")
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
     def test_execute(self, mock_hook, mock_dataset):
-        mock_hook.return_value.create_auto_ml_video_training_job.return_value = (None, 'training_id')
+        mock_hook.return_value.create_auto_ml_video_training_job.return_value = (None, "training_id")
         op = CreateAutoMLVideoTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,

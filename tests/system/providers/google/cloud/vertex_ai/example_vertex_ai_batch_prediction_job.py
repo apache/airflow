@@ -133,7 +133,7 @@ with models.DAG(
         optimization_objective="minimize-rmse",
         column_specs=COLUMN_SPECS,
         # run params
-        dataset_id=create_forecast_dataset.output['dataset_id'],
+        dataset_id=create_forecast_dataset.output["dataset_id"],
         target_column=TEST_TARGET_COLUMN,
         time_column=TEST_TIME_COLUMN,
         time_series_identifier_column=TEST_TIME_SERIES_IDENTIFIER_COLUMN,
@@ -177,7 +177,7 @@ with models.DAG(
     # [START how_to_cloud_vertex_ai_delete_batch_prediction_job_operator]
     delete_batch_prediction_job = DeleteBatchPredictionJobOperator(
         task_id="delete_batch_prediction_job",
-        batch_prediction_job_id=create_batch_prediction_job.output['batch_prediction_job_id'],
+        batch_prediction_job_id=create_batch_prediction_job.output["batch_prediction_job_id"],
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
@@ -186,14 +186,14 @@ with models.DAG(
 
     delete_auto_ml_forecasting_training_job = DeleteAutoMLTrainingJobOperator(
         task_id="delete_auto_ml_forecasting_training_job",
-        training_pipeline_id=create_auto_ml_forecasting_training_job.output['training_id'],
+        training_pipeline_id=create_auto_ml_forecasting_training_job.output["training_id"],
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
     )
     delete_forecast_dataset = DeleteDatasetOperator(
         task_id="delete_forecast_dataset",
-        dataset_id=create_forecast_dataset.output['dataset_id'],
+        dataset_id=create_forecast_dataset.output["dataset_id"],
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,

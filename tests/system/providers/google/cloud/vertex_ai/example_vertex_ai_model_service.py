@@ -136,7 +136,7 @@ with models.DAG(
         region=REGION,
         project_id=PROJECT_ID,
     )
-    tabular_dataset_id = create_tabular_dataset.output['dataset_id']
+    tabular_dataset_id = create_tabular_dataset.output["dataset_id"]
 
     create_custom_training_job = CreateCustomTrainingJobOperator(
         task_id="custom_task",
@@ -194,8 +194,8 @@ with models.DAG(
 
     delete_custom_training_job = DeleteCustomTrainingJobOperator(
         task_id="delete_custom_training_job",
-        training_pipeline_id=create_custom_training_job.output['training_id'],
-        custom_job_id=create_custom_training_job.output['custom_job_id'],
+        training_pipeline_id=create_custom_training_job.output["training_id"],
+        custom_job_id=create_custom_training_job.output["custom_job_id"],
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,

@@ -113,7 +113,7 @@ with models.DAG(
         region=REGION,
         project_id=PROJECT_ID,
     )
-    image_dataset_id = create_image_dataset.output['dataset_id']
+    image_dataset_id = create_image_dataset.output["dataset_id"]
 
     import_image_dataset = ImportDataOperator(
         task_id="import_image_data",
@@ -141,15 +141,15 @@ with models.DAG(
     )
     DEPLOYED_MODEL = {
         # format: 'projects/{project}/locations/{location}/models/{model}'
-        'model': "{{ti.xcom_pull('auto_ml_image_task')['name']}}",
-        'display_name': f"temp_endpoint_test_{ENV_ID}",
+        "model": "{{ti.xcom_pull('auto_ml_image_task')['name']}}",
+        "display_name": f"temp_endpoint_test_{ENV_ID}",
         "dedicated_resources": {
             "machine_spec": {
                 "machine_type": "n1-standard-2",
                 "accelerator_type": aiplatform.gapic.AcceleratorType.NVIDIA_TESLA_K80,
                 "accelerator_count": 1,
             },
-            'min_replica_count': 1,
+            "min_replica_count": 1,
             "max_replica_count": 1,
         },
     }
@@ -166,7 +166,7 @@ with models.DAG(
     # [START how_to_cloud_vertex_ai_delete_endpoint_operator]
     delete_endpoint = DeleteEndpointOperator(
         task_id="delete_endpoint",
-        endpoint_id=create_endpoint.output['endpoint_id'],
+        endpoint_id=create_endpoint.output["endpoint_id"],
         region=REGION,
         project_id=PROJECT_ID,
     )
@@ -183,9 +183,9 @@ with models.DAG(
     # [START how_to_cloud_vertex_ai_deploy_model_operator]
     deploy_model = DeployModelOperator(
         task_id="deploy_model",
-        endpoint_id=create_endpoint.output['endpoint_id'],
+        endpoint_id=create_endpoint.output["endpoint_id"],
         deployed_model=DEPLOYED_MODEL,
-        traffic_split={'0': 100},
+        traffic_split={"0": 100},
         region=REGION,
         project_id=PROJECT_ID,
     )
@@ -194,8 +194,8 @@ with models.DAG(
     # [START how_to_cloud_vertex_ai_undeploy_model_operator]
     undeploy_model = UndeployModelOperator(
         task_id="undeploy_model",
-        endpoint_id=create_endpoint.output['endpoint_id'],
-        deployed_model_id=deploy_model.output['deployed_model_id'],
+        endpoint_id=create_endpoint.output["endpoint_id"],
+        deployed_model_id=deploy_model.output["deployed_model_id"],
         region=REGION,
         project_id=PROJECT_ID,
     )
@@ -203,7 +203,7 @@ with models.DAG(
 
     delete_auto_ml_image_training_job = DeleteAutoMLTrainingJobOperator(
         task_id="delete_auto_ml_training_job",
-        training_pipeline_id=create_auto_ml_image_training_job.output['training_id'],
+        training_pipeline_id=create_auto_ml_image_training_job.output["training_id"],
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,

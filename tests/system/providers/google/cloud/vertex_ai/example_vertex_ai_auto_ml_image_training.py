@@ -105,7 +105,7 @@ with models.DAG(
         region=REGION,
         project_id=PROJECT_ID,
     )
-    image_dataset_id = create_image_dataset.output['dataset_id']
+    image_dataset_id = create_image_dataset.output["dataset_id"]
 
     import_image_dataset = ImportDataOperator(
         task_id="import_image_data",
@@ -136,7 +136,7 @@ with models.DAG(
 
     delete_auto_ml_image_training_job = DeleteAutoMLTrainingJobOperator(
         task_id="delete_auto_ml_training_job",
-        training_pipeline_id=create_auto_ml_image_training_job.output['training_id'],
+        training_pipeline_id=create_auto_ml_image_training_job.output["training_id"],
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,

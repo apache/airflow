@@ -120,7 +120,7 @@ with models.DAG(
         region=REGION,
         project_id=PROJECT_ID,
     )
-    tabular_dataset_id = create_tabular_dataset.output['dataset_id']
+    tabular_dataset_id = create_tabular_dataset.output["dataset_id"]
 
     # [START how_to_cloud_vertex_ai_create_auto_ml_tabular_training_job_operator]
     create_auto_ml_tabular_training_job = CreateAutoMLTabularTrainingJobOperator(
@@ -142,7 +142,7 @@ with models.DAG(
 
     delete_auto_ml_tabular_training_job = DeleteAutoMLTrainingJobOperator(
         task_id="delete_auto_ml_training_job",
-        training_pipeline_id=create_auto_ml_tabular_training_job.output['training_id'],
+        training_pipeline_id=create_auto_ml_tabular_training_job.output["training_id"],
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
