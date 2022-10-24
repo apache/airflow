@@ -26,34 +26,28 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryPipelineRunStatus,
     get_field,
 )
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
 
-class AzureDataFactoryPipelineRunLink(BaseOperatorLink):
+class AzureDataFactoryPipelineRunLink(LoggingMixin, BaseOperatorLink):
     """Constructs a link to monitor a pipeline run in Azure Data Factory."""
 
     name = "Monitor Pipeline Run"
 
     def get_link(
         self,
-        operator,
-        dttm=None,
+        operator: BaseOperator,
         *,
-        ti_key: TaskInstanceKey | None = None,
+        ti_key: TaskInstanceKey,
     ) -> str:
-        if ti_key is not None:
-            run_id = XCom.get_value(key="run_id", ti_key=ti_key)
-        else:
-            assert dttm
-            run_id = XCom.get_one(
-                key="run_id",
-                dag_id=operator.dag.dag_id,
-                task_id=operator.task_id,
-                execution_date=dttm,
-            )
+        if not isinstance(operator, AzureDataFactoryRunPipelineOperator):
+            self.log.info("The %s is not %s class.", operator.__class__, AzureDataFactoryRunPipelineOperator)
+            return ""
+        run_id = XCom.get_value(key="run_id", ti_key=ti_key)
         conn_id = operator.azure_data_factory_conn_id
         conn = BaseHook.get_connection(conn_id)
         extras = conn.extra_dejson

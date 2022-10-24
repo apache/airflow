@@ -18,7 +18,6 @@
 """This module contains Google Dataproc Metastore operators."""
 from __future__ import annotations
 
-from datetime import datetime
 from time import sleep
 from typing import TYPE_CHECKING, Sequence
 
@@ -82,20 +81,11 @@ class DataprocMetastoreLink(BaseOperatorLink):
 
     def get_link(
         self,
-        operator,
-        dttm: datetime | None = None,
-        ti_key: TaskInstanceKey | None = None,
+        operator: BaseOperator,
+        *,
+        ti_key: TaskInstanceKey,
     ) -> str:
-        if ti_key is not None:
-            conf = XCom.get_value(key=self.key, ti_key=ti_key)
-        else:
-            assert dttm
-            conf = XCom.get_one(
-                dag_id=operator.dag.dag_id,
-                task_id=operator.task_id,
-                execution_date=dttm,
-                key=self.key,
-            )
+        conf = XCom.get_value(key=self.key, ti_key=ti_key)
         return (
             conf["url"].format(
                 region=conf["region"],
@@ -136,20 +126,11 @@ class DataprocMetastoreDetailedLink(BaseOperatorLink):
 
     def get_link(
         self,
-        operator,
-        dttm: datetime | None = None,
-        ti_key: TaskInstanceKey | None = None,
+        operator: BaseOperator,
+        *,
+        ti_key: TaskInstanceKey,
     ) -> str:
-        if ti_key is not None:
-            conf = XCom.get_value(key=self.key, ti_key=ti_key)
-        else:
-            assert dttm
-            conf = XCom.get_one(
-                dag_id=operator.dag.dag_id,
-                task_id=operator.task_id,
-                execution_date=dttm,
-                key=DataprocMetastoreDetailedLink.key,
-            )
+        conf = XCom.get_value(key=self.key, ti_key=ti_key)
         return (
             conf["url"].format(
                 region=conf["region"],

@@ -54,7 +54,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.2.0
+  - apache-airflow>=2.3.0
   - apache-airflow-providers-common-sql>=1.2.0
   # Google has very clear rules on what dependencies should be used. All the limits below
   # follow strict guidelines of Google Libraries as quoted here:

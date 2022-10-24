@@ -20,7 +20,6 @@ import warnings
 from typing import Sequence
 
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
-from airflow.www import utils as wwwutils
 
 
 class RedshiftSQLOperator(SQLExecuteQueryOperator):
@@ -46,10 +45,7 @@ class RedshiftSQLOperator(SQLExecuteQueryOperator):
         "redshift_conn_id",
     )
     template_ext: Sequence[str] = (".sql",)
-    # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
-    template_fields_renderers = {
-        "sql": "postgresql" if "postgresql" in wwwutils.get_attr_renderer() else "sql"
-    }
+    template_fields_renderers = {"sql": "postgresql"}
 
     def __init__(self, *, redshift_conn_id: str = "redshift_default", **kwargs) -> None:
         super().__init__(conn_id=redshift_conn_id, **kwargs)

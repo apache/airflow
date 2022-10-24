@@ -327,7 +327,7 @@ this (note the ``if ti_key is not None:`` condition).
 
     def get_link(
         self,
-        operator,
+        operator: BaseOperator,
         dttm: Optional[datetime] = None,
         ti_key: Optional["TaskInstanceKey"] = None,
     ):

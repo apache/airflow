@@ -884,32 +884,22 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: |
           pipx install twine
           twine check dist/*.whl
-      - name: "Remove airflow package and replace providers with 2.2-compliant versions"
+      - name: "Remove airflow package and replace providers with 2.3-compliant versions"
         run: |
           rm -vf dist/apache_airflow-*.whl \
-             dist/apache_airflow_providers_cncf_kubernetes*.whl \
-             dist/apache_airflow_providers_celery*.whl
+             dist/apache_airflow_providers_docker*.whl
           pip download --no-deps --dest dist \
-              apache-airflow-providers-cncf-kubernetes==3.0.0 \
-              apache-airflow-providers-celery==2.1.3
-      - name: "Install and test provider packages and airflow on Airflow 2.2 files"
+              apache-airflow-providers-docker==3.1.0
+      - name: "Get all provider extras as AIRFLOW_EXTRAS evn variable"
         run: >
-          breeze release-management verify-provider-packages --use-airflow-version 2.2.0
-          --use-packages-from-dist --package-format wheel --airflow-constraints-reference constraints-2.2.0
-        env:
-          # The extras below are all extras that should be installed with Airflow 2.2.0
-          AIRFLOW_EXTRAS: "airbyte,alibaba,amazon,apache.atlas,apache.beam,apache.cassandra,apache.drill,\
-            apache.druid,apache.hdfs,apache.hive,apache.kylin,apache.livy,apache.pig,apache.pinot,\
-            apache.spark,apache.sqoop,apache.webhdfs,asana,async,\
-            celery,cgroups,cloudant,cncf.kubernetes,dask,databricks,datadog,\
-            deprecated_api,dingding,discord,docker,\
-            elasticsearch,exasol,facebook,ftp,github_enterprise,google,google_auth,\
-            grpc,hashicorp,http,imap,influxdb,jdbc,jenkins,jira,kerberos,ldap,\
-            leveldb,microsoft.azure,microsoft.mssql,microsoft.psrp,microsoft.winrm,mongo,mysql,\
-            neo4j,odbc,openfaas,opsgenie,oracle,pagerduty,pandas,papermill,password,plexus,\
-            postgres,presto,qubole,rabbitmq,redis,salesforce,samba,segment,sendgrid,sentry,\
-            sftp,singularity,slack,snowflake,sqlite,ssh,statsd,tableau,telegram,trino,vertica,\
-            virtualenv,yandex,zendesk"
+          python -c 'from pathlib import Path; import json;
+          providers = json.loads(Path("generated/provider_dependencies.json").read_text());
+          provider_keys = ",".join(providers.keys());
+          print("AIRFLOW_EXTRAS={}".format(provider_keys))' >> $GITHUB_ENV
+      - name: "Install and test provider packages and airflow on Airflow 2.3 files"
+        run: >
+          breeze release-management verify-provider-packages --use-airflow-version 2.3.0
+          --use-packages-from-dist --package-format wheel --airflow-constraints-reference constraints-2.3.0
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()

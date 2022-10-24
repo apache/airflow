@@ -229,9 +229,7 @@ class QuboleHook(BaseHook):
         """
         if fp is None:
             iso = datetime.datetime.utcnow().isoformat()
-            base_log_folder = conf.get("logging", "BASE_LOG_FOLDER")
-            if base_log_folder is None:
-                raise ValueError("logging/BASE_LOG_FOLDER config value should be set")
+            base_log_folder = conf.get_mandatory_value("logging", "BASE_LOG_FOLDER")
             logpath = os.path.expanduser(base_log_folder)
             resultpath = logpath + "/" + self.dag_id + "/" + self.task_id + "/results"
             pathlib.Path(resultpath).mkdir(parents=True, exist_ok=True)

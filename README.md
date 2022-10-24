@@ -407,8 +407,8 @@ that we increase the minimum Airflow version, when 12 months passed since the
 first release for the MINOR version of Airflow.
 
 For example this means that by default we upgrade the minimum version of Airflow supported by providers
-to 2.3.0 in the first Provider's release after 11th of October 2022 (11th of October 2021 is the date when the
-first `PATCHLEVEL` of 2.2 (2.2.0) has been released.
+to 2.4.0 in the first Provider's release after 30th of April 2023. The 30th of April 2022 is the date when the
+first `PATCHLEVEL` of 2.3 (2.3.0) has been released.
 
 Providers are often connected with some stakeholders that are vitally interested in maintaining backwards
 compatibilities in their integrations (for example cloud providers, or specific service providers). But,

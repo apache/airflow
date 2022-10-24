@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Sequence
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.trino.hooks.trino import TrinoHook
-from airflow.www import utils as wwwutils
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -47,10 +46,9 @@ class TrinoToMySqlOperator(BaseOperator):
 
     template_fields: Sequence[str] = ("sql", "mysql_table", "mysql_preoperator")
     template_ext: Sequence[str] = (".sql",)
-    # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
     template_fields_renderers = {
         "sql": "sql",
-        "mysql_preoperator": "mysql" if "mysql" in wwwutils.get_attr_renderer() else "sql",
+        "mysql_preoperator": "mysql",
     }
     ui_color = "#a0e08c"
 

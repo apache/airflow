@@ -34,16 +34,8 @@ class DbtCloudRunJobOperatorLink(BaseOperatorLink):
 
     name = "Monitor Job Run"
 
-    def get_link(self, operator, dttm=None, *, ti_key=None):
-        if ti_key is not None:
-            job_run_url = XCom.get_value(key="job_run_url", ti_key=ti_key)
-        else:
-            assert dttm
-            job_run_url = XCom.get_one(
-                dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm, key="job_run_url"
-            )
-
-        return job_run_url
+    def get_link(self, operator: BaseOperator, *, ti_key=None):
+        return XCom.get_value(key="job_run_url", ti_key=ti_key)
 
 
 class DbtCloudRunJobOperator(BaseOperator):

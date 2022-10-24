@@ -23,7 +23,7 @@ description: |
     `GitHub <https://www.github.com/>`__
 
 dependencies:
-  - apache-airflow>=2.2.0
+  - apache-airflow>=2.3.0
   - pygithub
 
 versions:

@@ -39,7 +39,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.2.0
+  - apache-airflow>=2.3.0
   - apache-airflow-providers-common-sql>=1.3.0
   - oracledb>=1.0.0
 

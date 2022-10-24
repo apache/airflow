@@ -23,7 +23,6 @@ from typing import Mapping, Sequence
 from psycopg2.sql import SQL, Identifier
 
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
-from airflow.www import utils as wwwutils
 
 
 class PostgresOperator(SQLExecuteQueryOperator):
@@ -42,10 +41,7 @@ class PostgresOperator(SQLExecuteQueryOperator):
     """
 
     template_fields: Sequence[str] = ("sql",)
-    # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
-    template_fields_renderers = {
-        "sql": "postgresql" if "postgresql" in wwwutils.get_attr_renderer() else "sql"
-    }
+    template_fields_renderers = {"sql": "postgresql"}
     template_ext: Sequence[str] = (".sql",)
     ui_color = "#ededed"
 

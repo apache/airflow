@@ -34,7 +34,7 @@ The following code shows how to add extra links to an operator via Plugins:
     class GoogleLink(BaseOperatorLink):
         name = "Google"
 
-        def get_link(self, operator, *, ti_key):
+        def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey):
             return "https://www.google.com"
 
 
@@ -92,7 +92,7 @@ tasks using :class:`~airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Ope
       # Example: operators = [GCSToS3Operator, GCSToBigQueryOperator]
       operators = [GCSToS3Operator]
 
-      def get_link(self, operator, *, ti_key):
+      def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey):
           return "https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{run_id}".format(
               dag_id=operator.dag_id,
               task_id=operator.task_id,
@@ -134,7 +134,7 @@ Console, but if we wanted to change that link we could:
         name = "BigQuery Console"
         operators = [BigQueryOperator]
 
-        def get_link(self, operator, *, ti_key):
+        def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey):
             job_id = XCom.get_one(ti_key=ti_key, key="job_id")
             return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ""
 

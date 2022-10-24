@@ -27,13 +27,9 @@ import unicodecsv as csv
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.vertica.hooks.vertica import VerticaHook
-from airflow.www import utils as wwwutils
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-# TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
-MYSQL_RENDERER = "mysql" if "mysql" in wwwutils.get_attr_renderer() else "sql"
 
 
 class VerticaToMySqlOperator(BaseOperator):
@@ -62,8 +58,8 @@ class VerticaToMySqlOperator(BaseOperator):
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {
         "sql": "sql",
-        "mysql_preoperator": MYSQL_RENDERER,
-        "mysql_postoperator": MYSQL_RENDERER,
+        "mysql_preoperator": "mysql",
+        "mysql_postoperator": "mysql",
     }
     ui_color = "#a0e08c"
 

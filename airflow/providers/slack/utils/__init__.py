@@ -19,14 +19,7 @@ from __future__ import annotations
 import warnings
 from typing import Any
 
-try:
-    from airflow.utils.types import NOTSET
-except ImportError:  # TODO: Remove when the provider has an Airflow 2.3+ requirement.
-
-    class ArgNotSet:
-        """Sentinel type for annotations, useful when None is not viable."""
-
-    NOTSET = ArgNotSet()  # type: ignore[assignment]
+from airflow.utils.types import NOTSET
 
 
 class ConnectionExtraConfig:

@@ -162,6 +162,11 @@ KNOWN_DEPRECATED_MESSAGES: set[tuple[str, str]] = {
         "snowflake",
     ),
     (
+        "You have an incompatible version of 'pyarrow' installed (5.0.0), please install a version that"
+        " adheres to: 'pyarrow<6.1.0,>=6.0.0; extra == \"pandas\"'",
+        "snowflake",
+    ),
+    (
         "You have an incompatible version of 'pyarrow' installed (6.0.1), please install a version that"
         " adheres to: 'pyarrow<5.1.0,>=5.0.0; extra == \"pandas\"'",
         "snowflake",
