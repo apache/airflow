@@ -1711,6 +1711,19 @@
                         }
                     }
                 },
+                "securityContext": {
+                    "description": "Security context for the worker pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
+                },
                 "securityContexts": {
                     "description": "Security context definition for the workers. If not set, the values from global `securityContexts` will be used.",
                     "type": "object",
@@ -2174,6 +2187,19 @@
                         }
                     }
                 },
+                "securityContext": {
+                    "description": "Security context for the scheduler pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
+                },
                 "securityContexts": {
                     "description": "Security context definition for the scheduler. If not set, the values from global `securityContexts` will be used.",
                     "type": "object",
@@ -2540,6 +2566,19 @@
                         "type": "string"
                     }
                 },
+                "securityContext": {
+                    "description": "Security context for the triggerer pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
+                },
                 "securityContexts": {
                     "description": "Security context definition for the triggerer. If not set, the values from global `securityContexts` will be used.",
                     "type": "object",
@@ -2898,6 +2937,19 @@
                         "type": "string"
                     }
                 },
+                "securityContext": {
+                    "description": "Security context for the dag processor pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
+                },
                 "securityContexts": {
                     "description": "Security context definition for the dagProcessor. If not set, the values from global `securityContexts` will be used.",
                     "type": "object",
@@ -3169,6 +3221,19 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
+                "securityContext": {
+                    "description": "Security context for the create user job pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
+                },
                 "securityContexts": {
                     "description": "Security context definition for the createUserJob. If not set, the values from global `securityContexts` will be used.",
                     "type": "object",
@@ -3406,6 +3471,19 @@
                         "type": "object",
                         "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
+                },
+                "securityContext": {
+                    "description": "Security context for the migrte database job pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
                 },
                 "securityContexts": {
                     "description": "Security context definition for the migrateDatabaseJob. If not set, the values from global `securityContexts` will be used.",
@@ -3676,6 +3754,19 @@
                             }
                         }
                     }
+                },
+                "securityContext": {
+                    "description": "Security context for the webserver job pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
                 },
                 "securityContexts": {
                     "description": "Security context definition for the webserver. If not set, the values from global `securityContexts` will be used.",
@@ -4365,6 +4456,19 @@
                         "type": "string"
                     }
                 },
+                "securityContext": {
+                    "description": "Security context for the flower pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
+                },
                 "securityContexts": {
                     "description": "Security context definition for the networkPolicy. If not set, the values from global `securityContexts` will be used.",
                     "type": "object",
@@ -4569,6 +4673,19 @@
                     "description": "Override mappings for StatsD exporter.If set, will ignore setting item in default and `extraMappings`. So, If you use it, ensure all mapping item contains in it.",
                     "type": "array",
                     "default": []
+                },
+                "securityContext": {
+                    "description": "Security context for the StatsD pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
                 },
                 "securityContexts": {
                     "description": "Security context definition for the statsd. If not set, the values from global `securityContexts` will be used.",
@@ -5177,6 +5294,19 @@
                         }
                     }
                 },
+                "securityContext": {
+                    "description": "Security context for the cleanup job pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
+                },
                 "securityContexts": {
                     "description": "Security context definition for the redis. If not set, the values from global `securityContexts` will be used.",
                     "type": "object",
@@ -5552,6 +5682,19 @@
                             }
                         }
                     }
+                },
+                "securityContext": {
+                    "description": "Security context for the cleanup job pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
                 },
                 "securityContexts": {
                     "description": "Security context definition for the cleanup. If not set, the values from global `securityContexts` will be used.",
