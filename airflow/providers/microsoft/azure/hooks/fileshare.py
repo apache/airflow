@@ -135,9 +135,9 @@ class AzureFileShareHook(BaseHook):
                 service_options[key] = value
                 check_for_conflict(key)
             elif key.startswith(backcompat_prefix):
-                eff_key = key[len(backcompat_prefix) :]
-                if eff_key not in service_options:  # prefer values provided with short name
-                    service_options[eff_key] = value
+                short_name = key[len(backcompat_prefix) :]
+                if short_name not in service_options:  # prefer values provided with short name
+                    service_options[short_name] = value
             else:
                 warnings.warn(f"Extra param `{key}` not recognized; ignoring.")
         self._conn = FileService(account_name=conn.login, account_key=conn.password, **service_options)
