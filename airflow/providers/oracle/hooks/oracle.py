@@ -99,6 +99,7 @@ class OracleHook(DbApiHook):
     conn_type = "oracle"
     hook_name = "Oracle"
 
+    _test_connection_sql = "select 1 from dual"
     supports_autocommit = True
 
     def __init__(
@@ -424,18 +425,3 @@ class OracleHook(DbApiHook):
         )
 
         return result
-
-    # TODO: Merge this implementation back to DbApiHook when dropping
-    # support for Airflow 2.2.
-    def test_connection(self):
-        """Tests the connection by executing a select 1 from dual query"""
-        status, message = False, ""
-        try:
-            if self.get_first("select 1 from dual"):
-                status = True
-                message = "Connection successfully tested"
-        except Exception as e:
-            status = False
-            message = str(e)
-
-        return status, message
