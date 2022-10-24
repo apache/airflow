@@ -133,8 +133,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.2.0",
       "apache-airflow>=2.2.0",
-      "ciso8601",
-      "pinotdb>0.1.2"
+      "pinotdb>0.4.7"
     ],
     "cross-providers-deps": [
       "common.sql"
