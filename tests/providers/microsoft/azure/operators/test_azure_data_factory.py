@@ -36,10 +36,10 @@ TASK_ID = "run_pipeline_op"
 AZURE_DATA_FACTORY_CONN_ID = "azure_data_factory_test"
 PIPELINE_NAME = "pipeline1"
 CONN_EXTRAS = {
-    "extra__azure_data_factory__subscriptionId": SUBSCRIPTION_ID,
-    "extra__azure_data_factory__tenantId": "my-tenant-id",
-    "extra__azure_data_factory__resource_group_name": "my-resource-group-name-from-conn",
-    "extra__azure_data_factory__factory_name": "my-factory-name-from-conn",
+    "subscriptionId": SUBSCRIPTION_ID,
+    "tenantId": "my-tenant-id",
+    "resource_group_name": "my-resource-group-name-from-conn",
+    "factory_name": "my-factory-name-from-conn",
 }
 PIPELINE_RUN_RESPONSE = {"additional_properties": {}, "run_id": "run_id"}
 EXPECTED_PIPELINE_RUN_OP_EXTRA_LINK = (
@@ -241,8 +241,8 @@ class TestAzureDataFactoryRunPipelineOperator:
         )
 
         conn = AzureDataFactoryHook.get_connection("azure_data_factory_test")
-        conn_resource_group_name = conn.extra_dejson["extra__azure_data_factory__resource_group_name"]
-        conn_factory_name = conn.extra_dejson["extra__azure_data_factory__factory_name"]
+        conn_resource_group_name = conn.extra_dejson["resource_group_name"]
+        conn_factory_name = conn.extra_dejson["factory_name"]
 
         assert url == (
             EXPECTED_PIPELINE_RUN_OP_EXTRA_LINK.format(
