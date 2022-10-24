@@ -74,14 +74,17 @@ def provide_targeted_factory(func: Callable) -> Callable:
             if arg not in bound_args.arguments or bound_args.arguments[arg] is None:
                 self = args[0]
                 conn = self.get_connection(self.conn_id)
-                default_value = conn.extra_dejson.get(default_key)
+                extras = conn.extra_dejson
+                default_value = extras.get(default_key) or extras.get(
+                    f"extra__azure_data_factory__{default_key}"
+                )
                 if not default_value:
                     raise AirflowException("Could not determine the targeted data factory.")
 
-                bound_args.arguments[arg] = conn.extra_dejson[default_key]
+                bound_args.arguments[arg] = default_value
 
-        bind_argument("resource_group_name", "extra__azure_data_factory__resource_group_name")
-        bind_argument("factory_name", "extra__azure_data_factory__factory_name")
+        bind_argument("resource_group_name", "resource_group_name")
+        bind_argument("factory_name", "factory_name")
 
         return func(*bound_args.args, **bound_args.kwargs)
 
@@ -113,6 +116,23 @@ class AzureDataFactoryPipelineRunException(AirflowException):
     """An exception that indicates a pipeline run failed to complete."""
 
 
+def get_field(extras: dict, field_name: str, strict: bool = False):
+    """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
+    backcompat_prefix = "extra__azure_data_factory__"
+    if field_name.startswith("extra__"):
+        raise ValueError(
+            f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
+            "when using this method."
+        )
+    if field_name in extras:
+        return extras[field_name] or None
+    prefixed_name = f"{backcompat_prefix}{field_name}"
+    if prefixed_name in extras:
+        return extras[prefixed_name] or None
+    if strict:
+        raise KeyError(f"Field {field_name} not found in extras")
+
+
 class AzureDataFactoryHook(BaseHook):
     """
     A hook to interact with Azure Data Factory.
@@ -133,18 +153,12 @@ class AzureDataFactoryHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "extra__azure_data_factory__tenantId": StringField(
-                lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()
-            ),
-            "extra__azure_data_factory__subscriptionId": StringField(
-                lazy_gettext("Subscription ID"), widget=BS3TextFieldWidget()
-            ),
-            "extra__azure_data_factory__resource_group_name": StringField(
+            "tenantId": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
+            "subscriptionId": StringField(lazy_gettext("Subscription ID"), widget=BS3TextFieldWidget()),
+            "resource_group_name": StringField(
                 lazy_gettext("Resource Group Name"), widget=BS3TextFieldWidget()
             ),
-            "extra__azure_data_factory__factory_name": StringField(
-                lazy_gettext("Factory Name"), widget=BS3TextFieldWidget()
-            ),
+            "factory_name": StringField(lazy_gettext("Factory Name"), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
@@ -168,10 +182,11 @@ class AzureDataFactoryHook(BaseHook):
             return self._conn
 
         conn = self.get_connection(self.conn_id)
-        tenant = conn.extra_dejson.get("extra__azure_data_factory__tenantId")
+        extras = conn.extra_dejson
+        tenant = get_field(extras, "tenantId")
 
         try:
-            subscription_id = conn.extra_dejson["extra__azure_data_factory__subscriptionId"]
+            subscription_id = get_field(extras, "subscriptionId", strict=True)
         except KeyError:
             raise ValueError("A Subscription ID is required to connect to Azure Data Factory.")
 
