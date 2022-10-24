@@ -24,6 +24,15 @@
 Changelog
 ---------
 
+4.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add *.jinja2 files to provider packages (#27171)``
+
+
 4.4.0
 .....
 
