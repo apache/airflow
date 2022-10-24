@@ -308,10 +308,10 @@ class TestKubernetesHook:
         assert hook.get_namespace() == expected
 
     @pytest.mark.parametrize(
-        'conn_id, expected',
+        "conn_id, expected",
         (
-            pytest.param('sidecar_container_image', 'private.repo.com/alpine:3.16', id='sidecar-with-image'),
-            pytest.param('sidecar_container_image_empty', None, id='sidecar-without-image'),
+            pytest.param("sidecar_container_image", "private.repo.com/alpine:3.16", id="sidecar-with-image"),
+            pytest.param("sidecar_container_image_empty", None, id="sidecar-without-image"),
         ),
     )
     def test_get_xcom_sidecar_container_image(self, conn_id, expected):
