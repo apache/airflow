@@ -21,14 +21,11 @@ import ast
 import re
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Sequence, SupportsAbs
 
-from packaging.version import Version
-
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, SkipMixin
-from airflow.providers.common.sql.hooks.sql import DbApiHook, _backported_get_hook, fetch_all_handler
-from airflow.version import version
+from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -118,13 +115,7 @@ class BaseSQLOperator(BaseOperator):
         """Get DB Hook based on connection type"""
         self.log.debug("Get connection for %s", self.conn_id)
         conn = BaseHook.get_connection(self.conn_id)
-        if Version(version) >= Version("2.3"):
-            # "hook_params" were introduced to into "get_hook()" only in Airflow 2.3.
-            hook = conn.get_hook(hook_params=self.hook_params)  # ignore airflow compat check
-        else:
-            # For supporting Airflow versions < 2.3, we backport "get_hook()" method. This should be removed
-            # when "apache-airflow-providers-common-sql" will depend on Airflow >= 2.3.
-            hook = _backported_get_hook(conn, hook_params=self.hook_params)
+        hook = conn.get_hook(hook_params=self.hook_params)
         if not isinstance(hook, DbApiHook):
             from airflow.hooks.dbapi_hook import DbApiHook as _DbApiHook
 

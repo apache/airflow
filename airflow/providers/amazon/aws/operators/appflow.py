@@ -24,7 +24,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.providers.amazon.aws.hooks.appflow import AppflowHook
-from airflow.providers.amazon.aws.utils import datetime_to_epoch_ms, get_airflow_version
+from airflow.providers.amazon.aws.utils import datetime_to_epoch_ms
 
 if TYPE_CHECKING:
     from mypy_boto3_appflow.type_defs import (
@@ -400,7 +400,7 @@ class AppflowRecordsShortCircuitOperator(ShortCircuitOperator):
 
     :param flow_name: The flow name
     :param appflow_run_task_id: Run task ID from where this operator should extract the execution ID
-    :param ignore_downstream_trigger_rules: Ignore downstream trigger rules (Ignored for Airflow < 2.3)
+    :param ignore_downstream_trigger_rules: Ignore downstream trigger rules
     :param aws_conn_id: aws connection to use
     :param region: aws region to use
     """
@@ -417,19 +417,13 @@ class AppflowRecordsShortCircuitOperator(ShortCircuitOperator):
         region: str | None = None,
         **kwargs,
     ) -> None:
-        if get_airflow_version() >= (2, 3):
-            kwargs["ignore_downstream_trigger_rules"] = ignore_downstream_trigger_rules
-        else:
-            self.log.warning(
-                "Ignoring argument ignore_downstream_trigger_rules (%s) - Only supported for Airflow >= 2.3",
-                ignore_downstream_trigger_rules,
-            )
         super().__init__(
             python_callable=self._has_new_records_func,
             op_kwargs={
                 "flow_name": flow_name,
                 "appflow_run_task_id": appflow_run_task_id,
             },
+            ignore_downstream_trigger_rules=ignore_downstream_trigger_rules,
             **kwargs,
         )
         self.aws_conn_id = aws_conn_id
