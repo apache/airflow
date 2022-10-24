@@ -37,24 +37,24 @@ from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 # [START howto_operator_gce_args_common]
-ENV_ID = os.environ.get('SYSTEM_TESTS_ENV_ID')
-PROJECT_ID = os.environ.get('SYSTEM_TESTS_GCP_PROJECT')
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
-DAG_ID = 'cloud_compute_ssh'
-LOCATION = 'europe-west1-b'
-REGION = 'europe-west1'
-GCE_INSTANCE_NAME = 'instance-1'
-SHORT_MACHINE_TYPE_NAME = 'n1-standard-1'
+DAG_ID = "cloud_compute_ssh"
+LOCATION = "europe-west1-b"
+REGION = "europe-west1"
+GCE_INSTANCE_NAME = "instance-1"
+SHORT_MACHINE_TYPE_NAME = "n1-standard-1"
 GCE_INSTANCE_BODY = {
     "name": GCE_INSTANCE_NAME,
-    "machine_type": f'zones/{LOCATION}/machineTypes/{SHORT_MACHINE_TYPE_NAME}',
+    "machine_type": f"zones/{LOCATION}/machineTypes/{SHORT_MACHINE_TYPE_NAME}",
     "disks": [
         {
             "boot": True,
             "device_name": GCE_INSTANCE_NAME,
             "initialize_params": {
                 "disk_size_gb": "10",
-                "disk_type": f'zones/{LOCATION}/diskTypes/pd-balanced',
+                "disk_type": f"zones/{LOCATION}/diskTypes/pd-balanced",
                 "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621",
             },
         }
@@ -63,7 +63,7 @@ GCE_INSTANCE_BODY = {
         {
             "access_configs": [{"name": "External NAT", "network_tier": "PREMIUM"}],
             "stack_type": "IPV4_ONLY",
-            "subnetwork": f'regions/{REGION}/subnetworks/default',
+            "subnetwork": f"regions/{REGION}/subnetworks/default",
         }
     ],
 }
@@ -71,14 +71,14 @@ GCE_INSTANCE_BODY = {
 
 with models.DAG(
     DAG_ID,
-    schedule_interval='@once',
+    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [START howto_operator_gce_insert]
     gce_instance_insert = ComputeEngineInsertInstanceOperator(
-        task_id='gcp_compute_create_instance_task',
+        task_id="gcp_compute_create_instance_task",
         project_id=PROJECT_ID,
         zone=LOCATION,
         body=GCE_INSTANCE_BODY,
@@ -101,7 +101,7 @@ with models.DAG(
 
     # [START howto_operator_gce_delete_no_project_id]
     gce_instance_delete = ComputeEngineDeleteInstanceOperator(
-        task_id='gcp_compute_delete_instance_task',
+        task_id="gcp_compute_delete_instance_task",
         zone=LOCATION,
         resource_id=GCE_INSTANCE_NAME,
     )

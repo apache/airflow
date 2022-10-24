@@ -75,7 +75,7 @@ class ComputeEngineHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build('compute', self.api_version, http=http_authorized, cache_discovery=False)
+            self._conn = build("compute", self.api_version, http=http_authorized, cache_discovery=False)
         return self._conn
 
     def get_compute_instance_template_client(self):
@@ -183,9 +183,9 @@ class ComputeEngineHook(GoogleBaseHook):
             #   request_id (str):
             #       An optional request ID to identify requests.
             request={
-                'instance_template': resource_id,
-                'project': project_id,
-                'request_id': request_id,
+                "instance_template": resource_id,
+                "project": project_id,
+                "request_id": request_id,
             },
             retry=retry,
             timeout=timeout,
@@ -229,8 +229,8 @@ class ComputeEngineHook(GoogleBaseHook):
             #   project (str):
             #       Project ID for this request.
             request={
-                'instance_template': resource_id,
-                'project': project_id,
+                "instance_template": resource_id,
+                "project": project_id,
             },
             retry=retry,
             timeout=timeout,
@@ -302,11 +302,11 @@ class ComputeEngineHook(GoogleBaseHook):
             #   source_instance_template (str):
             #       Optional, link to Instance Template, that can be used to create new Instance.
             request={
-                'instance_resource': body,
-                'request_id': request_id,
-                'project': project_id,
-                'zone': zone,
-                'source_instance_template': source_instance_template,
+                "instance_resource": body,
+                "request_id": request_id,
+                "project": project_id,
+                "zone": zone,
+                "source_instance_template": source_instance_template,
             },
             retry=retry,
             timeout=timeout,
@@ -354,9 +354,9 @@ class ComputeEngineHook(GoogleBaseHook):
             #   zone (str):
             #       The name of the zone for this request.
             request={
-                'instance': resource_id,
-                'project': project_id,
-                'zone': zone,
+                "instance": resource_id,
+                "project": project_id,
+                "zone": zone,
             },
             retry=retry,
             timeout=timeout,
@@ -411,10 +411,10 @@ class ComputeEngineHook(GoogleBaseHook):
             #   zone (str):
             #       The name of the zone for this request.
             request={
-                'instance': resource_id,
-                'project': project_id,
-                'request_id': request_id,
-                'zone': zone,
+                "instance": resource_id,
+                "project": project_id,
+                "request_id": request_id,
+                "zone": zone,
             },
             retry=retry,
             timeout=timeout,
@@ -549,10 +549,10 @@ class ComputeEngineHook(GoogleBaseHook):
             #   request_id (str):
             #       An optional request ID to identify requests.
             request={
-                'instance_group_manager_resource': body,
-                'project': project_id,
-                'zone': zone,
-                'request_id': request_id,
+                "instance_group_manager_resource": body,
+                "project": project_id,
+                "zone": zone,
+                "request_id": request_id,
             },
             retry=retry,
             timeout=timeout,
@@ -600,9 +600,9 @@ class ComputeEngineHook(GoogleBaseHook):
             #   zone (str):
             #       The name of the zone for this request.
             request={
-                'instance_group_manager': resource_id,
-                'project': project_id,
-                'zone': zone,
+                "instance_group_manager": resource_id,
+                "project": project_id,
+                "zone": zone,
             },
             retry=retry,
             timeout=timeout,
@@ -656,10 +656,10 @@ class ComputeEngineHook(GoogleBaseHook):
             #   zone (str):
             #       The name of the zone for this request.
             request={
-                'instance_group_manager': resource_id,
-                'project': project_id,
-                'request_id': request_id,
-                'zone': zone,
+                "instance_group_manager": resource_id,
+                "project": project_id,
+                "request_id": request_id,
+                "zone": zone,
             },
             retry=retry,
             timeout=timeout,

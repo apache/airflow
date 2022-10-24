@@ -43,13 +43,13 @@ from airflow.providers.google.cloud.operators.compute import (
 )
 from airflow.utils import timezone
 
-EMPTY_CONTENT = b''
-GCP_PROJECT_ID = 'project-id'
-GCE_ZONE = 'zone'
-GCE_RESOURCE_ID = 'resource-id'
-GCE_SHORT_MACHINE_TYPE_NAME = 'n1-machine-type'
-GCE_SOURCE_IMAGE = 'projects/debian-cloud/global/images/debian-11-bullseye-v20220621'
-GCP_INSTANCE_TEMPLATE_NAME = 'instance-template-name'
+EMPTY_CONTENT = b""
+GCP_PROJECT_ID = "project-id"
+GCE_ZONE = "zone"
+GCE_RESOURCE_ID = "resource-id"
+GCE_SHORT_MACHINE_TYPE_NAME = "n1-machine-type"
+GCE_SOURCE_IMAGE = "projects/debian-cloud/global/images/debian-11-bullseye-v20220621"
+GCP_INSTANCE_TEMPLATE_NAME = "instance-template-name"
 TASK_ID = "task-id"
 
 SET_MACHINE_TYPE_BODY = {"machineType": f"zones/{GCE_ZONE}/machineTypes/{GCE_SHORT_MACHINE_TYPE_NAME}"}
@@ -61,7 +61,7 @@ IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 TIMEOUT = 120
 RETRY = mock.MagicMock(Retry)
 METADATA = [("key", "value")]
-API_VERSION = 'v1'
+API_VERSION = "v1"
 
 COMPUTE_ENGINE_HOOK_PATH = "airflow.providers.google.cloud.operators.compute.ComputeEngineHook"
 IGM_PATH = "airflow.providers.google.cloud.operators.compute.InstanceGroupManager"
@@ -488,7 +488,7 @@ class TestGceInstanceStart:
     # (could be anything else) just to test if the templating works for all fields
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_start_instance_with_templates(self, _, create_task_instance_of_operator):
-        dag_id = 'test_instance_start_with_templates'
+        dag_id = "test_instance_start_with_templates"
         ti = create_task_instance_of_operator(
             ComputeEngineStartInstanceOperator,
             dag_id=dag_id,
@@ -578,7 +578,7 @@ class TestGceInstanceStop:
         context = mock.MagicMock()
         op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version='v1',
+            api_version="v1",
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -620,7 +620,7 @@ class TestGceInstanceStop:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_instance_stop_should_not_throw_ex_when_project_id_none(self, mock_hook):
-        op = ComputeEngineStopInstanceOperator(zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, task_id='id')
+        op = ComputeEngineStopInstanceOperator(zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, task_id="id")
         context = mock.MagicMock()
         op.execute(context=context)
         mock_hook.assert_called_once_with(
@@ -669,7 +669,7 @@ class TestGceInstanceSetMachineType:
         context = mock.MagicMock()
         op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version='v1',
+            api_version="v1",
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -681,7 +681,7 @@ class TestGceInstanceSetMachineType:
     # (could be anything else) just to test if the templating works for all fields
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_machine_type_set_with_templates(self, _, create_task_instance_of_operator):
-        dag_id = 'test_set_machine_type_with_templates'
+        dag_id = "test_set_machine_type_with_templates"
         ti = create_task_instance_of_operator(
             ComputeEngineSetMachineTypeOperator,
             dag_id=dag_id,
@@ -780,7 +780,7 @@ class TestGceInstanceSetMachineType:
             context = mock.MagicMock()
             op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version='v1',
+            api_version="v1",
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -1114,7 +1114,7 @@ class TestGceInstanceTemplateCopy:
         context = mock.MagicMock()
         op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version='v1',
+            api_version="v1",
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -1141,7 +1141,7 @@ class TestGceInstanceTemplateCopy:
         context = mock.MagicMock()
         op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version='v1',
+            api_version="v1",
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -1169,7 +1169,7 @@ class TestGceInstanceTemplateCopy:
         context = mock.MagicMock()
         op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version='v1',
+            api_version="v1",
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -1196,7 +1196,7 @@ class TestGceInstanceTemplateCopy:
         context = mock.MagicMock()
         op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version='v1',
+            api_version="v1",
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -1227,7 +1227,7 @@ class TestGceInstanceTemplateCopy:
         context = mock.MagicMock()
         op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version='v1',
+            api_version="v1",
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -1264,7 +1264,7 @@ class TestGceInstanceTemplateCopy:
         context = mock.MagicMock()
         op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version='v1',
+            api_version="v1",
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -1303,7 +1303,7 @@ class TestGceInstanceTemplateCopy:
         context = mock.MagicMock()
         op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version='v1',
+            api_version="v1",
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -1354,7 +1354,7 @@ class TestGceInstanceTemplateCopy:
         context = mock.MagicMock()
         op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version='v1',
+            api_version="v1",
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -1709,7 +1709,7 @@ class TestGceInstanceGroupManagerUpdate:
         )
         result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
-            api_version='beta',
+            api_version="beta",
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -1743,7 +1743,7 @@ class TestGceInstanceGroupManagerUpdate:
         )
         result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
-            api_version='beta',
+            api_version="beta",
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -1782,7 +1782,7 @@ class TestGceInstanceGroupManagerUpdate:
         )
         result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
-            api_version='beta',
+            api_version="beta",
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -1821,7 +1821,7 @@ class TestGceInstanceGroupManagerUpdate:
         )
         result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
-            api_version='beta',
+            api_version="beta",
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -1859,7 +1859,7 @@ class TestGceInstanceGroupManagerUpdate:
         )
         result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
-            api_version='beta',
+            api_version="beta",
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -1880,7 +1880,7 @@ class TestGceInstanceGroupManagerUpdate:
                 zone=GCE_ZONE,
                 resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
                 task_id=TASK_ID,
-                api_version='v1',
+                api_version="v1",
                 source_template=GCE_INSTANCE_TEMPLATE_SOURCE_URL,
                 destination_template=GCE_INSTANCE_TEMPLATE_DESTINATION_URL,
             )
@@ -1908,7 +1908,7 @@ class TestGceInstanceGroupManagerUpdate:
         )
         result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
-            api_version='beta',
+            api_version="beta",
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )

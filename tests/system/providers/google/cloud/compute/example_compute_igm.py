@@ -40,17 +40,17 @@ from airflow.providers.google.cloud.operators.compute import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get('SYSTEM_TESTS_ENV_ID')
-PROJECT_ID = os.environ.get('SYSTEM_TESTS_GCP_PROJECT')
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
-LOCATION = 'europe-west1-b'
-REGION = 'europe-west1'
-SHORT_MACHINE_TYPE_NAME = 'n1-standard-1'
-DAG_ID = 'cloud_compute_igm'
+LOCATION = "europe-west1-b"
+REGION = "europe-west1"
+SHORT_MACHINE_TYPE_NAME = "n1-standard-1"
+DAG_ID = "cloud_compute_igm"
 
 # [START howto_operator_compute_template_copy_args]
-TEMPLATE_NAME = 'instance-template-igm-test'
-NEW_TEMPLATE_NAME = 'instance-template-test-new'
+TEMPLATE_NAME = "instance-template-igm-test"
+NEW_TEMPLATE_NAME = "instance-template-test-new"
 
 INSTANCE_TEMPLATE_BODY = {
     "name": TEMPLATE_NAME,
@@ -72,7 +72,7 @@ INSTANCE_TEMPLATE_BODY = {
     },
 }
 
-NEW_DESCRIPTION = 'Test new description'
+NEW_DESCRIPTION = "Test new description"
 INSTANCE_TEMPLATE_BODY_UPDATE = {
     "name": NEW_TEMPLATE_NAME,
     "description": NEW_DESCRIPTION,
@@ -81,11 +81,11 @@ INSTANCE_TEMPLATE_BODY_UPDATE = {
 # [END howto_operator_compute_template_copy_args]
 
 # [START howto_operator_compute_igm_update_template_args]
-INSTANCE_GROUP_MANAGER_NAME = 'instance-group-test'
+INSTANCE_GROUP_MANAGER_NAME = "instance-group-test"
 INSTANCE_GROUP_MANAGER_BODY = {
     "name": INSTANCE_GROUP_MANAGER_NAME,
     "base_instance_name": INSTANCE_GROUP_MANAGER_NAME,
-    "instance_template": f'global/instanceTemplates/{TEMPLATE_NAME}',
+    "instance_template": f"global/instanceTemplates/{TEMPLATE_NAME}",
     "target_size": 1,
 }
 
@@ -111,14 +111,14 @@ UPDATE_POLICY = {
 
 with models.DAG(
     DAG_ID,
-    schedule_interval='@once',
+    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [START howto_operator_gce_igm_insert_template]
     gce_instance_template_insert = ComputeEngineInsertInstanceTemplateOperator(
-        task_id='gcp_compute_create_template_task',
+        task_id="gcp_compute_create_template_task",
         project_id=PROJECT_ID,
         body=INSTANCE_TEMPLATE_BODY,
     )
@@ -127,14 +127,14 @@ with models.DAG(
     # Added to check for idempotence
     # [START howto_operator_gce_igm_insert_template_no_project_id]
     gce_instance_template_insert2 = ComputeEngineInsertInstanceTemplateOperator(
-        task_id='gcp_compute_create_template_task_2',
+        task_id="gcp_compute_create_template_task_2",
         body=INSTANCE_TEMPLATE_BODY,
     )
     # [END howto_operator_gce_igm_insert_template_no_project_id]
 
     # [START howto_operator_gce_igm_copy_template]
     gce_instance_template_copy = ComputeEngineCopyInstanceTemplateOperator(
-        task_id='gcp_compute_igm_copy_template_task',
+        task_id="gcp_compute_igm_copy_template_task",
         project_id=PROJECT_ID,
         resource_id=TEMPLATE_NAME,
         body_patch=INSTANCE_TEMPLATE_BODY_UPDATE,
@@ -144,7 +144,7 @@ with models.DAG(
     # Added to check for idempotence
     # [START howto_operator_gce_igm_copy_template_no_project_id]
     gce_instance_template_copy2 = ComputeEngineCopyInstanceTemplateOperator(
-        task_id='gcp_compute_igm_copy_template_task_2',
+        task_id="gcp_compute_igm_copy_template_task_2",
         resource_id=TEMPLATE_NAME,
         body_patch=INSTANCE_TEMPLATE_BODY_UPDATE,
     )
@@ -152,7 +152,7 @@ with models.DAG(
 
     # [START howto_operator_gce_insert_igm]
     gce_igm_insert = ComputeEngineInsertInstanceGroupManagerOperator(
-        task_id='gcp_compute_create_group_task',
+        task_id="gcp_compute_create_group_task",
         zone=LOCATION,
         body=INSTANCE_GROUP_MANAGER_BODY,
         project_id=PROJECT_ID,
@@ -162,7 +162,7 @@ with models.DAG(
     # Added to check for idempotence
     # [START howto_operator_gce_insert_igm_no_project_id]
     gce_igm_insert2 = ComputeEngineInsertInstanceGroupManagerOperator(
-        task_id='gcp_compute_create_group_task_2',
+        task_id="gcp_compute_create_group_task_2",
         zone=LOCATION,
         body=INSTANCE_GROUP_MANAGER_BODY,
     )
@@ -172,7 +172,7 @@ with models.DAG(
 
     # [START howto_operator_gce_igm_update_template]
     gce_instance_group_manager_update_template = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
-        task_id='gcp_compute_igm_group_manager_update_template',
+        task_id="gcp_compute_igm_group_manager_update_template",
         project_id=PROJECT_ID,
         resource_id=INSTANCE_GROUP_MANAGER_NAME,
         zone=LOCATION,
@@ -185,7 +185,7 @@ with models.DAG(
     # Added to check for idempotence (and without UPDATE_POLICY)
     # [START howto_operator_gce_igm_update_template_no_project_id]
     gce_instance_group_manager_update_template2 = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
-        task_id='gcp_compute_igm_group_manager_update_template_2',
+        task_id="gcp_compute_igm_group_manager_update_template_2",
         resource_id=INSTANCE_GROUP_MANAGER_NAME,
         zone=LOCATION,
         source_template=SOURCE_TEMPLATE_URL,
@@ -197,7 +197,7 @@ with models.DAG(
 
     # [START howto_operator_gce_delete_old_template_no_project_id]
     gce_instance_template_old_delete = ComputeEngineDeleteInstanceTemplateOperator(
-        task_id='gcp_compute_delete_old_template_task',
+        task_id="gcp_compute_delete_old_template_task",
         resource_id=TEMPLATE_NAME,
     )
     # [END howto_operator_gce_delete_old_template_no_project_id]
@@ -205,7 +205,7 @@ with models.DAG(
 
     # [START howto_operator_gce_delete_new_template_no_project_id]
     gce_instance_template_new_delete = ComputeEngineDeleteInstanceTemplateOperator(
-        task_id='gcp_compute_delete_new_template_task',
+        task_id="gcp_compute_delete_new_template_task",
         resource_id=NEW_TEMPLATE_NAME,
     )
     # [END howto_operator_gce_delete_new_template_no_project_id]
@@ -213,7 +213,7 @@ with models.DAG(
 
     # [START howto_operator_gce_delete_igm_no_project_id]
     gce_igm_delete = ComputeEngineDeleteInstanceGroupManagerOperator(
-        task_id='gcp_compute_delete_group_task',
+        task_id="gcp_compute_delete_group_task",
         resource_id=INSTANCE_GROUP_MANAGER_NAME,
         zone=LOCATION,
     )

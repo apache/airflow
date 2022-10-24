@@ -119,13 +119,13 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
 
     # [START gce_instance_insert_fields]
     template_fields: Sequence[str] = (
-        'body',
-        'project_id',
-        'zone',
-        'request_id',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "body",
+        "project_id",
+        "zone",
+        "request_id",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gce_instance_insert_fields]
 
@@ -140,8 +140,8 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         retry: Retry | None = None,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -298,14 +298,14 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
 
     # [START gce_instance_insert_from_template_fields]
     template_fields: Sequence[str] = (
-        'body',
-        'source_instance_template',
-        'project_id',
-        'zone',
-        'request_id',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "body",
+        "source_instance_template",
+        "project_id",
+        "zone",
+        "request_id",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gce_instance_insert_from_template_fields]
 
@@ -321,8 +321,8 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         retry: Retry | None = None,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -330,7 +330,7 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         self.source_instance_template = source_instance_template
         self.body = body
         self.zone = zone
-        self.resource_id = self.body["name"] if 'name' in body else resource_id
+        self.resource_id = self.body["name"] if "name" in body else resource_id
         self.request_id = request_id
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
@@ -456,13 +456,13 @@ class ComputeEngineDeleteInstanceOperator(ComputeEngineBaseOperator):
 
     # [START gce_instance_delete_template_fields]
     template_fields: Sequence[str] = (
-        'zone',
-        'resource_id',
-        'request_id',
-        'project_id',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "zone",
+        "resource_id",
+        "request_id",
+        "project_id",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gce_instance_delete_template_fields]
 
@@ -476,8 +476,8 @@ class ComputeEngineDeleteInstanceOperator(ComputeEngineBaseOperator):
         retry: Retry | None = None,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -864,12 +864,12 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
 
     # [START gce_instance_template_insert_fields]
     template_fields: Sequence[str] = (
-        'body',
-        'project_id',
-        'request_id',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "body",
+        "project_id",
+        "request_id",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gce_instance_template_insert_fields]
 
@@ -883,15 +883,15 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
         retry: Retry | None = None,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.body = body
         self.request_id = request_id
-        self.resource_id = self.body["name"] if 'name' in body else resource_id
+        self.resource_id = self.body["name"] if "name" in body else resource_id
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
@@ -904,7 +904,7 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
         self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
             project_id=project_id,
-            zone='global',
+            zone="global",
             resource_id=self.resource_id,
             gcp_conn_id=gcp_conn_id,
             api_version=api_version,
@@ -1024,12 +1024,12 @@ class ComputeEngineDeleteInstanceTemplateOperator(ComputeEngineBaseOperator):
 
     # [START gce_instance_template_delete_fields]
     template_fields: Sequence[str] = (
-        'resource_id',
-        'request_id',
-        'project_id',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "resource_id",
+        "request_id",
+        "project_id",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gce_instance_template_delete_fields]
 
@@ -1042,8 +1042,8 @@ class ComputeEngineDeleteInstanceTemplateOperator(ComputeEngineBaseOperator):
         retry: Retry | None = None,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -1062,7 +1062,7 @@ class ComputeEngineDeleteInstanceTemplateOperator(ComputeEngineBaseOperator):
         self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
             project_id=project_id,
-            zone='global',
+            zone="global",
             resource_id=resource_id,
             gcp_conn_id=gcp_conn_id,
             api_version=api_version,
@@ -1231,7 +1231,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
             ComputeInstanceTemplateDetailsLink.persist(
                 context=context,
                 task_instance=self,
-                resource_id=self.body_patch['name'],
+                resource_id=self.body_patch["name"],
                 project_id=self.project_id or hook.project_id,
             )
             return InstanceTemplate.to_dict(existing_template)
@@ -1247,12 +1247,12 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         self.log.info("Calling insert instance template with updated body: %s", new_body)
         hook.insert_instance_template(body=new_body, request_id=self.request_id, project_id=self.project_id)
         instance_template = hook.get_instance_template(
-            resource_id=self.body_patch['name'], project_id=self.project_id
+            resource_id=self.body_patch["name"], project_id=self.project_id
         )
         ComputeInstanceTemplateDetailsLink.persist(
             context=context,
             task_instance=self,
-            resource_id=self.body_patch['name'],
+            resource_id=self.body_patch["name"],
             project_id=self.project_id or hook.project_id,
         )
         return InstanceTemplate.to_dict(instance_template)
@@ -1444,13 +1444,13 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
 
     # [START gce_igm_insert_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'body',
-        'zone',
-        'request_id',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "body",
+        "zone",
+        "request_id",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gce_igm_insert_fields]
 
@@ -1462,8 +1462,8 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         project_id: str | None = None,
         resource_id: str | None = None,
         request_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version='v1',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version="v1",
         retry: Retry | None = None,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1474,7 +1474,7 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         self.body = body
         self.zone = zone
         self.request_id = request_id
-        self.resource_id = self.body["name"] if 'name' in body else resource_id
+        self.resource_id = self.body["name"] if "name" in body else resource_id
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
@@ -1608,13 +1608,13 @@ class ComputeEngineDeleteInstanceGroupManagerOperator(ComputeEngineBaseOperator)
 
     # [START gce_igm_delete_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'resource_id',
-        'zone',
-        'request_id',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "resource_id",
+        "zone",
+        "request_id",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gce_igm_delete_fields]
 
@@ -1625,8 +1625,8 @@ class ComputeEngineDeleteInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         zone: str,
         project_id: str | None = None,
         request_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version='v1',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version="v1",
         retry: Retry | None = None,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
