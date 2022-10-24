@@ -119,7 +119,7 @@ class AzureDataFactoryPipelineRunException(AirflowException):
 def get_field(extras: dict, field_name: str, strict: bool = False):
     """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
     backcompat_prefix = "extra__azure_data_factory__"
-    if field_name.startswith("extra_"):
+    if field_name.startswith("extra__"):
         raise ValueError(
             f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
             "when using this method."
