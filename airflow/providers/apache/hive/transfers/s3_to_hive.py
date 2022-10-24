@@ -86,9 +86,9 @@ class S3ToHiveOperator(BaseOperator):
     :param select_expression: S3 Select expression
     """
 
-    template_fields: Sequence[str] = ('s3_key', 'partition', 'hive_table')
+    template_fields: Sequence[str] = ("s3_key", "partition", "hive_table")
     template_ext: Sequence[str] = ()
-    ui_color = '#a0e08c'
+    ui_color = "#a0e08c"
 
     def __init__(
         self,
@@ -96,16 +96,16 @@ class S3ToHiveOperator(BaseOperator):
         s3_key: str,
         field_dict: dict,
         hive_table: str,
-        delimiter: str = ',',
+        delimiter: str = ",",
         create: bool = True,
         recreate: bool = False,
         partition: dict | None = None,
         headers: bool = False,
         check_headers: bool = False,
         wildcard_match: bool = False,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         verify: bool | str | None = None,
-        hive_cli_conn_id: str = 'hive_cli_default',
+        hive_cli_conn_id: str = "hive_cli_default",
         input_compressed: bool = False,
         tblproperties: dict | None = None,
         select_expression: str | None = None,
@@ -148,23 +148,23 @@ class S3ToHiveOperator(BaseOperator):
         else:
             raise AirflowException(f"The key {self.s3_key} does not exists")
         _, file_ext = os.path.splitext(s3_key_object.key)
-        if self.select_expression and self.input_compressed and file_ext.lower() != '.gz':
+        if self.select_expression and self.input_compressed and file_ext.lower() != ".gz":
             raise AirflowException("GZIP is the only compression format Amazon S3 Select supports")
 
-        with TemporaryDirectory(prefix='tmps32hive_') as tmp_dir, NamedTemporaryFile(
+        with TemporaryDirectory(prefix="tmps32hive_") as tmp_dir, NamedTemporaryFile(
             mode="wb", dir=tmp_dir, suffix=file_ext
         ) as f:
             self.log.info("Dumping S3 key %s contents to local file %s", s3_key_object.key, f.name)
             if self.select_expression:
                 option = {}
                 if self.headers:
-                    option['FileHeaderInfo'] = 'USE'
+                    option["FileHeaderInfo"] = "USE"
                 if self.delimiter:
-                    option['FieldDelimiter'] = self.delimiter
+                    option["FieldDelimiter"] = self.delimiter
 
-                input_serialization: dict[str, Any] = {'CSV': option}
+                input_serialization: dict[str, Any] = {"CSV": option}
                 if self.input_compressed:
-                    input_serialization['CompressionType'] = 'GZIP'
+                    input_serialization["CompressionType"] = "GZIP"
 
                 content = s3_hook.select_key(
                     bucket_name=s3_key_object.bucket_name,
@@ -253,13 +253,13 @@ class S3ToHiveOperator(BaseOperator):
     def _delete_top_row_and_compress(input_file_name, output_file_ext, dest_dir):
         # When output_file_ext is not defined, file is not compressed
         open_fn = open
-        if output_file_ext.lower() == '.gz':
+        if output_file_ext.lower() == ".gz":
             open_fn = gzip.GzipFile
-        elif output_file_ext.lower() == '.bz2':
+        elif output_file_ext.lower() == ".bz2":
             open_fn = bz2.BZ2File
 
         _, fn_output = tempfile.mkstemp(suffix=output_file_ext, dir=dest_dir)
-        with open(input_file_name, 'rb') as f_in, open_fn(fn_output, 'wb') as f_out:
+        with open(input_file_name, "rb") as f_in, open_fn(fn_output, "wb") as f_out:
             f_in.seek(0)
             next(f_in)
             for line in f_in:

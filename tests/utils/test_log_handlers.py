@@ -33,8 +33,8 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = datetime(2016, 1, 1)
-TASK_LOGGER = 'airflow.task'
-FILE_TASK_HANDLER = 'task'
+TASK_LOGGER = "airflow.task"
+FILE_TASK_HANDLER = "task"
 
 
 class TestFileTaskLogHandler:
@@ -64,14 +64,14 @@ class TestFileTaskLogHandler:
         def task_callable(ti):
             ti.log.info("test")
 
-        dag = DAG('dag_for_testing_file_task_handler', start_date=DEFAULT_DATE)
+        dag = DAG("dag_for_testing_file_task_handler", start_date=DEFAULT_DATE)
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
         )
         task = PythonOperator(
-            task_id='task_for_testing_file_log_handler',
+            task_id="task_for_testing_file_log_handler",
             dag=dag,
             python_callable=task_callable,
         )
@@ -97,7 +97,7 @@ class TestFileTaskLogHandler:
         file_handler.flush()
         file_handler.close()
 
-        assert hasattr(file_handler, 'read')
+        assert hasattr(file_handler, "read")
         # Return value of read must be a tuple of list and list.
         # passing invalid `try_number` to read function
         logs, metadatas = file_handler.read(ti, 0)
@@ -116,14 +116,14 @@ class TestFileTaskLogHandler:
         def task_callable(ti):
             ti.log.info("test")
 
-        dag = DAG('dag_for_testing_file_task_handler', start_date=DEFAULT_DATE)
+        dag = DAG("dag_for_testing_file_task_handler", start_date=DEFAULT_DATE)
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
         )
         task = PythonOperator(
-            task_id='task_for_testing_file_log_handler',
+            task_id="task_for_testing_file_log_handler",
             dag=dag,
             python_callable=task_callable,
         )
@@ -149,7 +149,7 @@ class TestFileTaskLogHandler:
         file_handler.flush()
         file_handler.close()
 
-        assert hasattr(file_handler, 'read')
+        assert hasattr(file_handler, "read")
         # Return value of read must be a tuple of list and list.
         logs, metadatas = file_handler.read(ti)
         assert isinstance(logs, list)
@@ -157,7 +157,7 @@ class TestFileTaskLogHandler:
         assert len(logs) == 1
         assert len(logs) == len(metadatas)
         assert isinstance(metadatas[0], dict)
-        target_re = r'\n\[[^\]]+\] {test_log_handlers.py:\d+} INFO - test\n'
+        target_re = r"\n\[[^\]]+\] {test_log_handlers.py:\d+} INFO - test\n"
 
         # We should expect our log line from the callable above to appear in
         # the logs we read back
@@ -170,9 +170,9 @@ class TestFileTaskLogHandler:
         def task_callable(ti):
             ti.log.info("test")
 
-        dag = DAG('dag_for_testing_file_task_handler', start_date=DEFAULT_DATE)
+        dag = DAG("dag_for_testing_file_task_handler", start_date=DEFAULT_DATE)
         task = PythonOperator(
-            task_id='task_for_testing_file_log_handler',
+            task_id="task_for_testing_file_log_handler",
             python_callable=task_callable,
             dag=dag,
         )
@@ -261,6 +261,6 @@ class TestLogUrl:
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
         )
-        log_url_ti.hostname = 'hostname'
-        url = FileTaskHandler._get_log_retrieval_url(log_url_ti, 'DYNAMIC_PATH')
+        log_url_ti.hostname = "hostname"
+        url = FileTaskHandler._get_log_retrieval_url(log_url_ti, "DYNAMIC_PATH")
         assert url == "http://hostname:8793/log/DYNAMIC_PATH"

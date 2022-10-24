@@ -44,7 +44,7 @@ with DAG(
     dag_id=DAG_ID,
     schedule=None,
     start_date=START_DATE,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     dag.doc_md = textwrap.dedent(
         """
@@ -76,62 +76,62 @@ with DAG(
 
     # [START howto_operator_qubole_run_hive_query]
     hive_show_table = QuboleOperator(
-        task_id='hive_show_table',
-        command_type='hivecmd',
-        query='show tables',
-        cluster_label='{{ params.cluster_label }}',
+        task_id="hive_show_table",
+        command_type="hivecmd",
+        query="show tables",
+        cluster_label="{{ params.cluster_label }}",
         fetch_logs=True,
         # If `fetch_logs`=true, will fetch qubole command logs and concatenate
         # them into corresponding airflow task logs
-        tags='airflow_example_run',
+        tags="airflow_example_run",
         # To attach tags to qubole command, auto attach 3 tags - dag_id, task_id, run_id
         params={
-            'cluster_label': 'default',
+            "cluster_label": "default",
         },
     )
     # [END howto_operator_qubole_run_hive_query]
 
     # [START howto_operator_qubole_run_hive_script]
     hive_s3_location = QuboleOperator(
-        task_id='hive_s3_location',
+        task_id="hive_s3_location",
         command_type="hivecmd",
         script_location="s3n://public-qubole/qbol-library/scripts/show_table.hql",
         notify=True,
-        tags=['tag1', 'tag2'],
+        tags=["tag1", "tag2"],
         # If the script at s3 location has any qubole specific macros to be replaced
         # macros='[{"date": "{{ ds }}"}, {"name" : "abc"}]',
     )
     # [END howto_operator_qubole_run_hive_script]
 
-    options = ['hadoop_jar_cmd', 'presto_cmd', 'db_query', 'spark_cmd']
+    options = ["hadoop_jar_cmd", "presto_cmd", "db_query", "spark_cmd"]
 
-    branching = BranchPythonOperator(task_id='branching', python_callable=lambda: random.choice(options))
+    branching = BranchPythonOperator(task_id="branching", python_callable=lambda: random.choice(options))
 
     [hive_show_table, hive_s3_location] >> compare_result(hive_s3_location, hive_show_table) >> branching
 
-    join = EmptyOperator(task_id='join', trigger_rule=TriggerRule.ONE_SUCCESS)
+    join = EmptyOperator(task_id="join", trigger_rule=TriggerRule.ONE_SUCCESS)
 
     # [START howto_operator_qubole_run_hadoop_jar]
     hadoop_jar_cmd = QuboleOperator(
-        task_id='hadoop_jar_cmd',
-        command_type='hadoopcmd',
-        sub_command='jar s3://paid-qubole/HadoopAPIExamples/'
-        'jars/hadoop-0.20.1-dev-streaming.jar '
-        '-mapper wc '
-        '-numReduceTasks 0 -input s3://paid-qubole/HadoopAPITests/'
-        'data/3.tsv -output '
-        's3://paid-qubole/HadoopAPITests/data/3_wc',
-        cluster_label='{{ params.cluster_label }}',
+        task_id="hadoop_jar_cmd",
+        command_type="hadoopcmd",
+        sub_command="jar s3://paid-qubole/HadoopAPIExamples/"
+        "jars/hadoop-0.20.1-dev-streaming.jar "
+        "-mapper wc "
+        "-numReduceTasks 0 -input s3://paid-qubole/HadoopAPITests/"
+        "data/3.tsv -output "
+        "s3://paid-qubole/HadoopAPITests/data/3_wc",
+        cluster_label="{{ params.cluster_label }}",
         fetch_logs=True,
         params={
-            'cluster_label': 'default',
+            "cluster_label": "default",
         },
     )
     # [END howto_operator_qubole_run_hadoop_jar]
 
     # [START howto_operator_qubole_run_pig_script]
     pig_cmd = QuboleOperator(
-        task_id='pig_cmd',
+        task_id="pig_cmd",
         command_type="pigcmd",
         script_location="s3://public-qubole/qbol-library/scripts/script1-hadoop-s3-small.pig",
         parameters="key1=value1 key2=value2",
@@ -141,12 +141,12 @@ with DAG(
     branching >> hadoop_jar_cmd >> pig_cmd >> join
 
     # [START howto_operator_qubole_run_presto_query]
-    presto_cmd = QuboleOperator(task_id='presto_cmd', command_type='prestocmd', query='show tables')
+    presto_cmd = QuboleOperator(task_id="presto_cmd", command_type="prestocmd", query="show tables")
     # [END howto_operator_qubole_run_presto_query]
 
     # [START howto_operator_qubole_run_shell_script]
     shell_cmd = QuboleOperator(
-        task_id='shell_cmd',
+        task_id="shell_cmd",
         command_type="shellcmd",
         script_location="s3://public-qubole/qbol-library/scripts/shellx.sh",
         parameters="param1 param2",
@@ -157,18 +157,18 @@ with DAG(
 
     # [START howto_operator_qubole_run_db_tap_query]
     db_query = QuboleOperator(
-        task_id='db_query', command_type='dbtapquerycmd', query='show tables', db_tap_id=2064
+        task_id="db_query", command_type="dbtapquerycmd", query="show tables", db_tap_id=2064
     )
     # [END howto_operator_qubole_run_db_tap_query]
 
     # [START howto_operator_qubole_run_db_export]
     db_export = QuboleOperator(
-        task_id='db_export',
-        command_type='dbexportcmd',
+        task_id="db_export",
+        command_type="dbexportcmd",
         mode=1,
-        hive_table='default_qubole_airline_origin_destination',
-        db_table='exported_airline_origin_destination',
-        partition_spec='dt=20110104-02',
+        hive_table="default_qubole_airline_origin_destination",
+        db_table="exported_airline_origin_destination",
+        partition_spec="dt=20110104-02",
         dbtap_id=2064,
     )
     # [END howto_operator_qubole_run_db_export]
@@ -177,19 +177,19 @@ with DAG(
 
     # [START howto_operator_qubole_run_db_import]
     db_import = QuboleOperator(
-        task_id='db_import',
-        command_type='dbimportcmd',
+        task_id="db_import",
+        command_type="dbimportcmd",
         mode=1,
-        hive_table='default_qubole_airline_origin_destination',
-        db_table='exported_airline_origin_destination',
-        where_clause='id < 10',
+        hive_table="default_qubole_airline_origin_destination",
+        db_table="exported_airline_origin_destination",
+        where_clause="id < 10",
         parallelism=2,
         dbtap_id=2064,
     )
     # [END howto_operator_qubole_run_db_import]
 
     # [START howto_operator_qubole_run_spark_scala]
-    prog = '''
+    prog = """
     import scala.math.random
     import org.apache.spark._
 
@@ -209,15 +209,15 @@ with DAG(
         spark.stop()
       }
     }
-    '''
+    """
 
     spark_cmd = QuboleOperator(
-        task_id='spark_cmd',
+        task_id="spark_cmd",
         command_type="sparkcmd",
         program=prog,
-        language='scala',
-        arguments='--class SparkPi',
-        tags='airflow_example_run',
+        language="scala",
+        arguments="--class SparkPi",
+        tags="airflow_example_run",
     )
     # [END howto_operator_qubole_run_spark_scala]
 

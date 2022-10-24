@@ -42,7 +42,7 @@ from airflow.utils.process_utils import patch_environ
 log = logging.getLogger(__name__)
 
 AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT = "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT"
-_DEFAULT_SCOPES: Sequence[str] = ('https://www.googleapis.com/auth/cloud-platform',)
+_DEFAULT_SCOPES: Sequence[str] = ("https://www.googleapis.com/auth/cloud-platform",)
 
 
 def build_gcp_conn(
@@ -237,7 +237,7 @@ class _CredentialProvider(LoggingMixin):
             credentials, project_id = self._get_credentials_using_adc()
 
         if self.delegate_to:
-            if hasattr(credentials, 'with_subject'):
+            if hasattr(credentials, "with_subject"):
                 credentials = credentials.with_subject(self.delegate_to)
             else:
                 raise AirflowException(
@@ -259,10 +259,10 @@ class _CredentialProvider(LoggingMixin):
         return credentials, project_id
 
     def _get_credentials_using_keyfile_dict(self):
-        self._log_debug('Getting connection using JSON Dict')
+        self._log_debug("Getting connection using JSON Dict")
         # Depending on how the JSON was formatted, it may contain
         # escaped newlines. Convert those to actual newlines.
-        self.keyfile_dict['private_key'] = self.keyfile_dict['private_key'].replace('\\n', '\n')
+        self.keyfile_dict["private_key"] = self.keyfile_dict["private_key"].replace("\\n", "\n")
         credentials = google.oauth2.service_account.Credentials.from_service_account_info(
             self.keyfile_dict, scopes=self.scopes
         )
@@ -270,13 +270,13 @@ class _CredentialProvider(LoggingMixin):
         return credentials, project_id
 
     def _get_credentials_using_key_path(self):
-        if self.key_path.endswith('.p12'):
-            raise AirflowException('Legacy P12 key file are not supported, use a JSON key file.')
+        if self.key_path.endswith(".p12"):
+            raise AirflowException("Legacy P12 key file are not supported, use a JSON key file.")
 
-        if not self.key_path.endswith('.json'):
-            raise AirflowException('Unrecognised extension for key file.')
+        if not self.key_path.endswith(".json"):
+            raise AirflowException("Unrecognised extension for key file.")
 
-        self._log_debug('Getting connection using JSON key file %s', self.key_path)
+        self._log_debug("Getting connection using JSON key file %s", self.key_path)
         credentials = google.oauth2.service_account.Credentials.from_service_account_file(
             self.key_path, scopes=self.scopes
         )
@@ -284,14 +284,14 @@ class _CredentialProvider(LoggingMixin):
         return credentials, project_id
 
     def _get_credentials_using_key_secret_name(self):
-        self._log_debug('Getting connection using JSON key data from GCP secret: %s', self.key_secret_name)
+        self._log_debug("Getting connection using JSON key data from GCP secret: %s", self.key_secret_name)
 
         # Use ADC to access GCP Secret Manager.
         adc_credentials, adc_project_id = google.auth.default(scopes=self.scopes)
         secret_manager_client = _SecretManagerClient(credentials=adc_credentials)
 
         if not secret_manager_client.is_valid_secret_name(self.key_secret_name):
-            raise AirflowException('Invalid secret name specified for fetching JSON key data.')
+            raise AirflowException("Invalid secret name specified for fetching JSON key data.")
 
         secret_value = secret_manager_client.get_secret(
             secret_id=self.key_secret_name,
@@ -303,7 +303,7 @@ class _CredentialProvider(LoggingMixin):
         try:
             keyfile_dict = json.loads(secret_value)
         except json.decoder.JSONDecodeError:
-            raise AirflowException('Key data read from GCP Secret Manager is not valid JSON.')
+            raise AirflowException("Key data read from GCP Secret Manager is not valid JSON.")
 
         credentials = google.oauth2.service_account.Credentials.from_service_account_info(
             keyfile_dict, scopes=self.scopes
@@ -313,7 +313,7 @@ class _CredentialProvider(LoggingMixin):
 
     def _get_credentials_using_adc(self):
         self._log_info(
-            'Getting connection using `google.auth.default()` since no key file is defined for hook.'
+            "Getting connection using `google.auth.default()` since no key file is defined for hook."
         )
         credentials, project_id = google.auth.default(scopes=self.scopes)
         return credentials, project_id
@@ -341,7 +341,7 @@ def _get_scopes(scopes: str | None = None) -> Sequence[str]:
     :return: Returns the scope defined in the connection configuration, or the default scope
     :rtype: Sequence[str]
     """
-    return [s.strip() for s in scopes.split(',')] if scopes else _DEFAULT_SCOPES
+    return [s.strip() for s in scopes.split(",")] if scopes else _DEFAULT_SCOPES
 
 
 def _get_target_principal_and_delegates(
@@ -377,7 +377,7 @@ def _get_project_id_from_service_account_email(service_account_email: str) -> st
     :rtype: str
     """
     try:
-        return service_account_email.split('@')[1].split('.')[0]
+        return service_account_email.split("@")[1].split(".")[0]
     except IndexError:
         raise AirflowException(
             f"Could not extract project_id from service account's email: {service_account_email}."

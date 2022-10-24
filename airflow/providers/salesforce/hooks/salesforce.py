@@ -80,7 +80,7 @@ class SalesforceHook(BaseHook):
     def _get_field(self, extras: dict, field_name: str):
         """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
         backcompat_prefix = "extra__salesforce__"
-        if field_name.startswith('extra__'):
+        if field_name.startswith("extra__"):
             raise ValueError(
                 f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
                 "when using this method."
@@ -136,19 +136,19 @@ class SalesforceHook(BaseHook):
         conn = Salesforce(
             username=connection.login,
             password=connection.password,
-            security_token=self._get_field(extras, 'security_token') or None,
-            domain=self._get_field(extras, 'domain') or None,
+            security_token=self._get_field(extras, "security_token") or None,
+            domain=self._get_field(extras, "domain") or None,
             session_id=self.session_id,
-            instance=self._get_field(extras, 'instance') or None,
-            instance_url=self._get_field(extras, 'instance_url') or None,
-            organizationId=self._get_field(extras, 'organization_id') or None,
-            version=self._get_field(extras, 'version') or api.DEFAULT_API_VERSION,
-            proxies=self._get_field(extras, 'proxies') or None,
+            instance=self._get_field(extras, "instance") or None,
+            instance_url=self._get_field(extras, "instance_url") or None,
+            organizationId=self._get_field(extras, "organization_id") or None,
+            version=self._get_field(extras, "version") or api.DEFAULT_API_VERSION,
+            proxies=self._get_field(extras, "proxies") or None,
             session=self.session,
-            client_id=self._get_field(extras, 'client_id') or None,
-            consumer_key=self._get_field(extras, 'consumer_key') or None,
-            privatekey_file=self._get_field(extras, 'private_key_file_path') or None,
-            privatekey=self._get_field(extras, 'private_key') or None,
+            client_id=self._get_field(extras, "client_id") or None,
+            consumer_key=self._get_field(extras, "consumer_key") or None,
+            privatekey_file=self._get_field(extras, "private_key_file_path") or None,
+            privatekey=self._get_field(extras, "private_key") or None,
         )
         return conn
 
@@ -173,7 +173,7 @@ class SalesforceHook(BaseHook):
         query_results = conn.query_all(query, include_deleted=include_deleted, **query_params)
 
         self.log.info(
-            "Received results: Total size: %s; Done: %s", query_results['totalSize'], query_results['done']
+            "Received results: Total size: %s; Done: %s", query_results["totalSize"], query_results["done"]
         )
 
         return query_results
@@ -202,7 +202,7 @@ class SalesforceHook(BaseHook):
         """
         obj_description = self.describe_object(obj)
 
-        return [field['name'] for field in obj_description['fields']]
+        return [field["name"] for field in obj_description["fields"]]
 
     def get_object_from_salesforce(self, obj: str, fields: Iterable[str]) -> dict:
         """
@@ -304,7 +304,7 @@ class SalesforceHook(BaseHook):
         :rtype: pandas.Dataframe
         """
         fmt = fmt.lower()
-        if fmt not in ['csv', 'json', 'ndjson']:
+        if fmt not in ["csv", "json", "ndjson"]:
             raise ValueError(f"Format value is not recognized: {fmt}")
 
         df = self.object_to_df(
@@ -377,7 +377,7 @@ class SalesforceHook(BaseHook):
             # get the object name out of the query results
             # it's stored in the "attributes" dictionary
             # for each returned record
-            object_name = query_results[0]['attributes']['type']
+            object_name = query_results[0]["attributes"]["type"]
 
             self.log.info("Coercing timestamps for: %s", object_name)
 
@@ -387,9 +387,9 @@ class SalesforceHook(BaseHook):
             # are the ones that are either date or datetime types
             # strings are too general and we risk unintentional conversion
             possible_timestamp_cols = [
-                field['name'].lower()
-                for field in schema['fields']
-                if field['type'] in ["date", "datetime"] and field['name'].lower() in df.columns
+                field["name"].lower()
+                for field in schema["fields"]
+                if field["type"] in ["date", "datetime"] and field["name"].lower() in df.columns
             ]
             df[possible_timestamp_cols] = df[possible_timestamp_cols].apply(self._to_timestamp)
 

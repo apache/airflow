@@ -28,7 +28,7 @@ from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
 
 class TestTaskConcurrencyDep:
     def _get_task(self, **kwargs):
-        return BaseOperator(task_id='test_task', dag=DAG('test_dag'), **kwargs)
+        return BaseOperator(task_id="test_task", dag=DAG("test_dag"), **kwargs)
 
     def test_not_task_concurrency(self):
         task = self._get_task(start_date=datetime(2016, 1, 1))

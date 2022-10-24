@@ -37,32 +37,32 @@ ANSWER = ""
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
 # Checked before putting in build cache
-ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
+ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
-ALLOWED_BACKENDS = ['sqlite', 'mysql', 'postgres', 'mssql']
-ALLOWED_PROD_BACKENDS = ['mysql', 'postgres', 'mssql']
+ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql"]
+ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 ALL_INTEGRATIONS = [
-    'cassandra',
-    'kerberos',
-    'mongo',
-    'openldap',
-    'pinot',
-    'rabbitmq',
-    'redis',
-    'statsd',
-    'trino',
+    "cassandra",
+    "kerberos",
+    "mongo",
+    "openldap",
+    "pinot",
+    "rabbitmq",
+    "redis",
+    "statsd",
+    "trino",
 ]
 ALLOWED_INTEGRATIONS = [
     *ALL_INTEGRATIONS,
-    'all',
+    "all",
 ]
-ALLOWED_KUBERNETES_VERSIONS = ['v1.25.2', 'v1.24.6', 'v1.23.12', 'v1.22.15', 'v1.21.14']
-ALLOWED_EXECUTORS = ['KubernetesExecutor', 'CeleryExecutor', 'LocalExecutor', 'CeleryKubernetesExecutor']
-ALLOWED_KIND_OPERATIONS = ['start', 'stop', 'restart', 'status', 'deploy', 'test', 'shell', 'k9s']
-ALLOWED_CONSTRAINTS_MODES_CI = ['constraints-source-providers', 'constraints', 'constraints-no-providers']
-ALLOWED_CONSTRAINTS_MODES_PROD = ['constraints', 'constraints-no-providers', 'constraints-source-providers']
+ALLOWED_KUBERNETES_VERSIONS = ["v1.25.2", "v1.24.6", "v1.23.12", "v1.22.15", "v1.21.14"]
+ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
+ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
+ALLOWED_CONSTRAINTS_MODES_CI = ["constraints-source-providers", "constraints", "constraints-no-providers"]
+ALLOWED_CONSTRAINTS_MODES_PROD = ["constraints", "constraints-no-providers", "constraints-source-providers"]
 
 MOUNT_SELECTED = "selected"
 MOUNT_ALL = "all"
@@ -70,9 +70,9 @@ MOUNT_SKIP = "skip"
 MOUNT_REMOVE = "remove"
 
 ALLOWED_MOUNT_OPTIONS = [MOUNT_SELECTED, MOUNT_ALL, MOUNT_SKIP, MOUNT_REMOVE]
-ALLOWED_POSTGRES_VERSIONS = ['10', '11', '12', '13', '14']
-ALLOWED_MYSQL_VERSIONS = ['5.7', '8']
-ALLOWED_MSSQL_VERSIONS = ['2017-latest', '2019-latest']
+ALLOWED_POSTGRES_VERSIONS = ["10", "11", "12", "13", "14"]
+ALLOWED_MYSQL_VERSIONS = ["5.7", "8"]
+ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
 PIP_VERSION = "22.2.2"
 
@@ -83,14 +83,14 @@ def all_selective_test_types() -> tuple[str, ...]:
 
 
 class SelectiveUnitTestTypes(Enum):
-    ALWAYS = 'Always'
-    API = 'API'
-    CLI = 'CLI'
-    CORE = 'Core'
-    OTHER = 'Other'
-    INTEGRATION = 'Integration'
-    PROVIDERS = 'Providers'
-    WWW = 'WWW'
+    ALWAYS = "Always"
+    API = "API"
+    CLI = "CLI"
+    CORE = "Core"
+    OTHER = "Other"
+    INTEGRATION = "Integration"
+    PROVIDERS = "Providers"
+    WWW = "WWW"
 
 
 ALLOWED_TEST_TYPE_CHOICES = [
@@ -102,21 +102,21 @@ ALLOWED_TEST_TYPE_CHOICES = [
     "Quarantine",
 ]
 
-ALLOWED_PACKAGE_FORMATS = ['wheel', 'sdist', 'both']
-ALLOWED_INSTALLATION_PACKAGE_FORMATS = ['wheel', 'sdist']
-ALLOWED_INSTALLATION_METHODS = ['.', 'apache-airflow']
+ALLOWED_PACKAGE_FORMATS = ["wheel", "sdist", "both"]
+ALLOWED_INSTALLATION_PACKAGE_FORMATS = ["wheel", "sdist"]
+ALLOWED_INSTALLATION_METHODS = [".", "apache-airflow"]
 ALLOWED_BUILD_CACHE = ["registry", "local", "disabled"]
 MULTI_PLATFORM = "linux/amd64,linux/arm64"
 SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
-ALLOWED_USE_AIRFLOW_VERSIONS = ['none', 'wheel', 'sdist']
+ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 
 PROVIDER_PACKAGE_JSON_FILE = AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json"
 
 
 def get_available_documentation_packages(short_version=False) -> list[str]:
     provider_names: list[str] = list(json.loads(PROVIDER_PACKAGE_JSON_FILE.read_text()).keys())
-    doc_provider_names = [provider_name.replace('.', '-') for provider_name in provider_names]
+    doc_provider_names = [provider_name.replace(".", "-") for provider_name in provider_names]
     available_packages = [f"apache-airflow-providers-{doc_provider}" for doc_provider in doc_provider_names]
     available_packages.extend(["apache-airflow", "docker-stack", "helm-chart"])
     available_packages.sort()
@@ -153,13 +153,13 @@ SQLITE_URL = "sqlite:////root/airflow/airflow.db"
 PYTHONDONTWRITEBYTECODE = True
 
 PRODUCTION_IMAGE = False
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
-CURRENT_POSTGRES_VERSIONS = ['10', '11', '12', '13', '14']
+CURRENT_POSTGRES_VERSIONS = ["10", "11", "12", "13", "14"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
-CURRENT_MYSQL_VERSIONS = ['5.7', '8']
+CURRENT_MYSQL_VERSIONS = ["5.7", "8"]
 DEFAULT_MYSQL_VERSION = CURRENT_MYSQL_VERSIONS[0]
-CURRENT_MSSQL_VERSIONS = ['2017-latest', '2019-latest']
+CURRENT_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 DEFAULT_MSSQL_VERSION = CURRENT_MSSQL_VERSIONS[0]
 
 DB_RESET = False
@@ -176,7 +176,7 @@ SQLITE_URL = "sqlite:////root/airflow/airflow.db"
 
 
 def get_airflow_version():
-    airflow_setup_file = AIRFLOW_SOURCES_ROOT / 'setup.py'
+    airflow_setup_file = AIRFLOW_SOURCES_ROOT / "setup.py"
     with open(airflow_setup_file) as setup_file:
         for line in setup_file.readlines():
             if "version =" in line:
@@ -184,53 +184,53 @@ def get_airflow_version():
 
 
 def get_airflow_extras():
-    airflow_dockerfile = AIRFLOW_SOURCES_ROOT / 'Dockerfile'
+    airflow_dockerfile = AIRFLOW_SOURCES_ROOT / "Dockerfile"
     with open(airflow_dockerfile) as dockerfile:
         for line in dockerfile.readlines():
             if "ARG AIRFLOW_EXTRAS=" in line:
-                line = line.split('=')[1].strip()
-                return line.replace('"', '')
+                line = line.split("=")[1].strip()
+                return line.replace('"', "")
 
 
 # Initialize integrations
 AVAILABLE_INTEGRATIONS = [
-    'cassandra',
-    'kerberos',
-    'mongo',
-    'openldap',
-    'pinot',
-    'rabbitmq',
-    'redis',
-    'statsd',
-    'trino',
+    "cassandra",
+    "kerberos",
+    "mongo",
+    "openldap",
+    "pinot",
+    "rabbitmq",
+    "redis",
+    "statsd",
+    "trino",
 ]
 ENABLED_INTEGRATIONS = ""
 ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT).glob("airflow/providers/**/provider.yaml")
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
-    'setup.py',
-    'setup.cfg',
-    'Dockerfile.ci',
-    '.dockerignore',
-    'scripts/docker/common.sh',
-    'scripts/docker/install_additional_dependencies.sh',
-    'scripts/docker/install_airflow.sh',
-    'scripts/docker/install_airflow_dependencies_from_branch_tip.sh',
-    'scripts/docker/install_from_docker_context_files.sh',
-    'scripts/docker/install_mysql.sh',
+    "setup.py",
+    "setup.cfg",
+    "Dockerfile.ci",
+    ".dockerignore",
+    "scripts/docker/common.sh",
+    "scripts/docker/install_additional_dependencies.sh",
+    "scripts/docker/install_airflow.sh",
+    "scripts/docker/install_airflow_dependencies_from_branch_tip.sh",
+    "scripts/docker/install_from_docker_context_files.sh",
+    "scripts/docker/install_mysql.sh",
     *ALL_PROVIDER_YAML_FILES,
 ]
 
 ENABLED_SYSTEMS = ""
 
 CURRENT_KUBERNETES_VERSIONS = ALLOWED_KUBERNETES_VERSIONS
-CURRENT_EXECUTORS = ['KubernetesExecutor']
+CURRENT_EXECUTORS = ["KubernetesExecutor"]
 
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = 'v0.16.0'
-HELM_VERSION = 'v3.9.4'
+KIND_VERSION = "v0.16.0"
+HELM_VERSION = "v3.9.4"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None

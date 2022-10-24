@@ -51,7 +51,7 @@ with models.DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example', 'dataform'],
+    tags=["example", "dataform"],
 ) as dag:
     # [START howto_operator_create_compilation_result]
     create_compilation_result = DataformCreateCompilationResultOperator(
@@ -83,7 +83,7 @@ with models.DAG(
 
     # [START howto_operator_create_workflow_invocation]
     create_workflow_invocation = DataformCreateWorkflowInvocationOperator(
-        task_id='create_workflow_invocation',
+        task_id="create_workflow_invocation",
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
@@ -95,7 +95,7 @@ with models.DAG(
 
     # [START howto_operator_create_workflow_invocation_async]
     create_workflow_invocation_async = DataformCreateWorkflowInvocationOperator(
-        task_id='create_workflow_invocation_async',
+        task_id="create_workflow_invocation_async",
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
@@ -119,7 +119,7 @@ with models.DAG(
 
     # [START howto_operator_get_workflow_invocation]
     get_workflow_invocation = DataformGetWorkflowInvocationOperator(
-        task_id='get_workflow_invocation',
+        task_id="get_workflow_invocation",
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
@@ -130,7 +130,7 @@ with models.DAG(
     # [END howto_operator_get_workflow_invocation]
 
     create_second_workflow_invocation = DataformCreateWorkflowInvocationOperator(
-        task_id='create_second_workflow_invocation',
+        task_id="create_second_workflow_invocation",
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
@@ -141,7 +141,7 @@ with models.DAG(
 
     # [START howto_operator_cancel_workflow_invocation]
     cancel_workflow_invocation = DataformCancelWorkflowInvocationOperator(
-        task_id='cancel_workflow_incoation',
+        task_id="cancel_workflow_incoation",
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,

@@ -41,15 +41,15 @@ from airflow.providers.google.leveldb.operators.leveldb import LevelDBOperator
 
 
 class TestLevelDBOperator(unittest.TestCase):
-    @mock.patch.dict('os.environ', AIRFLOW_CONN_LEVELDB_DEFAULT="test")
-    @mock.patch.object(LevelDBHook, 'run')
+    @mock.patch.dict("os.environ", AIRFLOW_CONN_LEVELDB_DEFAULT="test")
+    @mock.patch.object(LevelDBHook, "run")
     def test_execute(self, mock_run):
         operator = LevelDBOperator(
-            task_id='test_task',
-            leveldb_conn_id='leveldb_default',
-            command='put',
-            key=b'key',
-            value=b'value',
+            task_id="test_task",
+            leveldb_conn_id="leveldb_default",
+            command="put",
+            key=b"key",
+            value=b"value",
         )
-        operator.execute(context='TEST_CONTEXT_ID')
-        mock_run.assert_called_once_with(command='put', value=b'value', key=b'key', values=None, keys=None)
+        operator.execute(context="TEST_CONTEXT_ID")
+        mock_run.assert_called_once_with(command="put", value=b"value", key=b"key", values=None, keys=None)

@@ -102,13 +102,13 @@ class GCSCreateBucketOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'bucket_name',
-        'storage_class',
-        'location',
-        'project_id',
-        'impersonation_chain',
+        "bucket_name",
+        "storage_class",
+        "location",
+        "project_id",
+        "impersonation_chain",
     )
-    ui_color = '#f0eee4'
+    ui_color = "#f0eee4"
     operator_extra_links = (StorageLink(),)
 
     def __init__(
@@ -116,11 +116,11 @@ class GCSCreateBucketOperator(BaseOperator):
         *,
         bucket_name: str,
         resource: dict | None = None,
-        storage_class: str = 'MULTI_REGIONAL',
-        location: str = 'US',
+        storage_class: str = "MULTI_REGIONAL",
+        location: str = "US",
         project_id: str | None = None,
         labels: dict | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -201,13 +201,13 @@ class GCSListObjectsOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'bucket',
-        'prefix',
-        'delimiter',
-        'impersonation_chain',
+        "bucket",
+        "prefix",
+        "delimiter",
+        "impersonation_chain",
     )
 
-    ui_color = '#f0eee4'
+    ui_color = "#f0eee4"
 
     operator_extra_links = (StorageLink(),)
 
@@ -217,7 +217,7 @@ class GCSListObjectsOperator(BaseOperator):
         bucket: str,
         prefix: str | None = None,
         delimiter: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -239,7 +239,7 @@ class GCSListObjectsOperator(BaseOperator):
         )
 
         self.log.info(
-            'Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s',
+            "Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s",
             self.bucket,
             self.delimiter,
             self.prefix,
@@ -281,10 +281,10 @@ class GCSDeleteObjectsOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'bucket_name',
-        'prefix',
-        'objects',
-        'impersonation_chain',
+        "bucket_name",
+        "prefix",
+        "objects",
+        "impersonation_chain",
     )
 
     def __init__(
@@ -293,7 +293,7 @@ class GCSDeleteObjectsOperator(BaseOperator):
         bucket_name: str,
         objects: list[str] | None = None,
         prefix: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -360,11 +360,11 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
 
     # [START gcs_bucket_create_acl_template_fields]
     template_fields: Sequence[str] = (
-        'bucket',
-        'entity',
-        'role',
-        'user_project',
-        'impersonation_chain',
+        "bucket",
+        "entity",
+        "role",
+        "user_project",
+        "impersonation_chain",
     )
     # [END gcs_bucket_create_acl_template_fields]
     operator_extra_links = (StorageLink(),)
@@ -376,7 +376,7 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
         entity: str,
         role: str,
         user_project: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -437,13 +437,13 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
 
     # [START gcs_object_create_acl_template_fields]
     template_fields: Sequence[str] = (
-        'bucket',
-        'object_name',
-        'entity',
-        'generation',
-        'role',
-        'user_project',
-        'impersonation_chain',
+        "bucket",
+        "object_name",
+        "entity",
+        "generation",
+        "role",
+        "user_project",
+        "impersonation_chain",
     )
     # [END gcs_object_create_acl_template_fields]
     operator_extra_links = (FileDetailsLink(),)
@@ -457,7 +457,7 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
         role: str,
         generation: int | None = None,
         user_project: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -526,12 +526,12 @@ class GCSFileTransformOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'source_bucket',
-        'source_object',
-        'destination_bucket',
-        'destination_object',
-        'transform_script',
-        'impersonation_chain',
+        "source_bucket",
+        "source_object",
+        "destination_bucket",
+        "destination_object",
+        "transform_script",
+        "impersonation_chain",
     )
     operator_extra_links = (FileDetailsLink(),)
 
@@ -575,7 +575,7 @@ class GCSFileTransformOperator(BaseOperator):
             ) as process:
                 self.log.info("Process output:")
                 if process.stdout:
-                    for line in iter(process.stdout.readline, b''):
+                    for line in iter(process.stdout.readline, b""):
                         self.log.info(line.decode(self.output_encoding).rstrip())
 
                 process.wait()
@@ -662,13 +662,13 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'source_bucket',
-        'source_prefix',
-        'destination_bucket',
-        'destination_prefix',
-        'transform_script',
-        'source_impersonation_chain',
-        'destination_impersonation_chain',
+        "source_bucket",
+        "source_prefix",
+        "destination_bucket",
+        "destination_prefix",
+        "transform_script",
+        "source_impersonation_chain",
+        "destination_impersonation_chain",
     )
     operator_extra_links = (StorageLink(),)
 
@@ -813,7 +813,7 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
             ) as process:
                 self.log.info("Process output:")
                 if process.stdout:
-                    for line in iter(process.stdout.readline, b''):
+                    for line in iter(process.stdout.readline, b""):
                         self.log.info(line.decode(self.output_encoding).rstrip())
 
                 process.wait()
@@ -876,7 +876,7 @@ class GCSDeleteBucketOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'bucket_name',
+        "bucket_name",
         "gcp_conn_id",
         "impersonation_chain",
     )
@@ -886,7 +886,7 @@ class GCSDeleteBucketOperator(BaseOperator):
         *,
         bucket_name: str,
         force: bool = True,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -945,16 +945,16 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'source_bucket',
-        'destination_bucket',
-        'source_object',
-        'destination_object',
-        'recursive',
-        'delete_extra_files',
-        'allow_overwrite',
-        'gcp_conn_id',
-        'delegate_to',
-        'impersonation_chain',
+        "source_bucket",
+        "destination_bucket",
+        "source_object",
+        "destination_object",
+        "recursive",
+        "delete_extra_files",
+        "allow_overwrite",
+        "gcp_conn_id",
+        "delegate_to",
+        "impersonation_chain",
     )
     operator_extra_links = (StorageLink(),)
 
@@ -968,7 +968,7 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
         recursive: bool = True,
         delete_extra_files: bool = False,
         allow_overwrite: bool = False,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,

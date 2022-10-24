@@ -143,11 +143,11 @@ class BaseSessionFactory(LoggingMixin):
         return boto3.session.Session(**session_kwargs)
 
     def _create_session_with_assume_role(self, session_kwargs: dict[str, Any]) -> boto3.session.Session:
-        if self.conn.assume_role_method == 'assume_role_with_web_identity':
+        if self.conn.assume_role_method == "assume_role_with_web_identity":
             # Deferred credentials have no initial credentials
             credential_fetcher = self._get_web_identity_credential_fetcher()
             credentials = botocore.credentials.DeferredRefreshableCredentials(
-                method='assume-role-with-web-identity',
+                method="assume-role-with-web-identity",
                 refresh_using=credential_fetcher.fetch_credentials,
                 time_fetcher=lambda: datetime.datetime.now(tz=tzlocal()),
             )
@@ -167,25 +167,25 @@ class BaseSessionFactory(LoggingMixin):
         return boto3.session.Session(botocore_session=session, **session_kwargs)
 
     def _refresh_credentials(self) -> dict[str, Any]:
-        self.log.debug('Refreshing credentials')
+        self.log.debug("Refreshing credentials")
         assume_role_method = self.conn.assume_role_method
-        if assume_role_method not in ('assume_role', 'assume_role_with_saml'):
-            raise NotImplementedError(f'assume_role_method={assume_role_method} not expected')
+        if assume_role_method not in ("assume_role", "assume_role_with_saml"):
+            raise NotImplementedError(f"assume_role_method={assume_role_method} not expected")
 
         sts_client = self.basic_session.client("sts", config=self.config)
 
-        if assume_role_method == 'assume_role':
+        if assume_role_method == "assume_role":
             sts_response = self._assume_role(sts_client=sts_client)
         else:
             sts_response = self._assume_role_with_saml(sts_client=sts_client)
 
-        sts_response_http_status = sts_response['ResponseMetadata']['HTTPStatusCode']
+        sts_response_http_status = sts_response["ResponseMetadata"]["HTTPStatusCode"]
         if sts_response_http_status != 200:
-            raise RuntimeError(f'sts_response_http_status={sts_response_http_status}')
+            raise RuntimeError(f"sts_response_http_status={sts_response_http_status}")
 
-        credentials = sts_response['Credentials']
-        expiry_time = credentials.get('Expiration').isoformat()
-        self.log.debug('New credentials expiry_time: %s', expiry_time)
+        credentials = sts_response["Credentials"]
+        expiry_time = credentials.get("Expiration").isoformat()
+        self.log.debug("New credentials expiry_time: %s", expiry_time)
         credentials = {
             "access_key": credentials.get("AccessKeyId"),
             "secret_key": credentials.get("SecretAccessKey"),
@@ -203,15 +203,15 @@ class BaseSessionFactory(LoggingMixin):
         return sts_client.assume_role(**kw)
 
     def _assume_role_with_saml(self, sts_client: boto3.client) -> dict[str, Any]:
-        saml_config = self.extra_config['assume_role_with_saml']
-        principal_arn = saml_config['principal_arn']
+        saml_config = self.extra_config["assume_role_with_saml"]
+        principal_arn = saml_config["principal_arn"]
 
-        idp_auth_method = saml_config['idp_auth_method']
-        if idp_auth_method == 'http_spegno_auth':
+        idp_auth_method = saml_config["idp_auth_method"]
+        if idp_auth_method == "http_spegno_auth":
             saml_assertion = self._fetch_saml_assertion_using_http_spegno_auth(saml_config)
         else:
             raise NotImplementedError(
-                f'idp_auth_method={idp_auth_method} in Connection {self.conn.conn_id} Extra.'
+                f"idp_auth_method={idp_auth_method} in Connection {self.conn.conn_id} Extra."
                 'Currently only "http_spegno_auth" is supported, and must be specified.'
             )
 
@@ -260,32 +260,32 @@ class BaseSessionFactory(LoggingMixin):
         from lxml import etree
 
         auth = requests_gssapi.HTTPSPNEGOAuth()
-        if 'mutual_authentication' in saml_config:
-            mutual_auth = saml_config['mutual_authentication']
-            if mutual_auth == 'REQUIRED':
+        if "mutual_authentication" in saml_config:
+            mutual_auth = saml_config["mutual_authentication"]
+            if mutual_auth == "REQUIRED":
                 auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.REQUIRED)
-            elif mutual_auth == 'OPTIONAL':
+            elif mutual_auth == "OPTIONAL":
                 auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.OPTIONAL)
-            elif mutual_auth == 'DISABLED':
+            elif mutual_auth == "DISABLED":
                 auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.DISABLED)
             else:
                 raise NotImplementedError(
-                    f'mutual_authentication={mutual_auth} in Connection {self.conn.conn_id} Extra.'
+                    f"mutual_authentication={mutual_auth} in Connection {self.conn.conn_id} Extra."
                     'Currently "REQUIRED", "OPTIONAL" and "DISABLED" are supported.'
-                    '(Exclude this setting will default to HTTPSPNEGOAuth() ).'
+                    "(Exclude this setting will default to HTTPSPNEGOAuth() )."
                 )
         # Query the IDP
         idp_response = self._get_idp_response(saml_config, auth=auth)
         # Assist with debugging. Note: contains sensitive info!
-        xpath = saml_config['saml_response_xpath']
-        log_idp_response = 'log_idp_response' in saml_config and saml_config['log_idp_response']
+        xpath = saml_config["saml_response_xpath"]
+        log_idp_response = "log_idp_response" in saml_config and saml_config["log_idp_response"]
         if log_idp_response:
             self.log.warning(
-                'The IDP response contains sensitive information, but log_idp_response is ON (%s).',
+                "The IDP response contains sensitive information, but log_idp_response is ON (%s).",
                 log_idp_response,
             )
-            self.log.debug('idp_response.content= %s', idp_response.content)
-            self.log.debug('xpath= %s', xpath)
+            self.log.debug("idp_response.content= %s", idp_response.content)
+            self.log.debug("xpath= %s", xpath)
         # Extract SAML Assertion from the returned HTML / XML
         xml = etree.fromstring(idp_response.content)
         saml_assertion = xml.xpath(xpath)
@@ -293,7 +293,7 @@ class BaseSessionFactory(LoggingMixin):
             if len(saml_assertion) == 1:
                 saml_assertion = saml_assertion[0]
         if not saml_assertion:
-            raise ValueError('Invalid SAML Assertion')
+            raise ValueError("Invalid SAML Assertion")
         return saml_assertion
 
     def _get_web_identity_credential_fetcher(
@@ -301,8 +301,8 @@ class BaseSessionFactory(LoggingMixin):
     ) -> botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher:
         base_session = self.basic_session._session or botocore.session.get_session()
         client_creator = base_session.create_client
-        federation = self.extra_config.get('assume_role_with_web_identity_federation')
-        if federation == 'google':
+        federation = self.extra_config.get("assume_role_with_web_identity_federation")
+        if federation == "google":
             web_identity_token_loader = self._get_google_identity_token_loader()
         else:
             raise AirflowException(
@@ -322,7 +322,7 @@ class BaseSessionFactory(LoggingMixin):
             get_default_id_token_credentials,
         )
 
-        audience = self.extra_config.get('assume_role_with_web_identity_federation_audience')
+        audience = self.extra_config.get("assume_role_with_web_identity_federation_audience")
 
         google_id_token_credentials = get_default_id_token_credentials(target_audience=audience)
 
@@ -335,7 +335,7 @@ class BaseSessionFactory(LoggingMixin):
         return web_identity_token_loader
 
     def _strip_invalid_session_name_characters(self, role_session_name: str) -> str:
-        return slugify(role_session_name, regex_pattern=r'[^\w+=,.@-]+')
+        return slugify(role_session_name, regex_pattern=r"[^\w+=,.@-]+")
 
     def _get_region_name(self) -> str | None:
         warnings.warn(
@@ -385,10 +385,10 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    conn_name_attr = 'aws_conn_id'
-    default_conn_name = 'aws_default'
-    conn_type = 'aws'
-    hook_name = 'Amazon Web Services'
+    conn_name_attr = "aws_conn_id"
+    default_conn_name = "aws_default"
+    conn_type = "aws"
+    hook_name = "Amazon Web Services"
 
     def __init__(
         self,
@@ -565,7 +565,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         else:
             session = self.get_session(region_name=region_name)
             _client = session.client(
-                'iam', endpoint_url=self.conn_config.endpoint_url, config=self.config, verify=self.verify
+                "iam", endpoint_url=self.conn_config.endpoint_url, config=self.config, verify=self.verify
             )
             return _client.get_role(RoleName=role)["Role"]["Arn"]
 
@@ -579,21 +579,21 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         def retry_decorator(fun: Callable):
             @wraps(fun)
             def decorator_f(self, *args, **kwargs):
-                retry_args = getattr(self, 'retry_args', None)
+                retry_args = getattr(self, "retry_args", None)
                 if retry_args is None:
                     return fun(self, *args, **kwargs)
-                multiplier = retry_args.get('multiplier', 1)
-                min_limit = retry_args.get('min', 1)
-                max_limit = retry_args.get('max', 1)
-                stop_after_delay = retry_args.get('stop_after_delay', 10)
+                multiplier = retry_args.get("multiplier", 1)
+                min_limit = retry_args.get("min", 1)
+                max_limit = retry_args.get("max", 1)
+                stop_after_delay = retry_args.get("stop_after_delay", 10)
                 tenacity_before_logger = tenacity.before_log(self.log, logging.INFO) if self.log else None
                 tenacity_after_logger = tenacity.after_log(self.log, logging.INFO) if self.log else None
                 default_kwargs = {
-                    'wait': tenacity.wait_exponential(multiplier=multiplier, max=max_limit, min=min_limit),
-                    'retry': tenacity.retry_if_exception(should_retry),
-                    'stop': tenacity.stop_after_delay(stop_after_delay),
-                    'before': tenacity_before_logger,
-                    'after': tenacity_after_logger,
+                    "wait": tenacity.wait_exponential(multiplier=multiplier, max=max_limit, min=min_limit),
+                    "retry": tenacity.retry_if_exception(should_retry),
+                    "stop": tenacity.stop_after_delay(stop_after_delay),
+                    "before": tenacity_before_logger,
+                    "after": tenacity_after_logger,
                 }
                 return tenacity.retry(**default_kwargs)(fun)(self, *args, **kwargs)
 

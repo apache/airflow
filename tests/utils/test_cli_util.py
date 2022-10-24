@@ -41,23 +41,23 @@ repo_root = Path(airflow.__file__).parent.parent
 
 class TestCliUtil:
     def test_metrics_build(self):
-        func_name = 'test'
+        func_name = "test"
         exec_date = timezone.utcnow()
-        namespace = Namespace(dag_id='foo', task_id='bar', subcommand='test', execution_date=exec_date)
+        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date)
         metrics = cli._build_metrics(func_name, namespace)
 
         expected = {
-            'user': os.environ.get('USER'),
-            'sub_command': 'test',
-            'dag_id': 'foo',
-            'task_id': 'bar',
-            'execution_date': exec_date,
+            "user": os.environ.get("USER"),
+            "sub_command": "test",
+            "dag_id": "foo",
+            "task_id": "bar",
+            "execution_date": exec_date,
         }
         for k, v in expected.items():
             assert v == metrics.get(k)
 
-        assert metrics.get('start_datetime') <= datetime.utcnow()
-        assert metrics.get('full_command')
+        assert metrics.get("start_datetime") <= datetime.utcnow()
+        assert metrics.get("full_command")
 
     def test_fail_function(self):
         """
@@ -77,7 +77,7 @@ class TestCliUtil:
             success_func(Namespace())
 
     def test_process_subdir_path_with_placeholder(self):
-        assert os.path.join(settings.DAGS_FOLDER, 'abc') == cli.process_subdir('DAGS_FOLDER/abc')
+        assert os.path.join(settings.DAGS_FOLDER, "abc") == cli.process_subdir("DAGS_FOLDER/abc")
 
     def test_get_dags(self):
         dags = cli.get_dags(None, "example_subdag_operator")
@@ -90,7 +90,7 @@ class TestCliUtil:
             cli.get_dags(None, "foobar", True)
 
     @pytest.mark.parametrize(
-        ['given_command', 'expected_masked_command'],
+        ["given_command", "expected_masked_command"],
         [
             (
                 "airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin --password test",
@@ -132,9 +132,9 @@ class TestCliUtil:
         expected_command = expected_masked_command.split()
 
         exec_date = timezone.utcnow()
-        namespace = Namespace(dag_id='foo', task_id='bar', subcommand='test', execution_date=exec_date)
+        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date)
         with mock.patch.object(sys, "argv", args), mock.patch(
-            'airflow.utils.session.create_session'
+            "airflow.utils.session.create_session"
         ) as mock_create_session:
             metrics = cli._build_metrics(args[1], namespace)
             # Make it so the default_action_log doesn't actually commit the txn, by giving it a nexted txn
@@ -145,9 +145,9 @@ class TestCliUtil:
 
             log = session.query(Log).order_by(Log.dttm.desc()).first()
 
-        assert metrics.get('start_datetime') <= datetime.utcnow()
+        assert metrics.get("start_datetime") <= datetime.utcnow()
 
-        command = json.loads(log.extra).get('full_command')  # type: str
+        command = json.loads(log.extra).get("full_command")  # type: str
         # Replace single quotes to double quotes to avoid json decode error
         command = ast.literal_eval(command)
         assert command == expected_command
@@ -198,15 +198,15 @@ def success_func(_):
 
 def test__search_for_dags_file():
     dags_folder = settings.DAGS_FOLDER
-    assert _search_for_dag_file('') is None
+    assert _search_for_dag_file("") is None
     assert _search_for_dag_file(None) is None
     # if it's a file, and one can be find in subdir, should return full path
-    assert _search_for_dag_file('any/hi/test_dags_folder.py') == str(
-        Path(dags_folder) / 'test_dags_folder.py'
+    assert _search_for_dag_file("any/hi/test_dags_folder.py") == str(
+        Path(dags_folder) / "test_dags_folder.py"
     )
     # if a folder, even if exists, should return dags folder
-    existing_folder = Path(settings.DAGS_FOLDER, 'subdir1')
+    existing_folder = Path(settings.DAGS_FOLDER, "subdir1")
     assert existing_folder.exists()
     assert _search_for_dag_file(existing_folder.as_posix()) is None
     # when multiple files found, default to the dags folder
-    assert _search_for_dag_file('any/hi/__init__.py') is None
+    assert _search_for_dag_file("any/hi/__init__.py") is None

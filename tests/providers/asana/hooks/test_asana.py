@@ -218,7 +218,7 @@ class TestAsanaHook:
         Tests that default workspace is successfully overridden
         :return:
         """
-        conn = Connection(conn_type='asana', password='test', extra='{"extra__asana__workspace": "1"}')
+        conn = Connection(conn_type="asana", password="test", extra='{"extra__asana__workspace": "1"}')
         with patch.object(AsanaHook, "get_connection", return_value=conn):
             hook = AsanaHook()
         expected_merged_params = {"workspace": "2"}
@@ -226,14 +226,14 @@ class TestAsanaHook:
 
     def test__ensure_prefixes_removal(self):
         """Ensure that _ensure_prefixes is removed from snowflake when airflow min version >= 2.5.0."""
-        path = 'airflow.providers.asana.hooks.asana._ensure_prefixes'
+        path = "airflow.providers.asana.hooks.asana._ensure_prefixes"
         if not object_exists(path):
             raise Exception(
                 "You must remove this test. It only exists to "
                 "remind us to remove decorator `_ensure_prefixes`."
             )
 
-        if get_provider_min_airflow_version('apache-airflow-providers-asana') >= (2, 5):
+        if get_provider_min_airflow_version("apache-airflow-providers-asana") >= (2, 5):
             raise Exception(
                 "You must now remove `_ensure_prefixes` from AsanaHook."
                 " The functionality is now taken care of by providers manager."
@@ -245,32 +245,32 @@ class TestAsanaHook:
 
         Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
         """
-        assert list(AsanaHook.get_ui_field_behaviour()['placeholders'].keys()) == [
-            'password',
-            'extra__asana__workspace',
-            'extra__asana__project',
+        assert list(AsanaHook.get_ui_field_behaviour()["placeholders"].keys()) == [
+            "password",
+            "extra__asana__workspace",
+            "extra__asana__project",
         ]
 
     @pytest.mark.parametrize(
-        'uri',
+        "uri",
         [
             param(
-                'a://?extra__asana__workspace=abc&extra__asana__project=abc',
-                id='prefix',
+                "a://?extra__asana__workspace=abc&extra__asana__project=abc",
+                id="prefix",
             ),
-            param('a://?workspace=abc&project=abc', id='no-prefix'),
+            param("a://?workspace=abc&project=abc", id="no-prefix"),
         ],
     )
     def test_backcompat_prefix_works(self, uri):
         with patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}):
-            hook = AsanaHook('my_conn')
-            assert hook.workspace == 'abc'
-            assert hook.project == 'abc'
+            hook = AsanaHook("my_conn")
+            assert hook.workspace == "abc"
+            assert hook.project == "abc"
 
     def test_backcompat_prefix_both_prefers_short(self):
         with patch.dict(
             os.environ,
-            {"AIRFLOW_CONN_MY_CONN": 'a://?workspace=non-prefixed&extra__asana__workspace=prefixed'},
+            {"AIRFLOW_CONN_MY_CONN": "a://?workspace=non-prefixed&extra__asana__workspace=prefixed"},
         ):
-            hook = AsanaHook('my_conn')
-            assert hook.workspace == 'non-prefixed'
+            hook = AsanaHook("my_conn")
+            assert hook.workspace == "non-prefixed"

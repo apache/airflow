@@ -43,7 +43,7 @@ class SnsPublishOperator(BaseOperator):
         determined automatically)
     """
 
-    template_fields: Sequence[str] = ('target_arn', 'message', 'subject', 'message_attributes', 'aws_conn_id')
+    template_fields: Sequence[str] = ("target_arn", "message", "subject", "message_attributes", "aws_conn_id")
     template_ext: Sequence[str] = ()
     template_fields_renderers = {"message_attributes": "json"}
 
@@ -54,7 +54,7 @@ class SnsPublishOperator(BaseOperator):
         message: str,
         subject: str | None = None,
         message_attributes: dict | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -68,7 +68,7 @@ class SnsPublishOperator(BaseOperator):
         sns = SnsHook(aws_conn_id=self.aws_conn_id)
 
         self.log.info(
-            'Sending SNS notification to %s using %s:\nsubject=%s\nattributes=%s\nmessage=%s',
+            "Sending SNS notification to %s using %s:\nsubject=%s\nattributes=%s\nmessage=%s",
             self.target_arn,
             self.aws_conn_id,
             self.subject,

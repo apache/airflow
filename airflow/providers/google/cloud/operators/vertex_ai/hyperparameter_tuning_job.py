@@ -147,9 +147,9 @@ class CreateHyperparameterTuningJobOperator(BaseOperator):
     """
 
     template_fields = [
-        'region',
-        'project_id',
-        'impersonation_chain',
+        "region",
+        "project_id",
+        "impersonation_chain",
     ]
     operator_extra_links = (VertexAITrainingLink(),)
 

@@ -181,28 +181,28 @@ class BatchClientHook(AwsBaseHook):
     DEFAULT_DELAY_MIN = 1
     DEFAULT_DELAY_MAX = 10
 
-    FAILURE_STATE = 'FAILED'
-    SUCCESS_STATE = 'SUCCEEDED'
-    RUNNING_STATE = 'RUNNING'
+    FAILURE_STATE = "FAILED"
+    SUCCESS_STATE = "SUCCEEDED"
+    RUNNING_STATE = "RUNNING"
     INTERMEDIATE_STATES = (
-        'SUBMITTED',
-        'PENDING',
-        'RUNNABLE',
-        'STARTING',
+        "SUBMITTED",
+        "PENDING",
+        "RUNNABLE",
+        "STARTING",
         RUNNING_STATE,
     )
 
-    COMPUTE_ENVIRONMENT_TERMINAL_STATUS = ('VALID', 'DELETED')
-    COMPUTE_ENVIRONMENT_INTERMEDIATE_STATUS = ('CREATING', 'UPDATING', 'DELETING')
+    COMPUTE_ENVIRONMENT_TERMINAL_STATUS = ("VALID", "DELETED")
+    COMPUTE_ENVIRONMENT_INTERMEDIATE_STATUS = ("CREATING", "UPDATING", "DELETING")
 
-    JOB_QUEUE_TERMINAL_STATUS = ('VALID', 'DELETED')
-    JOB_QUEUE_INTERMEDIATE_STATUS = ('CREATING', 'UPDATING', 'DELETING')
+    JOB_QUEUE_TERMINAL_STATUS = ("VALID", "DELETED")
+    JOB_QUEUE_INTERMEDIATE_STATUS = ("CREATING", "UPDATING", "DELETING")
 
     def __init__(
         self, *args, max_retries: int | None = None, status_retries: int | None = None, **kwargs
     ) -> None:
         # https://github.com/python/mypy/issues/6799 hence type: ignore
-        super().__init__(client_type='batch', *args, **kwargs)  # type: ignore
+        super().__init__(client_type="batch", *args, **kwargs)  # type: ignore
         self.max_retries = max_retries or self.MAX_RETRIES
         self.status_retries = status_retries or self.STATUS_RETRIES
 

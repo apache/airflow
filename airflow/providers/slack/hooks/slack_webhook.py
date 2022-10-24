@@ -65,17 +65,17 @@ def _ensure_prefixes(conn_type):
         @wraps(func)
         def inner(cls):
             field_behaviors = func(cls)
-            conn_attrs = {'host', 'schema', 'login', 'password', 'port', 'extra'}
+            conn_attrs = {"host", "schema", "login", "password", "port", "extra"}
 
             def _ensure_prefix(field):
-                if field not in conn_attrs and not field.startswith('extra__'):
+                if field not in conn_attrs and not field.startswith("extra__"):
                     return f"extra__{conn_type}__{field}"
                 else:
                     return field
 
-            if 'placeholders' in field_behaviors:
-                placeholders = field_behaviors['placeholders']
-                field_behaviors['placeholders'] = {_ensure_prefix(k): v for k, v in placeholders.items()}
+            if "placeholders" in field_behaviors:
+                placeholders = field_behaviors["placeholders"]
+                field_behaviors["placeholders"] = {_ensure_prefix(k): v for k, v in placeholders.items()}
             return field_behaviors
 
         return inner
@@ -131,10 +131,10 @@ class SlackWebhookHook(BaseHook):
         Use instead Slack Incoming Webhook connection password field.
     """
 
-    conn_name_attr = 'slack_webhook_conn_id'
-    default_conn_name = 'slack_default'
-    conn_type = 'slackwebhook'
-    hook_name = 'Slack Incoming Webhook'
+    conn_name_attr = "slack_webhook_conn_id"
+    default_conn_name = "slack_default"
+    conn_type = "slackwebhook"
+    hook_name = "Slack Incoming Webhook"
 
     def __init__(
         self,
@@ -150,7 +150,7 @@ class SlackWebhookHook(BaseHook):
         http_conn_id = kwargs.pop("http_conn_id", None)
         if http_conn_id:
             warnings.warn(
-                'Parameter `http_conn_id` is deprecated. Please use `slack_webhook_conn_id` instead.',
+                "Parameter `http_conn_id` is deprecated. Please use `slack_webhook_conn_id` instead.",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -459,14 +459,14 @@ class SlackWebhookHook(BaseHook):
                 "and receive a response from Slack Incoming Webhook.",
             ),
             "proxy": StringField(
-                lazy_gettext('Proxy'),
+                lazy_gettext("Proxy"),
                 widget=BS3TextFieldWidget(),
                 description="Optional. Proxy to make the Slack Incoming Webhook call.",
             ),
         }
 
     @classmethod
-    @_ensure_prefixes(conn_type='slackwebhook')
+    @_ensure_prefixes(conn_type="slackwebhook")
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {

@@ -59,7 +59,7 @@ class LivyOperator(BaseOperator):
             See Tenacity documentation at https://github.com/jd/tenacity
     """
 
-    template_fields: Sequence[str] = ('spark_params',)
+    template_fields: Sequence[str] = ("spark_params",)
 
     def __init__(
         self,
@@ -80,7 +80,7 @@ class LivyOperator(BaseOperator):
         queue: str | None = None,
         name: str | None = None,
         proxy_user: str | None = None,
-        livy_conn_id: str = 'livy_default',
+        livy_conn_id: str = "livy_default",
         livy_conn_auth_type: Any | None = None,
         polling_interval: int = 0,
         extra_options: dict[str, Any] | None = None,
@@ -92,22 +92,22 @@ class LivyOperator(BaseOperator):
         super().__init__(**kwargs)
 
         self.spark_params = {
-            'file': file,
-            'class_name': class_name,
-            'args': args,
-            'jars': jars,
-            'py_files': py_files,
-            'files': files,
-            'driver_memory': driver_memory,
-            'driver_cores': driver_cores,
-            'executor_memory': executor_memory,
-            'executor_cores': executor_cores,
-            'num_executors': num_executors,
-            'archives': archives,
-            'queue': queue,
-            'name': name,
-            'conf': conf,
-            'proxy_user': proxy_user,
+            "file": file,
+            "class_name": class_name,
+            "args": args,
+            "jars": jars,
+            "py_files": py_files,
+            "files": files,
+            "driver_memory": driver_memory,
+            "driver_cores": driver_cores,
+            "executor_memory": executor_memory,
+            "executor_cores": executor_cores,
+            "num_executors": num_executors,
+            "archives": archives,
+            "queue": queue,
+            "name": name,
+            "conf": conf,
+            "proxy_user": proxy_user,
         }
 
         self._livy_conn_id = livy_conn_id
@@ -153,7 +153,7 @@ class LivyOperator(BaseOperator):
         hook = self.get_hook()
         state = hook.get_batch_state(batch_id, retry_args=self.retry_args)
         while state not in hook.TERMINAL_STATES:
-            self.log.debug('Batch with id %s is in state: %s', batch_id, state.value)
+            self.log.debug("Batch with id %s is in state: %s", batch_id, state.value)
             sleep(self._polling_interval)
             state = hook.get_batch_state(batch_id, retry_args=self.retry_args)
         self.log.info("Batch with id %s terminated with state: %s", batch_id, state.value)

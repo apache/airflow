@@ -97,11 +97,11 @@ class ADLSToGCSOperator(ADLSListOperator):
     """
 
     template_fields: Sequence[str] = (
-        'src_adls',
-        'dest_gcs',
-        'google_impersonation_chain',
+        "src_adls",
+        "dest_gcs",
+        "google_impersonation_chain",
     )
-    ui_color = '#f0eee4'
+    ui_color = "#f0eee4"
 
     def __init__(
         self,
@@ -109,7 +109,7 @@ class ADLSToGCSOperator(ADLSListOperator):
         src_adls: str,
         dest_gcs: str,
         azure_data_lake_conn_id: str,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         replace: bool = False,
         gzip: bool = False,
@@ -148,7 +148,7 @@ class ADLSToGCSOperator(ADLSListOperator):
             hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
 
             for obj in files:
-                with NamedTemporaryFile(mode='wb', delete=True) as f:
+                with NamedTemporaryFile(mode="wb", delete=True) as f:
                     hook.download_file(local_path=f.name, remote_path=obj)
                     f.flush()
                     dest_gcs_bucket, dest_gcs_prefix = _parse_gcs_url(self.dest_gcs)
