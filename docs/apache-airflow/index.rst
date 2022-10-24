@@ -130,29 +130,17 @@ so coding will always be required.
     license
     start
     installation/index
-    upgrading-from-1-10/index
     tutorial/index
     howto/index
     ui
-    concepts/index
-    executor/index
-    dag-run
-    plugins
-    security/index
-    logging-monitoring/index
-    timezone
-    Using the CLI <usage-cli>
+    core-concepts/index
+    authoring-and-scheduling/index
+    administration-and-deployment/index
     integration
-    kubernetes
-    lineage
-    listeners
-    dag-serialization
-    modules_management
+    best-practices
+    faq
     Release Policies <release-process>
     release_notes
-    best-practices
-    production-deployment
-    faq
     privacy_notice
 
 .. toctree::

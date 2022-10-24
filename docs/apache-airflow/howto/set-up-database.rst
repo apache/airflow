@@ -375,4 +375,4 @@ What's next?
 ------------
 
 By default, Airflow uses ``SequentialExecutor``, which does not provide parallelism. You should consider
-configuring a different :doc:`executor </executor/index>` for better performance.
+configuring a different :doc:`executor </core-concepts/executor/index>` for better performance.

@@ -54,7 +54,7 @@ How to upgrade
 
 In order to manually upgrade the database you should run the ``airflow db upgrade`` command in your
 environment. It can be run either in your virtual environment or in the containers that give
-you access to Airflow ``CLI`` :doc:`/usage-cli` and the database.
+you access to Airflow ``CLI`` :doc:`/howto/usage-cli` and the database.
 
 Offline SQL migration scripts
 =============================

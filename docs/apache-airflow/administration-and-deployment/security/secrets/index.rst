@@ -15,24 +15,23 @@
     specific language governing permissions and limitations
     under the License.
 
+Secrets
+=======
 
+During Airflow operation, variables or configurations are used that contain particularly sensitive information.
+This guide provides ways to protect this data.
 
-Using Operators
-===============
+The following are particularly protected:
 
-An operator represents a single, ideally idempotent, task. Operators
-determine what actually executes when your DAG runs.
+* Variables. See the :doc:`Variables Concepts </core-concepts/variables>` documentation for more information.
+* Connections. See the :doc:`Connections Concepts </authoring-and-scheduling/connections>` documentation for more information.
 
-.. note::
-    See the :doc:`Operators Concepts </core-concepts/operators>` documentation and the
-    :doc:`Operators API Reference </python-api-ref>` for more
-    information.
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
+    :glob:
+    :caption: Further reading:
 
-    bash
-    datetime
-    python
-    weekday
-    external_task_sensor
+    Encryption at rest <fernet>
+    Using external Secret stores <secrets-backend/index>
+    mask-sensitive-values

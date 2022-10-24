@@ -15,24 +15,37 @@
     specific language governing permissions and limitations
     under the License.
 
+Core Concepts
+=============================
 
+Here you can find detailed documentation about each one of Airflow's core concepts and how to use them, as well as a high-level :doc:`architectural overview <overview>`.
 
-Using Operators
-===============
-
-An operator represents a single, ideally idempotent, task. Operators
-determine what actually executes when your DAG runs.
-
-.. note::
-    See the :doc:`Operators Concepts </core-concepts/operators>` documentation and the
-    :doc:`Operators API Reference </python-api-ref>` for more
-    information.
+**Architecture**
 
 .. toctree::
     :maxdepth: 2
 
-    bash
-    datetime
-    python
-    weekday
-    external_task_sensor
+    overview
+
+
+**Workloads**
+
+.. toctree::
+    :maxdepth: 2
+
+    dags
+    dag-run
+    tasks
+    operators
+    sensors
+    taskflow
+    executor/index
+
+**Communication**
+
+.. toctree::
+    :maxdepth: 2
+
+    xcoms
+    variables
+    params

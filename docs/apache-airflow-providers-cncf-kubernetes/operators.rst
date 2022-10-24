@@ -17,7 +17,7 @@
 
 
 
-.. _howto/operator:KubernetesPodOperator:
+.. _howto/operator:kubernetespodoperator:
 
 KubernetesPodOperator
 =====================
@@ -32,7 +32,7 @@ you to create and run Pods on a Kubernetes cluster.
   simplifies the Kubernetes authorization process.
 
 .. note::
-  The :doc:`Kubernetes executor <apache-airflow:executor/kubernetes>` is **not** required to use this operator.
+  The :doc:`Kubernetes executor <apache-airflow:core-concepts/executor/kubernetes>` is **not** required to use this operator.
 
 How does this operator work?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

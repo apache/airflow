@@ -15,24 +15,28 @@
     specific language governing permissions and limitations
     under the License.
 
+Administration and Deployment
+=====================================
 
-
-Using Operators
-===============
-
-An operator represents a single, ideally idempotent, task. Operators
-determine what actually executes when your DAG runs.
-
-.. note::
-    See the :doc:`Operators Concepts </core-concepts/operators>` documentation and the
-    :doc:`Operators API Reference </python-api-ref>` for more
-    information.
+This section contains information about deploying DAGs into production and the administration of airflow deployments.
 
 .. toctree::
     :maxdepth: 2
 
-    bash
-    datetime
-    python
-    weekday
-    external_task_sensor
+    production-deployment
+    security/index
+    logging-monitoring/index
+    kubernetes
+    lineage
+    listeners
+    dag-serialization
+    modules_management
+    scheduler
+    pools
+    cluster-policies
+    priority-weight
+    
+
+
+
+

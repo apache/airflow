@@ -29,7 +29,7 @@ You can create any operator you want by extending the :class:`airflow.models.bas
 There are two methods that you need to override in a derived class:
 
 * Constructor - Define the parameters required for the operator. You only need to specify the arguments specific to your operator.
-  You can specify the ``default_args`` in the dag file. See :ref:`Default args <concepts:default-arguments>` for more details.
+  You can specify the ``default_args`` in the dag file. See :ref:`Default args <concepts-default-arguments>` for more details.
 
 * Execute - The code to execute when the runner calls the operator. The method contains the
   Airflow context as a parameter that can be used to read config values.
@@ -63,7 +63,7 @@ Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``
     is present in the :envvar:`PYTHONPATH` env. Airflow adds ``dags/``, ``plugins/``, and ``config/`` directories
     in the Airflow home to :envvar:`PYTHONPATH` by default. e.g., In our example,
     the file is placed in the ``custom_operator/`` directory.
-    See :doc:`../modules_management` for details on how Python and Airflow manage modules.
+    See :doc:`/administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
 
 You can now use the derived custom operator as follows:
 

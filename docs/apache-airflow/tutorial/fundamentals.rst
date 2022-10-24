@@ -45,7 +45,7 @@ The actual tasks defined here will run in a different context from
 the context of this script. Different tasks run on different workers
 at different points in time, which means that this script cannot be used
 to cross communicate between tasks. Note that for this
-purpose we have a more advanced feature called :doc:`/concepts/xcoms`.
+purpose we have a more advanced feature called :doc:`/core-concepts/xcoms`.
 
 People sometimes think of the DAG definition file as a place where they
 can do some actual data processing - that is not the case at all!
@@ -66,7 +66,7 @@ Airflow DAG object. Let's start by importing the libraries we will need.
     :end-before: [END import_module]
 
 
-See :doc:`/modules_management` for details on how Python and Airflow manage modules.
+See :doc:`/administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
 
 Default Arguments
 -----------------
@@ -400,4 +400,4 @@ Here are a few things you might want to do next:
 
 .. seealso::
     - Continue to the next step of the tutorial: :doc:`/tutorial/taskflow`
-    - Skip to the the :doc:`/concepts/index` section for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more
+    - Skip to the the :doc:`/core-concepts/index` section for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more

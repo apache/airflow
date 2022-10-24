@@ -118,7 +118,7 @@ the example below.
     For more information on configuration options, see :doc:`../configurations-ref`
 
 .. note::
-    See :doc:`../modules_management` for details on how Python and Airflow manage modules.
+    See :doc:`/administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
 
 .. note::
     Use the same configuration across all the Airflow components. While each component

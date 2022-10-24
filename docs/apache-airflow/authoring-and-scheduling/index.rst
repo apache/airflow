@@ -15,24 +15,29 @@
     specific language governing permissions and limitations
     under the License.
 
+Authoring and Scheduling
+=========================
 
+Here you can find detailed documentation about advanced authoring and scheduling airflow DAGs.
+It's recommended that you first review the pages in :doc:`core concepts </core-concepts/index>`
 
-Using Operators
-===============
-
-An operator represents a single, ideally idempotent, task. Operators
-determine what actually executes when your DAG runs.
-
-.. note::
-    See the :doc:`Operators Concepts </core-concepts/operators>` documentation and the
-    :doc:`Operators API Reference </python-api-ref>` for more
-    information.
+**Authoring**
 
 .. toctree::
     :maxdepth: 2
+    
+    plugins
+    deferring
+    dagfile-processing
+    connections
+    dynamic-task-mapping
 
-    bash
-    datetime
-    python
-    weekday
-    external_task_sensor
+
+**Scheduling**
+
+.. toctree::
+    :maxdepth: 2
+    
+    timezone
+    datasets
+    timetable

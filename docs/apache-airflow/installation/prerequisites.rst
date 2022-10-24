@@ -46,7 +46,7 @@ wildly on the deployment options you have
 .. warning::
 
   MySQL 5.x versions are unable to or have limitations with
-  running multiple schedulers -- please see: :doc:`/concepts/scheduler`.
+  running multiple schedulers -- please see: :doc:`/administration-and-deployment/scheduler`.
 
 .. warning::
   SQLite is used in Airflow tests. Do not use it in production. We recommend
