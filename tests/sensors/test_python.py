@@ -35,13 +35,13 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 class TestPythonSensor:
     def test_python_sensor_true(self, dag_maker):
         with dag_maker():
-            op = PythonSensor(task_id='python_sensor_check_true', python_callable=lambda: True)
+            op = PythonSensor(task_id="python_sensor_check_true", python_callable=lambda: True)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_python_sensor_false(self, dag_maker):
         with dag_maker():
             op = PythonSensor(
-                task_id='python_sensor_check_false',
+                task_id="python_sensor_check_false",
                 timeout=0.01,
                 poke_interval=0.01,
                 python_callable=lambda: False,
@@ -51,7 +51,7 @@ class TestPythonSensor:
 
     def test_python_sensor_raise(self, dag_maker):
         with dag_maker():
-            op = PythonSensor(task_id='python_sensor_check_raise', python_callable=lambda: 1 / 0)
+            op = PythonSensor(task_id="python_sensor_check_raise", python_callable=lambda: 1 / 0)
         with pytest.raises(ZeroDivisionError):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
@@ -61,12 +61,12 @@ class TestPythonSensor:
 
         # Create a named tuple and ensure it is still preserved
         # after the rendering is done
-        Named = namedtuple('Named', ['var1', 'var2'])
-        named_tuple = Named('{{ ds }}', 'unchanged')
+        Named = namedtuple("Named", ["var1", "var2"])
+        named_tuple = Named("{{ ds }}", "unchanged")
 
         with dag_maker() as dag:
             task = PythonSensor(
-                task_id='python_sensor',
+                task_id="python_sensor",
                 timeout=0.01,
                 poke_interval=0.3,
                 # a Mock instance cannot be used as a callable function or test fails with a
@@ -92,7 +92,7 @@ class TestPythonSensor:
                 4,
                 date(2019, 1, 1),
                 f"dag {dag.dag_id} ran on {ds_templated}.",
-                Named(ds_templated, 'unchanged'),
+                Named(ds_templated, "unchanged"),
             ),
         )
 
@@ -102,16 +102,16 @@ class TestPythonSensor:
 
         with dag_maker() as dag:
             task = PythonSensor(
-                task_id='python_sensor',
+                task_id="python_sensor",
                 timeout=0.01,
                 poke_interval=0.01,
                 # a Mock instance cannot be used as a callable function or test fails with a
                 # TypeError: Object of type Mock is not JSON serializable
                 python_callable=build_recording_function(recorded_calls),
                 op_kwargs={
-                    'an_int': 4,
-                    'a_date': date(2019, 1, 1),
-                    'a_templated_string': "dag {{dag.dag_id}} ran on {{ds}}.",
+                    "an_int": 4,
+                    "a_date": date(2019, 1, 1),
+                    "a_templated_string": "dag {{dag.dag_id}} ran on {{ds}}.",
                 },
             )
 

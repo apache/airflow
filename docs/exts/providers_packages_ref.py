@@ -22,19 +22,19 @@ from sphinx.application import Sphinx
 
 def _on_config_inited(app, config):
     del app
-    jinja_context = getattr(config, 'jinja_contexts', None) or {}
+    jinja_context = getattr(config, "jinja_contexts", None) or {}
 
-    jinja_context['providers_ctx'] = {'providers': load_package_data()}
+    jinja_context["providers_ctx"] = {"providers": load_package_data()}
 
     config.jinja_contexts = jinja_context
 
 
 def setup(app: Sphinx):
     """Setup plugin"""
-    app.setup_extension('sphinx_jinja')
+    app.setup_extension("sphinx_jinja")
     app.connect("config-inited", _on_config_inited)
     app.add_crossref_type(
         directivename="provider",
         rolename="provider",
     )
-    return {'parallel_read_safe': True, 'parallel_write_safe': True}
+    return {"parallel_read_safe": True, "parallel_write_safe": True}

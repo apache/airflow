@@ -132,7 +132,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         parent = f"projects/{project_id}/locations/{location}"
         return client.create_model(
-            request={'parent': parent, 'model': model},
+            request={"parent": parent, "model": model},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -180,10 +180,10 @@ class CloudAutoMLHook(GoogleBaseHook):
         name = f"projects/{project_id}/locations/{location}/models/{model_id}"
         result = client.batch_predict(
             request={
-                'name': name,
-                'input_config': input_config,
-                'output_config': output_config,
-                'params': params,
+                "name": name,
+                "input_config": input_config,
+                "output_config": output_config,
+                "params": params,
             },
             retry=retry,
             timeout=timeout,
@@ -226,7 +226,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.prediction_client
         name = f"projects/{project_id}/locations/{location}/models/{model_id}"
         result = client.predict(
-            request={'name': name, 'payload': payload, 'params': params},
+            request={"name": name, "payload": payload, "params": params},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -262,7 +262,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         parent = f"projects/{project_id}/locations/{location}"
         result = client.create_dataset(
-            request={'parent': parent, 'dataset': dataset},
+            request={"parent": parent, "dataset": dataset},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -300,7 +300,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/datasets/{dataset_id}"
         result = client.import_data(
-            request={'name': name, 'input_config': input_config},
+            request={"name": name, "input_config": input_config},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -353,7 +353,7 @@ class CloudAutoMLHook(GoogleBaseHook):
             table_spec=table_spec_id,
         )
         result = client.list_column_specs(
-            request={'parent': parent, 'field_mask': field_mask, 'filter': filter_, 'page_size': page_size},
+            request={"parent": parent, "field_mask": field_mask, "filter": filter_, "page_size": page_size},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -388,7 +388,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/models/{model_id}"
         result = client.get_model(
-            request={'name': name},
+            request={"name": name},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -423,7 +423,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/models/{model_id}"
         result = client.delete_model(
-            request={'name': name},
+            request={"name": name},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -455,7 +455,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         """
         client = self.get_conn()
         result = client.update_dataset(
-            request={'dataset': dataset, 'update_mask': update_mask},
+            request={"dataset": dataset, "update_mask": update_mask},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -500,8 +500,8 @@ class CloudAutoMLHook(GoogleBaseHook):
         name = f"projects/{project_id}/locations/{location}/models/{model_id}"
         result = client.deploy_model(
             request={
-                'name': name,
-                'image_object_detection_model_deployment_metadata': image_detection_metadata,
+                "name": name,
+                "image_object_detection_model_deployment_metadata": image_detection_metadata,
             },
             retry=retry,
             timeout=timeout,
@@ -547,7 +547,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         parent = f"projects/{project_id}/locations/{location}/datasets/{dataset_id}"
         result = client.list_table_specs(
-            request={'parent': parent, 'filter': filter_, 'page_size': page_size},
+            request={"parent": parent, "filter": filter_, "page_size": page_size},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -583,7 +583,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         parent = f"projects/{project_id}/locations/{location}"
         result = client.list_datasets(
-            request={'parent': parent},
+            request={"parent": parent},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -618,7 +618,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/datasets/{dataset_id}"
         result = client.delete_dataset(
-            request={'name': name},
+            request={"name": name},
             retry=retry,
             timeout=timeout,
             metadata=metadata,

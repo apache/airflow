@@ -48,8 +48,8 @@ class ComputeEngineHook(GoogleBaseHook):
 
     def __init__(
         self,
-        api_version: str = 'v1',
-        gcp_conn_id: str = 'google_cloud_default',
+        api_version: str = "v1",
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
@@ -70,7 +70,7 @@ class ComputeEngineHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build('compute', self.api_version, http=http_authorized, cache_discovery=False)
+            self._conn = build("compute", self.api_version, http=http_authorized, cache_discovery=False)
         return self._conn
 
     @GoogleBaseHook.fallback_to_default_project_id

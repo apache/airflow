@@ -16,14 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import jmespath
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class GitSyncSchedulerTest(unittest.TestCase):
+class TestGitSyncSchedulerTest:
     def test_should_add_dags_volume(self):
         docs = render_chart(
             values={"dags": {"gitSync": {"enabled": True}}},
@@ -227,7 +225,7 @@ class GitSyncSchedulerTest(unittest.TestCase):
         assert {"name": "test-volume", "emptyDir": {}} in jmespath.search(
             "spec.template.spec.volumes", docs[0]
         )
-        assert {'mountPath': '/git', 'name': 'dags'} in jmespath.search(
+        assert {"mountPath": "/git", "name": "dags"} in jmespath.search(
             "spec.template.spec.containers[1].volumeMounts", docs[0]
         )
         assert {"name": "test-volume", "mountPath": "/opt/test"} in jmespath.search(
@@ -258,8 +256,8 @@ class GitSyncSchedulerTest(unittest.TestCase):
                     "gitSync": {
                         "enabled": True,
                         "resources": {
-                            "limits": {"cpu": "200m", 'memory': "128Mi"},
-                            "requests": {"cpu": "300m", 'memory': "169Mi"},
+                            "limits": {"cpu": "200m", "memory": "128Mi"},
+                            "requests": {"cpu": "300m", "memory": "169Mi"},
                         },
                     },
                 },

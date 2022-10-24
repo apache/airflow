@@ -38,10 +38,10 @@ class AzureBatchHook(BaseHook):
         of a service principal which will be used to start the container instance.
     """
 
-    conn_name_attr = 'azure_batch_conn_id'
-    default_conn_name = 'azure_batch_default'
-    conn_type = 'azure_batch'
-    hook_name = 'Azure Batch Service'
+    conn_name_attr = "azure_batch_conn_id"
+    default_conn_name = "azure_batch_default"
+    conn_type = "azure_batch"
+    hook_name = "Azure Batch Service"
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
@@ -52,7 +52,7 @@ class AzureBatchHook(BaseHook):
 
         return {
             "extra__azure_batch__account_url": StringField(
-                lazy_gettext('Batch Account URL'), widget=BS3TextFieldWidget()
+                lazy_gettext("Batch Account URL"), widget=BS3TextFieldWidget()
             ),
         }
 
@@ -60,10 +60,10 @@ class AzureBatchHook(BaseHook):
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['schema', 'port', 'host', 'extra'],
+            "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
-                'login': 'Batch Account Name',
-                'password': 'Batch Account Access Key',
+                "login": "Batch Account Name",
+                "password": "Batch Account Access Key",
             },
         }
 
@@ -85,9 +85,9 @@ class AzureBatchHook(BaseHook):
         """
         conn = self._connection()
 
-        batch_account_url = conn.extra_dejson.get('extra__azure_batch__account_url')
+        batch_account_url = conn.extra_dejson.get("extra__azure_batch__account_url")
         if not batch_account_url:
-            raise AirflowException('Batch Account URL parameter is missing.')
+            raise AirflowException("Batch Account URL parameter is missing.")
 
         credentials = batch_auth.SharedKeyCredentials(conn.login, conn.password)
         batch_client = BatchServiceClient(credentials, batch_url=batch_account_url)
@@ -144,7 +144,7 @@ class AzureBatchHook(BaseHook):
 
         """
         if use_latest_image_and_sku:
-            self.log.info('Using latest verified virtual machine image with node agent sku')
+            self.log.info("Using latest verified virtual machine image with node agent sku")
             sku_to_use, image_ref_to_use = self._get_latest_verified_image_vm_and_sku(
                 publisher=vm_publisher, offer=vm_offer, sku_starts_with=sku_starts_with
             )
@@ -161,7 +161,7 @@ class AzureBatchHook(BaseHook):
 
         elif os_family:
             self.log.info(
-                'Using cloud service configuration to create pool, virtual machine configuration ignored'
+                "Using cloud service configuration to create pool, virtual machine configuration ignored"
             )
             pool = batch_models.PoolAddParameter(
                 id=pool_id,
@@ -175,7 +175,7 @@ class AzureBatchHook(BaseHook):
             )
 
         else:
-            self.log.info('Using virtual machine configuration to create a pool')
+            self.log.info("Using virtual machine configuration to create a pool")
             pool = batch_models.PoolAddParameter(
                 id=pool_id,
                 vm_size=vm_size,
@@ -248,13 +248,13 @@ class AzureBatchHook(BaseHook):
         :param pool_id: A string that identifies the pool
         :param node_state: A set of batch_models.ComputeNodeState
         """
-        self.log.info('waiting for all nodes in pool %s to reach one of: %s', pool_id, node_state)
+        self.log.info("waiting for all nodes in pool %s to reach one of: %s", pool_id, node_state)
         while True:
             # refresh pool to ensure that there is no resize error
             pool = self.connection.pool.get(pool_id)
             if pool.resize_errors is not None:
                 resize_errors = "\n".join(repr(e) for e in pool.resize_errors)
-                raise RuntimeError(f'resize error encountered for pool {pool.id}:\n{resize_errors}')
+                raise RuntimeError(f"resize error encountered for pool {pool.id}:\n{resize_errors}")
             nodes = list(self.connection.compute_node.list(pool.id))
             if len(nodes) >= pool.target_dedicated_nodes and all(node.state in node_state for node in nodes):
                 return nodes

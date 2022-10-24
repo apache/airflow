@@ -58,30 +58,30 @@ from airflow.providers.google.cloud.operators.bigtable import (
 )
 from airflow.providers.google.cloud.sensors.bigtable import BigtableTableReplicationCompletedSensor
 
-GCP_PROJECT_ID = getenv('GCP_PROJECT_ID', 'example-project')
-CBT_INSTANCE_ID = getenv('GCP_BIG_TABLE_INSTANCE_ID', 'some-instance-id')
-CBT_INSTANCE_DISPLAY_NAME = getenv('GCP_BIG_TABLE_INSTANCE_DISPLAY_NAME', 'Human-readable name')
+GCP_PROJECT_ID = getenv("GCP_PROJECT_ID", "example-project")
+CBT_INSTANCE_ID = getenv("GCP_BIG_TABLE_INSTANCE_ID", "some-instance-id")
+CBT_INSTANCE_DISPLAY_NAME = getenv("GCP_BIG_TABLE_INSTANCE_DISPLAY_NAME", "Human-readable name")
 CBT_INSTANCE_DISPLAY_NAME_UPDATED = getenv(
     "GCP_BIG_TABLE_INSTANCE_DISPLAY_NAME_UPDATED", f"{CBT_INSTANCE_DISPLAY_NAME} - updated"
 )
-CBT_INSTANCE_TYPE = getenv('GCP_BIG_TABLE_INSTANCE_TYPE', '2')
-CBT_INSTANCE_TYPE_PROD = getenv('GCP_BIG_TABLE_INSTANCE_TYPE_PROD', '1')
-CBT_INSTANCE_LABELS = getenv('GCP_BIG_TABLE_INSTANCE_LABELS', '{}')
-CBT_INSTANCE_LABELS_UPDATED = getenv('GCP_BIG_TABLE_INSTANCE_LABELS_UPDATED', '{"env": "prod"}')
-CBT_CLUSTER_ID = getenv('GCP_BIG_TABLE_CLUSTER_ID', 'some-cluster-id')
-CBT_CLUSTER_ZONE = getenv('GCP_BIG_TABLE_CLUSTER_ZONE', 'europe-west1-b')
-CBT_CLUSTER_NODES = getenv('GCP_BIG_TABLE_CLUSTER_NODES', '3')
-CBT_CLUSTER_NODES_UPDATED = getenv('GCP_BIG_TABLE_CLUSTER_NODES_UPDATED', '5')
-CBT_CLUSTER_STORAGE_TYPE = getenv('GCP_BIG_TABLE_CLUSTER_STORAGE_TYPE', '2')
-CBT_TABLE_ID = getenv('GCP_BIG_TABLE_TABLE_ID', 'some-table-id')
-CBT_POKE_INTERVAL = getenv('GCP_BIG_TABLE_POKE_INTERVAL', '60')
+CBT_INSTANCE_TYPE = getenv("GCP_BIG_TABLE_INSTANCE_TYPE", "2")
+CBT_INSTANCE_TYPE_PROD = getenv("GCP_BIG_TABLE_INSTANCE_TYPE_PROD", "1")
+CBT_INSTANCE_LABELS = getenv("GCP_BIG_TABLE_INSTANCE_LABELS", "{}")
+CBT_INSTANCE_LABELS_UPDATED = getenv("GCP_BIG_TABLE_INSTANCE_LABELS_UPDATED", '{"env": "prod"}')
+CBT_CLUSTER_ID = getenv("GCP_BIG_TABLE_CLUSTER_ID", "some-cluster-id")
+CBT_CLUSTER_ZONE = getenv("GCP_BIG_TABLE_CLUSTER_ZONE", "europe-west1-b")
+CBT_CLUSTER_NODES = getenv("GCP_BIG_TABLE_CLUSTER_NODES", "3")
+CBT_CLUSTER_NODES_UPDATED = getenv("GCP_BIG_TABLE_CLUSTER_NODES_UPDATED", "5")
+CBT_CLUSTER_STORAGE_TYPE = getenv("GCP_BIG_TABLE_CLUSTER_STORAGE_TYPE", "2")
+CBT_TABLE_ID = getenv("GCP_BIG_TABLE_TABLE_ID", "some-table-id")
+CBT_POKE_INTERVAL = getenv("GCP_BIG_TABLE_POKE_INTERVAL", "60")
 
 
 with models.DAG(
-    'example_gcp_bigtable_operators',
+    "example_gcp_bigtable_operators",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [START howto_operator_gcp_bigtable_instance_create]
     create_instance_task = BigtableCreateInstanceOperator(
@@ -94,7 +94,7 @@ with models.DAG(
         instance_labels=json.loads(CBT_INSTANCE_LABELS),
         cluster_nodes=None,
         cluster_storage_type=int(CBT_CLUSTER_STORAGE_TYPE),
-        task_id='create_instance_task',
+        task_id="create_instance_task",
     )
     create_instance_task2 = BigtableCreateInstanceOperator(
         instance_id=CBT_INSTANCE_ID,
@@ -105,7 +105,7 @@ with models.DAG(
         instance_labels=json.loads(CBT_INSTANCE_LABELS),
         cluster_nodes=int(CBT_CLUSTER_NODES),
         cluster_storage_type=int(CBT_CLUSTER_STORAGE_TYPE),
-        task_id='create_instance_task2',
+        task_id="create_instance_task2",
     )
     create_instance_task >> create_instance_task2
     # [END howto_operator_gcp_bigtable_instance_create]
@@ -116,7 +116,7 @@ with models.DAG(
         instance_display_name=CBT_INSTANCE_DISPLAY_NAME_UPDATED,
         instance_type=int(CBT_INSTANCE_TYPE_PROD),
         instance_labels=json.loads(CBT_INSTANCE_LABELS_UPDATED),
-        task_id='update_instance_task',
+        task_id="update_instance_task",
     )
     # [END howto_operator_gcp_bigtable_instance_update]
 
@@ -126,13 +126,13 @@ with models.DAG(
         instance_id=CBT_INSTANCE_ID,
         cluster_id=CBT_CLUSTER_ID,
         nodes=int(CBT_CLUSTER_NODES_UPDATED),
-        task_id='update_cluster_task',
+        task_id="update_cluster_task",
     )
     cluster_update_task2 = BigtableUpdateClusterOperator(
         instance_id=CBT_INSTANCE_ID,
         cluster_id=CBT_CLUSTER_ID,
         nodes=int(CBT_CLUSTER_NODES_UPDATED),
-        task_id='update_cluster_task2',
+        task_id="update_cluster_task2",
     )
     cluster_update_task >> cluster_update_task2
     # [END howto_operator_gcp_bigtable_cluster_update]
@@ -141,11 +141,11 @@ with models.DAG(
     delete_instance_task = BigtableDeleteInstanceOperator(
         project_id=GCP_PROJECT_ID,
         instance_id=CBT_INSTANCE_ID,
-        task_id='delete_instance_task',
+        task_id="delete_instance_task",
     )
     delete_instance_task2 = BigtableDeleteInstanceOperator(
         instance_id=CBT_INSTANCE_ID,
-        task_id='delete_instance_task2',
+        task_id="delete_instance_task2",
     )
     # [END howto_operator_gcp_bigtable_instance_delete]
 
@@ -154,12 +154,12 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
         instance_id=CBT_INSTANCE_ID,
         table_id=CBT_TABLE_ID,
-        task_id='create_table',
+        task_id="create_table",
     )
     create_table_task2 = BigtableCreateTableOperator(
         instance_id=CBT_INSTANCE_ID,
         table_id=CBT_TABLE_ID,
-        task_id='create_table_task2',
+        task_id="create_table_task2",
     )
     create_table_task >> create_table_task2
     # [END howto_operator_gcp_bigtable_table_create]
@@ -171,14 +171,14 @@ with models.DAG(
         table_id=CBT_TABLE_ID,
         poke_interval=int(CBT_POKE_INTERVAL),
         timeout=180,
-        task_id='wait_for_table_replication_task',
+        task_id="wait_for_table_replication_task",
     )
     wait_for_table_replication_task2 = BigtableTableReplicationCompletedSensor(
         instance_id=CBT_INSTANCE_ID,
         table_id=CBT_TABLE_ID,
         poke_interval=int(CBT_POKE_INTERVAL),
         timeout=180,
-        task_id='wait_for_table_replication_task2',
+        task_id="wait_for_table_replication_task2",
     )
     # [END howto_operator_gcp_bigtable_table_wait_for_replication]
 
@@ -187,12 +187,12 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
         instance_id=CBT_INSTANCE_ID,
         table_id=CBT_TABLE_ID,
-        task_id='delete_table_task',
+        task_id="delete_table_task",
     )
     delete_table_task2 = BigtableDeleteTableOperator(
         instance_id=CBT_INSTANCE_ID,
         table_id=CBT_TABLE_ID,
-        task_id='delete_table_task2',
+        task_id="delete_table_task2",
     )
     # [END howto_operator_gcp_bigtable_table_delete]
 

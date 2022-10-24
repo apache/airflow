@@ -35,17 +35,17 @@ class CloudantHook(BaseHook):
     :param cloudant_conn_id: The connection id to authenticate and get a session object from cloudant.
     """
 
-    conn_name_attr = 'cloudant_conn_id'
-    default_conn_name = 'cloudant_default'
-    conn_type = 'cloudant'
-    hook_name = 'Cloudant'
+    conn_name_attr = "cloudant_conn_id"
+    default_conn_name = "cloudant_default"
+    conn_type = "cloudant"
+    hook_name = "Cloudant"
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['port', 'extra'],
-            "relabeling": {'host': 'Account', 'login': 'Username (or API Key)', 'schema': 'Database'},
+            "hidden_fields": ["port", "extra"],
+            "relabeling": {"host": "Account", "login": "Username (or API Key)", "schema": "Database"},
         }
 
     def __init__(self, cloudant_conn_id: str = default_conn_name) -> None:
@@ -74,6 +74,6 @@ class CloudantHook(BaseHook):
         return cloudant_session
 
     def _validate_connection(self, conn: cloudant) -> None:
-        for conn_param in ['login', 'password']:
+        for conn_param in ["login", "password"]:
             if not getattr(conn, conn_param):
-                raise AirflowException(f'missing connection parameter {conn_param}')
+                raise AirflowException(f"missing connection parameter {conn_param}")

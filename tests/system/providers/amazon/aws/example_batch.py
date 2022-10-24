@@ -37,12 +37,12 @@ from tests.system.providers.amazon.aws.utils import (
     split_string,
 )
 
-DAG_ID = 'example_batch'
+DAG_ID = "example_batch"
 
 # Externally fetched variables:
-ROLE_ARN_KEY = 'ROLE_ARN'
-SUBNETS_KEY = 'SUBNETS'
-SECURITY_GROUPS_KEY = 'SECURITY_GROUPS'
+ROLE_ARN_KEY = "ROLE_ARN"
+SUBNETS_KEY = "SUBNETS"
+SECURITY_GROUPS_KEY = "SECURITY_GROUPS"
 
 sys_test_context_task = (
     SystemTestContextBuilder()
@@ -57,84 +57,84 @@ JOB_OVERRIDES: dict = {}
 
 @task
 def create_job_definition(role_arn, job_definition_name):
-    boto3.client('batch').register_job_definition(
-        type='container',
+    boto3.client("batch").register_job_definition(
+        type="container",
         containerProperties={
-            'command': [
-                'sleep',
-                '2',
+            "command": [
+                "sleep",
+                "2",
             ],
-            'executionRoleArn': role_arn,
-            'image': 'busybox',
-            'resourceRequirements': [
-                {'value': '1', 'type': 'VCPU'},
-                {'value': '2048', 'type': 'MEMORY'},
+            "executionRoleArn": role_arn,
+            "image": "busybox",
+            "resourceRequirements": [
+                {"value": "1", "type": "VCPU"},
+                {"value": "2048", "type": "MEMORY"},
             ],
-            'networkConfiguration': {
-                'assignPublicIp': 'ENABLED',
+            "networkConfiguration": {
+                "assignPublicIp": "ENABLED",
             },
         },
         jobDefinitionName=job_definition_name,
-        platformCapabilities=['FARGATE'],
+        platformCapabilities=["FARGATE"],
     )
 
 
 @task
 def create_job_queue(job_compute_environment_name, job_queue_name):
-    boto3.client('batch').create_job_queue(
+    boto3.client("batch").create_job_queue(
         computeEnvironmentOrder=[
             {
-                'computeEnvironment': job_compute_environment_name,
-                'order': 1,
+                "computeEnvironment": job_compute_environment_name,
+                "order": 1,
             },
         ],
         jobQueueName=job_queue_name,
         priority=1,
-        state='ENABLED',
+        state="ENABLED",
     )
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_job_definition(job_definition_name):
-    client = boto3.client('batch')
+    client = boto3.client("batch")
 
     response = client.describe_job_definitions(
         jobDefinitionName=job_definition_name,
-        status='ACTIVE',
+        status="ACTIVE",
     )
 
-    for job_definition in response['jobDefinitions']:
+    for job_definition in response["jobDefinitions"]:
         client.deregister_job_definition(
-            jobDefinition=job_definition['jobDefinitionArn'],
+            jobDefinition=job_definition["jobDefinitionArn"],
         )
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def disable_compute_environment(job_compute_environment_name):
-    boto3.client('batch').update_compute_environment(
+    boto3.client("batch").update_compute_environment(
         computeEnvironment=job_compute_environment_name,
-        state='DISABLED',
+        state="DISABLED",
     )
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_compute_environment(job_compute_environment_name):
-    boto3.client('batch').delete_compute_environment(
+    boto3.client("batch").delete_compute_environment(
         computeEnvironment=job_compute_environment_name,
     )
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def disable_job_queue(job_queue_name):
-    boto3.client('batch').update_job_queue(
+    boto3.client("batch").update_job_queue(
         jobQueue=job_queue_name,
-        state='DISABLED',
+        state="DISABLED",
     )
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_job_queue(job_queue_name):
-    boto3.client('batch').delete_job_queue(
+    boto3.client("batch").delete_job_queue(
         jobQueue=job_queue_name,
     )
 
@@ -143,7 +143,7 @@ def delete_job_queue(job_queue_name):
 def delete_logs(env_id: str) -> None:
     generated_log_groups: list[tuple[str, str | None]] = [
         # Format: ('log group name', 'log stream prefix')
-        ('/aws/batch/job', env_id),
+        ("/aws/batch/job", env_id),
     ]
 
     purge_logs(generated_log_groups)
@@ -151,54 +151,54 @@ def delete_logs(env_id: str) -> None:
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
 
-    batch_job_name: str = f'{env_id}-test-job'
-    batch_job_definition_name: str = f'{env_id}-test-job-definition'
-    batch_job_compute_environment_name: str = f'{env_id}-test-job-compute-environment'
-    batch_job_queue_name: str = f'{env_id}-test-job-queue'
+    batch_job_name: str = f"{env_id}-test-job"
+    batch_job_definition_name: str = f"{env_id}-test-job-definition"
+    batch_job_compute_environment_name: str = f"{env_id}-test-job-compute-environment"
+    batch_job_queue_name: str = f"{env_id}-test-job-queue"
 
     security_groups = split_string(test_context[SECURITY_GROUPS_KEY])
     subnets = split_string(test_context[SUBNETS_KEY])
 
     # [START howto_operator_batch_create_compute_environment]
     create_compute_environment = BatchCreateComputeEnvironmentOperator(
-        task_id='create_compute_environment',
+        task_id="create_compute_environment",
         compute_environment_name=batch_job_compute_environment_name,
-        environment_type='MANAGED',
-        state='ENABLED',
+        environment_type="MANAGED",
+        state="ENABLED",
         compute_resources={
-            'type': 'FARGATE',
-            'maxvCpus': 10,
-            'securityGroupIds': security_groups,
-            'subnets': subnets,
+            "type": "FARGATE",
+            "maxvCpus": 10,
+            "securityGroupIds": security_groups,
+            "subnets": subnets,
         },
     )
     # [END howto_operator_batch_create_compute_environment]
 
     # [START howto_sensor_batch_compute_environment]
     wait_for_compute_environment_valid = BatchComputeEnvironmentSensor(
-        task_id='wait_for_compute_environment_valid',
+        task_id="wait_for_compute_environment_valid",
         compute_environment=batch_job_compute_environment_name,
     )
     # [END howto_sensor_batch_compute_environment]
 
     # [START howto_sensor_batch_job_queue]
     wait_for_job_queue_valid = BatchJobQueueSensor(
-        task_id='wait_for_job_queue_valid',
+        task_id="wait_for_job_queue_valid",
         job_queue=batch_job_queue_name,
     )
     # [END howto_sensor_batch_job_queue]
 
     # [START howto_operator_batch]
     submit_batch_job = BatchOperator(
-        task_id='submit_batch_job',
+        task_id="submit_batch_job",
         job_name=batch_job_name,
         job_queue=batch_job_queue_name,
         job_definition=batch_job_definition_name,
@@ -211,23 +211,23 @@ with DAG(
 
     # [START howto_sensor_batch]
     wait_for_batch_job = BatchSensor(
-        task_id='wait_for_batch_job',
+        task_id="wait_for_batch_job",
         job_id=submit_batch_job.output,
     )
     # [END howto_sensor_batch]
 
     wait_for_compute_environment_disabled = BatchComputeEnvironmentSensor(
-        task_id='wait_for_compute_environment_disabled',
+        task_id="wait_for_compute_environment_disabled",
         compute_environment=batch_job_compute_environment_name,
     )
 
     wait_for_job_queue_modified = BatchJobQueueSensor(
-        task_id='wait_for_job_queue_modified',
+        task_id="wait_for_job_queue_modified",
         job_queue=batch_job_queue_name,
     )
 
     wait_for_job_queue_deleted = BatchJobQueueSensor(
-        task_id='wait_for_job_queue_deleted',
+        task_id="wait_for_job_queue_deleted",
         job_queue=batch_job_queue_name,
         treat_non_existing_as_deleted=True,
     )

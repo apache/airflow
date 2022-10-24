@@ -63,15 +63,15 @@ class SnowflakeOperator(SQLExecuteQueryOperator):
         the time you connect to Snowflake
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'sql'}
-    ui_color = '#ededed'
+    template_fields: Sequence[str] = ("sql",)
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "sql"}
+    ui_color = "#ededed"
 
     def __init__(
         self,
         *,
-        snowflake_conn_id: str = 'snowflake_default',
+        snowflake_conn_id: str = "snowflake_default",
         warehouse: str | None = None,
         database: str | None = None,
         role: str | None = None,
@@ -81,14 +81,14 @@ class SnowflakeOperator(SQLExecuteQueryOperator):
         **kwargs,
     ) -> None:
         if any([warehouse, database, role, schema, authenticator, session_parameters]):
-            hook_params = kwargs.pop('hook_params', {})
-            kwargs['hook_params'] = {
-                'warehouse': warehouse,
-                'database': database,
-                'role': role,
-                'schema': schema,
-                'authenticator': authenticator,
-                'session_parameters': session_parameters,
+            hook_params = kwargs.pop("hook_params", {})
+            kwargs["hook_params"] = {
+                "warehouse": warehouse,
+                "database": database,
+                "role": role,
+                "schema": schema,
+                "authenticator": authenticator,
+                "session_parameters": session_parameters,
                 **hook_params,
             }
 
@@ -159,15 +159,15 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         the time you connect to Snowflake
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_ext: Sequence[str] = ('.sql',)
-    ui_color = '#ededed'
+    template_fields: Sequence[str] = ("sql",)
+    template_ext: Sequence[str] = (".sql",)
+    ui_color = "#ededed"
 
     def __init__(
         self,
         *,
         sql: str,
-        snowflake_conn_id: str = 'snowflake_default',
+        snowflake_conn_id: str = "snowflake_default",
         parameters: Iterable | Mapping | None = None,
         autocommit: bool = True,
         do_xcom_push: bool = True,
@@ -233,7 +233,7 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         sql: str,
         pass_value: Any,
         tolerance: Any = None,
-        snowflake_conn_id: str = 'snowflake_default',
+        snowflake_conn_id: str = "snowflake_default",
         parameters: Iterable | Mapping | None = None,
         autocommit: bool = True,
         do_xcom_push: bool = True,
@@ -305,9 +305,9 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         *,
         table: str,
         metrics_thresholds: dict,
-        date_filter_column: str = 'ds',
+        date_filter_column: str = "ds",
         days_back: SupportsAbs[int] = -7,
-        snowflake_conn_id: str = 'snowflake_default',
+        snowflake_conn_id: str = "snowflake_default",
         parameters: Iterable | Mapping | None = None,
         autocommit: bool = True,
         do_xcom_push: bool = True,

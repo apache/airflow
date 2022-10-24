@@ -23,6 +23,20 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.3+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+Misc
+~~~~
+
+* In AsanaHook, non-prefixed extra fields are supported and are preferred.  So if you should update your connection to replace ``extra__asana__workspace`` with ``workspace`` etc.
+
 2.0.1
 .....
 
