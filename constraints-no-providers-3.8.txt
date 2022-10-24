@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-10-23T17:42:05Z
+# This constraints file was automatically generated on 2022-10-24T07:29:52Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -173,6 +173,6 @@ wcwidth==0.2.5
 websocket-client==1.4.1
 wrapt==1.14.1
 zict==2.2.0
-zipp==3.9.0
+zipp==3.10.0
 zope.event==4.5.0
 zope.interface==5.5.0
