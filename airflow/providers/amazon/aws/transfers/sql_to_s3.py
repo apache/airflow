@@ -44,12 +44,12 @@ class FILE_FORMAT(enum.Enum):
     PARQUET = enum.auto()
 
 
-FileOptions = namedtuple('FileOptions', ['mode', 'suffix', 'function'])
+FileOptions = namedtuple("FileOptions", ["mode", "suffix", "function"])
 
 FILE_OPTIONS_MAP = {
-    FILE_FORMAT.CSV: FileOptions('r+', '.csv', 'to_csv'),
-    FILE_FORMAT.JSON: FileOptions('r+', '.json', 'to_json'),
-    FILE_FORMAT.PARQUET: FileOptions('rb+', '.parquet', 'to_parquet'),
+    FILE_FORMAT.CSV: FileOptions("r+", ".csv", "to_csv"),
+    FILE_FORMAT.JSON: FileOptions("r+", ".json", "to_json"),
+    FILE_FORMAT.PARQUET: FileOptions("rb+", ".parquet", "to_parquet"),
 }
 
 
@@ -83,11 +83,11 @@ class SqlToS3Operator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        's3_bucket',
-        's3_key',
-        'query',
+        "s3_bucket",
+        "s3_key",
+        "query",
     )
-    template_ext: Sequence[str] = ('.sql',)
+    template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {
         "query": "sql",
         "pd_kwargs": "json",
@@ -102,9 +102,9 @@ class SqlToS3Operator(BaseOperator):
         sql_conn_id: str,
         parameters: None | Mapping | Iterable = None,
         replace: bool = False,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         verify: bool | str | None = None,
-        file_format: Literal['csv', 'json', 'parquet'] = 'csv',
+        file_format: Literal["csv", "json", "parquet"] = "csv",
         pd_kwargs: dict | None = None,
         **kwargs,
     ) -> None:
@@ -120,7 +120,7 @@ class SqlToS3Operator(BaseOperator):
         self.parameters = parameters
 
         if "path_or_buf" in self.pd_kwargs:
-            raise AirflowException('The argument path_or_buf is not allowed, please remove it')
+            raise AirflowException("The argument path_or_buf is not allowed, please remove it")
 
         try:
             self.file_format = FILE_FORMAT[file_format.upper()]
@@ -135,7 +135,7 @@ class SqlToS3Operator(BaseOperator):
         """
         for col in df:
 
-            if df[col].dtype.name == 'object' and file_format == 'parquet':
+            if df[col].dtype.name == "object" and file_format == "parquet":
                 # if the type wasn't identified or converted, change it to a string so if can still be
                 # processed.
                 df[col] = df[col].astype(str)
@@ -175,7 +175,7 @@ class SqlToS3Operator(BaseOperator):
         self.log.debug("Get connection for %s", self.sql_conn_id)
         conn = BaseHook.get_connection(self.sql_conn_id)
         hook = conn.get_hook()
-        if not callable(getattr(hook, 'get_pandas_df', None)):
+        if not callable(getattr(hook, "get_pandas_df", None)):
             raise AirflowException(
                 "This hook is not supported. The hook class must have get_pandas_df method."
             )

@@ -402,11 +402,11 @@ class AwsConnectionWrapper(LoggingMixin):
             # There is no reason obtain `assume_role_method` and `assume_role_kwargs` if `role_arn` not set.
             return None, None, {}
 
-        supported_methods = ['assume_role', 'assume_role_with_saml', 'assume_role_with_web_identity']
+        supported_methods = ["assume_role", "assume_role_with_saml", "assume_role_with_web_identity"]
         if assume_role_method not in supported_methods:
             raise NotImplementedError(
-                f'Found assume_role_method={assume_role_method!r} in {self.conn_repr} extra.'
-                f' Currently {supported_methods} are supported.'
+                f"Found assume_role_method={assume_role_method!r} in {self.conn_repr} extra."
+                f" Currently {supported_methods} are supported."
                 ' (Exclude this setting will default to "assume_role").'
             )
         self.log.debug("Retrieve assume_role_method=%r from %s.", assume_role_method, self.conn_repr)

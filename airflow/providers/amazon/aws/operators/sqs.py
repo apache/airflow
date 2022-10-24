@@ -45,14 +45,14 @@ class SqsPublishOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'sqs_queue',
-        'message_content',
-        'delay_seconds',
-        'message_attributes',
-        'message_group_id',
+        "sqs_queue",
+        "message_content",
+        "delay_seconds",
+        "message_attributes",
+        "message_group_id",
     )
-    template_fields_renderers = {'message_attributes': 'json'}
-    ui_color = '#6ad3fa'
+    template_fields_renderers = {"message_attributes": "json"}
+    ui_color = "#6ad3fa"
 
     def __init__(
         self,
@@ -62,7 +62,7 @@ class SqsPublishOperator(BaseOperator):
         message_attributes: dict | None = None,
         delay_seconds: int = 0,
         message_group_id: str | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -92,6 +92,6 @@ class SqsPublishOperator(BaseOperator):
             message_group_id=self.message_group_id,
         )
 
-        self.log.info('send_message result: %s', result)
+        self.log.info("send_message result: %s", result)
 
         return result

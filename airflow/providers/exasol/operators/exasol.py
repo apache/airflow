@@ -37,17 +37,17 @@ class ExasolOperator(SQLExecuteQueryOperator):
     :param schema: (optional) name of the schema which overwrite defined one in connection
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'sql'}
-    ui_color = '#ededed'
+    template_fields: Sequence[str] = ("sql",)
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "sql"}
+    ui_color = "#ededed"
 
     def __init__(
-        self, *, exasol_conn_id: str = 'exasol_default', schema: str | None = None, **kwargs
+        self, *, exasol_conn_id: str = "exasol_default", schema: str | None = None, **kwargs
     ) -> None:
         if schema is not None:
-            hook_params = kwargs.pop('hook_params', {})
-            kwargs['hook_params'] = {'schema': schema, **hook_params}
+            hook_params = kwargs.pop("hook_params", {})
+            kwargs["hook_params"] = {"schema": schema, **hook_params}
 
         super().__init__(conn_id=exasol_conn_id, **kwargs)
         warnings.warn(

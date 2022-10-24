@@ -1408,7 +1408,10 @@ should be run on multiple combinations of Python, Kubernetes, Backend versions. 
 needed to run the CI Builds. You can also use the tool to test what tests will be run when you provide
 a specific commit that Breeze should run the tests on.
 
-More details about the algorithm used to pick the right tests can be
+The selective-check command will produce the set of ``name=value`` pairs of outputs derived
+from the context of the commit/PR to be merged via stderr output.
+
+More details about the algorithm used to pick the right tests and the available outputs can be
 found in `Selective Checks <dev/breeze/SELECTIVE_CHECKS.md>`_.
 
 Those are all available flags of ``selective-check`` command:

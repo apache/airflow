@@ -45,10 +45,10 @@ class AirflowLink(BaseOperatorLink):
     Operator Link for Apache Airflow Website
     """
 
-    name = 'airflow'
+    name = "airflow"
 
     def get_link(self, operator, *, ti_key):
-        return 'https://airflow.apache.org'
+        return "https://airflow.apache.org"
 
 
 class Dummy2TestOperator(BaseOperator):
@@ -75,34 +75,34 @@ class CustomBaseIndexOpLink(BaseOperatorLink):
 
     @property
     def name(self) -> str:
-        return f'BigQuery Console #{self.index + 1}'
+        return f"BigQuery Console #{self.index + 1}"
 
     def get_link(self, operator, *, ti_key):
         search_queries = XCom.get_one(
-            task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key='search_query'
+            task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key="search_query"
         )
         if not search_queries:
             return None
         if len(search_queries) < self.index:
             return None
         search_query = search_queries[self.index]
-        return f'https://console.cloud.google.com/bigquery?j={search_query}'
+        return f"https://console.cloud.google.com/bigquery?j={search_query}"
 
 
 class CustomOpLink(BaseOperatorLink):
-    name = 'Google Custom'
+    name = "Google Custom"
 
     def get_link(self, operator, *, ti_key):
         search_query = XCom.get_one(
-            task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key='search_query'
+            task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key="search_query"
         )
-        return f'http://google.com/custom_base_link?search={search_query}'
+        return f"http://google.com/custom_base_link?search={search_query}"
 
 
 class CustomOperator(BaseOperator):
 
-    template_fields = ['bash_command']
-    custom_operator_name = '@custom'
+    template_fields = ["bash_command"]
+    custom_operator_name = "@custom"
 
     @property
     def operator_extra_links(self):
@@ -119,7 +119,7 @@ class CustomOperator(BaseOperator):
 
     def execute(self, context: Context):
         self.log.info("Hello World!")
-        context['task_instance'].xcom_push(key='search_query', value="dummy_value")
+        context["task_instance"].xcom_push(key="search_query", value="dummy_value")
 
 
 class GoogleLink(BaseOperatorLink):
@@ -127,11 +127,11 @@ class GoogleLink(BaseOperatorLink):
     Operator Link for Apache Airflow Website for Google
     """
 
-    name = 'google'
+    name = "google"
     operators = [Dummy3TestOperator, CustomOperator]
 
     def get_link(self, operator, *, ti_key):
-        return 'https://www.google.com'
+        return "https://www.google.com"
 
 
 class AirflowLink2(BaseOperatorLink):
@@ -139,11 +139,11 @@ class AirflowLink2(BaseOperatorLink):
     Operator Link for Apache Airflow Website for 1.10.5
     """
 
-    name = 'airflow'
+    name = "airflow"
     operators = [Dummy2TestOperator, Dummy3TestOperator]
 
     def get_link(self, operator, *, ti_key):
-        return 'https://airflow.apache.org/1.10.5/'
+        return "https://airflow.apache.org/1.10.5/"
 
 
 class GithubLink(BaseOperatorLink):
@@ -151,10 +151,10 @@ class GithubLink(BaseOperatorLink):
     Operator Link for Apache Airflow GitHub
     """
 
-    name = 'github'
+    name = "github"
 
     def get_link(self, operator, *, ti_key):
-        return 'https://github.com/apache/airflow'
+        return "https://github.com/apache/airflow"
 
 
 class DeprecatedOperator(BaseOperator):

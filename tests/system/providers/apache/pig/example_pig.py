@@ -28,11 +28,11 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_adf_run_pipeline"
 
 with DAG(
-    dag_id='example_pig_operator',
+    dag_id="example_pig_operator",
     schedule=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
 
     # [START create_pig]

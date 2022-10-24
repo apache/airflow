@@ -65,7 +65,7 @@ class BuildProdParams(CommonBuildParams):
 
     @property
     def image_type(self) -> str:
-        return 'PROD'
+        return "PROD"
 
     @property
     def args_for_remote_install(self) -> list:
@@ -78,7 +78,7 @@ class BuildProdParams(CommonBuildParams):
                 "AIRFLOW_SOURCES_TO=/empty",
             ]
         )
-        if re.match('v?2.*', self.airflow_version):
+        if re.match("v?2.*", self.airflow_version):
             build_args.extend(
                 ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE=constraints-{self.airflow_version}"]
             )
@@ -91,19 +91,19 @@ class BuildProdParams(CommonBuildParams):
             build_args.extend(
                 ["--build-arg", f"AIRFLOW_CONSTRAINTS_LOCATION={self.airflow_constraints_location}"]
             )
-        if self.airflow_version == 'v2-0-test':
+        if self.airflow_version == "v2-0-test":
             self.airflow_branch_for_pypi_preloading = "v2-0-test"
-        elif self.airflow_version == 'v2-1-test':
+        elif self.airflow_version == "v2-1-test":
             self.airflow_branch_for_pypi_preloading = "v2-1-test"
-        elif self.airflow_version == 'v2-2-test':
+        elif self.airflow_version == "v2-2-test":
             self.airflow_branch_for_pypi_preloading = "v2-2-test"
-        elif re.match(r'^2\.0.*$', self.airflow_version):
+        elif re.match(r"^2\.0.*$", self.airflow_version):
             self.airflow_branch_for_pypi_preloading = "v2-0-stable"
-        elif re.match(r'^2\.1.*$', self.airflow_version):
+        elif re.match(r"^2\.1.*$", self.airflow_version):
             self.airflow_branch_for_pypi_preloading = "v2-1-stable"
-        elif re.match(r'^2\.2.*$', self.airflow_version):
+        elif re.match(r"^2\.2.*$", self.airflow_version):
             self.airflow_branch_for_pypi_preloading = "v2-2-stable"
-        elif re.match(r'^2\.3.*$', self.airflow_version):
+        elif re.match(r"^2\.3.*$", self.airflow_version):
             self.airflow_branch_for_pypi_preloading = "v2-3-stable"
         else:
             self.airflow_branch_for_pypi_preloading = AIRFLOW_BRANCH
@@ -126,11 +126,11 @@ class BuildProdParams(CommonBuildParams):
             )
             extra_build_flags.extend(self.args_for_remote_install)
         elif len(self.install_airflow_version) > 0:
-            if not re.match(r'^[0-9\.]+((a|b|rc|alpha|beta|pre)[0-9]+)?$', self.install_airflow_version):
+            if not re.match(r"^[0-9\.]+((a|b|rc|alpha|beta|pre)[0-9]+)?$", self.install_airflow_version):
                 get_console().print(
-                    f'\n[error]ERROR: Bad value for install-airflow-version:{self.install_airflow_version}'
+                    f"\n[error]ERROR: Bad value for install-airflow-version:{self.install_airflow_version}"
                 )
-                get_console().print('[error]Only numerical versions allowed for PROD image here !')
+                get_console().print("[error]Only numerical versions allowed for PROD image here !")
                 sys.exit()
             extra_build_flags.extend(["--build-arg", "AIRFLOW_INSTALLATION_METHOD=apache-airflow"])
             extra_build_flags.extend(
@@ -179,19 +179,19 @@ class BuildProdParams(CommonBuildParams):
 
     @property
     def airflow_pre_cached_pip_packages(self) -> str:
-        return 'false' if self.disable_airflow_repo_cache else 'true'
+        return "false" if self.disable_airflow_repo_cache else "true"
 
     @property
     def install_mssql_client(self) -> str:
-        return 'false' if self.disable_mssql_client_installation else 'true'
+        return "false" if self.disable_mssql_client_installation else "true"
 
     @property
     def install_mysql_client(self) -> str:
-        return 'false' if self.disable_mysql_client_installation else 'true'
+        return "false" if self.disable_mysql_client_installation else "true"
 
     @property
     def install_postgres_client(self) -> str:
-        return 'false' if self.disable_postgres_client_installation else 'true'
+        return "false" if self.disable_postgres_client_installation else "true"
 
     @property
     def docker_context_files(self) -> str:
