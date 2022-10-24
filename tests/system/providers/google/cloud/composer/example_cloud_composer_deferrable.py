@@ -30,7 +30,7 @@ from airflow.providers.google.cloud.operators.cloud_composer import (
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get('SYSTEM_TESTS_GCP_PROJECT')
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 DAG_ID = "example_composer_deferrable"
 

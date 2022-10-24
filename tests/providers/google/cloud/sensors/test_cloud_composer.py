@@ -26,8 +26,8 @@ from airflow.providers.google.cloud.sensors.cloud_composer import CloudComposerE
 from airflow.providers.google.cloud.triggers.cloud_composer import CloudComposerExecutionTrigger
 
 TEST_PROJECT_ID = "test_project_id"
-TEST_OPERATION_NAME = 'test_operation_name'
-TEST_REGION = 'region'
+TEST_OPERATION_NAME = "test_operation_name"
+TEST_REGION = "region"
 
 
 class TestCloudComposerEnvironmentSensor(TestCase):
