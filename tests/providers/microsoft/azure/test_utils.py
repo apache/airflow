@@ -25,14 +25,14 @@ from tests.test_utils.providers import get_provider_min_airflow_version, object_
 
 def test__ensure_prefixes_removal():
     """Ensure that _ensure_prefixes is removed from snowflake when airflow min version >= 2.5.0."""
-    path = 'airflow.providers.microsoft.azure.utils._ensure_prefixes'
+    path = "airflow.providers.microsoft.azure.utils._ensure_prefixes"
     if not object_exists(path):
         raise Exception(
             "You must remove this test. It only exists to "
             "remind us to remove decorator `_ensure_prefixes`."
         )
 
-    if get_provider_min_airflow_version('apache-airflow-providers-microsoft-azure') >= (2, 5):
+    if get_provider_min_airflow_version("apache-airflow-providers-microsoft-azure") >= (2, 5):
         raise Exception(
             "You must now remove `_ensure_prefixes` from azure utils."
             " The functionality is now taken care of by providers manager."
@@ -40,11 +40,11 @@ def test__ensure_prefixes_removal():
 
 
 def test_get_field_warns_on_dupe():
-    with pytest.warns(DeprecationWarning, match='abc'):
+    with pytest.warns(DeprecationWarning, match="abc"):
         value = get_field(
-            conn_id='my_conn',
-            conn_type='this_type',
-            extras=dict(extra__this_type__this_param='prefixed', this_param='non-prefixed'),
-            field_name='this_param',
+            conn_id="my_conn",
+            conn_type="this_type",
+            extras=dict(extra__this_type__this_param="prefixed", this_param="non-prefixed"),
+            field_name="this_param",
         )
-    assert value == 'non-prefixed'
+    assert value == "non-prefixed"
