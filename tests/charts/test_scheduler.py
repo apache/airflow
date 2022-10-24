@@ -369,13 +369,16 @@ class SchedulerTest(unittest.TestCase):
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        assert {"allowPrivilegeEscalation": False,  "readOnlyRootFilesystem": True} == jmespath.search(
+        assert {"allowPrivilegeEscalation": False, "readOnlyRootFilesystem": True} == jmespath.search(
             "spec.template.spec.containers[0].securityContext", docs[0]
         )
 
-        assert {"runAsUser": 2000,  "runAsGroup": 1001,  "fsGroup": 1000,  "runAsNonRoot": True} == jmespath.search(
-            "spec.template.spec.securityContext", docs[0]
-        )
+        assert {
+            "runAsUser": 2000,
+            "runAsGroup": 1001,
+            "fsGroup": 1000,
+            "runAsNonRoot": True,
+        } == jmespath.search("spec.template.spec.securityContext", docs[0])
 
     def test_scheduler_resources_are_configurable(self):
         docs = render_chart(
