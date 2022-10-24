@@ -286,7 +286,7 @@ class GCSToBigQueryOperator(BaseOperator):
     @staticmethod
     def _handle_job_error(job: BigQueryJob) -> None:
         if job.error_result:
-            raise AirflowException(f'BigQuery job {job.job_id} failed: {job.error_result}')
+            raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
 
     def execute(self, context: Context):
         hook = BigQueryHook(
@@ -308,7 +308,7 @@ class GCSToBigQueryOperator(BaseOperator):
         self.source_objects = (
             self.source_objects if isinstance(self.source_objects, list) else [self.source_objects]
         )
-        source_uris = [f'gs://{self.bucket}/{source_object}' for source_object in self.source_objects]
+        source_uris = [f"gs://{self.bucket}/{source_object}" for source_object in self.source_objects]
         if not self.schema_fields:
             gcs_hook = GCSHook(
                 gcp_conn_id=self.gcp_conn_id,
@@ -323,7 +323,7 @@ class GCSToBigQueryOperator(BaseOperator):
             self.log.info("Creating a new BigQuery table for storing data...")
             project_id, dataset_id, table_id = self.hook.split_tablename(
                 table_input=self.destination_project_dataset_table,
-                default_project_id=self.hook.project_id or '',
+                default_project_id=self.hook.project_id or "",
             )
             table_resource = {
                 "tableReference": {

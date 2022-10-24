@@ -44,26 +44,26 @@ MAX_ID_DATE = "date"
 
 with models.DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example', "gcs"],
+    tags=["example", "gcs"],
 ) as dag:
     create_test_dataset_for_string_fileds = BigQueryCreateEmptyDatasetOperator(
-        task_id='create_airflow_test_dataset_str', dataset_id=DATASET_NAME_STR, project_id=PROJECT_ID
+        task_id="create_airflow_test_dataset_str", dataset_id=DATASET_NAME_STR, project_id=PROJECT_ID
     )
 
     create_test_dataset_for_date_fileds = BigQueryCreateEmptyDatasetOperator(
-        task_id='create_airflow_test_dataset_date', dataset_id=DATASET_NAME_DATE, project_id=PROJECT_ID
+        task_id="create_airflow_test_dataset_date", dataset_id=DATASET_NAME_DATE, project_id=PROJECT_ID
     )
 
     # [START howto_operator_gcs_to_bigquery_async]
     load_string_based_csv = GCSToBigQueryOperator(
-        task_id='gcs_to_bigquery_example_str_csv_async',
-        bucket='cloud-samples-data',
-        source_objects=['bigquery/us-states/us-states.csv'],
+        task_id="gcs_to_bigquery_example_str_csv_async",
+        bucket="cloud-samples-data",
+        source_objects=["bigquery/us-states/us-states.csv"],
         destination_project_dataset_table=f"{DATASET_NAME_STR}.{TABLE_NAME_STR}",
-        write_disposition='WRITE_TRUNCATE',
+        write_disposition="WRITE_TRUNCATE",
         external_table=False,
         autodetect=True,
         max_id_key=MAX_ID_STR,
@@ -71,11 +71,11 @@ with models.DAG(
     )
 
     load_date_based_csv = GCSToBigQueryOperator(
-        task_id='gcs_to_bigquery_example_date_csv_async',
-        bucket='cloud-samples-data',
-        source_objects=['bigquery/us-states/us-states-by-date.csv'],
+        task_id="gcs_to_bigquery_example_date_csv_async",
+        bucket="cloud-samples-data",
+        source_objects=["bigquery/us-states/us-states-by-date.csv"],
         destination_project_dataset_table=f"{DATASET_NAME_DATE}.{TABLE_NAME_DATE}",
-        write_disposition='WRITE_TRUNCATE',
+        write_disposition="WRITE_TRUNCATE",
         external_table=False,
         autodetect=True,
         max_id_key=MAX_ID_DATE,
@@ -84,14 +84,14 @@ with models.DAG(
     # [END howto_operator_gcs_to_bigquery_async]
 
     delete_test_dataset_str = BigQueryDeleteDatasetOperator(
-        task_id='delete_airflow_test_str_dataset',
+        task_id="delete_airflow_test_str_dataset",
         dataset_id=DATASET_NAME_STR,
         delete_contents=True,
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_test_dataset_date = BigQueryDeleteDatasetOperator(
-        task_id='delete_airflow_test_date_dataset',
+        task_id="delete_airflow_test_date_dataset",
         dataset_id=DATASET_NAME_DATE,
         delete_contents=True,
         trigger_rule=TriggerRule.ALL_DONE,
