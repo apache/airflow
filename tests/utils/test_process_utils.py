@@ -79,8 +79,8 @@ class TestReapProcessGroup(unittest.TestCase):
         it gets killed anyway.
         """
         parent_setup_done = multiprocessing.Semaphore(0)
-        parent_pid = multiprocessing.Value('i', 0)
-        child_pid = multiprocessing.Value('i', 0)
+        parent_pid = multiprocessing.Value("i", 0)
+        child_pid = multiprocessing.Value("i", 0)
         args = [parent_pid, child_pid, parent_setup_done]
         parent = multiprocessing.Process(target=TestReapProcessGroup._parent_of_ignores_sigterm, args=args)
         try:
@@ -105,17 +105,17 @@ class TestExecuteInSubProcess:
     def test_should_print_all_messages1(self, caplog):
         execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
         msgs = [record.getMessage() for record in caplog.records]
-        assert ["Executing cmd: bash -c 'echo CAT; echo KITTY;'", 'Output:', 'CAT', 'KITTY'] == msgs
+        assert ["Executing cmd: bash -c 'echo CAT; echo KITTY;'", "Output:", "CAT", "KITTY"] == msgs
 
     def test_should_print_all_messages_from_cwd(self, caplog, tmp_path):
         execute_in_subprocess(["bash", "-c", "echo CAT; pwd; echo KITTY;"], cwd=str(tmp_path))
         msgs = [record.getMessage() for record in caplog.records]
         assert [
             "Executing cmd: bash -c 'echo CAT; pwd; echo KITTY;'",
-            'Output:',
-            'CAT',
+            "Output:",
+            "CAT",
             str(tmp_path),
-            'KITTY',
+            "KITTY",
         ] == msgs
 
     def test_should_raise_exception(self):
@@ -204,19 +204,19 @@ class TestPatchEnviron(unittest.TestCase):
 
 class TestCheckIfPidfileProcessIsRunning(unittest.TestCase):
     def test_ok_if_no_file(self):
-        check_if_pidfile_process_is_running('some/pid/file', process_name="test")
+        check_if_pidfile_process_is_running("some/pid/file", process_name="test")
 
     def test_remove_if_no_process(self):
         # Assert file is deleted
         with pytest.raises(FileNotFoundError):
-            with NamedTemporaryFile('+w') as f:
-                f.write('19191919191919191991')
+            with NamedTemporaryFile("+w") as f:
+                f.write("19191919191919191991")
                 f.flush()
                 check_if_pidfile_process_is_running(f.name, process_name="test")
 
     def test_raise_error_if_process_is_running(self):
         pid = os.getpid()
-        with NamedTemporaryFile('+w') as f:
+        with NamedTemporaryFile("+w") as f:
             f.write(str(pid))
             f.flush()
             with pytest.raises(AirflowException, match="is already running under PID"):
@@ -227,7 +227,7 @@ class TestSetNewProcessGroup(unittest.TestCase):
     @mock.patch("os.setpgid")
     def test_not_session_leader(self, mock_set_pid):
         pid = os.getpid()
-        with mock.patch('os.getsid', autospec=True) as mock_get_sid:
+        with mock.patch("os.getsid", autospec=True) as mock_get_sid:
             mock_get_sid.return_value = pid + 1
             set_new_process_group()
             assert mock_set_pid.call_count == 1
@@ -235,7 +235,7 @@ class TestSetNewProcessGroup(unittest.TestCase):
     @mock.patch("os.setpgid")
     def test_session_leader(self, mock_set_pid):
         pid = os.getpid()
-        with mock.patch('os.getsid', autospec=True) as mock_get_sid:
+        with mock.patch("os.getsid", autospec=True) as mock_get_sid:
             mock_get_sid.return_value = pid
             set_new_process_group()
             assert mock_set_pid.call_count == 0

@@ -31,7 +31,7 @@ DEFAULT_COLUMNS = 129
 
 
 def generating_command_images() -> bool:
-    return 'RECORD_BREEZE_TITLE' in os.environ or "regenerate-command-images" in sys.argv
+    return "RECORD_BREEZE_TITLE" in os.environ or "regenerate-command-images" in sys.argv
 
 
 def enable_recording_of_help_output(path: str, title: str | None, width: str | None):
@@ -64,14 +64,14 @@ def enable_recording_of_help_output(path: str, title: str | None, width: str | N
     click.rich_click.Console = RecordingConsole  # type: ignore[misc]
 
 
-output_file = os.environ.get('RECORD_BREEZE_OUTPUT_FILE')
+output_file = os.environ.get("RECORD_BREEZE_OUTPUT_FILE")
 
 
 if output_file and not in_autocomplete():
     enable_recording_of_help_output(
         path=output_file,
-        title=os.environ.get('RECORD_BREEZE_TITLE'),
-        width=os.environ.get('RECORD_BREEZE_WIDTH'),
+        title=os.environ.get("RECORD_BREEZE_TITLE"),
+        width=os.environ.get("RECORD_BREEZE_WIDTH"),
     )
 else:
     try:

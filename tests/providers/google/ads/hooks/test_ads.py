@@ -70,9 +70,9 @@ class TestGoogleAdsHook:
         mock_hook.search(client_ids=client_ids, query=query, page_size=2)
         for i, client_id in enumerate(client_ids):
             name, args, kwargs = service.search.mock_calls[i]
-            assert kwargs['request'].customer_id == client_id
-            assert kwargs['request'].query == query
-            assert kwargs['request'].page_size == 2
+            assert kwargs["request"].customer_id == client_id
+            assert kwargs["request"].query == query
+            assert kwargs["request"].page_size == 2
 
     def test_extract_rows(self, mock_hook):
         iterators = [[1, 2, 3], [4, 5, 6]]

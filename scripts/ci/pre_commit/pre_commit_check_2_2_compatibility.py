@@ -105,7 +105,7 @@ def _check_file(_file: Path):
             )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     for file in sys.argv[1:]:
         _check_file(Path(file))
     if errors:

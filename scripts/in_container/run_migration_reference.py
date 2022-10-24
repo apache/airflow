@@ -36,7 +36,7 @@ from setup import version as _airflow_version
 if TYPE_CHECKING:
     from alembic.script import Script
 
-airflow_version = re.match(r'(\d+\.\d+\.\d+).*', _airflow_version).group(1)  # type: ignore
+airflow_version = re.match(r"(\d+\.\d+\.\d+).*", _airflow_version).group(1)  # type: ignore
 project_root = Path(__file__).parents[2].resolve()
 
 
@@ -51,7 +51,7 @@ def wrap_backticks(val):
     def _wrap_backticks(x):
         return f"``{x}``"
 
-    return ',\n'.join(map(_wrap_backticks, val)) if isinstance(val, (tuple, list)) else _wrap_backticks(val)
+    return ",\n".join(map(_wrap_backticks, val)) if isinstance(val, (tuple, list)) else _wrap_backticks(val)
 
 
 def update_doc(file, data):
@@ -68,7 +68,7 @@ def update_doc(file, data):
                 "description": "Description",
             },
             tabular_data=data,
-            tablefmt='grid',
+            tablefmt="grid",
             stralign="left",
             disable_numparse=True,
         )
@@ -77,12 +77,12 @@ def update_doc(file, data):
 
 
 def has_version(content):
-    return re.search(r'^airflow_version\s*=.*', content, flags=re.MULTILINE) is not None
+    return re.search(r"^airflow_version\s*=.*", content, flags=re.MULTILINE) is not None
 
 
 def insert_version(old_content, file):
     new_content = re.sub(
-        r'(^depends_on.*)',
+        r"(^depends_on.*)",
         lambda x: f"{x.group(1)}\nairflow_version = '{airflow_version}'",
         old_content,
         flags=re.MULTILINE,
@@ -92,14 +92,14 @@ def insert_version(old_content, file):
 
 def revision_suffix(rev: Script):
     if rev.is_head:
-        return ' (head)'
+        return " (head)"
     if rev.is_base:
-        return ' (base)'
+        return " (base)"
     if rev.is_merge_point:
-        return ' (merge_point)'
+        return " (merge_point)"
     if rev.is_branch_point:
-        return ' (branch_point)'
-    return ''
+        return " (branch_point)"
+    return ""
 
 
 def ensure_airflow_version(revisions: Iterable[Script]):
@@ -125,7 +125,7 @@ def update_docs(revisions: Iterable[Script]):
                 revision=wrap_backticks(rev.revision) + revision_suffix(rev),
                 down_revision=wrap_backticks(rev.down_revision),
                 version=wrap_backticks(rev.module.airflow_version),  # type: ignore
-                description='\n'.join(wrap(rev.doc, width=60)),
+                description="\n".join(wrap(rev.doc, width=60)),
             )
         )
 
@@ -136,18 +136,18 @@ def update_docs(revisions: Iterable[Script]):
 
 
 def num_to_prefix(idx: int) -> str:
-    return f"000{idx+1}"[-4:] + '_'
+    return f"000{idx+1}"[-4:] + "_"
 
 
 def ensure_mod_prefix(mod_name, idx, version):
-    prefix = num_to_prefix(idx) + '_'.join(version) + '_'
-    match = re.match(r'([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+)_(.+)', mod_name)
+    prefix = num_to_prefix(idx) + "_".join(version) + "_"
+    match = re.match(r"([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+)_(.+)", mod_name)
     if match:
         # previously standardized file, rebuild the name
         mod_name = match.group(5)
     else:
         # new migration file, standard format
-        match = re.match(r'([a-z0-9]+)_(.+)', mod_name)
+        match = re.match(r"([a-z0-9]+)_(.+)", mod_name)
         if match:
             mod_name = match.group(2)
     return prefix + mod_name
@@ -159,7 +159,7 @@ def ensure_filenames_are_sorted(revisions):
     unmerged_heads = []
     for idx, rev in enumerate(revisions):
         mod_path = Path(rev.module.__file__)
-        version = rev.module.airflow_version.split('.')[0:3]  # only first 3 tokens
+        version = rev.module.airflow_version.split(".")[0:3]  # only first 3 tokens
         correct_mod_basename = ensure_mod_prefix(mod_path.name, idx, version)
         if mod_path.name != correct_mod_basename:
             renames.append((mod_path, Path(mod_path.parent, correct_mod_basename)))
@@ -172,7 +172,7 @@ def ensure_filenames_are_sorted(revisions):
     if is_branched:
         head_prefixes = [x[0:4] for x in unmerged_heads]
         alembic_command = (
-            "alembic merge -m 'merge heads " + ', '.join(head_prefixes) + "' " + ' '.join(unmerged_heads)
+            "alembic merge -m 'merge heads " + ", ".join(head_prefixes) + "' " + " ".join(unmerged_heads)
         )
         raise SystemExit(
             "You have multiple alembic heads; please merge them with the `alembic merge` command "
@@ -183,7 +183,7 @@ def ensure_filenames_are_sorted(revisions):
         os.rename(old, new)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     revisions = list(reversed(list(get_revisions())))
     ensure_airflow_version(revisions=revisions)
     revisions = list(reversed(list(get_revisions())))

@@ -30,26 +30,26 @@ except ImportError:
 
 
 class TestSecretsManagerHook(unittest.TestCase):
-    @unittest.skipIf(mock_secretsmanager is None, 'mock_secretsmanager package not present')
+    @unittest.skipIf(mock_secretsmanager is None, "mock_secretsmanager package not present")
     @mock_secretsmanager
     def test_get_conn_returns_a_boto3_connection(self):
-        hook = SecretsManagerHook(aws_conn_id='aws_default')
+        hook = SecretsManagerHook(aws_conn_id="aws_default")
         assert hook.get_conn() is not None
 
-    @unittest.skipIf(mock_secretsmanager is None, 'mock_secretsmanager package not present')
+    @unittest.skipIf(mock_secretsmanager is None, "mock_secretsmanager package not present")
     @mock_secretsmanager
     def test_get_secret_string(self):
         secret_name = "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
         secret_value = '{"user": "test"}'
-        hook = SecretsManagerHook(aws_conn_id='aws_default')
+        hook = SecretsManagerHook(aws_conn_id="aws_default")
 
         create_param = {
-            'Name': secret_name,
+            "Name": secret_name,
         }
 
         put_param = {
-            'SecretId': secret_name,
-            'SecretString': secret_value,
+            "SecretId": secret_name,
+            "SecretString": secret_value,
         }
 
         hook.get_conn().create_secret(**create_param)
@@ -58,20 +58,20 @@ class TestSecretsManagerHook(unittest.TestCase):
         secret = hook.get_secret(secret_name)
         assert secret == secret_value
 
-    @unittest.skipIf(mock_secretsmanager is None, 'mock_secretsmanager package not present')
+    @unittest.skipIf(mock_secretsmanager is None, "mock_secretsmanager package not present")
     @mock_secretsmanager
     def test_get_secret_dict(self):
         secret_name = "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
         secret_value = '{"user": "test"}'
-        hook = SecretsManagerHook(aws_conn_id='aws_default')
+        hook = SecretsManagerHook(aws_conn_id="aws_default")
 
         create_param = {
-            'Name': secret_name,
+            "Name": secret_name,
         }
 
         put_param = {
-            'SecretId': secret_name,
-            'SecretString': secret_value,
+            "SecretId": secret_name,
+            "SecretString": secret_value,
         }
 
         hook.get_conn().create_secret(**create_param)
@@ -80,19 +80,19 @@ class TestSecretsManagerHook(unittest.TestCase):
         secret = hook.get_secret_as_dict(secret_name)
         assert secret == json.loads(secret_value)
 
-    @unittest.skipIf(mock_secretsmanager is None, 'mock_secretsmanager package not present')
+    @unittest.skipIf(mock_secretsmanager is None, "mock_secretsmanager package not present")
     @mock_secretsmanager
     def test_get_secret_binary(self):
         secret_name = "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
         secret_value_binary = base64.b64encode(b'{"username": "test"}')
-        hook = SecretsManagerHook(aws_conn_id='aws_default')
+        hook = SecretsManagerHook(aws_conn_id="aws_default")
         create_param = {
-            'Name': secret_name,
+            "Name": secret_name,
         }
 
         put_param = {
-            'SecretId': secret_name,
-            'SecretBinary': secret_value_binary,
+            "SecretId": secret_name,
+            "SecretBinary": secret_value_binary,
         }
 
         hook.get_conn().create_secret(**create_param)

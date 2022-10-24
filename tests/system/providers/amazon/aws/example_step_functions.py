@@ -30,10 +30,10 @@ from airflow.providers.amazon.aws.operators.step_function import (
 from airflow.providers.amazon.aws.sensors.step_function import StepFunctionExecutionSensor
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-DAG_ID = 'example_step_functions'
+DAG_ID = "example_step_functions"
 
 # Externally fetched variables:
-ROLE_ARN_KEY = 'ROLE_ARN'
+ROLE_ARN_KEY = "ROLE_ARN"
 
 sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
 
@@ -51,10 +51,10 @@ def create_state_machine(env_id, role_arn):
         StepFunctionHook()
         .get_conn()
         .create_state_machine(
-            name=f'{DAG_ID}_{env_id}',
+            name=f"{DAG_ID}_{env_id}",
             definition=json.dumps(STATE_MACHINE_DEFINITION),
             roleArn=role_arn,
-        )['stateMachineArn']
+        )["stateMachineArn"]
     )
 
 
@@ -65,9 +65,9 @@ def delete_state_machine(state_machine_arn):
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
 
@@ -81,7 +81,7 @@ with DAG(
 
     # [START howto_operator_step_function_start_execution]
     start_execution = StepFunctionStartExecutionOperator(
-        task_id='start_execution', state_machine_arn=state_machine_arn
+        task_id="start_execution", state_machine_arn=state_machine_arn
     )
     # [END howto_operator_step_function_start_execution]
 
@@ -89,13 +89,13 @@ with DAG(
 
     # [START howto_sensor_step_function_execution]
     wait_for_execution = StepFunctionExecutionSensor(
-        task_id='wait_for_execution', execution_arn=execution_arn
+        task_id="wait_for_execution", execution_arn=execution_arn
     )
     # [END howto_sensor_step_function_execution]
 
     # [START howto_operator_step_function_get_execution_output]
     get_execution_output = StepFunctionGetExecutionOutputOperator(
-        task_id='get_execution_output', execution_arn=execution_arn
+        task_id="get_execution_output", execution_arn=execution_arn
     )
     # [END howto_operator_step_function_get_execution_output]
 

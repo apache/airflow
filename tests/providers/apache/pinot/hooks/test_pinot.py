@@ -33,9 +33,9 @@ class TestPinotAdminHook(unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.conn = conn = mock.MagicMock()
-        self.conn.host = 'host'
-        self.conn.port = '1000'
-        self.conn.extra_dejson = {'cmd_path': './pinot-admin.sh'}
+        self.conn.host = "host"
+        self.conn.port = "1000"
+        self.conn.extra_dejson = {"cmd_path": "./pinot-admin.sh"}
 
         class PinotAdminHookTest(PinotAdminHook):
             def get_connection(self, conn_id):
@@ -43,39 +43,39 @@ class TestPinotAdminHook(unittest.TestCase):
 
         self.db_hook = PinotAdminHookTest()
 
-    @mock.patch('airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook.run_cli')
+    @mock.patch("airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook.run_cli")
     def test_add_schema(self, mock_run_cli):
         params = ["schema_file", False]
         self.db_hook.add_schema(*params)
         mock_run_cli.assert_called_once_with(
             [
-                'AddSchema',
-                '-controllerHost',
+                "AddSchema",
+                "-controllerHost",
                 self.conn.host,
-                '-controllerPort',
+                "-controllerPort",
                 self.conn.port,
-                '-schemaFile',
+                "-schemaFile",
                 params[0],
             ]
         )
 
-    @mock.patch('airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook.run_cli')
+    @mock.patch("airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook.run_cli")
     def test_add_table(self, mock_run_cli):
         params = ["config_file", False]
         self.db_hook.add_table(*params)
         mock_run_cli.assert_called_once_with(
             [
-                'AddTable',
-                '-controllerHost',
+                "AddTable",
+                "-controllerHost",
                 self.conn.host,
-                '-controllerPort',
+                "-controllerPort",
                 self.conn.port,
-                '-filePath',
+                "-filePath",
                 params[0],
             ]
         )
 
-    @mock.patch('airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook.run_cli')
+    @mock.patch("airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook.run_cli")
     def test_create_segment(self, mock_run_cli):
         params = {
             "generator_config_file": "a",
@@ -102,75 +102,75 @@ class TestPinotAdminHook(unittest.TestCase):
 
         mock_run_cli.assert_called_once_with(
             [
-                'CreateSegment',
-                '-generatorConfigFile',
+                "CreateSegment",
+                "-generatorConfigFile",
                 params["generator_config_file"],
-                '-dataDir',
+                "-dataDir",
                 params["data_dir"],
-                '-format',
+                "-format",
                 params["segment_format"],
-                '-outDir',
+                "-outDir",
                 params["out_dir"],
-                '-overwrite',
+                "-overwrite",
                 params["overwrite"],
-                '-tableName',
+                "-tableName",
                 params["table_name"],
-                '-segmentName',
+                "-segmentName",
                 params["segment_name"],
-                '-timeColumnName',
+                "-timeColumnName",
                 params["time_column_name"],
-                '-schemaFile',
+                "-schemaFile",
                 params["schema_file"],
-                '-readerConfigFile',
+                "-readerConfigFile",
                 params["reader_config_file"],
-                '-starTreeIndexSpecFile',
+                "-starTreeIndexSpecFile",
                 params["star_tree_index_spec_file"],
-                '-hllSize',
+                "-hllSize",
                 params["hll_size"],
-                '-hllColumns',
+                "-hllColumns",
                 params["hll_columns"],
-                '-hllSuffix',
+                "-hllSuffix",
                 params["hll_suffix"],
-                '-numThreads',
+                "-numThreads",
                 params["num_threads"],
-                '-postCreationVerification',
+                "-postCreationVerification",
                 params["post_creation_verification"],
-                '-retry',
+                "-retry",
                 params["retry"],
             ]
         )
 
-    @mock.patch('airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook.run_cli')
+    @mock.patch("airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook.run_cli")
     def test_upload_segment(self, mock_run_cli):
         params = ["segment_dir", False]
         self.db_hook.upload_segment(*params)
         mock_run_cli.assert_called_once_with(
             [
-                'UploadSegment',
-                '-controllerHost',
+                "UploadSegment",
+                "-controllerHost",
                 self.conn.host,
-                '-controllerPort',
+                "-controllerPort",
                 self.conn.port,
-                '-segmentDir',
+                "-segmentDir",
                 params[0],
             ]
         )
 
-    @mock.patch('subprocess.Popen')
+    @mock.patch("subprocess.Popen")
     def test_run_cli_success(self, mock_popen):
         mock_proc = mock.MagicMock()
         mock_proc.returncode = 0
-        mock_proc.stdout = io.BytesIO(b'')
+        mock_proc.stdout = io.BytesIO(b"")
         mock_popen.return_value.__enter__.return_value = mock_proc
 
         params = ["foo", "bar", "baz"]
         self.db_hook.run_cli(params)
-        params.insert(0, self.conn.extra_dejson.get('cmd_path'))
+        params.insert(0, self.conn.extra_dejson.get("cmd_path"))
         mock_popen.assert_called_once_with(
             params, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, close_fds=True, env=None
         )
 
-    @mock.patch('subprocess.Popen')
+    @mock.patch("subprocess.Popen")
     def test_run_cli_failure_error_message(self, mock_popen):
         msg = b"Exception caught"
         mock_proc = mock.MagicMock()
@@ -180,23 +180,23 @@ class TestPinotAdminHook(unittest.TestCase):
         params = ["foo", "bar", "baz"]
         with pytest.raises(AirflowException):
             self.db_hook.run_cli(params)
-        params.insert(0, self.conn.extra_dejson.get('cmd_path'))
+        params.insert(0, self.conn.extra_dejson.get("cmd_path"))
         mock_popen.assert_called_once_with(
             params, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, close_fds=True, env=None
         )
 
-    @mock.patch('subprocess.Popen')
+    @mock.patch("subprocess.Popen")
     def test_run_cli_failure_status_code(self, mock_popen):
         mock_proc = mock.MagicMock()
         mock_proc.returncode = 1
-        mock_proc.stdout = io.BytesIO(b'')
+        mock_proc.stdout = io.BytesIO(b"")
         mock_popen.return_value.__enter__.return_value = mock_proc
 
         self.db_hook.pinot_admin_system_exit = True
         params = ["foo", "bar", "baz"]
         with pytest.raises(AirflowException):
             self.db_hook.run_cli(params)
-        params.insert(0, self.conn.extra_dejson.get('cmd_path'))
+        params.insert(0, self.conn.extra_dejson.get("cmd_path"))
         env = os.environ.copy()
         env.update({"JAVA_OPTS": "-Dpinot.admin.system.exit=true "})
         mock_popen.assert_called_once_with(
@@ -208,10 +208,10 @@ class TestPinotDbApiHook(unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.conn = conn = mock.MagicMock()
-        self.conn.host = 'host'
-        self.conn.port = '1000'
-        self.conn.conn_type = 'http'
-        self.conn.extra_dejson = {'endpoint': 'query/sql'}
+        self.conn.host = "host"
+        self.conn.port = "1000"
+        self.conn.conn_type = "http"
+        self.conn.extra_dejson = {"endpoint": "query/sql"}
         self.cur = mock.MagicMock(rowcount=0)
         self.conn.cursor.return_value = self.cur
         self.conn.__enter__.return_value = self.cur
@@ -231,34 +231,34 @@ class TestPinotDbApiHook(unittest.TestCase):
         Test on getting a pinot connection uri
         """
         db_hook = self.db_hook()
-        assert db_hook.get_uri() == 'http://host:1000/query/sql'
+        assert db_hook.get_uri() == "http://host:1000/query/sql"
 
     def test_get_conn(self):
         """
         Test on getting a pinot connection
         """
         conn = self.db_hook().get_conn()
-        assert conn.host == 'host'
-        assert conn.port == '1000'
-        assert conn.conn_type == 'http'
-        assert conn.extra_dejson.get('endpoint') == 'query/sql'
+        assert conn.host == "host"
+        assert conn.port == "1000"
+        assert conn.conn_type == "http"
+        assert conn.extra_dejson.get("endpoint") == "query/sql"
 
     def test_get_records(self):
-        statement = 'SQL'
-        result_sets = [('row1',), ('row2',)]
+        statement = "SQL"
+        result_sets = [("row1",), ("row2",)]
         self.cur.fetchall.return_value = result_sets
         assert result_sets == self.db_hook().get_records(statement)
 
     def test_get_first(self):
-        statement = 'SQL'
-        result_sets = [('row1',), ('row2',)]
+        statement = "SQL"
+        result_sets = [("row1",), ("row2",)]
         self.cur.fetchone.return_value = result_sets[0]
         assert result_sets[0] == self.db_hook().get_first(statement)
 
     def test_get_pandas_df(self):
-        statement = 'SQL'
-        column = 'col'
-        result_sets = [('row1',), ('row2',)]
+        statement = "SQL"
+        column = "col"
+        result_sets = [("row1",), ("row2",)]
         self.cur.description = [(column,)]
         self.cur.fetchall.return_value = result_sets
         df = self.db_hook().get_pandas_df(statement)
@@ -269,7 +269,7 @@ class TestPinotDbApiHook(unittest.TestCase):
 
 class TestPinotDbApiHookIntegration(unittest.TestCase):
     @pytest.mark.integration("pinot")
-    @mock.patch.dict('os.environ', AIRFLOW_CONN_PINOT_BROKER_DEFAULT="pinot://pinot:8000/")
+    @mock.patch.dict("os.environ", AIRFLOW_CONN_PINOT_BROKER_DEFAULT="pinot://pinot:8000/")
     def test_should_return_records(self):
         hook = PinotDbApiHook()
         sql = "select playerName from baseballStats  ORDER BY playerName limit 5"

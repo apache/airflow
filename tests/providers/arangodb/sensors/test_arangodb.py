@@ -26,22 +26,22 @@ from airflow.providers.arangodb.sensors.arangodb import AQLSensor
 from airflow.utils import db, timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
-arangodb_hook_mock = Mock(name="arangodb_hook_for_test", **{'query.return_value.count.return_value': 1})
+arangodb_hook_mock = Mock(name="arangodb_hook_for_test", **{"query.return_value.count.return_value": 1})
 
 
 class TestAQLSensor(unittest.TestCase):
     def setUp(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        dag = DAG('test_dag_id', default_args=args)
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        dag = DAG("test_dag_id", default_args=args)
         self.dag = dag
         db.merge_conn(
             Connection(
-                conn_id='arangodb_default',
-                conn_type='arangodb',
-                host='http://127.0.0.1:8529',
-                login='root',
-                password='password',
-                schema='_system',
+                conn_id="arangodb_default",
+                conn_type="arangodb",
+                host="http://127.0.0.1:8529",
+                login="root",
+                password="password",
+                schema="_system",
             )
         )
 
@@ -54,7 +54,7 @@ class TestAQLSensor(unittest.TestCase):
         query = "FOR doc IN students FILTER doc.name == 'judy' RETURN doc"
 
         arangodb_tag_sensor = AQLSensor(
-            task_id='aql_search_document',
+            task_id="aql_search_document",
             query=query,
             timeout=60,
             poke_interval=10,

@@ -24,9 +24,9 @@ import shutil
 
 from docs.exts.provider_yaml_utils import load_package_data
 
-AIRFLOW_SITE_DIR = os.environ.get('AIRFLOW_SITE_DIRECTORY')
+AIRFLOW_SITE_DIR = os.environ.get("AIRFLOW_SITE_DIRECTORY")
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
-DOCS_DIR = os.path.join(ROOT_DIR, 'docs')
+DOCS_DIR = os.path.join(ROOT_DIR, "docs")
 
 if __name__ != "__main__":
     raise SystemExit(
@@ -37,38 +37,38 @@ if __name__ != "__main__":
 if not (
     AIRFLOW_SITE_DIR
     and os.path.isdir(AIRFLOW_SITE_DIR)
-    and os.path.isdir(os.path.join(AIRFLOW_SITE_DIR, 'docs-archive'))
+    and os.path.isdir(os.path.join(AIRFLOW_SITE_DIR, "docs-archive"))
 ):
     raise SystemExit(
-        'Before using this script, set the environment variable AIRFLOW_SITE_DIRECTORY. This variable '
-        'should contain the path to the airflow-site repository directory. '
-        '${AIRFLOW_SITE_DIRECTORY}/docs-archive must exists.'
+        "Before using this script, set the environment variable AIRFLOW_SITE_DIRECTORY. This variable "
+        "should contain the path to the airflow-site repository directory. "
+        "${AIRFLOW_SITE_DIRECTORY}/docs-archive must exists."
     )
 
 ALL_PROVIDER_YAMLS = load_package_data()
 
 result_integrations = []
 for provider_info in ALL_PROVIDER_YAMLS:
-    for integration in provider_info.get('integrations', []):
+    for integration in provider_info.get("integrations", []):
         doc_url = integration.get("how-to-guide")
         if doc_url:
             doc_url = doc_url[0].strip()
             doc_url = re.sub(f'/{provider_info["package-name"]}/', r"\g<0>stable/", doc_url)
-            doc_url = re.sub(r'\.rst', '.html', doc_url)
+            doc_url = re.sub(r"\.rst", ".html", doc_url)
         else:
             doc_url = f"/docs/{provider_info['package-name'].lower()}/stable/index.html"
         logo = integration.get("logo")
 
         result = {
-            'name': integration['integration-name'],
-            'url': doc_url,
+            "name": integration["integration-name"],
+            "url": doc_url,
         }
         if logo:
-            result['logo'] = logo
+            result["logo"] = logo
         result_integrations.append(result)
 
-result_integrations = sorted(result_integrations, key=lambda x: x['name'].lower())
-with open(os.path.join(AIRFLOW_SITE_DIR, 'landing-pages/site/static/integrations.json'), 'w') as f:
+result_integrations = sorted(result_integrations, key=lambda x: x["name"].lower())
+with open(os.path.join(AIRFLOW_SITE_DIR, "landing-pages/site/static/integrations.json"), "w") as f:
     f.write(
         json.dumps(
             result_integrations,
@@ -77,9 +77,9 @@ with open(os.path.join(AIRFLOW_SITE_DIR, 'landing-pages/site/static/integrations
         )
     )
 
-target_path = os.path.join(AIRFLOW_SITE_DIR, 'landing-pages/site/static/integration-logos')
+target_path = os.path.join(AIRFLOW_SITE_DIR, "landing-pages/site/static/integration-logos")
 shutil.rmtree(target_path)
 shutil.copytree(
-    src=os.path.join(DOCS_DIR, 'integration-logos'),
+    src=os.path.join(DOCS_DIR, "integration-logos"),
     dst=target_path,
 )

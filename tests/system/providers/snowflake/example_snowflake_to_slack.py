@@ -26,9 +26,9 @@ from datetime import datetime
 from airflow import DAG
 from airflow.providers.snowflake.transfers.snowflake_to_slack import SnowflakeToSlackOperator
 
-SNOWFLAKE_CONN_ID = 'my_snowflake_conn'
-SLACK_CONN_ID = 'my_slack_conn'
-SNOWFLAKE_SAMPLE_TABLE = 'sample_table'
+SNOWFLAKE_CONN_ID = "my_snowflake_conn"
+SLACK_CONN_ID = "my_slack_conn"
+SNOWFLAKE_SAMPLE_TABLE = "sample_table"
 
 # SQL commands
 SNOWFLAKE_SLACK_SQL = f"SELECT name, id FROM {SNOWFLAKE_SAMPLE_TABLE} LIMIT 10;"
@@ -43,8 +43,8 @@ DAG_ID = "example_snowflake_to_slack"
 with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
-    default_args={'snowflake_conn_id': SNOWFLAKE_CONN_ID},
-    tags=['example'],
+    default_args={"snowflake_conn_id": SNOWFLAKE_CONN_ID},
+    tags=["example"],
     schedule="@once",
     catchup=False,
 ) as dag:

@@ -52,7 +52,7 @@ class TestDAGRunSchema(TestDAGRunBase):
         dagrun_model = DagRun(
             dag_id="my-dag-run",
             run_id="my-dag-run",
-            state='running',
+            state="running",
             run_type=DagRunType.MANUAL.value,
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
@@ -135,7 +135,7 @@ class TestDagRunCollection(TestDAGRunBase):
         dagrun_model_1 = DagRun(
             dag_id="my-dag-run",
             run_id="my-dag-run",
-            state='running',
+            state="running",
             execution_date=timezone.parse(self.default_time),
             run_type=DagRunType.MANUAL.value,
             start_date=timezone.parse(self.default_time),
@@ -144,7 +144,7 @@ class TestDagRunCollection(TestDAGRunBase):
         dagrun_model_2 = DagRun(
             dag_id="my-dag-run",
             run_id="my-dag-run-2",
-            state='running',
+            state="running",
             execution_date=timezone.parse(self.second_time),
             start_date=timezone.parse(self.default_time),
             run_type=DagRunType.MANUAL.value,
