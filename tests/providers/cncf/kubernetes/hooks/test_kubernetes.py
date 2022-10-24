@@ -309,7 +309,7 @@ class TestKubernetesHook:
     def test_get_namespace(self, conn_id, expected):
         hook = KubernetesHook(conn_id=conn_id)
         assert hook.get_namespace() == expected
-        if get_provider_min_airflow_version('apache-airflow-providers-cncf-kubernetes') >= (6, 0):
+        if get_provider_min_airflow_version("apache-airflow-providers-cncf-kubernetes") >= (6, 0):
             raise DeprecationRemovalRequired(
                 "You must update get_namespace so that if namespace not set "
                 "in the connection, then None is returned. To do so, remove get_namespace "

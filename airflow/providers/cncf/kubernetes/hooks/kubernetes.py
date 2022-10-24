@@ -72,7 +72,7 @@ class KubernetesHook(BaseHook):
     conn_type = "kubernetes"
     hook_name = "Kubernetes Cluster Connection"
 
-    DEFAULT_NAMESPACE = 'default'
+    DEFAULT_NAMESPACE = "default"
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
@@ -334,7 +334,7 @@ class KubernetesHook(BaseHook):
                 "KubernetesPodOperator.",
                 DeprecationWarning,
             )
-            return 'default'
+            return "default"
         return namespace
 
     def _get_namespace(self) -> str | None:
