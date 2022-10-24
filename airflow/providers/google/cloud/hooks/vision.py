@@ -442,7 +442,7 @@ class CloudVisionHook(GoogleBaseHook):
             metadata=metadata,
         )
 
-        self.log.info('ReferenceImage with the name [%s] deleted.', name)
+        self.log.info("ReferenceImage with the name [%s] deleted.", name)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def add_product_to_product_set(
