@@ -207,14 +207,14 @@ class TestGoogleDataprepHook:
         assert mock_get_request.call_count == 5
 
     @pytest.mark.parametrize(
-        'uri',
+        "uri",
         [
-            param('a://?extra__dataprep__token=abc&extra__dataprep__base_url=abc', id='prefix'),
-            param('a://?token=abc&base_url=abc', id='no-prefix'),
+            param("a://?extra__dataprep__token=abc&extra__dataprep__base_url=abc", id="prefix"),
+            param("a://?token=abc&base_url=abc", id="no-prefix"),
         ],
     )
     def test_conn_extra_backcompat_prefix(self, uri):
         with patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}):
-            hook = GoogleDataprepHook('my_conn')
-            assert hook._token == 'abc'
-            assert hook._base_url == 'abc'
+            hook = GoogleDataprepHook("my_conn")
+            assert hook._token == "abc"
+            assert hook._base_url == "abc"

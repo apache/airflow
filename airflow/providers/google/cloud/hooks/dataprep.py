@@ -32,7 +32,7 @@ from airflow.hooks.base import BaseHook
 def _get_field(extras: dict, field_name: str):
     """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
     backcompat_prefix = "extra__dataprep__"
-    if field_name.startswith('extra_'):
+    if field_name.startswith("extra_"):
         raise ValueError(
             f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
             "when using this method."
