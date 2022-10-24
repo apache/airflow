@@ -43,16 +43,16 @@ def black_mode():
     config = parse_pyproject_toml(os.path.join(AIRFLOW_SOURCES_ROOT, "pyproject.toml"))
 
     target_versions = set(
-        target_version_option_callback(None, None, tuple(config.get('target_version', ()))),
+        target_version_option_callback(None, None, tuple(config.get("target_version", ()))),
     )
 
     return Mode(
         target_versions=target_versions,
-        line_length=config.get('line_length', Mode.line_length),
-        is_pyi=bool(config.get('is_pyi', Mode.is_pyi)),
-        string_normalization=not bool(config.get('skip_string_normalization', not Mode.string_normalization)),
+        line_length=config.get("line_length", Mode.line_length),
+        is_pyi=bool(config.get("is_pyi", Mode.is_pyi)),
+        string_normalization=not bool(config.get("skip_string_normalization", not Mode.string_normalization)),
         experimental_string_processing=bool(
-            config.get('experimental_string_processing', Mode.experimental_string_processing)
+            config.get("experimental_string_processing", Mode.experimental_string_processing)
         ),
     )
 
@@ -81,7 +81,7 @@ def get_imports(path: Path):
         if isinstance(node, ast.Import):
             module_array: list[str] = []
         elif isinstance(node, ast.ImportFrom) and node.module:
-            module_array = node.module.split('.')
+            module_array = node.module.split(".")
         elif isinstance(node, ast.ClassDef):
             for base in node.bases:
                 res = imports.get(base.id)  # type: ignore[attr-defined]
@@ -110,90 +110,90 @@ __deprecated_classes = {
 """
 
 DEPRECATED_MODULES = [
-    'airflow/hooks/base_hook.py',
-    'airflow/hooks/dbapi_hook.py',
-    'airflow/hooks/docker_hook.py',
-    'airflow/hooks/druid_hook.py',
-    'airflow/hooks/hdfs_hook.py',
-    'airflow/hooks/hive_hooks.py',
-    'airflow/hooks/http_hook.py',
-    'airflow/hooks/jdbc_hook.py',
-    'airflow/hooks/mssql_hook.py',
-    'airflow/hooks/mysql_hook.py',
-    'airflow/hooks/oracle_hook.py',
-    'airflow/hooks/pig_hook.py',
-    'airflow/hooks/postgres_hook.py',
-    'airflow/hooks/presto_hook.py',
-    'airflow/hooks/S3_hook.py',
-    'airflow/hooks/samba_hook.py',
-    'airflow/hooks/slack_hook.py',
-    'airflow/hooks/sqlite_hook.py',
-    'airflow/hooks/webhdfs_hook.py',
-    'airflow/hooks/zendesk_hook.py',
-    'airflow/operators/bash_operator.py',
-    'airflow/operators/branch_operator.py',
-    'airflow/operators/check_operator.py',
-    'airflow/operators/dagrun_operator.py',
-    'airflow/operators/docker_operator.py',
-    'airflow/operators/druid_check_operator.py',
-    'airflow/operators/dummy.py',
-    'airflow/operators/dummy_operator.py',
-    'airflow/operators/email_operator.py',
-    'airflow/operators/gcs_to_s3.py',
-    'airflow/operators/google_api_to_s3_transfer.py',
-    'airflow/operators/hive_operator.py',
-    'airflow/operators/hive_stats_operator.py',
-    'airflow/operators/hive_to_druid.py',
-    'airflow/operators/hive_to_mysql.py',
-    'airflow/operators/hive_to_samba_operator.py',
-    'airflow/operators/http_operator.py',
-    'airflow/operators/jdbc_operator.py',
-    'airflow/operators/latest_only_operator.py',
-    'airflow/operators/mssql_operator.py',
-    'airflow/operators/mssql_to_hive.py',
-    'airflow/operators/mysql_operator.py',
-    'airflow/operators/mysql_to_hive.py',
-    'airflow/operators/oracle_operator.py',
-    'airflow/operators/papermill_operator.py',
-    'airflow/operators/pig_operator.py',
-    'airflow/operators/postgres_operator.py',
-    'airflow/operators/presto_check_operator.py',
-    'airflow/operators/presto_to_mysql.py',
-    'airflow/operators/python_operator.py',
-    'airflow/operators/redshift_to_s3_operator.py',
-    'airflow/operators/s3_file_transform_operator.py',
-    'airflow/operators/s3_to_hive_operator.py',
-    'airflow/operators/s3_to_redshift_operator.py',
-    'airflow/operators/slack_operator.py',
-    'airflow/operators/sql.py',
-    'airflow/operators/sql_branch_operator.py',
-    'airflow/operators/sqlite_operator.py',
-    'airflow/operators/subdag_operator.py',
-    'airflow/sensors/base_sensor_operator.py',
-    'airflow/sensors/date_time_sensor.py',
-    'airflow/sensors/external_task_sensor.py',
-    'airflow/sensors/hdfs_sensor.py',
-    'airflow/sensors/hive_partition_sensor.py',
-    'airflow/sensors/http_sensor.py',
-    'airflow/sensors/metastore_partition_sensor.py',
-    'airflow/sensors/named_hive_partition_sensor.py',
-    'airflow/sensors/s3_key_sensor.py',
-    'airflow/sensors/sql.py',
-    'airflow/sensors/sql_sensor.py',
-    'airflow/sensors/time_delta_sensor.py',
-    'airflow/sensors/web_hdfs_sensor.py',
-    'airflow/utils/log/cloudwatch_task_handler.py',
-    'airflow/utils/log/es_task_handler.py',
-    'airflow/utils/log/gcs_task_handler.py',
-    'airflow/utils/log/s3_task_handler.py',
-    'airflow/utils/log/stackdriver_task_handler.py',
-    'airflow/utils/log/wasb_task_handler.py',
+    "airflow/hooks/base_hook.py",
+    "airflow/hooks/dbapi_hook.py",
+    "airflow/hooks/docker_hook.py",
+    "airflow/hooks/druid_hook.py",
+    "airflow/hooks/hdfs_hook.py",
+    "airflow/hooks/hive_hooks.py",
+    "airflow/hooks/http_hook.py",
+    "airflow/hooks/jdbc_hook.py",
+    "airflow/hooks/mssql_hook.py",
+    "airflow/hooks/mysql_hook.py",
+    "airflow/hooks/oracle_hook.py",
+    "airflow/hooks/pig_hook.py",
+    "airflow/hooks/postgres_hook.py",
+    "airflow/hooks/presto_hook.py",
+    "airflow/hooks/S3_hook.py",
+    "airflow/hooks/samba_hook.py",
+    "airflow/hooks/slack_hook.py",
+    "airflow/hooks/sqlite_hook.py",
+    "airflow/hooks/webhdfs_hook.py",
+    "airflow/hooks/zendesk_hook.py",
+    "airflow/operators/bash_operator.py",
+    "airflow/operators/branch_operator.py",
+    "airflow/operators/check_operator.py",
+    "airflow/operators/dagrun_operator.py",
+    "airflow/operators/docker_operator.py",
+    "airflow/operators/druid_check_operator.py",
+    "airflow/operators/dummy.py",
+    "airflow/operators/dummy_operator.py",
+    "airflow/operators/email_operator.py",
+    "airflow/operators/gcs_to_s3.py",
+    "airflow/operators/google_api_to_s3_transfer.py",
+    "airflow/operators/hive_operator.py",
+    "airflow/operators/hive_stats_operator.py",
+    "airflow/operators/hive_to_druid.py",
+    "airflow/operators/hive_to_mysql.py",
+    "airflow/operators/hive_to_samba_operator.py",
+    "airflow/operators/http_operator.py",
+    "airflow/operators/jdbc_operator.py",
+    "airflow/operators/latest_only_operator.py",
+    "airflow/operators/mssql_operator.py",
+    "airflow/operators/mssql_to_hive.py",
+    "airflow/operators/mysql_operator.py",
+    "airflow/operators/mysql_to_hive.py",
+    "airflow/operators/oracle_operator.py",
+    "airflow/operators/papermill_operator.py",
+    "airflow/operators/pig_operator.py",
+    "airflow/operators/postgres_operator.py",
+    "airflow/operators/presto_check_operator.py",
+    "airflow/operators/presto_to_mysql.py",
+    "airflow/operators/python_operator.py",
+    "airflow/operators/redshift_to_s3_operator.py",
+    "airflow/operators/s3_file_transform_operator.py",
+    "airflow/operators/s3_to_hive_operator.py",
+    "airflow/operators/s3_to_redshift_operator.py",
+    "airflow/operators/slack_operator.py",
+    "airflow/operators/sql.py",
+    "airflow/operators/sql_branch_operator.py",
+    "airflow/operators/sqlite_operator.py",
+    "airflow/operators/subdag_operator.py",
+    "airflow/sensors/base_sensor_operator.py",
+    "airflow/sensors/date_time_sensor.py",
+    "airflow/sensors/external_task_sensor.py",
+    "airflow/sensors/hdfs_sensor.py",
+    "airflow/sensors/hive_partition_sensor.py",
+    "airflow/sensors/http_sensor.py",
+    "airflow/sensors/metastore_partition_sensor.py",
+    "airflow/sensors/named_hive_partition_sensor.py",
+    "airflow/sensors/s3_key_sensor.py",
+    "airflow/sensors/sql.py",
+    "airflow/sensors/sql_sensor.py",
+    "airflow/sensors/time_delta_sensor.py",
+    "airflow/sensors/web_hdfs_sensor.py",
+    "airflow/utils/log/cloudwatch_task_handler.py",
+    "airflow/utils/log/es_task_handler.py",
+    "airflow/utils/log/gcs_task_handler.py",
+    "airflow/utils/log/s3_task_handler.py",
+    "airflow/utils/log/stackdriver_task_handler.py",
+    "airflow/utils/log/wasb_task_handler.py",
 ]
 
 CONTRIB_FILES = (AIRFLOW_SOURCES_ROOT / "airflow" / "contrib").rglob("*.py")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     console = Console(color_system="standard", width=300)
     all_deprecated_imports: dict[str, dict[str, list[Import]]] = defaultdict(lambda: defaultdict(list))
     # delete = True
@@ -206,7 +206,7 @@ if __name__ == '__main__':
         original_module = os.fspath(file_path.parent.relative_to(AIRFLOW_SOURCES_ROOT)).replace(os.sep, ".")
         for _import in get_imports(file_path):
             module_name = file_path.name[: -len(".py")]
-            if _import.name not in ['warnings', 'RemovedInAirflow3Warning']:
+            if _import.name not in ["warnings", "RemovedInAirflow3Warning"]:
                 all_deprecated_imports[original_module][module_name].append(_import)
         if delete:
             file_path.unlink()

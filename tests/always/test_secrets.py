@@ -56,7 +56,7 @@ class TestConnectionsFromSecrets:
         backend_classes = [backend.__class__.__name__ for backend in backends]
 
         assert 3 == len(backends)
-        assert 'SystemsManagerParameterStoreBackend' in backend_classes
+        assert "SystemsManagerParameterStoreBackend" in backend_classes
 
     @conf_vars(
         {
@@ -72,7 +72,7 @@ class TestConnectionsFromSecrets:
         systems_manager = next(
             backend
             for backend in backends
-            if backend.__class__.__name__ == 'SystemsManagerParameterStoreBackend'
+            if backend.__class__.__name__ == "SystemsManagerParameterStoreBackend"
         )
         assert systems_manager.kwargs == {}
         assert systems_manager.use_ssl is False
@@ -87,9 +87,9 @@ class TestConnectionsFromSecrets:
         }
     )
     @mock.patch.dict(
-        'os.environ',
+        "os.environ",
         {
-            'AIRFLOW_CONN_TEST_MYSQL': 'mysql://airflow:airflow@host:5432/airflow',
+            "AIRFLOW_CONN_TEST_MYSQL": "mysql://airflow:airflow@host:5432/airflow",
         },
     )
     @mock.patch(
@@ -101,14 +101,14 @@ class TestConnectionsFromSecrets:
 
         backends = ensure_secrets_loaded()
         backend_classes = [backend.__class__.__name__ for backend in backends]
-        assert 'SystemsManagerParameterStoreBackend' in backend_classes
+        assert "SystemsManagerParameterStoreBackend" in backend_classes
 
         conn = Connection.get_connection_from_secrets(conn_id="test_mysql")
 
         # Assert that SystemsManagerParameterStoreBackend.get_conn_uri was called
-        mock_get_connection.assert_called_once_with(conn_id='test_mysql')
+        mock_get_connection.assert_called_once_with(conn_id="test_mysql")
 
-        assert 'mysql://airflow:airflow@host:5432/airflow' == conn.get_uri()
+        assert "mysql://airflow:airflow@host:5432/airflow" == conn.get_uri()
 
 
 class TestVariableFromSecrets:
@@ -160,9 +160,9 @@ class TestVariableFromSecrets:
         }
     )
     @mock.patch.dict(
-        'os.environ',
+        "os.environ",
         {
-            'AIRFLOW_VAR_MYVAR': 'a_venv_value',
+            "AIRFLOW_VAR_MYVAR": "a_venv_value",
         },
     )
     @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_variable")
@@ -173,7 +173,7 @@ class TestVariableFromSecrets:
     def test_backend_variable_order(self, mock_secret_get, mock_meta_get):
         backends = ensure_secrets_loaded()
         backend_classes = [backend.__class__.__name__ for backend in backends]
-        assert 'SystemsManagerParameterStoreBackend' in backend_classes
+        assert "SystemsManagerParameterStoreBackend" in backend_classes
 
         mock_secret_get.return_value = None
         mock_meta_get.return_value = None

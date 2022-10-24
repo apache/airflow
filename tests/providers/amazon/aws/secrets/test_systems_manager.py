@@ -33,21 +33,21 @@ class TestSsmSecrets(TestCase):
     def test_aws_ssm_get_connection(self, mock_get_value):
         mock_get_value.return_value = "scheme://user:pass@host:100"
         conn = SystemsManagerParameterStoreBackend().get_connection("fake_conn")
-        assert conn.host == 'host'
+        assert conn.host == "host"
 
     @mock_ssm
     def test_get_conn_value(self):
         param = {
-            'Name': '/airflow/connections/test_postgres',
-            'Type': 'String',
-            'Value': 'postgresql://airflow:airflow@host:5432/airflow',
+            "Name": "/airflow/connections/test_postgres",
+            "Type": "String",
+            "Value": "postgresql://airflow:airflow@host:5432/airflow",
         }
 
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
 
         returned_uri = ssm_backend.get_conn_value(conn_id="test_postgres")
-        assert 'postgresql://airflow:airflow@host:5432/airflow' == returned_uri
+        assert "postgresql://airflow:airflow@host:5432/airflow" == returned_uri
 
     @mock_ssm
     def test_get_conn_value_non_existent_key(self):
@@ -57,9 +57,9 @@ class TestSsmSecrets(TestCase):
         """
         conn_id = "test_mysql"
         param = {
-            'Name': '/airflow/connections/test_postgres',
-            'Type': 'String',
-            'Value': 'postgresql://airflow:airflow@host:5432/airflow',
+            "Name": "/airflow/connections/test_postgres",
+            "Type": "String",
+            "Value": "postgresql://airflow:airflow@host:5432/airflow",
         }
 
         ssm_backend = SystemsManagerParameterStoreBackend()
@@ -70,35 +70,35 @@ class TestSsmSecrets(TestCase):
 
     @mock_ssm
     def test_get_variable(self):
-        param = {'Name': '/airflow/variables/hello', 'Type': 'String', 'Value': 'world'}
+        param = {"Name": "/airflow/variables/hello", "Type": "String", "Value": "world"}
 
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
 
-        returned_uri = ssm_backend.get_variable('hello')
-        assert 'world' == returned_uri
+        returned_uri = ssm_backend.get_variable("hello")
+        assert "world" == returned_uri
 
     @mock_ssm
     def test_get_config(self):
         param = {
-            'Name': '/airflow/config/sql_alchemy_conn',
-            'Type': 'String',
-            'Value': 'sqlite:///Users/test_user/airflow.db',
+            "Name": "/airflow/config/sql_alchemy_conn",
+            "Type": "String",
+            "Value": "sqlite:///Users/test_user/airflow.db",
         }
 
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
 
-        returned_uri = ssm_backend.get_config('sql_alchemy_conn')
-        assert 'sqlite:///Users/test_user/airflow.db' == returned_uri
+        returned_uri = ssm_backend.get_config("sql_alchemy_conn")
+        assert "sqlite:///Users/test_user/airflow.db" == returned_uri
 
     @mock_ssm
     def test_get_variable_secret_string(self):
-        param = {'Name': '/airflow/variables/hello', 'Type': 'SecureString', 'Value': 'world'}
+        param = {"Name": "/airflow/variables/hello", "Type": "SecureString", "Value": "world"}
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
-        returned_uri = ssm_backend.get_variable('hello')
-        assert 'world' == returned_uri
+        returned_uri = ssm_backend.get_variable("hello")
+        assert "world" == returned_uri
 
     @mock_ssm
     def test_get_variable_non_existent_key(self):
@@ -106,7 +106,7 @@ class TestSsmSecrets(TestCase):
         Test that if Variable key is not present in SSM,
         SystemsManagerParameterStoreBackend.get_variables should return None
         """
-        param = {'Name': '/airflow/variables/hello', 'Type': 'String', 'Value': 'world'}
+        param = {"Name": "/airflow/variables/hello", "Type": "String", "Value": "world"}
 
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
@@ -115,11 +115,11 @@ class TestSsmSecrets(TestCase):
 
     @conf_vars(
         {
-            ('secrets', 'backend'): 'airflow.providers.amazon.aws.secrets.systems_manager.'
-            'SystemsManagerParameterStoreBackend',
+            ("secrets", "backend"): "airflow.providers.amazon.aws.secrets.systems_manager."
+            "SystemsManagerParameterStoreBackend",
             (
-                'secrets',
-                'backend_kwargs',
+                "secrets",
+                "backend_kwargs",
             ): '{"use_ssl": false, "role_arn": "arn:aws:iam::222222222222:role/awesome-role"}',
         }
     )
@@ -129,7 +129,7 @@ class TestSsmSecrets(TestCase):
         systems_manager = [
             backend
             for backend in backends
-            if backend.__class__.__name__ == 'SystemsManagerParameterStoreBackend'
+            if backend.__class__.__name__ == "SystemsManagerParameterStoreBackend"
         ][0]
 
         # Mock SessionFactory, session and client
@@ -149,7 +149,7 @@ class TestSsmSecrets(TestCase):
         assert conn_wrapper.conn_id == "SystemsManagerParameterStoreBackend__connection"
         assert conn_wrapper.role_arn == "arn:aws:iam::222222222222:role/awesome-role"
 
-        mock_ssm_client.assert_called_once_with(service_name='ssm', use_ssl=False)
+        mock_ssm_client.assert_called_once_with(service_name="ssm", use_ssl=False)
 
     @mock.patch(
         "airflow.providers.amazon.aws.secrets.systems_manager."
@@ -161,7 +161,7 @@ class TestSsmSecrets(TestCase):
         SystemsManagerParameterStoreBackend.get_conn_value should return None,
         SystemsManagerParameterStoreBackend._get_secret should not be called
         """
-        kwargs = {'connections_prefix': None}
+        kwargs = {"connections_prefix": None}
 
         ssm_backend = SystemsManagerParameterStoreBackend(**kwargs)
 
@@ -178,7 +178,7 @@ class TestSsmSecrets(TestCase):
         SystemsManagerParameterStoreBackend.get_variables should return None,
         SystemsManagerParameterStoreBackend._get_secret should not be called
         """
-        kwargs = {'variables_prefix': None}
+        kwargs = {"variables_prefix": None}
 
         ssm_backend = SystemsManagerParameterStoreBackend(**kwargs)
 
@@ -195,7 +195,7 @@ class TestSsmSecrets(TestCase):
         SystemsManagerParameterStoreBackend.get_config should return None,
         SystemsManagerParameterStoreBackend._get_secret should not be called
         """
-        kwargs = {'config_prefix': None}
+        kwargs = {"config_prefix": None}
 
         ssm_backend = SystemsManagerParameterStoreBackend(**kwargs)
 

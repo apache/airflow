@@ -56,9 +56,9 @@ class TestFlowerDeployment:
             }
         }
         if revision_history_limit:
-            values['flower']['revisionHistoryLimit'] = revision_history_limit
+            values["flower"]["revisionHistoryLimit"] = revision_history_limit
         if global_revision_history_limit:
-            values['revisionHistoryLimit'] = global_revision_history_limit
+            values["revisionHistoryLimit"] = global_revision_history_limit
         docs = render_chart(
             values=values,
             show_only=["templates/flower/flower-deployment.yaml"],
@@ -136,10 +136,10 @@ class TestFlowerDeployment:
         assert "AIRFLOW__CELERY__FLOWER_BASIC_AUTH" == jmespath.search(
             "spec.template.spec.containers[0].env[0].name", docs[0]
         )
-        assert ['curl', '--user', '$AIRFLOW__CELERY__FLOWER_BASIC_AUTH', 'localhost:7777'] == jmespath.search(
+        assert ["curl", "--user", "$AIRFLOW__CELERY__FLOWER_BASIC_AUTH", "localhost:7777"] == jmespath.search(
             "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
         )
-        assert ['curl', '--user', '$AIRFLOW__CELERY__FLOWER_BASIC_AUTH', 'localhost:7777'] == jmespath.search(
+        assert ["curl", "--user", "$AIRFLOW__CELERY__FLOWER_BASIC_AUTH", "localhost:7777"] == jmespath.search(
             "spec.template.spec.containers[0].readinessProbe.exec.command", docs[0]
         )
 
@@ -155,10 +155,10 @@ class TestFlowerDeployment:
         assert "AIRFLOW__CORE__FERNET_KEY" == jmespath.search(
             "spec.template.spec.containers[0].env[0].name", docs[0]
         )
-        assert ['curl', 'localhost:7777'] == jmespath.search(
+        assert ["curl", "localhost:7777"] == jmespath.search(
             "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
         )
-        assert ['curl', 'localhost:7777'] == jmespath.search(
+        assert ["curl", "localhost:7777"] == jmespath.search(
             "spec.template.spec.containers[0].readinessProbe.exec.command", docs[0]
         )
 
@@ -213,8 +213,8 @@ class TestFlowerDeployment:
                 "flower": {
                     "enabled": True,
                     "resources": {
-                        "limits": {"cpu": "200m", 'memory': "128Mi"},
-                        "requests": {"cpu": "300m", 'memory': "169Mi"},
+                        "limits": {"cpu": "200m", "memory": "128Mi"},
+                        "requests": {"cpu": "300m", "memory": "169Mi"},
                     },
                 },
             },
@@ -279,7 +279,7 @@ class TestFlowerDeployment:
             show_only=["templates/flower/flower-deployment.yaml"],
         )
 
-        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+        assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.template.spec.containers[0].env", docs[0]
         )
 

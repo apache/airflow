@@ -31,24 +31,24 @@ from airflow.providers.amazon.aws.sensors.rds import RdsSnapshotExistenceSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-DAG_ID = 'example_rds_snapshot'
+DAG_ID = "example_rds_snapshot"
 
 sys_test_context_task = SystemTestContextBuilder().build()
 
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
 
-    rds_db_name = f'{test_context[ENV_ID_KEY]}_db'
-    rds_instance_name = f'{test_context[ENV_ID_KEY]}-instance'
-    rds_snapshot_name = f'{test_context[ENV_ID_KEY]}-snapshot'
-    rds_snapshot_copy_name = f'{rds_snapshot_name}-copy'
+    rds_db_name = f"{test_context[ENV_ID_KEY]}_db"
+    rds_instance_name = f"{test_context[ENV_ID_KEY]}-instance"
+    rds_snapshot_name = f"{test_context[ENV_ID_KEY]}-snapshot"
+    rds_snapshot_copy_name = f"{rds_snapshot_name}-copy"
 
     create_db_instance = RdsCreateDbInstanceOperator(
         task_id="create_db_instance",
@@ -67,8 +67,8 @@ with DAG(
 
     # [START howto_operator_rds_create_db_snapshot]
     create_snapshot = RdsCreateDbSnapshotOperator(
-        task_id='create_snapshot',
-        db_type='instance',
+        task_id="create_snapshot",
+        db_type="instance",
         db_identifier=rds_instance_name,
         db_snapshot_identifier=rds_snapshot_name,
     )
@@ -76,17 +76,17 @@ with DAG(
 
     # [START howto_sensor_rds_snapshot_existence]
     snapshot_sensor = RdsSnapshotExistenceSensor(
-        task_id='snapshot_sensor',
-        db_type='instance',
+        task_id="snapshot_sensor",
+        db_type="instance",
         db_snapshot_identifier=rds_snapshot_name,
-        target_statuses=['available'],
+        target_statuses=["available"],
     )
     # [END howto_sensor_rds_snapshot_existence]
 
     # [START howto_operator_rds_copy_snapshot]
     copy_snapshot = RdsCopyDbSnapshotOperator(
-        task_id='copy_snapshot',
-        db_type='instance',
+        task_id="copy_snapshot",
+        db_type="instance",
         source_db_snapshot_identifier=rds_snapshot_name,
         target_db_snapshot_identifier=rds_snapshot_copy_name,
     )
@@ -94,22 +94,22 @@ with DAG(
 
     # [START howto_operator_rds_delete_snapshot]
     delete_snapshot = RdsDeleteDbSnapshotOperator(
-        task_id='delete_snapshot',
-        db_type='instance',
+        task_id="delete_snapshot",
+        db_type="instance",
         db_snapshot_identifier=rds_snapshot_name,
     )
     # [END howto_operator_rds_delete_snapshot]
 
     snapshot_copy_sensor = RdsSnapshotExistenceSensor(
-        task_id='snapshot_copy_sensor',
-        db_type='instance',
+        task_id="snapshot_copy_sensor",
+        db_type="instance",
         db_snapshot_identifier=rds_snapshot_copy_name,
-        target_statuses=['available'],
+        target_statuses=["available"],
     )
 
     delete_snapshot_copy = RdsDeleteDbSnapshotOperator(
-        task_id='delete_snapshot_copy',
-        db_type='instance',
+        task_id="delete_snapshot_copy",
+        db_type="instance",
         db_snapshot_identifier=rds_snapshot_copy_name,
         trigger_rule=TriggerRule.ALL_DONE,
     )

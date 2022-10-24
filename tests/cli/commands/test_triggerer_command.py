@@ -38,6 +38,6 @@ class TestTriggererCommand:
         mock_scheduler_job,
     ):
         """Ensure that the capacity argument is passed correctly"""
-        args = self.parser.parse_args(['triggerer', '--capacity=42'])
+        args = self.parser.parse_args(["triggerer", "--capacity=42"])
         triggerer_command.triggerer(args)
         mock_scheduler_job.assert_called_once_with(capacity=42)

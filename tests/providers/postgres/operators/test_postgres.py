@@ -28,18 +28,18 @@ from airflow.utils import timezone
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
-TEST_DAG_ID = 'unit_test_dag'
+TEST_DAG_ID = "unit_test_dag"
 
 
 @pytest.mark.backend("postgres")
 class TestPostgres(unittest.TestCase):
     def setUp(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
     def tearDown(self):
-        tables_to_drop = ['test_postgres_to_postgres', 'test_airflow']
+        tables_to_drop = ["test_postgres_to_postgres", "test_airflow"]
         from airflow.providers.postgres.hooks.postgres import PostgresHook
 
         with PostgresHook().get_conn() as conn:
@@ -53,11 +53,11 @@ class TestPostgres(unittest.TestCase):
             dummy VARCHAR(50)
         );
         """
-        op = PostgresOperator(task_id='basic_postgres', sql=sql, dag=self.dag)
+        op = PostgresOperator(task_id="basic_postgres", sql=sql, dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         autocommit_task = PostgresOperator(
-            task_id='basic_postgres_with_autocommit', sql=sql, dag=self.dag, autocommit=True
+            task_id="basic_postgres_with_autocommit", sql=sql, dag=self.dag, autocommit=True
         )
         autocommit_task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
@@ -67,7 +67,7 @@ class TestPostgres(unittest.TestCase):
             "TRUNCATE TABLE test_airflow",
             "INSERT INTO test_airflow VALUES ('X')",
         ]
-        op = PostgresOperator(task_id='postgres_operator_test_multi', sql=sql, dag=self.dag)
+        op = PostgresOperator(task_id="postgres_operator_test_multi", sql=sql, dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_vacuum(self):
@@ -76,7 +76,7 @@ class TestPostgres(unittest.TestCase):
         """
 
         sql = "VACUUM ANALYZE;"
-        op = PostgresOperator(task_id='postgres_operator_test_vacuum', sql=sql, dag=self.dag, autocommit=True)
+        op = PostgresOperator(task_id="postgres_operator_test_vacuum", sql=sql, dag=self.dag, autocommit=True)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_overwrite_schema(self):
@@ -86,7 +86,7 @@ class TestPostgres(unittest.TestCase):
 
         sql = "SELECT 1;"
         op = PostgresOperator(
-            task_id='postgres_operator_test_schema_overwrite',
+            task_id="postgres_operator_test_schema_overwrite",
             sql=sql,
             dag=self.dag,
             autocommit=True,
@@ -108,9 +108,9 @@ class TestPostgres(unittest.TestCase):
 
         sql = "SELECT 1;"
         op = PostgresOperator(
-            task_id='postgres_operator_test_runtime_parameter_setting',
+            task_id="postgres_operator_test_runtime_parameter_setting",
             sql=sql,
             dag=self.dag,
-            runtime_parameters={'statement_timeout': '3000ms'},
+            runtime_parameters={"statement_timeout": "3000ms"},
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

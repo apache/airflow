@@ -32,7 +32,7 @@ DEFAULT_DATE = timezone.datetime(2019, 1, 1)
 
 class TestCloudFormationCreateStackOperator(unittest.TestCase):
     def setUp(self):
-        self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
         # Mock out the cloudformation_client (moto fails with an exception).
         self.cloudformation_client_mock = MagicMock()
@@ -50,13 +50,13 @@ class TestCloudFormationCreateStackOperator(unittest.TestCase):
         template_body = "My stack body"
 
         operator = CloudFormationCreateStackOperator(
-            task_id='test_task',
+            task_id="test_task",
             stack_name=stack_name,
-            cloudformation_parameters={'TimeoutInMinutes': timeout, 'TemplateBody': template_body},
-            dag=DAG('test_dag_id', default_args=self.args),
+            cloudformation_parameters={"TimeoutInMinutes": timeout, "TemplateBody": template_body},
+            dag=DAG("test_dag_id", default_args=self.args),
         )
 
-        with patch('boto3.session.Session', self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock):
             operator.execute(self.mock_context)
 
         self.cloudformation_client_mock.create_stack.assert_any_call(
@@ -66,7 +66,7 @@ class TestCloudFormationCreateStackOperator(unittest.TestCase):
 
 class TestCloudFormationDeleteStackOperator(unittest.TestCase):
     def setUp(self):
-        self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
         # Mock out the cloudformation_client (moto fails with an exception).
         self.cloudformation_client_mock = MagicMock()
@@ -82,12 +82,12 @@ class TestCloudFormationDeleteStackOperator(unittest.TestCase):
         stack_name = "myStackToBeDeleted"
 
         operator = CloudFormationDeleteStackOperator(
-            task_id='test_task',
+            task_id="test_task",
             stack_name=stack_name,
-            dag=DAG('test_dag_id', default_args=self.args),
+            dag=DAG("test_dag_id", default_args=self.args),
         )
 
-        with patch('boto3.session.Session', self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock):
             operator.execute(self.mock_context)
 
         self.cloudformation_client_mock.delete_stack.assert_any_call(StackName=stack_name)

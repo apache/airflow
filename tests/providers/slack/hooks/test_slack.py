@@ -110,7 +110,7 @@ class TestSlackHook:
 
     def test_get_token_with_token_only(self):
         """Test retrieve token when only hook arg provided without Slack API Connection ID."""
-        test_hook_arg_token = 'xapp-1-arg-token'
+        test_hook_arg_token = "xapp-1-arg-token"
         assert SlackHook(test_hook_arg_token, None)._get_conn_params()["token"] == test_hook_arg_token
 
     @pytest.mark.parametrize(
@@ -127,7 +127,7 @@ class TestSlackHook:
 
     def test_resolve_token(self):
         """Test retrieve token when both hook arg and Slack API Connection ID provided."""
-        test_hook_arg_token = 'xapp-1-arg-token'
+        test_hook_arg_token = "xapp-1-arg-token"
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID, token=test_hook_arg_token)
         assert hook._get_conn_params()["token"] == test_hook_arg_token
 
@@ -233,7 +233,7 @@ class TestSlackHook:
             ),
         ],
     )
-    @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
+    @mock.patch("airflow.providers.slack.hooks.slack.WebClient")
     def test_client_configuration(
         self, mock_webclient_cls, hook_config, conn_extra, expected: dict[str, Any]
     ):
@@ -260,28 +260,28 @@ class TestSlackHook:
             assert hook.get_conn() is client  # cached
             mock_webclient_cls.assert_called_once_with(**expected)
 
-    @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
+    @mock.patch("airflow.providers.slack.hooks.slack.WebClient")
     def test_call_with_failure(self, slack_client_class_mock):
         slack_client_mock = mock.Mock()
         slack_client_class_mock.return_value = slack_client_mock
-        expected_exception = SlackApiError(message='foo', response='bar')
+        expected_exception = SlackApiError(message="foo", response="bar")
         slack_client_mock.api_call = mock.Mock(side_effect=expected_exception)
 
         slack_hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
-        test_method = 'test_method'
-        test_api_params = {'key1': 'value1', 'key2': 'value2'}
+        test_method = "test_method"
+        test_api_params = {"key1": "value1", "key2": "value2"}
 
         with pytest.raises(SlackApiError):
             slack_hook.call(test_method, data=test_api_params)
 
-    @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
+    @mock.patch("airflow.providers.slack.hooks.slack.WebClient")
     def test_api_call(self, slack_client_class_mock):
         slack_client_mock = mock.Mock()
         slack_client_class_mock.return_value = slack_client_mock
-        slack_client_mock.api_call.return_value = {'ok': True}
+        slack_client_mock.api_call.return_value = {"ok": True}
 
         slack_hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
-        test_api_json = {'channel': 'test_channel'}
+        test_api_json = {"channel": "test_channel"}
 
         slack_hook.call("chat.postMessage", json=test_api_json)
         slack_client_mock.api_call.assert_called_with("chat.postMessage", json=test_api_json)
@@ -309,7 +309,7 @@ class TestSlackHook:
             b"some-binary-data",
         ],
     )
-    @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
+    @mock.patch("airflow.providers.slack.hooks.slack.WebClient")
     def test_hook_connection_success(self, mock_webclient_cls, response_data):
         """Test SlackHook success connection."""
         mock_webclient = mock_webclient_cls.return_value
@@ -333,7 +333,7 @@ class TestSlackHook:
             b"some-binary-data",
         ],
     )
-    @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
+    @mock.patch("airflow.providers.slack.hooks.slack.WebClient")
     def test_hook_connection_failed(self, mock_webclient_cls, response_data):
         """Test SlackHook failure connection."""
         mock_webclient = mock_webclient_cls.return_value
@@ -356,7 +356,7 @@ class TestSlackHook:
         with pytest.raises(ValueError, match=error_message):
             hook.send_file(file=file, content=content)
 
-    @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
+    @mock.patch("airflow.providers.slack.hooks.slack.WebClient")
     @pytest.mark.parametrize("initial_comment", [None, "test comment"])
     @pytest.mark.parametrize("title", [None, "test title"])
     @pytest.mark.parametrize("filetype", [None, "auto"])
@@ -396,7 +396,7 @@ class TestSlackHook:
         assert mock_file.mode == "rb"
         assert mock_file.name == str(file)
 
-    @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
+    @mock.patch("airflow.providers.slack.hooks.slack.WebClient")
     @pytest.mark.parametrize("filename", ["test.json", "1.parquet.snappy"])
     def test_send_file_path_set_filename(self, mock_webclient_cls, tmp_path_factory, filename):
         """Test set filename in send_file method if it not set."""
@@ -415,7 +415,7 @@ class TestSlackHook:
         assert "filename" in call_args
         assert call_args["filename"] == filename
 
-    @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
+    @mock.patch("airflow.providers.slack.hooks.slack.WebClient")
     @pytest.mark.parametrize("initial_comment", [None, "test comment"])
     @pytest.mark.parametrize("title", [None, "test title"])
     @pytest.mark.parametrize("filetype", [None, "auto"])
@@ -447,14 +447,14 @@ class TestSlackHook:
 
     def test__ensure_prefixes_removal(self):
         """Ensure that _ensure_prefixes is removed from snowflake when airflow min version >= 2.5.0."""
-        path = 'airflow.providers.slack.hooks.slack._ensure_prefixes'
+        path = "airflow.providers.slack.hooks.slack._ensure_prefixes"
         if not object_exists(path):
             raise Exception(
                 "You must remove this test. It only exists to "
                 "remind us to remove decorator `_ensure_prefixes`."
             )
 
-        if get_provider_min_airflow_version('apache-airflow-providers-slack') >= (2, 5):
+        if get_provider_min_airflow_version("apache-airflow-providers-slack") >= (2, 5):
             raise Exception(
                 "You must now remove `_ensure_prefixes` from SlackHook."
                 " The functionality is now taken care of by providers manager."
@@ -466,28 +466,28 @@ class TestSlackHook:
 
         Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
         """
-        assert list(SlackHook.get_ui_field_behaviour()['placeholders'].keys()) == [
-            'password',
-            'extra__slack__timeout',
-            'extra__slack__base_url',
-            'extra__slack__proxy',
+        assert list(SlackHook.get_ui_field_behaviour()["placeholders"].keys()) == [
+            "password",
+            "extra__slack__timeout",
+            "extra__slack__base_url",
+            "extra__slack__proxy",
         ]
 
     @pytest.mark.parametrize(
-        'uri',
+        "uri",
         [
             param(
-                'a://:abc@?extra__slack__timeout=123'
-                '&extra__slack__base_url=base_url'
-                '&extra__slack__proxy=proxy',
-                id='prefix',
+                "a://:abc@?extra__slack__timeout=123"
+                "&extra__slack__base_url=base_url"
+                "&extra__slack__proxy=proxy",
+                id="prefix",
             ),
-            param('a://:abc@?timeout=123&base_url=base_url&proxy=proxy', id='no-prefix'),
+            param("a://:abc@?timeout=123&base_url=base_url&proxy=proxy", id="no-prefix"),
         ],
     )
     def test_backcompat_prefix_works(self, uri):
         with patch.dict(os.environ, AIRFLOW_CONN_MY_CONN=uri):
-            hook = SlackHook(slack_conn_id='my_conn')
+            hook = SlackHook(slack_conn_id="my_conn")
             params = hook._get_conn_params()
             assert params["token"] == "abc"
             assert params["timeout"] == 123
@@ -497,10 +497,10 @@ class TestSlackHook:
     def test_backcompat_prefix_both_causes_warning(self):
         with patch.dict(
             in_dict=os.environ,
-            AIRFLOW_CONN_MY_CONN='a://:abc@?extra__slack__timeout=111&timeout=222',
+            AIRFLOW_CONN_MY_CONN="a://:abc@?extra__slack__timeout=111&timeout=222",
         ):
-            hook = SlackHook(slack_conn_id='my_conn')
-            with pytest.warns(Warning, match='Using value for `timeout`'):
+            hook = SlackHook(slack_conn_id="my_conn")
+            with pytest.warns(Warning, match="Using value for `timeout`"):
                 params = hook._get_conn_params()
                 assert params["timeout"] == 222
 
@@ -511,17 +511,17 @@ class TestSlackHook:
                 {"password": "hi", "extra": {"extra__slack__base_url": "", "extra__slack__proxy": ""}}
             ),
         ):
-            hook = SlackHook(slack_conn_id='my_conn')
+            hook = SlackHook(slack_conn_id="my_conn")
             params = hook._get_conn_params()
-            assert 'proxy' not in params
-            assert 'base_url' not in params
+            assert "proxy" not in params
+            assert "base_url" not in params
 
     def test_empty_string_ignored_non_prefixed(self):
         with patch.dict(
             in_dict=os.environ,
             AIRFLOW_CONN_MY_CONN=json.dumps({"password": "hi", "extra": {"base_url": "", "proxy": ""}}),
         ):
-            hook = SlackHook(slack_conn_id='my_conn')
+            hook = SlackHook(slack_conn_id="my_conn")
             params = hook._get_conn_params()
-            assert 'proxy' not in params
-            assert 'base_url' not in params
+            assert "proxy" not in params
+            assert "base_url" not in params

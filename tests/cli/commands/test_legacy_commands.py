@@ -65,7 +65,7 @@ class TestCliDeprecatedCommandsValue:
 
     def test_should_display_value(self):
         with pytest.raises(SystemExit) as ctx, contextlib.redirect_stderr(io.StringIO()) as temp_stderr:
-            config_command.get_value(self.parser.parse_args(['worker']))
+            config_command.get_value(self.parser.parse_args(["worker"]))
 
         assert 2 == ctx.value.code
         assert (
@@ -80,7 +80,7 @@ class TestCliDeprecatedCommandsValue:
     def test_check_legacy_command(self):
         action = MagicMock()
         with pytest.raises(ArgumentError) as ctx:
-            check_legacy_command(action, 'list_users')
+            check_legacy_command(action, "list_users")
         assert (
             str(ctx.value)
             == "argument : `airflow list_users` command, has been removed, please use `airflow users list`"

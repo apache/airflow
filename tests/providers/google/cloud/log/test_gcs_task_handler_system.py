@@ -44,7 +44,7 @@ from tests.test_utils.gcp_system_helpers import (
 class TestGCSTaskHandlerSystemTest(GoogleSystemTest):
     @classmethod
     def setUpClass(cls) -> None:
-        unique_suffix = ''.join(random.sample(string.ascii_lowercase, 16))
+        unique_suffix = "".join(random.sample(string.ascii_lowercase, 16))
         cls.bucket_name = f"airflow-gcs-task-handler-tests-{unique_suffix}"  # type: ignore
         cls.create_gcs_bucket(cls.bucket_name)  # type: ignore
         clear_db_connections()
@@ -68,7 +68,7 @@ class TestGCSTaskHandlerSystemTest(GoogleSystemTest):
     @provide_session
     def test_should_read_logs(self, session):
         with mock.patch.dict(
-            'os.environ',
+            "os.environ",
             AIRFLOW__LOGGING__REMOTE_LOGGING="true",
             AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER=f"gs://{self.bucket_name}/path/to/logs",
             AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID="google_cloud_default",
@@ -80,7 +80,7 @@ class TestGCSTaskHandlerSystemTest(GoogleSystemTest):
             assert 0 == subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait()
 
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
-        dag = DagBag(dag_folder=example_complex.__file__).dags['example_complex']
+        dag = DagBag(dag_folder=example_complex.__file__).dags["example_complex"]
         task = dag.task_dict["create_entry_group"]
         ti.task = task
         self.assert_remote_logs("INFO - Task exited with return code 0", ti)
@@ -88,9 +88,9 @@ class TestGCSTaskHandlerSystemTest(GoogleSystemTest):
     def assert_remote_logs(self, expected_message, ti):
         with provide_gcp_context(GCP_GCS_KEY), conf_vars(
             {
-                ('logging', 'remote_logging'): 'True',
-                ('logging', 'remote_base_log_folder'): f"gs://{self.bucket_name}/path/to/logs",
-                ('logging', 'remote_log_conn_id'): "google_cloud_default",
+                ("logging", "remote_logging"): "True",
+                ("logging", "remote_base_log_folder"): f"gs://{self.bucket_name}/path/to/logs",
+                ("logging", "remote_log_conn_id"): "google_cloud_default",
             }
         ):
             from airflow.config_templates import airflow_local_settings

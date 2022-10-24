@@ -117,7 +117,7 @@ class TestAirflowCommon:
         assert 7 == len(k8s_objects)
 
         for k8s_object in k8s_objects:
-            if k8s_object['kind'] == 'CronJob':
+            if k8s_object["kind"] == "CronJob":
                 annotations = k8s_object["spec"]["jobTemplate"]["spec"]["template"]["metadata"]["annotations"]
             else:
                 annotations = k8s_object["spec"]["template"]["metadata"]["annotations"]
@@ -255,14 +255,14 @@ class TestAirflowCommon:
             ],
         )
         expected_vars = [
-            'AIRFLOW__CORE__FERNET_KEY',
-            'AIRFLOW_CONN_AIRFLOW_DB',
-            'AIRFLOW__CELERY__BROKER_URL',
+            "AIRFLOW__CORE__FERNET_KEY",
+            "AIRFLOW_CONN_AIRFLOW_DB",
+            "AIRFLOW__CELERY__BROKER_URL",
         ]
-        expected_vars_in_worker = ['DUMB_INIT_SETSID'] + expected_vars
+        expected_vars_in_worker = ["DUMB_INIT_SETSID"] + expected_vars
         for doc in docs:
-            component = doc['metadata']['labels']['component']
-            variables = expected_vars_in_worker if component == 'worker' else expected_vars
+            component = doc["metadata"]["labels"]["component"]
+            variables = expected_vars_in_worker if component == "worker" else expected_vars
             assert variables == jmespath.search(
                 "spec.template.spec.containers[0].env[*].name", doc
             ), f"Wrong vars in {component}"
@@ -279,17 +279,17 @@ class TestAirflowCommon:
             ],
         )
         expected_vars = [
-            'AIRFLOW__CORE__FERNET_KEY',
-            'AIRFLOW__CORE__SQL_ALCHEMY_CONN',
-            'AIRFLOW__DATABASE__SQL_ALCHEMY_CONN',
-            'AIRFLOW_CONN_AIRFLOW_DB',
-            'AIRFLOW__WEBSERVER__SECRET_KEY',
-            'AIRFLOW__CELERY__BROKER_URL',
+            "AIRFLOW__CORE__FERNET_KEY",
+            "AIRFLOW__CORE__SQL_ALCHEMY_CONN",
+            "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
+            "AIRFLOW_CONN_AIRFLOW_DB",
+            "AIRFLOW__WEBSERVER__SECRET_KEY",
+            "AIRFLOW__CELERY__BROKER_URL",
         ]
-        expected_vars_in_worker = ['DUMB_INIT_SETSID'] + expected_vars
+        expected_vars_in_worker = ["DUMB_INIT_SETSID"] + expected_vars
         for doc in docs:
-            component = doc['metadata']['labels']['component']
-            variables = expected_vars_in_worker if component == 'worker' else expected_vars
+            component = doc["metadata"]["labels"]["component"]
+            variables = expected_vars_in_worker if component == "worker" else expected_vars
             assert variables == jmespath.search(
                 "spec.template.spec.containers[0].env[*].name", doc
             ), f"Wrong vars in {component}"
@@ -343,7 +343,7 @@ class TestAirflowCommon:
 
         assert 7 == len(docs)
         for doc in docs:
-            component = doc['metadata']['labels']['component']
-            priority = doc['spec']['template']['spec']['priorityClassName']
+            component = doc["metadata"]["labels"]["component"]
+            priority = doc["spec"]["template"]["spec"]["priorityClassName"]
 
             assert priority == f"low-priority-{component}"

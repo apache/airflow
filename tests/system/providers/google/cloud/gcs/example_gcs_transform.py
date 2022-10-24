@@ -48,7 +48,7 @@ TRANSFORM_SCRIPT_PATH = str(Path(__file__).parent / "resources" / "transform_scr
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["gcs", "example"],

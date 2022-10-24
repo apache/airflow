@@ -43,21 +43,21 @@ class GcpComputeSSHExampleDagsSystemTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_COMPUTE_SSH_KEY)
     def test_run_example_dag_compute_engine_ssh(self):
-        self.run_dag('example_compute_ssh', CLOUD_DAG_FOLDER)
+        self.run_dag("example_compute_ssh", CLOUD_DAG_FOLDER)
 
     def delete_target_instance(self):
         self.execute_cmd(
             [
-                'gcloud',
-                'compute',
-                'instances',
-                'delete',
+                "gcloud",
+                "compute",
+                "instances",
+                "delete",
                 GCE_INSTANCE,
-                '--project',
+                "--project",
                 GCP_PROJECT_ID,
-                '--quiet',
-                '--verbosity=none',
-                '--zone',
+                "--quiet",
+                "--verbosity=none",
+                "--zone",
                 GCE_ZONE,
             ]
         )
@@ -65,14 +65,14 @@ class GcpComputeSSHExampleDagsSystemTest(GoogleSystemTest):
     def create_target_instance(self):
         self.execute_cmd(
             [
-                'gcloud',
-                'compute',
-                'instances',
-                'create',
+                "gcloud",
+                "compute",
+                "instances",
+                "create",
                 GCE_INSTANCE,
-                '--project',
+                "--project",
                 GCP_PROJECT_ID,
-                '--zone',
+                "--zone",
                 GCE_ZONE,
                 "--metadata=enable-oslogin=TRUE",
             ]

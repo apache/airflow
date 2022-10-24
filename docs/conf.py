@@ -43,23 +43,23 @@ import yaml
 import airflow
 from airflow.configuration import AirflowConfigParser, default_config_yaml
 
-sys.path.append(str(Path(__file__).parent / 'exts'))
+sys.path.append(str(Path(__file__).parent / "exts"))
 
 from docs_build.third_party_inventories import THIRD_PARTY_INDEXES  # noqa: E402
 
 CONF_DIR = pathlib.Path(__file__).parent.absolute()
-INVENTORY_CACHE_DIR = CONF_DIR / '_inventory_cache'
+INVENTORY_CACHE_DIR = CONF_DIR / "_inventory_cache"
 ROOT_DIR = CONF_DIR.parent
-FOR_PRODUCTION = os.environ.get('AIRFLOW_FOR_PRODUCTION', 'false') == 'true'
+FOR_PRODUCTION = os.environ.get("AIRFLOW_FOR_PRODUCTION", "false") == "true"
 
 # By default (e.g. on RTD), build docs for `airflow` package
-PACKAGE_NAME = os.environ.get('AIRFLOW_PACKAGE_NAME', 'apache-airflow')
+PACKAGE_NAME = os.environ.get("AIRFLOW_PACKAGE_NAME", "apache-airflow")
 PACKAGE_DIR: pathlib.Path
-if PACKAGE_NAME == 'apache-airflow':
-    PACKAGE_DIR = ROOT_DIR / 'airflow'
+if PACKAGE_NAME == "apache-airflow":
+    PACKAGE_DIR = ROOT_DIR / "airflow"
     PACKAGE_VERSION = airflow.__version__
     SYSTEM_TESTS_DIR = None
-elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
+elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
     from provider_yaml_utils import load_package_data
 
     ALL_PROVIDER_YAMLS = load_package_data()
@@ -67,39 +67,39 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
         CURRENT_PROVIDER = next(
             provider_yaml
             for provider_yaml in ALL_PROVIDER_YAMLS
-            if provider_yaml['package-name'] == PACKAGE_NAME
+            if provider_yaml["package-name"] == PACKAGE_NAME
         )
     except StopIteration:
         raise Exception(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
-    PACKAGE_DIR = pathlib.Path(CURRENT_PROVIDER['package-dir'])
-    PACKAGE_VERSION = CURRENT_PROVIDER['versions'][0]
-    SYSTEM_TESTS_DIR = CURRENT_PROVIDER['system-tests-dir']
-elif PACKAGE_NAME == 'apache-airflow-providers':
+    PACKAGE_DIR = pathlib.Path(CURRENT_PROVIDER["package-dir"])
+    PACKAGE_VERSION = CURRENT_PROVIDER["versions"][0]
+    SYSTEM_TESTS_DIR = CURRENT_PROVIDER["system-tests-dir"]
+elif PACKAGE_NAME == "apache-airflow-providers":
     from provider_yaml_utils import load_package_data
 
-    PACKAGE_DIR = ROOT_DIR / 'airflow' / 'providers'
-    PACKAGE_VERSION = 'devel'
+    PACKAGE_DIR = ROOT_DIR / "airflow" / "providers"
+    PACKAGE_VERSION = "devel"
     ALL_PROVIDER_YAMLS = load_package_data()
     SYSTEM_TESTS_DIR = None
-elif PACKAGE_NAME == 'helm-chart':
-    PACKAGE_DIR = ROOT_DIR / 'chart'
-    chart_yaml_file = PACKAGE_DIR / 'Chart.yaml'
+elif PACKAGE_NAME == "helm-chart":
+    PACKAGE_DIR = ROOT_DIR / "chart"
+    chart_yaml_file = PACKAGE_DIR / "Chart.yaml"
 
     with chart_yaml_file.open() as chart_file:
         chart_yaml_contents = yaml.safe_load(chart_file)
 
-    PACKAGE_VERSION = chart_yaml_contents['version']
+    PACKAGE_VERSION = chart_yaml_contents["version"]
     SYSTEM_TESTS_DIR = None
 else:
-    PACKAGE_VERSION = 'devel'
+    PACKAGE_VERSION = "devel"
     SYSTEM_TESTS_DIR = None
 # Adds to environment variables for easy access from other plugins like airflow_intersphinx.
-os.environ['AIRFLOW_PACKAGE_NAME'] = PACKAGE_NAME
+os.environ["AIRFLOW_PACKAGE_NAME"] = PACKAGE_NAME
 
 # Hack to allow changing for piece of the code to behave differently while
 # the docs are being built. The main objective was to alter the
 # behavior of the utils.apply_default that was hiding function headers
-os.environ['BUILDING_AIRFLOW_DOCS'] = 'TRUE'
+os.environ["BUILDING_AIRFLOW_DOCS"] = "TRUE"
 
 # == Sphinx configuration ======================================================
 
@@ -119,7 +119,7 @@ rst_epilog = f"""
 .. |experimental| replace:: This is an :ref:`experimental feature <experimental>`.
 """
 
-smartquotes_excludes = {'builders': ['man', 'text', 'spelling']}
+smartquotes_excludes = {"builders": ["man", "text", "spelling"]}
 
 
 # -- General configuration -----------------------------------------------------
@@ -129,31 +129,31 @@ smartquotes_excludes = {'builders': ['man', 'text', 'spelling']}
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'provider_init_hack',
-    'sphinx.ext.autodoc',
-    'sphinx.ext.viewcode',
-    'sphinxarg.ext',
-    'sphinx.ext.intersphinx',
-    'exampleinclude',
-    'docroles',
-    'removemarktransform',
-    'sphinx_copybutton',
-    'airflow_intersphinx',
+    "provider_init_hack",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.viewcode",
+    "sphinxarg.ext",
+    "sphinx.ext.intersphinx",
+    "exampleinclude",
+    "docroles",
+    "removemarktransform",
+    "sphinx_copybutton",
+    "airflow_intersphinx",
     "sphinxcontrib.spelling",
-    'sphinx_airflow_theme',
-    'redirects',
-    'substitution_extensions',
+    "sphinx_airflow_theme",
+    "redirects",
+    "substitution_extensions",
 ]
-if PACKAGE_NAME == 'apache-airflow':
+if PACKAGE_NAME == "apache-airflow":
     extensions.extend(
         [
-            'sphinx_jinja',
-            'sphinx.ext.graphviz',
-            'sphinxcontrib.httpdomain',
-            'sphinxcontrib.httpdomain',
-            'extra_files_with_substitutions',
+            "sphinx_jinja",
+            "sphinx.ext.graphviz",
+            "sphinxcontrib.httpdomain",
+            "sphinxcontrib.httpdomain",
+            "extra_files_with_substitutions",
             # First, generate redoc
-            'sphinxcontrib.redoc',
+            "sphinxcontrib.redoc",
             # Second, update redoc script
             "sphinx_script_update",
         ]
@@ -162,9 +162,9 @@ if PACKAGE_NAME == 'apache-airflow':
 if PACKAGE_NAME == "apache-airflow-providers":
     extensions.extend(
         [
-            'sphinx_jinja',
-            'operators_and_hooks_ref',
-            'providers_packages_ref',
+            "sphinx_jinja",
+            "operators_and_hooks_ref",
+            "providers_packages_ref",
         ]
     )
 elif PACKAGE_NAME == "helm-chart":
@@ -173,23 +173,23 @@ elif PACKAGE_NAME == "docker-stack":
     # No extra extensions
     pass
 else:
-    extensions.append('autoapi.extension')
+    extensions.append("autoapi.extension")
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 exclude_patterns: list[str]
-if PACKAGE_NAME == 'apache-airflow':
+if PACKAGE_NAME == "apache-airflow":
     exclude_patterns = [
         # We only link to selected subpackages.
-        '_api/airflow/index.rst',
-        'README.rst',
+        "_api/airflow/index.rst",
+        "README.rst",
     ]
-elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
+elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
     extensions.extend(
         [
-            'sphinx_jinja',
+            "sphinx_jinja",
         ]
     )
-    exclude_patterns = ['operators/_partials']
+    exclude_patterns = ["operators/_partials"]
 else:
     exclude_patterns = []
 
@@ -198,7 +198,7 @@ def _get_rst_filepath_from_path(filepath: pathlib.Path):
     if filepath.is_dir():
         result = filepath
     else:
-        if filepath.name == '__init__.py':
+        if filepath.name == "__init__.py":
             result = filepath.parent
         else:
             result = filepath.with_name(filepath.stem)
@@ -207,7 +207,7 @@ def _get_rst_filepath_from_path(filepath: pathlib.Path):
     return f"_api/{result.relative_to(ROOT_DIR)}"
 
 
-if PACKAGE_NAME == 'apache-airflow':
+if PACKAGE_NAME == "apache-airflow":
     # Exclude top-level packages
     # do not exclude these top-level modules from the doc build:
     _allowed_top_level = ("exceptions.py",)
@@ -237,13 +237,13 @@ if PACKAGE_NAME == 'apache-airflow':
     for path in (root / "utils").iterdir():
         if path.name not in browseable_utils:
             exclude_patterns.append(_get_rst_filepath_from_path(path))
-elif PACKAGE_NAME != 'docker-stack':
+elif PACKAGE_NAME != "docker-stack":
     exclude_patterns.extend(
         _get_rst_filepath_from_path(f) for f in pathlib.Path(PACKAGE_DIR).glob("**/example_dags")
     )
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['templates']
+templates_path = ["templates"]
 
 # If true, keep warnings as "system message" paragraphs in the built documents.
 keep_warnings = True
@@ -253,11 +253,11 @@ keep_warnings = True
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'sphinx_airflow_theme'
+html_theme = "sphinx_airflow_theme"
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-if PACKAGE_NAME == 'apache-airflow':
+if PACKAGE_NAME == "apache-airflow":
     html_title = "Airflow Documentation"
 else:
     html_title = f"{PACKAGE_NAME} Documentation"
@@ -273,19 +273,19 @@ html_favicon = "../airflow/www/static/pin_32.png"
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-if PACKAGE_NAME in ['apache-airflow', 'helm-chart']:
-    html_static_path = [f'{PACKAGE_NAME}/static']
+if PACKAGE_NAME in ["apache-airflow", "helm-chart"]:
+    html_static_path = [f"{PACKAGE_NAME}/static"]
 else:
     html_static_path = []
 # A list of JavaScript filename. The entry must be a filename string or a
 # tuple containing the filename string and the attributes dictionary. The
 # filename must be relative to the html_static_path, or a full URI with
 # scheme like http://example.org/script.js.
-if PACKAGE_NAME in ['apache-airflow', 'helm-chart']:
-    html_js_files = ['gh-jira-links.js']
+if PACKAGE_NAME in ["apache-airflow", "helm-chart"]:
+    html_js_files = ["gh-jira-links.js"]
 else:
     html_js_files = []
-if PACKAGE_NAME == 'apache-airflow':
+if PACKAGE_NAME == "apache-airflow":
     html_extra_path = [
         f"{ROOT_DIR}/docs/apache-airflow/howto/docker-compose/airflow.sh",
     ]
@@ -299,22 +299,22 @@ if PACKAGE_NAME == 'apache-airflow':
         "installation/installing-from-sources.html",
     ]
 
-if PACKAGE_NAME == 'docker-stack':
+if PACKAGE_NAME == "docker-stack":
     # Replace "|version|" inside ```` quotes
     manual_substitutions_in_generated_html = ["build.html"]
 
 # -- Theme configuration -------------------------------------------------------
 # Custom sidebar templates, maps document names to template names.
 html_sidebars = {
-    '**': [
-        'version-selector.html',
-        'searchbox.html',
-        'globaltoc.html',
+    "**": [
+        "version-selector.html",
+        "searchbox.html",
+        "globaltoc.html",
     ]
-    if FOR_PRODUCTION and PACKAGE_VERSION != 'devel'
+    if FOR_PRODUCTION and PACKAGE_VERSION != "devel"
     else [
-        'searchbox.html',
-        'globaltoc.html',
+        "searchbox.html",
+        "globaltoc.html",
     ]
 }
 
@@ -325,21 +325,21 @@ html_use_index = True
 html_show_copyright = False
 
 # Theme configuration
-if PACKAGE_NAME.startswith('apache-airflow-providers-'):
+if PACKAGE_NAME.startswith("apache-airflow-providers-"):
     # Only hide hidden items for providers. For Chart and Airflow we are using the approach where
     # TOC is hidden but sidebar still shows the content (but we are not doing it for providers).
-    html_theme_options: dict[str, Any] = {'hide_website_buttons': True, 'sidebar_includehidden': False}
+    html_theme_options: dict[str, Any] = {"hide_website_buttons": True, "sidebar_includehidden": False}
 else:
-    html_theme_options = {'hide_website_buttons': True, 'sidebar_includehidden': True}
+    html_theme_options = {"hide_website_buttons": True, "sidebar_includehidden": True}
 if FOR_PRODUCTION:
-    html_theme_options['navbar_links'] = [
-        {'href': '/community/', 'text': 'Community'},
-        {'href': '/meetups/', 'text': 'Meetups'},
-        {'href': '/docs/', 'text': 'Documentation'},
-        {'href': '/use-cases/', 'text': 'Use-cases'},
-        {'href': '/announcements/', 'text': 'Announcements'},
-        {'href': '/blog/', 'text': 'Blog'},
-        {'href': '/ecosystem/', 'text': 'Ecosystem'},
+    html_theme_options["navbar_links"] = [
+        {"href": "/community/", "text": "Community"},
+        {"href": "/meetups/", "text": "Meetups"},
+        {"href": "/docs/", "text": "Documentation"},
+        {"href": "/use-cases/", "text": "Use-cases"},
+        {"href": "/announcements/", "text": "Announcements"},
+        {"href": "/blog/", "text": "Blog"},
+        {"href": "/ecosystem/", "text": "Ecosystem"},
     ]
 
 # A dictionary of values to pass into the template engine's context for all pages.
@@ -347,7 +347,7 @@ html_context = {
     # Google Analytics ID.
     # For more information look at:
     # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/layout.html#L222-L232
-    'theme_analytics_id': 'UA-140539454-1',
+    "theme_analytics_id": "UA-140539454-1",
     # Variables used to build a button for editing the source code
     #
     # The path is created according to the following template:
@@ -361,13 +361,13 @@ html_context = {
     # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/breadcrumbs.html#L45
     # https://github.com/apache/airflow-site/blob/91f760c/sphinx_airflow_theme/sphinx_airflow_theme/suggest_change_button.html#L36-L40
     #
-    'theme_vcs_pageview_mode': 'edit',
-    'conf_py_path': f'/docs/{PACKAGE_NAME}/',
-    'github_user': 'apache',
-    'github_repo': 'airflow',
-    'github_version': 'main',
-    'display_github': 'main',
-    'suffix': '.rst',
+    "theme_vcs_pageview_mode": "edit",
+    "conf_py_path": f"/docs/{PACKAGE_NAME}/",
+    "github_user": "apache",
+    "github_repo": "airflow",
+    "github_version": "main",
+    "display_github": "main",
+    "suffix": ".rst",
 }
 
 # == Extensions configuration ==================================================
@@ -376,7 +376,7 @@ html_context = {
 # See: https://github.com/tardyp/sphinx-jinja
 
 # Jinja context
-if PACKAGE_NAME == 'apache-airflow':
+if PACKAGE_NAME == "apache-airflow":
     deprecated_options: dict[str, dict[str, tuple[str, str, str]]] = defaultdict(dict)
     for (section, key), (
         (deprecated_section, deprecated_key, since_version)
@@ -402,24 +402,24 @@ if PACKAGE_NAME == 'apache-airflow':
         deprecated_options[section] = {k: v for k, v in sorted(deprecated_options[section].items())}
 
     jinja_contexts = {
-        'config_ctx': {"configs": configs, "deprecated_options": deprecated_options},
-        'quick_start_ctx': {
-            'doc_root_url': f'https://airflow.apache.org/docs/apache-airflow/{PACKAGE_VERSION}/'
+        "config_ctx": {"configs": configs, "deprecated_options": deprecated_options},
+        "quick_start_ctx": {
+            "doc_root_url": f"https://airflow.apache.org/docs/apache-airflow/{PACKAGE_VERSION}/"
             if FOR_PRODUCTION
             else (
-                'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest/'
+                "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest/"
             )
         },
-        'official_download_page': {
-            'base_url': f'https://downloads.apache.org/airflow/{PACKAGE_VERSION}',
-            'closer_lua_url': f'https://www.apache.org/dyn/closer.lua/airflow/{PACKAGE_VERSION}',
-            'airflow_version': PACKAGE_VERSION,
+        "official_download_page": {
+            "base_url": f"https://downloads.apache.org/airflow/{PACKAGE_VERSION}",
+            "closer_lua_url": f"https://www.apache.org/dyn/closer.lua/airflow/{PACKAGE_VERSION}",
+            "airflow_version": PACKAGE_VERSION,
         },
     }
-elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
+elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
 
     def _load_config():
-        file_path = PACKAGE_DIR / 'config_templates' / 'config.yml'
+        file_path = PACKAGE_DIR / "config_templates" / "config.yml"
         if not file_path.exists():
             return {}
 
@@ -428,22 +428,22 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
 
     config = _load_config()
     jinja_contexts = {
-        'config_ctx': {"configs": config},
-        'official_download_page': {
-            'base_url': 'https://downloads.apache.org/airflow/providers',
-            'closer_lua_url': 'https://www.apache.org/dyn/closer.lua/airflow/providers',
-            'package_name': PACKAGE_NAME,
-            'package_name_underscores': PACKAGE_NAME.replace('-', '_'),
-            'package_version': PACKAGE_VERSION,
+        "config_ctx": {"configs": config},
+        "official_download_page": {
+            "base_url": "https://downloads.apache.org/airflow/providers",
+            "closer_lua_url": "https://www.apache.org/dyn/closer.lua/airflow/providers",
+            "package_name": PACKAGE_NAME,
+            "package_name_underscores": PACKAGE_NAME.replace("-", "_"),
+            "package_version": PACKAGE_VERSION,
         },
     }
-elif PACKAGE_NAME == 'apache-airflow-providers':
+elif PACKAGE_NAME == "apache-airflow-providers":
     jinja_contexts = {
-        'official_download_page': {
-            'all_providers': ALL_PROVIDER_YAMLS,
+        "official_download_page": {
+            "all_providers": ALL_PROVIDER_YAMLS,
         },
     }
-elif PACKAGE_NAME == 'helm-chart':
+elif PACKAGE_NAME == "helm-chart":
 
     def _str_representer(dumper, data):
         style = "|" if "\n" in data else None  # show as a block scalar if we have more than 1 line
@@ -455,7 +455,7 @@ elif PACKAGE_NAME == 'helm-chart':
         if value == "":
             return '""'
         if value is None:
-            return '~'
+            return "~"
         return str(value)
 
     def _format_examples(param_name: str, schema: dict) -> str | None:
@@ -524,11 +524,11 @@ elif PACKAGE_NAME == 'helm-chart':
 
     jinja_contexts = {
         "params_ctx": {"sections": ordered_sections},
-        'official_download_page': {
-            'base_url': 'https://downloads.apache.org/airflow/helm-chart',
-            'closer_lua_url': 'https://www.apache.org/dyn/closer.lua/airflow/helm-chart',
-            'package_name': PACKAGE_NAME,
-            'package_version': PACKAGE_VERSION,
+        "official_download_page": {
+            "base_url": "https://downloads.apache.org/airflow/helm-chart",
+            "closer_lua_url": "https://www.apache.org/dyn/closer.lua/airflow/helm-chart",
+            "package_name": PACKAGE_NAME,
+            "package_version": PACKAGE_VERSION,
         },
     }
 
@@ -539,69 +539,69 @@ elif PACKAGE_NAME == 'helm-chart':
 # This value contains a list of modules to be mocked up. This is useful when some external dependencies
 # are not met at build time and break the building process.
 autodoc_mock_imports = [
-    'MySQLdb',
-    'adal',
-    'analytics',
-    'azure',
-    'azure.cosmos',
-    'azure.datalake',
-    'azure.kusto',
-    'azure.mgmt',
-    'boto3',
-    'botocore',
-    'bson',
-    'cassandra',
-    'celery',
-    'cloudant',
-    'cryptography',
-    'datadog',
-    'distributed',
-    'docker',
-    'google',
-    'google_auth_httplib2',
-    'googleapiclient',
-    'grpc',
-    'hdfs',
-    'httplib2',
-    'jaydebeapi',
-    'jenkins',
-    'jira',
-    'kubernetes',
-    'msrestazure',
-    'oss2',
-    'oracledb',
-    'pandas',
-    'pandas_gbq',
-    'paramiko',
-    'pinotdb',
-    'psycopg2',
-    'pydruid',
-    'pyhive',
-    'pyhive',
-    'pymongo',
-    'pymssql',
-    'pysftp',
-    'qds_sdk',
-    'redis',
-    'simple_salesforce',
-    'slack_sdk',
-    'smbclient',
-    'snowflake',
-    'sqlalchemy-drill',
-    'sshtunnel',
-    'telegram',
-    'tenacity',
-    'vertica_python',
-    'winrm',
-    'zenpy',
+    "MySQLdb",
+    "adal",
+    "analytics",
+    "azure",
+    "azure.cosmos",
+    "azure.datalake",
+    "azure.kusto",
+    "azure.mgmt",
+    "boto3",
+    "botocore",
+    "bson",
+    "cassandra",
+    "celery",
+    "cloudant",
+    "cryptography",
+    "datadog",
+    "distributed",
+    "docker",
+    "google",
+    "google_auth_httplib2",
+    "googleapiclient",
+    "grpc",
+    "hdfs",
+    "httplib2",
+    "jaydebeapi",
+    "jenkins",
+    "jira",
+    "kubernetes",
+    "msrestazure",
+    "oss2",
+    "oracledb",
+    "pandas",
+    "pandas_gbq",
+    "paramiko",
+    "pinotdb",
+    "psycopg2",
+    "pydruid",
+    "pyhive",
+    "pyhive",
+    "pymongo",
+    "pymssql",
+    "pysftp",
+    "qds_sdk",
+    "redis",
+    "simple_salesforce",
+    "slack_sdk",
+    "smbclient",
+    "snowflake",
+    "sqlalchemy-drill",
+    "sshtunnel",
+    "telegram",
+    "tenacity",
+    "vertica_python",
+    "winrm",
+    "zenpy",
 ]
 
 # The default options for autodoc directives. They are applied to all autodoc directives automatically.
-autodoc_default_options = {'show-inheritance': True, 'members': True}
+autodoc_default_options = {"show-inheritance": True, "members": True}
 
-autodoc_typehints = 'description'
-autodoc_typehints_description_target = 'documented'
-autodoc_typehints_format = 'short'
+autodoc_typehints = "description"
+autodoc_typehints_description_target = "documented"
+autodoc_typehints_format = "short"
 
 
 # -- Options for sphinx.ext.intersphinx ----------------------------------------
@@ -611,52 +611,52 @@ autodoc_typehints_format = 'short'
 # be linked to in this documentation.
 # Inventories are only downloaded once by docs/exts/docs_build/fetch_inventories.py.
 intersphinx_mapping = {
-    pkg_name: (f"{THIRD_PARTY_INDEXES[pkg_name]}/", (f'{INVENTORY_CACHE_DIR}/{pkg_name}/objects.inv',))
+    pkg_name: (f"{THIRD_PARTY_INDEXES[pkg_name]}/", (f"{INVENTORY_CACHE_DIR}/{pkg_name}/objects.inv",))
     for pkg_name in [
-        'boto3',
-        'celery',
-        'docker',
-        'hdfs',
-        'jinja2',
-        'mongodb',
-        'pandas',
-        'python',
-        'requests',
-        'sqlalchemy',
+        "boto3",
+        "celery",
+        "docker",
+        "hdfs",
+        "jinja2",
+        "mongodb",
+        "pandas",
+        "python",
+        "requests",
+        "sqlalchemy",
     ]
 }
-if PACKAGE_NAME in ('apache-airflow-providers-google', 'apache-airflow'):
+if PACKAGE_NAME in ("apache-airflow-providers-google", "apache-airflow"):
     intersphinx_mapping.update(
         {
             pkg_name: (
                 f"{THIRD_PARTY_INDEXES[pkg_name]}/",
-                (f'{INVENTORY_CACHE_DIR}/{pkg_name}/objects.inv',),
+                (f"{INVENTORY_CACHE_DIR}/{pkg_name}/objects.inv",),
             )
             for pkg_name in [
-                'google-api-core',
-                'google-cloud-automl',
-                'google-cloud-bigquery',
-                'google-cloud-bigquery-datatransfer',
-                'google-cloud-bigquery-storage',
-                'google-cloud-bigtable',
-                'google-cloud-container',
-                'google-cloud-core',
-                'google-cloud-datacatalog',
-                'google-cloud-datastore',
-                'google-cloud-dlp',
-                'google-cloud-kms',
-                'google-cloud-language',
-                'google-cloud-monitoring',
-                'google-cloud-pubsub',
-                'google-cloud-redis',
-                'google-cloud-spanner',
-                'google-cloud-speech',
-                'google-cloud-storage',
-                'google-cloud-tasks',
-                'google-cloud-texttospeech',
-                'google-cloud-translate',
-                'google-cloud-videointelligence',
-                'google-cloud-vision',
+                "google-api-core",
+                "google-cloud-automl",
+                "google-cloud-bigquery",
+                "google-cloud-bigquery-datatransfer",
+                "google-cloud-bigquery-storage",
+                "google-cloud-bigtable",
+                "google-cloud-container",
+                "google-cloud-core",
+                "google-cloud-datacatalog",
+                "google-cloud-datastore",
+                "google-cloud-dlp",
+                "google-cloud-kms",
+                "google-cloud-language",
+                "google-cloud-monitoring",
+                "google-cloud-pubsub",
+                "google-cloud-redis",
+                "google-cloud-spanner",
+                "google-cloud-speech",
+                "google-cloud-storage",
+                "google-cloud-tasks",
+                "google-cloud-texttospeech",
+                "google-cloud-translate",
+                "google-cloud-videointelligence",
+                "google-cloud-vision",
             ]
         }
     )
@@ -675,41 +675,41 @@ viewcode_follow_imported_members = True
 # your API documentation from.
 autoapi_dirs: list[os.PathLike] = []
 
-if PACKAGE_NAME != 'docker-stack':
+if PACKAGE_NAME != "docker-stack":
     autoapi_dirs.append(PACKAGE_DIR)
 
 if SYSTEM_TESTS_DIR and os.path.exists(SYSTEM_TESTS_DIR):
     autoapi_dirs.append(SYSTEM_TESTS_DIR)
 
 # A directory that has user-defined templates to override our default templates.
-if PACKAGE_NAME == 'apache-airflow':
-    autoapi_template_dir = 'autoapi_templates'
+if PACKAGE_NAME == "apache-airflow":
+    autoapi_template_dir = "autoapi_templates"
 
 # A list of patterns to ignore when finding files
 autoapi_ignore = [
-    '*/airflow/_vendor/*',
-    '*/_internal*',
-    '*/node_modules/*',
-    '*/migrations/*',
-    '*/contrib/*',
-    '**/example_sla_dag.py',
-    '**/example_taskflow_api_docker_virtualenv.py',
-    '**/example_dag_decorator.py',
+    "*/airflow/_vendor/*",
+    "*/_internal*",
+    "*/node_modules/*",
+    "*/migrations/*",
+    "*/contrib/*",
+    "**/example_sla_dag.py",
+    "**/example_taskflow_api_docker_virtualenv.py",
+    "**/example_dag_decorator.py",
 ]
-if PACKAGE_NAME == 'apache-airflow':
-    autoapi_ignore.append('*/airflow/providers/*')
-elif PACKAGE_NAME == 'docker-stack':
-    autoapi_ignore.append('*/airflow/providers/*')
+if PACKAGE_NAME == "apache-airflow":
+    autoapi_ignore.append("*/airflow/providers/*")
+elif PACKAGE_NAME == "docker-stack":
+    autoapi_ignore.append("*/airflow/providers/*")
 else:
-    autoapi_ignore.append('*/airflow/providers/cncf/kubernetes/backcompat/*')
-    autoapi_ignore.append('*/example_dags/*')
+    autoapi_ignore.append("*/airflow/providers/cncf/kubernetes/backcompat/*")
+    autoapi_ignore.append("*/example_dags/*")
 # Keep the AutoAPI generated files on the filesystem after the run.
 # Useful for debugging.
 autoapi_keep_files = True
 
 # Relative path to output the AutoAPI files into. This can also be used to place the generated documentation
 # anywhere in your documentation hierarchy.
-autoapi_root = '_api'
+autoapi_root = "_api"
 
 # Whether to insert the generated documentation into the TOC tree. If this is False, the default AutoAPI
 # index page is not generated and you will need to include the generated documentation in a
@@ -718,11 +718,11 @@ autoapi_add_toctree_entry = False
 
 # By default autoapi will include private members -- we don't want that!
 autoapi_options = [
-    'members',
-    'undoc-members',
-    'show-inheritance',
-    'show-module-summary',
-    'special-members',
+    "members",
+    "undoc-members",
+    "show-inheritance",
+    "show-module-summary",
+    "special-members",
 ]
 
 suppress_warnings = [
@@ -730,37 +730,37 @@ suppress_warnings = [
 ]
 
 # -- Options for ext.exampleinclude --------------------------------------------
-exampleinclude_sourceroot = os.path.abspath('..')
+exampleinclude_sourceroot = os.path.abspath("..")
 
 # -- Options for ext.redirects -------------------------------------------------
-redirects_file = 'redirects.txt'
+redirects_file = "redirects.txt"
 
 # -- Options for sphinxcontrib-spelling ----------------------------------------
-spelling_word_list_filename = [os.path.join(CONF_DIR, 'spelling_wordlist.txt')]
-if PACKAGE_NAME == 'apache-airflow':
-    spelling_exclude_patterns = ['project.rst', 'changelog.rst']
-if PACKAGE_NAME == 'helm-chart':
-    spelling_exclude_patterns = ['changelog.rst']
+spelling_word_list_filename = [os.path.join(CONF_DIR, "spelling_wordlist.txt")]
+if PACKAGE_NAME == "apache-airflow":
+    spelling_exclude_patterns = ["project.rst", "changelog.rst"]
+if PACKAGE_NAME == "helm-chart":
+    spelling_exclude_patterns = ["changelog.rst"]
 spelling_ignore_contributor_names = False
 spelling_ignore_importable_modules = True
 
 
-graphviz_output_format = 'svg'
+graphviz_output_format = "svg"
 
 # -- Options for sphinxcontrib.redoc -------------------------------------------
 # See: https://sphinxcontrib-redoc.readthedocs.io/en/stable/
-if PACKAGE_NAME == 'apache-airflow':
+if PACKAGE_NAME == "apache-airflow":
     OPENAPI_FILE = os.path.join(
         os.path.dirname(__file__), "..", "airflow", "api_connexion", "openapi", "v1.yaml"
     )
     redoc = [
         {
-            'name': 'Airflow REST API',
-            'page': 'stable-rest-api-ref',
-            'spec': OPENAPI_FILE,
-            'opts': {
-                'hide-hostname': True,
-                'no-auto-auth': True,
+            "name": "Airflow REST API",
+            "page": "stable-rest-api-ref",
+            "spec": OPENAPI_FILE,
+            "opts": {
+                "hide-hostname": True,
+                "no-auto-auth": True,
             },
         },
     ]
@@ -776,5 +776,5 @@ def skip_util_classes(app, what, name, obj, skip, options):
 
 
 def setup(sphinx):
-    if 'autoapi.extension' in extensions:
+    if "autoapi.extension" in extensions:
         sphinx.connect("autoapi-skip-member", skip_util_classes)

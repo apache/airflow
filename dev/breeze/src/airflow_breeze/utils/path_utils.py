@@ -59,11 +59,11 @@ def in_help() -> bool:
 
 
 def skip_upgrade_check():
-    return in_self_upgrade() or in_autocomplete() or in_help() or hasattr(sys, '_called_from_test')
+    return in_self_upgrade() or in_autocomplete() or in_help() or hasattr(sys, "_called_from_test")
 
 
 def skip_group_output():
-    return in_autocomplete() or in_help() or os.environ.get('SKIP_GROUP_OUTPUT') is not None
+    return in_autocomplete() or in_help() or os.environ.get("SKIP_GROUP_OUTPUT") is not None
 
 
 def get_package_setup_metadata_hash() -> str:
@@ -83,7 +83,7 @@ def get_package_setup_metadata_hash() -> str:
 
     prefix = "Package config hash: "
 
-    for line in distribution('apache-airflow-breeze').metadata.as_string().splitlines(keepends=False):
+    for line in distribution("apache-airflow-breeze").metadata.as_string().splitlines(keepends=False):
         if line.startswith(prefix):
             return line[len(prefix) :]
     return "NOT FOUND"
@@ -124,11 +124,11 @@ def get_used_sources_setup_metadata_hash() -> str:
 
 def set_forced_answer_for_upgrade_check():
     """When we run upgrade check --answer is not parsed yet, so we need to guess it."""
-    if "--answer n" in " ".join(sys.argv).lower() or os.environ.get('ANSWER', '').lower().startswith("n"):
+    if "--answer n" in " ".join(sys.argv).lower() or os.environ.get("ANSWER", "").lower().startswith("n"):
         set_forced_answer("no")
-    if "--answer y" in " ".join(sys.argv).lower() or os.environ.get('ANSWER', '').lower().startswith("y"):
+    if "--answer y" in " ".join(sys.argv).lower() or os.environ.get("ANSWER", "").lower().startswith("y"):
         set_forced_answer("yes")
-    if "--answer q" in " ".join(sys.argv).lower() or os.environ.get('ANSWER', '').lower().startswith("q"):
+    if "--answer q" in " ".join(sys.argv).lower() or os.environ.get("ANSWER", "").lower().startswith("q"):
         set_forced_answer("quit")
 
 
@@ -221,7 +221,7 @@ def find_airflow_sources_root_to_operate_on() -> Path:
     :return: Path for the found sources.
 
     """
-    sources_root_from_env = os.getenv('AIRFLOW_SOURCES_ROOT', None)
+    sources_root_from_env = os.getenv("AIRFLOW_SOURCES_ROOT", None)
     if sources_root_from_env:
         return Path(sources_root_from_env)
     installation_airflow_sources = get_installation_airflow_sources()
@@ -242,17 +242,17 @@ def find_airflow_sources_root_to_operate_on() -> Path:
 
 
 AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on().resolve()
-BUILD_CACHE_DIR = AIRFLOW_SOURCES_ROOT / '.build'
-DAGS_DIR = AIRFLOW_SOURCES_ROOT / 'dags'
-FILES_DIR = AIRFLOW_SOURCES_ROOT / 'files'
-HOOKS_DIR = AIRFLOW_SOURCES_ROOT / 'hooks'
+BUILD_CACHE_DIR = AIRFLOW_SOURCES_ROOT / ".build"
+DAGS_DIR = AIRFLOW_SOURCES_ROOT / "dags"
+FILES_DIR = AIRFLOW_SOURCES_ROOT / "files"
+HOOKS_DIR = AIRFLOW_SOURCES_ROOT / "hooks"
 KUBE_DIR = AIRFLOW_SOURCES_ROOT / ".kube"
-LOGS_DIR = AIRFLOW_SOURCES_ROOT / 'logs'
-DIST_DIR = AIRFLOW_SOURCES_ROOT / 'dist'
-SCRIPTS_CI_DIR = AIRFLOW_SOURCES_ROOT / 'scripts' / 'ci'
-DOCKER_CONTEXT_DIR = AIRFLOW_SOURCES_ROOT / 'docker-context-files'
+LOGS_DIR = AIRFLOW_SOURCES_ROOT / "logs"
+DIST_DIR = AIRFLOW_SOURCES_ROOT / "dist"
+SCRIPTS_CI_DIR = AIRFLOW_SOURCES_ROOT / "scripts" / "ci"
+DOCKER_CONTEXT_DIR = AIRFLOW_SOURCES_ROOT / "docker-context-files"
 CACHE_TMP_FILE_DIR = tempfile.TemporaryDirectory()
-OUTPUT_LOG = Path(CACHE_TMP_FILE_DIR.name, 'out.log')
+OUTPUT_LOG = Path(CACHE_TMP_FILE_DIR.name, "out.log")
 BREEZE_SOURCES_ROOT = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
 
 MSSQL_TMP_DIR_NAME = ".tmp-mssql"

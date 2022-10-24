@@ -28,40 +28,40 @@ DEFAULT_DATE = datetime.datetime(2017, 1, 1)
 
 class TestSparkSqlOperator(unittest.TestCase):
     _config = {
-        'sql': 'SELECT 22',
-        'conn_id': 'spark_special_conn_id',
-        'total_executor_cores': 4,
-        'executor_cores': 4,
-        'executor_memory': '22g',
-        'keytab': 'privileged_user.keytab',
-        'principal': 'user/spark@airflow.org',
-        'master': 'yarn-client',
-        'name': 'special-application-name',
-        'num_executors': 8,
-        'verbose': False,
-        'yarn_queue': 'special-queue',
+        "sql": "SELECT 22",
+        "conn_id": "spark_special_conn_id",
+        "total_executor_cores": 4,
+        "executor_cores": 4,
+        "executor_memory": "22g",
+        "keytab": "privileged_user.keytab",
+        "principal": "user/spark@airflow.org",
+        "master": "yarn-client",
+        "name": "special-application-name",
+        "num_executors": 8,
+        "verbose": False,
+        "yarn_queue": "special-queue",
     }
 
     def setUp(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        self.dag = DAG('test_dag_id', default_args=args)
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        self.dag = DAG("test_dag_id", default_args=args)
 
     def test_execute(self):
         # Given / When
-        operator = SparkSqlOperator(task_id='spark_sql_job', dag=self.dag, **self._config)
+        operator = SparkSqlOperator(task_id="spark_sql_job", dag=self.dag, **self._config)
 
-        assert self._config['sql'] == operator._sql
-        assert self._config['conn_id'] == operator._conn_id
-        assert self._config['total_executor_cores'] == operator._total_executor_cores
-        assert self._config['executor_cores'] == operator._executor_cores
-        assert self._config['executor_memory'] == operator._executor_memory
-        assert self._config['keytab'] == operator._keytab
-        assert self._config['principal'] == operator._principal
-        assert self._config['executor_memory'] == operator._executor_memory
-        assert self._config['keytab'] == operator._keytab
-        assert self._config['principal'] == operator._principal
-        assert self._config['master'] == operator._master
-        assert self._config['name'] == operator._name
-        assert self._config['num_executors'] == operator._num_executors
-        assert self._config['verbose'] == operator._verbose
-        assert self._config['yarn_queue'] == operator._yarn_queue
+        assert self._config["sql"] == operator._sql
+        assert self._config["conn_id"] == operator._conn_id
+        assert self._config["total_executor_cores"] == operator._total_executor_cores
+        assert self._config["executor_cores"] == operator._executor_cores
+        assert self._config["executor_memory"] == operator._executor_memory
+        assert self._config["keytab"] == operator._keytab
+        assert self._config["principal"] == operator._principal
+        assert self._config["executor_memory"] == operator._executor_memory
+        assert self._config["keytab"] == operator._keytab
+        assert self._config["principal"] == operator._principal
+        assert self._config["master"] == operator._master
+        assert self._config["name"] == operator._name
+        assert self._config["num_executors"] == operator._num_executors
+        assert self._config["verbose"] == operator._verbose
+        assert self._config["yarn_queue"] == operator._yarn_queue

@@ -29,9 +29,9 @@ AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].resolve()
 BREEZE_IMAGES_DIR = AIRFLOW_SOURCES_DIR / "images" / "breeze"
 BREEZE_INSTALL_DIR = AIRFLOW_SOURCES_DIR / "dev" / "breeze"
 BREEZE_SOURCES_DIR = BREEZE_INSTALL_DIR / "src"
-FORCE = os.environ.get('FORCE', "false")[0].lower() == "t"
-VERBOSE = os.environ.get('VERBOSE', "false")[0].lower() == "t"
-DRY_RUN = os.environ.get('DRY_RUN', "false")[0].lower() == "t"
+FORCE = os.environ.get("FORCE", "false")[0].lower() == "t"
+VERBOSE = os.environ.get("VERBOSE", "false")[0].lower() == "t"
+DRY_RUN = os.environ.get("DRY_RUN", "false")[0].lower() == "t"
 
 console = Console(width=400, color_system="standard")
 
@@ -63,9 +63,9 @@ def verify_all_commands_described_in_docs():
 
 def is_regeneration_needed() -> bool:
     env = os.environ.copy()
-    env['AIRFLOW_SOURCES_ROOT'] = str(AIRFLOW_SOURCES_DIR)
+    env["AIRFLOW_SOURCES_ROOT"] = str(AIRFLOW_SOURCES_DIR)
     # needed to keep consistent output
-    env['PYTHONPATH'] = str(BREEZE_SOURCES_DIR)
+    env["PYTHONPATH"] = str(BREEZE_SOURCES_DIR)
     return_code = call(
         [
             sys.executable,
@@ -79,12 +79,12 @@ def is_regeneration_needed() -> bool:
     return return_code != 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     verify_all_commands_described_in_docs()
     if is_regeneration_needed():
-        console.print('\n[bright_blue]Some of the commands changed since last time images were generated.\n')
+        console.print("\n[bright_blue]Some of the commands changed since last time images were generated.\n")
         console.print(
-            '\n[red]Image generation is needed. Please run this command:\n\n'
-            '[magenta]breeze setup regenerate-command-images\n'
+            "\n[red]Image generation is needed. Please run this command:\n\n"
+            "[magenta]breeze setup regenerate-command-images\n"
         )
         sys.exit(1)

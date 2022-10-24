@@ -48,14 +48,14 @@ minimal_test_ticket = _MockJiraTicket(
 
 class TestJiraSensor(unittest.TestCase):
     def setUp(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        dag = DAG('test_dag_id', default_args=args)
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        dag = DAG("test_dag_id", default_args=args)
         self.dag = dag
         db.merge_conn(
             Connection(
-                conn_id='jira_default',
-                conn_type='jira',
-                host='https://localhost/jira/',
+                conn_id="jira_default",
+                conn_type="jira",
+                host="https://localhost/jira/",
                 port=443,
                 extra='{"verify": "False", "project": "AIRFLOW"}',
             )
@@ -66,11 +66,11 @@ class TestJiraSensor(unittest.TestCase):
         jira_mock.return_value.issue.return_value = minimal_test_ticket
 
         ticket_label_sensor = JiraTicketSensor(
-            method_name='issue',
-            task_id='search-ticket-test',
-            ticket_id='TEST-1226',
-            field='labels',
-            expected_value='test-label-1',
+            method_name="issue",
+            task_id="search-ticket-test",
+            ticket_id="TEST-1226",
+            field="labels",
+            expected_value="test-label-1",
             timeout=518400,
             poke_interval=10,
             dag=self.dag,

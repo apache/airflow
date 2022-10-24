@@ -32,111 +32,111 @@ from airflow.utils.task_group import TaskGroup, task_group_to_dict
 from tests.models import DEFAULT_DATE
 
 EXPECTED_JSON = {
-    'id': None,
-    'value': {
-        'label': None,
-        'labelStyle': 'fill:#000;',
-        'style': 'fill:CornflowerBlue',
-        'rx': 5,
-        'ry': 5,
-        'clusterLabelPos': 'top',
-        'tooltip': '',
+    "id": None,
+    "value": {
+        "label": None,
+        "labelStyle": "fill:#000;",
+        "style": "fill:CornflowerBlue",
+        "rx": 5,
+        "ry": 5,
+        "clusterLabelPos": "top",
+        "tooltip": "",
     },
-    'children': [
+    "children": [
         {
-            'id': 'group234',
-            'value': {
-                'label': 'group234',
-                'labelStyle': 'fill:#000;',
-                'style': 'fill:CornflowerBlue',
-                'rx': 5,
-                'ry': 5,
-                'clusterLabelPos': 'top',
-                'tooltip': '',
+            "id": "group234",
+            "value": {
+                "label": "group234",
+                "labelStyle": "fill:#000;",
+                "style": "fill:CornflowerBlue",
+                "rx": 5,
+                "ry": 5,
+                "clusterLabelPos": "top",
+                "tooltip": "",
             },
-            'children': [
+            "children": [
                 {
-                    'id': 'group234.group34',
-                    'value': {
-                        'label': 'group34',
-                        'labelStyle': 'fill:#000;',
-                        'style': 'fill:CornflowerBlue',
-                        'rx': 5,
-                        'ry': 5,
-                        'clusterLabelPos': 'top',
-                        'tooltip': '',
+                    "id": "group234.group34",
+                    "value": {
+                        "label": "group34",
+                        "labelStyle": "fill:#000;",
+                        "style": "fill:CornflowerBlue",
+                        "rx": 5,
+                        "ry": 5,
+                        "clusterLabelPos": "top",
+                        "tooltip": "",
                     },
-                    'children': [
+                    "children": [
                         {
-                            'id': 'group234.group34.task3',
-                            'value': {
-                                'label': 'task3',
-                                'labelStyle': 'fill:#000;',
-                                'style': 'fill:#e8f7e4;',
-                                'rx': 5,
-                                'ry': 5,
+                            "id": "group234.group34.task3",
+                            "value": {
+                                "label": "task3",
+                                "labelStyle": "fill:#000;",
+                                "style": "fill:#e8f7e4;",
+                                "rx": 5,
+                                "ry": 5,
                             },
                         },
                         {
-                            'id': 'group234.group34.task4',
-                            'value': {
-                                'label': 'task4',
-                                'labelStyle': 'fill:#000;',
-                                'style': 'fill:#e8f7e4;',
-                                'rx': 5,
-                                'ry': 5,
+                            "id": "group234.group34.task4",
+                            "value": {
+                                "label": "task4",
+                                "labelStyle": "fill:#000;",
+                                "style": "fill:#e8f7e4;",
+                                "rx": 5,
+                                "ry": 5,
                             },
                         },
                         {
-                            'id': 'group234.group34.downstream_join_id',
-                            'value': {
-                                'label': '',
-                                'labelStyle': 'fill:#000;',
-                                'style': 'fill:CornflowerBlue;',
-                                'shape': 'circle',
+                            "id": "group234.group34.downstream_join_id",
+                            "value": {
+                                "label": "",
+                                "labelStyle": "fill:#000;",
+                                "style": "fill:CornflowerBlue;",
+                                "shape": "circle",
                             },
                         },
                     ],
                 },
                 {
-                    'id': 'group234.task2',
-                    'value': {
-                        'label': 'task2',
-                        'labelStyle': 'fill:#000;',
-                        'style': 'fill:#e8f7e4;',
-                        'rx': 5,
-                        'ry': 5,
+                    "id": "group234.task2",
+                    "value": {
+                        "label": "task2",
+                        "labelStyle": "fill:#000;",
+                        "style": "fill:#e8f7e4;",
+                        "rx": 5,
+                        "ry": 5,
                     },
                 },
                 {
-                    'id': 'group234.upstream_join_id',
-                    'value': {
-                        'label': '',
-                        'labelStyle': 'fill:#000;',
-                        'style': 'fill:CornflowerBlue;',
-                        'shape': 'circle',
+                    "id": "group234.upstream_join_id",
+                    "value": {
+                        "label": "",
+                        "labelStyle": "fill:#000;",
+                        "style": "fill:CornflowerBlue;",
+                        "shape": "circle",
                     },
                 },
             ],
         },
         {
-            'id': 'task1',
-            'value': {
-                'label': 'task1',
-                'labelStyle': 'fill:#000;',
-                'style': 'fill:#e8f7e4;',
-                'rx': 5,
-                'ry': 5,
+            "id": "task1",
+            "value": {
+                "label": "task1",
+                "labelStyle": "fill:#000;",
+                "style": "fill:#e8f7e4;",
+                "rx": 5,
+                "ry": 5,
             },
         },
         {
-            'id': 'task5',
-            'value': {
-                'label': 'task5',
-                'labelStyle': 'fill:#000;',
-                'style': 'fill:#e8f7e4;',
-                'rx': 5,
-                'ry': 5,
+            "id": "task5",
+            "value": {
+                "label": "task5",
+                "labelStyle": "fill:#000;",
+                "style": "fill:#e8f7e4;",
+                "rx": 5,
+                "ry": 5,
             },
         },
     ],
@@ -159,13 +159,13 @@ def test_build_task_group_context_manager():
         group34 >> task5
 
     assert task1.get_direct_relative_ids(upstream=False) == {
-        'group234.group34.task4',
-        'group234.group34.task3',
-        'group234.task2',
+        "group234.group34.task4",
+        "group234.group34.task3",
+        "group234.task2",
     }
     assert task5.get_direct_relative_ids(upstream=True) == {
-        'group234.group34.task4',
-        'group234.group34.task3',
+        "group234.group34.task4",
+        "group234.group34.task3",
     }
 
     assert dag.task_group.group_id is None
@@ -242,32 +242,32 @@ def test_build_task_group_with_prefix():
     assert group4.get_child_by_label("task4") == task4
 
     assert extract_node_id(task_group_to_dict(dag.task_group), include_label=True) == {
-        'id': None,
-        'label': None,
-        'children': [
+        "id": None,
+        "label": None,
+        "children": [
             {
-                'id': 'group234',
-                'label': 'group234',
-                'children': [
+                "id": "group234",
+                "label": "group234",
+                "children": [
                     {
-                        'id': 'group34',
-                        'label': 'group34',
-                        'children': [
+                        "id": "group34",
+                        "label": "group34",
+                        "children": [
                             {
-                                'id': 'group34.group4',
-                                'label': 'group4',
-                                'children': [{'id': 'task4', 'label': 'task4'}],
+                                "id": "group34.group4",
+                                "label": "group4",
+                                "children": [{"id": "task4", "label": "task4"}],
                             },
-                            {'id': 'group34.task3', 'label': 'task3'},
-                            {'id': 'group34.downstream_join_id', 'label': ''},
+                            {"id": "group34.task3", "label": "task3"},
+                            {"id": "group34.downstream_join_id", "label": ""},
                         ],
                     },
-                    {'id': 'task2', 'label': 'task2'},
-                    {'id': 'group234.upstream_join_id', 'label': ''},
+                    {"id": "task2", "label": "task2"},
+                    {"id": "group234.upstream_join_id", "label": ""},
                 ],
             },
-            {'id': 'task1', 'label': 'task1'},
-            {'id': 'task5', 'label': 'task5'},
+            {"id": "task1", "label": "task1"},
+            {"id": "task5", "label": "task5"},
         ],
     }
 
@@ -316,32 +316,32 @@ def test_build_task_group_with_task_decorator():
     assert tsk_5.operator in tsk_4.operator.downstream_list
 
     assert extract_node_id(task_group_to_dict(dag.task_group)) == {
-        'id': None,
-        'children': [
+        "id": None,
+        "children": [
             {
-                'id': 'group234',
-                'children': [
-                    {'id': 'group234.task_2'},
-                    {'id': 'group234.task_3'},
-                    {'id': 'group234.task_4'},
-                    {'id': 'group234.upstream_join_id'},
-                    {'id': 'group234.downstream_join_id'},
+                "id": "group234",
+                "children": [
+                    {"id": "group234.task_2"},
+                    {"id": "group234.task_3"},
+                    {"id": "group234.task_4"},
+                    {"id": "group234.upstream_join_id"},
+                    {"id": "group234.downstream_join_id"},
                 ],
             },
-            {'id': 'task_1'},
-            {'id': 'task_5'},
+            {"id": "task_1"},
+            {"id": "task_5"},
         ],
     }
 
     edges = dag_edges(dag)
     assert sorted((e["source_id"], e["target_id"]) for e in edges) == [
-        ('group234.downstream_join_id', 'task_5'),
-        ('group234.task_2', 'group234.task_4'),
-        ('group234.task_3', 'group234.task_4'),
-        ('group234.task_4', 'group234.downstream_join_id'),
-        ('group234.upstream_join_id', 'group234.task_2'),
-        ('group234.upstream_join_id', 'group234.task_3'),
-        ('task_1', 'group234.upstream_join_id'),
+        ("group234.downstream_join_id", "task_5"),
+        ("group234.task_2", "group234.task_4"),
+        ("group234.task_3", "group234.task_4"),
+        ("group234.task_4", "group234.downstream_join_id"),
+        ("group234.upstream_join_id", "group234.task_2"),
+        ("group234.upstream_join_id", "group234.task_3"),
+        ("task_1", "group234.upstream_join_id"),
     ]
 
 
@@ -373,42 +373,42 @@ def test_sub_dag_task_group():
     subdag = dag.partial_subset(task_ids_or_regex="task5", include_upstream=True, include_downstream=False)
 
     assert extract_node_id(task_group_to_dict(subdag.task_group)) == {
-        'id': None,
-        'children': [
+        "id": None,
+        "children": [
             {
-                'id': 'group234',
-                'children': [
+                "id": "group234",
+                "children": [
                     {
-                        'id': 'group234.group34',
-                        'children': [
-                            {'id': 'group234.group34.task3'},
-                            {'id': 'group234.group34.task4'},
-                            {'id': 'group234.group34.downstream_join_id'},
+                        "id": "group234.group34",
+                        "children": [
+                            {"id": "group234.group34.task3"},
+                            {"id": "group234.group34.task4"},
+                            {"id": "group234.group34.downstream_join_id"},
                         ],
                     },
-                    {'id': 'group234.upstream_join_id'},
+                    {"id": "group234.upstream_join_id"},
                 ],
             },
-            {'id': 'task1'},
-            {'id': 'task5'},
+            {"id": "task1"},
+            {"id": "task5"},
         ],
     }
 
     edges = dag_edges(subdag)
     assert sorted((e["source_id"], e["target_id"]) for e in edges) == [
-        ('group234.group34.downstream_join_id', 'task5'),
-        ('group234.group34.task3', 'group234.group34.downstream_join_id'),
-        ('group234.group34.task4', 'group234.group34.downstream_join_id'),
-        ('group234.upstream_join_id', 'group234.group34.task3'),
-        ('group234.upstream_join_id', 'group234.group34.task4'),
-        ('task1', 'group234.upstream_join_id'),
+        ("group234.group34.downstream_join_id", "task5"),
+        ("group234.group34.task3", "group234.group34.downstream_join_id"),
+        ("group234.group34.task4", "group234.group34.downstream_join_id"),
+        ("group234.upstream_join_id", "group234.group34.task3"),
+        ("group234.upstream_join_id", "group234.group34.task4"),
+        ("task1", "group234.upstream_join_id"),
     ]
 
     subdag_task_groups = subdag.task_group.get_task_group_dict()
     assert subdag_task_groups.keys() == {None, "group234", "group234.group34"}
 
     included_group_ids = {"group234", "group234.group34"}
-    included_task_ids = {'group234.group34.task3', 'group234.group34.task4', 'task1', 'task5'}
+    included_task_ids = {"group234.group34.task3", "group234.group34.task4", "task1", "task5"}
 
     for task_group in subdag_task_groups.values():
         assert task_group.upstream_group_ids.issubset(included_group_ids)
@@ -463,70 +463,70 @@ def test_dag_edges():
     edges = dag_edges(dag)
 
     assert extract_node_id(nodes) == {
-        'id': None,
-        'children': [
+        "id": None,
+        "children": [
             {
-                'id': 'group_a',
-                'children': [
+                "id": "group_a",
+                "children": [
                     {
-                        'id': 'group_a.group_b',
-                        'children': [
-                            {'id': 'group_a.group_b.task2'},
-                            {'id': 'group_a.group_b.task3'},
-                            {'id': 'group_a.group_b.task4'},
-                            {'id': 'group_a.group_b.downstream_join_id'},
+                        "id": "group_a.group_b",
+                        "children": [
+                            {"id": "group_a.group_b.task2"},
+                            {"id": "group_a.group_b.task3"},
+                            {"id": "group_a.group_b.task4"},
+                            {"id": "group_a.group_b.downstream_join_id"},
                         ],
                     },
-                    {'id': 'group_a.task5'},
-                    {'id': 'group_a.upstream_join_id'},
-                    {'id': 'group_a.downstream_join_id'},
+                    {"id": "group_a.task5"},
+                    {"id": "group_a.upstream_join_id"},
+                    {"id": "group_a.downstream_join_id"},
                 ],
             },
             {
-                'id': 'group_c',
-                'children': [
-                    {'id': 'group_c.task6'},
-                    {'id': 'group_c.task7'},
-                    {'id': 'group_c.task8'},
-                    {'id': 'group_c.upstream_join_id'},
-                    {'id': 'group_c.downstream_join_id'},
+                "id": "group_c",
+                "children": [
+                    {"id": "group_c.task6"},
+                    {"id": "group_c.task7"},
+                    {"id": "group_c.task8"},
+                    {"id": "group_c.upstream_join_id"},
+                    {"id": "group_c.downstream_join_id"},
                 ],
             },
             {
-                'id': 'group_d',
-                'children': [
-                    {'id': 'group_d.task11'},
-                    {'id': 'group_d.task12'},
-                    {'id': 'group_d.upstream_join_id'},
+                "id": "group_d",
+                "children": [
+                    {"id": "group_d.task11"},
+                    {"id": "group_d.task12"},
+                    {"id": "group_d.upstream_join_id"},
                 ],
             },
-            {'id': 'task1'},
-            {'id': 'task10'},
-            {'id': 'task9'},
+            {"id": "task1"},
+            {"id": "task10"},
+            {"id": "task9"},
         ],
     }
 
     assert sorted((e["source_id"], e["target_id"]) for e in edges) == [
-        ('group_a.downstream_join_id', 'group_c.upstream_join_id'),
-        ('group_a.group_b.downstream_join_id', 'group_a.task5'),
-        ('group_a.group_b.task2', 'group_a.group_b.task3'),
-        ('group_a.group_b.task2', 'group_a.group_b.task4'),
-        ('group_a.group_b.task3', 'group_a.group_b.downstream_join_id'),
-        ('group_a.group_b.task4', 'group_a.group_b.downstream_join_id'),
-        ('group_a.task5', 'group_a.downstream_join_id'),
-        ('group_a.task5', 'group_c.task8'),
-        ('group_a.upstream_join_id', 'group_a.group_b.task2'),
-        ('group_c.downstream_join_id', 'group_d.upstream_join_id'),
-        ('group_c.downstream_join_id', 'task10'),
-        ('group_c.downstream_join_id', 'task9'),
-        ('group_c.task6', 'group_c.task8'),
-        ('group_c.task7', 'group_c.task8'),
-        ('group_c.task8', 'group_c.downstream_join_id'),
-        ('group_c.upstream_join_id', 'group_c.task6'),
-        ('group_c.upstream_join_id', 'group_c.task7'),
-        ('group_d.task11', 'group_d.task12'),
-        ('group_d.upstream_join_id', 'group_d.task11'),
-        ('task1', 'group_a.upstream_join_id'),
+        ("group_a.downstream_join_id", "group_c.upstream_join_id"),
+        ("group_a.group_b.downstream_join_id", "group_a.task5"),
+        ("group_a.group_b.task2", "group_a.group_b.task3"),
+        ("group_a.group_b.task2", "group_a.group_b.task4"),
+        ("group_a.group_b.task3", "group_a.group_b.downstream_join_id"),
+        ("group_a.group_b.task4", "group_a.group_b.downstream_join_id"),
+        ("group_a.task5", "group_a.downstream_join_id"),
+        ("group_a.task5", "group_c.task8"),
+        ("group_a.upstream_join_id", "group_a.group_b.task2"),
+        ("group_c.downstream_join_id", "group_d.upstream_join_id"),
+        ("group_c.downstream_join_id", "task10"),
+        ("group_c.downstream_join_id", "task9"),
+        ("group_c.task6", "group_c.task8"),
+        ("group_c.task7", "group_c.task8"),
+        ("group_c.task8", "group_c.downstream_join_id"),
+        ("group_c.upstream_join_id", "group_c.task6"),
+        ("group_c.upstream_join_id", "group_c.task7"),
+        ("group_d.task11", "group_d.task12"),
+        ("group_d.upstream_join_id", "group_d.task11"),
+        ("task1", "group_a.upstream_join_id"),
     ]
 
 
@@ -571,9 +571,9 @@ def test_task_without_dag():
     Test that if a task doesn't have a DAG when it's being set as the relative of another task which
     has a DAG, the task should be added to the root TaskGroup of the other task's DAG.
     """
-    dag = DAG(dag_id='test_task_without_dag', start_date=pendulum.parse("20200101"))
-    op1 = EmptyOperator(task_id='op1', dag=dag)
-    op2 = EmptyOperator(task_id='op2')
+    dag = DAG(dag_id="test_task_without_dag", start_date=pendulum.parse("20200101"))
+    op1 = EmptyOperator(task_id="op1", dag=dag)
+    op2 = EmptyOperator(task_id="op2")
     op3 = EmptyOperator(task_id="op3")
     op1 >> op2
     op3 >> op2
@@ -601,32 +601,32 @@ def test_build_task_group_deco_context_manager():
     @task
     def task_start():
         """Dummy Task which is First Task of Dag"""
-        return '[Task_start]'
+        return "[Task_start]"
 
     @task
     def task_end():
         """Dummy Task which is Last Task of Dag"""
-        print('[ Task_End ]')
+        print("[ Task_End ]")
 
     @task
     def task_1(value):
         """Dummy Task1"""
-        return f'[ Task1 {value} ]'
+        return f"[ Task1 {value} ]"
 
     @task
     def task_2(value):
         """Dummy Task2"""
-        print(f'[ Task2 {value} ]')
+        print(f"[ Task2 {value} ]")
 
     @task
     def task_3(value):
         """Dummy Task3"""
-        return f'[ Task3 {value} ]'
+        return f"[ Task3 {value} ]"
 
     @task
     def task_4(value):
         """Dummy Task3"""
-        print(f'[ Task4 {value} ]')
+        print(f"[ Task4 {value} ]")
 
     # Creating TaskGroups
     @task_group_decorator
@@ -651,37 +651,37 @@ def test_build_task_group_deco_context_manager():
 
     # Testing TaskGroup created using taskgroup decorator
     assert set(dag.task_group.children.keys()) == {"task_start", "task_end", "section_1"}
-    assert set(dag.task_group.children['section_1'].children.keys()) == {
-        'section_1.task_1',
-        'section_1.task_2',
-        'section_1.section_2',
+    assert set(dag.task_group.children["section_1"].children.keys()) == {
+        "section_1.task_1",
+        "section_1.task_2",
+        "section_1.section_2",
     }
 
     # Testing TaskGroup consisting Tasks created using task decorator
-    assert dag.task_dict['task_start'].downstream_task_ids == {'section_1.task_1'}
-    assert dag.task_dict['section_1.task_2'].downstream_task_ids == {'section_1.section_2.task_3'}
-    assert dag.task_dict['section_1.section_2.task_4'].downstream_task_ids == {'task_end'}
+    assert dag.task_dict["task_start"].downstream_task_ids == {"section_1.task_1"}
+    assert dag.task_dict["section_1.task_2"].downstream_task_ids == {"section_1.section_2.task_3"}
+    assert dag.task_dict["section_1.section_2.task_4"].downstream_task_ids == {"task_end"}
 
     # Node IDs test
     node_ids = {
-        'id': None,
-        'children': [
+        "id": None,
+        "children": [
             {
-                'id': 'section_1',
-                'children': [
+                "id": "section_1",
+                "children": [
                     {
-                        'id': 'section_1.section_2',
-                        'children': [
-                            {'id': 'section_1.section_2.task_3'},
-                            {'id': 'section_1.section_2.task_4'},
+                        "id": "section_1.section_2",
+                        "children": [
+                            {"id": "section_1.section_2.task_3"},
+                            {"id": "section_1.section_2.task_4"},
                         ],
                     },
-                    {'id': 'section_1.task_1'},
-                    {'id': 'section_1.task_2'},
+                    {"id": "section_1.task_1"},
+                    {"id": "section_1.task_2"},
                 ],
             },
-            {'id': 'task_end'},
-            {'id': 'task_start'},
+            {"id": "task_end"},
+            {"id": "task_start"},
         ],
     }
 
@@ -731,52 +731,52 @@ def test_build_task_group_with_operators():
 
     def task_start():
         """Dummy Task which is First Task of Dag"""
-        return '[Task_start]'
+        return "[Task_start]"
 
     def task_end():
         """Dummy Task which is Last Task of Dag"""
-        print('[ Task_End  ]')
+        print("[ Task_End  ]")
 
     # Creating Tasks
     @task
     def task_1(value):
         """Dummy Task1"""
-        return f'[ Task1 {value} ]'
+        return f"[ Task1 {value} ]"
 
     @task
     def task_2(value):
         """Dummy Task2"""
-        return f'[ Task2 {value} ]'
+        return f"[ Task2 {value} ]"
 
     @task
     def task_3(value):
         """Dummy Task3"""
-        print(f'[ Task3 {value} ]')
+        print(f"[ Task3 {value} ]")
 
     # Creating TaskGroups
-    @task_group_decorator(group_id='section_1')
+    @task_group_decorator(group_id="section_1")
     def section_a(value):
         """TaskGroup for grouping related Tasks"""
         return task_3(task_2(task_1(value)))
 
     execution_date = pendulum.parse("20201109")
     with DAG(dag_id="example_task_group_decorator_mix", start_date=execution_date, tags=["example"]) as dag:
-        t_start = PythonOperator(task_id='task_start', python_callable=task_start, dag=dag)
+        t_start = PythonOperator(task_id="task_start", python_callable=task_start, dag=dag)
         sec_1 = section_a(t_start.output)
-        t_end = PythonOperator(task_id='task_end', python_callable=task_end, dag=dag)
+        t_end = PythonOperator(task_id="task_end", python_callable=task_end, dag=dag)
         sec_1.set_downstream(t_end)
 
     # Testing Tasks in DAG
-    assert set(dag.task_group.children.keys()) == {'section_1', 'task_start', 'task_end'}
-    assert set(dag.task_group.children['section_1'].children.keys()) == {
-        'section_1.task_2',
-        'section_1.task_3',
-        'section_1.task_1',
+    assert set(dag.task_group.children.keys()) == {"section_1", "task_start", "task_end"}
+    assert set(dag.task_group.children["section_1"].children.keys()) == {
+        "section_1.task_2",
+        "section_1.task_3",
+        "section_1.task_1",
     }
 
     # Testing Tasks downstream
-    assert dag.task_dict['task_start'].downstream_task_ids == {'section_1.task_1'}
-    assert dag.task_dict['section_1.task_3'].downstream_task_ids == {'task_end'}
+    assert dag.task_dict["task_start"].downstream_task_ids == {"section_1.task_1"}
+    assert dag.task_dict["section_1.task_3"].downstream_task_ids == {"task_end"}
 
 
 def test_task_group_context_mix():
@@ -786,27 +786,27 @@ def test_task_group_context_mix():
 
     def task_start():
         """Dummy Task which is First Task of Dag"""
-        return '[Task_start]'
+        return "[Task_start]"
 
     def task_end():
         """Dummy Task which is Last Task of Dag"""
-        print('[ Task_End  ]')
+        print("[ Task_End  ]")
 
     # Creating Tasks
     @task
     def task_1(value):
         """Dummy Task1"""
-        return f'[ Task1 {value} ]'
+        return f"[ Task1 {value} ]"
 
     @task
     def task_2(value):
         """Dummy Task2"""
-        return f'[ Task2 {value} ]'
+        return f"[ Task2 {value} ]"
 
     @task
     def task_3(value):
         """Dummy Task3"""
-        print(f'[ Task3 {value} ]')
+        print(f"[ Task3 {value} ]")
 
     # Creating TaskGroups
     @task_group_decorator
@@ -816,43 +816,43 @@ def test_task_group_context_mix():
 
     execution_date = pendulum.parse("20201109")
     with DAG(dag_id="example_task_group_decorator_mix", start_date=execution_date, tags=["example"]) as dag:
-        t_start = PythonOperator(task_id='task_start', python_callable=task_start, dag=dag)
+        t_start = PythonOperator(task_id="task_start", python_callable=task_start, dag=dag)
 
         with TaskGroup("section_1", tooltip="section_1") as section_1:
             sec_2 = section_2(t_start.output)
             task_s1 = EmptyOperator(task_id="task_1")
-            task_s2 = BashOperator(task_id="task_2", bash_command='echo 1')
+            task_s2 = BashOperator(task_id="task_2", bash_command="echo 1")
             task_s3 = EmptyOperator(task_id="task_3")
 
             sec_2.set_downstream(task_s1)
             task_s1 >> [task_s2, task_s3]
 
-        t_end = PythonOperator(task_id='task_end', python_callable=task_end, dag=dag)
+        t_end = PythonOperator(task_id="task_end", python_callable=task_end, dag=dag)
         t_start >> section_1 >> t_end
 
     node_ids = {
-        'id': None,
-        'children': [
+        "id": None,
+        "children": [
             {
-                'id': 'section_1',
-                'children': [
+                "id": "section_1",
+                "children": [
                     {
-                        'id': 'section_1.section_2',
-                        'children': [
-                            {'id': 'section_1.section_2.task_1'},
-                            {'id': 'section_1.section_2.task_2'},
-                            {'id': 'section_1.section_2.task_3'},
+                        "id": "section_1.section_2",
+                        "children": [
+                            {"id": "section_1.section_2.task_1"},
+                            {"id": "section_1.section_2.task_2"},
+                            {"id": "section_1.section_2.task_3"},
                         ],
                     },
-                    {'id': 'section_1.task_1'},
-                    {'id': 'section_1.task_2'},
-                    {'id': 'section_1.task_3'},
-                    {'id': 'section_1.upstream_join_id'},
-                    {'id': 'section_1.downstream_join_id'},
+                    {"id": "section_1.task_1"},
+                    {"id": "section_1.task_2"},
+                    {"id": "section_1.task_3"},
+                    {"id": "section_1.upstream_join_id"},
+                    {"id": "section_1.downstream_join_id"},
                 ],
             },
-            {'id': 'task_end'},
-            {'id': 'task_start'},
+            {"id": "task_end"},
+            {"id": "task_start"},
         ],
     }
 
@@ -864,20 +864,20 @@ def test_default_args():
 
     execution_date = pendulum.parse("20201109")
     with DAG(
-        dag_id='example_task_group_default_args',
+        dag_id="example_task_group_default_args",
         start_date=execution_date,
         default_args={
             "owner": "dag",
         },
     ):
         with TaskGroup("group1", default_args={"owner": "group"}):
-            task_1 = EmptyOperator(task_id='task_1')
-            task_2 = EmptyOperator(task_id='task_2', owner='task')
-            task_3 = EmptyOperator(task_id='task_3', default_args={"owner": "task"})
+            task_1 = EmptyOperator(task_id="task_1")
+            task_2 = EmptyOperator(task_id="task_2", owner="task")
+            task_3 = EmptyOperator(task_id="task_3", default_args={"owner": "task"})
 
-            assert task_1.owner == 'group'
-            assert task_2.owner == 'task'
-            assert task_3.owner == 'task'
+            assert task_1.owner == "group"
+            assert task_2.owner == "task"
+            assert task_3.owner == "task"
 
 
 def test_duplicate_task_group_id():
@@ -885,43 +885,43 @@ def test_duplicate_task_group_id():
 
     from airflow.decorators import task
 
-    @task(task_id='start_task')
+    @task(task_id="start_task")
     def task_start():
         """Dummy Task which is First Task of Dag"""
-        print('[Task_start]')
+        print("[Task_start]")
 
-    @task(task_id='end_task')
+    @task(task_id="end_task")
     def task_end():
         """Dummy Task which is Last Task of Dag"""
-        print('[Task_End]')
+        print("[Task_End]")
 
     # Creating Tasks
-    @task(task_id='task')
+    @task(task_id="task")
     def task_1():
         """Dummy Task1"""
-        print('[Task1]')
+        print("[Task1]")
 
-    @task(task_id='task')
+    @task(task_id="task")
     def task_2():
         """Dummy Task2"""
-        print('[Task2]')
+        print("[Task2]")
 
-    @task(task_id='task1')
+    @task(task_id="task1")
     def task_3():
         """Dummy Task3"""
-        print('[Task3]')
+        print("[Task3]")
 
-    @task_group_decorator('task_group1')
+    @task_group_decorator("task_group1")
     def task_group1():
         task_start()
         task_1()
         task_2()
 
-    @task_group_decorator(group_id='task_group1')
+    @task_group_decorator(group_id="task_group1")
     def task_group2():
         task_3()
 
-    @task_group_decorator(group_id='task_group1')
+    @task_group_decorator(group_id="task_group1")
     def task_group3():
         task_end()
 
@@ -931,18 +931,18 @@ def test_duplicate_task_group_id():
         task_group2()
         task_group3()
     node_ids = {
-        'id': None,
-        'children': [
+        "id": None,
+        "children": [
             {
-                'id': 'task_group1',
-                'children': [
-                    {'id': 'task_group1.start_task'},
-                    {'id': 'task_group1.task'},
-                    {'id': 'task_group1.task__1'},
+                "id": "task_group1",
+                "children": [
+                    {"id": "task_group1.start_task"},
+                    {"id": "task_group1.task"},
+                    {"id": "task_group1.task__1"},
                 ],
             },
-            {'id': 'task_group1__1', 'children': [{'id': 'task_group1__1.task1'}]},
-            {'id': 'task_group1__2', 'children': [{'id': 'task_group1__2.end_task'}]},
+            {"id": "task_group1__1", "children": [{"id": "task_group1__1.task1"}]},
+            {"id": "task_group1__2", "children": [{"id": "task_group1__2.end_task"}]},
         ],
     }
 
@@ -953,51 +953,51 @@ def test_call_taskgroup_twice():
     """Test for using same taskgroup decorated function twice"""
     from airflow.decorators import task
 
-    @task(task_id='start_task')
+    @task(task_id="start_task")
     def task_start():
         """Dummy Task which is First Task of Dag"""
-        print('[Task_start]')
+        print("[Task_start]")
 
-    @task(task_id='end_task')
+    @task(task_id="end_task")
     def task_end():
         """Dummy Task which is Last Task of Dag"""
-        print('[Task_End]')
+        print("[Task_End]")
 
     # Creating Tasks
-    @task(task_id='task')
+    @task(task_id="task")
     def task_1():
         """Dummy Task1"""
-        print('[Task1]')
+        print("[Task1]")
 
     @task_group_decorator
     def task_group1(name: str):
-        print(f'Starting taskgroup {name}')
+        print(f"Starting taskgroup {name}")
         task_start()
         task_1()
         task_end()
 
     execution_date = pendulum.parse("20201109")
     with DAG(dag_id="example_multi_call_task_groups", start_date=execution_date, tags=["example"]) as dag:
-        task_group1('Call1')
-        task_group1('Call2')
+        task_group1("Call1")
+        task_group1("Call2")
 
     node_ids = {
-        'id': None,
-        'children': [
+        "id": None,
+        "children": [
             {
-                'id': 'task_group1',
-                'children': [
-                    {'id': 'task_group1.end_task'},
-                    {'id': 'task_group1.start_task'},
-                    {'id': 'task_group1.task'},
+                "id": "task_group1",
+                "children": [
+                    {"id": "task_group1.end_task"},
+                    {"id": "task_group1.start_task"},
+                    {"id": "task_group1.task"},
                 ],
             },
             {
-                'id': 'task_group1__1',
-                'children': [
-                    {'id': 'task_group1__1.end_task'},
-                    {'id': 'task_group1__1.start_task'},
-                    {'id': 'task_group1__1.task'},
+                "id": "task_group1__1",
+                "children": [
+                    {"id": "task_group1__1.end_task"},
+                    {"id": "task_group1__1.start_task"},
+                    {"id": "task_group1__1.task"},
                 ],
             },
         ],
@@ -1074,16 +1074,16 @@ def test_decorator_multiple_use_task():
 
 
 def test_topological_sort1():
-    dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
+    dag = DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
 
     # A -> B
     # A -> C -> D
     # ordered: B, D, C, A or D, B, C, A or D, C, B, A
     with dag:
-        op1 = EmptyOperator(task_id='A')
-        op2 = EmptyOperator(task_id='B')
-        op3 = EmptyOperator(task_id='C')
-        op4 = EmptyOperator(task_id='D')
+        op1 = EmptyOperator(task_id="A")
+        op2 = EmptyOperator(task_id="B")
+        op3 = EmptyOperator(task_id="C")
+        op4 = EmptyOperator(task_id="D")
         [op2, op3] >> op1
         op3 >> op4
 
@@ -1100,17 +1100,17 @@ def test_topological_sort1():
 
 
 def test_topological_sort2():
-    dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
+    dag = DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
 
     # C -> (A u B) -> D
     # C -> E
     # ordered: E | D, A | B, C
     with dag:
-        op1 = EmptyOperator(task_id='A')
-        op2 = EmptyOperator(task_id='B')
-        op3 = EmptyOperator(task_id='C')
-        op4 = EmptyOperator(task_id='D')
-        op5 = EmptyOperator(task_id='E')
+        op1 = EmptyOperator(task_id="A")
+        op2 = EmptyOperator(task_id="B")
+        op3 = EmptyOperator(task_id="C")
+        op4 = EmptyOperator(task_id="D")
+        op5 = EmptyOperator(task_id="E")
         op3 << [op1, op2]
         op4 >> [op1, op2]
         op5 >> op3

@@ -26,12 +26,12 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.config import conf_vars
 
 MOCK_CONF = {
-    'core': {
-        'parallelism': '1024',
+    "core": {
+        "parallelism": "1024",
     },
-    'smtp': {
-        'smtp_host': 'localhost',
-        'smtp_mail_from': 'airflow@example.com',
+    "smtp": {
+        "smtp_host": "localhost",
+        "smtp_mail_from": "airflow@example.com",
     },
 }
 
@@ -47,7 +47,7 @@ def configured_app(minimal_app_for_api):
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
-    with conf_vars({('webserver', 'expose_config'): 'True'}):
+    with conf_vars({("webserver", "expose_config"): "True"}):
         yield minimal_app_for_api
 
     delete_user(app, username="test")  # type: ignore
@@ -63,7 +63,7 @@ class TestGetConfig:
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
     def test_should_respond_200_text_plain(self, mock_as_dict):
         response = self.client.get(
-            "/api/v1/config", headers={'Accept': 'text/plain'}, environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/config", headers={"Accept": "text/plain"}, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
         expected = textwrap.dedent(
@@ -82,23 +82,23 @@ class TestGetConfig:
     def test_should_respond_200_application_json(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config",
-            headers={'Accept': 'application/json'},
-            environ_overrides={'REMOTE_USER': "test"},
+            headers={"Accept": "application/json"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         expected = {
-            'sections': [
+            "sections": [
                 {
-                    'name': 'core',
-                    'options': [
-                        {'key': 'parallelism', 'value': '1024'},
+                    "name": "core",
+                    "options": [
+                        {"key": "parallelism", "value": "1024"},
                     ],
                 },
                 {
-                    'name': 'smtp',
-                    'options': [
-                        {'key': 'smtp_host', 'value': 'localhost'},
-                        {'key': 'smtp_mail_from', 'value': 'airflow@example.com'},
+                    "name": "smtp",
+                    "options": [
+                        {"key": "smtp_host", "value": "localhost"},
+                        {"key": "smtp_mail_from", "value": "airflow@example.com"},
                     ],
                 },
             ]
@@ -109,31 +109,31 @@ class TestGetConfig:
     def test_should_respond_406(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config",
-            headers={'Accept': 'application/octet-stream'},
-            environ_overrides={'REMOTE_USER': "test"},
+            headers={"Accept": "application/octet-stream"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 406
 
     def test_should_raises_401_unauthenticated(self):
-        response = self.client.get("/api/v1/config", headers={'Accept': 'application/json'})
+        response = self.client.get("/api/v1/config", headers={"Accept": "application/json"})
 
         assert_401(response)
 
     def test_should_raises_403_unauthorized(self):
         response = self.client.get(
             "/api/v1/config",
-            headers={'Accept': 'application/json'},
-            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+            headers={"Accept": "application/json"},
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
 
         assert response.status_code == 403
 
-    @conf_vars({('webserver', 'expose_config'): 'False'})
+    @conf_vars({("webserver", "expose_config"): "False"})
     def test_should_respond_403_when_expose_config_off(self):
         response = self.client.get(
             "/api/v1/config",
-            headers={'Accept': 'application/json'},
-            environ_overrides={'REMOTE_USER': "test"},
+            headers={"Accept": "application/json"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 403
-        assert "chose not to expose" in response.json['detail']
+        assert "chose not to expose" in response.json["detail"]

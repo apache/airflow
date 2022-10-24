@@ -35,15 +35,15 @@ DAG_ID = "example_github_operator"
 with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
 
     # [START howto_tag_sensor_github]
 
     tag_sensor = GithubTagSensor(
-        task_id='example_tag_sensor',
-        tag_name='v1.0',
+        task_id="example_tag_sensor",
+        tag_name="v1.0",
         repository_name="apache/airflow",
         timeout=60,
         poke_interval=10,
@@ -67,10 +67,10 @@ with DAG(
         return result
 
     github_sensor = GithubSensor(
-        task_id='example_sensor',
+        task_id="example_sensor",
         method_name="get_repo",
-        method_params={'full_name_or_id': "apache/airflow"},
-        result_processor=lambda repo: tag_checker(repo, 'v1.0'),
+        method_params={"full_name_or_id": "apache/airflow"},
+        result_processor=lambda repo: tag_checker(repo, "v1.0"),
         timeout=60,
         poke_interval=10,
     )
@@ -80,7 +80,7 @@ with DAG(
     # [START howto_operator_list_repos_github]
 
     github_list_repos = GithubOperator(
-        task_id='github_list_repos',
+        task_id="github_list_repos",
         github_method="get_user",
         github_method_args={},
         result_processor=lambda user: logging.info(list(user.get_repos())),
@@ -91,9 +91,9 @@ with DAG(
     # [START howto_operator_list_tags_github]
 
     list_repo_tags = GithubOperator(
-        task_id='list_repo_tags',
+        task_id="list_repo_tags",
         github_method="get_repo",
-        github_method_args={'full_name_or_id': 'apache/airflow'},
+        github_method_args={"full_name_or_id": "apache/airflow"},
         result_processor=lambda repo: logging.info(list(repo.get_tags())),
     )
 

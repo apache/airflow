@@ -37,7 +37,7 @@ def update_version(pattern: re.Pattern, v: str, file_path: str):
         file_content = f.read()
         if not pattern.search(file_content):
             raise Exception(f"Pattern {pattern!r} doesn't found in {file_path!r} file")
-        new_content = pattern.sub(fr'\g<1>{v}\g<2>', file_content)
+        new_content = pattern.sub(rf"\g<1>{v}\g<2>", file_content)
         if file_content == new_content:
             return
         print("    Updated.")
@@ -47,15 +47,15 @@ def update_version(pattern: re.Pattern, v: str, file_path: str):
 
 
 REPLACEMENTS = {
-    r'^(FROM apache\/airflow:).*($)': "docs/docker-stack/docker-examples/extending/*/Dockerfile",
-    r'(apache\/airflow:)[^-]*(\-)': "docs/docker-stack/entrypoint.rst",
-    r'(`apache/airflow:(?:slim-)?)[0-9].*?((?:-pythonX.Y)?`)': "docs/docker-stack/README.md",
-    r'(\(Assuming Airflow version `).*(`\))': "docs/docker-stack/README.md",
+    r"^(FROM apache\/airflow:).*($)": "docs/docker-stack/docker-examples/extending/*/Dockerfile",
+    r"(apache\/airflow:)[^-]*(\-)": "docs/docker-stack/entrypoint.rst",
+    r"(`apache/airflow:(?:slim-)?)[0-9].*?((?:-pythonX.Y)?`)": "docs/docker-stack/README.md",
+    r"(\(Assuming Airflow version `).*(`\))": "docs/docker-stack/README.md",
 }
 
 print(f"Current version: {version}")
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     for regexp, p in REPLACEMENTS.items():
         text_pattern = re.compile(regexp, flags=re.MULTILINE)
         files = glob.glob(join(AIRFLOW_SOURCES_DIR, p), recursive=True)

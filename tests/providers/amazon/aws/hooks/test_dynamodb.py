@@ -28,31 +28,31 @@ from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 class TestDynamoDBHook(unittest.TestCase):
     @mock_dynamodb
     def test_get_conn_returns_a_boto3_connection(self):
-        hook = DynamoDBHook(aws_conn_id='aws_default')
+        hook = DynamoDBHook(aws_conn_id="aws_default")
         assert hook.get_conn() is not None
 
     @mock_dynamodb
     def test_insert_batch_items_dynamodb_table(self):
 
         hook = DynamoDBHook(
-            aws_conn_id='aws_default', table_name='test_airflow', table_keys=['id'], region_name='us-east-1'
+            aws_conn_id="aws_default", table_name="test_airflow", table_keys=["id"], region_name="us-east-1"
         )
 
         # this table needs to be created in production
         table = hook.get_conn().create_table(
-            TableName='test_airflow',
+            TableName="test_airflow",
             KeySchema=[
-                {'AttributeName': 'id', 'KeyType': 'HASH'},
+                {"AttributeName": "id", "KeyType": "HASH"},
             ],
-            AttributeDefinitions=[{'AttributeName': 'id', 'AttributeType': 'S'}],
-            ProvisionedThroughput={'ReadCapacityUnits': 10, 'WriteCapacityUnits': 10},
+            AttributeDefinitions=[{"AttributeName": "id", "AttributeType": "S"}],
+            ProvisionedThroughput={"ReadCapacityUnits": 10, "WriteCapacityUnits": 10},
         )
 
-        table = hook.get_conn().Table('test_airflow')
+        table = hook.get_conn().Table("test_airflow")
 
-        items = [{'id': str(uuid.uuid4()), 'name': 'airflow'} for _ in range(10)]
+        items = [{"id": str(uuid.uuid4()), "name": "airflow"} for _ in range(10)]
 
         hook.write_batch_data(items)
 
-        table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
+        table.meta.client.get_waiter("table_exists").wait(TableName="test_airflow")
         assert table.item_count == 10

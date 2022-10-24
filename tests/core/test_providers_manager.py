@@ -41,9 +41,9 @@ class TestProviderManager:
             provider_list = list(provider_manager.providers.keys())
             # No need to sort the list - it should be sorted alphabetically !
             for provider in provider_list:
-                package_name = provider_manager.providers[provider].data['package-name']
+                package_name = provider_manager.providers[provider].data["package-name"]
                 version = provider_manager.providers[provider].version
-                assert re.search(r'[0-9]*\.[0-9]*\.[0-9]*.*', version)
+                assert re.search(r"[0-9]*\.[0-9]*\.[0-9]*.*", version)
                 assert package_name == provider
             # just a coherence check - no exact number as otherwise we would have to update
             # several tests if we add new connections/provider which is not ideal
@@ -51,12 +51,12 @@ class TestProviderManager:
             assert [] == self._caplog.records
 
     def test_hooks_deprecation_warnings_generated(self):
-        with pytest.warns(expected_warning=DeprecationWarning, match='hook-class-names') as warning_records:
+        with pytest.warns(expected_warning=DeprecationWarning, match="hook-class-names") as warning_records:
             providers_manager = ProvidersManager()
-            providers_manager._provider_dict['test-package'] = ProviderInfo(
-                version='0.0.1',
-                data={'hook-class-names': ['airflow.providers.sftp.hooks.sftp.SFTPHook']},
-                package_or_source='package',
+            providers_manager._provider_dict["test-package"] = ProviderInfo(
+                version="0.0.1",
+                data={"hook-class-names": ["airflow.providers.sftp.hooks.sftp.SFTPHook"]},
+                package_or_source="package",
             )
             providers_manager._discover_hooks()
         assert warning_records
@@ -64,18 +64,18 @@ class TestProviderManager:
     def test_hooks_deprecation_warnings_not_generated(self):
         with pytest.warns(expected_warning=None) as warning_records:
             providers_manager = ProvidersManager()
-            providers_manager._provider_dict['apache-airflow-providers-sftp'] = ProviderInfo(
-                version='0.0.1',
+            providers_manager._provider_dict["apache-airflow-providers-sftp"] = ProviderInfo(
+                version="0.0.1",
                 data={
-                    'hook-class-names': ['airflow.providers.sftp.hooks.sftp.SFTPHook'],
-                    'connection-types': [
+                    "hook-class-names": ["airflow.providers.sftp.hooks.sftp.SFTPHook"],
+                    "connection-types": [
                         {
-                            'hook-class-name': 'airflow.providers.sftp.hooks.sftp.SFTPHook',
-                            'connection-type': 'sftp',
+                            "hook-class-name": "airflow.providers.sftp.hooks.sftp.SFTPHook",
+                            "connection-type": "sftp",
                         }
                     ],
                 },
-                package_or_source='package',
+                package_or_source="package",
             )
             providers_manager._discover_hooks()
         assert [] == [w.message for w in warning_records.list if "hook-class-names" in str(w.message)]
@@ -83,21 +83,21 @@ class TestProviderManager:
     def test_warning_logs_generated(self):
         with self._caplog.at_level(logging.WARNING):
             providers_manager = ProvidersManager()
-            providers_manager._provider_dict['apache-airflow-providers-sftp'] = ProviderInfo(
-                version='0.0.1',
+            providers_manager._provider_dict["apache-airflow-providers-sftp"] = ProviderInfo(
+                version="0.0.1",
                 data={
-                    'hook-class-names': ['airflow.providers.sftp.hooks.sftp.SFTPHook'],
-                    'connection-types': [
+                    "hook-class-names": ["airflow.providers.sftp.hooks.sftp.SFTPHook"],
+                    "connection-types": [
                         {
-                            'hook-class-name': 'airflow.providers.sftp.hooks.sftp.SFTPHook',
-                            'connection-type': 'wrong-connection-type',
+                            "hook-class-name": "airflow.providers.sftp.hooks.sftp.SFTPHook",
+                            "connection-type": "wrong-connection-type",
                         }
                     ],
                 },
-                package_or_source='package',
+                package_or_source="package",
             )
             providers_manager._discover_hooks()
-            _ = providers_manager._hooks_lazy_dict['wrong-connection-type']
+            _ = providers_manager._hooks_lazy_dict["wrong-connection-type"]
         assert len(self._caplog.records) == 1
         assert "Inconsistency!" in self._caplog.records[0].message
         assert "sftp" not in providers_manager.hooks
@@ -105,21 +105,21 @@ class TestProviderManager:
     def test_warning_logs_not_generated(self):
         with self._caplog.at_level(logging.WARNING):
             providers_manager = ProvidersManager()
-            providers_manager._provider_dict['apache-airflow-providers-sftp'] = ProviderInfo(
-                version='0.0.1',
+            providers_manager._provider_dict["apache-airflow-providers-sftp"] = ProviderInfo(
+                version="0.0.1",
                 data={
-                    'hook-class-names': ['airflow.providers.sftp.hooks.sftp.SFTPHook'],
-                    'connection-types': [
+                    "hook-class-names": ["airflow.providers.sftp.hooks.sftp.SFTPHook"],
+                    "connection-types": [
                         {
-                            'hook-class-name': 'airflow.providers.sftp.hooks.sftp.SFTPHook',
-                            'connection-type': 'sftp',
+                            "hook-class-name": "airflow.providers.sftp.hooks.sftp.SFTPHook",
+                            "connection-type": "sftp",
                         }
                     ],
                 },
-                package_or_source='package',
+                package_or_source="package",
             )
             providers_manager._discover_hooks()
-            _ = providers_manager._hooks_lazy_dict['sftp']
+            _ = providers_manager._hooks_lazy_dict["sftp"]
         assert not self._caplog.records
         assert "sftp" in providers_manager.hooks
 
@@ -147,12 +147,12 @@ class TestProviderManager:
         assert len(connections_form_widgets) > 29
 
     @pytest.mark.parametrize(
-        'scenario',
+        "scenario",
         [
-            'prefix',
-            'no_prefix',
-            'both_1',
-            'both_2',
+            "prefix",
+            "no_prefix",
+            "both_1",
+            "both_2",
         ],
     )
     def test_connection_form__add_widgets_prefix_backcompat(self, scenario):
@@ -163,47 +163,47 @@ class TestProviderManager:
         """
 
         class MyHook:
-            conn_type = 'test'
+            conn_type = "test"
 
         provider_manager = ProvidersManager()
-        widget_field = StringField(lazy_gettext('My Param'), widget=BS3TextFieldWidget())
-        dummy_field = BooleanField(label=lazy_gettext('Dummy param'), description="dummy")
+        widget_field = StringField(lazy_gettext("My Param"), widget=BS3TextFieldWidget())
+        dummy_field = BooleanField(label=lazy_gettext("Dummy param"), description="dummy")
         widgets: dict[str, Field] = {}
-        if scenario == 'prefix':
-            widgets['extra__test__my_param'] = widget_field
-        elif scenario == 'no_prefix':
-            widgets['my_param'] = widget_field
-        elif scenario == 'both_1':
-            widgets['my_param'] = widget_field
-            widgets['extra__test__my_param'] = dummy_field
-        elif scenario == 'both_2':
-            widgets['extra__test__my_param'] = widget_field
-            widgets['my_param'] = dummy_field
+        if scenario == "prefix":
+            widgets["extra__test__my_param"] = widget_field
+        elif scenario == "no_prefix":
+            widgets["my_param"] = widget_field
+        elif scenario == "both_1":
+            widgets["my_param"] = widget_field
+            widgets["extra__test__my_param"] = dummy_field
+        elif scenario == "both_2":
+            widgets["extra__test__my_param"] = widget_field
+            widgets["my_param"] = dummy_field
         else:
-            raise Exception('unexpected')
+            raise Exception("unexpected")
 
         provider_manager._add_widgets(
-            package_name='abc',
+            package_name="abc",
             hook_class=MyHook,
             widgets=widgets,
         )
-        assert provider_manager.connection_form_widgets['extra__test__my_param'].field == widget_field
+        assert provider_manager.connection_form_widgets["extra__test__my_param"].field == widget_field
 
     def test_connection_field_behaviors_placeholders_prefix(self):
         class MyHook:
-            conn_type = 'test'
+            conn_type = "test"
 
             @classmethod
             def get_ui_field_behaviour(cls):
                 return {
-                    "hidden_fields": ['host', 'schema'],
+                    "hidden_fields": ["host", "schema"],
                     "relabeling": {},
                     "placeholders": {"abc": "hi", "extra__anything": "n/a", "password": "blah"},
                 }
 
         provider_manager = ProvidersManager()
         provider_manager._add_customized_fields(
-            package_name='abc',
+            package_name="abc",
             hook_class=MyHook,
             customized_fields=MyHook.get_ui_field_behaviour(),
         )
@@ -212,12 +212,12 @@ class TestProviderManager:
             "extra__anything": "n/a",  # no change since starts with extra
             "password": "blah",  # no change since it's a conn attr
         }
-        assert provider_manager.field_behaviours['test']['placeholders'] == expected
+        assert provider_manager.field_behaviours["test"]["placeholders"] == expected
 
     def test_connection_form_widgets_fields_order(self):
         """Check that order of connection for widgets preserved by original Hook order."""
-        test_conn_type = 'test'
-        field_prefix = f'extra__{test_conn_type}__'
+        test_conn_type = "test"
+        field_prefix = f"extra__{test_conn_type}__"
         field_names = ("yyy_param", "aaa_param", "000_param", "foo", "bar", "spam", "egg")
 
         expected_field_names_order = tuple(f"{field_prefix}{f}" for f in field_names)
@@ -228,9 +228,9 @@ class TestProviderManager:
         provider_manager = ProvidersManager()
         provider_manager._connection_form_widgets = {}
         provider_manager._add_widgets(
-            package_name='mock',
+            package_name="mock",
             hook_class=TestHook,
-            widgets={f: BooleanField(lazy_gettext('Dummy param')) for f in expected_field_names_order},
+            widgets={f: BooleanField(lazy_gettext("Dummy param")) for f in expected_field_names_order},
         )
         actual_field_names_order = tuple(
             key for key in provider_manager.connection_form_widgets.keys() if key.startswith(field_prefix)
@@ -242,8 +242,8 @@ class TestProviderManager:
         Check that order of connection for widgets preserved by original Hooks order.
         Even if different hooks specified field with the same connection type.
         """
-        test_conn_type = 'test'
-        field_prefix = f'extra__{test_conn_type}__'
+        test_conn_type = "test"
+        field_prefix = f"extra__{test_conn_type}__"
         field_names_hook_1 = ("foo", "bar", "spam", "egg")
         field_names_hook_2 = ("yyy_param", "aaa_param", "000_param")
 
@@ -255,22 +255,22 @@ class TestProviderManager:
             conn_type = test_conn_type
 
         class TestHook2:
-            conn_type = 'another'
+            conn_type = "another"
 
         provider_manager = ProvidersManager()
         provider_manager._connection_form_widgets = {}
         provider_manager._add_widgets(
-            package_name='mock',
+            package_name="mock",
             hook_class=TestHook1,
             widgets={
-                f"{field_prefix}{f}": BooleanField(lazy_gettext('Dummy param')) for f in field_names_hook_1
+                f"{field_prefix}{f}": BooleanField(lazy_gettext("Dummy param")) for f in field_names_hook_1
             },
         )
         provider_manager._add_widgets(
-            package_name='another_mock',
+            package_name="another_mock",
             hook_class=TestHook2,
             widgets={
-                f"{field_prefix}{f}": BooleanField(lazy_gettext('Dummy param')) for f in field_names_hook_2
+                f"{field_prefix}{f}": BooleanField(lazy_gettext("Dummy param")) for f in field_names_hook_2
             },
         )
         actual_field_names_order = tuple(

@@ -40,9 +40,9 @@ class TestPrevDagrunDep:
         The first task run of a new task in an old DAG should pass if the task has
         ignore_first_depends_on_past set to True.
         """
-        dag = DAG('test_dag')
+        dag = DAG("test_dag")
         old_task = BaseOperator(
-            task_id='test_task',
+            task_id="test_task",
             dag=dag,
             depends_on_past=True,
             start_date=convert_to_utc(datetime(2016, 1, 1)),
@@ -50,14 +50,14 @@ class TestPrevDagrunDep:
         )
         # Old DAG run will include only TaskInstance of old_task
         dag.create_dagrun(
-            run_id='old_run',
+            run_id="old_run",
             state=State.SUCCESS,
             execution_date=old_task.start_date,
             run_type=DagRunType.SCHEDULED,
         )
 
         new_task = BaseOperator(
-            task_id='new_task',
+            task_id="new_task",
             dag=dag,
             depends_on_past=True,
             ignore_first_depends_on_past=True,
@@ -66,7 +66,7 @@ class TestPrevDagrunDep:
 
         # New DAG run will include 1st TaskInstance of new_task
         dr = dag.create_dagrun(
-            run_id='new_run',
+            run_id="new_run",
             state=State.RUNNING,
             execution_date=convert_to_utc(datetime(2016, 1, 2)),
             run_type=DagRunType.SCHEDULED,

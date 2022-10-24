@@ -41,14 +41,14 @@ minimal_test_ticket = {
 
 class TestJiraOperator(unittest.TestCase):
     def setUp(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        dag = DAG('test_dag_id', default_args=args)
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        dag = DAG("test_dag_id", default_args=args)
         self.dag = dag
         db.merge_conn(
             Connection(
-                conn_id='jira_default',
-                conn_type='jira',
-                host='https://localhost/jira/',
+                conn_id="jira_default",
+                conn_type="jira",
+                host="https://localhost/jira/",
                 port=443,
                 extra='{"verify": "False", "project": "AIRFLOW"}',
             )
@@ -56,13 +56,13 @@ class TestJiraOperator(unittest.TestCase):
 
     @patch("airflow.providers.atlassian.jira.hooks.jira.JIRA", autospec=True, return_value=jira_client_mock)
     def test_issue_search(self, jira_mock):
-        jql_str = 'issuekey=TEST-1226'
+        jql_str = "issuekey=TEST-1226"
         jira_mock.return_value.search_issues.return_value = minimal_test_ticket
 
         jira_ticket_search_operator = JiraOperator(
-            task_id='search-ticket-test',
+            task_id="search-ticket-test",
             jira_method="search_issues",
-            jira_method_args={'jql_str': jql_str, 'maxResults': '1'},
+            jira_method_args={"jql_str": jql_str, "maxResults": "1"},
             dag=self.dag,
         )
 
@@ -76,9 +76,9 @@ class TestJiraOperator(unittest.TestCase):
         jira_mock.return_value.add_comment.return_value = True
 
         add_comment_operator = JiraOperator(
-            task_id='add_comment_test',
+            task_id="add_comment_test",
             jira_method="add_comment",
-            jira_method_args={'issue': minimal_test_ticket.get("key"), 'body': 'this is test comment'},
+            jira_method_args={"issue": minimal_test_ticket.get("key"), "body": "this is test comment"},
             dag=self.dag,
         )
 

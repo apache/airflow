@@ -37,7 +37,7 @@ with DAG(
     payload = {"activity": [{"user": "12345", "action": "update page", "time": "2014-04-21T13:00:15Z"}]}
 
     apex_operator = SalesforceApexRestOperator(
-        task_id="apex_task", method='POST', endpoint='User/Activity', payload=payload
+        task_id="apex_task", method="POST", endpoint="User/Activity", payload=payload
     )
     # [END howto_salesforce_apex_rest_operator]
 

@@ -87,7 +87,7 @@ class TestGetDatasets(TestDatasetEndpoint):
 
         assert response.status_code == 400
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
-        assert response.json['detail'] == msg
+        assert response.json["detail"] == msg
 
     def test_order_by_raises_400_for_invalid_datetimes(self, admin_client, session):
         datasets = [
@@ -111,7 +111,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert "Invalid datetime:" in response.text
 
     def test_filter_by_datetimes(self, admin_client, session):
-        today = pendulum.today('UTC')
+        today = pendulum.today("UTC")
 
         datasets = [
             DatasetModel(
@@ -137,15 +137,15 @@ class TestGetDatasets(TestDatasetEndpoint):
         response = admin_client.get(f"/object/datasets_summary?updated_after={cutoff}")
 
         assert response.status_code == 200
-        assert response.json['total_entries'] == 2
-        assert [json_dict['id'] for json_dict in response.json['datasets']] == [2, 3]
+        assert response.json["total_entries"] == 2
+        assert [json_dict["id"] for json_dict in response.json["datasets"]] == [2, 3]
 
         cutoff = today.add(days=-1).add(minutes=5).to_iso8601_string()
         response = admin_client.get(f"/object/datasets_summary?updated_before={cutoff}")
 
         assert response.status_code == 200
-        assert response.json['total_entries'] == 2
-        assert [json_dict['id'] for json_dict in response.json['datasets']] == [1, 2]
+        assert response.json["total_entries"] == 2
+        assert [json_dict["id"] for json_dict in response.json["datasets"]] == [1, 2]
 
     @pytest.mark.parametrize(
         "order_by, ordered_dataset_ids",
@@ -168,15 +168,15 @@ class TestGetDatasets(TestDatasetEndpoint):
         dataset_events = [
             DatasetEvent(
                 dataset_id=datasets[2].id,
-                timestamp=pendulum.today('UTC').add(days=-3),
+                timestamp=pendulum.today("UTC").add(days=-3),
             ),
             DatasetEvent(
                 dataset_id=datasets[1].id,
-                timestamp=pendulum.today('UTC').add(days=-2),
+                timestamp=pendulum.today("UTC").add(days=-2),
             ),
             DatasetEvent(
                 dataset_id=datasets[1].id,
-                timestamp=pendulum.today('UTC').add(days=-1),
+                timestamp=pendulum.today("UTC").add(days=-1),
             ),
         ]
         session.add_all(dataset_events)
@@ -186,8 +186,8 @@ class TestGetDatasets(TestDatasetEndpoint):
         response = admin_client.get(f"/object/datasets_summary?order_by={order_by}")
 
         assert response.status_code == 200
-        assert ordered_dataset_ids == [json_dict['id'] for json_dict in response.json['datasets']]
-        assert response.json['total_entries'] == len(ordered_dataset_ids)
+        assert ordered_dataset_ids == [json_dict["id"] for json_dict in response.json["datasets"]]
+        assert response.json["total_entries"] == len(ordered_dataset_ids)
 
     def test_search_uri_pattern(self, admin_client, session):
         datasets = [
@@ -201,7 +201,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         session.commit()
         assert session.query(DatasetModel).count() == 2
 
-        uri_pattern = 'key_2'
+        uri_pattern = "key_2"
         response = admin_client.get(f"/object/datasets_summary?uri_pattern={uri_pattern}")
 
         assert response.status_code == 200
@@ -218,7 +218,7 @@ class TestGetDatasets(TestDatasetEndpoint):
             "total_entries": 1,
         }
 
-        uri_pattern = 's3://bucket/key_'
+        uri_pattern = "s3://bucket/key_"
         response = admin_client.get(f"/object/datasets_summary?uri_pattern={uri_pattern}")
 
         assert response.status_code == 200
@@ -247,47 +247,47 @@ class TestGetDatasets(TestDatasetEndpoint):
             datasets = [Dataset(uri=f"s3://bucket/key/{i}") for i in [1, 2, 3, 4, 5]]
 
             # DAG that produces dataset #1
-            with dag_maker(dag_id='upstream', schedule=None, serialized=True, session=session):
-                EmptyOperator(task_id='task1', outlets=[datasets[0]])
+            with dag_maker(dag_id="upstream", schedule=None, serialized=True, session=session):
+                EmptyOperator(task_id="task1", outlets=[datasets[0]])
 
             # DAG that is consumes only datasets #1 and #2
-            with dag_maker(dag_id='downstream', schedule=datasets[:2], serialized=True, session=session):
-                EmptyOperator(task_id='task1')
+            with dag_maker(dag_id="downstream", schedule=datasets[:2], serialized=True, session=session):
+                EmptyOperator(task_id="task1")
 
             # We create multiple dataset-producing and dataset-consuming DAGs because the query requires
             # COUNT(DISTINCT ...) for total_updates, or else it returns a multiple of the correct number due
             # to the outer joins with DagScheduleDatasetReference and TaskOutletDatasetReference
             # Two independent DAGs that produce dataset #3
-            with dag_maker(dag_id='independent_producer_1', serialized=True, session=session):
-                EmptyOperator(task_id='task1', outlets=[datasets[2]])
-            with dag_maker(dag_id='independent_producer_2', serialized=True, session=session):
-                EmptyOperator(task_id='task1', outlets=[datasets[2]])
+            with dag_maker(dag_id="independent_producer_1", serialized=True, session=session):
+                EmptyOperator(task_id="task1", outlets=[datasets[2]])
+            with dag_maker(dag_id="independent_producer_2", serialized=True, session=session):
+                EmptyOperator(task_id="task1", outlets=[datasets[2]])
             # Two independent DAGs that consume dataset #4
             with dag_maker(
-                dag_id='independent_consumer_1',
+                dag_id="independent_consumer_1",
                 schedule=[datasets[3]],
                 serialized=True,
                 session=session,
             ):
-                EmptyOperator(task_id='task1')
+                EmptyOperator(task_id="task1")
             with dag_maker(
-                dag_id='independent_consumer_2',
+                dag_id="independent_consumer_2",
                 schedule=[datasets[3]],
                 serialized=True,
                 session=session,
             ):
-                EmptyOperator(task_id='task1')
+                EmptyOperator(task_id="task1")
 
             # Independent DAG that is produces and consumes the same dataset, #5
             with dag_maker(
-                dag_id='independent_producer_self_consumer',
+                dag_id="independent_producer_self_consumer",
                 schedule=[datasets[4]],
                 serialized=True,
                 session=session,
             ):
-                EmptyOperator(task_id='task1', outlets=[datasets[4]])
+                EmptyOperator(task_id="task1", outlets=[datasets[4]])
 
-            m.setattr(app, 'dag_bag', dag_maker.dagbag)
+            m.setattr(app, "dag_bag", dag_maker.dagbag)
 
             ds1_id = session.query(DatasetModel.id).filter_by(uri=datasets[0].uri).scalar()
             ds2_id = session.query(DatasetModel.id).filter_by(uri=datasets[1].uri).scalar()
@@ -423,7 +423,7 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         response = admin_client.get("/object/datasets_summary")
 
         assert response.status_code == 200
-        assert len(response.json['datasets']) == 25
+        assert len(response.json["datasets"]) == 25
 
     def test_should_return_max_if_req_above(self, admin_client, session):
         datasets = [
@@ -439,4 +439,4 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         response = admin_client.get("/object/datasets_summary?limit=180")
 
         assert response.status_code == 200
-        assert len(response.json['datasets']) == 50
+        assert len(response.json["datasets"]) == 50

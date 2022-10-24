@@ -32,23 +32,23 @@ from github import Github
 from github.Issue import Issue
 from github.PullRequest import PullRequest
 
-GIT_COMMIT_FIELDS = ['id', 'author_name', 'author_email', 'date', 'subject', 'body']
-GIT_LOG_FORMAT = '%x1f'.join(['%h', '%an', '%ae', '%ad', '%s', '%b']) + '%x1e'
+GIT_COMMIT_FIELDS = ["id", "author_name", "author_email", "date", "subject", "body"]
+GIT_LOG_FORMAT = "%x1f".join(["%h", "%an", "%ae", "%ad", "%s", "%b"]) + "%x1e"
 pr_title_re = re.compile(r".*\((#[0-9]{1,6})\)$")
 
 
 STATUS_COLOR_MAP = {
-    'Closed': 'green',
-    'Open': 'red',
+    "Closed": "green",
+    "Open": "red",
 }
 
-DEFAULT_SECTION_NAME = 'Uncategorized'
+DEFAULT_SECTION_NAME = "Uncategorized"
 
 
 def get_commits_between(repo, previous_version, target_version):
-    log_args = [f'--format={GIT_LOG_FORMAT}', previous_version + ".." + target_version]
+    log_args = [f"--format={GIT_LOG_FORMAT}", previous_version + ".." + target_version]
     log = repo.git.log(*log_args)
-    log = log.strip('\n\x1e').split("\x1e")
+    log = log.strip("\n\x1e").split("\x1e")
     log = [row.strip().split("\x1f") for row in log]
     return [dict(zip(GIT_COMMIT_FIELDS, row)) for row in log]
 
@@ -87,7 +87,7 @@ def get_commit_in_main_associated_with_pr(repo: git.Repo, issue: Issue) -> str |
 
 def is_cherrypicked(repo: git.Repo, issue: Issue, previous_version: str | None = None) -> bool:
     """Check if a given issue is cherry-picked in the current branch or not"""
-    log_args = ['--format=%H', f"--grep=#{issue.number}"]
+    log_args = ["--format=%H", f"--grep=#{issue.number}"]
     if previous_version:
         log_args.append(previous_version + "..")
     log = repo.git.log(*log_args)
@@ -192,7 +192,7 @@ def print_changelog(sections):
         print(section)
         print('"' * len(section))
         for line in lines:
-            print('-', line)
+            print("-", line)
         print()
 
 
@@ -206,22 +206,22 @@ def cli():
     """
 
 
-@cli.command(short_help='Compare a GitHub target version against git merges')
-@click.argument('target_version')
-@click.argument('github-token', envvar='GITHUB_TOKEN')
+@cli.command(short_help="Compare a GitHub target version against git merges")
+@click.argument("target_version")
+@click.argument("github-token", envvar="GITHUB_TOKEN")
 @click.option(
-    '--previous-version',
-    'previous_version',
+    "--previous-version",
+    "previous_version",
     help="Specify the previous tag on the working branch to limit"
     " searching for few commits to find the cherry-picked commits",
 )
-@click.option('--unmerged', 'show_uncherrypicked_only', help="Show unmerged PRs only", is_flag=True)
+@click.option("--unmerged", "show_uncherrypicked_only", help="Show unmerged PRs only", is_flag=True)
 def compare(target_version, github_token, previous_version=None, show_uncherrypicked_only=False):
     repo = git.Repo(".", search_parent_directories=True)
 
     github_handler = Github(github_token)
     milestone_issues: list[Issue] = list(
-        github_handler.search_issues(f"repo:apache/airflow milestone:\"Airflow {target_version}\"")
+        github_handler.search_issues(f'repo:apache/airflow milestone:"Airflow {target_version}"')
     )
 
     num_cherrypicked = 0
@@ -283,10 +283,10 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
     )
 
 
-@cli.command(short_help='Build a CHANGELOG grouped by GitHub Issue type')
-@click.argument('previous_version')
-@click.argument('target_version')
-@click.argument('github-token', envvar='GITHUB_TOKEN')
+@cli.command(short_help="Build a CHANGELOG grouped by GitHub Issue type")
+@click.argument("previous_version")
+@click.argument("target_version")
+@click.argument("github-token", envvar="GITHUB_TOKEN")
 def changelog(previous_version, target_version, github_token):
     repo = git.Repo(".", search_parent_directories=True)
     # Get a list of issues/PRs that have been committed on the current branch.
@@ -296,23 +296,23 @@ def changelog(previous_version, target_version, github_token):
     gh_repo = gh.get_repo("apache/airflow")
     sections = defaultdict(list)
     for commit in log:
-        tickets = pr_title_re.findall(commit['subject'])
+        tickets = pr_title_re.findall(commit["subject"])
         if tickets:
             issue = gh_repo.get_issue(number=int(tickets[0][1:]))
             issue_type = get_issue_type(issue)
-            sections[issue_type].append(commit['subject'])
+            sections[issue_type].append(commit["subject"])
         else:
-            sections[DEFAULT_SECTION_NAME].append(commit['subject'])
+            sections[DEFAULT_SECTION_NAME].append(commit["subject"])
 
     print_changelog(sections)
 
 
-@cli.command(short_help='Find merged PRs that still need to be categorized for the changelog')
-@click.argument('previous_version')
-@click.argument('target_version')
-@click.option('--show-skipped', is_flag=True)
-@click.option('--show-files', is_flag=True)
-@click.argument('github-token', envvar='GITHUB_TOKEN')
+@cli.command(short_help="Find merged PRs that still need to be categorized for the changelog")
+@click.argument("previous_version")
+@click.argument("target_version")
+@click.option("--show-skipped", is_flag=True)
+@click.option("--show-files", is_flag=True)
+@click.argument("github-token", envvar="GITHUB_TOKEN")
 def needs_categorization(previous_version, target_version, show_skipped, show_files, github_token):
     repo = git.Repo(".", search_parent_directories=True)
     log = get_commits_between(repo, previous_version, target_version)
@@ -320,12 +320,12 @@ def needs_categorization(previous_version, target_version, show_skipped, show_fi
     gh = Github(github_token)
     gh_repo = gh.get_repo("apache/airflow")
     for commit in log:
-        tickets = pr_title_re.findall(commit['subject'])
+        tickets = pr_title_re.findall(commit["subject"])
         if tickets:
             issue = gh_repo.get_issue(number=int(tickets[0][1:]))
             issue_type = get_issue_type(issue)
             if issue_type == DEFAULT_SECTION_NAME:
-                files = files_touched(repo, commit['id'])
+                files = files_touched(repo, commit["id"])
                 if is_core_commit(files):
                     print(f"{commit['subject']}: {issue.html_url}")
                     if show_files:

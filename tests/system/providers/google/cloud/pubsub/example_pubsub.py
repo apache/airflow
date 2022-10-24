@@ -55,7 +55,7 @@ echo_cmd = """
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',  # Override to match your needs
+    schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:

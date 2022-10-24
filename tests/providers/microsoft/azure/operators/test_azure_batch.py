@@ -50,7 +50,7 @@ class TestAzureBatchOperator(unittest.TestCase):
         self.test_vm_conn_id = "test_azure_batch_vm2"
         self.test_cloud_conn_id = "test_azure_batch_cloud2"
         self.test_account_name = "test_account_name"
-        self.test_account_key = 'test_account_key'
+        self.test_account_key = "test_account_key"
         self.test_account_url = "http://test-endpoint:29000"
         self.test_vm_size = "test-vm-size"
         self.test_vm_publisher = "test.vm.publisher"
@@ -111,7 +111,7 @@ class TestAzureBatchOperator(unittest.TestCase):
             batch_pool_vm_size=BATCH_VM_SIZE,
             batch_job_id=BATCH_JOB_ID,
             batch_task_id=BATCH_TASK_ID,
-            os_family='4',
+            os_family="4",
             batch_task_command_line="echo hello",
             azure_batch_conn_id=self.test_vm_conn_id,
             enable_auto_scale=True,
@@ -123,7 +123,7 @@ class TestAzureBatchOperator(unittest.TestCase):
             batch_pool_vm_size=BATCH_VM_SIZE,
             batch_job_id=BATCH_JOB_ID,
             batch_task_id=BATCH_TASK_ID,
-            os_family='4',
+            os_family="4",
             batch_task_command_line="echo hello",
             azure_batch_conn_id=self.test_vm_conn_id,
             timeout=2,
@@ -160,7 +160,7 @@ class TestAzureBatchOperator(unittest.TestCase):
         self.mock_instance = mock_hook.return_value
         assert self.batch_client == self.operator.hook.connection
 
-    @mock.patch.object(AzureBatchHook, 'wait_for_all_node_state')
+    @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
     def test_execute_without_failures(self, wait_mock):
         wait_mock.return_value = True  # No wait
         self.operator.execute(None)
@@ -169,7 +169,7 @@ class TestAzureBatchOperator(unittest.TestCase):
         self.batch_client.job.add.assert_called()
         self.batch_client.task.add.assert_called()
 
-    @mock.patch.object(AzureBatchHook, 'wait_for_all_node_state')
+    @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
     def test_execute_without_failures_2(self, wait_mock):
         wait_mock.return_value = True  # No wait
         self.operator2_pass.execute(None)
@@ -178,7 +178,7 @@ class TestAzureBatchOperator(unittest.TestCase):
         self.batch_client.job.add.assert_called()
         self.batch_client.task.add.assert_called()
 
-    @mock.patch.object(AzureBatchHook, 'wait_for_all_node_state')
+    @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
     def test_execute_with_failures(self, wait_mock):
         wait_mock.return_value = True  # No wait
         # Remove pool id
@@ -188,7 +188,7 @@ class TestAzureBatchOperator(unittest.TestCase):
         with pytest.raises(AirflowException):
             self.operator.execute(None)
 
-    @mock.patch.object(AzureBatchHook, 'wait_for_all_node_state')
+    @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
     @mock.patch.object(AzureBatchOperator, "clean_up")
     def test_execute_with_cleaning(self, mock_clean, wait_mock):
         wait_mock.return_value = True  # No wait
@@ -239,4 +239,4 @@ class TestAzureBatchOperator(unittest.TestCase):
         self.batch_client.pool.delete.assert_called_once_with("mypool")
         self.operator.clean_up("mypool", "myjob")
         self.batch_client.job.delete.assert_called_with("myjob")
-        self.batch_client.pool.delete.assert_called_with('mypool')
+        self.batch_client.pool.delete.assert_called_with("mypool")

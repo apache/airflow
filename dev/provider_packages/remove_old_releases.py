@@ -82,21 +82,21 @@ def process_all_files(directory: str, suffix: str, execute: bool):
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description='Removes old releases.')
+    parser = argparse.ArgumentParser(description="Removes old releases.")
     parser.add_argument(
-        '--directory',
-        dest='directory',
-        action='store',
+        "--directory",
+        dest="directory",
+        action="store",
         required=True,
-        help='Directory to remove old releases in',
+        help="Directory to remove old releases in",
     )
     parser.add_argument(
-        '--execute', dest='execute', action='store_true', help='Execute the removal rather than dry run'
+        "--execute", dest="execute", action="store_true", help="Execute the removal rather than dry run"
     )
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_args()
     process_all_files(args.directory, ".tar.gz", args.execute)
     process_all_files(args.directory, ".tar.gz.sha512", args.execute)

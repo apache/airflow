@@ -56,10 +56,10 @@ document_gcs = Document(gcs_content_uri=GCS_CONTENT_URI, type="PLAIN_TEXT")
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',  # Override to match your needs
+    schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [START howto_operator_gcp_natural_language_analyze_entities]
     analyze_entities = CloudNaturalLanguageAnalyzeEntitiesOperator(

@@ -151,7 +151,7 @@ def register_source(app, env, modname):
             analyzer = ModuleAnalyzer.for_module(modname)
         except Exception as ex:
             logger.info(
-                "Module \"%s\" could not be loaded. Full source will not be available. \"%s\"", modname, ex
+                'Module "%s" could not be loaded. Full source will not be available. "%s"', modname, ex
             )
             # We cannot use regular warnings or exception methods because those warnings are interpreted
             # by running python process and converted into "real" warnings, so we need to print the
@@ -249,5 +249,5 @@ def setup(app):
     app.add_config_value("exampleinclude_sourceroot", None, "env")
     if not airflow_theme_is_available:
         # Sphinx airflow theme has its own styles.
-        app.add_css_file('exampleinclude.css')
+        app.add_css_file("exampleinclude.css")
     return {"version": "builtin", "parallel_read_safe": False, "parallel_write_safe": False}

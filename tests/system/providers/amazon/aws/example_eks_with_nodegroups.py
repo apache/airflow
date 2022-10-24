@@ -35,11 +35,11 @@ from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContex
 # Ignore missing args provided by default_args
 # type: ignore[call-arg]
 
-DAG_ID = 'example_eks_with_nodegroups'
+DAG_ID = "example_eks_with_nodegroups"
 
 # Externally fetched variables:
-ROLE_ARN_KEY = 'ROLE_ARN'
-SUBNETS_KEY = 'SUBNETS'
+ROLE_ARN_KEY = "ROLE_ARN"
+SUBNETS_KEY = "SUBNETS"
 
 sys_test_context_task = (
     SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).add_variable(SUBNETS_KEY, split_string=True).build()
@@ -47,31 +47,31 @@ sys_test_context_task = (
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
 
-    cluster_name = f'{env_id}-cluster'
-    nodegroup_name = f'{env_id}-nodegroup'
+    cluster_name = f"{env_id}-cluster"
+    nodegroup_name = f"{env_id}-nodegroup"
 
     # [START howto_operator_eks_create_cluster]
     # Create an Amazon EKS Cluster control plane without attaching compute service.
     create_cluster = EksCreateClusterOperator(
-        task_id='create_cluster',
+        task_id="create_cluster",
         cluster_name=cluster_name,
         cluster_role_arn=test_context[ROLE_ARN_KEY],
-        resources_vpc_config={'subnetIds': test_context[SUBNETS_KEY]},
+        resources_vpc_config={"subnetIds": test_context[SUBNETS_KEY]},
         compute=None,
     )
     # [END howto_operator_eks_create_cluster]
 
     # [START howto_sensor_eks_cluster]
     await_create_cluster = EksClusterStateSensor(
-        task_id='await_create_cluster',
+        task_id="await_create_cluster",
         cluster_name=cluster_name,
         target_state=ClusterStates.ACTIVE,
     )
@@ -79,7 +79,7 @@ with DAG(
 
     # [START howto_operator_eks_create_nodegroup]
     create_nodegroup = EksCreateNodegroupOperator(
-        task_id='create_nodegroup',
+        task_id="create_nodegroup",
         cluster_name=cluster_name,
         nodegroup_name=nodegroup_name,
         nodegroup_subnets=test_context[SUBNETS_KEY],
@@ -89,7 +89,7 @@ with DAG(
 
     # [START howto_sensor_eks_nodegroup]
     await_create_nodegroup = EksNodegroupStateSensor(
-        task_id='await_create_nodegroup',
+        task_id="await_create_nodegroup",
         cluster_name=cluster_name,
         nodegroup_name=nodegroup_name,
         target_state=NodegroupStates.ACTIVE,
@@ -98,12 +98,12 @@ with DAG(
 
     # [START howto_operator_eks_pod_operator]
     start_pod = EksPodOperator(
-        task_id='start_pod',
-        pod_name='test_pod',
+        task_id="start_pod",
+        pod_name="test_pod",
         cluster_name=cluster_name,
-        image='amazon/aws-cli:latest',
-        cmds=['sh', '-c', 'echo Test Airflow; date'],
-        labels={'demo': 'hello_world'},
+        image="amazon/aws-cli:latest",
+        cmds=["sh", "-c", "echo Test Airflow; date"],
+        labels={"demo": "hello_world"},
         get_logs=True,
         # Delete the pod when it reaches its final state, or the execution is interrupted.
         is_delete_operator_pod=True,
@@ -112,7 +112,7 @@ with DAG(
 
     # [START howto_operator_eks_delete_nodegroup]
     delete_nodegroup = EksDeleteNodegroupOperator(
-        task_id='delete_nodegroup',
+        task_id="delete_nodegroup",
         cluster_name=cluster_name,
         nodegroup_name=nodegroup_name,
     )
@@ -120,7 +120,7 @@ with DAG(
     delete_nodegroup.trigger_rule = TriggerRule.ALL_DONE
 
     await_delete_nodegroup = EksNodegroupStateSensor(
-        task_id='await_delete_nodegroup',
+        task_id="await_delete_nodegroup",
         trigger_rule=TriggerRule.ALL_DONE,
         cluster_name=cluster_name,
         nodegroup_name=nodegroup_name,
@@ -129,14 +129,14 @@ with DAG(
 
     # [START howto_operator_eks_delete_cluster]
     delete_cluster = EksDeleteClusterOperator(
-        task_id='delete_cluster',
+        task_id="delete_cluster",
         cluster_name=cluster_name,
     )
     # [END howto_operator_eks_delete_cluster]
     delete_cluster.trigger_rule = TriggerRule.ALL_DONE
 
     await_delete_cluster = EksClusterStateSensor(
-        task_id='await_delete_cluster',
+        task_id="await_delete_cluster",
         trigger_rule=TriggerRule.ALL_DONE,
         cluster_name=cluster_name,
         target_state=ClusterStates.NONEXISTENT,

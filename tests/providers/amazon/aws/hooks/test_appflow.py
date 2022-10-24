@@ -38,14 +38,14 @@ def hook():
     with mock.patch("airflow.providers.amazon.aws.hooks.appflow.AppflowHook.__init__", return_value=None):
         with mock.patch("airflow.providers.amazon.aws.hooks.appflow.AppflowHook.conn") as mock_conn:
             mock_conn.describe_flow.return_value = {
-                'sourceFlowConfig': {'connectorType': CONNECTION_TYPE},
-                'tasks': [],
-                'triggerConfig': {'triggerProperties': None},
-                'flowName': FLOW_NAME,
-                'destinationFlowConfigList': {},
-                'lastRunExecutionDetails': {
-                    'mostRecentExecutionStatus': 'Successful',
-                    'mostRecentExecutionTime': datetime(3000, 1, 1, tzinfo=timezone.utc),
+                "sourceFlowConfig": {"connectorType": CONNECTION_TYPE},
+                "tasks": [],
+                "triggerConfig": {"triggerProperties": None},
+                "flowName": FLOW_NAME,
+                "destinationFlowConfigList": {},
+                "lastRunExecutionDetails": {
+                    "mostRecentExecutionStatus": "Successful",
+                    "mostRecentExecutionTime": datetime(3000, 1, 1, tzinfo=timezone.utc),
                 },
             }
             mock_conn.update_flow.return_value = {}
@@ -57,7 +57,7 @@ def hook():
 
 
 def test_conn_attributes(hook):
-    assert hasattr(hook, 'conn')
+    assert hasattr(hook, "conn")
     conn = hook.conn
     assert conn is hook.conn, "AppflowHook conn property non-cached"
 
@@ -72,10 +72,10 @@ def test_run_flow(hook):
 def test_update_flow_filter(hook):
     tasks = [
         {
-            'taskType': 'Filter',
-            'connectorOperator': {'Salesforce': 'GREATER_THAN'},
-            'sourceFields': ['col0'],
-            'taskProperties': {'DATA_TYPE': 'datetime', 'VALUE': '1653523200000'},
+            "taskType": "Filter",
+            "connectorOperator": {"Salesforce": "GREATER_THAN"},
+            "sourceFields": ["col0"],
+            "taskProperties": {"DATA_TYPE": "datetime", "VALUE": "1653523200000"},
         }
     ]
     hook.update_flow_filter(flow_name=FLOW_NAME, filter_tasks=tasks, set_trigger_ondemand=True)

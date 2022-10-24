@@ -240,7 +240,7 @@ class TestGoogleCampaignManagerHook(TestCase):
     def test_conversion_batch_insert(self, batch_request_mock, get_conn_mock):
         conversions = [{"conversions1": "value"}, {"conversions2": "value"}]
 
-        return_value = {'hasFailures': False}
+        return_value = {"hasFailures": False}
         get_conn_mock.return_value.conversions.return_value.batchinsert.return_value.execute.return_value = (
             return_value
         )
@@ -279,7 +279,7 @@ class TestGoogleCampaignManagerHook(TestCase):
     def test_conversions_batch_update(self, batch_request_mock, get_conn_mock):
         conversions = [{"conversions1": "value"}, {"conversions2": "value"}]
 
-        return_value = {'hasFailures': False}
+        return_value = {"hasFailures": False}
         get_conn_mock.return_value.conversions.return_value.batchupdate.return_value.execute.return_value = (
             return_value
         )

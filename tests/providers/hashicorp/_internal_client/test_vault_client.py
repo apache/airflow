@@ -31,7 +31,7 @@ class TestVaultClient(TestCase):
     def test_version_wrong(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
-        with pytest.raises(VaultError, match='The version is not supported: 4'):
+        with pytest.raises(VaultError, match="The version is not supported: 4"):
             _VaultClient(auth_type="approle", kv_engine_version=4)
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -57,7 +57,7 @@ class TestVaultClient(TestCase):
             auth_type="approle", role_id="role", url="http://localhost:8180", secret_id="pass"
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.auth.approle.login.assert_called_with(role_id="role", secret_id="pass")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -74,7 +74,7 @@ class TestVaultClient(TestCase):
             auth_mount_point="other",
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.auth.approle.login.assert_called_with(role_id="role", secret_id="pass", mount_point="other")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -91,13 +91,13 @@ class TestVaultClient(TestCase):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         vault_client = _VaultClient(
-            auth_type="aws_iam", role_id="role", url="http://localhost:8180", key_id="user", secret_id='pass'
+            auth_type="aws_iam", role_id="role", url="http://localhost:8180", key_id="user", secret_id="pass"
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.auth_aws_iam.assert_called_with(
-            access_key='user',
-            secret_key='pass',
+            access_key="user",
+            secret_key="pass",
             role="role",
         )
         client.is_authenticated.assert_called_with()
@@ -112,13 +112,13 @@ class TestVaultClient(TestCase):
             role_id="role",
             url="http://localhost:8180",
             key_id="user",
-            secret_id='pass',
+            secret_id="pass",
             auth_mount_point="other",
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.auth_aws_iam.assert_called_with(
-            access_key='user', secret_key='pass', role="role", mount_point='other'
+            access_key="user", secret_key="pass", role="role", mount_point="other"
         )
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -133,10 +133,10 @@ class TestVaultClient(TestCase):
             azure_resource="resource",
             url="http://localhost:8180",
             key_id="user",
-            secret_id='pass',
+            secret_id="pass",
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.auth.azure.configure.assert_called_with(
             tenant_id="tenant_id",
             resource="resource",
@@ -156,11 +156,11 @@ class TestVaultClient(TestCase):
             azure_resource="resource",
             url="http://localhost:8180",
             key_id="user",
-            secret_id='pass',
+            secret_id="pass",
             auth_mount_point="other",
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.auth.azure.configure.assert_called_with(
             tenant_id="tenant_id",
             resource="resource",
@@ -181,7 +181,7 @@ class TestVaultClient(TestCase):
                 azure_tenant_id="tenant_id",
                 url="http://localhost:8180",
                 key_id="user",
-                secret_id='pass',
+                secret_id="pass",
             )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -191,10 +191,10 @@ class TestVaultClient(TestCase):
         with pytest.raises(VaultError, match="requires 'azure_tenant_id'"):
             _VaultClient(
                 auth_type="azure",
-                azure_resource='resource',
+                azure_resource="resource",
                 url="http://localhost:8180",
                 key_id="user",
-                secret_id='pass',
+                secret_id="pass",
             )
 
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._get_scopes")
@@ -203,18 +203,18 @@ class TestVaultClient(TestCase):
     def test_gcp(self, mock_hvac, mock_get_credentials, mock_get_scopes):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
-        mock_get_scopes.return_value = ['scope1', 'scope2']
+        mock_get_scopes.return_value = ["scope1", "scope2"]
         mock_get_credentials.return_value = ("credentials", "project_id")
         vault_client = _VaultClient(
             auth_type="gcp", gcp_key_path="path.json", gcp_scopes="scope1,scope2", url="http://localhost:8180"
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         mock_get_scopes.assert_called_with("scope1,scope2")
         mock_get_credentials.assert_called_with(
-            key_path="path.json", keyfile_dict=None, scopes=['scope1', 'scope2']
+            key_path="path.json", keyfile_dict=None, scopes=["scope1", "scope2"]
         )
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.auth.gcp.configure.assert_called_with(
             credentials="credentials",
         )
@@ -227,7 +227,7 @@ class TestVaultClient(TestCase):
     def test_gcp_different_auth_mount_point(self, mock_hvac, mock_get_credentials, mock_get_scopes):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
-        mock_get_scopes.return_value = ['scope1', 'scope2']
+        mock_get_scopes.return_value = ["scope1", "scope2"]
         mock_get_credentials.return_value = ("credentials", "project_id")
         vault_client = _VaultClient(
             auth_type="gcp",
@@ -237,12 +237,12 @@ class TestVaultClient(TestCase):
             auth_mount_point="other",
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         mock_get_scopes.assert_called_with("scope1,scope2")
         mock_get_credentials.assert_called_with(
-            key_path="path.json", keyfile_dict=None, scopes=['scope1', 'scope2']
+            key_path="path.json", keyfile_dict=None, scopes=["scope1", "scope2"]
         )
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.auth.gcp.configure.assert_called_with(credentials="credentials", mount_point="other")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -253,7 +253,7 @@ class TestVaultClient(TestCase):
     def test_gcp_dict(self, mock_hvac, mock_get_credentials, mock_get_scopes):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
-        mock_get_scopes.return_value = ['scope1', 'scope2']
+        mock_get_scopes.return_value = ["scope1", "scope2"]
         mock_get_credentials.return_value = ("credentials", "project_id")
         vault_client = _VaultClient(
             auth_type="gcp",
@@ -262,12 +262,12 @@ class TestVaultClient(TestCase):
             url="http://localhost:8180",
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         mock_get_scopes.assert_called_with("scope1,scope2")
         mock_get_credentials.assert_called_with(
-            key_path=None, keyfile_dict={"key": "value"}, scopes=['scope1', 'scope2']
+            key_path=None, keyfile_dict={"key": "value"}, scopes=["scope1", "scope2"]
         )
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.auth.gcp.configure.assert_called_with(
             credentials="credentials",
         )
@@ -282,7 +282,7 @@ class TestVaultClient(TestCase):
             auth_type="github", token="s.7AU0I51yv1Q1lxOIg1F3ZRAS", url="http://localhost:8180"
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.auth.github.login.assert_called_with(token="s.7AU0I51yv1Q1lxOIg1F3ZRAS")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -298,7 +298,7 @@ class TestVaultClient(TestCase):
             auth_mount_point="other",
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.auth.github.login.assert_called_with(token="s.7AU0I51yv1Q1lxOIg1F3ZRAS", mount_point="other")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -321,7 +321,7 @@ class TestVaultClient(TestCase):
         with patch("builtins.open", mock_open(read_data="data")) as mock_file:
             client = vault_client.client
         mock_file.assert_called_with("/var/run/secrets/kubernetes.io/serviceaccount/token")
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         mock_kubernetes.assert_called_with(mock_client.adapter)
         mock_kubernetes.return_value.login.assert_called_with(role="kube_role", jwt="data")
         client.is_authenticated.assert_called_with()
@@ -341,7 +341,7 @@ class TestVaultClient(TestCase):
         with patch("builtins.open", mock_open(read_data="data")) as mock_file:
             client = vault_client.client
         mock_file.assert_called_with("path")
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         mock_kubernetes.assert_called_with(mock_client.adapter)
         mock_kubernetes.return_value.login.assert_called_with(role="kube_role", jwt="data")
         client.is_authenticated.assert_called_with()
@@ -362,10 +362,10 @@ class TestVaultClient(TestCase):
         with patch("builtins.open", mock_open(read_data="data")) as mock_file:
             client = vault_client.client
         mock_file.assert_called_with("path")
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         mock_kubernetes.assert_called_with(mock_client.adapter)
         mock_kubernetes.return_value.login.assert_called_with(
-            role="kube_role", jwt="data", mount_point='other'
+            role="kube_role", jwt="data", mount_point="other"
         )
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -384,7 +384,7 @@ class TestVaultClient(TestCase):
         with pytest.raises(VaultError, match="requires 'kubernetes_jwt_path'"):
             _VaultClient(
                 auth_type="kubernetes",
-                kubernetes_role='kube_role',
+                kubernetes_role="kube_role",
                 kubernetes_jwt_path=None,
                 url="http://localhost:8180",
             )
@@ -397,7 +397,7 @@ class TestVaultClient(TestCase):
             auth_type="ldap", username="user", password="pass", url="http://localhost:8180"
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.auth.ldap.login.assert_called_with(username="user", password="pass")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -414,7 +414,7 @@ class TestVaultClient(TestCase):
             url="http://localhost:8180",
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.auth.ldap.login.assert_called_with(username="user", password="pass", mount_point="other")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -441,7 +441,7 @@ class TestVaultClient(TestCase):
             auth_type="radius", radius_host="radhost", radius_secret="pass", url="http://localhost:8180"
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.auth.radius.configure.assert_called_with(host="radhost", secret="pass", port=None)
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -458,7 +458,7 @@ class TestVaultClient(TestCase):
             url="http://localhost:8180",
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.auth.radius.configure.assert_called_with(
             host="radhost", secret="pass", port=None, mount_point="other"
         )
@@ -477,7 +477,7 @@ class TestVaultClient(TestCase):
             url="http://localhost:8180",
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.auth.radius.configure.assert_called_with(host="radhost", secret="pass", port=8110)
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -497,7 +497,7 @@ class TestVaultClient(TestCase):
             auth_type="token", token="s.7AU0I51yv1Q1lxOIg1F3ZRAS", url="http://localhost:8180"
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.is_authenticated.assert_called_with()
         assert "s.7AU0I51yv1Q1lxOIg1F3ZRAS" == client.token
         assert 2 == vault_client.kv_engine_version
@@ -507,13 +507,13 @@ class TestVaultClient(TestCase):
     def test_token_path(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
-        with open('/tmp/test_token.txt', 'w+') as the_file:
-            the_file.write('s.7AU0I51yv1Q1lxOIg1F3ZRAS')
+        with open("/tmp/test_token.txt", "w+") as the_file:
+            the_file.write("s.7AU0I51yv1Q1lxOIg1F3ZRAS")
         vault_client = _VaultClient(
             auth_type="token", token_path="/tmp/test_token.txt", url="http://localhost:8180"
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.is_authenticated.assert_called_with()
         assert "s.7AU0I51yv1Q1lxOIg1F3ZRAS" == client.token
         assert 2 == vault_client.kv_engine_version
@@ -523,13 +523,13 @@ class TestVaultClient(TestCase):
     def test_token_path_strip(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
-        with open('/tmp/test_token.txt', 'w+') as the_file:
-            the_file.write('  s.7AU0I51yv1Q1lxOIg1F3ZRAS\n')
+        with open("/tmp/test_token.txt", "w+") as the_file:
+            the_file.write("  s.7AU0I51yv1Q1lxOIg1F3ZRAS\n")
         vault_client = _VaultClient(
             auth_type="token", token_path="/tmp/test_token.txt", url="http://localhost:8180"
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.is_authenticated.assert_called_with()
         assert "s.7AU0I51yv1Q1lxOIg1F3ZRAS" == client.token
         assert 2 == vault_client.kv_engine_version
@@ -541,7 +541,7 @@ class TestVaultClient(TestCase):
         mock_hvac.Client.return_value = mock_client
         vault_client = _VaultClient(token="s.7AU0I51yv1Q1lxOIg1F3ZRAS", url="http://localhost:8180")
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.is_authenticated.assert_called_with()
         assert "s.7AU0I51yv1Q1lxOIg1F3ZRAS" == client.token
         assert "token" == vault_client.auth_type
@@ -556,7 +556,7 @@ class TestVaultClient(TestCase):
             auth_type="userpass", username="user", password="pass", url="http://localhost:8180"
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.auth_userpass.assert_called_with(username="user", password="pass")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -573,7 +573,7 @@ class TestVaultClient(TestCase):
             url="http://localhost:8180",
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
         client.auth_userpass.assert_called_with(username="user", password="pass", mount_point="other")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -590,7 +590,7 @@ class TestVaultClient(TestCase):
         secret = vault_client.get_secret(secret_path="missing")
         assert secret is None
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point='secret', path='missing', version=None
+            mount_point="secret", path="missing", version=None
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -610,7 +610,7 @@ class TestVaultClient(TestCase):
         assert secret is None
         assert "secret" == vault_client.mount_point
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point='secret', path='missing', version=None
+            mount_point="secret", path="missing", version=None
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -629,7 +629,7 @@ class TestVaultClient(TestCase):
         )
         secret = vault_client.get_secret(secret_path="missing")
         assert secret is None
-        mock_client.secrets.kv.v1.read_secret.assert_called_once_with(mount_point='secret', path='missing')
+        mock_client.secrets.kv.v1.read_secret.assert_called_once_with(mount_point="secret", path="missing")
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_existing_key_v2(self, mock_hvac):
@@ -637,22 +637,22 @@ class TestVaultClient(TestCase):
         mock_hvac.Client.return_value = mock_client
 
         mock_client.secrets.kv.v2.read_secret_version.return_value = {
-            'request_id': '94011e25-f8dc-ec29-221b-1f9c1d9ad2ae',
-            'lease_id': '',
-            'renewable': False,
-            'lease_duration': 0,
-            'data': {
-                'data': {'secret_key': 'secret_value'},
-                'metadata': {
-                    'created_time': '2020-03-16T21:01:43.331126Z',
-                    'deletion_time': '',
-                    'destroyed': False,
-                    'version': 1,
+            "request_id": "94011e25-f8dc-ec29-221b-1f9c1d9ad2ae",
+            "lease_id": "",
+            "renewable": False,
+            "lease_duration": 0,
+            "data": {
+                "data": {"secret_key": "secret_value"},
+                "metadata": {
+                    "created_time": "2020-03-16T21:01:43.331126Z",
+                    "deletion_time": "",
+                    "destroyed": False,
+                    "version": 1,
                 },
             },
-            'wrap_info': None,
-            'warnings': None,
-            'auth': None,
+            "wrap_info": None,
+            "warnings": None,
+            "auth": None,
         }
 
         vault_client = _VaultClient(
@@ -663,9 +663,9 @@ class TestVaultClient(TestCase):
             url="http://localhost:8180",
         )
         secret = vault_client.get_secret(secret_path="missing")
-        assert {'secret_key': 'secret_value'} == secret
+        assert {"secret_key": "secret_value"} == secret
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point='secret', path='missing', version=None
+            mount_point="secret", path="missing", version=None
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -674,22 +674,22 @@ class TestVaultClient(TestCase):
         mock_hvac.Client.return_value = mock_client
 
         mock_client.secrets.kv.v2.read_secret_version.return_value = {
-            'request_id': '94011e25-f8dc-ec29-221b-1f9c1d9ad2ae',
-            'lease_id': '',
-            'renewable': False,
-            'lease_duration': 0,
-            'data': {
-                'data': {'secret_key': 'secret_value'},
-                'metadata': {
-                    'created_time': '2020-03-16T21:01:43.331126Z',
-                    'deletion_time': '',
-                    'destroyed': False,
-                    'version': 1,
+            "request_id": "94011e25-f8dc-ec29-221b-1f9c1d9ad2ae",
+            "lease_id": "",
+            "renewable": False,
+            "lease_duration": 0,
+            "data": {
+                "data": {"secret_key": "secret_value"},
+                "metadata": {
+                    "created_time": "2020-03-16T21:01:43.331126Z",
+                    "deletion_time": "",
+                    "destroyed": False,
+                    "version": 1,
                 },
             },
-            'wrap_info': None,
-            'warnings': None,
-            'auth': None,
+            "wrap_info": None,
+            "warnings": None,
+            "auth": None,
         }
 
         vault_client = _VaultClient(
@@ -700,9 +700,9 @@ class TestVaultClient(TestCase):
             url="http://localhost:8180",
         )
         secret = vault_client.get_secret(secret_path="missing", secret_version=1)
-        assert {'secret_key': 'secret_value'} == secret
+        assert {"secret_key": "secret_value"} == secret
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point='secret', path='missing', version=1
+            mount_point="secret", path="missing", version=1
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -711,14 +711,14 @@ class TestVaultClient(TestCase):
         mock_hvac.Client.return_value = mock_client
 
         mock_client.secrets.kv.v1.read_secret.return_value = {
-            'request_id': '182d0673-618c-9889-4cba-4e1f4cfe4b4b',
-            'lease_id': '',
-            'renewable': False,
-            'lease_duration': 2764800,
-            'data': {'value': 'world'},
-            'wrap_info': None,
-            'warnings': None,
-            'auth': None,
+            "request_id": "182d0673-618c-9889-4cba-4e1f4cfe4b4b",
+            "lease_id": "",
+            "renewable": False,
+            "lease_duration": 2764800,
+            "data": {"value": "world"},
+            "wrap_info": None,
+            "warnings": None,
+            "auth": None,
         }
 
         vault_client = _VaultClient(
@@ -730,8 +730,8 @@ class TestVaultClient(TestCase):
             url="http://localhost:8180",
         )
         secret = vault_client.get_secret(secret_path="missing")
-        assert {'value': 'world'} == secret
-        mock_client.secrets.kv.v1.read_secret.assert_called_once_with(mount_point='secret', path='missing')
+        assert {"value": "world"} == secret
+        mock_client.secrets.kv.v1.read_secret.assert_called_once_with(mount_point="secret", path="missing")
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_existing_key_v1_different_auth_mount_point(self, mock_hvac):
@@ -739,14 +739,14 @@ class TestVaultClient(TestCase):
         mock_hvac.Client.return_value = mock_client
 
         mock_client.secrets.kv.v1.read_secret.return_value = {
-            'request_id': '182d0673-618c-9889-4cba-4e1f4cfe4b4b',
-            'lease_id': '',
-            'renewable': False,
-            'lease_duration': 2764800,
-            'data': {'value': 'world'},
-            'wrap_info': None,
-            'warnings': None,
-            'auth': None,
+            "request_id": "182d0673-618c-9889-4cba-4e1f4cfe4b4b",
+            "lease_id": "",
+            "renewable": False,
+            "lease_duration": 2764800,
+            "data": {"value": "world"},
+            "wrap_info": None,
+            "warnings": None,
+            "auth": None,
         }
 
         vault_client = _VaultClient(
@@ -759,8 +759,8 @@ class TestVaultClient(TestCase):
             url="http://localhost:8180",
         )
         secret = vault_client.get_secret(secret_path="missing")
-        assert {'value': 'world'} == secret
-        mock_client.secrets.kv.v1.read_secret.assert_called_once_with(mount_point='secret', path='missing')
+        assert {"value": "world"} == secret
+        mock_client.secrets.kv.v1.read_secret.assert_called_once_with(mount_point="secret", path="missing")
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_existing_key_v1_version(self, mock_hvac):
@@ -780,22 +780,22 @@ class TestVaultClient(TestCase):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         mock_client.secrets.kv.v2.read_secret_metadata.return_value = {
-            'request_id': '94011e25-f8dc-ec29-221b-1f9c1d9ad2ae',
-            'lease_id': '',
-            'renewable': False,
-            'lease_duration': 0,
-            'metadata': [
+            "request_id": "94011e25-f8dc-ec29-221b-1f9c1d9ad2ae",
+            "lease_id": "",
+            "renewable": False,
+            "lease_duration": 0,
+            "metadata": [
                 {
-                    'created_time': '2020-03-16T21:01:43.331126Z',
-                    'deletion_time': '',
-                    'destroyed': False,
-                    'version': 1,
+                    "created_time": "2020-03-16T21:01:43.331126Z",
+                    "deletion_time": "",
+                    "destroyed": False,
+                    "version": 1,
                 },
                 {
-                    'created_time': '2020-03-16T21:01:43.331126Z',
-                    'deletion_time': '',
-                    'destroyed': False,
-                    'version': 2,
+                    "created_time": "2020-03-16T21:01:43.331126Z",
+                    "deletion_time": "",
+                    "destroyed": False,
+                    "version": 2,
                 },
             ],
         }
@@ -804,27 +804,27 @@ class TestVaultClient(TestCase):
         )
         metadata = vault_client.get_secret_metadata(secret_path="missing")
         assert {
-            'request_id': '94011e25-f8dc-ec29-221b-1f9c1d9ad2ae',
-            'lease_id': '',
-            'renewable': False,
-            'lease_duration': 0,
-            'metadata': [
+            "request_id": "94011e25-f8dc-ec29-221b-1f9c1d9ad2ae",
+            "lease_id": "",
+            "renewable": False,
+            "lease_duration": 0,
+            "metadata": [
                 {
-                    'created_time': '2020-03-16T21:01:43.331126Z',
-                    'deletion_time': '',
-                    'destroyed': False,
-                    'version': 1,
+                    "created_time": "2020-03-16T21:01:43.331126Z",
+                    "deletion_time": "",
+                    "destroyed": False,
+                    "version": 1,
                 },
                 {
-                    'created_time': '2020-03-16T21:01:43.331126Z',
-                    'deletion_time': '',
-                    'destroyed': False,
-                    'version': 2,
+                    "created_time": "2020-03-16T21:01:43.331126Z",
+                    "deletion_time": "",
+                    "destroyed": False,
+                    "version": 2,
                 },
             ],
         } == metadata
         mock_client.secrets.kv.v2.read_secret_metadata.assert_called_once_with(
-            mount_point='secret', path='missing'
+            mount_point="secret", path="missing"
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -849,22 +849,22 @@ class TestVaultClient(TestCase):
         mock_hvac.Client.return_value = mock_client
 
         mock_client.secrets.kv.v2.read_secret_version.return_value = {
-            'request_id': '94011e25-f8dc-ec29-221b-1f9c1d9ad2ae',
-            'lease_id': '',
-            'renewable': False,
-            'lease_duration': 0,
-            'data': {
-                'data': {'secret_key': 'secret_value'},
-                'metadata': {
-                    'created_time': '2020-03-16T21:01:43.331126Z',
-                    'deletion_time': '',
-                    'destroyed': False,
-                    'version': 1,
+            "request_id": "94011e25-f8dc-ec29-221b-1f9c1d9ad2ae",
+            "lease_id": "",
+            "renewable": False,
+            "lease_duration": 0,
+            "data": {
+                "data": {"secret_key": "secret_value"},
+                "metadata": {
+                    "created_time": "2020-03-16T21:01:43.331126Z",
+                    "deletion_time": "",
+                    "destroyed": False,
+                    "version": 1,
                 },
             },
-            'wrap_info': None,
-            'warnings': None,
-            'auth': None,
+            "wrap_info": None,
+            "warnings": None,
+            "auth": None,
         }
         vault_client = _VaultClient(
             auth_type="radius",
@@ -875,25 +875,25 @@ class TestVaultClient(TestCase):
         )
         metadata = vault_client.get_secret_including_metadata(secret_path="missing")
         assert {
-            'request_id': '94011e25-f8dc-ec29-221b-1f9c1d9ad2ae',
-            'lease_id': '',
-            'renewable': False,
-            'lease_duration': 0,
-            'data': {
-                'data': {'secret_key': 'secret_value'},
-                'metadata': {
-                    'created_time': '2020-03-16T21:01:43.331126Z',
-                    'deletion_time': '',
-                    'destroyed': False,
-                    'version': 1,
+            "request_id": "94011e25-f8dc-ec29-221b-1f9c1d9ad2ae",
+            "lease_id": "",
+            "renewable": False,
+            "lease_duration": 0,
+            "data": {
+                "data": {"secret_key": "secret_value"},
+                "metadata": {
+                    "created_time": "2020-03-16T21:01:43.331126Z",
+                    "deletion_time": "",
+                    "destroyed": False,
+                    "version": 1,
                 },
             },
-            'wrap_info': None,
-            'warnings': None,
-            'auth': None,
+            "wrap_info": None,
+            "warnings": None,
+            "auth": None,
         } == metadata
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point='secret', path='missing', version=None
+            mount_point="secret", path="missing", version=None
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -924,9 +924,9 @@ class TestVaultClient(TestCase):
             radius_secret="pass",
             url="http://localhost:8180",
         )
-        vault_client.create_or_update_secret(secret_path="path", secret={'key': 'value'})
+        vault_client.create_or_update_secret(secret_path="path", secret={"key": "value"})
         mock_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
-            mount_point='secret', secret_path='path', secret={'key': 'value'}, cas=None
+            mount_point="secret", secret_path="path", secret={"key": "value"}, cas=None
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -942,7 +942,7 @@ class TestVaultClient(TestCase):
             url="http://localhost:8180",
         )
         with pytest.raises(VaultError, match="The method parameter is only valid for version 1"):
-            vault_client.create_or_update_secret(secret_path="path", secret={'key': 'value'}, method="post")
+            vault_client.create_or_update_secret(secret_path="path", secret={"key": "value"}, method="post")
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_create_or_update_secret_v2_cas(self, mock_hvac):
@@ -956,9 +956,9 @@ class TestVaultClient(TestCase):
             radius_secret="pass",
             url="http://localhost:8180",
         )
-        vault_client.create_or_update_secret(secret_path="path", secret={'key': 'value'}, cas=10)
+        vault_client.create_or_update_secret(secret_path="path", secret={"key": "value"}, cas=10)
         mock_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
-            mount_point='secret', secret_path='path', secret={'key': 'value'}, cas=10
+            mount_point="secret", secret_path="path", secret={"key": "value"}, cas=10
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -974,9 +974,9 @@ class TestVaultClient(TestCase):
             kv_engine_version=1,
             url="http://localhost:8180",
         )
-        vault_client.create_or_update_secret(secret_path="path", secret={'key': 'value'})
+        vault_client.create_or_update_secret(secret_path="path", secret={"key": "value"})
         mock_client.secrets.kv.v1.create_or_update_secret.assert_called_once_with(
-            mount_point='secret', secret_path='path', secret={'key': 'value'}, method=None
+            mount_point="secret", secret_path="path", secret={"key": "value"}, method=None
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -993,7 +993,7 @@ class TestVaultClient(TestCase):
             url="http://localhost:8180",
         )
         with pytest.raises(VaultError, match="The cas parameter is only valid for version 2"):
-            vault_client.create_or_update_secret(secret_path="path", secret={'key': 'value'}, cas=10)
+            vault_client.create_or_update_secret(secret_path="path", secret={"key": "value"}, cas=10)
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_create_or_update_secret_v1_post(self, mock_hvac):
@@ -1008,9 +1008,9 @@ class TestVaultClient(TestCase):
             kv_engine_version=1,
             url="http://localhost:8180",
         )
-        vault_client.create_or_update_secret(secret_path="path", secret={'key': 'value'}, method="post")
+        vault_client.create_or_update_secret(secret_path="path", secret={"key": "value"}, method="post")
         mock_client.secrets.kv.v1.create_or_update_secret.assert_called_once_with(
-            mount_point='secret', secret_path='path', secret={'key': 'value'}, method="post"
+            mount_point="secret", secret_path="path", secret={"key": "value"}, method="post"
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")

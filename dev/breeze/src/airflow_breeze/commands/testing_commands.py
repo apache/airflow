@@ -72,13 +72,13 @@ from airflow_breeze.utils.run_utils import get_filesystem_type, run_command
 LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
 
 
-@click.group(cls=BreezeGroup, name='testing', help='Tools that developers can use to run tests')
+@click.group(cls=BreezeGroup, name="testing", help="Tools that developers can use to run tests")
 def testing():
     pass
 
 
 @testing.command(
-    name='docker-compose-tests',
+    name="docker-compose-tests",
     context_settings=dict(
         ignore_unknown_options=True,
         allow_extra_args=True,
@@ -90,7 +90,7 @@ def testing():
 @option_github_repository
 @option_image_tag_for_running
 @option_image_name
-@click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
+@click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
 def docker_compose_tests(
     verbose: bool,
     dry_run: bool,
@@ -116,8 +116,8 @@ def docker_compose_tests(
     sys.exit(return_code)
 
 
-TEST_PROGRESS_REGEXP = r'tests/.*|.*=====.*'
-PERCENT_TEST_PROGRESS_REGEXP = r'^tests/.*\[[ \d%]*\].*'
+TEST_PROGRESS_REGEXP = r"tests/.*|.*=====.*"
+PERCENT_TEST_PROGRESS_REGEXP = r"^tests/.*\[[ \d%]*\].*"
 
 
 def _run_test(
@@ -130,7 +130,7 @@ def _run_test(
     verbose: bool,
 ) -> tuple[int, str]:
     env_variables = get_env_variables_for_docker_commands(exec_shell_params)
-    env_variables['RUN_TESTS'] = "true"
+    env_variables["RUN_TESTS"] = "true"
     if test_timeout:
         env_variables["TEST_TIMEOUT"] = str(test_timeout)
     if db_reset:
@@ -148,34 +148,34 @@ def _run_test(
             int_list = list(integration)
             int_list.append("kerberos")
             integration = tuple(int_list)
-        env_variables["LIST_OF_INTEGRATION_TESTS_TO_RUN"] = ' '.join(list(integration))
+        env_variables["LIST_OF_INTEGRATION_TESTS_TO_RUN"] = " ".join(list(integration))
     project_name = _file_name_from_test_type(exec_shell_params.test_type)
     down_cmd = [
         *DOCKER_COMPOSE_COMMAND,
         "--project-name",
-        f'airflow-test-{project_name}',
-        'down',
-        '--remove-orphans',
+        f"airflow-test-{project_name}",
+        "down",
+        "--remove-orphans",
     ]
     run_command(down_cmd, verbose=verbose, dry_run=dry_run, env=env_variables, output=output, check=False)
     run_cmd = [
         *DOCKER_COMPOSE_COMMAND,
         "--project-name",
-        f'airflow-test-{project_name}',
-        'run',
-        '-T',
-        '--service-ports',
-        '--rm',
-        'airflow',
+        f"airflow-test-{project_name}",
+        "run",
+        "-T",
+        "--service-ports",
+        "--rm",
+        "airflow",
     ]
     run_cmd.extend(list(extra_pytest_args))
     try:
         result = run_command(
             run_cmd, verbose=verbose, dry_run=dry_run, env=env_variables, output=output, check=False
         )
-        if os.environ.get('CI') == "true" and result.returncode != 0:
+        if os.environ.get("CI") == "true" and result.returncode != 0:
             ps_result = run_command(
-                ['docker', 'ps', '--all', '--format', '{{.Names}}'],
+                ["docker", "ps", "--all", "--format", "{{.Names}}"],
                 check=True,
                 capture_output=True,
                 text=True,
@@ -195,11 +195,11 @@ def _run_test(
             [
                 *DOCKER_COMPOSE_COMMAND,
                 "--project-name",
-                f'airflow-test-{project_name}',
-                'rm',
-                '--stop',
-                '--force',
-                '-v',
+                f"airflow-test-{project_name}",
+                "rm",
+                "--stop",
+                "--force",
+                "-v",
             ],
             verbose=False,
             dry_run=dry_run,
@@ -282,7 +282,7 @@ def run_tests_in_parallel(
     import psutil
 
     memory_available = psutil.virtual_memory()
-    if memory_available.available < LOW_MEMORY_CONDITION and exec_shell_params.backend in ['mssql', 'mysql']:
+    if memory_available.available < LOW_MEMORY_CONDITION and exec_shell_params.backend in ["mssql", "mysql"]:
         # Run heavy tests sequentially
         heavy_test_types = ["Core", "Integration", "Providers"]
         if bool(set(heavy_test_types) & set(test_types_list)):
@@ -326,7 +326,7 @@ def run_tests_in_parallel(
 
 
 @testing.command(
-    name='tests',
+    name="tests",
     help="Run the specified unit test targets.",
     context_settings=dict(
         ignore_unknown_options=True,
@@ -346,7 +346,7 @@ def run_tests_in_parallel(
 @click.option(
     "--test-type",
     help="Type of test to run. Note that with Providers, you can also specify which provider "
-    "tests should be run - for example --test-type \"Providers[airbyte,http]\"",
+    'tests should be run - for example --test-type "Providers[airbyte,http]"',
     default="All",
     type=NotVerifiedBetterChoice(ALLOWED_TEST_TYPE_CHOICES),
 )
@@ -370,7 +370,7 @@ def run_tests_in_parallel(
     show_default=True,
     envvar="TEST_TYPES",
 )
-@click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
+@click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
 def tests(
     dry_run: bool,
     verbose: bool,
@@ -393,7 +393,7 @@ def tests(
     test_types: str,
     mount_sources: str,
 ):
-    docker_filesystem = get_filesystem_type('/var/lib/docker')
+    docker_filesystem = get_filesystem_type("/var/lib/docker")
     get_console().print(f"Docker filesystem: {docker_filesystem}")
     exec_shell_params = ShellParams(
         verbose=verbose,
@@ -437,7 +437,7 @@ def tests(
 
 
 @testing.command(
-    name='helm-tests',
+    name="helm-tests",
     help="Run Helm chart tests.",
     context_settings=dict(
         ignore_unknown_options=True,
@@ -448,7 +448,7 @@ def tests(
 @option_verbose
 @option_image_tag_for_running
 @option_mount_sources
-@click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
+@click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
 def helm_tests(
     dry_run: bool,
     verbose: bool,
@@ -463,10 +463,10 @@ def helm_tests(
         mount_sources=mount_sources,
     )
     env_variables = get_env_variables_for_docker_commands(exec_shell_params)
-    env_variables['RUN_TESTS'] = "true"
-    env_variables['TEST_TYPE'] = 'Helm'
+    env_variables["RUN_TESTS"] = "true"
+    env_variables["TEST_TYPE"] = "Helm"
     perform_environment_checks(verbose=verbose)
-    cmd = [*DOCKER_COMPOSE_COMMAND, 'run', '--service-ports', '--rm', 'airflow']
+    cmd = [*DOCKER_COMPOSE_COMMAND, "run", "--service-ports", "--rm", "airflow"]
     cmd.extend(list(extra_pytest_args))
     result = run_command(cmd, verbose=verbose, dry_run=dry_run, env=env_variables, check=False)
     sys.exit(result.returncode)

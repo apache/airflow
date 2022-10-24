@@ -32,7 +32,7 @@ class TestSchedulerPdb:
         render_chart(
             values={"scheduler": {"podDisruptionBudget": {"enabled": True}}},
             show_only=["templates/scheduler/scheduler-poddisruptionbudget.yaml"],
-            kubernetes_version='1.16.0',
+            kubernetes_version="1.16.0",
         )  # checks that no validation exception is raised
 
     def test_should_add_component_specific_labels(self):

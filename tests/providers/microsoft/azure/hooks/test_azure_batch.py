@@ -71,7 +71,7 @@ class TestAzureBatchHook(unittest.TestCase):
     def test_configure_pool_with_vm_config(self):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
         pool = hook.configure_pool(
-            pool_id='mypool',
+            pool_id="mypool",
             vm_size="test_vm_size",
             target_dedicated_nodes=1,
             vm_publisher="test.vm.publisher",
@@ -83,7 +83,7 @@ class TestAzureBatchHook(unittest.TestCase):
     def test_configure_pool_with_cloud_config(self):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
         pool = hook.configure_pool(
-            pool_id='mypool',
+            pool_id="mypool",
             vm_size="test_vm_size",
             target_dedicated_nodes=1,
             vm_publisher="test.vm.publisher",
@@ -99,9 +99,9 @@ class TestAzureBatchHook(unittest.TestCase):
         ) as mock_getvm:
             hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
             getvm_instance = mock_getvm
-            getvm_instance.return_value = ['test-image', 'test-sku']
+            getvm_instance.return_value = ["test-image", "test-sku"]
             pool = hook.configure_pool(
-                pool_id='mypool',
+                pool_id="mypool",
                 vm_size="test_vm_size",
                 use_latest_image_and_sku=True,
                 vm_publisher="test.vm.publisher",
@@ -115,7 +115,7 @@ class TestAzureBatchHook(unittest.TestCase):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
         mock_instance = mock_batch.return_value.pool.add
         pool = hook.configure_pool(
-            pool_id='mypool',
+            pool_id="mypool",
             vm_size="test_vm_size",
             target_dedicated_nodes=1,
             vm_publisher="test.vm.publisher",
@@ -130,7 +130,7 @@ class TestAzureBatchHook(unittest.TestCase):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
         mock_instance = mock_batch.return_value.pool.add
         pool = hook.configure_pool(
-            pool_id='mypool',
+            pool_id="mypool",
             vm_size="test_vm_size",
             target_dedicated_nodes=1,
             vm_publisher="test.vm.publisher",
@@ -149,26 +149,26 @@ class TestAzureBatchHook(unittest.TestCase):
     def test_job_configuration_and_create_job(self, mock_batch):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
         mock_instance = mock_batch.return_value.job.add
-        job = hook.configure_job(job_id='myjob', pool_id='mypool')
+        job = hook.configure_job(job_id="myjob", pool_id="mypool")
         hook.create_job(job)
         assert isinstance(job, batch_models.JobAddParameter)
         mock_instance.assert_called_once_with(job)
 
-    @mock.patch('airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient')
+    @mock.patch("airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient")
     def test_add_single_task_to_job(self, mock_batch):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
         mock_instance = mock_batch.return_value.task.add
         task = hook.configure_task(task_id="mytask", command_line="echo hello")
-        hook.add_single_task_to_job(job_id='myjob', task=task)
+        hook.add_single_task_to_job(job_id="myjob", task=task)
         assert isinstance(task, batch_models.TaskAddParameter)
         mock_instance.assert_called_once_with(job_id="myjob", task=task)
 
-    @mock.patch('airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient')
+    @mock.patch("airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient")
     def test_wait_for_all_task_to_complete(self, mock_batch):
         # TODO: Add test
         pass
 
-    @mock.patch('airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient')
+    @mock.patch("airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient")
     def test_connection_success(self, mock_batch):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
         hook.get_conn().job.return_value = {}
@@ -176,7 +176,7 @@ class TestAzureBatchHook(unittest.TestCase):
         assert status is True
         assert msg == "Successfully connected to Azure Batch."
 
-    @mock.patch('airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient')
+    @mock.patch("airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient")
     def test_connection_failure(self, mock_batch):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
         hook.get_conn().job.list = PropertyMock(side_effect=Exception("Authentication failed."))

@@ -34,72 +34,72 @@ DEFAULT_DATE = timezone.datetime(2020, 1, 1)
 
 class TestKylinCubeOperator(unittest.TestCase):
     _config = {
-        'kylin_conn_id': 'kylin_default',
-        'project': 'learn_kylin',
-        'cube': 'kylin_sales_cube',
-        'command': 'build',
-        'start_time': datetime(2012, 1, 2, 0, 0).strftime("%s") + '000',
-        'end_time': datetime(2012, 1, 3, 0, 0).strftime("%s") + '000',
+        "kylin_conn_id": "kylin_default",
+        "project": "learn_kylin",
+        "cube": "kylin_sales_cube",
+        "command": "build",
+        "start_time": datetime(2012, 1, 2, 0, 0).strftime("%s") + "000",
+        "end_time": datetime(2012, 1, 3, 0, 0).strftime("%s") + "000",
     }
     cube_command = [
-        'fullbuild',
-        'build',
-        'merge',
-        'refresh',
-        'delete',
-        'build_streaming',
-        'merge_streaming',
-        'refresh_streaming',
-        'disable',
-        'enable',
-        'purge',
-        'clone',
-        'drop',
+        "fullbuild",
+        "build",
+        "merge",
+        "refresh",
+        "delete",
+        "build_streaming",
+        "merge_streaming",
+        "refresh_streaming",
+        "disable",
+        "enable",
+        "purge",
+        "clone",
+        "drop",
     ]
 
     build_response = {"uuid": "c143e0e4-ac5f-434d-acf3-46b0d15e3dc6"}
 
     def setUp(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        self.dag = DAG('test_dag_id', default_args=args)
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        self.dag = DAG("test_dag_id", default_args=args)
 
-    @patch('airflow.providers.apache.kylin.operators.kylin_cube.KylinHook')
+    @patch("airflow.providers.apache.kylin.operators.kylin_cube.KylinHook")
     def test_execute(self, mock_hook):
-        operator = KylinCubeOperator(task_id='kylin_task', dag=self.dag, **self._config)
+        operator = KylinCubeOperator(task_id="kylin_task", dag=self.dag, **self._config)
         hook = MagicMock()
         hook.invoke_command = [
-            'fullbuild',
-            'build',
-            'merge',
-            'refresh',
-            'delete',
-            'build_streaming',
-            'merge_streaming',
-            'refresh_streaming',
-            'disable',
-            'enable',
-            'purge',
-            'clone',
-            'drop',
+            "fullbuild",
+            "build",
+            "merge",
+            "refresh",
+            "delete",
+            "build_streaming",
+            "merge_streaming",
+            "refresh_streaming",
+            "disable",
+            "enable",
+            "purge",
+            "clone",
+            "drop",
         ]
         mock_hook.return_value = hook
         mock_hook.cube_run.return_value = {}
 
         assert operator is not None
-        assert self._config['kylin_conn_id'] == operator.kylin_conn_id
-        assert self._config['project'] == operator.project
-        assert self._config['cube'] == operator.cube
-        assert self._config['command'] == operator.command
-        assert self._config['start_time'] == operator.start_time
-        assert self._config['end_time'] == operator.end_time
+        assert self._config["kylin_conn_id"] == operator.kylin_conn_id
+        assert self._config["project"] == operator.project
+        assert self._config["cube"] == operator.cube
+        assert self._config["command"] == operator.command
+        assert self._config["start_time"] == operator.start_time
+        assert self._config["end_time"] == operator.end_time
         operator.execute(None)
         mock_hook.assert_called_once_with(
-            kylin_conn_id=self._config['kylin_conn_id'], project=self._config['project'], dsn=None
+            kylin_conn_id=self._config["kylin_conn_id"], project=self._config["project"], dsn=None
         )
 
         mock_hook.return_value.cube_run.assert_called_once_with(
-            'kylin_sales_cube',
-            'build',
+            "kylin_sales_cube",
+            "build",
             end=datetime(2012, 1, 3, 0, 0),
             name=None,
             offset_end=None,
@@ -107,10 +107,10 @@ class TestKylinCubeOperator(unittest.TestCase):
             start=datetime(2012, 1, 2, 0, 0),
         )
 
-    @patch('airflow.providers.apache.kylin.operators.kylin_cube.KylinHook')
+    @patch("airflow.providers.apache.kylin.operators.kylin_cube.KylinHook")
     def test_execute_build(self, mock_hook):
         operator = KylinCubeOperator(
-            is_track_job=True, timeout=5, interval=1, task_id='kylin_task', dag=self.dag, **self._config
+            is_track_job=True, timeout=5, interval=1, task_id="kylin_task", dag=self.dag, **self._config
         )
         hook = MagicMock()
         hook.invoke_command = self.cube_command
@@ -118,12 +118,12 @@ class TestKylinCubeOperator(unittest.TestCase):
 
         hook.get_job_status.side_effect = ["RUNNING", "RUNNING", "FINISHED"]
         mock_hook.return_value = hook
-        assert operator.execute(None)['uuid'] == "c143e0e4-ac5f-434d-acf3-46b0d15e3dc6"
+        assert operator.execute(None)["uuid"] == "c143e0e4-ac5f-434d-acf3-46b0d15e3dc6"
 
-    @patch('airflow.providers.apache.kylin.operators.kylin_cube.KylinHook')
+    @patch("airflow.providers.apache.kylin.operators.kylin_cube.KylinHook")
     def test_execute_build_status_error(self, mock_hook):
         operator = KylinCubeOperator(
-            is_track_job=True, timeout=5, interval=1, task_id='kylin_task', dag=self.dag, **self._config
+            is_track_job=True, timeout=5, interval=1, task_id="kylin_task", dag=self.dag, **self._config
         )
         hook = MagicMock()
         hook.invoke_command = self.cube_command
@@ -134,10 +134,10 @@ class TestKylinCubeOperator(unittest.TestCase):
         with pytest.raises(AirflowException):
             operator.execute(None)
 
-    @patch('airflow.providers.apache.kylin.operators.kylin_cube.KylinHook')
+    @patch("airflow.providers.apache.kylin.operators.kylin_cube.KylinHook")
     def test_execute_build_time_out_error(self, mock_hook):
         operator = KylinCubeOperator(
-            is_track_job=True, timeout=5, interval=1, task_id='kylin_task', dag=self.dag, **self._config
+            is_track_job=True, timeout=5, interval=1, task_id="kylin_task", dag=self.dag, **self._config
         )
         hook = MagicMock()
         hook.invoke_command = self.cube_command
@@ -151,7 +151,7 @@ class TestKylinCubeOperator(unittest.TestCase):
     def test_render_template(self):
         operator = KylinCubeOperator(
             task_id="kylin_build_1",
-            kylin_conn_id='kylin_default',
+            kylin_conn_id="kylin_default",
             project="{{ params.project }}",
             cube="{{ params.cube }}",
             command="{{ params.command }}",
@@ -160,18 +160,18 @@ class TestKylinCubeOperator(unittest.TestCase):
             is_track_job=True,
             dag=self.dag,
             params={
-                'project': 'learn_kylin',
-                'cube': 'kylin_sales_cube',
-                'command': 'build',
-                'start_time': '1483200000000',
-                'end_time': '1483286400000',
+                "project": "learn_kylin",
+                "cube": "kylin_sales_cube",
+                "command": "build",
+                "start_time": "1483200000000",
+                "end_time": "1483286400000",
             },
         )
         ti = TaskInstance(operator, run_id="kylin_test")
         ti.dag_run = DagRun(dag_id=self.dag.dag_id, run_id="kylin_test", execution_date=DEFAULT_DATE)
         ti.render_templates()
-        assert 'learn_kylin' == getattr(operator, 'project')
-        assert 'kylin_sales_cube' == getattr(operator, 'cube')
-        assert 'build' == getattr(operator, 'command')
-        assert '1483200000000' == getattr(operator, 'start_time')
-        assert '1483286400000' == getattr(operator, 'end_time')
+        assert "learn_kylin" == getattr(operator, "project")
+        assert "kylin_sales_cube" == getattr(operator, "cube")
+        assert "build" == getattr(operator, "command")
+        assert "1483200000000" == getattr(operator, "start_time")
+        assert "1483286400000" == getattr(operator, "end_time")

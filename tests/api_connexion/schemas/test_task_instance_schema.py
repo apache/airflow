@@ -222,14 +222,14 @@ class TestSetTaskInstanceStateFormSchema:
     def test_success(self):
         result = set_task_instance_state_form.load(self.current_input)
         expected_result = {
-            'dry_run': True,
-            'execution_date': dt.datetime(2020, 1, 1, 0, 0, tzinfo=dt.timezone(dt.timedelta(0), '+0000')),
-            'include_downstream': True,
-            'include_future': True,
-            'include_past': True,
-            'include_upstream': True,
-            'new_state': 'failed',
-            'task_id': 'print_the_context',
+            "dry_run": True,
+            "execution_date": dt.datetime(2020, 1, 1, 0, 0, tzinfo=dt.timezone(dt.timedelta(0), "+0000")),
+            "include_downstream": True,
+            "include_future": True,
+            "include_past": True,
+            "include_upstream": True,
+            "new_state": "failed",
+            "task_id": "print_the_context",
         }
         assert expected_result == result
 

@@ -552,7 +552,7 @@ TEST_POD_LOG_RESULT = "LOG LINE 1\nLOG LINE 2"
 @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_conn")
 class TestSparkKubernetesSensor(unittest.TestCase):
     def setUp(self):
-        db.merge_conn(Connection(conn_id='kubernetes_default', conn_type='kubernetes', extra=json.dumps({})))
+        db.merge_conn(Connection(conn_id="kubernetes_default", conn_type="kubernetes", extra=json.dumps({})))
         db.merge_conn(
             Connection(
                 conn_id="kubernetes_default",
@@ -727,8 +727,8 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         return_value=TEST_COMPLETED_APPLICATION,
     )
     def test_api_group_and_version_from_sensor(self, mock_get_namespaced_crd, mock_kubernetes_hook):
-        api_group = 'sparkoperator.example.com'
-        api_version = 'v1alpha1'
+        api_group = "sparkoperator.example.com"
+        api_version = "v1alpha1"
         sensor = SparkKubernetesSensor(
             application_name="spark_pi",
             dag=self.dag,
@@ -789,7 +789,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         with pytest.raises(AirflowException):
             sensor.poke(None)
         mock_log_call.assert_called_once_with(
-            "spark-pi-driver", namespace="default", container='spark-kubernetes-driver'
+            "spark-pi-driver", namespace="default", container="spark-kubernetes-driver"
         )
         error_log_call.assert_called_once_with(TEST_POD_LOG_RESULT)
 
@@ -813,7 +813,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         )
         sensor.poke(None)
         mock_log_call.assert_called_once_with(
-            "spark-pi-2020-02-24-1-driver", namespace="default", container='spark-kubernetes-driver'
+            "spark-pi-2020-02-24-1-driver", namespace="default", container="spark-kubernetes-driver"
         )
         log_info_call = info_log_call.mock_calls[2]
         log_value = log_info_call[1][0]
@@ -860,7 +860,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         )
         sensor.poke(None)
         mock_log_call.assert_called_once_with(
-            "spark-pi-2020-02-24-1-driver", namespace="default", container='spark-kubernetes-driver'
+            "spark-pi-2020-02-24-1-driver", namespace="default", container="spark-kubernetes-driver"
         )
         log_info_call = info_log_call.mock_calls[2]
         log_value = log_info_call[1][0]

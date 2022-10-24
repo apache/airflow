@@ -26,4 +26,4 @@ class S3BucketExampleDagsSystemTest(AmazonSystemTest):
 
     @provide_aws_context()
     def test_run_example_dag_s3(self):
-        self.run_dag('s3_bucket_dag', AWS_DAG_FOLDER)
+        self.run_dag("s3_bucket_dag", AWS_DAG_FOLDER)

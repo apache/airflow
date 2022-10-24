@@ -21,13 +21,13 @@ from unittest import mock
 
 from airflow.providers.microsoft.azure.sensors.cosmos import AzureCosmosDocumentSensor
 
-DB_NAME = 'test-db-name'
-COLLECTION_NAME = 'test-db-collection-name'
-DOCUMENT_ID = 'test-document-id'
+DB_NAME = "test-db-name"
+COLLECTION_NAME = "test-db-collection-name"
+DOCUMENT_ID = "test-document-id"
 
 
 class TestAzureCosmosSensor(unittest.TestCase):
-    @mock.patch('airflow.providers.microsoft.azure.sensors.cosmos.AzureCosmosDBHook')
+    @mock.patch("airflow.providers.microsoft.azure.sensors.cosmos.AzureCosmosDBHook")
     def test_should_call_hook_with_args(self, mock_hook):
         mock_instance = mock_hook.return_value
         mock_instance.get_document.return_value = True  # Indicate document returned
@@ -41,7 +41,7 @@ class TestAzureCosmosSensor(unittest.TestCase):
         mock_instance.get_document.assert_called_once_with(DOCUMENT_ID, DB_NAME, COLLECTION_NAME)
         assert result is True
 
-    @mock.patch('airflow.providers.microsoft.azure.sensors.cosmos.AzureCosmosDBHook')
+    @mock.patch("airflow.providers.microsoft.azure.sensors.cosmos.AzureCosmosDBHook")
     def test_should_return_false_on_no_document(self, mock_hook):
         mock_instance = mock_hook.return_value
         mock_instance.get_document.return_value = None  # Indicate document not returned

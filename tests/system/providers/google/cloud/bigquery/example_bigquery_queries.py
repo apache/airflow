@@ -142,9 +142,9 @@ for index, location in enumerate(locations, 1):
                     "query": f"SELECT * FROM {DATASET}.{TABLE_1}",
                     "useLegacySql": False,
                     "destinationTable": {
-                        'projectId': PROJECT_ID,
-                        'datasetId': DATASET,
-                        'tableId': TABLE_2,
+                        "projectId": PROJECT_ID,
+                        "datasetId": DATASET,
+                        "tableId": TABLE_2,
                     },
                 }
             },

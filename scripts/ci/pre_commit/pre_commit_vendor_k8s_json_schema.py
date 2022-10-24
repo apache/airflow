@@ -67,7 +67,7 @@ i = 0
 while True:
     starting_refs = refs
     for ref in refs:
-        ref_id = ref.split('/')[-1]
+        ref_id = ref.split("/")[-1]
         schema["definitions"][ref_id] = defs["definitions"][ref_id]
     refs = set(find_refs(schema["definitions"]))
     if refs == starting_refs:
@@ -82,6 +82,6 @@ while True:
 schema["definitions"] = dict(sorted(schema["definitions"].items()))
 
 # Then write out our schema
-with open(VALUES_SCHEMA_FILE, 'w') as f:
+with open(VALUES_SCHEMA_FILE, "w") as f:
     json.dump(schema, f, indent=4)
-    f.write('\n')  # with a newline!
+    f.write("\n")  # with a newline!

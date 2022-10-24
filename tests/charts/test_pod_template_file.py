@@ -302,14 +302,14 @@ class TestPodTemplateFile:
         )
 
         assert re.search("Pod", docs[0]["kind"])
-        assert {'configMap': {'name': 'release-name-airflow-config'}, 'name': 'config'} in jmespath.search(
+        assert {"configMap": {"name": "release-name-airflow-config"}, "name": "config"} in jmespath.search(
             "spec.volumes", docs[0]
         )
         assert {
-            'name': 'config',
-            'mountPath': '/opt/airflow/airflow.cfg',
-            'subPath': 'airflow.cfg',
-            'readOnly': True,
+            "name": "config",
+            "mountPath": "/opt/airflow/airflow.cfg",
+            "subPath": "airflow.cfg",
+            "readOnly": True,
         } in jmespath.search("spec.containers[0].volumeMounts", docs[0])
 
     def test_should_use_global_affinity_tolerations_and_node_selector(self):
@@ -653,7 +653,7 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
-        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+        assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.containers[0].env", docs[0]
         )
 

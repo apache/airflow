@@ -31,28 +31,28 @@ from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
 
-BUCKET = 'test-bucket'
-S3_KEY = 'test/test_1_file.csv'
-SFTP_PATH = '/tmp/remote_path.txt'
-SFTP_CONN_ID = 'ssh_default'
-S3_CONN_ID = 'aws_default'
+BUCKET = "test-bucket"
+S3_KEY = "test/test_1_file.csv"
+SFTP_PATH = "/tmp/remote_path.txt"
+SFTP_CONN_ID = "ssh_default"
+S3_CONN_ID = "aws_default"
 
-SFTP_MOCK_FILE = 'test_sftp_file.csv'
-S3_MOCK_FILES = 'test_1_file.csv'
+SFTP_MOCK_FILE = "test_sftp_file.csv"
+S3_MOCK_FILES = "test_1_file.csv"
 
-TEST_DAG_ID = 'unit_tests_sftp_tos3_op'
+TEST_DAG_ID = "unit_tests_sftp_tos3_op"
 DEFAULT_DATE = datetime(2018, 1, 1)
 
 
 class TestSFTPToS3Operator(unittest.TestCase):
     @mock_s3
     def setUp(self):
-        hook = SSHHook(ssh_conn_id='ssh_default')
+        hook = SSHHook(ssh_conn_id="ssh_default")
 
-        s3_hook = S3Hook('aws_default')
+        s3_hook = S3Hook("aws_default")
         hook.no_host_key_check = True
         dag = DAG(
-            f'{TEST_DAG_ID}test_schedule_dag_once',
+            f"{TEST_DAG_ID}test_schedule_dag_once",
             schedule="@once",
             start_date=DEFAULT_DATE,
         )
@@ -75,7 +75,7 @@ class TestSFTPToS3Operator(unittest.TestCase):
         ]
     )
     @mock_s3
-    @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
+    @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_sftp_to_s3_operation(self, use_temp_file=True):
         # Setting
         test_remote_file_content = (
@@ -95,7 +95,7 @@ class TestSFTPToS3Operator(unittest.TestCase):
         create_file_task.execute(None)
 
         # Test for creation of s3 bucket
-        conn = boto3.client('s3')
+        conn = boto3.client("s3")
         conn.create_bucket(Bucket=self.s3_bucket)
         assert self.s3_hook.check_for_bucket(self.s3_bucket)
 
@@ -107,7 +107,7 @@ class TestSFTPToS3Operator(unittest.TestCase):
             sftp_conn_id=SFTP_CONN_ID,
             s3_conn_id=S3_CONN_ID,
             use_temp_file=use_temp_file,
-            task_id='test_sftp_to_s3',
+            task_id="test_sftp_to_s3",
             dag=self.dag,
         )
         assert run_task is not None
@@ -117,10 +117,10 @@ class TestSFTPToS3Operator(unittest.TestCase):
         # Check if object was created in s3
         objects_in_dest_bucket = conn.list_objects(Bucket=self.s3_bucket, Prefix=self.s3_key)
         # there should be object found, and there should only be one object found
-        assert len(objects_in_dest_bucket['Contents']) == 1
+        assert len(objects_in_dest_bucket["Contents"]) == 1
 
         # the object found should be consistent with dest_key specified earlier
-        assert objects_in_dest_bucket['Contents'][0]['Key'] == self.s3_key
+        assert objects_in_dest_bucket["Contents"][0]["Key"] == self.s3_key
 
         # Clean up after finishing with test
         conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)

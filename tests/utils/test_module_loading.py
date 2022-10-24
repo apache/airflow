@@ -24,12 +24,12 @@ from airflow.utils.module_loading import import_string
 
 class TestModuleImport:
     def test_import_string(self):
-        cls = import_string('airflow.utils.module_loading.import_string')
+        cls = import_string("airflow.utils.module_loading.import_string")
         assert cls == import_string
 
         # Test exceptions raised
         with pytest.raises(ImportError):
-            import_string('no_dots_in_path')
+            import_string("no_dots_in_path")
         msg = 'Module "airflow.utils" does not define a "nonexistent" attribute'
         with pytest.raises(ImportError, match=msg):
-            import_string('airflow.utils.nonexistent')
+            import_string("airflow.utils.nonexistent")

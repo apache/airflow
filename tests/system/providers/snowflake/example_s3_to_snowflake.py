@@ -26,11 +26,11 @@ from datetime import datetime
 from airflow import DAG
 from airflow.providers.snowflake.transfers.s3_to_snowflake import S3ToSnowflakeOperator
 
-SNOWFLAKE_CONN_ID = 'my_snowflake_conn'
+SNOWFLAKE_CONN_ID = "my_snowflake_conn"
 # TODO: should be able to rely on connection's schema, but currently param required by S3ToSnowflakeTransfer
-SNOWFLAKE_STAGE = 'stage_name'
-SNOWFLAKE_SAMPLE_TABLE = 'sample_table'
-S3_FILE_PATH = '</path/to/file/sample_file.csv'
+SNOWFLAKE_STAGE = "stage_name"
+SNOWFLAKE_SAMPLE_TABLE = "sample_table"
+S3_FILE_PATH = "</path/to/file/sample_file.csv"
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_s3_to_snowflake"
@@ -40,15 +40,15 @@ DAG_ID = "example_s3_to_snowflake"
 with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
-    default_args={'snowflake_conn_id': SNOWFLAKE_CONN_ID},
-    tags=['example'],
+    default_args={"snowflake_conn_id": SNOWFLAKE_CONN_ID},
+    tags=["example"],
     schedule="@once",
     catchup=False,
 ) as dag:
     # [START howto_operator_s3_to_snowflake]
 
     copy_into_table = S3ToSnowflakeOperator(
-        task_id='copy_into_table',
+        task_id="copy_into_table",
         snowflake_conn_id=SNOWFLAKE_CONN_ID,
         s3_keys=[S3_FILE_PATH],
         table=SNOWFLAKE_SAMPLE_TABLE,

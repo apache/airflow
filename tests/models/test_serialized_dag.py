@@ -57,7 +57,7 @@ class SerializedDagModelTest(unittest.TestCase):
 
     def setUp(self):
         self.patcher = mock.patch(
-            'airflow.models.serialized_dag.COMPRESS_SERIALIZED_DAGS', self.compress_serialized_dags
+            "airflow.models.serialized_dag.COMPRESS_SERIALIZED_DAGS", self.compress_serialized_dags
         )
         self.patcher.start()
 
@@ -69,7 +69,7 @@ class SerializedDagModelTest(unittest.TestCase):
 
     def test_dag_fileloc_hash(self):
         """Verifies the correctness of hashing file path."""
-        assert DagCode.dag_fileloc_hash('/airflow/dags/test_dag.py') == 33826252060516589
+        assert DagCode.dag_fileloc_hash("/airflow/dags/test_dag.py") == 33826252060516589
 
     def _write_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
@@ -125,7 +125,7 @@ class SerializedDagModelTest(unittest.TestCase):
         """Test Serialized DAG is updated if processor_subdir is changed"""
         example_dags = make_example_dags(example_dags_module)
         example_bash_op_dag = example_dags.get("example_bash_operator")
-        dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir='/tmp/test')
+        dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir="/tmp/test")
         assert dag_updated is True
 
         with create_session() as session:
@@ -133,7 +133,7 @@ class SerializedDagModelTest(unittest.TestCase):
 
             # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
             # column is not updated
-            dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir='/tmp/test')
+            dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir="/tmp/test")
             s_dag_1 = session.query(SDM).get(example_bash_op_dag.dag_id)
 
             assert s_dag_1.dag_hash == s_dag.dag_hash
@@ -142,7 +142,7 @@ class SerializedDagModelTest(unittest.TestCase):
             session.flush()
 
             # Update DAG
-            dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir='/tmp/other')
+            dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir="/tmp/other")
             s_dag_2 = session.query(SDM).get(example_bash_op_dag.dag_id)
 
             assert s_dag.processor_subdir != s_dag_2.processor_subdir

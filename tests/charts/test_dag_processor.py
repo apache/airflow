@@ -130,7 +130,7 @@ class TestDagProcessor:
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+        assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.template.spec.containers[0].env", docs[0]
         )
 
@@ -147,7 +147,7 @@ class TestDagProcessor:
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+        assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.template.spec.initContainers[0].env", docs[0]
         )
 
@@ -342,8 +342,8 @@ class TestDagProcessor:
                 "dagProcessor": {
                     "enabled": True,
                     "resources": {
-                        "limits": {"cpu": "200m", 'memory': "128Mi"},
-                        "requests": {"cpu": "300m", 'memory': "169Mi"},
+                        "limits": {"cpu": "200m", "memory": "128Mi"},
+                        "requests": {"cpu": "300m", "memory": "169Mi"},
                     },
                 },
             },
@@ -417,9 +417,9 @@ class TestDagProcessor:
             }
         }
         if revision_history_limit:
-            values['dagProcessor']['revisionHistoryLimit'] = revision_history_limit
+            values["dagProcessor"]["revisionHistoryLimit"] = revision_history_limit
         if global_revision_history_limit:
-            values['revisionHistoryLimit'] = global_revision_history_limit
+            values["revisionHistoryLimit"] = global_revision_history_limit
         docs = render_chart(
             values=values,
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],

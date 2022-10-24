@@ -67,21 +67,21 @@ class TestDeleteVariable(TestVariableEndpoint):
     def test_should_delete_variable(self):
         Variable.set("delete_var1", 1)
         # make sure variable is added
-        response = self.client.get("/api/v1/variables/delete_var1", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/variables/delete_var1", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
 
         response = self.client.delete(
-            "/api/v1/variables/delete_var1", environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/variables/delete_var1", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 204
 
         # make sure variable is deleted
-        response = self.client.get("/api/v1/variables/delete_var1", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/variables/delete_var1", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
 
     def test_should_respond_404_if_key_does_not_exist(self):
         response = self.client.delete(
-            "/api/v1/variables/NONEXIST_VARIABLE_KEY", environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/variables/NONEXIST_VARIABLE_KEY", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 404
 
@@ -93,14 +93,14 @@ class TestDeleteVariable(TestVariableEndpoint):
         assert_401(response)
 
         # make sure variable is not deleted
-        response = self.client.get("/api/v1/variables/delete_var1", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/variables/delete_var1", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
 
     def test_should_raise_403_forbidden(self):
         expected_value = '{"foo": 1}'
         Variable.set("TEST_VARIABLE_KEY", expected_value)
         response = self.client.get(
-            "/api/v1/variables/TEST_VARIABLE_KEY", environ_overrides={'REMOTE_USER': "test_no_permissions"}
+            "/api/v1/variables/TEST_VARIABLE_KEY", environ_overrides={"REMOTE_USER": "test_no_permissions"}
         )
         assert response.status_code == 403
 
@@ -110,14 +110,14 @@ class TestGetVariable(TestVariableEndpoint):
         expected_value = '{"foo": 1}'
         Variable.set("TEST_VARIABLE_KEY", expected_value)
         response = self.client.get(
-            "/api/v1/variables/TEST_VARIABLE_KEY", environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/variables/TEST_VARIABLE_KEY", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
         assert response.json == {"key": "TEST_VARIABLE_KEY", "value": expected_value, "description": None}
 
     def test_should_respond_404_if_not_found(self):
         response = self.client.get(
-            "/api/v1/variables/NONEXIST_VARIABLE_KEY", environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/variables/NONEXIST_VARIABLE_KEY", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 404
 
@@ -129,11 +129,11 @@ class TestGetVariable(TestVariableEndpoint):
         assert_401(response)
 
     def test_should_handle_slashes_in_keys(self):
-        expected_value = 'hello'
+        expected_value = "hello"
         Variable.set("foo/bar", expected_value)
         response = self.client.get(
             f"/api/v1/variables/{urllib.parse.quote('foo/bar', safe='')}",
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         assert response.json == {"key": "foo/bar", "value": expected_value, "description": None}
@@ -177,14 +177,14 @@ class TestGetVariables(TestVariableEndpoint):
         Variable.set("var1", 1, "I am a variable")
         Variable.set("var2", "foo", "Another variable")
         Variable.set("var3", "[100, 101]")
-        response = self.client.get(query, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(query, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json == expected
 
     def test_should_respect_page_size_limit_default(self):
         for i in range(101):
             Variable.set(f"var{i}", i)
-        response = self.client.get("/api/v1/variables", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/variables", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json["total_entries"] == 101
         assert len(response.json["variables"]) == 100
@@ -193,7 +193,7 @@ class TestGetVariables(TestVariableEndpoint):
         for i in range(101):
             Variable.set(f"var{i}", i)
         response = self.client.get(
-            "/api/v1/variables?order_by=invalid", environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/variables?order_by=invalid", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 400
         msg = "Ordering with 'invalid' is disallowed or the attribute does not exist on the model"
@@ -203,9 +203,9 @@ class TestGetVariables(TestVariableEndpoint):
     def test_should_return_conf_max_if_req_max_above_conf(self):
         for i in range(200):
             Variable.set(f"var{i}", i)
-        response = self.client.get("/api/v1/variables?limit=180", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/variables?limit=180", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert len(response.json['variables']) == 150
+        assert len(response.json["variables"]) == 150
 
     def test_should_raises_401_unauthenticated(self):
         Variable.set("var1", 1)
@@ -224,7 +224,7 @@ class TestPatchVariable(TestVariableEndpoint):
                 "key": "var1",
                 "value": "updated",
             },
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         assert response.json == {
@@ -240,7 +240,7 @@ class TestPatchVariable(TestVariableEndpoint):
                 "key": "var2",
                 "value": "updated",
             },
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
         assert response.json == {
@@ -255,7 +255,7 @@ class TestPatchVariable(TestVariableEndpoint):
             json={
                 "key": "var2",
             },
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.json == {
             "title": "Invalid Variable schema",
@@ -286,10 +286,10 @@ class TestPostVariables(TestVariableEndpoint):
                 "key": "var_create",
                 "value": "{}",
             },
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        response = self.client.get("/api/v1/variables/var_create", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/variables/var_create", environ_overrides={"REMOTE_USER": "test"})
         assert response.json == {
             "key": "var_create",
             "value": "{}",
@@ -303,7 +303,7 @@ class TestPostVariables(TestVariableEndpoint):
                 "key": "var_create",
                 "v": "{}",
             },
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
         assert response.json == {

@@ -29,7 +29,7 @@ DOCS_DIR = os.path.join(ROOT_PROJECT_DIR, "docs")
 AIRFLOW_DIR = os.path.join(ROOT_PROJECT_DIR, "airflow")
 
 ALL_PROVIDER_YAMLS = load_package_data()
-AIRFLOW_SITE_DIR: str = os.environ.get('AIRFLOW_SITE_DIRECTORY') or ''
+AIRFLOW_SITE_DIR: str = os.environ.get("AIRFLOW_SITE_DIRECTORY") or ""
 PROCESS_TIMEOUT = 8 * 60  # 400 seconds
 
 CONSOLE_WIDTH = 180

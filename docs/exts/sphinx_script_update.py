@@ -47,10 +47,10 @@ def _user_cache_dir(appname=None):
         # Windows has a complex procedure to download the App Dir directory because this directory can be
         # changed in window registry, so i use temporary directory for cache
         path = os.path.join(tempfile.gettempdir(), appname)
-    elif sys.platform == 'darwin':
-        path = os.path.expanduser('~/Library/Caches')
+    elif sys.platform == "darwin":
+        path = os.path.expanduser("~/Library/Caches")
     else:
-        path = os.getenv('XDG_CACHE_HOME', os.path.expanduser('~/.cache'))
+        path = os.getenv("XDG_CACHE_HOME", os.path.expanduser("~/.cache"))
     path = os.path.join(path, appname)
     return path
 
@@ -88,10 +88,10 @@ def fetch_and_cache(script_url: str, output_filename: str):
         output_file.write(res.content)
 
     # Save cache metadata, if needed
-    etag = res.headers.get('etag', None)
+    etag = res.headers.get("etag", None)
     if etag:
         cache_metadata[cache_key] = etag
-        with open(cache_metadata_filepath, 'w') as cache_file:
+        with open(cache_metadata_filepath, "w") as cache_file:
             json.dump(cache_metadata, cache_file)
 
     return cache_filepath
@@ -113,7 +113,7 @@ def build_finished(app, exception):
     output_filename = "script.js"
 
     cache_filepath = fetch_and_cache(script_url, output_filename)
-    _copy_file(cache_filepath, os.path.join(app.builder.outdir, '_static', "redoc.js"))
+    _copy_file(cache_filepath, os.path.join(app.builder.outdir, "_static", "redoc.js"))
 
 
 def setup(app):

@@ -27,73 +27,73 @@ except ImportError:
     mock_sns = None
 
 
-@unittest.skipIf(mock_sns is None, 'moto package not present')
+@unittest.skipIf(mock_sns is None, "moto package not present")
 class TestSnsHook(unittest.TestCase):
     @mock_sns
     def test_get_conn_returns_a_boto3_connection(self):
-        hook = SnsHook(aws_conn_id='aws_default')
+        hook = SnsHook(aws_conn_id="aws_default")
         assert hook.get_conn() is not None
 
     @mock_sns
     def test_publish_to_target_with_subject(self):
-        hook = SnsHook(aws_conn_id='aws_default')
+        hook = SnsHook(aws_conn_id="aws_default")
 
         message = "Hello world"
         topic_name = "test-topic"
         subject = "test-subject"
-        target = hook.get_conn().create_topic(Name=topic_name).get('TopicArn')
+        target = hook.get_conn().create_topic(Name=topic_name).get("TopicArn")
 
         response = hook.publish_to_target(target, message, subject)
 
-        assert 'MessageId' in response
+        assert "MessageId" in response
 
     @mock_sns
     def test_publish_to_target_with_attributes(self):
-        hook = SnsHook(aws_conn_id='aws_default')
+        hook = SnsHook(aws_conn_id="aws_default")
 
         message = "Hello world"
         topic_name = "test-topic"
-        target = hook.get_conn().create_topic(Name=topic_name).get('TopicArn')
+        target = hook.get_conn().create_topic(Name=topic_name).get("TopicArn")
 
         response = hook.publish_to_target(
             target,
             message,
             message_attributes={
-                'test-string': 'string-value',
-                'test-number': 123456,
-                'test-array': ['first', 'second', 'third'],
-                'test-binary': b'binary-value',
+                "test-string": "string-value",
+                "test-number": 123456,
+                "test-array": ["first", "second", "third"],
+                "test-binary": b"binary-value",
             },
         )
 
-        assert 'MessageId' in response
+        assert "MessageId" in response
 
     @mock_sns
     def test_publish_to_target_plain(self):
-        hook = SnsHook(aws_conn_id='aws_default')
+        hook = SnsHook(aws_conn_id="aws_default")
 
         message = "Hello world"
         topic_name = "test-topic"
-        target = hook.get_conn().create_topic(Name=topic_name).get('TopicArn')
+        target = hook.get_conn().create_topic(Name=topic_name).get("TopicArn")
 
         response = hook.publish_to_target(target, message)
 
-        assert 'MessageId' in response
+        assert "MessageId" in response
 
     @mock_sns
     def test_publish_to_target_error(self):
-        hook = SnsHook(aws_conn_id='aws_default')
+        hook = SnsHook(aws_conn_id="aws_default")
 
         message = "Hello world"
         topic_name = "test-topic"
-        target = hook.get_conn().create_topic(Name=topic_name).get('TopicArn')
+        target = hook.get_conn().create_topic(Name=topic_name).get("TopicArn")
 
         with self.assertRaises(TypeError) as ctx:
             hook.publish_to_target(
                 target,
                 message,
                 message_attributes={
-                    'test-non-iterable': object(),
+                    "test-non-iterable": object(),
                 },
             )
 

@@ -47,19 +47,19 @@ class TestRoleCollectionItemSchema:
     def test_serialize(self):
         deserialized_role = role_schema.dump(self.role)
         assert deserialized_role == {
-            'name': 'Test',
-            'actions': [{'resource': {'name': 'Connections'}, 'action': {'name': 'can_create'}}],
+            "name": "Test",
+            "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
         }
 
     def test_deserialize(self):
         role = {
-            'name': 'Test',
-            'actions': [{'resource': {'name': 'Connections'}, 'action': {'name': 'can_create'}}],
+            "name": "Test",
+            "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
         }
         role_obj = role_schema.load(role)
         assert role_obj == {
-            'name': 'Test',
-            'permissions': [{'resource': {'name': 'Connections'}, 'action': {'name': 'can_create'}}],
+            "name": "Test",
+            "permissions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
         }
 
 
@@ -73,7 +73,7 @@ class TestRoleCollectionSchema:
                 (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
             ],
         )
-        delete_role(minimal_app_for_api, 'Test1')
+        delete_role(minimal_app_for_api, "Test1")
 
     @pytest.fixture(scope="class")
     def role2(self, minimal_app_for_api):
@@ -84,21 +84,21 @@ class TestRoleCollectionSchema:
                 (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             ],
         )
-        delete_role(minimal_app_for_api, 'Test2')
+        delete_role(minimal_app_for_api, "Test2")
 
     def test_serialize(self, role1, role2):
         instance = RoleCollection([role1, role2], total_entries=2)
         deserialized = role_collection_schema.dump(instance)
         assert deserialized == {
-            'roles': [
+            "roles": [
                 {
-                    'name': 'Test1',
-                    'actions': [{'resource': {'name': 'Connections'}, 'action': {'name': 'can_create'}}],
+                    "name": "Test1",
+                    "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
                 },
                 {
-                    'name': 'Test2',
-                    'actions': [{'resource': {'name': 'DAGs'}, 'action': {'name': 'can_edit'}}],
+                    "name": "Test2",
+                    "actions": [{"resource": {"name": "DAGs"}, "action": {"name": "can_edit"}}],
                 },
             ],
-            'total_entries': 2,
+            "total_entries": 2,
         }

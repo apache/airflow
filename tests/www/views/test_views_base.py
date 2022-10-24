@@ -31,28 +31,28 @@ from tests.test_utils.www import check_content_in_response, check_content_not_in
 
 
 def test_index_redirect(admin_client):
-    resp = admin_client.get('/')
+    resp = admin_client.get("/")
     assert resp.status_code == 302
-    assert '/home' in resp.headers.get("Location")
+    assert "/home" in resp.headers.get("Location")
 
-    resp = admin_client.get('/', follow_redirects=True)
-    check_content_in_response('DAGs', resp)
+    resp = admin_client.get("/", follow_redirects=True)
+    check_content_in_response("DAGs", resp)
 
 
 def test_homepage_query_count(admin_client):
     with assert_queries_count(16):
-        resp = admin_client.get('/home')
-    check_content_in_response('DAGs', resp)
+        resp = admin_client.get("/home")
+    check_content_in_response("DAGs", resp)
 
 
 def test_doc_urls(admin_client, monkeypatch):
     # Mocking this way is tying the test closer to the implementation much more than I'd like. :shrug:
     from airflow.www.views import AirflowBaseView
 
-    monkeypatch.setitem(AirflowBaseView.extra_args, 'get_docs_url', lambda _: "!!DOCS_URL!!")
-    resp = admin_client.get('/', follow_redirects=True)
+    monkeypatch.setitem(AirflowBaseView.extra_args, "get_docs_url", lambda _: "!!DOCS_URL!!")
+    resp = admin_client.get("/", follow_redirects=True)
 
-    check_content_in_response('!!DOCS_URL!!', resp)
+    check_content_in_response("!!DOCS_URL!!", resp)
     check_content_in_response("/api/v1/ui", resp)
 
 
@@ -61,17 +61,17 @@ def heartbeat_healthy():
     # case-1: healthy scheduler status
     last_heartbeat = timezone.utcnow()
     job = BaseJob(
-        job_type='SchedulerJob',
-        state='running',
+        job_type="SchedulerJob",
+        state="running",
         latest_heartbeat=last_heartbeat,
     )
     with create_session() as session:
         session.add(job)
-    yield 'healthy', last_heartbeat.isoformat()
+    yield "healthy", last_heartbeat.isoformat()
     with create_session() as session:
         session.query(BaseJob).filter(
-            BaseJob.job_type == 'SchedulerJob',
-            BaseJob.state == 'running',
+            BaseJob.job_type == "SchedulerJob",
+            BaseJob.state == "running",
             BaseJob.latest_heartbeat == last_heartbeat,
         ).delete()
 
@@ -81,20 +81,20 @@ def heartbeat_too_slow():
     # case-2: unhealthy scheduler status - scenario 1 (SchedulerJob is running too slowly)
     last_heartbeat = timezone.utcnow() - datetime.timedelta(minutes=1)
     job = BaseJob(
-        job_type='SchedulerJob',
-        state='running',
+        job_type="SchedulerJob",
+        state="running",
         latest_heartbeat=last_heartbeat,
     )
     with create_session() as session:
         session.query(BaseJob).filter(
-            BaseJob.job_type == 'SchedulerJob',
-        ).update({'latest_heartbeat': last_heartbeat - datetime.timedelta(seconds=1)})
+            BaseJob.job_type == "SchedulerJob",
+        ).update({"latest_heartbeat": last_heartbeat - datetime.timedelta(seconds=1)})
         session.add(job)
-    yield 'unhealthy', last_heartbeat.isoformat()
+    yield "unhealthy", last_heartbeat.isoformat()
     with create_session() as session:
         session.query(BaseJob).filter(
-            BaseJob.job_type == 'SchedulerJob',
-            BaseJob.state == 'running',
+            BaseJob.job_type == "SchedulerJob",
+            BaseJob.state == "running",
             BaseJob.latest_heartbeat == last_heartbeat,
         ).delete()
 
@@ -104,10 +104,10 @@ def heartbeat_not_running():
     # case-3: unhealthy scheduler status - scenario 2 (no running SchedulerJob)
     with create_session() as session:
         session.query(BaseJob).filter(
-            BaseJob.job_type == 'SchedulerJob',
-            BaseJob.state == 'running',
+            BaseJob.job_type == "SchedulerJob",
+            BaseJob.state == "running",
         ).delete()
-    yield 'unhealthy', None
+    yield "unhealthy", None
 
 
 @pytest.mark.parametrize(
@@ -117,16 +117,16 @@ def heartbeat_not_running():
 def test_health(request, admin_client, heartbeat):
     # Load the corresponding fixture by name.
     scheduler_status, last_scheduler_heartbeat = request.getfixturevalue(heartbeat)
-    resp = admin_client.get('health', follow_redirects=True)
-    resp_json = json.loads(resp.data.decode('utf-8'))
-    assert 'healthy' == resp_json['metadatabase']['status']
-    assert scheduler_status == resp_json['scheduler']['status']
-    assert last_scheduler_heartbeat == resp_json['scheduler']['latest_scheduler_heartbeat']
+    resp = admin_client.get("health", follow_redirects=True)
+    resp_json = json.loads(resp.data.decode("utf-8"))
+    assert "healthy" == resp_json["metadatabase"]["status"]
+    assert scheduler_status == resp_json["scheduler"]["status"]
+    assert last_scheduler_heartbeat == resp_json["scheduler"]["latest_scheduler_heartbeat"]
 
 
 def test_users_list(admin_client):
-    resp = admin_client.get('users/list', follow_redirects=True)
-    check_content_in_response('List Users', resp)
+    resp = admin_client.get("users/list", follow_redirects=True)
+    check_content_in_response("List Users", resp)
 
 
 @pytest.mark.parametrize(
@@ -140,7 +140,7 @@ def test_roles_read(admin_client, path, body_content):
 
 def test_roles_read_unauthorized(viewer_client):
     resp = viewer_client.get("roles/list", follow_redirects=True)
-    check_content_in_response('Access is Denied', resp)
+    check_content_in_response("Access is Denied", resp)
 
 
 @pytest.fixture(scope="module")
@@ -174,19 +174,19 @@ def exist_role(app, exist_role_name):
 
 
 def test_roles_create(app, admin_client, non_exist_role_name):
-    admin_client.post("roles/add", data={'name': non_exist_role_name}, follow_redirects=True)
+    admin_client.post("roles/add", data={"name": non_exist_role_name}, follow_redirects=True)
     assert app.appbuilder.sm.find_role(non_exist_role_name) is not None
 
 
 def test_roles_create_unauthorized(app, viewer_client, non_exist_role_name):
-    resp = viewer_client.post("roles/add", data={'name': non_exist_role_name}, follow_redirects=True)
-    check_content_in_response('Access is Denied', resp)
+    resp = viewer_client.post("roles/add", data={"name": non_exist_role_name}, follow_redirects=True)
+    check_content_in_response("Access is Denied", resp)
     assert app.appbuilder.sm.find_role(non_exist_role_name) is None
 
 
 def test_roles_edit(app, admin_client, non_exist_role_name, exist_role):
     admin_client.post(
-        f"roles/edit/{exist_role.id}", data={'name': non_exist_role_name}, follow_redirects=True
+        f"roles/edit/{exist_role.id}", data={"name": non_exist_role_name}, follow_redirects=True
     )
     updated_role = app.appbuilder.sm.find_role(non_exist_role_name)
     assert exist_role.id == updated_role.id
@@ -194,9 +194,9 @@ def test_roles_edit(app, admin_client, non_exist_role_name, exist_role):
 
 def test_roles_edit_unauthorized(app, viewer_client, non_exist_role_name, exist_role_name, exist_role):
     resp = viewer_client.post(
-        f"roles/edit/{exist_role.id}", data={'name': non_exist_role_name}, follow_redirects=True
+        f"roles/edit/{exist_role.id}", data={"name": non_exist_role_name}, follow_redirects=True
     )
-    check_content_in_response('Access is Denied', resp)
+    check_content_in_response("Access is Denied", resp)
     assert app.appbuilder.sm.find_role(exist_role_name)
     assert app.appbuilder.sm.find_role(non_exist_role_name) is None
 
@@ -208,7 +208,7 @@ def test_roles_delete(app, admin_client, exist_role_name, exist_role):
 
 def test_roles_delete_unauthorized(app, viewer_client, exist_role, exist_role_name):
     resp = viewer_client.post(f"roles/delete/{exist_role.id}", follow_redirects=True)
-    check_content_in_response('Access is Denied', resp)
+    check_content_in_response("Access is Denied", resp)
     assert app.appbuilder.sm.find_role(exist_role_name)
 
 
@@ -249,7 +249,7 @@ def test_views_get(request, url, client, content):
 
 
 def _check_task_stats_json(resp):
-    return set(list(resp.json.items())[0][1][0].keys()) == {'state', 'count'}
+    return set(list(resp.json.items())[0][1][0].keys()) == {"state", "count"}
 
 
 @pytest.mark.parametrize(
@@ -279,26 +279,26 @@ def test_views_post(admin_client, url, check_response):
 def test_resetmypasswordview_edit(app, request, url, client, content, username):
     user = app.appbuilder.sm.find_user(username)
     resp = request.getfixturevalue(client).post(
-        url.format(user.id), data={'password': 'blah', 'conf_password': 'blah'}, follow_redirects=True
+        url.format(user.id), data={"password": "blah", "conf_password": "blah"}, follow_redirects=True
     )
     check_content_in_response(content, resp)
 
 
 def test_resetmypasswordview_read(viewer_client):
     # Tests with viewer as all roles should have access.
-    resp = viewer_client.get('resetmypassword/form', follow_redirects=True)
-    check_content_in_response('Reset Password Form', resp)
+    resp = viewer_client.get("resetmypassword/form", follow_redirects=True)
+    check_content_in_response("Reset Password Form", resp)
 
 
 def test_get_myuserinfo(admin_client):
     resp = admin_client.get("users/userinfo/", follow_redirects=True)
-    check_content_in_response('Your user information', resp)
+    check_content_in_response("Your user information", resp)
 
 
 def test_edit_myuserinfo(admin_client):
     resp = admin_client.post(
         "userinfoeditview/form",
-        data={'first_name': 'new_first_name', 'last_name': 'new_last_name'},
+        data={"first_name": "new_first_name", "last_name": "new_last_name"},
         follow_redirects=True,
     )
     check_content_in_response("User information changed", resp)
@@ -330,13 +330,13 @@ def test_create_user(app, admin_client, non_exist_username):
     resp = admin_client.post(
         "users/add",
         data={
-            'first_name': 'fake_first_name',
-            'last_name': 'fake_last_name',
-            'username': non_exist_username,
-            'email': 'fake_email@email.com',
-            'roles': [1],
-            'password': 'test',
-            'conf_password': 'test',
+            "first_name": "fake_first_name",
+            "last_name": "fake_last_name",
+            "username": non_exist_username,
+            "email": "fake_email@email.com",
+            "roles": [1],
+            "password": "test",
+            "conf_password": "test",
         },
         follow_redirects=True,
     )
@@ -381,20 +381,20 @@ def test_delete_user(app, admin_client, exist_username):
 
 @conf_vars({("webserver", "show_recent_stats_for_completed_runs"): "False"})
 def test_task_stats_only_noncompleted(admin_client):
-    resp = admin_client.post('task_stats', follow_redirects=True)
+    resp = admin_client.post("task_stats", follow_redirects=True)
     assert resp.status_code == 200
 
 
-@conf_vars({('webserver', 'instance_name'): 'Site Title Test'})
+@conf_vars({("webserver", "instance_name"): "Site Title Test"})
 def test_page_instance_name(admin_client):
-    resp = admin_client.get('home', follow_redirects=True)
-    check_content_in_response('Site Title Test', resp)
+    resp = admin_client.get("home", follow_redirects=True)
+    check_content_in_response("Site Title Test", resp)
 
 
 def test_page_instance_name_xss_prevention(admin_client):
     xss_string = "<script>alert('Give me your credit card number')</script>"
-    with conf_vars({('webserver', 'instance_name'): xss_string}):
-        resp = admin_client.get('home', follow_redirects=True)
+    with conf_vars({("webserver", "instance_name"): xss_string}):
+        resp = admin_client.get("home", follow_redirects=True)
         escaped_xss_string = "&lt;script&gt;alert(&#39;Give me your credit card number&#39;)&lt;/script&gt;"
         check_content_in_response(escaped_xss_string, resp)
         check_content_not_in_response(xss_string, resp)
@@ -407,5 +407,5 @@ def test_page_instance_name_xss_prevention(admin_client):
     }
 )
 def test_page_instance_name_with_markup(admin_client):
-    resp = admin_client.get('home', follow_redirects=True)
-    check_content_in_response('<b>Bold Site Title Test</b>', resp)
+    resp = admin_client.get("home", follow_redirects=True)
+    check_content_in_response("<b>Bold Site Title Test</b>", resp)

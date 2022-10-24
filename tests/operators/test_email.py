@@ -38,29 +38,29 @@ class TestEmailOperator(unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.dag = DAG(
-            'test_dag',
-            default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
+            "test_dag",
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
             schedule=INTERVAL,
         )
         self.addCleanup(self.dag.clear)
 
     def _run_as_operator(self, **kwargs):
         task = EmailOperator(
-            to='airflow@example.com',
-            subject='Test Run',
-            html_content='The quick brown fox jumps over the lazy dog',
-            task_id='task',
+            to="airflow@example.com",
+            subject="Test Run",
+            html_content="The quick brown fox jumps over the lazy dog",
+            task_id="task",
             dag=self.dag,
             files=["/tmp/Report-A-{{ ds }}.csv"],
-            custom_headers={'Reply-To': 'reply_to@example.com'},
+            custom_headers={"Reply-To": "reply_to@example.com"},
             **kwargs,
         )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_execute(self):
-        with conf_vars({('email', 'email_backend'): 'tests.operators.test_email.send_email_test'}):
+        with conf_vars({("email", "email_backend"): "tests.operators.test_email.send_email_test"}):
             self._run_as_operator()
         assert send_email_test.call_count == 1
         call_args = send_email_test.call_args[1]
-        assert call_args['files'] == ['/tmp/Report-A-2016-01-01.csv']
-        assert call_args['custom_headers'] == {'Reply-To': 'reply_to@example.com'}
+        assert call_args["files"] == ["/tmp/Report-A-2016-01-01.csv"]
+        assert call_args["custom_headers"] == {"Reply-To": "reply_to@example.com"}

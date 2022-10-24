@@ -326,7 +326,7 @@ class TestGCSTimeSpanFileTransformOperator(unittest.TestCase):
             transform_script=transform_script,
         )
 
-        with mock.patch.object(Path, 'glob') as path_glob:
+        with mock.patch.object(Path, "glob") as path_glob:
             path_glob.return_value.__iter__.return_value = [
                 Path(f"{destination}/{file1}"),
                 Path(f"{destination}/{file2}"),
@@ -402,7 +402,7 @@ class TestGCSDeleteBucketOperator(unittest.TestCase):
 
 
 class TestGoogleCloudStorageSync(unittest.TestCase):
-    @mock.patch('airflow.providers.google.cloud.operators.gcs.GCSHook')
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_execute(self, mock_hook):
         task = GCSSynchronizeBucketsOperator(
             task_id="task-id",
@@ -419,15 +419,15 @@ class TestGoogleCloudStorageSync(unittest.TestCase):
         )
         task.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
-            gcp_conn_id='GCP_CONN_ID',
-            delegate_to='DELEGATE_TO',
+            gcp_conn_id="GCP_CONN_ID",
+            delegate_to="DELEGATE_TO",
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.sync.assert_called_once_with(
-            source_bucket='SOURCE_BUCKET',
-            source_object='SOURCE_OBJECT',
-            destination_bucket='DESTINATION_BUCKET',
-            destination_object='DESTINATION_OBJECT',
+            source_bucket="SOURCE_BUCKET",
+            source_object="SOURCE_OBJECT",
+            destination_bucket="DESTINATION_BUCKET",
+            destination_object="DESTINATION_OBJECT",
             delete_extra_files=True,
             recursive=True,
             allow_overwrite=True,

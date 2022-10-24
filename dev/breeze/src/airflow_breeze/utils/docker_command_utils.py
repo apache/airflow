@@ -122,11 +122,11 @@ def get_extra_docker_flags(mount_sources: str, include_mypy_volume: bool = False
         for (src, dst) in VOLUMES_FOR_SELECTED_MOUNTS:
             if (AIRFLOW_SOURCES_ROOT / src).exists():
                 extra_docker_flags.extend(
-                    ["--mount", f'type=bind,src={AIRFLOW_SOURCES_ROOT / src},dst={dst}']
+                    ["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT / src},dst={dst}"]
                 )
         if include_mypy_volume:
             extra_docker_flags.extend(
-                ['--mount', "type=volume,src=mypy-cache-volume,dst=/opt/airflow/.mypy_cache"]
+                ["--mount", "type=volume,src=mypy-cache-volume,dst=/opt/airflow/.mypy_cache"]
             )
     elif mount_sources == MOUNT_REMOVE:
         extra_docker_flags.extend(
@@ -188,13 +188,13 @@ def check_docker_permission_denied(verbose: bool) -> bool:
     )
     if command_result.returncode != 0:
         permission_denied = True
-        if command_result.stdout and 'Got permission denied while trying to connect' in command_result.stdout:
+        if command_result.stdout and "Got permission denied while trying to connect" in command_result.stdout:
             get_console().print(
-                'ERROR: You have `permission denied` error when trying to communicate with docker.'
+                "ERROR: You have `permission denied` error when trying to communicate with docker."
             )
             get_console().print(
-                'Most likely you need to add your user to `docker` group: \
-                https://docs.docker.com/ engine/install/linux-postinstall/ .'
+                "Most likely you need to add your user to `docker` group: \
+                https://docs.docker.com/ engine/install/linux-postinstall/ ."
             )
     return permission_denied
 
@@ -218,8 +218,8 @@ def check_docker_is_running(verbose: bool):
     )
     if response.returncode != 0:
         get_console().print(
-            '[error]Docker is not running.[/]\n'
-            '[warning]Please make sure Docker is installed and running.[/]'
+            "[error]Docker is not running.[/]\n"
+            "[warning]Please make sure Docker is installed and running.[/]"
         )
         sys.exit(1)
 
@@ -235,8 +235,8 @@ def check_docker_version(verbose: bool):
     """
     permission_denied = check_docker_permission_denied(verbose)
     if not permission_denied:
-        docker_version_command = ['docker', 'version', '--format', '{{.Client.Version}}']
-        docker_version = ''
+        docker_version_command = ["docker", "version", "--format", "{{.Client.Version}}"]
+        docker_version = ""
         docker_version_result = run_command(
             docker_version_command,
             verbose=verbose,
@@ -247,7 +247,7 @@ def check_docker_version(verbose: bool):
         )
         if docker_version_result.returncode == 0:
             docker_version = docker_version_result.stdout.strip()
-        if docker_version == '':
+        if docker_version == "":
             get_console().print(
                 f"""
 [warning]Your version of docker is unknown. If the scripts fail, please make sure to[/]
@@ -257,7 +257,7 @@ def check_docker_version(verbose: bool):
         else:
             good_version = compare_version(docker_version, MIN_DOCKER_VERSION)
             if good_version:
-                get_console().print(f'[success]Good version of Docker: {docker_version}.[/]')
+                get_console().print(f"[success]Good version of Docker: {docker_version}.[/]")
             else:
                 get_console().print(
                     f"""
@@ -278,7 +278,7 @@ def check_docker_compose_version(verbose: bool):
 
     :param verbose: print commands when running
     """
-    version_pattern = re.compile(r'(\d+)\.(\d+)\.(\d+)')
+    version_pattern = re.compile(r"(\d+)\.(\d+)\.(\d+)")
     docker_compose_version_command = ["docker-compose", "--version"]
     try:
         docker_compose_version_result = run_command(
@@ -298,15 +298,15 @@ def check_docker_compose_version(verbose: bool):
             text=True,
         )
         DOCKER_COMPOSE_COMMAND.clear()
-        DOCKER_COMPOSE_COMMAND.extend(['docker', 'compose'])
+        DOCKER_COMPOSE_COMMAND.extend(["docker", "compose"])
     if docker_compose_version_result.returncode == 0:
         docker_compose_version = docker_compose_version_result.stdout
         version_extracted = version_pattern.search(docker_compose_version)
         if version_extracted is not None:
-            docker_version = '.'.join(version_extracted.groups())
+            docker_version = ".".join(version_extracted.groups())
             good_version = compare_version(docker_version, MIN_DOCKER_COMPOSE_VERSION)
             if good_version:
-                get_console().print(f'[success]Good version of docker-compose: {docker_version}[/]')
+                get_console().print(f"[success]Good version of docker-compose: {docker_version}[/]")
             else:
                 get_console().print(
                     f"""
@@ -343,20 +343,20 @@ def check_docker_context(verbose: bool):
     )
     if response.returncode != 0:
         get_console().print(
-            '[warning]Could not check for Docker context.[/]\n'
+            "[warning]Could not check for Docker context.[/]\n"
             '[warning]Please make sure that Docker is using the right context by running "docker info" and '
-            'checking the active Context.[/]'
+            "checking the active Context.[/]"
         )
         return
 
-    used_docker_context = response.stdout.strip().replace('"', '')
+    used_docker_context = response.stdout.strip().replace('"', "")
 
     if used_docker_context == expected_docker_context:
-        get_console().print(f'[success]Good Docker context used: {used_docker_context}.[/]')
+        get_console().print(f"[success]Good Docker context used: {used_docker_context}.[/]")
     else:
         get_console().print(
-            f'[error]Docker is not using the default context, used context is: {used_docker_context}[/]\n'
-            f'[warning]Please make sure Docker is using the {expected_docker_context} context.[/]\n'
+            f"[error]Docker is not using the default context, used context is: {used_docker_context}[/]\n"
+            f"[warning]Please make sure Docker is using the {expected_docker_context} context.[/]\n"
             f'[warning]You can try switching contexts by running: "docker context use '
             f'{expected_docker_context}"[/]'
         )
@@ -365,7 +365,7 @@ def check_docker_context(verbose: bool):
 
 def get_env_variable_value(arg_name: str, params: CommonBuildParams | ShellParams):
     raw_value = getattr(params, arg_name, None)
-    value = str(raw_value) if raw_value is not None else ''
+    value = str(raw_value) if raw_value is not None else ""
     value = "true" if raw_value is True else value
     value = "false" if raw_value is False else value
     if arg_name == "upgrade_to_newer_dependencies" and value == "true":
@@ -422,7 +422,7 @@ def prepare_docker_build_cache_command(
     final_command.extend(arguments)
     final_command.extend(["--target", "main", "."])
     final_command.extend(
-        ["-f", 'Dockerfile' if isinstance(image_params, BuildProdParams) else 'Dockerfile.ci']
+        ["-f", "Dockerfile" if isinstance(image_params, BuildProdParams) else "Dockerfile.ci"]
     )
     final_command.extend(["--platform", image_params.platform])
     final_command.extend(
@@ -483,7 +483,7 @@ def prepare_docker_build_command(
     final_command.extend(arguments)
     final_command.extend(["-t", image_params.airflow_image_name_with_tag, "--target", "main", "."])
     final_command.extend(
-        ["-f", 'Dockerfile' if isinstance(image_params, BuildProdParams) else 'Dockerfile.ci']
+        ["-f", "Dockerfile" if isinstance(image_params, BuildProdParams) else "Dockerfile.ci"]
     )
     final_command.extend(["--platform", image_params.platform])
     return final_command
@@ -536,11 +536,11 @@ def build_cache(
 
 
 def make_sure_builder_configured(params: CommonBuildParams, dry_run: bool, verbose: bool):
-    if params.builder != 'default':
-        cmd = ['docker', 'buildx', 'inspect', params.builder]
+    if params.builder != "default":
+        cmd = ["docker", "buildx", "inspect", params.builder]
         buildx_command_result = run_command(cmd, verbose=verbose, dry_run=dry_run, text=True, check=False)
         if buildx_command_result and buildx_command_result.returncode != 0:
-            next_cmd = ['docker', 'buildx', 'create', '--name', params.builder]
+            next_cmd = ["docker", "buildx", "create", "--name", params.builder]
             run_command(next_cmd, verbose=verbose, text=True, check=False)
 
 
@@ -562,46 +562,46 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
 
     :param env: environment variables to update with missing values if not set.
     """
-    set_value_to_default_if_not_set(env, 'AIRFLOW_CONSTRAINTS_MODE', "constraints-source-providers")
-    set_value_to_default_if_not_set(env, 'AIRFLOW_CONSTRAINTS_REFERENCE', "constraints-source-providers")
-    set_value_to_default_if_not_set(env, 'AIRFLOW_EXTRAS', "")
-    set_value_to_default_if_not_set(env, 'ANSWER', "")
-    set_value_to_default_if_not_set(env, 'BREEZE', "true")
-    set_value_to_default_if_not_set(env, 'BREEZE_INIT_COMMAND', "")
-    set_value_to_default_if_not_set(env, 'CI', "false")
-    set_value_to_default_if_not_set(env, 'CI_BUILD_ID', "0")
-    set_value_to_default_if_not_set(env, 'CI_EVENT_TYPE', "pull_request")
-    set_value_to_default_if_not_set(env, 'CI_JOB_ID', "0")
-    set_value_to_default_if_not_set(env, 'CI_TARGET_BRANCH', AIRFLOW_BRANCH)
-    set_value_to_default_if_not_set(env, 'CI_TARGET_REPO', APACHE_AIRFLOW_GITHUB_REPOSITORY)
-    set_value_to_default_if_not_set(env, 'COMMIT_SHA', commit_sha())
-    set_value_to_default_if_not_set(env, 'DB_RESET', "false")
-    set_value_to_default_if_not_set(env, 'DEFAULT_BRANCH', AIRFLOW_BRANCH)
-    set_value_to_default_if_not_set(env, 'ENABLED_SYSTEMS', "")
-    set_value_to_default_if_not_set(env, 'ENABLE_TEST_COVERAGE', "false")
-    set_value_to_default_if_not_set(env, 'HOST_GROUP_ID', get_host_group_id())
-    set_value_to_default_if_not_set(env, 'HOST_OS', get_host_os())
-    set_value_to_default_if_not_set(env, 'HOST_USER_ID', get_host_user_id())
-    set_value_to_default_if_not_set(env, 'INIT_SCRIPT_FILE', "init.sh")
-    set_value_to_default_if_not_set(env, 'INSTALL_PACKAGES_FROM_CONTEXT', "false")
-    set_value_to_default_if_not_set(env, 'INSTALL_PROVIDERS_FROM_SOURCES', "true")
-    set_value_to_default_if_not_set(env, 'LIST_OF_INTEGRATION_TESTS_TO_RUN', "")
-    set_value_to_default_if_not_set(env, 'LOAD_DEFAULT_CONNECTIONS', "false")
-    set_value_to_default_if_not_set(env, 'LOAD_EXAMPLES', "false")
-    set_value_to_default_if_not_set(env, 'PACKAGE_FORMAT', ALLOWED_PACKAGE_FORMATS[0])
-    set_value_to_default_if_not_set(env, 'PYTHONDONTWRITEBYTECODE', "true")
-    set_value_to_default_if_not_set(env, 'RUN_SYSTEM_TESTS', "false")
-    set_value_to_default_if_not_set(env, 'RUN_TESTS', "false")
-    set_value_to_default_if_not_set(env, 'SKIP_ENVIRONMENT_INITIALIZATION', "false")
-    set_value_to_default_if_not_set(env, 'SKIP_SSH_SETUP', "false")
-    set_value_to_default_if_not_set(env, 'TEST_TYPE', "")
-    set_value_to_default_if_not_set(env, 'TEST_TIMEOUT', "60")
-    set_value_to_default_if_not_set(env, 'UPGRADE_TO_NEWER_DEPENDENCIES', "false")
-    set_value_to_default_if_not_set(env, 'USE_PACKAGES_FROM_DIST', "false")
-    set_value_to_default_if_not_set(env, 'VERBOSE', "false")
-    set_value_to_default_if_not_set(env, 'VERBOSE_COMMANDS', "false")
-    set_value_to_default_if_not_set(env, 'VERSION_SUFFIX_FOR_PYPI', "")
-    set_value_to_default_if_not_set(env, 'WHEEL_VERSION', "0.36.2")
+    set_value_to_default_if_not_set(env, "AIRFLOW_CONSTRAINTS_MODE", "constraints-source-providers")
+    set_value_to_default_if_not_set(env, "AIRFLOW_CONSTRAINTS_REFERENCE", "constraints-source-providers")
+    set_value_to_default_if_not_set(env, "AIRFLOW_EXTRAS", "")
+    set_value_to_default_if_not_set(env, "ANSWER", "")
+    set_value_to_default_if_not_set(env, "BREEZE", "true")
+    set_value_to_default_if_not_set(env, "BREEZE_INIT_COMMAND", "")
+    set_value_to_default_if_not_set(env, "CI", "false")
+    set_value_to_default_if_not_set(env, "CI_BUILD_ID", "0")
+    set_value_to_default_if_not_set(env, "CI_EVENT_TYPE", "pull_request")
+    set_value_to_default_if_not_set(env, "CI_JOB_ID", "0")
+    set_value_to_default_if_not_set(env, "CI_TARGET_BRANCH", AIRFLOW_BRANCH)
+    set_value_to_default_if_not_set(env, "CI_TARGET_REPO", APACHE_AIRFLOW_GITHUB_REPOSITORY)
+    set_value_to_default_if_not_set(env, "COMMIT_SHA", commit_sha())
+    set_value_to_default_if_not_set(env, "DB_RESET", "false")
+    set_value_to_default_if_not_set(env, "DEFAULT_BRANCH", AIRFLOW_BRANCH)
+    set_value_to_default_if_not_set(env, "ENABLED_SYSTEMS", "")
+    set_value_to_default_if_not_set(env, "ENABLE_TEST_COVERAGE", "false")
+    set_value_to_default_if_not_set(env, "HOST_GROUP_ID", get_host_group_id())
+    set_value_to_default_if_not_set(env, "HOST_OS", get_host_os())
+    set_value_to_default_if_not_set(env, "HOST_USER_ID", get_host_user_id())
+    set_value_to_default_if_not_set(env, "INIT_SCRIPT_FILE", "init.sh")
+    set_value_to_default_if_not_set(env, "INSTALL_PACKAGES_FROM_CONTEXT", "false")
+    set_value_to_default_if_not_set(env, "INSTALL_PROVIDERS_FROM_SOURCES", "true")
+    set_value_to_default_if_not_set(env, "LIST_OF_INTEGRATION_TESTS_TO_RUN", "")
+    set_value_to_default_if_not_set(env, "LOAD_DEFAULT_CONNECTIONS", "false")
+    set_value_to_default_if_not_set(env, "LOAD_EXAMPLES", "false")
+    set_value_to_default_if_not_set(env, "PACKAGE_FORMAT", ALLOWED_PACKAGE_FORMATS[0])
+    set_value_to_default_if_not_set(env, "PYTHONDONTWRITEBYTECODE", "true")
+    set_value_to_default_if_not_set(env, "RUN_SYSTEM_TESTS", "false")
+    set_value_to_default_if_not_set(env, "RUN_TESTS", "false")
+    set_value_to_default_if_not_set(env, "SKIP_ENVIRONMENT_INITIALIZATION", "false")
+    set_value_to_default_if_not_set(env, "SKIP_SSH_SETUP", "false")
+    set_value_to_default_if_not_set(env, "TEST_TYPE", "")
+    set_value_to_default_if_not_set(env, "TEST_TIMEOUT", "60")
+    set_value_to_default_if_not_set(env, "UPGRADE_TO_NEWER_DEPENDENCIES", "false")
+    set_value_to_default_if_not_set(env, "USE_PACKAGES_FROM_DIST", "false")
+    set_value_to_default_if_not_set(env, "VERBOSE", "false")
+    set_value_to_default_if_not_set(env, "VERBOSE_COMMANDS", "false")
+    set_value_to_default_if_not_set(env, "VERSION_SUFFIX_FOR_PYPI", "")
+    set_value_to_default_if_not_set(env, "WHEEL_VERSION", "0.36.2")
 
 
 DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
@@ -617,8 +617,8 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "ANSWER": "answer",
     "BACKEND": "backend",
     "COMPOSE_FILE": "compose_file",
-    "DB_RESET": 'db_reset',
-    "DEV_MODE": 'dev_mode',
+    "DB_RESET": "db_reset",
+    "DEV_MODE": "dev_mode",
     "DEFAULT_CONSTRAINTS_BRANCH": "default_constraints_branch",
     "ENABLED_INTEGRATIONS": "enabled_integrations",
     "GITHUB_ACTIONS": "github_actions",

@@ -28,19 +28,19 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.google.cloud.secrets.secret_manager import CloudSecretManagerBackend
 
-CREDENTIALS = 'test-creds'
-KEY_FILE = 'test-file.json'
-PROJECT_ID = 'test-project-id'
-OVERRIDDEN_PROJECT_ID = 'overridden-test-project-id'
+CREDENTIALS = "test-creds"
+KEY_FILE = "test-file.json"
+PROJECT_ID = "test-project-id"
+OVERRIDDEN_PROJECT_ID = "overridden-test-project-id"
 CONNECTIONS_PREFIX = "test-connections"
 VARIABLES_PREFIX = "test-variables"
-SEP = '-'
-CONN_ID = 'test-postgres'
-CONN_URI = 'postgresql://airflow:airflow@host:5432/airflow'
-VAR_KEY = 'hello'
-VAR_VALUE = 'world'
-CONFIG_KEY = 'sql_alchemy_conn'
-CONFIG_VALUE = 'postgresql://airflow:airflow@host:5432/airflow'
+SEP = "-"
+CONN_ID = "test-postgres"
+CONN_URI = "postgresql://airflow:airflow@host:5432/airflow"
+VAR_KEY = "hello"
+VAR_VALUE = "world"
+CONFIG_KEY = "sql_alchemy_conn"
+CONFIG_VALUE = "postgresql://airflow:airflow@host:5432/airflow"
 
 MODULE_NAME = "airflow.providers.google.cloud.secrets.secret_manager"
 CLIENT_MODULE_NAME = "airflow.providers.google.cloud._internal_client.secret_manager_client"
@@ -123,7 +123,7 @@ class TestCloudSecretManagerBackend(TestCase):
         mock_client = mock.MagicMock()
         mock_client_callable.return_value = mock_client
         # The requested secret id or secret version does not exist
-        mock_client.access_secret_version.side_effect = NotFound('test-msg')
+        mock_client.access_secret_version.side_effect = NotFound("test-msg")
 
         secrets_manager_backend = CloudSecretManagerBackend(connections_prefix=CONNECTIONS_PREFIX)
         secret_id = secrets_manager_backend.build_path(CONNECTIONS_PREFIX, CONN_ID, SEP)
@@ -198,7 +198,7 @@ class TestCloudSecretManagerBackend(TestCase):
         mock_client = mock.MagicMock()
         mock_client_callable.return_value = mock_client
         # The requested secret id or secret version does not exist
-        mock_client.access_secret_version.side_effect = NotFound('test-msg')
+        mock_client.access_secret_version.side_effect = NotFound("test-msg")
 
         secrets_manager_backend = CloudSecretManagerBackend(variables_prefix=VARIABLES_PREFIX)
         secret_id = secrets_manager_backend.build_path(VARIABLES_PREFIX, VAR_KEY, SEP)
@@ -216,9 +216,9 @@ class TestCloudSecretManagerBackend(TestCase):
         mock_client = mock.MagicMock()
         mock_client_callable.return_value = mock_client
 
-        with mock.patch(MODULE_NAME + '.CloudSecretManagerBackend._get_secret') as mock_get_secret:
+        with mock.patch(MODULE_NAME + ".CloudSecretManagerBackend._get_secret") as mock_get_secret:
             with mock.patch(
-                MODULE_NAME + '.CloudSecretManagerBackend._is_valid_prefix_and_sep'
+                MODULE_NAME + ".CloudSecretManagerBackend._is_valid_prefix_and_sep"
             ) as mock_is_valid_prefix_sep:
                 secrets_manager_backend = CloudSecretManagerBackend(connections_prefix=None)
 
@@ -233,7 +233,7 @@ class TestCloudSecretManagerBackend(TestCase):
         mock_client = mock.MagicMock()
         mock_client_callable.return_value = mock_client
 
-        with mock.patch(MODULE_NAME + '.CloudSecretManagerBackend._get_secret') as mock_get_secret:
+        with mock.patch(MODULE_NAME + ".CloudSecretManagerBackend._get_secret") as mock_get_secret:
             secrets_manager_backend = CloudSecretManagerBackend(variables_prefix=None)
 
             assert secrets_manager_backend.get_variable(VAR_KEY) is None
@@ -246,7 +246,7 @@ class TestCloudSecretManagerBackend(TestCase):
         mock_client = mock.MagicMock()
         mock_client_callable.return_value = mock_client
 
-        with mock.patch(MODULE_NAME + '.CloudSecretManagerBackend._get_secret') as mock_get_secret:
+        with mock.patch(MODULE_NAME + ".CloudSecretManagerBackend._get_secret") as mock_get_secret:
             secrets_manager_backend = CloudSecretManagerBackend(config_prefix=None)
 
             assert secrets_manager_backend.get_config(CONFIG_KEY) is None

@@ -52,8 +52,8 @@ DOCKER_COMPOSE_DIR = SCRIPTS_CI_DIR / "docker-compose"
 
 
 def add_mssql_compose_file(compose_file_list: list[Path]):
-    docker_filesystem = get_filesystem_type('/var/lib/docker')
-    if docker_filesystem == 'tmpfs':
+    docker_filesystem = get_filesystem_type("/var/lib/docker")
+    if docker_filesystem == "tmpfs":
         compose_file_list.append(DOCKER_COMPOSE_DIR / "backend-mssql-tmpfs-volume.yml")
     else:
         compose_file_list.append(DOCKER_COMPOSE_DIR / "backend-mssql-docker-volume.yml")
@@ -65,9 +65,9 @@ class ShellParams:
     Shell parameters. Those parameters are used to determine command issued to run shell command.
     """
 
-    airflow_branch: str = os.environ.get('DEFAULT_BRANCH', AIRFLOW_BRANCH)
+    airflow_branch: str = os.environ.get("DEFAULT_BRANCH", AIRFLOW_BRANCH)
     default_constraints_branch: str = os.environ.get(
-        'DEFAULT_CONSTRAINTS_BRANCH', DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+        "DEFAULT_CONSTRAINTS_BRANCH", DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     )
     airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     airflow_extras: str = ""
@@ -82,9 +82,9 @@ class ShellParams:
     forward_ports: bool = True
     forward_credentials: str = "false"
     airflow_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
-    github_actions: str = os.environ.get('GITHUB_ACTIONS', "false")
+    github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
-    github_token: str = os.environ.get('GITHUB_TOKEN', "")
+    github_token: str = os.environ.get("GITHUB_TOKEN", "")
     image_tag: str | None = None
     include_mypy_volume: bool = False
     install_airflow_version: str = ""
@@ -122,20 +122,20 @@ class ShellParams:
 
     @property
     def airflow_version_for_production_image(self):
-        cmd = ['docker', 'run', '--entrypoint', '/bin/bash', f'{self.airflow_image_name}']
-        cmd.extend(['-c', 'echo "${AIRFLOW_VERSION}"'])
+        cmd = ["docker", "run", "--entrypoint", "/bin/bash", f"{self.airflow_image_name}"]
+        cmd.extend(["-c", 'echo "${AIRFLOW_VERSION}"'])
         output = run_command(cmd, capture_output=True, text=True)
         return output.stdout.strip() if output.stdout else "UNKNOWN_VERSION"
 
     @property
     def airflow_base_image_name(self) -> str:
-        image = f'ghcr.io/{self.github_repository.lower()}'
+        image = f"ghcr.io/{self.github_repository.lower()}"
         return image
 
     @property
     def airflow_image_name(self) -> str:
         """Construct CI image link"""
-        image = f'{self.airflow_base_image_name}/{self.airflow_branch}/ci/python{self.python}'
+        image = f"{self.airflow_base_image_name}/{self.airflow_branch}/ci/python{self.python}"
         return image
 
     @property
@@ -145,7 +145,7 @@ class ShellParams:
 
     @property
     def airflow_image_kubernetes(self) -> str:
-        image = f'{self.airflow_base_image_name}/{self.airflow_branch}/kubernetes/python{self.python}'
+        image = f"{self.airflow_base_image_name}/{self.airflow_branch}/kubernetes/python{self.python}"
         return image
 
     @property
@@ -164,7 +164,7 @@ class ShellParams:
 
     @property
     def image_type(self) -> str:
-        return 'CI'
+        return "CI"
 
     @property
     def md5sum_cache_dir(self) -> Path:
@@ -173,12 +173,12 @@ class ShellParams:
 
     @property
     def backend_version(self) -> str:
-        version = ''
-        if self.backend == 'postgres':
+        version = ""
+        if self.backend == "postgres":
             version = self.postgres_version
-        if self.backend == 'mysql':
+        if self.backend == "mysql":
             version = self.mysql_version
-        if self.backend == 'mssql':
+        if self.backend == "mssql":
             version = self.mssql_version
         return version
 
@@ -189,17 +189,17 @@ class ShellParams:
 
     def print_badge_info(self):
         if self.verbose:
-            get_console().print(f'[info]Use {self.image_type} image[/]')
-            get_console().print(f'[info]Branch Name: {self.airflow_branch}[/]')
-            get_console().print(f'[info]Docker Image: {self.airflow_image_name_with_tag}[/]')
-            get_console().print(f'[info]Airflow source version:{self.airflow_version}[/]')
-            get_console().print(f'[info]Python Version: {self.python}[/]')
-            get_console().print(f'[info]Backend: {self.backend} {self.backend_version}[/]')
-            get_console().print(f'[info]Airflow used at runtime: {self.use_airflow_version}[/]')
+            get_console().print(f"[info]Use {self.image_type} image[/]")
+            get_console().print(f"[info]Branch Name: {self.airflow_branch}[/]")
+            get_console().print(f"[info]Docker Image: {self.airflow_image_name_with_tag}[/]")
+            get_console().print(f"[info]Airflow source version:{self.airflow_version}[/]")
+            get_console().print(f"[info]Python Version: {self.python}[/]")
+            get_console().print(f"[info]Backend: {self.backend} {self.backend_version}[/]")
+            get_console().print(f"[info]Airflow used at runtime: {self.use_airflow_version}[/]")
 
     def get_backend_compose_files(self, backend: str) -> list[Path]:
         backend_docker_compose_file = DOCKER_COMPOSE_DIR / f"backend-{backend}.yml"
-        if backend == 'sqlite' or not self.forward_ports:
+        if backend == "sqlite" or not self.forward_ports:
             return [backend_docker_compose_file]
         return [backend_docker_compose_file, DOCKER_COMPOSE_DIR / f"backend-{backend}-port.yml"]
 
@@ -209,7 +209,7 @@ class ShellParams:
         backend_files: list[Path] = []
         if self.backend != "all":
             backend_files = self.get_backend_compose_files(self.backend)
-            if self.backend == 'mssql':
+            if self.backend == "mssql":
                 add_mssql_compose_file(compose_file_list)
         else:
             for backend in ALLOWED_BACKENDS:

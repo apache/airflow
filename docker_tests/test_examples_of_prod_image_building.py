@@ -33,13 +33,13 @@ DOCKER_EXAMPLES_DIR = SOURCE_ROOT / "docs" / "docker-stack" / "docker-examples"
 
 @lru_cache(maxsize=None)
 def get_latest_airflow_version_released():
-    response = requests.get('https://pypi.org/pypi/apache-airflow/json')
+    response = requests.get("https://pypi.org/pypi/apache-airflow/json")
     response.raise_for_status()
-    return response.json()['info']['version']
+    return response.json()["info"]["version"]
 
 
 @pytest.mark.skipif(
-    os.environ.get('CI') == "true",
+    os.environ.get("CI") == "true",
     reason="Skipping the script builds on CI! They take very long time to build.",
 )
 @pytest.mark.parametrize("script_file", glob.glob(f"{DOCKER_EXAMPLES_DIR}/**/*.sh", recursive=True))
@@ -53,11 +53,11 @@ def test_dockerfile_example(dockerfile):
     image_name = str(rel_dockerfile_path).lower().replace("/", "-")
     content = Path(dockerfile).read_text()
     new_content = re.sub(
-        r'FROM apache/airflow:.*', fr'FROM apache/airflow:{get_latest_airflow_version_released()}', content
+        r"FROM apache/airflow:.*", rf"FROM apache/airflow:{get_latest_airflow_version_released()}", content
     )
     try:
         run_command(
-            ["docker", "build", ".", "--tag", image_name, '-f', '-'],
+            ["docker", "build", ".", "--tag", image_name, "-f", "-"],
             cwd=str(Path(dockerfile).parent),
             input=new_content.encode(),
         )

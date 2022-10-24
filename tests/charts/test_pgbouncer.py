@@ -107,9 +107,9 @@ class TestPgbouncer:
             }
         }
         if revision_history_limit:
-            values['pgbouncer']['revisionHistoryLimit'] = revision_history_limit
+            values["pgbouncer"]["revisionHistoryLimit"] = revision_history_limit
         if global_revision_history_limit:
-            values['revisionHistoryLimit'] = global_revision_history_limit
+            values["revisionHistoryLimit"] = global_revision_history_limit
         docs = render_chart(
             values=values,
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
@@ -195,8 +195,8 @@ class TestPgbouncer:
                 "pgbouncer": {
                     "enabled": True,
                     "resources": {
-                        "limits": {"cpu": "200m", 'memory': "128Mi"},
-                        "requests": {"cpu": "300m", 'memory': "169Mi"},
+                        "limits": {"cpu": "200m", "memory": "128Mi"},
+                        "requests": {"cpu": "300m", "memory": "169Mi"},
                     },
                 },
             },

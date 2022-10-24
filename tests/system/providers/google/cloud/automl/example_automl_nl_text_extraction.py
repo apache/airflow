@@ -69,13 +69,13 @@ with models.DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
     user_defined_macros={"extract_object_id": extract_object_id},
-    tags=['example', 'automl'],
+    tags=["example", "automl"],
 ) as dag:
     create_dataset_task = AutoMLCreateDatasetOperator(
         task_id="create_dataset_task", dataset=DATASET, location=GCP_AUTOML_LOCATION
     )
 
-    dataset_id = cast(str, XComArg(create_dataset_task, key='dataset_id'))
+    dataset_id = cast(str, XComArg(create_dataset_task, key="dataset_id"))
 
     import_dataset_task = AutoMLImportDataOperator(
         task_id="import_dataset_task",
@@ -88,7 +88,7 @@ with models.DAG(
 
     create_model = AutoMLTrainModelOperator(task_id="create_model", model=MODEL, location=GCP_AUTOML_LOCATION)
 
-    model_id = cast(str, XComArg(create_model, key='model_id'))
+    model_id = cast(str, XComArg(create_model, key="model_id"))
 
     delete_model_task = AutoMLDeleteModelOperator(
         task_id="delete_model_task",

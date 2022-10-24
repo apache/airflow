@@ -85,7 +85,7 @@ def run_command(
         if _index == 0:
             # First argument is always passed
             return False
-        if _arg.startswith('-'):
+        if _arg.startswith("-"):
             return True
         if len(_arg) == 0:
             return True
@@ -111,17 +111,17 @@ def run_command(
         ]
         # Heuristics to get a (possibly) short but explanatory title showing what the command does
         # If title is not provided explicitly
-        title = "<" + ' '.join(shortened_command[:5]) + ">"  # max 4 args
+        title = "<" + " ".join(shortened_command[:5]) + ">"  # max 4 args
     workdir: str = str(cwd) if cwd else os.getcwd()
     cmd_env = os.environ.copy()
     cmd_env.setdefault("HOME", str(Path.home()))
     if env:
         cmd_env.update(env)
     if output:
-        if 'capture_output' not in kwargs or not kwargs['capture_output']:
-            kwargs['stdout'] = output.file
-            kwargs['stderr'] = subprocess.STDOUT
-    command_to_print = ' '.join(shlex.quote(c) for c in cmd)
+        if "capture_output" not in kwargs or not kwargs["capture_output"]:
+            kwargs["stdout"] = output.file
+            kwargs["stderr"] = subprocess.STDOUT
+    command_to_print = " ".join(shlex.quote(c) for c in cmd)
     env_to_print = get_environments_to_print(env)
     if not verbose and not dry_run:
         return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
@@ -173,10 +173,10 @@ def get_environments_to_print(env: Mapping[str, str] | None):
             system_env[key] = val
         else:
             my_env[key] = val
-    env_to_print = ''.join(f'{key}="{val}" \\\n' for (key, val) in sorted(system_env.items()))
+    env_to_print = "".join(f'{key}="{val}" \\\n' for (key, val) in sorted(system_env.items()))
     env_to_print += r"""\
 """
-    env_to_print += ''.join(f'{key}="{val}" \\\n' for (key, val) in sorted(my_env.items()))
+    env_to_print += "".join(f'{key}="{val}" \\\n' for (key, val) in sorted(my_env.items()))
     return env_to_print
 
 
@@ -237,7 +237,7 @@ def get_filesystem_type(filepath: str):
 
     root_type = "unknown"
     for part in psutil.disk_partitions(all=True):
-        if part.mountpoint == '/':
+        if part.mountpoint == "/":
             root_type = part.fstype
             continue
         if filepath.startswith(part.mountpoint):
@@ -248,7 +248,7 @@ def get_filesystem_type(filepath: str):
 
 def instruct_build_image(python: str):
     """Print instructions to the user that they should build the image"""
-    get_console().print(f'[warning]\nThe CI image for Python version {python} may be outdated[/]\n')
+    get_console().print(f"[warning]\nThe CI image for Python version {python} may be outdated[/]\n")
     get_console().print(
         f"\n[info]Please run at the earliest "
         f"convenience:[/]\n\nbreeze ci-image build --python {python}\n\n"
@@ -289,16 +289,16 @@ def fix_group_permissions(verbose: bool):
     """Fixes permissions of all the files and directories that have group-write access."""
     if verbose:
         get_console().print("[info]Fixing group permissions[/]")
-    files_to_fix_result = run_command(['git', 'ls-files', './'], capture_output=True, text=True)
+    files_to_fix_result = run_command(["git", "ls-files", "./"], capture_output=True, text=True)
     if files_to_fix_result.returncode == 0:
-        files_to_fix = files_to_fix_result.stdout.strip().split('\n')
+        files_to_fix = files_to_fix_result.stdout.strip().split("\n")
         for file_to_fix in files_to_fix:
             change_file_permission(Path(file_to_fix))
     directories_to_fix_result = run_command(
-        ['git', 'ls-tree', '-r', '-d', '--name-only', 'HEAD'], capture_output=True, text=True
+        ["git", "ls-tree", "-r", "-d", "--name-only", "HEAD"], capture_output=True, text=True
     )
     if directories_to_fix_result.returncode == 0:
-        directories_to_fix = directories_to_fix_result.stdout.strip().split('\n')
+        directories_to_fix = directories_to_fix_result.stdout.strip().split("\n")
         for directory_to_fix in directories_to_fix:
             change_directory_permission(Path(directory_to_fix))
 
@@ -312,7 +312,7 @@ def is_repo_rebased(repo: str, branch: str):
     headers_dict = {"Accept": "application/vnd.github.VERSION.sha"}
     latest_sha = requests.get(gh_url, headers=headers_dict).text.strip()
     rebased = False
-    command_result = run_command(['git', 'log', '--format=format:%H'], capture_output=True, text=True)
+    command_result = run_command(["git", "log", "--format=format:%H"], capture_output=True, text=True)
     commit_list = command_result.stdout.strip().splitlines() if command_result is not None else "missing"
     if latest_sha in commit_list:
         rebased = True
@@ -325,7 +325,7 @@ def check_if_buildx_plugin_installed(verbose: bool) -> bool:
     :param verbose: print commands when running
     :return True if the buildx plugin is installed.
     """
-    check_buildx = ['docker', 'buildx', 'version']
+    check_buildx = ["docker", "buildx", "version"]
     docker_buildx_version_result = run_command(
         check_buildx,
         verbose=verbose,
@@ -342,7 +342,7 @@ def check_if_buildx_plugin_installed(verbose: bool) -> bool:
 @lru_cache(maxsize=None)
 def commit_sha():
     """Returns commit SHA of current repo. Cached for various usages."""
-    command_result = run_command(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True, check=False)
+    command_result = run_command(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False)
     if command_result.stdout:
         return command_result.stdout.strip()
     else:
@@ -370,10 +370,10 @@ def check_if_image_exists(image: str, verbose: bool, dry_run: bool) -> bool:
 
 
 def get_ci_image_for_pre_commits(verbose: bool, dry_run: bool) -> str:
-    github_repository = os.environ.get('GITHUB_REPOSITORY', APACHE_AIRFLOW_GITHUB_REPOSITORY)
+    github_repository = os.environ.get("GITHUB_REPOSITORY", APACHE_AIRFLOW_GITHUB_REPOSITORY)
     python_version = "3.7"
     airflow_image = f"ghcr.io/{github_repository}/{AIRFLOW_BRANCH}/ci/python{python_version}"
-    skip_image_pre_commits = os.environ.get('SKIP_IMAGE_PRE_COMMITS', "false")
+    skip_image_pre_commits = os.environ.get("SKIP_IMAGE_PRE_COMMITS", "false")
     if skip_image_pre_commits[0].lower() == "t":
         get_console().print(
             f"[info]Skipping image check as SKIP_IMAGE_PRE_COMMITS is set to {skip_image_pre_commits}[/]"
@@ -384,7 +384,7 @@ def get_ci_image_for_pre_commits(verbose: bool, dry_run: bool) -> str:
         verbose=verbose,
         dry_run=dry_run,
     ):
-        get_console().print(f'[red]The image {airflow_image} is not available.[/]\n')
+        get_console().print(f"[red]The image {airflow_image} is not available.[/]\n")
         get_console().print(
             f"\n[yellow]Please run this to fix it:[/]\n\n"
             f"breeze ci-image build --python {python_version}\n\n"
@@ -424,11 +424,11 @@ def run_compile_www_assets(
         sys.executable,
         "-m",
         "pre_commit",
-        'run',
+        "run",
         "--hook-stage",
         "manual",
-        'compile-www-assets-dev' if dev else 'compile-www-assets',
-        '--all-files',
+        "compile-www-assets-dev" if dev else "compile-www-assets",
+        "--all-files",
     ]
     if run_in_background:
         thread = Thread(

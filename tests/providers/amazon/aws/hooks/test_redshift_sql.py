@@ -31,7 +31,7 @@ class TestRedshiftSQLHookConn(unittest.TestCase):
         super().setUp()
 
         self.connection = Connection(
-            conn_type='redshift', login='login', password='password', host='host', port=5439, schema="dev"
+            conn_type="redshift", login="login", password="password", host="host", port=5439, schema="dev"
         )
 
         self.db_hook = RedshiftSQLHook()
@@ -39,18 +39,18 @@ class TestRedshiftSQLHookConn(unittest.TestCase):
         self.db_hook.get_connection.return_value = self.connection
 
     def test_get_uri(self):
-        expected = 'redshift+redshift_connector://login:password@host:5439/dev'
+        expected = "redshift+redshift_connector://login:password@host:5439/dev"
         x = self.db_hook.get_uri()
         assert x == expected
 
-    @mock.patch('airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect')
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect")
     def test_get_conn(self, mock_connect):
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(
-            user='login', password='password', host='host', port=5439, database='dev'
+            user="login", password="password", host="host", port=5439, database="dev"
         )
 
-    @mock.patch('airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect')
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect")
     def test_get_conn_extra(self, mock_connect):
         self.connection.extra = json.dumps(
             {
@@ -61,13 +61,13 @@ class TestRedshiftSQLHookConn(unittest.TestCase):
         )
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(
-            user='login',
-            password='password',
-            host='host',
+            user="login",
+            password="password",
+            host="host",
             port=5439,
             cluster_identifier="my-test-cluster",
             profile="default",
-            database='dev',
+            database="dev",
             iam=True,
         )
 
@@ -80,11 +80,11 @@ class TestRedshiftSQLHookConn(unittest.TestCase):
             ({"login": "test1"}, {"password": "test2"}, {"user": "test1", "password": "test2"}),
         ],
     )
-    @mock.patch('airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect')
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect")
     def test_get_conn_overrides_correctly(self, conn_params, conn_extra, expected_call_args, mock_connect):
         with mock.patch(
-            'airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.conn',
-            Connection(conn_type='redshift', extra=conn_extra, **conn_params),
+            "airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.conn",
+            Connection(conn_type="redshift", extra=conn_extra, **conn_params),
         ):
             self.db_hook.get_conn()
             mock_connect.assert_called_once_with(**expected_call_args)

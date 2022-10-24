@@ -22,14 +22,14 @@ from unittest import mock
 
 from airflow.providers.amazon.aws.transfers.ftp_to_s3 import FTPToS3Operator
 
-TASK_ID = 'test_ftp_to_s3'
-BUCKET = 'test-s3-bucket'
-S3_KEY = 'test/test_1_file.csv'
-FTP_PATH = '/tmp/remote_path.txt'
-AWS_CONN_ID = 'aws_default'
-FTP_CONN_ID = 'ftp_default'
-S3_KEY_MULTIPLE = 'test/'
-FTP_PATH_MULTIPLE = '/tmp/'
+TASK_ID = "test_ftp_to_s3"
+BUCKET = "test-s3-bucket"
+S3_KEY = "test/test_1_file.csv"
+FTP_PATH = "/tmp/remote_path.txt"
+AWS_CONN_ID = "aws_default"
+FTP_CONN_ID = "ftp_default"
+S3_KEY_MULTIPLE = "test/"
+FTP_PATH_MULTIPLE = "/tmp/"
 
 
 class TestFTPToS3Operator(unittest.TestCase):
@@ -79,8 +79,8 @@ class TestFTPToS3Operator(unittest.TestCase):
             s3_bucket=BUCKET,
             s3_key=S3_KEY_MULTIPLE,
             ftp_path=FTP_PATH_MULTIPLE,
-            ftp_filenames=['test1.txt'],
-            s3_filenames=['test1_s3.txt'],
+            ftp_filenames=["test1.txt"],
+            s3_filenames=["test1_s3.txt"],
         )
         operator.execute(None)
 
@@ -104,7 +104,7 @@ class TestFTPToS3Operator(unittest.TestCase):
             s3_bucket=BUCKET,
             s3_key=S3_KEY_MULTIPLE,
             ftp_path=FTP_PATH_MULTIPLE,
-            ftp_filenames=['test1.txt'],
+            ftp_filenames=["test1.txt"],
         )
         operator.execute(None)
 
@@ -127,8 +127,8 @@ class TestFTPToS3Operator(unittest.TestCase):
             s3_bucket=BUCKET,
             s3_key=S3_KEY_MULTIPLE,
             ftp_path=FTP_PATH_MULTIPLE,
-            ftp_filenames='test_prefix',
-            s3_filenames='s3_prefix',
+            ftp_filenames="test_prefix",
+            s3_filenames="s3_prefix",
         )
         operator.execute(None)
 

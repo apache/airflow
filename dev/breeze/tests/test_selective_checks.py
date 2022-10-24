@@ -635,14 +635,14 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             id="Setup.cfg changed",
         ),
         pytest.param(
-            ('airflow/providers/microsoft/azure/provider.yaml',),
+            ("airflow/providers/microsoft/azure/provider.yaml",),
             {
                 "upgrade-to-newer-dependencies": "true",
             },
             id="Provider.yaml changed",
         ),
         pytest.param(
-            ('generated/provider_dependencies.json',),
+            ("generated/provider_dependencies.json",),
             {
                 "upgrade-to-newer-dependencies": "true",
             },

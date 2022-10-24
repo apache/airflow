@@ -195,7 +195,7 @@ class TestAwsConnectionWrapper:
         mock_conn = mock_connection_factory(login=None, password=None, extra=mock_conn_extra)
 
         wrap_conn = AwsConnectionWrapper(conn=mock_conn)
-        mock_parse_s3_config.assert_called_once_with('aws-credentials', 'aws', 'test')
+        mock_parse_s3_config.assert_called_once_with("aws-credentials", "aws", "test")
         assert wrap_conn.aws_access_key_id == aws_access_key_id
         assert wrap_conn.aws_secret_access_key == aws_secret_access_key
         assert wrap_conn.aws_session_token == aws_session_token
@@ -387,7 +387,7 @@ class TestAwsConnectionWrapper:
         assert wrap_conn.assume_role_kwargs == {}
 
     @pytest.mark.parametrize(
-        "assume_role_method", ['assume_role', 'assume_role_with_saml', 'assume_role_with_web_identity']
+        "assume_role_method", ["assume_role", "assume_role_with_saml", "assume_role_with_web_identity"]
     )
     def test_get_assume_role_method(self, assume_role_method):
         mock_conn = mock_connection_factory(

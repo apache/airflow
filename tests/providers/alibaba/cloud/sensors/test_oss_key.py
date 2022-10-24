@@ -23,7 +23,7 @@ from unittest.mock import PropertyMock
 
 from airflow.providers.alibaba.cloud.sensors.oss_key import OSSKeySensor
 
-OSS_SENSOR_STRING = 'airflow.providers.alibaba.cloud.sensors.oss_key.{}'
+OSS_SENSOR_STRING = "airflow.providers.alibaba.cloud.sensors.oss_key.{}"
 MOCK_TASK_ID = "test-oss-operator"
 MOCK_REGION = "mock_region"
 MOCK_BUCKET = "mock_bucket_name"

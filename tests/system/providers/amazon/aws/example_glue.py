@@ -36,24 +36,24 @@ from airflow.providers.amazon.aws.sensors.glue_crawler import GlueCrawlerSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, purge_logs
 
-DAG_ID = 'example_glue'
+DAG_ID = "example_glue"
 
 # Externally fetched variables:
 # Role needs S3 putobject/getobject access as well as the glue service role,
 # see docs here: https://docs.aws.amazon.com/glue/latest/dg/create-an-iam-role.html
-ROLE_ARN_KEY = 'ROLE_ARN'
+ROLE_ARN_KEY = "ROLE_ARN"
 
 sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
 
 # Example csv data used as input to the example AWS Glue Job.
-EXAMPLE_CSV = '''
+EXAMPLE_CSV = """
 apple,0.5
 milk,2.5
 bread,4.0
-'''
+"""
 
 # Example Spark script to operate on the above sample csv data.
-EXAMPLE_SCRIPT = '''
+EXAMPLE_SCRIPT = """
 from pyspark.context import SparkContext
 from awsglue.context import GlueContext
 
@@ -63,12 +63,12 @@ datasource = glueContext.create_dynamic_frame.from_catalog(
 print('There are %s items in the table' % datasource.count())
 
 datasource.toDF().write.format('csv').mode("append").save('s3://{bucket_name}/output')
-'''
+"""
 
 
 @task
 def get_role_name(arn: str) -> str:
-    return arn.split('/')[-1]
+    return arn.split("/")[-1]
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -78,10 +78,10 @@ def delete_logs(job_id: str, crawler_name: str) -> None:
     """
     generated_log_groups: list[tuple[str, str | None]] = [
         # Format: ('log group name', 'log stream prefix')
-        ('/aws-glue/crawlers', crawler_name),
-        ('/aws-glue/jobs/logs-v2', job_id),
-        ('/aws-glue/jobs/error', job_id),
-        ('/aws-glue/jobs/output', job_id),
+        ("/aws-glue/crawlers", crawler_name),
+        ("/aws-glue/jobs/logs-v2", job_id),
+        ("/aws-glue/jobs/error", job_id),
+        ("/aws-glue/jobs/output", job_id),
     ]
 
     purge_logs(generated_log_groups)
@@ -89,7 +89,7 @@ def delete_logs(job_id: str, crawler_name: str) -> None:
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def glue_cleanup(crawler_name: str, job_name: str, db_name: str) -> None:
-    client: BaseClient = boto3.client('glue')
+    client: BaseClient = boto3.client("glue")
 
     client.delete_crawler(Name=crawler_name)
     client.delete_job(JobName=job_name)
@@ -98,52 +98,52 @@ def glue_cleanup(crawler_name: str, job_name: str, db_name: str) -> None:
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
 
     env_id = test_context[ENV_ID_KEY]
     role_arn = test_context[ROLE_ARN_KEY]
-    glue_crawler_name = f'{env_id}_crawler'
-    glue_db_name = f'{env_id}_glue_db'
-    glue_job_name = f'{env_id}_glue_job'
-    bucket_name = f'{env_id}-bucket'
+    glue_crawler_name = f"{env_id}_crawler"
+    glue_db_name = f"{env_id}_glue_db"
+    glue_job_name = f"{env_id}_glue_job"
+    bucket_name = f"{env_id}-bucket"
     role_name = get_role_name(role_arn)
 
     glue_crawler_config = {
-        'Name': glue_crawler_name,
-        'Role': role_arn,
-        'DatabaseName': glue_db_name,
-        'Targets': {'S3Targets': [{'Path': f'{bucket_name}/input'}]},
+        "Name": glue_crawler_name,
+        "Role": role_arn,
+        "DatabaseName": glue_db_name,
+        "Targets": {"S3Targets": [{"Path": f"{bucket_name}/input"}]},
     }
 
     create_bucket = S3CreateBucketOperator(
-        task_id='create_bucket',
+        task_id="create_bucket",
         bucket_name=bucket_name,
     )
 
     upload_csv = S3CreateObjectOperator(
-        task_id='upload_csv',
+        task_id="upload_csv",
         s3_bucket=bucket_name,
-        s3_key='input/input.csv',
+        s3_key="input/input.csv",
         data=EXAMPLE_CSV,
         replace=True,
     )
 
     upload_script = S3CreateObjectOperator(
-        task_id='upload_script',
+        task_id="upload_script",
         s3_bucket=bucket_name,
-        s3_key='etl_script.py',
+        s3_key="etl_script.py",
         data=EXAMPLE_SCRIPT.format(db_name=glue_db_name, bucket_name=bucket_name),
         replace=True,
     )
 
     # [START howto_operator_glue_crawler]
     crawl_s3 = GlueCrawlerOperator(
-        task_id='crawl_s3',
+        task_id="crawl_s3",
         config=glue_crawler_config,
     )
     # [END howto_operator_glue_crawler]
@@ -153,19 +153,19 @@ with DAG(
 
     # [START howto_sensor_glue_crawler]
     wait_for_crawl = GlueCrawlerSensor(
-        task_id='wait_for_crawl',
+        task_id="wait_for_crawl",
         crawler_name=glue_crawler_name,
     )
     # [END howto_sensor_glue_crawler]
 
     # [START howto_operator_glue]
     submit_glue_job = GlueJobOperator(
-        task_id='submit_glue_job',
+        task_id="submit_glue_job",
         job_name=glue_job_name,
-        script_location=f's3://{bucket_name}/etl_script.py',
+        script_location=f"s3://{bucket_name}/etl_script.py",
         s3_bucket=bucket_name,
         iam_role_name=role_name,
-        create_job_kwargs={'GlueVersion': '3.0', 'NumberOfWorkers': 2, 'WorkerType': 'G.1X'},
+        create_job_kwargs={"GlueVersion": "3.0", "NumberOfWorkers": 2, "WorkerType": "G.1X"},
     )
     # [END howto_operator_glue]
 
@@ -174,7 +174,7 @@ with DAG(
 
     # [START howto_sensor_glue]
     wait_for_job = GlueJobSensor(
-        task_id='wait_for_job',
+        task_id="wait_for_job",
         job_name=glue_job_name,
         # Job ID extracted from previous Glue Job Operator task
         run_id=submit_glue_job.output,
@@ -182,7 +182,7 @@ with DAG(
     # [END howto_sensor_glue]
 
     delete_bucket = S3DeleteBucketOperator(
-        task_id='delete_bucket',
+        task_id="delete_bucket",
         trigger_rule=TriggerRule.ALL_DONE,
         bucket_name=bucket_name,
         force_delete=True,

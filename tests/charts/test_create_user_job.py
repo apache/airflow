@@ -191,7 +191,7 @@ class TestCreateUserJob:
             show_only=["templates/jobs/create-user-job.yaml"],
         )
 
-        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+        assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.template.spec.containers[0].env", docs[0]
         )
 
@@ -214,7 +214,7 @@ class TestCreateUserJob:
         assert [
             "bash",
             "-c",
-            f"exec \\\n{expected_arg} \"$@\"",
+            f'exec \\\n{expected_arg} "$@"',
             "--",
             "-r",
             "Admin",
@@ -273,7 +273,7 @@ class TestCreateUserJob:
         assert [
             "bash",
             "-c",
-            "exec \\\nairflow users create \"$@\"",
+            'exec \\\nairflow users create "$@"',
             "--",
             "-r",
             "SomeRole",

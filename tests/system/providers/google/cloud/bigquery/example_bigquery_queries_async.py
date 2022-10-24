@@ -99,7 +99,7 @@ default_args = {
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2022, 1, 1),
     catchup=False,
     default_args=default_args,

@@ -41,9 +41,9 @@ BASE_URL_SPEC = (
 )
 
 crd_lookup = {
-    'keda.sh/v1alpha1::ScaledObject': 'https://raw.githubusercontent.com/kedacore/keda/v2.0.0/config/crd/bases/keda.sh_scaledobjects.yaml',  # noqa: E501
+    "keda.sh/v1alpha1::ScaledObject": "https://raw.githubusercontent.com/kedacore/keda/v2.0.0/config/crd/bases/keda.sh_scaledobjects.yaml",  # noqa: E501
     # This object type was removed in k8s v1.22.0
-    'networking.k8s.io/v1beta1::Ingress': 'https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.21.0/ingress-networking-v1beta1.json',  # noqa: E501
+    "networking.k8s.io/v1beta1::Ingress": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.21.0/ingress-networking-v1beta1.json",  # noqa: E501
 }
 
 
@@ -51,17 +51,17 @@ def get_schema_k8s(api_version, kind, kubernetes_version):
     api_version = api_version.lower()
     kind = kind.lower()
 
-    if '/' in api_version:
+    if "/" in api_version:
         ext, _, api_version = api_version.partition("/")
         ext = ext.split(".")[0]
-        url = f'{BASE_URL_SPEC}/{kind}-{ext}-{api_version}.json'
+        url = f"{BASE_URL_SPEC}/{kind}-{ext}-{api_version}.json"
     else:
-        url = f'{BASE_URL_SPEC}/{kind}-{api_version}.json'
+        url = f"{BASE_URL_SPEC}/{kind}-{api_version}.json"
     request = requests.get(url)
     request.raise_for_status()
     schema = json.loads(
         request.text.replace(
-            'kubernetesjsonschema.dev', 'raw.githubusercontent.com/yannh/kubernetes-json-schema/master'
+            "kubernetesjsonschema.dev", "raw.githubusercontent.com/yannh/kubernetes-json-schema/master"
         )
     )
     return schema
@@ -72,7 +72,7 @@ def get_schema_crd(api_version, kind):
     if not url:
         return None
     response = requests.get(url)
-    yaml_schema = response.content.decode('utf-8')
+    yaml_schema = response.content.decode("utf-8")
     schema = yaml.safe_load(StringIO(yaml_schema))
     return schema
 
@@ -95,7 +95,7 @@ def validate_k8s_object(instance, kubernetes_version):
     else:
         chart = labels.get("chart")
 
-    if chart and 'postgresql' in chart:
+    if chart and "postgresql" in chart:
         return
 
     validate = create_validator(instance.get("apiVersion"), instance.get("kind"), kubernetes_version)

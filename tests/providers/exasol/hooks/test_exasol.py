@@ -32,38 +32,38 @@ class TestExasolHookConn(unittest.TestCase):
         super().setUp()
 
         self.connection = models.Connection(
-            login='login',
-            password='password',
-            host='host',
+            login="login",
+            password="password",
+            host="host",
             port=1234,
-            schema='schema',
+            schema="schema",
         )
 
         self.db_hook = ExasolHook()
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = self.connection
 
-    @mock.patch('airflow.providers.exasol.hooks.exasol.pyexasol')
+    @mock.patch("airflow.providers.exasol.hooks.exasol.pyexasol")
     def test_get_conn(self, mock_pyexasol):
         self.db_hook.get_conn()
         mock_connect = mock_pyexasol.connect
         mock_connect.assert_called_once()
         args, kwargs = mock_connect.call_args
         assert args == ()
-        assert kwargs['user'] == 'login'
-        assert kwargs['password'] == 'password'
-        assert kwargs['dsn'] == 'host:1234'
-        assert kwargs['schema'] == 'schema'
+        assert kwargs["user"] == "login"
+        assert kwargs["password"] == "password"
+        assert kwargs["dsn"] == "host:1234"
+        assert kwargs["schema"] == "schema"
 
-    @mock.patch('airflow.providers.exasol.hooks.exasol.pyexasol')
+    @mock.patch("airflow.providers.exasol.hooks.exasol.pyexasol")
     def test_get_conn_extra_args(self, mock_pyexasol):
-        self.connection.extra = json.dumps({'encryption': True})
+        self.connection.extra = json.dumps({"encryption": True})
         self.db_hook.get_conn()
         mock_connect = mock_pyexasol.connect
         mock_connect.assert_called_once()
         args, kwargs = mock_connect.call_args
         assert args == ()
-        assert kwargs['encryption'] is True
+        assert kwargs["encryption"] is True
 
 
 class TestExasolHook(unittest.TestCase):
@@ -76,7 +76,7 @@ class TestExasolHook(unittest.TestCase):
         conn = self.conn
 
         class SubExasolHook(ExasolHook):
-            conn_name_attr = 'test_conn_id'
+            conn_name_attr = "test_conn_id"
 
             def get_conn(self):
                 return conn
@@ -90,13 +90,13 @@ class TestExasolHook(unittest.TestCase):
         self.conn.set_autocommit.assert_called_once_with(autocommit)
 
     def test_get_autocommit(self):
-        setattr(self.conn, 'autocommit', True)
-        setattr(self.conn, 'attr', {'autocommit': False})
+        setattr(self.conn, "autocommit", True)
+        setattr(self.conn, "attr", {"autocommit": False})
         assert not self.db_hook.get_autocommit(self.conn)
 
     def test_run_without_autocommit(self):
-        sql = 'SQL'
-        setattr(self.conn, 'attr', {'autocommit': False})
+        sql = "SQL"
+        setattr(self.conn, "attr", {"autocommit": False})
 
         # Default autocommit setting should be False.
         # Testing default autocommit value as well as run() behavior.
@@ -106,22 +106,22 @@ class TestExasolHook(unittest.TestCase):
         self.conn.commit.assert_called_once()
 
     def test_run_with_autocommit(self):
-        sql = 'SQL'
+        sql = "SQL"
         self.db_hook.run(sql, autocommit=True)
         self.conn.set_autocommit.assert_called_once_with(True)
         self.conn.execute.assert_called_once_with(sql, None)
         self.conn.commit.assert_not_called()
 
     def test_run_with_parameters(self):
-        sql = 'SQL'
-        parameters = ('param1', 'param2')
+        sql = "SQL"
+        parameters = ("param1", "param2")
         self.db_hook.run(sql, autocommit=True, parameters=parameters)
         self.conn.set_autocommit.assert_called_once_with(True)
         self.conn.execute.assert_called_once_with(sql, parameters)
         self.conn.commit.assert_not_called()
 
     def test_run_multi_queries(self):
-        sql = ['SQL1', 'SQL2']
+        sql = ["SQL1", "SQL2"]
         self.db_hook.run(sql, autocommit=True)
         self.conn.set_autocommit.assert_called_once_with(True)
         for i, item in enumerate(self.conn.execute.call_args_list):
@@ -141,21 +141,21 @@ class TestExasolHook(unittest.TestCase):
         """Queries like DROP and SELECT are of type rowCount (not resultSet),
         which raises an error in pyexasol if trying to iterate over them"""
         self.cur.result_type = mock.Mock()
-        self.cur.result_type.return_value = 'rowCount'
+        self.cur.result_type.return_value = "rowCount"
 
-        sql = 'SQL'
+        sql = "SQL"
         self.db_hook.run(sql)
 
     def test_bulk_load(self):
         with pytest.raises(NotImplementedError):
-            self.db_hook.bulk_load('table', '/tmp/file')
+            self.db_hook.bulk_load("table", "/tmp/file")
 
     def test_bulk_dump(self):
         with pytest.raises(NotImplementedError):
-            self.db_hook.bulk_dump('table', '/tmp/file')
+            self.db_hook.bulk_dump("table", "/tmp/file")
 
     def test_serialize_cell(self):
-        assert 'foo' == self.db_hook._serialize_cell('foo', None)
+        assert "foo" == self.db_hook._serialize_cell("foo", None)
 
     def test_export_to_file(self):
         file_name = "file_name"

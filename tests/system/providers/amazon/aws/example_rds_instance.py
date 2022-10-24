@@ -32,33 +32,33 @@ from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContex
 
 sys_test_context_task = SystemTestContextBuilder().build()
 
-DAG_ID = 'example_rds_instance'
+DAG_ID = "example_rds_instance"
 
-RDS_USERNAME = 'database_username'
+RDS_USERNAME = "database_username"
 # NEVER store your production password in plaintext in a DAG like this.
 # Use Airflow Secrets or a secret manager for this in production.
-RDS_PASSWORD = 'database_password'
+RDS_PASSWORD = "database_password"
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
-    rds_db_identifier = f'{test_context[ENV_ID_KEY]}-database'
+    rds_db_identifier = f"{test_context[ENV_ID_KEY]}-database"
 
     # [START howto_operator_rds_create_db_instance]
     create_db_instance = RdsCreateDbInstanceOperator(
-        task_id='create_db_instance',
+        task_id="create_db_instance",
         db_instance_identifier=rds_db_identifier,
-        db_instance_class='db.t4g.micro',
-        engine='postgres',
+        db_instance_class="db.t4g.micro",
+        engine="postgres",
         rds_kwargs={
-            'MasterUsername': RDS_USERNAME,
-            'MasterUserPassword': RDS_PASSWORD,
-            'AllocatedStorage': 20,
+            "MasterUsername": RDS_USERNAME,
+            "MasterUserPassword": RDS_PASSWORD,
+            "AllocatedStorage": 20,
         },
     )
     # [END howto_operator_rds_create_db_instance]
@@ -68,7 +68,7 @@ with DAG(
 
     # [START howto_sensor_rds_instance]
     await_db_instance = RdsDbSensor(
-        task_id='await_db_instance',
+        task_id="await_db_instance",
         db_identifier=rds_db_identifier,
     )
     # [END howto_sensor_rds_instance]
@@ -89,10 +89,10 @@ with DAG(
 
     # [START howto_operator_rds_delete_db_instance]
     delete_db_instance = RdsDeleteDbInstanceOperator(
-        task_id='delete_db_instance',
+        task_id="delete_db_instance",
         db_instance_identifier=rds_db_identifier,
         rds_kwargs={
-            'SkipFinalSnapshot': True,
+            "SkipFinalSnapshot": True,
         },
     )
     # [END howto_operator_rds_delete_db_instance]

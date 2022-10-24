@@ -35,8 +35,8 @@ def mock_init(
     pass
 
 
-TEST_PROJECT = 'my-project'
-TEST_DEPLOYMENT = 'my-deployment'
+TEST_PROJECT = "my-project"
+TEST_DEPLOYMENT = "my-deployment"
 
 
 class TestDeploymentManagerHook(unittest.TestCase):
@@ -50,8 +50,8 @@ class TestDeploymentManagerHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.gdm.GoogleDeploymentManagerHook.get_conn")
     def test_list_deployments(self, mock_get_conn):
 
-        response1 = {'deployments': [{'id': 'deployment1', 'name': 'test-deploy1'}], 'pageToken': None}
-        response2 = {'deployments': [{'id': 'deployment2', 'name': 'test-deploy2'}], 'pageToken': None}
+        response1 = {"deployments": [{"id": "deployment1", "name": "test-deploy1"}], "pageToken": None}
+        response2 = {"deployments": [{"id": "deployment2", "name": "test-deploy2"}], "pageToken": None}
 
         mock_get_conn.return_value.deployments.return_value.list.return_value.execute.return_value = response1
 
@@ -63,22 +63,22 @@ class TestDeploymentManagerHook(unittest.TestCase):
         ]
 
         deployments = self.gdm_hook.list_deployments(
-            project_id=TEST_PROJECT, deployment_filter='filter', order_by='name'
+            project_id=TEST_PROJECT, deployment_filter="filter", order_by="name"
         )
 
         mock_get_conn.assert_called_once_with()
 
         mock_get_conn.return_value.deployments.return_value.list.assert_called_once_with(
             project=TEST_PROJECT,
-            filter='filter',
-            orderBy='name',
+            filter="filter",
+            orderBy="name",
         )
 
         assert mock_get_conn.return_value.deployments.return_value.list_next.call_count == 2
 
         assert deployments == [
-            {'id': 'deployment1', 'name': 'test-deploy1'},
-            {'id': 'deployment2', 'name': 'test-deploy2'},
+            {"id": "deployment1", "name": "test-deploy1"},
+            {"id": "deployment2", "name": "test-deploy2"},
         ]
 
     @mock.patch("airflow.providers.google.cloud.hooks.gdm.GoogleDeploymentManagerHook.get_conn")
@@ -92,7 +92,7 @@ class TestDeploymentManagerHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.gdm.GoogleDeploymentManagerHook.get_conn")
     def test_delete_deployment_delete_fails(self, mock_get_conn):
 
-        resp = {'error': {'errors': [{'message': 'error deleting things.', 'domain': 'global'}]}}
+        resp = {"error": {"errors": [{"message": "error deleting things.", "domain": "global"}]}}
 
         mock_get_conn.return_value.deployments.return_value.delete.return_value.execute.return_value = resp
 

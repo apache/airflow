@@ -28,10 +28,10 @@ from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
-TASK_ID = 'test-gke-cluster-operator'
-CLUSTER_NAME = 'test-cluster'
-TEST_GCP_PROJECT_ID = 'test-project'
-GKE_ZONE = 'test-zone'
+TASK_ID = "test-gke-cluster-operator"
+CLUSTER_NAME = "test-cluster"
+TEST_GCP_PROJECT_ID = "test-project"
+GKE_ZONE = "test-zone"
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 GKE_STRING = "airflow.providers.google.cloud.hooks.kubernetes_engine.{}"
 
@@ -69,7 +69,7 @@ class TestGKEHookDelete(unittest.TestCase):
         )
 
         client_delete.assert_called_once_with(
-            name=f'projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}/clusters/{CLUSTER_NAME}',
+            name=f"projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}/clusters/{CLUSTER_NAME}",
             retry=retry_mock,
             timeout=timeout_mock,
         )
@@ -81,10 +81,10 @@ class TestGKEHookDelete(unittest.TestCase):
         from google.api_core.exceptions import NotFound
 
         # To force an error
-        message = 'Not Found'
+        message = "Not Found"
         self.gke_hook._client.delete_cluster.side_effect = NotFound(message=message)
 
-        self.gke_hook.delete_cluster(name='not-existing', project_id=TEST_GCP_PROJECT_ID)
+        self.gke_hook.delete_cluster(name="not-existing", project_id=TEST_GCP_PROJECT_ID)
         wait_mock.assert_not_called()
         log_mock.info.assert_any_call("Assuming Success: %s", message)
 
@@ -96,10 +96,10 @@ class TestGKEHookDelete(unittest.TestCase):
     @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
     def test_delete_cluster_error(self, wait_mock, mock_project_id):
         # To force an error
-        self.gke_hook._client.delete_cluster.side_effect = AirflowException('400')
+        self.gke_hook._client.delete_cluster.side_effect = AirflowException("400")
 
         with pytest.raises(AirflowException):
-            self.gke_hook.delete_cluster(name='a-cluster')
+            self.gke_hook.delete_cluster(name="a-cluster")
             wait_mock.assert_not_called()
 
 
@@ -125,7 +125,7 @@ class TestGKEHookCreate(unittest.TestCase):
         )
 
         client_create.assert_called_once_with(
-            parent=f'projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}',
+            parent=f"projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}",
             cluster=mock_cluster_proto,
             retry=retry_mock,
             timeout=timeout_mock,
@@ -135,7 +135,7 @@ class TestGKEHookCreate(unittest.TestCase):
     @mock.patch(GKE_STRING.format("Cluster.from_json"))
     @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
     def test_create_cluster_dict(self, wait_mock, convert_mock):
-        mock_cluster_dict = {'name': CLUSTER_NAME}
+        mock_cluster_dict = {"name": CLUSTER_NAME}
         retry_mock, timeout_mock = mock.Mock(), mock.Mock()
 
         client_create = self.gke_hook._client.create_cluster = mock.Mock()
@@ -146,7 +146,7 @@ class TestGKEHookCreate(unittest.TestCase):
         )
 
         client_create.assert_called_once_with(
-            parent=f'projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}',
+            parent=f"projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}",
             cluster=proto_mock,
             retry=retry_mock,
             timeout=timeout_mock,
@@ -168,7 +168,7 @@ class TestGKEHookCreate(unittest.TestCase):
         from google.api_core.exceptions import AlreadyExists
 
         # To force an error
-        message = 'Already Exists'
+        message = "Already Exists"
         self.gke_hook._client.create_cluster.side_effect = AlreadyExists(message=message)
 
         self.gke_hook.create_cluster(cluster={}, project_id=TEST_GCP_PROJECT_ID)
@@ -194,7 +194,7 @@ class TestGKEHookGet(unittest.TestCase):
         )
 
         client_get.assert_called_once_with(
-            name=f'projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}/clusters/{CLUSTER_NAME}',
+            name=f"projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}/clusters/{CLUSTER_NAME}",
             retry=retry_mock,
             timeout=timeout_mock,
         )
@@ -208,8 +208,8 @@ class TestGKEHook(unittest.TestCase):
             self.gke_hook = GKEHook(gcp_conn_id="test", location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
 
-    @mock.patch(GKE_STRING.format('ClusterManagerClient'))
-    @mock.patch(GKE_STRING.format('GKEHook.get_credentials'))
+    @mock.patch(GKE_STRING.format("ClusterManagerClient"))
+    @mock.patch(GKE_STRING.format("GKEHook.get_credentials"))
     def test_get_client(self, mock_get_credentials, mock_client):
         self.gke_hook._client = None
         self.gke_hook.get_conn()
@@ -220,24 +220,24 @@ class TestGKEHook(unittest.TestCase):
 
     def test_get_operation(self):
         self.gke_hook._client.get_operation = mock.Mock()
-        self.gke_hook.get_operation('TEST_OP', project_id=TEST_GCP_PROJECT_ID)
+        self.gke_hook.get_operation("TEST_OP", project_id=TEST_GCP_PROJECT_ID)
         self.gke_hook._client.get_operation.assert_called_once_with(
-            name=f'projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}/operations/TEST_OP'
+            name=f"projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}/operations/TEST_OP"
         )
 
     def test_append_label(self):
-        key = 'test-key'
-        val = 'test-val'
+        key = "test-key"
+        val = "test-val"
         mock_proto = mock.Mock()
         self.gke_hook._append_label(mock_proto, key, val)
         mock_proto.resource_labels.update.assert_called_once_with({key: val})
 
     def test_append_label_replace(self):
-        key = 'test-key'
-        val = 'test.val+this'
+        key = "test-key"
+        val = "test.val+this"
         mock_proto = mock.Mock()
         self.gke_hook._append_label(mock_proto, key, val)
-        mock_proto.resource_labels.update.assert_called_once_with({key: 'test-val-this'})
+        mock_proto.resource_labels.update.assert_called_once_with({key: "test-val-this"})
 
     @mock.patch(GKE_STRING.format("time.sleep"))
     def test_wait_for_response_done(self, time_mock):

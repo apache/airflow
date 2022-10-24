@@ -38,7 +38,7 @@ def minimal_app_for_api():
     )
     def factory():
         with conf_vars({("api", "auth_backends"): "tests.test_utils.remote_user_api_auth_backend"}):
-            return app.create_app(testing=True, config={'WTF_CSRF_ENABLED': False})  # type:ignore
+            return app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
 
     return factory()
 

@@ -28,5 +28,5 @@ class TestVersionInfoSchema:
         version_info = VersionInfo("VERSION", git_commit)
         current_data = version_info_schema.dump(version_info)
 
-        expected_result = {'version': 'VERSION', 'git_version': git_commit}
+        expected_result = {"version": "VERSION", "git_version": git_commit}
         assert expected_result == current_data

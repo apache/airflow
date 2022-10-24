@@ -32,17 +32,17 @@ from tests.test_utils.config import conf_vars
         param(
             "mysql://host/the_database",
             {"collation": "ascii"},
-            {('database', 'sql_engine_collation_for_ids'): 'ascii'},
+            {("database", "sql_engine_collation_for_ids"): "ascii"},
             id="mysql with explicit config",
         ),
         param(
             "postgresql://host/the_database",
             {"collation": "ascii"},
-            {('database', 'sql_engine_collation_for_ids'): 'ascii'},
+            {("database", "sql_engine_collation_for_ids"): "ascii"},
             id="postgres with explicit config",
         ),
     ],
 )
 def test_collation(dsn, expected, extra):
-    with conf_vars({('database', 'sql_alchemy_conn'): dsn, **extra}):
+    with conf_vars({("database", "sql_alchemy_conn"): dsn, **extra}):
         assert expected == get_id_collation_args()

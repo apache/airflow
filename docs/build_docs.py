@@ -37,8 +37,8 @@ from docs.exts.docs_build.github_action_utils import with_group
 from docs.exts.docs_build.package_filter import process_package_filters
 from docs.exts.docs_build.spelling_checks import SpellingError, display_spelling_error_summary
 
-TEXT_RED = '\033[31m'
-TEXT_RESET = '\033[0m'
+TEXT_RED = "\033[31m"
+TEXT_RESET = "\033[0m"
 
 if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(
@@ -53,18 +53,18 @@ Invitation link: https://s.apache.org/airflow-slack\
 """
 
 ERRORS_ELIGIBLE_TO_REBUILD = [
-    'failed to reach any of the inventories with the following issues',
-    'toctree contains reference to nonexisting document',
-    'undefined label:',
-    'unknown document:',
-    'Error loading airflow.providers',
+    "failed to reach any of the inventories with the following issues",
+    "toctree contains reference to nonexisting document",
+    "undefined label:",
+    "unknown document:",
+    "Error loading airflow.providers",
 ]
 
-ON_GITHUB_ACTIONS = os.environ.get('GITHUB_ACTIONS', 'false') == "true"
+ON_GITHUB_ACTIONS = os.environ.get("GITHUB_ACTIONS", "false") == "true"
 
 console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WIDTH)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[Iterable[T], Iterable[T]]:
@@ -100,24 +100,24 @@ def _promote_new_flags():
 def _get_parser():
     available_packages_list = " * " + "\n * ".join(get_available_packages())
     parser = argparse.ArgumentParser(
-        description='Builds documentation and runs spell checking',
+        description="Builds documentation and runs spell checking",
         epilog=f"List of supported documentation packages:\n{available_packages_list}",
     )
     parser.formatter_class = argparse.RawTextHelpFormatter
     parser.add_argument(
-        '--disable-checks', dest='disable_checks', action='store_true', help='Disables extra checks'
+        "--disable-checks", dest="disable_checks", action="store_true", help="Disables extra checks"
     )
     parser.add_argument(
-        '--disable-provider-checks',
-        dest='disable_provider_checks',
-        action='store_true',
-        help='Disables extra checks for providers',
+        "--disable-provider-checks",
+        dest="disable_provider_checks",
+        action="store_true",
+        help="Disables extra checks for providers",
     )
     parser.add_argument(
-        '--one-pass-only',
-        dest='one_pass_only',
-        action='store_true',
-        help='Do not attempt multiple builds on error',
+        "--one-pass-only",
+        dest="one_pass_only",
+        action="store_true",
+        help="Do not attempt multiple builds on error",
     )
     parser.add_argument(
         "--package-filter",
@@ -126,20 +126,20 @@ def _get_parser():
             "Filter specifying for which packages the documentation is to be built. Wildcard are supported."
         ),
     )
-    parser.add_argument('--docs-only', dest='docs_only', action='store_true', help='Only build documentation')
+    parser.add_argument("--docs-only", dest="docs_only", action="store_true", help="Only build documentation")
     parser.add_argument(
-        '--spellcheck-only', dest='spellcheck_only', action='store_true', help='Only perform spellchecking'
+        "--spellcheck-only", dest="spellcheck_only", action="store_true", help="Only perform spellchecking"
     )
     parser.add_argument(
-        '--for-production',
-        dest='for_production',
-        action='store_true',
-        help='Builds documentation for official release i.e. all links point to stable version',
+        "--for-production",
+        dest="for_production",
+        action="store_true",
+        help="Builds documentation for official release i.e. all links point to stable version",
     )
     parser.add_argument(
         "-j",
         "--jobs",
-        dest='jobs',
+        dest="jobs",
         type=int,
         default=0,
         help=(
@@ -153,11 +153,11 @@ def _get_parser():
     parser.add_argument(
         "-v",
         "--verbose",
-        dest='verbose',
-        action='store_true',
+        dest="verbose",
+        action="store_true",
         help=(
-            'Increases the verbosity of the script i.e. always displays a full log of '
-            'the build process, not just when it encounters errors'
+            "Increases the verbosity of the script i.e. always displays a full log of "
+            "the build process, not just when it encounters errors"
         ),
     )
 
@@ -413,7 +413,7 @@ def display_packages_summary(
             "Count of doc build errors": len(build_errors.get(package_name, [])),
             "Count of spelling errors": len(spelling_errors.get(package_name, [])),
         }
-        for package_name in sorted(packages_names, key=lambda k: k or '')
+        for package_name in sorted(packages_names, key=lambda k: k or "")
     ]
     console.print("#" * 20, " Packages errors summary ", "#" * 20)
     console.print(tabulate(tabular_data=tabular_data, headers="keys"))

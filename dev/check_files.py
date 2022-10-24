@@ -56,7 +56,7 @@ def get_packages() -> list[tuple[str, str]]:
         with open("packages.txt") as file:
             content = file.read()
     except FileNotFoundError:
-        content = ''
+        content = ""
     if not content:
         raise SystemExit("List of packages to check is empty. Please add packages to `packages.txt`")
 
@@ -105,11 +105,11 @@ def check_providers(files: list[str]):
 
 
 def strip_rc_suffix(version):
-    return re.sub(r'rc\d+$', '', version)
+    return re.sub(r"rc\d+$", "", version)
 
 
 def print_status(file, is_found: bool):
-    color, status = ('green', 'OK') if is_found else ('red', 'MISSING')
+    color, status = ("green", "OK") if is_found else ("red", "MISSING")
     print(f"    - {file}: [{color}]{status}[/{color}]")
 
 
@@ -138,7 +138,7 @@ def check_release(files: list[str], version: str):
 
 
 def expand_name_variations(files):
-    return list(sorted(base + suffix for base, suffix in product(files, ['', '.asc', '.sha512'])))
+    return list(sorted(base + suffix for base, suffix in product(files, ["", ".asc", ".sha512"])))
 
 
 def check_upgrade_check(files: list[str], version: str):
@@ -245,31 +245,31 @@ if __name__ == "__main__":
 def test_check_release_pass():
     """Passes if all present"""
     files = [
-        'apache_airflow-2.2.1-py3-none-any.whl',
-        'apache_airflow-2.2.1-py3-none-any.whl.asc',
-        'apache_airflow-2.2.1-py3-none-any.whl.sha512',
-        'apache-airflow-2.2.1-source.tar.gz',
-        'apache-airflow-2.2.1-source.tar.gz.asc',
-        'apache-airflow-2.2.1-source.tar.gz.sha512',
-        'apache-airflow-2.2.1.tar.gz',
-        'apache-airflow-2.2.1.tar.gz.asc',
-        'apache-airflow-2.2.1.tar.gz.sha512',
+        "apache_airflow-2.2.1-py3-none-any.whl",
+        "apache_airflow-2.2.1-py3-none-any.whl.asc",
+        "apache_airflow-2.2.1-py3-none-any.whl.sha512",
+        "apache-airflow-2.2.1-source.tar.gz",
+        "apache-airflow-2.2.1-source.tar.gz.asc",
+        "apache-airflow-2.2.1-source.tar.gz.sha512",
+        "apache-airflow-2.2.1.tar.gz",
+        "apache-airflow-2.2.1.tar.gz.asc",
+        "apache-airflow-2.2.1.tar.gz.sha512",
     ]
-    assert check_release(files, version='2.2.1rc2') == []
+    assert check_release(files, version="2.2.1rc2") == []
 
 
 def test_check_release_fail():
     """Fails if missing one"""
     files = [
-        'apache_airflow-2.2.1-py3-none-any.whl',
-        'apache_airflow-2.2.1-py3-none-any.whl.asc',
-        'apache_airflow-2.2.1-py3-none-any.whl.sha512',
-        'apache-airflow-2.2.1-source.tar.gz',
-        'apache-airflow-2.2.1-source.tar.gz.asc',
-        'apache-airflow-2.2.1-source.tar.gz.sha512',
-        'apache-airflow-2.2.1.tar.gz.asc',
-        'apache-airflow-2.2.1.tar.gz.sha512',
+        "apache_airflow-2.2.1-py3-none-any.whl",
+        "apache_airflow-2.2.1-py3-none-any.whl.asc",
+        "apache_airflow-2.2.1-py3-none-any.whl.sha512",
+        "apache-airflow-2.2.1-source.tar.gz",
+        "apache-airflow-2.2.1-source.tar.gz.asc",
+        "apache-airflow-2.2.1-source.tar.gz.sha512",
+        "apache-airflow-2.2.1.tar.gz.asc",
+        "apache-airflow-2.2.1.tar.gz.sha512",
     ]
 
-    missing_files = check_release(files, version='2.2.1rc2')
-    assert missing_files == ['apache-airflow-2.2.1.tar.gz']
+    missing_files = check_release(files, version="2.2.1rc2")
+    assert missing_files == ["apache-airflow-2.2.1.tar.gz"]

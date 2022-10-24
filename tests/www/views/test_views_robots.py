@@ -20,17 +20,17 @@ from tests.test_utils.config import conf_vars
 
 
 def test_robots(viewer_client):
-    resp = viewer_client.get('/robots.txt', follow_redirects=True)
-    assert resp.data.decode('utf-8') == "User-agent: *\nDisallow: /\n"
+    resp = viewer_client.get("/robots.txt", follow_redirects=True)
+    assert resp.data.decode("utf-8") == "User-agent: *\nDisallow: /\n"
 
 
 def test_deployment_warning_config(admin_client):
     warn_text = "webserver.warn_deployment_exposure"
-    admin_client.get('/robots.txt', follow_redirects=True)
-    resp = admin_client.get('', follow_redirects=True)
-    assert warn_text in resp.data.decode('utf-8')
+    admin_client.get("/robots.txt", follow_redirects=True)
+    resp = admin_client.get("", follow_redirects=True)
+    assert warn_text in resp.data.decode("utf-8")
 
-    with conf_vars({('webserver', 'warn_deployment_exposure'): 'False'}):
-        admin_client.get('/robots.txt', follow_redirects=True)
-        resp = admin_client.get('/robots.txt', follow_redirects=True)
-        assert warn_text not in resp.data.decode('utf-8')
+    with conf_vars({("webserver", "warn_deployment_exposure"): "False"}):
+        admin_client.get("/robots.txt", follow_redirects=True)
+        resp = admin_client.get("/robots.txt", follow_redirects=True)
+        assert warn_text not in resp.data.decode("utf-8")

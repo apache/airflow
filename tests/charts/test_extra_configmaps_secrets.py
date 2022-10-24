@@ -148,7 +148,7 @@ class TestExtraConfigMapsSecrets:
             "chart": mock.ANY,
         }
         for k8s_object in k8s_objects:
-            assert k8s_object['metadata']['labels'] == expected_labels
+            assert k8s_object["metadata"]["labels"] == expected_labels
 
     @pytest.mark.parametrize(
         "chart_labels, local_labels",
@@ -184,4 +184,4 @@ class TestExtraConfigMapsSecrets:
             "chart": mock.ANY,
         }
         for k8s_object in k8s_objects:
-            assert k8s_object['metadata']['labels'] == {**common_labels, **chart_labels, **local_labels}
+            assert k8s_object["metadata"]["labels"] == {**common_labels, **chart_labels, **local_labels}

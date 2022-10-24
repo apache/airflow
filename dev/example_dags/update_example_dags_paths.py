@@ -85,7 +85,7 @@ def replace_match(file: str, line: str, provider: str, version: str) -> str | No
                 console.print(line)
                 return None
             if line != new_line:
-                console.print(f'[yellow] Replacing in {file}[/]\n{line.strip()}\n{new_line.strip()}')
+                console.print(f"[yellow] Replacing in {file}[/]\n{line.strip()}\n{new_line.strip()}")
                 return new_line
     return line
 
@@ -100,20 +100,20 @@ def find_matches(_file: Path, provider: str, version: str):
     _file.write_text("".join(new_lines))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     curdir = Path(os.curdir).resolve()
     dirs = list(filter(os.path.isdir, curdir.iterdir()))
     with Progress(console=console) as progress:
         task = progress.add_task(f"Updating {len(dirs)}", total=len(dirs))
         for directory in dirs:
-            if directory.name.startswith('apache-airflow-providers-'):
-                provider = directory.name[len('apache-airflow-providers-') :]
+            if directory.name.startswith("apache-airflow-providers-"):
+                provider = directory.name[len("apache-airflow-providers-") :]
                 console.print(f"[bright_blue] Processing {directory}")
                 version_dirs = list(filter(os.path.isdir, directory.iterdir()))
                 for version_dir in version_dirs:
                     version = version_dir.name
                     console.print(version)
-                    for file_name in ["index.html", 'example-dags.html']:
+                    for file_name in ["index.html", "example-dags.html"]:
                         candidate_file = version_dir / file_name
                         if candidate_file.exists():
                             find_matches(candidate_file, provider, version)

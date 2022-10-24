@@ -82,9 +82,9 @@ def get_kind_cluster_config_path(python: str, kubernetes_version: str) -> Path:
 def get_architecture_string_for_urls() -> str:
     architecture, machine = get_host_architecture()
     if architecture == Architecture.X86_64:
-        return 'amd64'
+        return "amd64"
     if architecture == Architecture.ARM:
-        return 'arm64'
+        return "arm64"
     raise Exception(f"The architecture {architecture} is not supported when downloading kubernetes tools!")
 
 
@@ -246,8 +246,8 @@ def _check_architecture_supported():
     architecture, machine = get_host_architecture()
     if architecture not in ALLOWED_ARCHITECTURES:
         get_console().print(
-            f'[error]The {architecture} is not one '
-            f'of the supported: {ALLOWED_ARCHITECTURES}. The original machine: {machine}'
+            f"[error]The {architecture} is not one "
+            f"of the supported: {ALLOWED_ARCHITECTURES}. The original machine: {machine}"
         )
         sys.exit(1)
 
@@ -265,7 +265,7 @@ def make_sure_kubernetes_tools_are_installed(verbose: bool, dry_run: bool):
     _download_kubectl_if_needed(verbose=verbose, dry_run=dry_run)
     _download_helm_if_needed(verbose=verbose, dry_run=dry_run)
     new_env = os.environ.copy()
-    new_env['PATH'] = str(K8S_BIN_BASE_PATH) + os.pathsep + new_env['PATH']
+    new_env["PATH"] = str(K8S_BIN_BASE_PATH) + os.pathsep + new_env["PATH"]
     result = run_command(
         ["helm", "repo", "list"],
         verbose=verbose,
@@ -291,15 +291,15 @@ def make_sure_kubernetes_tools_are_installed(verbose: bool, dry_run: bool):
 def _requirements_changed() -> bool:
     if not CACHED_K8S_REQUIREMENTS.exists():
         get_console().print(
-            f'\n[warning]The K8S venv in {K8S_ENV_PATH}. has never been created. Installing it.\n'
+            f"\n[warning]The K8S venv in {K8S_ENV_PATH}. has never been created. Installing it.\n"
         )
         return True
     requirements_file_content = K8S_REQUIREMENTS.read_text()
     cached_requirements_content = CACHED_K8S_REQUIREMENTS.read_text()
     if cached_requirements_content != requirements_file_content:
         get_console().print(
-            f'\n[warning]Requirements changed for the K8S venv in {K8S_ENV_PATH}. '
-            f'Reinstalling the venv.\n'
+            f"\n[warning]Requirements changed for the K8S venv in {K8S_ENV_PATH}. "
+            f"Reinstalling the venv.\n"
         )
         return True
     return False
@@ -331,8 +331,8 @@ def _install_packages_in_k8s_virtualenv(dry_run: bool, verbose: bool, with_const
     )
     if install_packages_result.returncode != 0:
         get_console().print(
-            f'[error]Error when updating pip to {PIP_VERSION}:[/]\n'
-            f'{install_packages_result.stdout}\n{install_packages_result.stderr}'
+            f"[error]Error when updating pip to {PIP_VERSION}:[/]\n"
+            f"{install_packages_result.stdout}\n{install_packages_result.stderr}"
         )
     return install_packages_result
 
@@ -349,14 +349,14 @@ def create_virtualenv(force_venv_setup: bool, verbose: bool, dry_run: bool) -> R
                 capture_output=True,
             )
             if python_command_result.returncode == 0:
-                get_console().print(f'[success]K8S Virtualenv is initialized in {K8S_ENV_PATH}')
+                get_console().print(f"[success]K8S Virtualenv is initialized in {K8S_ENV_PATH}")
                 return python_command_result
         except FileNotFoundError:
             pass
     if force_venv_setup:
-        get_console().print(f'[info]Forcing initializing K8S virtualenv in {K8S_ENV_PATH}')
+        get_console().print(f"[info]Forcing initializing K8S virtualenv in {K8S_ENV_PATH}")
     else:
-        get_console().print(f'[info]Initializing K8S virtualenv in {K8S_ENV_PATH}')
+        get_console().print(f"[info]Initializing K8S virtualenv in {K8S_ENV_PATH}")
     shutil.rmtree(K8S_ENV_PATH, ignore_errors=True)
     venv_command_result = run_command(
         [sys.executable, "-m", "venv", str(K8S_ENV_PATH)],
@@ -367,11 +367,11 @@ def create_virtualenv(force_venv_setup: bool, verbose: bool, dry_run: bool) -> R
     )
     if venv_command_result.returncode != 0:
         get_console().print(
-            f'[error]Error when initializing K8S virtualenv in {K8S_ENV_PATH}:[/]\n'
-            f'{venv_command_result.stdout}\n{venv_command_result.stderr}'
+            f"[error]Error when initializing K8S virtualenv in {K8S_ENV_PATH}:[/]\n"
+            f"{venv_command_result.stdout}\n{venv_command_result.stderr}"
         )
         return venv_command_result
-    get_console().print(f'[info]Reinstalling PIP version in {K8S_ENV_PATH}')
+    get_console().print(f"[info]Reinstalling PIP version in {K8S_ENV_PATH}")
     pip_reinstall_result = run_command(
         [str(PYTHON_BIN_PATH), "-m", "pip", "install", f"pip=={PIP_VERSION}"],
         verbose=verbose,
@@ -381,11 +381,11 @@ def create_virtualenv(force_venv_setup: bool, verbose: bool, dry_run: bool) -> R
     )
     if pip_reinstall_result.returncode != 0:
         get_console().print(
-            f'[error]Error when updating pip to {PIP_VERSION}:[/]\n'
-            f'{pip_reinstall_result.stdout}\n{pip_reinstall_result.stderr}'
+            f"[error]Error when updating pip to {PIP_VERSION}:[/]\n"
+            f"{pip_reinstall_result.stdout}\n{pip_reinstall_result.stderr}"
         )
         return pip_reinstall_result
-    get_console().print(f'[info]Installing necessary packages in {K8S_ENV_PATH}')
+    get_console().print(f"[info]Installing necessary packages in {K8S_ENV_PATH}")
 
     install_packages_result = _install_packages_in_k8s_virtualenv(
         dry_run=dry_run, verbose=verbose, with_constraints=True
@@ -431,19 +431,19 @@ def run_command_with_k8s_env(
 
 def get_k8s_env(python: str, kubernetes_version: str, executor: str | None = None) -> dict[str, str]:
     new_env = os.environ.copy()
-    new_env['PATH'] = str(K8S_BIN_BASE_PATH) + os.pathsep + new_env['PATH']
-    new_env['KUBECONFIG'] = str(get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version))
-    new_env['KINDCONFIG'] = str(
+    new_env["PATH"] = str(K8S_BIN_BASE_PATH) + os.pathsep + new_env["PATH"]
+    new_env["KUBECONFIG"] = str(get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version))
+    new_env["KINDCONFIG"] = str(
         get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version)
     )
     api_server_port, web_server_port = _get_kubernetes_port_numbers(
         python=python, kubernetes_version=kubernetes_version
     )
-    new_env['CLUSTER_FORWARDED_PORT'] = str(web_server_port)
+    new_env["CLUSTER_FORWARDED_PORT"] = str(web_server_port)
     kubectl_cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
     if executor:
-        new_env['PS1'] = f"({kubectl_cluster_name}:{executor})> "
-        new_env['EXECUTOR'] = executor
+        new_env["PS1"] = f"({kubectl_cluster_name}:{executor})> "
+        new_env["EXECUTOR"] = executor
     return new_env
 
 
@@ -505,8 +505,8 @@ def _get_kubernetes_port_numbers(python: str, kubernetes_version: str) -> tuple[
     conf = _get_kind_cluster_config_content(python=python, kubernetes_version=kubernetes_version)
     if conf is None:
         return 0, 0
-    api_server_port = conf['networking']['apiServerPort']
-    web_server_port = conf['nodes'][1]['extraPortMappings'][0]['hostPort']
+    api_server_port = conf["networking"]["apiServerPort"]
+    web_server_port = conf["nodes"][1]["extraPortMappings"][0]["hostPort"]
     return api_server_port, web_server_port
 
 

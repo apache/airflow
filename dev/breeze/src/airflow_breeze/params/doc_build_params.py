@@ -29,7 +29,7 @@ class DocBuildParams:
     spellcheck_only: bool
     for_production: bool
     skip_environment_initialization: bool = False
-    github_actions = os.environ.get('GITHUB_ACTIONS', "false")
+    github_actions = os.environ.get("GITHUB_ACTIONS", "false")
 
     @property
     def args_doc_builder(self) -> list[str]:

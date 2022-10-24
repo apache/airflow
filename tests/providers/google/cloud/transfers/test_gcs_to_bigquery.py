@@ -24,18 +24,18 @@ from google.cloud.bigquery.table import Row
 
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 
-TASK_ID = 'test-gcs-to-bq-operator'
-TEST_EXPLICIT_DEST = 'test-project.dataset.table'
-TEST_BUCKET = 'test-bucket'
-MAX_ID_KEY = 'id'
-TEST_SOURCE_OBJECTS = ['test/objects/*']
-TEST_SOURCE_OBJECTS_AS_STRING = 'test/objects/*'
-LABELS = {'k1': 'v1'}
+TASK_ID = "test-gcs-to-bq-operator"
+TEST_EXPLICIT_DEST = "test-project.dataset.table"
+TEST_BUCKET = "test-bucket"
+MAX_ID_KEY = "id"
+TEST_SOURCE_OBJECTS = ["test/objects/*"]
+TEST_SOURCE_OBJECTS_AS_STRING = "test/objects/*"
+LABELS = {"k1": "v1"}
 DESCRIPTION = "Test Description"
 
 
 class TestGCSToBigQueryOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook')
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook")
     def test_execute_explicit_project(self, bq_hook):
         operator = GCSToBigQueryOperator(
             task_id=TASK_ID,
@@ -45,11 +45,11 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
             max_id_key=MAX_ID_KEY,
         )
 
-        bq_hook.return_value.get_job.return_value.result.return_value = [Row(('100',), {'f0_': 0})]
+        bq_hook.return_value.get_job.return_value.result.return_value = [Row(("100",), {"f0_": 0})]
 
         result = operator.execute(None)
 
-        assert result == '100'
+        assert result == "100"
 
         bq_hook.return_value.run_query.assert_called_once_with(
             sql="SELECT MAX(id) FROM `test-project.dataset.table`",
@@ -57,7 +57,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
             use_legacy_sql=False,
         )
 
-    @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook')
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook")
     def test_labels(self, bq_hook):
 
         operator = GCSToBigQueryOperator(
@@ -95,7 +95,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
             description=mock.ANY,
         )
 
-    @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook')
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook")
     def test_description(self, bq_hook):
 
         operator = GCSToBigQueryOperator(
@@ -133,7 +133,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
             description=DESCRIPTION,
         )
 
-    @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook')
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook")
     def test_labels_external_table(self, bq_hook):
 
         operator = GCSToBigQueryOperator(
@@ -169,7 +169,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
         )
         # fmt: on
 
-    @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook')
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook")
     def test_description_external_table(self, bq_hook):
 
         operator = GCSToBigQueryOperator(
@@ -205,7 +205,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
         )
         # fmt: on
 
-    @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook')
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook")
     def test_source_objects_as_list(self, bq_hook):
         operator = GCSToBigQueryOperator(
             task_id=TASK_ID,
@@ -219,7 +219,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
         bq_hook.return_value.run_load.assert_called_once_with(
             destination_project_dataset_table=mock.ANY,
             schema_fields=mock.ANY,
-            source_uris=[f'gs://{TEST_BUCKET}/{source_object}' for source_object in TEST_SOURCE_OBJECTS],
+            source_uris=[f"gs://{TEST_BUCKET}/{source_object}" for source_object in TEST_SOURCE_OBJECTS],
             source_format=mock.ANY,
             autodetect=mock.ANY,
             create_disposition=mock.ANY,
@@ -241,7 +241,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
             description=mock.ANY,
         )
 
-    @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook')
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook")
     def test_source_objects_as_string(self, bq_hook):
         operator = GCSToBigQueryOperator(
             task_id=TASK_ID,
@@ -255,7 +255,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
         bq_hook.return_value.run_load.assert_called_once_with(
             destination_project_dataset_table=mock.ANY,
             schema_fields=mock.ANY,
-            source_uris=[f'gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}'],
+            source_uris=[f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}"],
             source_format=mock.ANY,
             autodetect=mock.ANY,
             create_disposition=mock.ANY,

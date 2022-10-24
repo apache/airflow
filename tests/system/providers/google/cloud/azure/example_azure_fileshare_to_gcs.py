@@ -26,27 +26,27 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
-DAG_ID = 'azure_fileshare_to_gcs_example'
+DAG_ID = "azure_fileshare_to_gcs_example"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-AZURE_SHARE_NAME = os.environ.get('AZURE_SHARE_NAME', 'test-azure-share')
+AZURE_SHARE_NAME = os.environ.get("AZURE_SHARE_NAME", "test-azure-share")
 AZURE_DIRECTORY_NAME = "test-azure-dir"
 
 with DAG(
     dag_id=DAG_ID,
     default_args={
-        'owner': 'airflow',
-        'depends_on_past': False,
-        'email': ['airflow@example.com'],
-        'email_on_failure': False,
-        'email_on_retry': False,
-        'retries': 1,
-        'retry_delay': timedelta(minutes=5),
+        "owner": "airflow",
+        "depends_on_past": False,
+        "email": ["airflow@example.com"],
+        "email_on_failure": False,
+        "email_on_retry": False,
+        "retries": 1,
+        "retry_delay": timedelta(minutes=5),
     },
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example', 'azure'],
+    tags=["example", "azure"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
@@ -54,7 +54,7 @@ with DAG(
 
     # [START howto_operator_azure_fileshare_to_gcs_basic]
     sync_azure_files_with_gcs = AzureFileShareToGCSOperator(
-        task_id='sync_azure_files_with_gcs',
+        task_id="sync_azure_files_with_gcs",
         share_name=AZURE_SHARE_NAME,
         dest_gcs=BUCKET_NAME,
         directory_name=AZURE_DIRECTORY_NAME,

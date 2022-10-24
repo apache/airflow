@@ -52,202 +52,202 @@ TEST_GCP_CONN_ID = "test-gcp-conn-id"
 TEST_DELEGATE_TO = "test-delegate-to"
 TEST_IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 TEST_MODEL = {
-    'name': TEST_MODEL_NAME,
+    "name": TEST_MODEL_NAME,
 }
 TEST_VERSION = {
-    'name': 'v1',
-    'deploymentUri': 'gs://some-bucket/jobs/test_training/model.pb',
-    'runtimeVersion': '1.6',
+    "name": "v1",
+    "deploymentUri": "gs://some-bucket/jobs/test_training/model.pb",
+    "runtimeVersion": "1.6",
 }
 
 
 class TestMLEngineBatchPredictionOperator(unittest.TestCase):
     INPUT_MISSING_ORIGIN = {
-        'dataFormat': 'TEXT',
-        'inputPaths': ['gs://legal-bucket/fake-input-path/*'],
-        'outputPath': 'gs://legal-bucket/fake-output-path',
-        'region': 'us-east1',
+        "dataFormat": "TEXT",
+        "inputPaths": ["gs://legal-bucket/fake-input-path/*"],
+        "outputPath": "gs://legal-bucket/fake-output-path",
+        "region": "us-east1",
     }
     SUCCESS_MESSAGE_MISSING_INPUT = {
-        'jobId': 'test_prediction',
-        'labels': {'some': 'labels'},
-        'predictionOutput': {
-            'outputPath': 'gs://fake-output-path',
-            'predictionCount': 5000,
-            'errorCount': 0,
-            'nodeHours': 2.78,
+        "jobId": "test_prediction",
+        "labels": {"some": "labels"},
+        "predictionOutput": {
+            "outputPath": "gs://fake-output-path",
+            "predictionCount": 5000,
+            "errorCount": 0,
+            "nodeHours": 2.78,
         },
-        'state': 'SUCCEEDED',
+        "state": "SUCCEEDED",
     }
     BATCH_PREDICTION_DEFAULT_ARGS = {
-        'project_id': 'test-project',
-        'job_id': 'test_prediction',
-        'labels': {'some': 'labels'},
-        'region': 'us-east1',
-        'data_format': 'TEXT',
-        'input_paths': ['gs://legal-bucket-dash-Capital/legal-input-path/*'],
-        'output_path': 'gs://12_legal_bucket_underscore_number/legal-output-path',
-        'task_id': 'test-prediction',
+        "project_id": "test-project",
+        "job_id": "test_prediction",
+        "labels": {"some": "labels"},
+        "region": "us-east1",
+        "data_format": "TEXT",
+        "input_paths": ["gs://legal-bucket-dash-Capital/legal-input-path/*"],
+        "output_path": "gs://12_legal_bucket_underscore_number/legal-output-path",
+        "task_id": "test-prediction",
     }
 
     def setUp(self):
         super().setUp()
         self.dag = DAG(
-            'test_dag',
+            "test_dag",
             default_args={
-                'owner': 'airflow',
-                'start_date': DEFAULT_DATE,
-                'end_date': DEFAULT_DATE,
+                "owner": "airflow",
+                "start_date": DEFAULT_DATE,
+                "end_date": DEFAULT_DATE,
             },
-            schedule='@daily',
+            schedule="@daily",
         )
 
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_success_with_model(self, mock_hook):
         input_with_model = self.INPUT_MISSING_ORIGIN.copy()
-        input_with_model['modelName'] = 'projects/test-project/models/test_model'
+        input_with_model["modelName"] = "projects/test-project/models/test_model"
         success_message = self.SUCCESS_MESSAGE_MISSING_INPUT.copy()
-        success_message['predictionInput'] = input_with_model
+        success_message["predictionInput"] = input_with_model
 
         hook_instance = mock_hook.return_value
         hook_instance.get_job.side_effect = HttpError(
-            resp=httplib2.Response({'status': 404}), content=b'some bytes'
+            resp=httplib2.Response({"status": 404}), content=b"some bytes"
         )
         hook_instance.create_job.return_value = success_message
 
         prediction_task = MLEngineStartBatchPredictionJobOperator(
-            job_id='test_prediction',
-            project_id='test-project',
-            region=input_with_model['region'],
-            data_format=input_with_model['dataFormat'],
-            input_paths=input_with_model['inputPaths'],
-            output_path=input_with_model['outputPath'],
-            model_name=input_with_model['modelName'].split('/')[-1],
-            labels={'some': 'labels'},
+            job_id="test_prediction",
+            project_id="test-project",
+            region=input_with_model["region"],
+            data_format=input_with_model["dataFormat"],
+            input_paths=input_with_model["inputPaths"],
+            output_path=input_with_model["outputPath"],
+            model_name=input_with_model["modelName"].split("/")[-1],
+            labels={"some": "labels"},
             dag=self.dag,
-            task_id='test-prediction',
+            task_id="test-prediction",
         )
         prediction_output = prediction_task.execute(None)
 
         mock_hook.assert_called_once_with(
-            'google_cloud_default',
+            "google_cloud_default",
             None,
             impersonation_chain=None,
         )
         hook_instance.create_job.assert_called_once_with(
-            project_id='test-project',
+            project_id="test-project",
             job={
-                'jobId': 'test_prediction',
-                'labels': {'some': 'labels'},
-                'predictionInput': input_with_model,
+                "jobId": "test_prediction",
+                "labels": {"some": "labels"},
+                "predictionInput": input_with_model,
             },
             use_existing_job_fn=ANY,
         )
-        assert success_message['predictionOutput'] == prediction_output
+        assert success_message["predictionOutput"] == prediction_output
 
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_success_with_version(self, mock_hook):
         input_with_version = self.INPUT_MISSING_ORIGIN.copy()
-        input_with_version['versionName'] = 'projects/test-project/models/test_model/versions/test_version'
+        input_with_version["versionName"] = "projects/test-project/models/test_model/versions/test_version"
         success_message = self.SUCCESS_MESSAGE_MISSING_INPUT.copy()
-        success_message['predictionInput'] = input_with_version
+        success_message["predictionInput"] = input_with_version
 
         hook_instance = mock_hook.return_value
         hook_instance.get_job.side_effect = HttpError(
-            resp=httplib2.Response({'status': 404}), content=b'some bytes'
+            resp=httplib2.Response({"status": 404}), content=b"some bytes"
         )
         hook_instance.create_job.return_value = success_message
 
         prediction_task = MLEngineStartBatchPredictionJobOperator(
-            job_id='test_prediction',
-            project_id='test-project',
-            region=input_with_version['region'],
-            data_format=input_with_version['dataFormat'],
-            input_paths=input_with_version['inputPaths'],
-            output_path=input_with_version['outputPath'],
-            model_name=input_with_version['versionName'].split('/')[-3],
-            version_name=input_with_version['versionName'].split('/')[-1],
+            job_id="test_prediction",
+            project_id="test-project",
+            region=input_with_version["region"],
+            data_format=input_with_version["dataFormat"],
+            input_paths=input_with_version["inputPaths"],
+            output_path=input_with_version["outputPath"],
+            model_name=input_with_version["versionName"].split("/")[-3],
+            version_name=input_with_version["versionName"].split("/")[-1],
             dag=self.dag,
-            task_id='test-prediction',
+            task_id="test-prediction",
         )
         prediction_output = prediction_task.execute(None)
 
         mock_hook.assert_called_once_with(
-            'google_cloud_default',
+            "google_cloud_default",
             None,
             impersonation_chain=None,
         )
         hook_instance.create_job.assert_called_once_with(
-            project_id='test-project',
-            job={'jobId': 'test_prediction', 'predictionInput': input_with_version},
+            project_id="test-project",
+            job={"jobId": "test_prediction", "predictionInput": input_with_version},
             use_existing_job_fn=ANY,
         )
-        assert success_message['predictionOutput'] == prediction_output
+        assert success_message["predictionOutput"] == prediction_output
 
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_success_with_uri(self, mock_hook):
         input_with_uri = self.INPUT_MISSING_ORIGIN.copy()
-        input_with_uri['uri'] = 'gs://my_bucket/my_models/savedModel'
+        input_with_uri["uri"] = "gs://my_bucket/my_models/savedModel"
         success_message = self.SUCCESS_MESSAGE_MISSING_INPUT.copy()
-        success_message['predictionInput'] = input_with_uri
+        success_message["predictionInput"] = input_with_uri
 
         hook_instance = mock_hook.return_value
         hook_instance.get_job.side_effect = HttpError(
-            resp=httplib2.Response({'status': 404}), content=b'some bytes'
+            resp=httplib2.Response({"status": 404}), content=b"some bytes"
         )
         hook_instance.create_job.return_value = success_message
 
         prediction_task = MLEngineStartBatchPredictionJobOperator(
-            job_id='test_prediction',
-            project_id='test-project',
-            region=input_with_uri['region'],
-            data_format=input_with_uri['dataFormat'],
-            input_paths=input_with_uri['inputPaths'],
-            output_path=input_with_uri['outputPath'],
-            uri=input_with_uri['uri'],
+            job_id="test_prediction",
+            project_id="test-project",
+            region=input_with_uri["region"],
+            data_format=input_with_uri["dataFormat"],
+            input_paths=input_with_uri["inputPaths"],
+            output_path=input_with_uri["outputPath"],
+            uri=input_with_uri["uri"],
             dag=self.dag,
-            task_id='test-prediction',
+            task_id="test-prediction",
         )
         prediction_output = prediction_task.execute(None)
 
         mock_hook.assert_called_once_with(
-            'google_cloud_default',
+            "google_cloud_default",
             None,
             impersonation_chain=None,
         )
         hook_instance.create_job.assert_called_once_with(
-            project_id='test-project',
-            job={'jobId': 'test_prediction', 'predictionInput': input_with_uri},
+            project_id="test-project",
+            job={"jobId": "test_prediction", "predictionInput": input_with_uri},
             use_existing_job_fn=ANY,
         )
-        assert success_message['predictionOutput'] == prediction_output
+        assert success_message["predictionOutput"] == prediction_output
 
     def test_invalid_model_origin(self):
         # Test that both uri and model is given
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
-        task_args['uri'] = 'gs://fake-uri/saved_model'
-        task_args['model_name'] = 'fake_model'
+        task_args["uri"] = "gs://fake-uri/saved_model"
+        task_args["model_name"] = "fake_model"
         with pytest.raises(AirflowException) as ctx:
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
-        assert 'Ambiguous model origin: Both uri and model/version name are provided.' == str(ctx.value)
+        assert "Ambiguous model origin: Both uri and model/version name are provided." == str(ctx.value)
 
         # Test that both uri and model/version is given
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
-        task_args['uri'] = 'gs://fake-uri/saved_model'
-        task_args['model_name'] = 'fake_model'
-        task_args['version_name'] = 'fake_version'
+        task_args["uri"] = "gs://fake-uri/saved_model"
+        task_args["model_name"] = "fake_model"
+        task_args["version_name"] = "fake_version"
         with pytest.raises(AirflowException) as ctx:
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
-        assert 'Ambiguous model origin: Both uri and model/version name are provided.' == str(ctx.value)
+        assert "Ambiguous model origin: Both uri and model/version name are provided." == str(ctx.value)
 
         # Test that a version is given without a model
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
-        task_args['version_name'] = 'bare_version'
+        task_args["version_name"] = "bare_version"
         with pytest.raises(AirflowException) as ctx:
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
         assert (
-            'Missing model: Batch prediction expects a model '
-            'name when a version name is provided.' == str(ctx.value)
+            "Missing model: Batch prediction expects a model "
+            "name when a version name is provided." == str(ctx.value)
         )
 
         # Test that none of uri, model, model/version is given
@@ -255,87 +255,87 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         with pytest.raises(AirflowException) as ctx:
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
         assert (
-            'Missing model origin: Batch prediction expects a '
-            'model, a model & version combination, or a URI to a savedModel.' == str(ctx.value)
+            "Missing model origin: Batch prediction expects a "
+            "model, a model & version combination, or a URI to a savedModel." == str(ctx.value)
         )
 
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_http_error(self, mock_hook):
         http_error_code = 403
         input_with_model = self.INPUT_MISSING_ORIGIN.copy()
-        input_with_model['modelName'] = 'projects/experimental/models/test_model'
+        input_with_model["modelName"] = "projects/experimental/models/test_model"
 
         hook_instance = mock_hook.return_value
         hook_instance.create_job.side_effect = HttpError(
-            resp=httplib2.Response({'status': http_error_code}), content=b'Forbidden'
+            resp=httplib2.Response({"status": http_error_code}), content=b"Forbidden"
         )
 
         with pytest.raises(HttpError) as ctx:
             prediction_task = MLEngineStartBatchPredictionJobOperator(
-                job_id='test_prediction',
-                project_id='test-project',
-                region=input_with_model['region'],
-                data_format=input_with_model['dataFormat'],
-                input_paths=input_with_model['inputPaths'],
-                output_path=input_with_model['outputPath'],
-                model_name=input_with_model['modelName'].split('/')[-1],
+                job_id="test_prediction",
+                project_id="test-project",
+                region=input_with_model["region"],
+                data_format=input_with_model["dataFormat"],
+                input_paths=input_with_model["inputPaths"],
+                output_path=input_with_model["outputPath"],
+                model_name=input_with_model["modelName"].split("/")[-1],
                 dag=self.dag,
-                task_id='test-prediction',
+                task_id="test-prediction",
             )
             prediction_task.execute(None)
 
             mock_hook.assert_called_once_with(
-                'google_cloud_default',
+                "google_cloud_default",
                 None,
                 impersonation_chain=None,
             )
             hook_instance.create_job.assert_called_once_with(
-                'test-project', {'jobId': 'test_prediction', 'predictionInput': input_with_model}, ANY
+                "test-project", {"jobId": "test_prediction", "predictionInput": input_with_model}, ANY
             )
 
         assert http_error_code == ctx.value.resp.status
 
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_failed_job_error(self, mock_hook):
         hook_instance = mock_hook.return_value
-        hook_instance.create_job.return_value = {'state': 'FAILED', 'errorMessage': 'A failure message'}
+        hook_instance.create_job.return_value = {"state": "FAILED", "errorMessage": "A failure message"}
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
-        task_args['uri'] = 'a uri'
+        task_args["uri"] = "a uri"
 
         with pytest.raises(RuntimeError) as ctx:
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
 
-        assert 'A failure message' == str(ctx.value)
+        assert "A failure message" == str(ctx.value)
 
 
 class TestMLEngineStartTrainingJobOperator:
     TRAINING_DEFAULT_ARGS = {
-        'project_id': 'test-project',
-        'job_id': 'test_training',
-        'package_uris': ['gs://some-bucket/package1'],
-        'training_python_module': 'trainer',
-        'training_args': '--some_arg=\'aaa\'',
-        'region': 'us-east1',
-        'scale_tier': 'STANDARD_1',
-        'labels': {'some': 'labels'},
-        'task_id': 'test-training',
+        "project_id": "test-project",
+        "job_id": "test_training",
+        "package_uris": ["gs://some-bucket/package1"],
+        "training_python_module": "trainer",
+        "training_args": "--some_arg='aaa'",
+        "region": "us-east1",
+        "scale_tier": "STANDARD_1",
+        "labels": {"some": "labels"},
+        "task_id": "test-training",
     }
     TRAINING_INPUT = {
-        'jobId': 'test_training',
-        'labels': {'some': 'labels'},
-        'trainingInput': {
-            'scaleTier': 'STANDARD_1',
-            'packageUris': ['gs://some-bucket/package1'],
-            'pythonModule': 'trainer',
-            'args': '--some_arg=\'aaa\'',
-            'region': 'us-east1',
+        "jobId": "test_training",
+        "labels": {"some": "labels"},
+        "trainingInput": {
+            "scaleTier": "STANDARD_1",
+            "packageUris": ["gs://some-bucket/package1"],
+            "pythonModule": "trainer",
+            "args": "--some_arg='aaa'",
+            "region": "us-east1",
         },
     }
 
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_success_create_training_job(self, mock_hook):
         success_response = self.TRAINING_INPUT.copy()
-        success_response['state'] = 'SUCCEEDED'
+        success_response["state"] = "SUCCEEDED"
         hook_instance = mock_hook.return_value
         hook_instance.create_job.return_value = success_response
 
@@ -343,87 +343,87 @@ class TestMLEngineStartTrainingJobOperator:
         training_op.execute(MagicMock())
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default',
+            gcp_conn_id="google_cloud_default",
             delegate_to=None,
             impersonation_chain=None,
         )
         # Make sure only 'create_job' is invoked on hook instance
         assert len(hook_instance.mock_calls) == 1
         hook_instance.create_job.assert_called_once_with(
-            project_id='test-project', job=self.TRAINING_INPUT, use_existing_job_fn=ANY
+            project_id="test-project", job=self.TRAINING_INPUT, use_existing_job_fn=ANY
         )
 
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_success_create_training_job_with_master_config(self, mock_hook):
         custom_training_default_args: dict = copy.deepcopy(self.TRAINING_DEFAULT_ARGS)
-        custom_training_default_args['scale_tier'] = 'CUSTOM'
+        custom_training_default_args["scale_tier"] = "CUSTOM"
 
         training_input = copy.deepcopy(self.TRAINING_INPUT)
-        training_input['trainingInput']['runtimeVersion'] = '1.6'
-        training_input['trainingInput']['pythonVersion'] = '3.5'
-        training_input['trainingInput']['jobDir'] = 'gs://some-bucket/jobs/test_training'
-        training_input['trainingInput']['scaleTier'] = 'CUSTOM'
-        training_input['trainingInput']['masterType'] = 'n1-standard-4'
-        training_input['trainingInput']['masterConfig'] = {
-            'acceleratorConfig': {'count': '1', 'type': 'NVIDIA_TESLA_P4'},
+        training_input["trainingInput"]["runtimeVersion"] = "1.6"
+        training_input["trainingInput"]["pythonVersion"] = "3.5"
+        training_input["trainingInput"]["jobDir"] = "gs://some-bucket/jobs/test_training"
+        training_input["trainingInput"]["scaleTier"] = "CUSTOM"
+        training_input["trainingInput"]["masterType"] = "n1-standard-4"
+        training_input["trainingInput"]["masterConfig"] = {
+            "acceleratorConfig": {"count": "1", "type": "NVIDIA_TESLA_P4"},
         }
 
         success_response = training_input.copy()
-        success_response['state'] = 'SUCCEEDED'
+        success_response["state"] = "SUCCEEDED"
         hook_instance = mock_hook.return_value
         hook_instance.create_job.return_value = success_response
 
         training_op = MLEngineStartTrainingJobOperator(
-            runtime_version='1.6',
-            python_version='3.5',
-            job_dir='gs://some-bucket/jobs/test_training',
-            master_type='n1-standard-4',
+            runtime_version="1.6",
+            python_version="3.5",
+            job_dir="gs://some-bucket/jobs/test_training",
+            master_type="n1-standard-4",
             master_config={
-                'acceleratorConfig': {'count': '1', 'type': 'NVIDIA_TESLA_P4'},
+                "acceleratorConfig": {"count": "1", "type": "NVIDIA_TESLA_P4"},
             },
             **custom_training_default_args,
         )
         training_op.execute(MagicMock())
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default',
+            gcp_conn_id="google_cloud_default",
             delegate_to=None,
             impersonation_chain=None,
         )
         # Make sure only 'create_job' is invoked on hook instance
         assert len(hook_instance.mock_calls) == 1
         hook_instance.create_job.assert_called_once_with(
-            project_id='test-project', job=training_input, use_existing_job_fn=ANY
+            project_id="test-project", job=training_input, use_existing_job_fn=ANY
         )
 
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_success_create_training_job_with_master_image(self, hook):
         arguments = {
-            'project_id': 'test-project',
-            'job_id': 'test_training',
-            'region': 'europe-west1',
-            'scale_tier': 'CUSTOM',
-            'master_type': 'n1-standard-8',
-            'master_config': {
-                'imageUri': 'eu.gcr.io/test-project/test-image:test-version',
+            "project_id": "test-project",
+            "job_id": "test_training",
+            "region": "europe-west1",
+            "scale_tier": "CUSTOM",
+            "master_type": "n1-standard-8",
+            "master_config": {
+                "imageUri": "eu.gcr.io/test-project/test-image:test-version",
             },
-            'task_id': 'test-training',
-            'start_date': DEFAULT_DATE,
+            "task_id": "test-training",
+            "start_date": DEFAULT_DATE,
         }
         request = {
-            'jobId': 'test_training',
-            'trainingInput': {
-                'region': 'europe-west1',
-                'scaleTier': 'CUSTOM',
-                'masterType': 'n1-standard-8',
-                'masterConfig': {
-                    'imageUri': 'eu.gcr.io/test-project/test-image:test-version',
+            "jobId": "test_training",
+            "trainingInput": {
+                "region": "europe-west1",
+                "scaleTier": "CUSTOM",
+                "masterType": "n1-standard-8",
+                "masterConfig": {
+                    "imageUri": "eu.gcr.io/test-project/test-image:test-version",
                 },
             },
         }
 
         response = request.copy()
-        response['state'] = 'SUCCEEDED'
+        response["state"] = "SUCCEEDED"
         hook_instance = hook.return_value
         hook_instance.create_job.return_value = response
 
@@ -431,96 +431,96 @@ class TestMLEngineStartTrainingJobOperator:
         operator.execute(MagicMock())
 
         hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default',
+            gcp_conn_id="google_cloud_default",
             delegate_to=None,
             impersonation_chain=None,
         )
         assert len(hook_instance.mock_calls) == 1
         hook_instance.create_job.assert_called_once_with(
-            project_id='test-project',
+            project_id="test-project",
             job=request,
             use_existing_job_fn=ANY,
         )
 
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_success_create_training_job_with_optional_args(self, mock_hook):
         training_input = copy.deepcopy(self.TRAINING_INPUT)
-        training_input['trainingInput']['runtimeVersion'] = '1.6'
-        training_input['trainingInput']['pythonVersion'] = '3.5'
-        training_input['trainingInput']['jobDir'] = 'gs://some-bucket/jobs/test_training'
-        training_input['trainingInput']['serviceAccount'] = 'test@serviceaccount.com'
+        training_input["trainingInput"]["runtimeVersion"] = "1.6"
+        training_input["trainingInput"]["pythonVersion"] = "3.5"
+        training_input["trainingInput"]["jobDir"] = "gs://some-bucket/jobs/test_training"
+        training_input["trainingInput"]["serviceAccount"] = "test@serviceaccount.com"
 
         hyperparams = {
-            'goal': 'MAXIMIZE',
-            'hyperparameterMetricTag': 'metric1',
-            'maxTrials': 30,
-            'maxParallelTrials': 1,
-            'enableTrialEarlyStopping': True,
-            'params': [],
+            "goal": "MAXIMIZE",
+            "hyperparameterMetricTag": "metric1",
+            "maxTrials": 30,
+            "maxParallelTrials": 1,
+            "enableTrialEarlyStopping": True,
+            "params": [],
         }
 
-        hyperparams['params'].append(
+        hyperparams["params"].append(
             {
-                'parameterName': 'hidden1',
-                'type': 'INTEGER',
-                'minValue': 40,
-                'maxValue': 400,
-                'scaleType': 'UNIT_LINEAR_SCALE',
+                "parameterName": "hidden1",
+                "type": "INTEGER",
+                "minValue": 40,
+                "maxValue": 400,
+                "scaleType": "UNIT_LINEAR_SCALE",
             }
         )
 
-        hyperparams['params'].append(
-            {'parameterName': 'numRnnCells', 'type': 'DISCRETE', 'discreteValues': [1, 2, 3, 4]}
+        hyperparams["params"].append(
+            {"parameterName": "numRnnCells", "type": "DISCRETE", "discreteValues": [1, 2, 3, 4]}
         )
 
-        hyperparams['params'].append(
+        hyperparams["params"].append(
             {
-                'parameterName': 'rnnCellType',
-                'type': 'CATEGORICAL',
-                'categoricalValues': [
-                    'BasicLSTMCell',
-                    'BasicRNNCell',
-                    'GRUCell',
-                    'LSTMCell',
-                    'LayerNormBasicLSTMCell',
+                "parameterName": "rnnCellType",
+                "type": "CATEGORICAL",
+                "categoricalValues": [
+                    "BasicLSTMCell",
+                    "BasicRNNCell",
+                    "GRUCell",
+                    "LSTMCell",
+                    "LayerNormBasicLSTMCell",
                 ],
             }
         )
 
-        training_input['trainingInput']['hyperparameters'] = hyperparams
+        training_input["trainingInput"]["hyperparameters"] = hyperparams
 
         success_response = self.TRAINING_INPUT.copy()
-        success_response['state'] = 'SUCCEEDED'
+        success_response["state"] = "SUCCEEDED"
         hook_instance = mock_hook.return_value
         hook_instance.create_job.return_value = success_response
 
         training_op = MLEngineStartTrainingJobOperator(
-            runtime_version='1.6',
-            python_version='3.5',
-            job_dir='gs://some-bucket/jobs/test_training',
-            service_account='test@serviceaccount.com',
+            runtime_version="1.6",
+            python_version="3.5",
+            job_dir="gs://some-bucket/jobs/test_training",
+            service_account="test@serviceaccount.com",
             **self.TRAINING_DEFAULT_ARGS,
             hyperparameters=hyperparams,
         )
         training_op.execute(MagicMock())
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default',
+            gcp_conn_id="google_cloud_default",
             delegate_to=None,
             impersonation_chain=None,
         )
         # Make sure only 'create_job' is invoked on hook instance
         assert len(hook_instance.mock_calls) == 1
         hook_instance.create_job.assert_called_once_with(
-            project_id='test-project', job=training_input, use_existing_job_fn=ANY
+            project_id="test-project", job=training_input, use_existing_job_fn=ANY
         )
 
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_http_error(self, mock_hook):
         http_error_code = 403
         hook_instance = mock_hook.return_value
         hook_instance.create_job.side_effect = HttpError(
-            resp=httplib2.Response({'status': http_error_code}), content=b'Forbidden'
+            resp=httplib2.Response({"status": http_error_code}), content=b"Forbidden"
         )
 
         with pytest.raises(HttpError) as ctx:
@@ -528,22 +528,22 @@ class TestMLEngineStartTrainingJobOperator:
             training_op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default',
+            gcp_conn_id="google_cloud_default",
             delegate_to=None,
             impersonation_chain=None,
         )
         # Make sure only 'create_job' is invoked on hook instance
         assert len(hook_instance.mock_calls) == 1
         hook_instance.create_job.assert_called_once_with(
-            project_id='test-project', job=self.TRAINING_INPUT, use_existing_job_fn=ANY
+            project_id="test-project", job=self.TRAINING_INPUT, use_existing_job_fn=ANY
         )
         assert http_error_code == ctx.value.resp.status
 
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_failed_job_error(self, mock_hook):
         failure_response = self.TRAINING_INPUT.copy()
-        failure_response['state'] = 'FAILED'
-        failure_response['errorMessage'] = 'A failure message'
+        failure_response["state"] = "FAILED"
+        failure_response["errorMessage"] = "A failure message"
         hook_instance = mock_hook.return_value
         hook_instance.create_job.return_value = failure_response
 
@@ -552,27 +552,27 @@ class TestMLEngineStartTrainingJobOperator:
             training_op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default',
+            gcp_conn_id="google_cloud_default",
             delegate_to=None,
             impersonation_chain=None,
         )
         # Make sure only 'create_job' is invoked on hook instance
         assert len(hook_instance.mock_calls) == 1
         hook_instance.create_job.assert_called_once_with(
-            project_id='test-project', job=self.TRAINING_INPUT, use_existing_job_fn=ANY
+            project_id="test-project", job=self.TRAINING_INPUT, use_existing_job_fn=ANY
         )
-        assert 'A failure message' == str(ctx.value)
+        assert "A failure message" == str(ctx.value)
 
 
 class TestMLEngineTrainingCancelJobOperator(unittest.TestCase):
 
     TRAINING_DEFAULT_ARGS = {
-        'project_id': 'test-project',
-        'job_id': 'test_training',
-        'task_id': 'test-training',
+        "project_id": "test-project",
+        "job_id": "test_training",
+        "task_id": "test-training",
     }
 
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_success_cancel_training_job(self, mock_hook):
         success_response = {}
         hook_instance = mock_hook.return_value
@@ -582,22 +582,22 @@ class TestMLEngineTrainingCancelJobOperator(unittest.TestCase):
         cancel_training_op.execute(context=MagicMock())
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default',
+            gcp_conn_id="google_cloud_default",
             delegate_to=None,
             impersonation_chain=None,
         )
         # Make sure only 'cancel_job' is invoked on hook instance
         assert len(hook_instance.mock_calls) == 1
         hook_instance.cancel_job.assert_called_once_with(
-            project_id=self.TRAINING_DEFAULT_ARGS['project_id'], job_id=self.TRAINING_DEFAULT_ARGS['job_id']
+            project_id=self.TRAINING_DEFAULT_ARGS["project_id"], job_id=self.TRAINING_DEFAULT_ARGS["job_id"]
         )
 
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_http_error(self, mock_hook):
         http_error_code = 403
         hook_instance = mock_hook.return_value
         hook_instance.cancel_job.side_effect = HttpError(
-            resp=httplib2.Response({'status': http_error_code}), content=b'Forbidden'
+            resp=httplib2.Response({"status": http_error_code}), content=b"Forbidden"
         )
 
         with pytest.raises(HttpError) as ctx:
@@ -605,20 +605,20 @@ class TestMLEngineTrainingCancelJobOperator(unittest.TestCase):
             cancel_training_op.execute(context=MagicMock())
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default',
+            gcp_conn_id="google_cloud_default",
             delegate_to=None,
             impersonation_chain=None,
         )
         # Make sure only 'create_job' is invoked on hook instance
         assert len(hook_instance.mock_calls) == 1
         hook_instance.cancel_job.assert_called_once_with(
-            project_id=self.TRAINING_DEFAULT_ARGS['project_id'], job_id=self.TRAINING_DEFAULT_ARGS['job_id']
+            project_id=self.TRAINING_DEFAULT_ARGS["project_id"], job_id=self.TRAINING_DEFAULT_ARGS["job_id"]
         )
         assert http_error_code == ctx.value.resp.status
 
 
 class TestMLEngineModelOperator(unittest.TestCase):
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_success_create_model(self, mock_hook):
         task = MLEngineManageModelOperator(
             task_id="task-id",
@@ -641,7 +641,7 @@ class TestMLEngineModelOperator(unittest.TestCase):
             project_id=TEST_PROJECT_ID, model=TEST_MODEL
         )
 
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_success_get_model(self, mock_hook):
         task = MLEngineManageModelOperator(
             task_id="task-id",
@@ -665,7 +665,7 @@ class TestMLEngineModelOperator(unittest.TestCase):
         )
         assert mock_hook.return_value.get_model.return_value == result
 
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_fail(self, mock_hook):
         task = MLEngineManageModelOperator(
             task_id="task-id",
@@ -680,7 +680,7 @@ class TestMLEngineModelOperator(unittest.TestCase):
 
 
 class TestMLEngineCreateModelOperator(unittest.TestCase):
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_success_create_model(self, mock_hook):
         task = MLEngineCreateModelOperator(
             task_id="task-id",
@@ -704,7 +704,7 @@ class TestMLEngineCreateModelOperator(unittest.TestCase):
 
 
 class TestMLEngineGetModelOperator(unittest.TestCase):
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_success_get_model(self, mock_hook):
         task = MLEngineGetModelOperator(
             task_id="task-id",
@@ -729,7 +729,7 @@ class TestMLEngineGetModelOperator(unittest.TestCase):
 
 
 class TestMLEngineDeleteModelOperator(unittest.TestCase):
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_success_delete_model(self, mock_hook):
         task = MLEngineDeleteModelOperator(
             task_id="task-id",
@@ -755,14 +755,14 @@ class TestMLEngineDeleteModelOperator(unittest.TestCase):
 
 class TestMLEngineVersionOperator(unittest.TestCase):
     VERSION_DEFAULT_ARGS = {
-        'project_id': 'test-project',
-        'model_name': 'test-model',
-        'task_id': 'test-version',
+        "project_id": "test-project",
+        "model_name": "test-model",
+        "task_id": "test-version",
     }
 
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_success_create_version(self, mock_hook):
-        success_response = {'name': 'some-name', 'done': True}
+        success_response = {"name": "some-name", "done": True}
         hook_instance = mock_hook.return_value
         hook_instance.create_version.return_value = success_response
 
@@ -770,19 +770,19 @@ class TestMLEngineVersionOperator(unittest.TestCase):
         training_op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default',
+            gcp_conn_id="google_cloud_default",
             delegate_to=None,
             impersonation_chain=None,
         )
         # Make sure only 'create_version' is invoked on hook instance
         assert len(hook_instance.mock_calls) == 1
         hook_instance.create_version.assert_called_once_with(
-            project_id='test-project', model_name='test-model', version_spec=TEST_VERSION
+            project_id="test-project", model_name="test-model", version_spec=TEST_VERSION
         )
 
 
 class TestMLEngineCreateVersion(unittest.TestCase):
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_success(self, mock_hook):
         task = MLEngineCreateVersionOperator(
             task_id="task-id",
@@ -829,7 +829,7 @@ class TestMLEngineCreateVersion(unittest.TestCase):
 
 
 class TestMLEngineSetDefaultVersion(unittest.TestCase):
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_success(self, mock_hook):
         task = MLEngineSetDefaultVersionOperator(
             task_id="task-id",
@@ -876,7 +876,7 @@ class TestMLEngineSetDefaultVersion(unittest.TestCase):
 
 
 class TestMLEngineListVersions(unittest.TestCase):
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_success(self, mock_hook):
         task = MLEngineListVersionsOperator(
             task_id="task-id",
@@ -911,7 +911,7 @@ class TestMLEngineListVersions(unittest.TestCase):
 
 
 class TestMLEngineDeleteVersion(unittest.TestCase):
-    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    @patch("airflow.providers.google.cloud.operators.mlengine.MLEngineHook")
     def test_success(self, mock_hook):
         task = MLEngineDeleteVersionOperator(
             task_id="task-id",

@@ -33,10 +33,10 @@ INTERVAL = timedelta(hours=12)
 FROZEN_NOW = timezone.datetime(2016, 1, 2, 12, 1, 1)
 
 TI_CONTEXT_ENV_VARS = [
-    'AIRFLOW_CTX_DAG_ID',
-    'AIRFLOW_CTX_TASK_ID',
-    'AIRFLOW_CTX_EXECUTION_DATE',
-    'AIRFLOW_CTX_DAG_RUN_ID',
+    "AIRFLOW_CTX_DAG_ID",
+    "AIRFLOW_CTX_TASK_ID",
+    "AIRFLOW_CTX_EXECUTION_DATE",
+    "AIRFLOW_CTX_DAG_RUN_ID",
 ]
 
 
@@ -84,7 +84,7 @@ class TestPythonVirtualenvDecorator:
     def test_system_site_packages(self, dag_maker):
         @task.virtualenv(
             system_site_packages=False,
-            requirements=['funcsigs'],
+            requirements=["funcsigs"],
             python_version=PYTHON_VERSION,
             use_dill=True,
         )
@@ -99,14 +99,14 @@ class TestPythonVirtualenvDecorator:
     def test_with_requirements_pinned(self, dag_maker):
         @task.virtualenv(
             system_site_packages=False,
-            requirements=['funcsigs==0.4'],
+            requirements=["funcsigs==0.4"],
             python_version=PYTHON_VERSION,
             use_dill=True,
         )
         def f():
             import funcsigs
 
-            if funcsigs.__version__ != '0.4':
+            if funcsigs.__version__ != "0.4":
                 raise Exception
 
         with dag_maker():
@@ -117,7 +117,7 @@ class TestPythonVirtualenvDecorator:
     def test_unpinned_requirements(self, dag_maker):
         @task.virtualenv(
             system_site_packages=False,
-            requirements=['funcsigs', 'dill'],
+            requirements=["funcsigs", "dill"],
             python_version=PYTHON_VERSION,
             use_dill=True,
         )
@@ -141,7 +141,7 @@ class TestPythonVirtualenvDecorator:
             ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_python_3(self, dag_maker):
-        @task.virtualenv(python_version=3, use_dill=False, requirements=['dill'])
+        @task.virtualenv(python_version=3, use_dill=False, requirements=["dill"])
         def f():
             import sys
 

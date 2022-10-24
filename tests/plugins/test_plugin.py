@@ -97,9 +97,9 @@ appbuilder_mitem_toplevel = {
 bp = Blueprint(
     "test_plugin",
     __name__,
-    template_folder='templates',  # registers airflow/plugins/templates as a Jinja template folder
-    static_folder='static',
-    static_url_path='/static/test_plugin',
+    template_folder="templates",  # registers airflow/plugins/templates as a Jinja template folder
+    static_folder="static",
+    static_url_path="/static/test_plugin",
 )
 
 
@@ -134,19 +134,19 @@ class AirflowTestPlugin(AirflowPlugin):
 
 
 class MockPluginA(AirflowPlugin):
-    name = 'plugin-a'
+    name = "plugin-a"
 
 
 class MockPluginB(AirflowPlugin):
-    name = 'plugin-b'
+    name = "plugin-b"
 
 
 class MockPluginC(AirflowPlugin):
-    name = 'plugin-c'
+    name = "plugin-c"
 
 
 class AirflowTestOnLoadPlugin(AirflowPlugin):
-    name = 'preload'
+    name = "preload"
 
     def on_load(self, *args, **kwargs):
-        self.name = 'postload'
+        self.name = "postload"

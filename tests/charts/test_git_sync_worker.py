@@ -98,8 +98,8 @@ class TestGitSyncWorker:
                     "gitSync": {
                         "enabled": True,
                         "resources": {
-                            "limits": {"cpu": "200m", 'memory': "128Mi"},
-                            "requests": {"cpu": "300m", 'memory': "169Mi"},
+                            "limits": {"cpu": "200m", "memory": "128Mi"},
+                            "requests": {"cpu": "300m", "memory": "169Mi"},
                         },
                     },
                 },

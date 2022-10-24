@@ -33,11 +33,11 @@ DAG_ID = "example_s3_to_gcs"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 GCS_BUCKET_URL = f"gs://{BUCKET_NAME}/"
-UPLOAD_FILE = '/tmp/example-file.txt'
-PREFIX = 'TESTS'
+UPLOAD_FILE = "/tmp/example-file.txt"
+PREFIX = "TESTS"
 
 
-@task(task_id='upload_file_to_s3')
+@task(task_id="upload_file_to_s3")
 def upload_file():
     """A callable to upload file to AWS bucket"""
     s3_hook = S3Hook()
@@ -46,13 +46,13 @@ def upload_file():
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example', 's3'],
+    tags=["example", "s3"],
 ) as dag:
     create_s3_bucket = S3CreateBucketOperator(
-        task_id="create_s3_bucket", bucket_name=BUCKET_NAME, region_name='us-east-1'
+        task_id="create_s3_bucket", bucket_name=BUCKET_NAME, region_name="us-east-1"
     )
 
     create_gcs_bucket = GCSCreateBucketOperator(
@@ -62,19 +62,19 @@ with models.DAG(
     )
     # [START howto_transfer_s3togcs_operator]
     transfer_to_gcs = S3ToGCSOperator(
-        task_id='s3_to_gcs_task', bucket=BUCKET_NAME, prefix=PREFIX, dest_gcs=GCS_BUCKET_URL
+        task_id="s3_to_gcs_task", bucket=BUCKET_NAME, prefix=PREFIX, dest_gcs=GCS_BUCKET_URL
     )
     # [END howto_transfer_s3togcs_operator]
 
     delete_s3_bucket = S3DeleteBucketOperator(
-        task_id='delete_s3_bucket',
+        task_id="delete_s3_bucket",
         bucket_name=BUCKET_NAME,
         force_delete=True,
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_gcs_bucket = GCSDeleteBucketOperator(
-        task_id='delete_gcs_bucket', bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_gcs_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
     (

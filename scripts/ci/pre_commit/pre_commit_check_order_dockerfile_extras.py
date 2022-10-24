@@ -48,11 +48,11 @@ class ConsoleDiff(difflib.Differ):
         """Generate comparison results for a same-tagged range."""
         for i in range(lo, hi):
             if tag == "+":
-                yield f'[green]{tag} {x[i]}[/]'
+                yield f"[green]{tag} {x[i]}[/]"
             elif tag == "-":
-                yield f'[red]{tag} {x[i]}[/]'
+                yield f"[red]{tag} {x[i]}[/]"
             else:
-                yield f'{tag} {x[i]}'
+                yield f"{tag} {x[i]}"
 
 
 def _check_list_sorted(the_list: list[str], message: str) -> bool:
@@ -87,7 +87,7 @@ def get_replaced_content(
                 result.append("\n")
             is_copying = False
             for extra in extras_list:
-                result.append(f'{prefix}{extra}{suffix}\n')
+                result.append(f"{prefix}{extra}{suffix}\n")
         elif line.startswith(end_line):
             if add_empty_lines:
                 result.append("\n")
@@ -103,7 +103,7 @@ def check_dockerfile():
     extras_list = None
     for line in lines:
         if line.startswith("ARG AIRFLOW_EXTRAS="):
-            extras_list = line.split("=")[1].replace('"', '').split(",")
+            extras_list = line.split("=")[1].replace('"', "").split(",")
             if _check_list_sorted(extras_list, "Dockerfile's AIRFLOW_EXTRAS"):
                 builds_args_content = BUILD_ARGS_REF_PATH.read_text().splitlines(keepends=True)
                 result = get_replaced_content(
@@ -132,7 +132,7 @@ def check_dockerfile():
         errors.append("Something is wrong. Dockerfile does not contain AIRFLOW_EXTRAS")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     check_dockerfile()
     print()
     print()

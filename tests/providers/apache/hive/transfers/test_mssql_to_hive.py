@@ -28,48 +28,48 @@ from airflow.providers.apache.hive.transfers.mssql_to_hive import MsSqlToHiveOpe
 
 class TestMsSqlToHiveTransfer(unittest.TestCase):
     def setUp(self):
-        self.kwargs = dict(sql='sql', hive_table='table', task_id='test_mssql_to_hive', dag=None)
+        self.kwargs = dict(sql="sql", hive_table="table", task_id="test_mssql_to_hive", dag=None)
 
     def test_type_map_binary(self):
 
         mapped_type = MsSqlToHiveOperator(**self.kwargs).type_map(pymssql.BINARY.value)
 
-        assert mapped_type == 'INT'
+        assert mapped_type == "INT"
 
     def test_type_map_decimal(self):
 
         mapped_type = MsSqlToHiveOperator(**self.kwargs).type_map(pymssql.DECIMAL.value)
 
-        assert mapped_type == 'FLOAT'
+        assert mapped_type == "FLOAT"
 
     def test_type_map_number(self):
 
         mapped_type = MsSqlToHiveOperator(**self.kwargs).type_map(pymssql.NUMBER.value)
 
-        assert mapped_type == 'INT'
+        assert mapped_type == "INT"
 
     def test_type_map_string(self):
         mapped_type = MsSqlToHiveOperator(**self.kwargs).type_map(None)
 
-        assert mapped_type == 'STRING'
+        assert mapped_type == "STRING"
 
-    @patch('airflow.providers.apache.hive.transfers.mssql_to_hive.csv')
-    @patch('airflow.providers.apache.hive.transfers.mssql_to_hive.NamedTemporaryFile')
-    @patch('airflow.providers.apache.hive.transfers.mssql_to_hive.MsSqlHook')
-    @patch('airflow.providers.apache.hive.transfers.mssql_to_hive.HiveCliHook')
+    @patch("airflow.providers.apache.hive.transfers.mssql_to_hive.csv")
+    @patch("airflow.providers.apache.hive.transfers.mssql_to_hive.NamedTemporaryFile")
+    @patch("airflow.providers.apache.hive.transfers.mssql_to_hive.MsSqlHook")
+    @patch("airflow.providers.apache.hive.transfers.mssql_to_hive.HiveCliHook")
     def test_execute(self, mock_hive_hook, mock_mssql_hook, mock_tmp_file, mock_csv):
-        type(mock_tmp_file).name = PropertyMock(return_value='tmp_file')
+        type(mock_tmp_file).name = PropertyMock(return_value="tmp_file")
         mock_tmp_file.return_value.__enter__ = Mock(return_value=mock_tmp_file)
         mock_mssql_hook_get_conn = mock_mssql_hook.return_value.get_conn.return_value.__enter__
         mock_mssql_hook_cursor = mock_mssql_hook_get_conn.return_value.cursor.return_value.__enter__
-        mock_mssql_hook_cursor.return_value.description = [('te', 'st')]
+        mock_mssql_hook_cursor.return_value.description = [("anything", "some-other-thing")]
 
         mssql_to_hive_transfer = MsSqlToHiveOperator(**self.kwargs)
         mssql_to_hive_transfer.execute(context={})
 
         mock_mssql_hook_cursor.return_value.execute.assert_called_once_with(mssql_to_hive_transfer.sql)
         mock_csv.writer.assert_called_once_with(
-            mock_tmp_file, delimiter=mssql_to_hive_transfer.delimiter, encoding='utf-8'
+            mock_tmp_file, delimiter=mssql_to_hive_transfer.delimiter, encoding="utf-8"
         )
         field_dict = OrderedDict()
         for field in mock_mssql_hook_cursor.return_value.description:
@@ -86,16 +86,16 @@ class TestMsSqlToHiveTransfer(unittest.TestCase):
             tblproperties=mssql_to_hive_transfer.tblproperties,
         )
 
-    @patch('airflow.providers.apache.hive.transfers.mssql_to_hive.csv')
-    @patch('airflow.providers.apache.hive.transfers.mssql_to_hive.NamedTemporaryFile')
-    @patch('airflow.providers.apache.hive.transfers.mssql_to_hive.MsSqlHook')
-    @patch('airflow.providers.apache.hive.transfers.mssql_to_hive.HiveCliHook')
+    @patch("airflow.providers.apache.hive.transfers.mssql_to_hive.csv")
+    @patch("airflow.providers.apache.hive.transfers.mssql_to_hive.NamedTemporaryFile")
+    @patch("airflow.providers.apache.hive.transfers.mssql_to_hive.MsSqlHook")
+    @patch("airflow.providers.apache.hive.transfers.mssql_to_hive.HiveCliHook")
     def test_execute_empty_description_field(self, mock_hive_hook, mock_mssql_hook, mock_tmp_file, mock_csv):
-        type(mock_tmp_file).name = PropertyMock(return_value='tmp_file')
+        type(mock_tmp_file).name = PropertyMock(return_value="tmp_file")
         mock_tmp_file.return_value.__enter__ = Mock(return_value=mock_tmp_file)
         mock_mssql_hook_get_conn = mock_mssql_hook.return_value.get_conn.return_value.__enter__
         mock_mssql_hook_cursor = mock_mssql_hook_get_conn.return_value.cursor.return_value.__enter__
-        mock_mssql_hook_cursor.return_value.description = [('', '')]
+        mock_mssql_hook_cursor.return_value.description = [("", "")]
 
         mssql_to_hive_transfer = MsSqlToHiveOperator(**self.kwargs)
         mssql_to_hive_transfer.execute(context={})

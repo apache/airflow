@@ -46,16 +46,16 @@ AUDIO_CONFIG = {"audio_encoding": "LINEAR16"}
 # [START howto_operator_translate_speech_arguments]
 CONFIG = {"encoding": "LINEAR16", "language_code": "en_US"}
 AUDIO = {"uri": f"gs://{BUCKET_NAME}/{FILE_NAME}"}
-TARGET_LANGUAGE = 'pl'
-FORMAT = 'text'
-MODEL = 'base'
+TARGET_LANGUAGE = "pl"
+FORMAT = "text"
+MODEL = "base"
 SOURCE_LANGUAGE = None  # type: None
 # [END howto_operator_translate_speech_arguments]
 
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',  # Override to match your needs
+    schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],
@@ -80,7 +80,7 @@ with models.DAG(
         format_=FORMAT,
         source_language=SOURCE_LANGUAGE,
         model=MODEL,
-        task_id='translate_speech_task',
+        task_id="translate_speech_task",
     )
     translate_speech_task2 = CloudTranslateSpeechOperator(
         audio=AUDIO,
@@ -89,7 +89,7 @@ with models.DAG(
         format_=FORMAT,
         source_language=SOURCE_LANGUAGE,
         model=MODEL,
-        task_id='translate_speech_task2',
+        task_id="translate_speech_task2",
     )
     # [END howto_operator_translate_speech]
 

@@ -44,8 +44,8 @@ class TimeDeltaTrigger_(TimeDeltaTrigger):
         self.delta = delta
 
     async def run(self):
-        with open(self.filename, 'at') as f:
-            f.write('hi\n')
+        with open(self.filename, "at") as f:
+            f.write("hi\n")
         async for event in super().run():
             yield event
 
@@ -198,7 +198,7 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
 
     This test verifies that under this scenario only one trigger is created.
     """
-    path = tmp_path / 'test_trigger_bad_respawn.txt'
+    path = tmp_path / "test_trigger_bad_respawn.txt"
 
     class TriggerRunner_(TriggerRunner):
         """We do some waiting for main thread looping"""
@@ -206,7 +206,7 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
         async def wait_for_job_method_count(self, method, count):
             for _ in range(30):
                 await asyncio.sleep(0.1)
-                if getattr(self, f'{method}_count', 0) >= count:
+                if getattr(self, f"{method}_count", 0) >= count:
                     break
             else:
                 pytest.fail(f"did not observe count {count} in job method {method}")
@@ -215,15 +215,15 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
             """
             On first run, wait for job.load_triggers to make sure they are queued
             """
-            if getattr(self, 'loop_count', 0) == 0:
-                await self.wait_for_job_method_count('load_triggers', 1)
+            if getattr(self, "loop_count", 0) == 0:
+                await self.wait_for_job_method_count("load_triggers", 1)
             await super().create_triggers()
-            self.loop_count = getattr(self, 'loop_count', 0) + 1
+            self.loop_count = getattr(self, "loop_count", 0) + 1
 
         async def cleanup_finished_triggers(self):
             """On loop 1, make sure that job.handle_events was already called"""
             if self.loop_count == 1:
-                await self.wait_for_job_method_count('handle_events', 1)
+                await self.wait_for_job_method_count("handle_events", 1)
             await super().cleanup_finished_triggers()
 
     class TriggererJob_(TriggererJob):
@@ -232,7 +232,7 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
         def wait_for_runner_loop(self, runner_loop_count):
             for _ in range(30):
                 time.sleep(0.1)
-                if getattr(self.runner, 'call_count', 0) >= runner_loop_count:
+                if getattr(self.runner, "call_count", 0) >= runner_loop_count:
                     break
             else:
                 pytest.fail("did not observe 2 loops in the runner thread")
@@ -240,22 +240,22 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
         def load_triggers(self):
             """On second run, make sure that runner has called create_triggers in its second loop"""
             super().load_triggers()
-            self.runner.load_triggers_count = getattr(self.runner, 'load_triggers_count', 0) + 1
+            self.runner.load_triggers_count = getattr(self.runner, "load_triggers_count", 0) + 1
             if self.runner.load_triggers_count == 2:
                 self.wait_for_runner_loop(runner_loop_count=2)
 
         def handle_events(self):
             super().handle_events()
-            self.runner.handle_events_count = getattr(self.runner, 'handle_events_count', 0) + 1
+            self.runner.handle_events_count = getattr(self.runner, "handle_events_count", 0) + 1
 
     trigger = TimeDeltaTrigger_(delta=datetime.timedelta(microseconds=1), filename=path.as_posix())
     trigger_orm = Trigger.from_object(trigger)
     trigger_orm.id = 1
     session.add(trigger_orm)
 
-    dag = DagModel(dag_id='test-dag')
-    dag_run = DagRun(dag.dag_id, run_id='abc', run_type='none')
-    ti = TaskInstance(PythonOperator(task_id='dummy-task', python_callable=print), run_id=dag_run.run_id)
+    dag = DagModel(dag_id="test-dag")
+    dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none")
+    ti = TaskInstance(PythonOperator(task_id="dummy-task", python_callable=print), run_id=dag_run.run_id)
     ti.dag_id = dag.dag_id
     ti.trigger_id = 1
     session.add(dag)
@@ -272,7 +272,7 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
         for _ in range(40):
             time.sleep(0.1)
             # ready to evaluate after 2 loops
-            if getattr(job.runner, 'loop_count', 0) >= 2:
+            if getattr(job.runner, "loop_count", 0) >= 2:
                 break
         else:
             pytest.fail("did not observe 2 loops in the runner thread")
@@ -426,8 +426,8 @@ def test_invalid_trigger(session, dag_maker):
     session.commit()
 
     # Create the test DAG and task
-    with dag_maker(dag_id='test_invalid_trigger', session=session):
-        EmptyOperator(task_id='dummy1')
+    with dag_maker(dag_id="test_invalid_trigger", session=session):
+        EmptyOperator(task_id="dummy1")
 
     dr = dag_maker.create_dagrun()
     task_instance = dr.task_instances[0]
@@ -451,5 +451,5 @@ def test_invalid_trigger(session, dag_maker):
     task_instance.refresh_from_db()
     assert task_instance.state == TaskInstanceState.SCHEDULED
     assert task_instance.next_method == "__fail__"
-    assert task_instance.next_kwargs['error'] == 'Trigger failure'
-    assert task_instance.next_kwargs['traceback'][-1] == "ModuleNotFoundError: No module named 'fake'\n"
+    assert task_instance.next_kwargs["error"] == "Trigger failure"
+    assert task_instance.next_kwargs["traceback"][-1] == "ModuleNotFoundError: No module named 'fake'\n"

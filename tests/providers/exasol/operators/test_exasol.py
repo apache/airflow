@@ -25,12 +25,12 @@ from airflow.providers.exasol.operators.exasol import ExasolOperator
 
 
 class TestExasol(unittest.TestCase):
-    @mock.patch('airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook')
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
     def test_overwrite_autocommit(self, mock_get_db_hook):
-        operator = ExasolOperator(task_id='TEST', sql='SELECT 1', autocommit=True)
+        operator = ExasolOperator(task_id="TEST", sql="SELECT 1", autocommit=True)
         operator.execute({})
         mock_get_db_hook.return_value.run.assert_called_once_with(
-            sql='SELECT 1',
+            sql="SELECT 1",
             autocommit=True,
             parameters=None,
             handler=fetch_all_handler,
@@ -38,25 +38,25 @@ class TestExasol(unittest.TestCase):
             split_statements=False,
         )
 
-    @mock.patch('airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook')
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
     def test_pass_parameters(self, mock_get_db_hook):
-        operator = ExasolOperator(task_id='TEST', sql='SELECT {value!s}', parameters={'value': 1})
+        operator = ExasolOperator(task_id="TEST", sql="SELECT {value!s}", parameters={"value": 1})
         operator.execute({})
         mock_get_db_hook.return_value.run.assert_called_once_with(
-            sql='SELECT {value!s}',
+            sql="SELECT {value!s}",
             autocommit=False,
-            parameters={'value': 1},
+            parameters={"value": 1},
             handler=fetch_all_handler,
             return_last=True,
             split_statements=False,
         )
 
-    @mock.patch('airflow.providers.common.sql.operators.sql.BaseSQLOperator.__init__')
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.__init__")
     def test_overwrite_schema(self, mock_base_op):
-        ExasolOperator(task_id='TEST', sql='SELECT 1', schema='dummy')
+        ExasolOperator(task_id="TEST", sql="SELECT 1", schema="dummy")
         mock_base_op.assert_called_once_with(
-            conn_id='exasol_default',
-            hook_params={'schema': 'dummy'},
+            conn_id="exasol_default",
+            hook_params={"schema": "dummy"},
             default_args={},
-            task_id='TEST',
+            task_id="TEST",
         )

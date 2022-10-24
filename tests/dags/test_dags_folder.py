@@ -23,7 +23,7 @@ from airflow import DAG
 from airflow.decorators import task
 
 with DAG(
-    dag_id='test_dags_folder',
+    dag_id="test_dags_folder",
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,

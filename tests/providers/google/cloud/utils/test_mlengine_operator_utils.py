@@ -68,27 +68,27 @@ def get_metric_fn_and_keys():
     import math
 
     def error_and_squared_error(inst):
-        label = float(inst['input_label'])
-        classes = float(inst['classes'])
+        label = float(inst["input_label"])
+        classes = float(inst["classes"])
         err = abs(classes - label)
         squared_err = math.pow(classes - label, 2)
         return err, squared_err
 
-    return error_and_squared_error, ['err', 'mse']
+    return error_and_squared_error, ["err", "mse"]
 
 
 METRIC_FN, METRIC_KEYS = get_metric_fn_and_keys()
 METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
-METRIC_KEYS_EXPECTED = ','.join(METRIC_KEYS)
+METRIC_KEYS_EXPECTED = ",".join(METRIC_KEYS)
 
 
 def validate_err_and_count(summary):
-    if summary['err'] > 0.2:
-        raise ValueError(f'Too high err>0.2; summary={summary}')
-    if summary['mse'] > 0.05:
-        raise ValueError(f'Too high mse>0.05; summary={summary}')
-    if summary['count'] < 1000:
-        raise ValueError(f'Too few instances<1000; summary={summary}')
+    if summary["err"] > 0.2:
+        raise ValueError(f"Too high err>0.2; summary={summary}")
+    if summary["mse"] > 0.05:
+        raise ValueError(f"Too high mse>0.05; summary={summary}")
+    if summary["count"] < 1000:
+        raise ValueError(f"Too few instances<1000; summary={summary}")
     return summary
 
 
@@ -270,7 +270,7 @@ class TestMlengineOperatorUtils(unittest.TestCase):
                 data_format=DATA_FORMAT,
                 input_paths=INPUT_PATHS,
                 prediction_path=PREDICTION_PATH,
-                metric_fn_and_keys=("error_and_squared_error", ['err', 'mse']),
+                metric_fn_and_keys=("error_and_squared_error", ["err", "mse"]),
                 validate_fn=validate_err_and_count,
             )
 

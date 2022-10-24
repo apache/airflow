@@ -63,14 +63,14 @@ class TestSalesforceHook:
             conn_type="salesforce",
             login=None,
             password=None,
-            extra='''
+            extra="""
             {
                 "client_id": "my_client",
                 "domain": "test",
                 "security_token": "token",
                 "version": "42.0"
             }
-            ''',
+            """,
         )
         TestSalesforceHook._insert_conn_db_entry(password_auth_conn.conn_id, password_auth_conn)
 
@@ -110,14 +110,14 @@ class TestSalesforceHook:
             conn_type="salesforce",
             login=None,
             password=None,
-            extra='''
+            extra="""
             {
                 "client_id": "my_client2",
                 "domain": "test",
                 "instance_url": "https://my.salesforce.com",
                 "version": "29.0"
             }
-            ''',
+            """,
         )
         TestSalesforceHook._insert_conn_db_entry(direct_access_conn.conn_id, direct_access_conn)
 
@@ -161,7 +161,7 @@ class TestSalesforceHook:
             conn_type="salesforce",
             login=None,
             password=None,
-            extra='''
+            extra="""
             {
                 "client_id": "my_client3",
                 "consumer_key": "consumer_key",
@@ -169,7 +169,7 @@ class TestSalesforceHook:
                 "private_key": "private_key",
                 "version": "34.0"
             }
-            ''',
+            """,
         )
         TestSalesforceHook._insert_conn_db_entry(jwt_auth_conn.conn_id, jwt_auth_conn)
 
@@ -209,11 +209,11 @@ class TestSalesforceHook:
             conn_type="salesforce",
             login="username",
             password="password",
-            extra='''
+            extra="""
             {
                 "organization_id": "my_organization"
             }
-            ''',
+            """,
         )
         TestSalesforceHook._insert_conn_db_entry(ip_filtering_auth_conn.conn_id, ip_filtering_auth_conn)
 
@@ -251,7 +251,7 @@ class TestSalesforceHook:
             conn_type="salesforce",
             login=None,
             password=None,
-            extra='''
+            extra="""
             {
                 "client_id": "",
                 "consumer_key": "",
@@ -264,7 +264,7 @@ class TestSalesforceHook:
                 "proxies": "",
                 "security_token": ""
             }
-            ''',
+            """,
         )
         TestSalesforceHook._insert_conn_db_entry(default_to_none_conn.conn_id, default_to_none_conn)
 
@@ -454,24 +454,24 @@ class TestSalesforceHook:
         )
 
     @pytest.mark.parametrize(
-        'uri',
+        "uri",
         [
             param(
-                'a://?extra__salesforce__security_token=token&extra__salesforce__domain=domain',
-                id='prefix',
+                "a://?extra__salesforce__security_token=token&extra__salesforce__domain=domain",
+                id="prefix",
             ),
-            param('a://?security_token=token&domain=domain', id='no-prefix'),
+            param("a://?security_token=token&domain=domain", id="no-prefix"),
         ],
     )
-    @patch('airflow.providers.salesforce.hooks.salesforce.Salesforce')
+    @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
     def test_backcompat_prefix_works(self, mock_client, uri):
         with patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}):
-            hook = SalesforceHook('my_conn')
+            hook = SalesforceHook("my_conn")
             hook.get_conn()
             mock_client.assert_called_with(
                 client_id=None,
                 consumer_key=None,
-                domain='domain',
+                domain="domain",
                 instance=None,
                 instance_url=None,
                 organizationId=None,
@@ -479,23 +479,23 @@ class TestSalesforceHook:
                 privatekey=None,
                 privatekey_file=None,
                 proxies=None,
-                security_token='token',
+                security_token="token",
                 session=None,
                 session_id=None,
                 username=None,
-                version='52.0',
+                version="52.0",
             )
 
-    @patch('airflow.providers.salesforce.hooks.salesforce.Salesforce')
+    @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
     def test_backcompat_prefix_both_prefers_short(self, mock_client):
         with patch.dict(
             os.environ,
             {
-                "AIRFLOW_CONN_MY_CONN": 'a://?security_token=non-prefixed'
-                '&extra__salesforce__security_token=prefixed'
+                "AIRFLOW_CONN_MY_CONN": "a://?security_token=non-prefixed"
+                "&extra__salesforce__security_token=prefixed"
             },
         ):
-            hook = SalesforceHook('my_conn')
+            hook = SalesforceHook("my_conn")
             hook.get_conn()
             mock_client.assert_called_with(
                 client_id=None,
@@ -508,9 +508,9 @@ class TestSalesforceHook:
                 privatekey=None,
                 privatekey_file=None,
                 proxies=None,
-                security_token='non-prefixed',
+                security_token="non-prefixed",
                 session=None,
                 session_id=None,
                 username=None,
-                version='52.0',
+                version="52.0",
             )

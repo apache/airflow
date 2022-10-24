@@ -24,21 +24,21 @@ from airflow.providers.qubole.hooks.qubole_check import parse_first_row
 
 class TestQuboleCheckHook(unittest.TestCase):
     def test_single_row_bool(self):
-        query_result = ['true\ttrue']
+        query_result = ["true\ttrue"]
         record_list = parse_first_row(query_result)
         assert [True, True] == record_list
 
     def test_multi_row_bool(self):
-        query_result = ['true\tfalse', 'true\tfalse']
+        query_result = ["true\tfalse", "true\tfalse"]
         record_list = parse_first_row(query_result)
         assert [True, False] == record_list
 
     def test_single_row_float(self):
-        query_result = ['0.23\t34']
+        query_result = ["0.23\t34"]
         record_list = parse_first_row(query_result)
         assert [0.23, 34] == record_list
 
     def test_single_row_mixed_types(self):
-        query_result = ['name\t44\t0.23\tTrue']
+        query_result = ["name\t44\t0.23\tTrue"]
         record_list = parse_first_row(query_result)
         assert ["name", 44, 0.23, True] == record_list

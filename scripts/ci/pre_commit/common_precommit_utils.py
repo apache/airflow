@@ -49,6 +49,6 @@ def get_directory_hash(directory: Path, skip_path_regexp: str | None = None) -> 
         files = [file for file in files if not matcher.match(os.fspath(file.resolve()))]
     sha = hashlib.sha256()
     for file in files:
-        if file.is_file() and not file.name.startswith('.'):
+        if file.is_file() and not file.name.startswith("."):
             sha.update(file.read_bytes())
     return sha.hexdigest()

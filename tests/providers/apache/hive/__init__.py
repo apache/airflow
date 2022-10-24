@@ -32,8 +32,8 @@ DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 
 class TestHiveEnvironment(TestCase):
     def setUp(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        dag = DAG('test_dag_id', default_args=args)
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        dag = DAG("test_dag_id", default_args=args)
         self.dag = dag
         self.hql = """
         USE airflow;
@@ -62,8 +62,8 @@ class MockHiveCliHook(HiveCliHook):
     def __init__(self, *args, **kwargs):
         super().__init__()
         self.conn = MockConnectionCursor()
-        self.conn.schema = 'default'
-        self.conn.host = 'localhost'
+        self.conn.schema = "default"
+        self.conn.host = "localhost"
         self.conn.port = 10000
         self.conn.login = None
         self.conn.password = None
@@ -76,7 +76,7 @@ class MockHiveCliHook(HiveCliHook):
 class MockHiveServer2Hook(HiveServer2Hook):
     def __init__(self, *args, **kwargs):
         super().__init__()
-        self.mock_cursor = kwargs.get('connection_cursor', MockConnectionCursor())
+        self.mock_cursor = kwargs.get("connection_cursor", MockConnectionCursor())
         self.mock_cursor.execute = MagicMock()
         self.get_conn = MagicMock(return_value=self.mock_cursor)
         self.get_connection = MagicMock(return_value=MockDBConnection({}))
@@ -99,9 +99,9 @@ class MockMySqlHook(MySqlHook):
 class MockDBConnection:
     def __init__(self, extra_dejson=None, *args, **kwargs):
         self.extra_dejson = extra_dejson
-        self.get_records = MagicMock(return_value=[['test_record']])
+        self.get_records = MagicMock(return_value=[["test_record"]])
 
-        output = kwargs.get('output', ['' for _ in range(10)])
+        output = kwargs.get("output", ["" for _ in range(10)])
         self.readline = MagicMock(side_effect=[line.encode() for line in output])
 
     def status(self, *args, **kwargs):
@@ -112,10 +112,10 @@ class BaseMockConnectionCursor:
     def __init__(self, **kwargs):
         self.arraysize = None
         self.description = [
-            ('hive_server_hook.a', 'INT_TYPE', None, None, None, None, True),
-            ('hive_server_hook.b', 'INT_TYPE', None, None, None, None, True),
+            ("hive_server_hook.a", "INT_TYPE", None, None, None, None, True),
+            ("hive_server_hook.b", "INT_TYPE", None, None, None, None, True),
         ]
-        self.conn_exists = kwargs.get('exists', True)
+        self.conn_exists = kwargs.get("exists", True)
 
     def close(self):
         pass
@@ -153,7 +153,7 @@ class MockConnectionCursor(BaseMockConnectionCursor):
 
 class MockStdOut:
     def __init__(self, *args, **kwargs):
-        output = kwargs.get('output', ['' for _ in range(10)])
+        output = kwargs.get("output", ["" for _ in range(10)])
         self.readline = MagicMock(side_effect=[line.encode() for line in output])
 
 

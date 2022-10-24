@@ -33,25 +33,25 @@ from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.presto.hooks.presto import PrestoHook
 from airflow.www.decorators import gzipped
 
-METASTORE_CONN_ID = 'metastore_default'
-METASTORE_MYSQL_CONN_ID = 'metastore_mysql'
-PRESTO_CONN_ID = 'presto_default'
-HIVE_CLI_CONN_ID = 'hive_default'
-DEFAULT_DB = 'default'
+METASTORE_CONN_ID = "metastore_default"
+METASTORE_MYSQL_CONN_ID = "metastore_mysql"
+PRESTO_CONN_ID = "presto_default"
+HIVE_CLI_CONN_ID = "hive_default"
+DEFAULT_DB = "default"
 DB_ALLOW_LIST = []  # type: List[str]
-DB_DENY_LIST = ['tmp']  # type: List[str]
+DB_DENY_LIST = ["tmp"]  # type: List[str]
 TABLE_SELECTOR_LIMIT = 2000
 
 # Keeping pandas from truncating long strings
-pd.set_option('display.max_colwidth', -1)
+pd.set_option("display.max_colwidth", -1)
 
 
 class MetastoreBrowserView(BaseView):
     """Creating a Flask-AppBuilder BaseView"""
 
-    default_view = 'index'
+    default_view = "index"
 
-    @expose('/')
+    @expose("/")
     def index(self):
         """Create default view"""
         sql = """
@@ -64,16 +64,16 @@ class MetastoreBrowserView(BaseView):
         """
         hook = MySqlHook(METASTORE_MYSQL_CONN_ID)
         df = hook.get_pandas_df(sql)
-        df.db = '<a href="/metastorebrowserview/db/?db=' + df.db + '">' + df.db + '</a>'
+        df.db = '<a href="/metastorebrowserview/db/?db=' + df.db + '">' + df.db + "</a>"
         table = df.to_html(
             classes="table table-striped table-bordered table-hover",
             index=False,
             escape=False,
-            na_rep='',
+            na_rep="",
         )
         return self.render_template("metastore_browser/dbs.html", table=Markup(table))
 
-    @expose('/table/')
+    @expose("/table/")
     def table(self):
         """Create table view"""
         table_name = request.args.get("table")
@@ -83,7 +83,7 @@ class MetastoreBrowserView(BaseView):
             "metastore_browser/table.html", table=table, table_name=table_name, datetime=datetime, int=int
         )
 
-    @expose('/db/')
+    @expose("/db/")
     def db(self):
         """Show tables in database"""
         db = request.args.get("db")
@@ -92,10 +92,10 @@ class MetastoreBrowserView(BaseView):
         return self.render_template("metastore_browser/db.html", tables=tables, db=db)
 
     @gzipped
-    @expose('/partitions/')
+    @expose("/partitions/")
     def partitions(self):
         """Retrieve table partitions"""
-        schema, table = request.args.get("table").split('.')
+        schema, table = request.args.get("table").split(".")
         sql = f"""
         SELECT
             a.PART_NAME,
@@ -118,14 +118,14 @@ class MetastoreBrowserView(BaseView):
         return df.to_html(
             classes="table table-striped table-bordered table-hover",
             index=False,
-            na_rep='',
+            na_rep="",
         )
 
     @gzipped
-    @expose('/objects/')
+    @expose("/objects/")
     def objects(self):
         """Retrieve objects from TBLS and DBS"""
-        where_clause = ''
+        where_clause = ""
         if DB_ALLOW_LIST:
             dbs = ",".join("'" + db + "'" for db in DB_ALLOW_LIST)
             where_clause = f"AND b.name IN ({dbs})"
@@ -145,11 +145,11 @@ class MetastoreBrowserView(BaseView):
         LIMIT {TABLE_SELECTOR_LIMIT};
         """
         hook = MySqlHook(METASTORE_MYSQL_CONN_ID)
-        data = [{'id': row[0], 'text': row[0]} for row in hook.get_records(sql)]
+        data = [{"id": row[0], "text": row[0]} for row in hook.get_records(sql)]
         return json.dumps(data)
 
     @gzipped
-    @expose('/data/')
+    @expose("/data/")
     def data(self):
         """Retrieve data from table"""
         table = request.args.get("table")
@@ -159,10 +159,10 @@ class MetastoreBrowserView(BaseView):
         return df.to_html(
             classes="table table-striped table-bordered table-hover",
             index=False,
-            na_rep='',
+            na_rep="",
         )
 
-    @expose('/ddl/')
+    @expose("/ddl/")
     def ddl(self):
         """Retrieve table ddl"""
         table = request.args.get("table")
@@ -175,9 +175,9 @@ class MetastoreBrowserView(BaseView):
 bp = Blueprint(
     "metastore_browser",
     __name__,
-    template_folder='templates',
-    static_folder='static',
-    static_url_path='/static/metastore_browser',
+    template_folder="templates",
+    static_folder="static",
+    static_url_path="/static/metastore_browser",
 )
 
 

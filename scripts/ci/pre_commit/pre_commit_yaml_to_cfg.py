@@ -77,7 +77,7 @@ def write_config(yaml_config_file_path: str, default_cfg_file_path: str):
     :param default_cfg_file_path: Full path to default_airflow.cfg
     """
     print(f"Converting {yaml_config_file_path} to {default_cfg_file_path}")
-    with open(default_cfg_file_path, 'w') as configfile:
+    with open(default_cfg_file_path, "w") as configfile:
         configfile.writelines(FILE_HEADER)
         config_yaml = read_default_config_yaml(yaml_config_file_path)
 
@@ -139,7 +139,7 @@ def _write_option(configfile, idx, option):
         configfile.write(f"# {option['name']} =\n")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     airflow_config_dir = os.path.join(
         os.path.dirname(__file__), os.pardir, os.pardir, os.pardir, "airflow", "config_templates"
     )
@@ -157,7 +157,7 @@ if __name__ == '__main__':
         for file_name in file_names:
             if (
                 root.endswith("config_templates")
-                and file_name == 'config.yml'
+                and file_name == "config.yml"
                 and os.path.isfile(os.path.join(root, "default_config.cfg"))
             ):
                 write_config(

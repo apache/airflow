@@ -225,7 +225,7 @@ class TestGitSyncSchedulerTest:
         assert {"name": "test-volume", "emptyDir": {}} in jmespath.search(
             "spec.template.spec.volumes", docs[0]
         )
-        assert {'mountPath': '/git', 'name': 'dags'} in jmespath.search(
+        assert {"mountPath": "/git", "name": "dags"} in jmespath.search(
             "spec.template.spec.containers[1].volumeMounts", docs[0]
         )
         assert {"name": "test-volume", "mountPath": "/opt/test"} in jmespath.search(
@@ -256,8 +256,8 @@ class TestGitSyncSchedulerTest:
                     "gitSync": {
                         "enabled": True,
                         "resources": {
-                            "limits": {"cpu": "200m", 'memory': "128Mi"},
-                            "requests": {"cpu": "300m", 'memory': "169Mi"},
+                            "limits": {"cpu": "200m", "memory": "128Mi"},
+                            "requests": {"cpu": "300m", "memory": "169Mi"},
                         },
                     },
                 },

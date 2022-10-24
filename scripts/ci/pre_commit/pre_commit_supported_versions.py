@@ -42,7 +42,7 @@ def replace_text_between(file: Path, start: str, end: str, replacement_text: str
     file.write_text(leading_text + start + replacement_text + end + trailing_text)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     replace_text_between(
         file=AIRFLOW_SOURCES / "README.md",
         start="<!-- Beginning of auto-generated table -->\n",

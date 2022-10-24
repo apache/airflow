@@ -63,11 +63,11 @@ TEST_ALERT_POLICY_1 = {
                 ),
                 "comparison": "COMPARISON_GT",
                 "threshold_value": 100,
-                "duration": {'seconds': 900},
+                "duration": {"seconds": 900},
                 "trigger": {"percent": 0},
                 "aggregations": [
                     {
-                        "alignment_period": {'seconds': 60},
+                        "alignment_period": {"seconds": 60},
                         "per_series_aligner": "ALIGN_MEAN",
                         "cross_series_reducer": "REDUCE_MEAN",
                         "group_by_fields": ["project", "resource.label.instance_id", "resource.label.zone"],
@@ -93,11 +93,11 @@ TEST_ALERT_POLICY_2 = {
                 ),
                 "comparison": "COMPARISON_GT",
                 "threshold_value": 100,
-                "duration": {'seconds': 900},
+                "duration": {"seconds": 900},
                 "trigger": {"percent": 0},
                 "aggregations": [
                     {
-                        "alignment_period": {'seconds': 60},
+                        "alignment_period": {"seconds": 60},
                         "per_series_aligner": "ALIGN_MEAN",
                         "cross_series_reducer": "REDUCE_MEAN",
                         "group_by_fields": ["project", "resource.label.instance_id", "resource.label.zone"],
@@ -125,87 +125,87 @@ TEST_NOTIFICATION_CHANNEL_2 = {
 
 with models.DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example', "stackdriver"],
+    tags=["example", "stackdriver"],
 ) as dag:
     # [START howto_operator_gcp_stackdriver_upsert_notification_channel]
     create_notification_channel = StackdriverUpsertNotificationChannelOperator(
-        task_id='create-notification-channel',
+        task_id="create-notification-channel",
         channels=json.dumps({"channels": [TEST_NOTIFICATION_CHANNEL_1, TEST_NOTIFICATION_CHANNEL_2]}),
     )
     # [END howto_operator_gcp_stackdriver_upsert_notification_channel]
 
     # [START howto_operator_gcp_stackdriver_enable_notification_channel]
     enable_notification_channel = StackdriverEnableNotificationChannelsOperator(
-        task_id='enable-notification-channel', filter_='type="slack"'
+        task_id="enable-notification-channel", filter_='type="slack"'
     )
     # [END howto_operator_gcp_stackdriver_enable_notification_channel]
 
     # [START howto_operator_gcp_stackdriver_disable_notification_channel]
     disable_notification_channel = StackdriverDisableNotificationChannelsOperator(
-        task_id='disable-notification-channel', filter_=f'displayName="{CHANNEL_1_NAME}"'
+        task_id="disable-notification-channel", filter_=f'displayName="{CHANNEL_1_NAME}"'
     )
     # [END howto_operator_gcp_stackdriver_disable_notification_channel]
 
     # [START howto_operator_gcp_stackdriver_list_notification_channel]
     list_notification_channel = StackdriverListNotificationChannelsOperator(
-        task_id='list-notification-channel', filter_='type="slack"'
+        task_id="list-notification-channel", filter_='type="slack"'
     )
     # [END howto_operator_gcp_stackdriver_list_notification_channel]
 
     # [START howto_operator_gcp_stackdriver_upsert_alert_policy]
     create_alert_policy = StackdriverUpsertAlertOperator(
-        task_id='create-alert-policies',
+        task_id="create-alert-policies",
         alerts=json.dumps({"policies": [TEST_ALERT_POLICY_1, TEST_ALERT_POLICY_2]}),
     )
     # [END howto_operator_gcp_stackdriver_upsert_alert_policy]
 
     # [START howto_operator_gcp_stackdriver_enable_alert_policy]
     enable_alert_policy = StackdriverEnableAlertPoliciesOperator(
-        task_id='enable-alert-policies',
+        task_id="enable-alert-policies",
         filter_=f'(displayName="{ALERT_1_NAME}" OR displayName="{ALERT_2_NAME}")',
     )
     # [END howto_operator_gcp_stackdriver_enable_alert_policy]
 
     # [START howto_operator_gcp_stackdriver_disable_alert_policy]
     disable_alert_policy = StackdriverDisableAlertPoliciesOperator(
-        task_id='disable-alert-policies',
+        task_id="disable-alert-policies",
         filter_=f'displayName="{ALERT_1_NAME}"',
     )
     # [END howto_operator_gcp_stackdriver_disable_alert_policy]
 
     # [START howto_operator_gcp_stackdriver_list_alert_policy]
     list_alert_policies = StackdriverListAlertPoliciesOperator(
-        task_id='list-alert-policies',
+        task_id="list-alert-policies",
     )
     # [END howto_operator_gcp_stackdriver_list_alert_policy]
 
     # [START howto_operator_gcp_stackdriver_delete_notification_channel]
     delete_notification_channel = StackdriverDeleteNotificationChannelOperator(
-        task_id='delete-notification-channel',
+        task_id="delete-notification-channel",
         name="{{ task_instance.xcom_pull('list-notification-channel')[0]['name'] }}",
     )
     # [END howto_operator_gcp_stackdriver_delete_notification_channel]
     delete_notification_channel.trigger_rule = TriggerRule.ALL_DONE
 
     delete_notification_channel_2 = StackdriverDeleteNotificationChannelOperator(
-        task_id='delete-notification-channel-2',
+        task_id="delete-notification-channel-2",
         name="{{ task_instance.xcom_pull('list-notification-channel')[1]['name'] }}",
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
     # [START howto_operator_gcp_stackdriver_delete_alert_policy]
     delete_alert_policy = StackdriverDeleteAlertOperator(
-        task_id='delete-alert-policy',
+        task_id="delete-alert-policy",
         name="{{ task_instance.xcom_pull('list-alert-policies')[0]['name'] }}",
     )
     # [END howto_operator_gcp_stackdriver_delete_alert_policy]
     delete_alert_policy.trigger_rule = TriggerRule.ALL_DONE
 
     delete_alert_policy_2 = StackdriverDeleteAlertOperator(
-        task_id='delete-alert-policy-2',
+        task_id="delete-alert-policy-2",
         name="{{ task_instance.xcom_pull('list-alert-policies')[1]['name'] }}",
         trigger_rule=TriggerRule.ALL_DONE,
     )

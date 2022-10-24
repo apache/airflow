@@ -56,7 +56,7 @@ repo = ""
 issue_id = 0
 num_runs = 10
 
-url_pattern = re.compile(r'\[([^]]*)]\(([^)]*)\)')
+url_pattern = re.compile(r"\[([^]]*)]\(([^)]*)\)")
 
 status_map: dict[str, bool] = {
     ":heavy_check_mark:": True,
@@ -74,7 +74,7 @@ def get_url(result: TestResult) -> str:
 
 
 def parse_state_history(history_string: str) -> list[bool]:
-    history_array = history_string.split(' ')
+    history_array = history_string.split(" ")
     status_array: list[bool] = []
     for value in history_array:
         if value:
@@ -174,7 +174,7 @@ def get_table(history_map: dict[str, TestHistory]) -> str:
     return tabulate(the_table, headers, tablefmt="github")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Provide XML JUNIT FILE as first argument")
         sys.exit(1)
@@ -184,30 +184,30 @@ if __name__ == '__main__':
     y = BeautifulSoup(text, "html.parser")
     res = y.testsuites.testsuite.findAll("testcase")
     for test in res:
-        print("Parsing: " + test['classname'] + "::" + test['name'])
-        if len(test.contents) > 0 and test.contents[0].name == 'skipped':
+        print("Parsing: " + test["classname"] + "::" + test["name"])
+        if len(test.contents) > 0 and test.contents[0].name == "skipped":
             print(f"skipping {test['name']}")
             continue
         test_results.append(
             TestResult(
-                test_id=test['classname'] + "::" + test['name'],
-                file=test['file'],
-                line=test['line'],
-                name=test['name'],
-                classname=test['classname'],
+                test_id=test["classname"] + "::" + test["name"],
+                file=test["file"],
+                line=test["line"],
+                name=test["name"],
+                classname=test["classname"],
                 result=len(test.contents) == 0,
             )
         )
 
     token = os.environ.get("GITHUB_TOKEN")
     print(f"Token: {token}")
-    github_repository = os.environ.get('GITHUB_REPOSITORY')
+    github_repository = os.environ.get("GITHUB_REPOSITORY")
     if not github_repository:
         raise Exception("GitHub Repository must be defined!")
     user, repo = github_repository.split("/")
     print(f"User: {user}, Repo: {repo}")
-    issue_id = int(os.environ.get('ISSUE_ID', 0))
-    num_runs = int(os.environ.get('NUM_RUNS', 10))
+    issue_id = int(os.environ.get("ISSUE_ID", 0))
+    num_runs = int(os.environ.get("NUM_RUNS", 10))
 
     if issue_id == 0:
         raise Exception("You need to define ISSUE_ID as environment variable")
@@ -240,5 +240,5 @@ if __name__ == '__main__':
             DATE_UTC_NOW=datetime.utcnow()
         )
     quarantined_issue.edit(
-        title=None, body=header + "\n\n" + str(table), state='open' if len(test_results) > 0 else 'closed'
+        title=None, body=header + "\n\n" + str(table), state="open" if len(test_results) > 0 else "closed"
     )

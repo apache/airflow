@@ -33,23 +33,23 @@ from airflow.providers.google.cloud.hooks.pubsub import PubSubException, PubSubH
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.version import version
 
-BASE_STRING = 'airflow.providers.google.common.hooks.base_google.{}'
-PUBSUB_STRING = 'airflow.providers.google.cloud.hooks.pubsub.{}'
+BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
+PUBSUB_STRING = "airflow.providers.google.cloud.hooks.pubsub.{}"
 
-EMPTY_CONTENT = b''
-TEST_PROJECT = 'test-project'
-TEST_TOPIC = 'test-topic'
-TEST_SUBSCRIPTION = 'test-subscription'
-TEST_UUID = UUID('cf4a56d2-8101-4217-b027-2af6216feb48')
+EMPTY_CONTENT = b""
+TEST_PROJECT = "test-project"
+TEST_TOPIC = "test-topic"
+TEST_SUBSCRIPTION = "test-subscription"
+TEST_UUID = UUID("cf4a56d2-8101-4217-b027-2af6216feb48")
 TEST_MESSAGES = [
-    {'data': b'Hello, World!', 'attributes': {'type': 'greeting'}},
-    {'data': b'Knock, knock'},
-    {'attributes': {'foo': ''}},
+    {"data": b"Hello, World!", "attributes": {"type": "greeting"}},
+    {"data": b"Knock, knock"},
+    {"attributes": {"foo": ""}},
 ]
 
-EXPANDED_TOPIC = f'projects/{TEST_PROJECT}/topics/{TEST_TOPIC}'
-EXPANDED_SUBSCRIPTION = f'projects/{TEST_PROJECT}/subscriptions/{TEST_SUBSCRIPTION}'
-LABELS = {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')}
+EXPANDED_TOPIC = f"projects/{TEST_PROJECT}/topics/{TEST_TOPIC}"
+EXPANDED_SUBSCRIPTION = f"projects/{TEST_PROJECT}/subscriptions/{TEST_SUBSCRIPTION}"
+LABELS = {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
 
 
 def mock_init(
@@ -63,15 +63,15 @@ def mock_init(
 
 class TestPubSubHook(unittest.TestCase):
     def setUp(self):
-        with mock.patch(BASE_STRING.format('GoogleBaseHook.__init__'), new=mock_init):
-            self.pubsub_hook = PubSubHook(gcp_conn_id='test')
+        with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
+            self.pubsub_hook = PubSubHook(gcp_conn_id="test")
 
     def _generate_messages(self, count) -> list[ReceivedMessage]:
         return [
             ReceivedMessage(
                 ack_id=str(i),
                 message={
-                    "data": f'Message {i}'.encode(),
+                    "data": f"Message {i}".encode(),
                     "attributes": {"type": "generated message"},
                 },
             )
@@ -95,7 +95,7 @@ class TestPubSubHook(unittest.TestCase):
         mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
         assert mock_client.return_value == result
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.get_conn"))
     def test_create_nonexistent_topic(self, mock_service):
         create_method = mock_service.return_value.create_topic
         self.pubsub_hook.create_topic(project_id=TEST_PROJECT, topic=TEST_TOPIC)
@@ -106,7 +106,7 @@ class TestPubSubHook(unittest.TestCase):
             metadata=(),
         )
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.get_conn"))
     def test_delete_topic(self, mock_service):
         delete_method = mock_service.return_value.delete_topic
         self.pubsub_hook.delete_topic(project_id=TEST_PROJECT, topic=TEST_TOPIC)
@@ -114,49 +114,49 @@ class TestPubSubHook(unittest.TestCase):
             request=dict(topic=EXPANDED_TOPIC), retry=DEFAULT, timeout=None, metadata=()
         )
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.get_conn"))
     def test_delete_nonexisting_topic_failifnotexists(self, mock_service):
         mock_service.return_value.delete_topic.side_effect = NotFound(
-            f'Topic does not exists: {EXPANDED_TOPIC}'
+            f"Topic does not exists: {EXPANDED_TOPIC}"
         )
         with pytest.raises(PubSubException) as ctx:
             self.pubsub_hook.delete_topic(project_id=TEST_PROJECT, topic=TEST_TOPIC, fail_if_not_exists=True)
 
-        assert str(ctx.value) == f'Topic does not exist: {EXPANDED_TOPIC}'
+        assert str(ctx.value) == f"Topic does not exist: {EXPANDED_TOPIC}"
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.get_conn"))
     def test_delete_topic_api_call_error(self, mock_service):
         mock_service.return_value.delete_topic.side_effect = GoogleAPICallError(
-            f'Error deleting topic: {EXPANDED_TOPIC}'
+            f"Error deleting topic: {EXPANDED_TOPIC}"
         )
         with pytest.raises(PubSubException):
             self.pubsub_hook.delete_topic(project_id=TEST_PROJECT, topic=TEST_TOPIC, fail_if_not_exists=True)
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.get_conn"))
     def test_create_preexisting_topic_failifexists(self, mock_service):
         mock_service.return_value.create_topic.side_effect = AlreadyExists(
-            f'Topic already exists: {TEST_TOPIC}'
+            f"Topic already exists: {TEST_TOPIC}"
         )
         with pytest.raises(PubSubException) as ctx:
             self.pubsub_hook.create_topic(project_id=TEST_PROJECT, topic=TEST_TOPIC, fail_if_exists=True)
-        assert str(ctx.value) == f'Topic already exists: {TEST_TOPIC}'
+        assert str(ctx.value) == f"Topic already exists: {TEST_TOPIC}"
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.get_conn"))
     def test_create_preexisting_topic_nofailifexists(self, mock_service):
         mock_service.return_value.create_topic.side_effect = AlreadyExists(
-            f'Topic already exists: {EXPANDED_TOPIC}'
+            f"Topic already exists: {EXPANDED_TOPIC}"
         )
         self.pubsub_hook.create_topic(project_id=TEST_PROJECT, topic=TEST_TOPIC)
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.get_conn"))
     def test_create_topic_api_call_error(self, mock_service):
         mock_service.return_value.create_topic.side_effect = GoogleAPICallError(
-            f'Error creating topic: {TEST_TOPIC}'
+            f"Error creating topic: {TEST_TOPIC}"
         )
         with pytest.raises(PubSubException):
             self.pubsub_hook.create_topic(project_id=TEST_PROJECT, topic=TEST_TOPIC, fail_if_exists=True)
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_create_nonexistent_subscription(self, mock_service):
         create_method = mock_service.create_subscription
 
@@ -184,16 +184,16 @@ class TestPubSubHook(unittest.TestCase):
         )
         assert TEST_SUBSCRIPTION == response
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_create_subscription_different_project_topic(self, mock_service):
         create_method = mock_service.create_subscription
         response = self.pubsub_hook.create_subscription(
             project_id=TEST_PROJECT,
             topic=TEST_TOPIC,
             subscription=TEST_SUBSCRIPTION,
-            subscription_project_id='a-different-project',
+            subscription_project_id="a-different-project",
         )
-        expected_subscription = f'projects/a-different-project/subscriptions/{TEST_SUBSCRIPTION}'
+        expected_subscription = f"projects/a-different-project/subscriptions/{TEST_SUBSCRIPTION}"
         create_method.assert_called_once_with(
             request=dict(
                 name=expected_subscription,
@@ -216,7 +216,7 @@ class TestPubSubHook(unittest.TestCase):
 
         assert TEST_SUBSCRIPTION == response
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_delete_subscription(self, mock_service):
         self.pubsub_hook.delete_subscription(project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION)
         delete_method = mock_service.delete_subscription
@@ -224,32 +224,32 @@ class TestPubSubHook(unittest.TestCase):
             request=dict(subscription=EXPANDED_SUBSCRIPTION), retry=DEFAULT, timeout=None, metadata=()
         )
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_delete_nonexisting_subscription_failifnotexists(self, mock_service):
         mock_service.delete_subscription.side_effect = NotFound(
-            f'Subscription does not exists: {EXPANDED_SUBSCRIPTION}'
+            f"Subscription does not exists: {EXPANDED_SUBSCRIPTION}"
         )
         with pytest.raises(PubSubException) as ctx:
             self.pubsub_hook.delete_subscription(
                 project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, fail_if_not_exists=True
             )
-        assert str(ctx.value) == f'Subscription does not exist: {EXPANDED_SUBSCRIPTION}'
+        assert str(ctx.value) == f"Subscription does not exist: {EXPANDED_SUBSCRIPTION}"
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_delete_subscription_api_call_error(self, mock_service):
         mock_service.delete_subscription.side_effect = GoogleAPICallError(
-            f'Error deleting subscription {EXPANDED_SUBSCRIPTION}'
+            f"Error deleting subscription {EXPANDED_SUBSCRIPTION}"
         )
         with pytest.raises(PubSubException):
             self.pubsub_hook.delete_subscription(
                 project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, fail_if_not_exists=True
             )
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
-    @mock.patch(PUBSUB_STRING.format('uuid4'), new_callable=mock.Mock(return_value=lambda: TEST_UUID))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
+    @mock.patch(PUBSUB_STRING.format("uuid4"), new_callable=mock.Mock(return_value=lambda: TEST_UUID))
     def test_create_subscription_without_subscription_name(self, mock_uuid, mock_service):
         create_method = mock_service.create_subscription
-        expected_name = EXPANDED_SUBSCRIPTION.replace(TEST_SUBSCRIPTION, f'sub-{TEST_UUID}')
+        expected_name = EXPANDED_SUBSCRIPTION.replace(TEST_SUBSCRIPTION, f"sub-{TEST_UUID}")
 
         response = self.pubsub_hook.create_subscription(project_id=TEST_PROJECT, topic=TEST_TOPIC)
         create_method.assert_called_once_with(
@@ -271,9 +271,9 @@ class TestPubSubHook(unittest.TestCase):
             timeout=None,
             metadata=(),
         )
-        assert f'sub-{TEST_UUID}' == response
+        assert f"sub-{TEST_UUID}" == response
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_create_subscription_with_ack_deadline(self, mock_service):
         create_method = mock_service.create_subscription
 
@@ -301,7 +301,7 @@ class TestPubSubHook(unittest.TestCase):
         )
         assert TEST_SUBSCRIPTION == response
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_create_subscription_with_filter(self, mock_service):
         create_method = mock_service.create_subscription
 
@@ -332,64 +332,64 @@ class TestPubSubHook(unittest.TestCase):
         )
         assert TEST_SUBSCRIPTION == response
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_create_subscription_failifexists(self, mock_service):
         mock_service.create_subscription.side_effect = AlreadyExists(
-            f'Subscription already exists: {EXPANDED_SUBSCRIPTION}'
+            f"Subscription already exists: {EXPANDED_SUBSCRIPTION}"
         )
         with pytest.raises(PubSubException) as ctx:
             self.pubsub_hook.create_subscription(
                 project_id=TEST_PROJECT, topic=TEST_TOPIC, subscription=TEST_SUBSCRIPTION, fail_if_exists=True
             )
-        assert str(ctx.value) == f'Subscription already exists: {EXPANDED_SUBSCRIPTION}'
+        assert str(ctx.value) == f"Subscription already exists: {EXPANDED_SUBSCRIPTION}"
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_create_subscription_api_call_error(self, mock_service):
         mock_service.create_subscription.side_effect = GoogleAPICallError(
-            f'Error creating subscription {EXPANDED_SUBSCRIPTION}'
+            f"Error creating subscription {EXPANDED_SUBSCRIPTION}"
         )
         with pytest.raises(PubSubException):
             self.pubsub_hook.create_subscription(
                 project_id=TEST_PROJECT, topic=TEST_TOPIC, subscription=TEST_SUBSCRIPTION, fail_if_exists=True
             )
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_create_subscription_nofailifexists(self, mock_service):
         mock_service.create_subscription.side_effect = AlreadyExists(
-            f'Subscription already exists: {EXPANDED_SUBSCRIPTION}'
+            f"Subscription already exists: {EXPANDED_SUBSCRIPTION}"
         )
         response = self.pubsub_hook.create_subscription(
             project_id=TEST_PROJECT, topic=TEST_TOPIC, subscription=TEST_SUBSCRIPTION
         )
         assert TEST_SUBSCRIPTION == response
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.get_conn"))
     def test_publish(self, mock_service):
         publish_method = mock_service.return_value.publish
 
         self.pubsub_hook.publish(project_id=TEST_PROJECT, topic=TEST_TOPIC, messages=TEST_MESSAGES)
         calls = [
-            mock.call(topic=EXPANDED_TOPIC, data=message.get("data", b''), **message.get('attributes', {}))
+            mock.call(topic=EXPANDED_TOPIC, data=message.get("data", b""), **message.get("attributes", {}))
             for message in TEST_MESSAGES
         ]
         mock_calls_result = publish_method.mock_calls
         result_refined = [mock_calls_result[0], mock_calls_result[2], mock_calls_result[4]]
         assert result_refined == calls
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.get_conn"))
     def test_publish_api_call_error(self, mock_service):
         publish_method = mock_service.return_value.publish
-        publish_method.side_effect = GoogleAPICallError(f'Error publishing to topic {EXPANDED_SUBSCRIPTION}')
+        publish_method.side_effect = GoogleAPICallError(f"Error publishing to topic {EXPANDED_SUBSCRIPTION}")
 
         with pytest.raises(PubSubException):
             self.pubsub_hook.publish(project_id=TEST_PROJECT, topic=TEST_TOPIC, messages=TEST_MESSAGES)
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_pull(self, mock_service):
         pull_method = mock_service.pull
         pulled_messages = []
         for i, msg in enumerate(TEST_MESSAGES):
-            pulled_messages.append({'ackId': i, 'message': msg})
+            pulled_messages.append({"ackId": i, "message": msg})
         pull_method.return_value.received_messages = pulled_messages
 
         response = self.pubsub_hook.pull(
@@ -407,7 +407,7 @@ class TestPubSubHook(unittest.TestCase):
         )
         assert pulled_messages == response
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_pull_no_messages(self, mock_service):
         pull_method = mock_service.pull
         pull_method.return_value.received_messages = []
@@ -431,12 +431,12 @@ class TestPubSubHook(unittest.TestCase):
         [
             (exception,)
             for exception in [
-                HttpError(resp={'status': '404'}, content=EMPTY_CONTENT),
+                HttpError(resp={"status": "404"}, content=EMPTY_CONTENT),
                 GoogleAPICallError("API Call Error"),
             ]
         ]
     )
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_pull_fails_on_exception(self, exception, mock_service):
         pull_method = mock_service.pull
         pull_method.side_effect = exception
@@ -454,24 +454,24 @@ class TestPubSubHook(unittest.TestCase):
                 metadata=(),
             )
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_acknowledge_by_ack_ids(self, mock_service):
         ack_method = mock_service.acknowledge
 
         self.pubsub_hook.acknowledge(
-            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, ack_ids=['1', '2', '3']
+            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, ack_ids=["1", "2", "3"]
         )
         ack_method.assert_called_once_with(
             request=dict(
                 subscription=EXPANDED_SUBSCRIPTION,
-                ack_ids=['1', '2', '3'],
+                ack_ids=["1", "2", "3"],
             ),
             retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
 
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_acknowledge_by_message_objects(self, mock_service):
         ack_method = mock_service.acknowledge
 
@@ -483,7 +483,7 @@ class TestPubSubHook(unittest.TestCase):
         ack_method.assert_called_once_with(
             request=dict(
                 subscription=EXPANDED_SUBSCRIPTION,
-                ack_ids=['1', '2', '3'],
+                ack_ids=["1", "2", "3"],
             ),
             retry=DEFAULT,
             timeout=None,
@@ -494,24 +494,24 @@ class TestPubSubHook(unittest.TestCase):
         [
             (exception,)
             for exception in [
-                HttpError(resp={'status': '404'}, content=EMPTY_CONTENT),
+                HttpError(resp={"status": "404"}, content=EMPTY_CONTENT),
                 GoogleAPICallError("API Call Error"),
             ]
         ]
     )
-    @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_acknowledge_fails_on_exception(self, exception, mock_service):
         ack_method = mock_service.acknowledge
         ack_method.side_effect = exception
 
         with pytest.raises(PubSubException):
             self.pubsub_hook.acknowledge(
-                project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, ack_ids=['1', '2', '3']
+                project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, ack_ids=["1", "2", "3"]
             )
             ack_method.assert_called_once_with(
                 request=dict(
                     subscription=EXPANDED_SUBSCRIPTION,
-                    ack_ids=['1', '2', '3'],
+                    ack_ids=["1", "2", "3"],
                 ),
                 retry=DEFAULT,
                 timeout=None,
@@ -522,10 +522,10 @@ class TestPubSubHook(unittest.TestCase):
         [
             (messages,)
             for messages in [
-                [{"data": b'test'}],
-                [{"data": b''}],
-                [{"data": b'test', "attributes": {"weight": "100kg"}}],
-                [{"data": b'', "attributes": {"weight": "100kg"}}],
+                [{"data": b"test"}],
+                [{"data": b""}],
+                [{"data": b"test", "attributes": {"weight": "100kg"}}],
+                [{"data": b"", "attributes": {"weight": "100kg"}}],
                 [{"attributes": {"weight": "100kg"}}],
             ]
         ]
@@ -536,8 +536,8 @@ class TestPubSubHook(unittest.TestCase):
     @parameterized.expand(
         [
             ([("wrong type",)], "Wrong message type. Must be a dictionary."),
-            ([{"wrong_key": b'test'}], "Wrong message. Dictionary must contain 'data' or 'attributes'."),
-            ([{"data": 'wrong string'}], "Wrong message. 'data' must be send as a bytestring"),
+            ([{"wrong_key": b"test"}], "Wrong message. Dictionary must contain 'data' or 'attributes'."),
+            ([{"data": "wrong string"}], "Wrong message. 'data' must be send as a bytestring"),
             ([{"data": None}], "Wrong message. 'data' must be send as a bytestring"),
             (
                 [{"attributes": None}],

@@ -105,8 +105,8 @@ def get_releases_and_upload_times(package, min_date, current_version, tz) -> lis
 
     package_info = json.loads(requests.get(f"https://pypi.python.org/pypi/{package}/json").text)
     releases: list[tuple[Any, Any]] = []
-    for release_version, release_info in package_info['releases'].items():
-        if release_info and not release_info[0]['yanked']:
+    for release_version, release_info in package_info["releases"].items():
+        if release_info and not release_info[0]["yanked"]:
             parsed_version = version.parse(release_version)
             if (
                 parsed_version.is_prerelease
@@ -114,7 +114,7 @@ def get_releases_and_upload_times(package, min_date, current_version, tz) -> lis
                 or parsed_version == current_version
             ):
                 continue
-            upload_date = tz.convert(isoparse(release_info[0]['upload_time_iso_8601'])).replace(microsecond=0)
+            upload_date = tz.convert(isoparse(release_info[0]["upload_time_iso_8601"])).replace(microsecond=0)
             if upload_date >= min_date:
                 releases.append((parsed_version, upload_date))
     return releases

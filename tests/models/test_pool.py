@@ -50,7 +50,7 @@ class TestPool:
     def add_pools(self):
         self.pools = [Pool.get_default_pool()]
         for i in range(self.USER_POOL_COUNT):
-            name = f'experimental_{i + 1}'
+            name = f"experimental_{i + 1}"
             pool = Pool(
                 pool=name,
                 slots=i,
@@ -64,13 +64,13 @@ class TestPool:
         self.clean_db()
 
     def test_open_slots(self, dag_maker):
-        pool = Pool(pool='test_pool', slots=5)
+        pool = Pool(pool="test_pool", slots=5)
         with dag_maker(
-            dag_id='test_open_slots',
+            dag_id="test_open_slots",
             start_date=DEFAULT_DATE,
         ):
-            op1 = EmptyOperator(task_id='dummy1', pool='test_pool')
-            op2 = EmptyOperator(task_id='dummy2', pool='test_pool')
+            op1 = EmptyOperator(task_id="dummy1", pool="test_pool")
+            op2 = EmptyOperator(task_id="dummy2", pool="test_pool")
         dag_maker.create_dagrun()
         ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
         ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
@@ -104,12 +104,12 @@ class TestPool:
         } == pool.slots_stats()
 
     def test_infinite_slots(self, dag_maker):
-        pool = Pool(pool='test_pool', slots=-1)
+        pool = Pool(pool="test_pool", slots=-1)
         with dag_maker(
-            dag_id='test_infinite_slots',
+            dag_id="test_infinite_slots",
         ):
-            op1 = EmptyOperator(task_id='dummy1', pool='test_pool')
-            op2 = EmptyOperator(task_id='dummy2', pool='test_pool')
+            op1 = EmptyOperator(task_id="dummy1", pool="test_pool")
+            op2 = EmptyOperator(task_id="dummy2", pool="test_pool")
         dag_maker.create_dagrun()
         ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
         ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
@@ -123,7 +123,7 @@ class TestPool:
         session.commit()
         session.close()
 
-        assert float('inf') == pool.open_slots()
+        assert float("inf") == pool.open_slots()
         assert 1 == pool.running_slots()
         assert 1 == pool.queued_slots()
         assert 2 == pool.occupied_slots()
@@ -135,10 +135,10 @@ class TestPool:
                 "running": 0,
             },
             "test_pool": {
-                "open": float('inf'),
+                "open": float("inf"),
                 "queued": 1,
                 "running": 1,
-                "total": float('inf'),
+                "total": float("inf"),
             },
         } == pool.slots_stats()
 
@@ -147,10 +147,10 @@ class TestPool:
         assert 5 == Pool.get_default_pool().open_slots()
 
         with dag_maker(
-            dag_id='test_default_pool_open_slots',
+            dag_id="test_default_pool_open_slots",
         ):
-            op1 = EmptyOperator(task_id='dummy1')
-            op2 = EmptyOperator(task_id='dummy2', pool_slots=2)
+            op1 = EmptyOperator(task_id="dummy1")
+            op2 = EmptyOperator(task_id="dummy2", pool_slots=2)
         dag_maker.create_dagrun()
         ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
         ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
@@ -180,10 +180,10 @@ class TestPool:
 
     def test_get_pool_non_existing(self):
         self.add_pools()
-        assert not Pool.get_pool(pool_name='test')
+        assert not Pool.get_pool(pool_name="test")
 
     def test_get_pool_bad_name(self):
-        for name in ('', '    '):
+        for name in ("", "    "):
             assert not Pool.get_pool(pool_name=name)
 
     def test_get_pools(self):
@@ -194,18 +194,18 @@ class TestPool:
 
     def test_create_pool(self, session):
         self.add_pools()
-        pool = Pool.create_or_update_pool(name='foo', slots=5, description='')
-        assert pool.pool == 'foo'
+        pool = Pool.create_or_update_pool(name="foo", slots=5, description="")
+        assert pool.pool == "foo"
         assert pool.slots == 5
-        assert pool.description == ''
+        assert pool.description == ""
         assert session.query(Pool).count() == self.TOTAL_POOL_COUNT + 1
 
     def test_create_pool_existing(self, session):
         self.add_pools()
-        pool = Pool.create_or_update_pool(name=self.pools[0].pool, slots=5, description='')
+        pool = Pool.create_or_update_pool(name=self.pools[0].pool, slots=5, description="")
         assert pool.pool == self.pools[0].pool
         assert pool.slots == 5
-        assert pool.description == ''
+        assert pool.description == ""
         assert session.query(Pool).count() == self.TOTAL_POOL_COUNT
 
     def test_delete_pool(self, session):
@@ -216,7 +216,7 @@ class TestPool:
 
     def test_delete_pool_non_existing(self):
         with pytest.raises(PoolNotFound, match="^Pool 'test' doesn't exist$"):
-            Pool.delete_pool(name='test')
+            Pool.delete_pool(name="test")
 
     def test_delete_default_pool_not_allowed(self):
         with pytest.raises(AirflowException, match="^default_pool cannot be deleted$"):

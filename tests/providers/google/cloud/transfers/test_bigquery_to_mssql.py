@@ -22,20 +22,20 @@ from unittest import mock
 
 from airflow.providers.google.cloud.transfers.bigquery_to_mssql import BigQueryToMsSqlOperator
 
-TASK_ID = 'test-bq-create-table-operator'
-TEST_PROJECT_ID = 'test-project'
-TEST_DATASET = 'test-dataset'
-TEST_TABLE_ID = 'test-table-id'
-TEST_DAG_ID = 'test-bigquery-operators'
+TASK_ID = "test-bq-create-table-operator"
+TEST_PROJECT_ID = "test-project"
+TEST_DATASET = "test-dataset"
+TEST_TABLE_ID = "test-table-id"
+TEST_DAG_ID = "test-bigquery-operators"
 
 
 class TestBigQueryToMsSqlOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.google.cloud.transfers.bigquery_to_mssql.BigQueryHook')
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_mssql.BigQueryHook")
     def test_execute_good_request_to_bq(self, mock_hook):
-        destination_table = 'table'
+        destination_table = "table"
         operator = BigQueryToMsSqlOperator(
             task_id=TASK_ID,
-            source_project_dataset_table=f'{TEST_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}',
+            source_project_dataset_table=f"{TEST_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}",
             mssql_table=destination_table,
             replace=False,
         )

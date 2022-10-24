@@ -33,7 +33,7 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 
 TI = TaskInstance(
-    task=BashOperator(task_id="test", bash_command="true", dag=DAG(dag_id='id'), start_date=datetime.now()),
+    task=BashOperator(task_id="test", bash_command="true", dag=DAG(dag_id="id"), start_date=datetime.now()),
     run_id="fake_run",
     state=State.RUNNING,
 )
@@ -47,7 +47,7 @@ class TestCallbackRequest:
                 TaskCallbackRequest(
                     full_filepath="filepath",
                     simple_task_instance=SimpleTaskInstance.from_ti(ti=TI),
-                    processor_subdir='/test_dir',
+                    processor_subdir="/test_dir",
                     is_failure_callback=True,
                 ),
                 TaskCallbackRequest,
@@ -57,7 +57,7 @@ class TestCallbackRequest:
                     full_filepath="filepath",
                     dag_id="fake_dag",
                     run_id="fake_run",
-                    processor_subdir='/test_dir',
+                    processor_subdir="/test_dir",
                     is_failure_callback=False,
                 ),
                 DagCallbackRequest,
@@ -66,7 +66,7 @@ class TestCallbackRequest:
                 SlaCallbackRequest(
                     full_filepath="filepath",
                     dag_id="fake_dag",
-                    processor_subdir='/test_dir',
+                    processor_subdir="/test_dir",
                 ),
                 SlaCallbackRequest,
             ),
@@ -86,7 +86,7 @@ class TestCallbackRequest:
         input = TaskCallbackRequest(
             full_filepath="filepath",
             simple_task_instance=SimpleTaskInstance.from_ti(ti),
-            processor_subdir='/test_dir',
+            processor_subdir="/test_dir",
             is_failure_callback=True,
         )
         json_str = input.to_json()

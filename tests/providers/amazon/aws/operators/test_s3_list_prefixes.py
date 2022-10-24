@@ -22,15 +22,15 @@ from unittest import mock
 
 from airflow.providers.amazon.aws.operators.s3 import S3ListPrefixesOperator
 
-TASK_ID = 'test-s3-list-prefixes-operator'
-BUCKET = 'test-bucket'
-DELIMITER = '/'
-PREFIX = 'test/'
-MOCK_SUBFOLDERS = ['test/']
+TASK_ID = "test-s3-list-prefixes-operator"
+BUCKET = "test-bucket"
+DELIMITER = "/"
+PREFIX = "test/"
+MOCK_SUBFOLDERS = ["test/"]
 
 
 class TestS3ListOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.amazon.aws.operators.s3.S3Hook')
+    @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
     def test_execute(self, mock_hook):
 
         mock_hook.return_value.list_prefixes.return_value = MOCK_SUBFOLDERS

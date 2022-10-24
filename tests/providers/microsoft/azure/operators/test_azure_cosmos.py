@@ -32,41 +32,41 @@ class TestAzureCosmosDbHook(unittest.TestCase):
     # Set up an environment to test with
     def setUp(self):
         # set up some test variables
-        self.test_end_point = 'https://test_endpoint:443'
-        self.test_master_key = 'magic_test_key'
-        self.test_database_name = 'test_database_name'
-        self.test_collection_name = 'test_collection_name'
+        self.test_end_point = "https://test_endpoint:443"
+        self.test_master_key = "magic_test_key"
+        self.test_database_name = "test_database_name"
+        self.test_collection_name = "test_collection_name"
         db.merge_conn(
             Connection(
-                conn_id='azure_cosmos_test_key_id',
-                conn_type='azure_cosmos',
+                conn_id="azure_cosmos_test_key_id",
+                conn_type="azure_cosmos",
                 login=self.test_end_point,
                 password=self.test_master_key,
                 extra=json.dumps(
-                    {'database_name': self.test_database_name, 'collection_name': self.test_collection_name}
+                    {"database_name": self.test_database_name, "collection_name": self.test_collection_name}
                 ),
             )
         )
 
-    @mock.patch('airflow.providers.microsoft.azure.hooks.cosmos.CosmosClient')
+    @mock.patch("airflow.providers.microsoft.azure.hooks.cosmos.CosmosClient")
     def test_insert_document(self, cosmos_mock):
         test_id = str(uuid.uuid4())
-        cosmos_mock.return_value.CreateItem.return_value = {'id': test_id}
+        cosmos_mock.return_value.CreateItem.return_value = {"id": test_id}
         op = AzureCosmosInsertDocumentOperator(
             database_name=self.test_database_name,
             collection_name=self.test_collection_name,
-            document={'id': test_id, 'data': 'sometestdata'},
-            azure_cosmos_conn_id='azure_cosmos_test_key_id',
-            task_id='azure_cosmos_sensor',
+            document={"id": test_id, "data": "sometestdata"},
+            azure_cosmos_conn_id="azure_cosmos_test_key_id",
+            task_id="azure_cosmos_sensor",
         )
 
         expected_calls = [
             mock.call()
-            .get_database_client('test_database_name')
-            .get_container_client('test_collection_name')
-            .upsert_item({'data': 'sometestdata', 'id': test_id})
+            .get_database_client("test_database_name")
+            .get_container_client("test_collection_name")
+            .upsert_item({"data": "sometestdata", "id": test_id})
         ]
 
         op.execute(None)
-        cosmos_mock.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
+        cosmos_mock.assert_any_call(self.test_end_point, {"masterKey": self.test_master_key})
         cosmos_mock.assert_has_calls(expected_calls)

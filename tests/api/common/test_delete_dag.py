@@ -54,7 +54,7 @@ class TestDeleteDAGErrorsOnRunningTI:
         clear_db_runs()
 
     def test_delete_dag_running_taskinstances(self, session, create_task_instance):
-        dag_id = 'test-dag'
+        dag_id = "test-dag"
         ti = create_task_instance(dag_id=dag_id, session=session)
 
         ti.state = State.RUNNING
@@ -72,9 +72,9 @@ class TestDeleteDAGSuccessfulDelete:
             self.key = "test_dag_id.test_subdag"
 
         task = EmptyOperator(
-            task_id='dummy',
-            dag=models.DAG(dag_id=self.key, default_args={'start_date': timezone.datetime(2022, 1, 1)}),
-            owner='airflow',
+            task_id="dummy",
+            dag=models.DAG(dag_id=self.key, default_args={"start_date": timezone.datetime(2022, 1, 1)}),
+            owner="airflow",
         )
 
         test_date = timezone.datetime(2022, 1, 1)

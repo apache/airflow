@@ -33,33 +33,33 @@ from airflow.providers.amazon.aws.operators.rds import (
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-DAG_ID = 'example_rds_event'
+DAG_ID = "example_rds_event"
 
 sys_test_context_task = SystemTestContextBuilder().build()
 
 
 @task
 def create_sns_topic(env_id) -> str:
-    return boto3.client('sns').create_topic(Name=f'{env_id}-topic')['TopicArn']
+    return boto3.client("sns").create_topic(Name=f"{env_id}-topic")["TopicArn"]
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_sns_topic(topic_arn) -> None:
-    boto3.client('sns').delete_topic(TopicArn=topic_arn)
+    boto3.client("sns").delete_topic(TopicArn=topic_arn)
 
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
 
-    rds_db_name = f'{test_context[ENV_ID_KEY]}_db'
-    rds_instance_name = f'{test_context[ENV_ID_KEY]}-instance'
-    rds_subscription_name = f'{test_context[ENV_ID_KEY]}-subscription'
+    rds_db_name = f"{test_context[ENV_ID_KEY]}_db"
+    rds_instance_name = f"{test_context[ENV_ID_KEY]}-instance"
+    rds_subscription_name = f"{test_context[ENV_ID_KEY]}-subscription"
 
     sns_topic = create_sns_topic(test_context[ENV_ID_KEY])
 
@@ -80,18 +80,18 @@ with DAG(
 
     # [START howto_operator_rds_create_event_subscription]
     create_subscription = RdsCreateEventSubscriptionOperator(
-        task_id='create_subscription',
+        task_id="create_subscription",
         subscription_name=rds_subscription_name,
         sns_topic_arn=sns_topic,
-        source_type='db-instance',
+        source_type="db-instance",
         source_ids=[rds_instance_name],
-        event_categories=['availability'],
+        event_categories=["availability"],
     )
     # [END howto_operator_rds_create_event_subscription]
 
     # [START howto_operator_rds_delete_event_subscription]
     delete_subscription = RdsDeleteEventSubscriptionOperator(
-        task_id='delete_subscription',
+        task_id="delete_subscription",
         subscription_name=rds_subscription_name,
     )
     # [END howto_operator_rds_delete_event_subscription]

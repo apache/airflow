@@ -34,10 +34,10 @@ from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
-ADD_STEPS_SUCCESS_RETURN = {'ResponseMetadata': {'HTTPStatusCode': 200}, 'StepIds': ['s-2LH3R5GW3A53T']}
+ADD_STEPS_SUCCESS_RETURN = {"ResponseMetadata": {"HTTPStatusCode": 200}, "StepIds": ["s-2LH3R5GW3A53T"]}
 
 TEMPLATE_SEARCHPATH = os.path.join(
-    AIRFLOW_MAIN_FOLDER, 'tests', 'providers', 'amazon', 'aws', 'config_templates'
+    AIRFLOW_MAIN_FOLDER, "tests", "providers", "amazon", "aws", "config_templates"
 )
 
 
@@ -45,17 +45,17 @@ class TestEmrAddStepsOperator(unittest.TestCase):
     # When
     _config = [
         {
-            'Name': 'test_step',
-            'ActionOnFailure': 'CONTINUE',
-            'HadoopJarStep': {
-                'Jar': 'command-runner.jar',
-                'Args': ['/usr/lib/spark/bin/run-example', '{{ macros.ds_add(ds, -1) }}', '{{ ds }}'],
+            "Name": "test_step",
+            "ActionOnFailure": "CONTINUE",
+            "HadoopJarStep": {
+                "Jar": "command-runner.jar",
+                "Args": ["/usr/lib/spark/bin/run-example", "{{ macros.ds_add(ds, -1) }}", "{{ ds }}"],
             },
         }
     ]
 
     def setUp(self):
-        self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
         # Mock out the emr_client (moto has incorrect response)
         self.emr_client_mock = MagicMock()
@@ -68,16 +68,16 @@ class TestEmrAddStepsOperator(unittest.TestCase):
         self.mock_context = MagicMock()
 
         self.operator = EmrAddStepsOperator(
-            task_id='test_task',
-            job_flow_id='j-8989898989',
-            aws_conn_id='aws_default',
+            task_id="test_task",
+            job_flow_id="j-8989898989",
+            aws_conn_id="aws_default",
             steps=self._config,
-            dag=DAG('test_dag_id', default_args=self.args),
+            dag=DAG("test_dag_id", default_args=self.args),
         )
 
     def test_init(self):
-        assert self.operator.job_flow_id == 'j-8989898989'
-        assert self.operator.aws_conn_id == 'aws_default'
+        assert self.operator.job_flow_id == "j-8989898989"
+        assert self.operator.aws_conn_id == "aws_default"
 
     def test_render_template(self):
         dag_run = DagRun(dag_id=self.operator.dag.dag_id, execution_date=DEFAULT_DATE, run_id="test")
@@ -87,12 +87,12 @@ class TestEmrAddStepsOperator(unittest.TestCase):
 
         expected_args = [
             {
-                'Name': 'test_step',
-                'ActionOnFailure': 'CONTINUE',
-                'HadoopJarStep': {
-                    'Jar': 'command-runner.jar',
-                    'Args': [
-                        '/usr/lib/spark/bin/run-example',
+                "Name": "test_step",
+                "ActionOnFailure": "CONTINUE",
+                "HadoopJarStep": {
+                    "Jar": "command-runner.jar",
+                    "Args": [
+                        "/usr/lib/spark/bin/run-example",
                         (DEFAULT_DATE - timedelta(days=1)).strftime("%Y-%m-%d"),
                         DEFAULT_DATE.strftime("%Y-%m-%d"),
                     ],
@@ -104,7 +104,7 @@ class TestEmrAddStepsOperator(unittest.TestCase):
 
     def test_render_template_from_file(self):
         dag = DAG(
-            dag_id='test_file',
+            dag_id="test_file",
             default_args=self.args,
             template_searchpath=TEMPLATE_SEARCHPATH,
             template_undefined=StrictUndefined,
@@ -112,19 +112,19 @@ class TestEmrAddStepsOperator(unittest.TestCase):
 
         file_steps = [
             {
-                'Name': 'test_step1',
-                'ActionOnFailure': 'CONTINUE',
-                'HadoopJarStep': {'Jar': 'command-runner.jar', 'Args': ['/usr/lib/spark/bin/run-example1']},
+                "Name": "test_step1",
+                "ActionOnFailure": "CONTINUE",
+                "HadoopJarStep": {"Jar": "command-runner.jar", "Args": ["/usr/lib/spark/bin/run-example1"]},
             }
         ]
 
         self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
         test_task = EmrAddStepsOperator(
-            task_id='test_task',
-            job_flow_id='j-8989898989',
-            aws_conn_id='aws_default',
-            steps='steps.j2.json',
+            task_id="test_task",
+            job_flow_id="j-8989898989",
+            aws_conn_id="aws_default",
+            steps="steps.j2.json",
             dag=dag,
             do_xcom_push=False,
         )
@@ -136,59 +136,59 @@ class TestEmrAddStepsOperator(unittest.TestCase):
         assert json.loads(test_task.steps) == file_steps
 
         # String in job_flow_overrides (i.e. from loaded as a file) is not "parsed" until inside execute()
-        with patch('boto3.session.Session', self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock):
             test_task.execute(None)
 
         self.emr_client_mock.add_job_flow_steps.assert_called_once_with(
-            JobFlowId='j-8989898989', Steps=file_steps
+            JobFlowId="j-8989898989", Steps=file_steps
         )
 
     def test_execute_returns_step_id(self):
         self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
-        with patch('boto3.session.Session', self.boto3_session_mock):
-            assert self.operator.execute(self.mock_context) == ['s-2LH3R5GW3A53T']
+        with patch("boto3.session.Session", self.boto3_session_mock):
+            assert self.operator.execute(self.mock_context) == ["s-2LH3R5GW3A53T"]
 
     def test_init_with_cluster_name(self):
-        expected_job_flow_id = 'j-1231231234'
+        expected_job_flow_id = "j-1231231234"
 
         self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
-        with patch('boto3.session.Session', self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock):
             with patch(
-                'airflow.providers.amazon.aws.hooks.emr.EmrHook.get_cluster_id_by_name'
+                "airflow.providers.amazon.aws.hooks.emr.EmrHook.get_cluster_id_by_name"
             ) as mock_get_cluster_id_by_name:
                 mock_get_cluster_id_by_name.return_value = expected_job_flow_id
 
                 operator = EmrAddStepsOperator(
-                    task_id='test_task',
-                    job_flow_name='test_cluster',
-                    cluster_states=['RUNNING', 'WAITING'],
-                    aws_conn_id='aws_default',
-                    dag=DAG('test_dag_id', default_args=self.args),
+                    task_id="test_task",
+                    job_flow_name="test_cluster",
+                    cluster_states=["RUNNING", "WAITING"],
+                    aws_conn_id="aws_default",
+                    dag=DAG("test_dag_id", default_args=self.args),
                 )
 
                 operator.execute(self.mock_context)
 
-        ti = self.mock_context['ti']
-        ti.assert_has_calls(calls=[call.xcom_push(key='job_flow_id', value=expected_job_flow_id)])
+        ti = self.mock_context["ti"]
+        ti.assert_has_calls(calls=[call.xcom_push(key="job_flow_id", value=expected_job_flow_id)])
 
     def test_init_with_nonexistent_cluster_name(self):
-        cluster_name = 'test_cluster'
+        cluster_name = "test_cluster"
 
         with patch(
-            'airflow.providers.amazon.aws.hooks.emr.EmrHook.get_cluster_id_by_name'
+            "airflow.providers.amazon.aws.hooks.emr.EmrHook.get_cluster_id_by_name"
         ) as mock_get_cluster_id_by_name:
             mock_get_cluster_id_by_name.return_value = None
 
             operator = EmrAddStepsOperator(
-                task_id='test_task',
+                task_id="test_task",
                 job_flow_name=cluster_name,
-                cluster_states=['RUNNING', 'WAITING'],
-                aws_conn_id='aws_default',
-                dag=DAG('test_dag_id', default_args=self.args),
+                cluster_states=["RUNNING", "WAITING"],
+                aws_conn_id="aws_default",
+                dag=DAG("test_dag_id", default_args=self.args),
             )
 
             with pytest.raises(AirflowException) as ctx:
                 operator.execute(self.mock_context)
-            assert str(ctx.value) == f'No cluster found for name: {cluster_name}'
+            assert str(ctx.value) == f"No cluster found for name: {cluster_name}"

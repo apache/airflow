@@ -16,6 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-project = 'Apache Airflow'
+project = "Apache Airflow"
 
 html_extra_path = ["404.html"]

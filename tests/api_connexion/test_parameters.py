@@ -50,8 +50,8 @@ class TestValidateIsTimezone:
 
 class TestDateTimeParser:
     def setup_method(self) -> None:
-        self.default_time = '2020-06-13T22:44:00+00:00'
-        self.default_time_2 = '2020-06-13T22:44:00Z'
+        self.default_time = "2020-06-13T22:44:00+00:00"
+        self.default_time_2 = "2020-06-13T22:44:00Z"
 
     def test_works_with_datestring_ending_00_00(self):
         datetime = format_datetime(self.default_time)
@@ -66,7 +66,7 @@ class TestDateTimeParser:
         assert datetime.isoformat() == self.default_time  # python uses +00:00 instead of Z
 
     def test_raises_400_for_invalid_arg(self):
-        invalid_datetime = '2020-06-13T22:44:00P'
+        invalid_datetime = "2020-06-13T22:44:00P"
         with pytest.raises(BadRequest):
             format_datetime(invalid_datetime)
 
@@ -104,16 +104,16 @@ class TestFormatParameters:
         endpoint = mock.MagicMock()
         decorated_endpoint = decorator(endpoint)
 
-        decorated_endpoint(param_a='2020-01-01T0:0:00+00:00')
+        decorated_endpoint(param_a="2020-01-01T0:0:00+00:00")
 
-        endpoint.assert_called_once_with(param_a=DateTime(2020, 1, 1, 0, tzinfo=Timezone('UTC')))
+        endpoint.assert_called_once_with(param_a=DateTime(2020, 1, 1, 0, tzinfo=Timezone("UTC")))
 
     def test_should_propagate_exceptions(self):
         decorator = format_parameters({"param_a": format_datetime})
         endpoint = mock.MagicMock()
         decorated_endpoint = decorator(endpoint)
         with pytest.raises(BadRequest):
-            decorated_endpoint(param_a='XXXXX')
+            decorated_endpoint(param_a="XXXXX")
 
     @conf_vars({("api", "maximum_page_limit"): "100"})
     def test_should_work_with_limit(self):

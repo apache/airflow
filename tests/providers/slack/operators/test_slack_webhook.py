@@ -58,7 +58,7 @@ class TestSlackWebhookOperator:
         No error should happen if provide any of attribute, unless operator allow to provide this attributes.
         """
         kw = {simple_http_op_attr: "foo-bar"}
-        warning_message = fr"Provide '{simple_http_op_attr}' is deprecated and as has no affect"
+        warning_message = rf"Provide '{simple_http_op_attr}' is deprecated and as has no affect"
         with pytest.warns(DeprecationWarning, match=warning_message):
             SlackWebhookOperator(task_id="test_unused_args", **kw)
 
@@ -69,7 +69,7 @@ class TestSlackWebhookOperator:
         )
         with pytest.warns(DeprecationWarning, match=warning_message):
             op = SlackWebhookOperator(
-                task_id='test_deprecated_http_conn_id', slack_webhook_conn_id=None, http_conn_id="http_conn"
+                task_id="test_deprecated_http_conn_id", slack_webhook_conn_id=None, http_conn_id="http_conn"
             )
         assert op.slack_webhook_conn_id == "http_conn"
 
@@ -77,7 +77,7 @@ class TestSlackWebhookOperator:
         with pytest.raises(AirflowException, match=error_message):
             with pytest.warns(DeprecationWarning, match=warning_message):
                 SlackWebhookOperator(
-                    task_id='test_both_conn_ids',
+                    task_id="test_both_conn_ids",
                     slack_webhook_conn_id="slack_webhook_conn_id",
                     http_conn_id="http_conn",
                 )
@@ -99,22 +99,22 @@ class TestSlackWebhookOperator:
             "proxy": proxy,
             "webhook_token": webhook_token,
         }
-        op = SlackWebhookOperator(task_id='test_hook', **op_kw)
+        op = SlackWebhookOperator(task_id="test_hook", **op_kw)
         hook = op.hook
         assert hook is op.hook, "Expected cached hook"
         mock_slackwebhook_cls.assert_called_once_with(**op_kw)
 
     def test_assert_templated_fields(self):
         """Test expected templated fields."""
-        operator = SlackWebhookOperator(task_id='test_assert_templated_fields', **self.default_op_kwargs)
+        operator = SlackWebhookOperator(task_id="test_assert_templated_fields", **self.default_op_kwargs)
         template_fields = (
-            'webhook_token',
-            'message',
-            'attachments',
-            'blocks',
-            'channel',
-            'username',
-            'proxy',
+            "webhook_token",
+            "message",
+            "attachments",
+            "blocks",
+            "channel",
+            "username",
+            "proxy",
         )
         assert operator.template_fields == template_fields
 

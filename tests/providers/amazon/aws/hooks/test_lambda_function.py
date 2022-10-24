@@ -30,15 +30,15 @@ except ImportError:
 class TestLambdaHook:
     @mock_lambda
     def test_get_conn_returns_a_boto3_connection(self):
-        hook = LambdaHook(aws_conn_id='aws_default')
+        hook = LambdaHook(aws_conn_id="aws_default")
         assert hook.conn is not None
 
     @mock_lambda
     def test_invoke_lambda_function(self):
 
-        hook = LambdaHook(aws_conn_id='aws_default')
+        hook = LambdaHook(aws_conn_id="aws_default")
 
-        with patch.object(hook.conn, 'invoke') as mock_invoke:
+        with patch.object(hook.conn, "invoke") as mock_invoke:
             payload = '{"hello": "airflow"}'
             hook.invoke_lambda(function_name="test_function", payload=payload)
 

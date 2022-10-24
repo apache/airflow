@@ -80,11 +80,11 @@ def reset_dagrun():
 def test_get_dagrun_can_view_dags_without_edit_perms(session, running_dag_run, client_dr_without_dag_edit):
     """Test that a user without dag_edit but with dag_read permission can view the records"""
     assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 1
-    resp = client_dr_without_dag_edit.get('/dagrun/list/', follow_redirects=True)
+    resp = client_dr_without_dag_edit.get("/dagrun/list/", follow_redirects=True)
 
     with client_dr_without_dag_edit.application.test_request_context():
         url = flask.url_for(
-            'Airflow.graph', dag_id=running_dag_run.dag_id, execution_date=running_dag_run.execution_date
+            "Airflow.graph", dag_id=running_dag_run.dag_id, execution_date=running_dag_run.execution_date
         )
         dag_url_link = markupsafe.Markup('<a href="{url}">{dag_id}</a>').format(
             url=url, dag_id=running_dag_run.dag_id
@@ -102,7 +102,7 @@ def test_create_dagrun_permission_denied(session, client_dr_without_dag_edit):
     }
 
     with pytest.raises(werkzeug.test.ClientRedirectError):
-        client_dr_without_dag_edit.post('/dagrun/add', data=data, follow_redirects=True)
+        client_dr_without_dag_edit.post("/dagrun/add", data=data, follow_redirects=True)
 
 
 @pytest.fixture()

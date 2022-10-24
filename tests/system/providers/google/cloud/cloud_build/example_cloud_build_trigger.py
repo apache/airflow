@@ -72,14 +72,14 @@ update_build_trigger_body = {
 # [START howto_operator_create_build_from_repo_body]
 create_build_from_repo_body: dict[str, Any] = {
     "source": {"repo_source": {"repo_name": GCP_SOURCE_REPOSITORY_NAME, "branch_name": "master"}},
-    "steps": [{"name": "ubuntu", "args": ['echo', 'Hello world']}],
+    "steps": [{"name": "ubuntu", "args": ["echo", "Hello world"]}],
 }
 # [END howto_operator_create_build_from_repo_body]
 
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],
@@ -98,7 +98,7 @@ with models.DAG(
         task_id="run_build_trigger",
         project_id=PROJECT_ID,
         trigger_id=build_trigger_id,
-        source=create_build_from_repo_body['source']['repo_source'],
+        source=create_build_from_repo_body["source"]["repo_source"],
     )
     # [END howto_operator_run_build_trigger]
 

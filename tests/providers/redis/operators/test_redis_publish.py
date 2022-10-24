@@ -33,35 +33,35 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 @pytest.mark.integration("redis")
 class TestRedisPublishOperator(unittest.TestCase):
     def setUp(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
-        self.dag = DAG('test_redis_dag_id', default_args=args)
+        self.dag = DAG("test_redis_dag_id", default_args=args)
 
         self.mock_context = MagicMock()
-        self.channel = 'test'
+        self.channel = "test"
 
     def test_execute_hello(self):
         operator = RedisPublishOperator(
-            task_id='test_task',
+            task_id="test_task",
             dag=self.dag,
-            message='hello',
+            message="hello",
             channel=self.channel,
-            redis_conn_id='redis_default',
+            redis_conn_id="redis_default",
         )
 
-        hook = RedisHook(redis_conn_id='redis_default')
+        hook = RedisHook(redis_conn_id="redis_default")
         pubsub = hook.get_conn().pubsub()
         pubsub.subscribe(self.channel)
 
         operator.execute(self.mock_context)
         context_calls = []
-        assert self.mock_context['ti'].method_calls == context_calls, "context calls should be same"
+        assert self.mock_context["ti"].method_calls == context_calls, "context calls should be same"
 
         message = pubsub.get_message()
-        assert message['type'] == 'subscribe'
+        assert message["type"] == "subscribe"
 
         message = pubsub.get_message()
-        assert message['type'] == 'message'
-        assert message['data'] == b'hello'
+        assert message["type"] == "message"
+        assert message["data"] == b"hello"
 
         pubsub.unsubscribe(self.channel)

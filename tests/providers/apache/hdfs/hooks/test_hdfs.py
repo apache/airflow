@@ -34,54 +34,54 @@ except ImportError:
 
 class TestHDFSHook(unittest.TestCase):
     @mock.patch.dict(
-        'os.environ',
+        "os.environ",
         {
-            'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',
+            "AIRFLOW_CONN_HDFS_DEFAULT": "hdfs://localhost:8020",
         },
     )
     def test_get_client(self):
-        client = HDFSHook(proxy_user='foo').get_conn()
+        client = HDFSHook(proxy_user="foo").get_conn()
         assert isinstance(client, snakebite.client.Client)
-        assert 'localhost' == client.host
+        assert "localhost" == client.host
         assert 8020 == client.port
-        assert 'foo' == client.service.channel.effective_user
+        assert "foo" == client.service.channel.effective_user
 
     @mock.patch.dict(
-        'os.environ',
+        "os.environ",
         {
-            'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',
+            "AIRFLOW_CONN_HDFS_DEFAULT": "hdfs://localhost:8020",
         },
     )
-    @mock.patch('airflow.providers.apache.hdfs.hooks.hdfs.AutoConfigClient')
-    @mock.patch('airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook.get_connections')
+    @mock.patch("airflow.providers.apache.hdfs.hooks.hdfs.AutoConfigClient")
+    @mock.patch("airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook.get_connections")
     def test_get_autoconfig_client(self, mock_get_connections, mock_client):
         conn = Connection(
-            conn_id='hdfs',
-            conn_type='hdfs',
-            host='localhost',
+            conn_id="hdfs",
+            conn_type="hdfs",
+            host="localhost",
             port=8020,
-            login='foo',
-            extra=json.dumps({'autoconfig': True}),
+            login="foo",
+            extra=json.dumps({"autoconfig": True}),
         )
         mock_get_connections.return_value = [conn]
-        HDFSHook(hdfs_conn_id='hdfs').get_conn()
-        mock_client.assert_called_once_with(effective_user='foo', use_sasl=False)
+        HDFSHook(hdfs_conn_id="hdfs").get_conn()
+        mock_client.assert_called_once_with(effective_user="foo", use_sasl=False)
 
     @mock.patch.dict(
-        'os.environ',
+        "os.environ",
         {
-            'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',
+            "AIRFLOW_CONN_HDFS_DEFAULT": "hdfs://localhost:8020",
         },
     )
-    @mock.patch('airflow.providers.apache.hdfs.hooks.hdfs.AutoConfigClient')
+    @mock.patch("airflow.providers.apache.hdfs.hooks.hdfs.AutoConfigClient")
     def test_get_autoconfig_client_no_conn(self, mock_client):
-        HDFSHook(hdfs_conn_id='hdfs_missing', autoconfig=True).get_conn()
+        HDFSHook(hdfs_conn_id="hdfs_missing", autoconfig=True).get_conn()
         mock_client.assert_called_once_with(effective_user=None, use_sasl=False)
 
-    @mock.patch('airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook.get_connections')
+    @mock.patch("airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook.get_connections")
     def test_get_ha_client(self, mock_get_connections):
-        conn_1 = Connection(conn_id='hdfs_default', conn_type='hdfs', host='localhost', port=8020)
-        conn_2 = Connection(conn_id='hdfs_default', conn_type='hdfs', host='localhost2', port=8020)
+        conn_1 = Connection(conn_id="hdfs_default", conn_type="hdfs", host="localhost", port=8020)
+        conn_2 = Connection(conn_id="hdfs_default", conn_type="hdfs", host="localhost2", port=8020)
         mock_get_connections.return_value = [conn_1, conn_2]
         client = HDFSHook().get_conn()
         assert isinstance(client, snakebite.client.HAClient)

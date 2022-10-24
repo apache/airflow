@@ -110,7 +110,7 @@ class TestRedis:
         self.assert_password_and_broker_url_secrets(
             k8s_obj_by_key,
             expected_password_match=r"\w+",
-            expected_broker_url_match=fr"redis://:.+@{RELEASE_NAME_REDIS}-redis:6379/0",
+            expected_broker_url_match=rf"redis://:.+@{RELEASE_NAME_REDIS}-redis:6379/0",
         )
 
         self.assert_broker_url_env(k8s_obj_by_key)
@@ -291,8 +291,8 @@ class TestRedis:
             values={
                 "redis": {
                     "resources": {
-                        "limits": {"cpu": "200m", 'memory': "128Mi"},
-                        "requests": {"cpu": "300m", 'memory': "169Mi"},
+                        "limits": {"cpu": "200m", "memory": "128Mi"},
+                        "requests": {"cpu": "300m", "memory": "169Mi"},
                     }
                 },
             },

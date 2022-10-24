@@ -30,15 +30,15 @@ DAG_ID = "oss_bucket_dag"
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
-    default_args={'bucket_name': 'your bucket', 'region': 'your region'},
+    default_args={"bucket_name": "your bucket", "region": "your region"},
     max_active_runs=1,
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
 
-    create_bucket = OSSCreateBucketOperator(task_id='task1')
+    create_bucket = OSSCreateBucketOperator(task_id="task1")
 
-    delete_bucket = OSSDeleteBucketOperator(task_id='task2')
+    delete_bucket = OSSDeleteBucketOperator(task_id="task2")
 
     create_bucket >> delete_bucket
 

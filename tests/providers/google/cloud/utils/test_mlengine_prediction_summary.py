@@ -27,16 +27,16 @@ import pytest
 try:
     from airflow.providers.google.cloud.utils import mlengine_prediction_summary
 except ImportError as e:
-    if 'apache_beam' in str(e):
+    if "apache_beam" in str(e):
         pytestmark = pytest.mark.skip(f"package apache_beam not present. Skipping all tests in {__name__}")
 
 
 class TestJsonCode(unittest.TestCase):
     def test_encode(self):
-        assert b'{"a": 1}' == mlengine_prediction_summary.JsonCoder.encode({'a': 1})
+        assert b'{"a": 1}' == mlengine_prediction_summary.JsonCoder.encode({"a": 1})
 
     def test_decode(self):
-        assert {'a': 1} == mlengine_prediction_summary.JsonCoder.decode('{"a": 1}')
+        assert {"a": 1} == mlengine_prediction_summary.JsonCoder.decode('{"a": 1}')
 
 
 class TestMakeSummary(unittest.TestCase):
@@ -74,7 +74,7 @@ class TestMakeSummary(unittest.TestCase):
 
     def test_run_should_fail_if_enc_fn_is_not_callable(self):
         non_callable_value = 1
-        fn_enc = base64.b64encode(dill.dumps(non_callable_value)).decode('utf-8')
+        fn_enc = base64.b64encode(dill.dumps(non_callable_value)).decode("utf-8")
 
         with pytest.raises(ValueError):
             mlengine_prediction_summary.run(
@@ -92,7 +92,7 @@ class TestMakeSummary(unittest.TestCase):
         def metric_function():
             return 1
 
-        fn_enc = base64.b64encode(dill.dumps(metric_function)).decode('utf-8')
+        fn_enc = base64.b64encode(dill.dumps(metric_function)).decode("utf-8")
 
         mlengine_prediction_summary.run(
             [

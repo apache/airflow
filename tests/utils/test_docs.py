@@ -28,25 +28,25 @@ class TestGetDocsUrl:
         "version, page, expected_url",
         [
             (
-                '2.0.0.dev0',
+                "2.0.0.dev0",
                 None,
-                'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/'
-                'apache-airflow/latest/',
+                "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/"
+                "apache-airflow/latest/",
             ),
             (
-                '2.0.0.dev0',
-                'migration.html',
-                'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/'
-                'apache-airflow/latest/migration.html',
+                "2.0.0.dev0",
+                "migration.html",
+                "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/"
+                "apache-airflow/latest/migration.html",
             ),
-            ('1.10.10', None, 'https://airflow.apache.org/docs/apache-airflow/1.10.10/'),
+            ("1.10.10", None, "https://airflow.apache.org/docs/apache-airflow/1.10.10/"),
             (
-                '1.10.10',
-                'project.html',
-                'https://airflow.apache.org/docs/apache-airflow/1.10.10/project.html',
+                "1.10.10",
+                "project.html",
+                "https://airflow.apache.org/docs/apache-airflow/1.10.10/project.html",
             ),
         ],
     )
     def test_should_return_link(self, version, page, expected_url):
-        with mock.patch('airflow.version.version', version):
+        with mock.patch("airflow.version.version", version):
             assert expected_url == get_docs_url(page)

@@ -29,9 +29,9 @@ from airflow.utils.task_group import MappedTaskGroup
 def test_task_group_with_overridden_kwargs():
     @task_group(
         default_args={
-            'params': {
-                'x': 5,
-                'y': 5,
+            "params": {
+                "x": 5,
+                "y": 5,
             },
         },
         add_suffix_on_collision=True,
@@ -40,22 +40,22 @@ def test_task_group_with_overridden_kwargs():
         ...
 
     tg_with_overridden_kwargs = simple_tg.override(
-        group_id='custom_group_id',
+        group_id="custom_group_id",
         default_args={
-            'params': {
-                'x': 10,
+            "params": {
+                "x": 10,
             },
         },
     )
 
     assert tg_with_overridden_kwargs.tg_kwargs == {
-        'group_id': 'custom_group_id',
-        'default_args': {
-            'params': {
-                'x': 10,
+        "group_id": "custom_group_id",
+        "default_args": {
+            "params": {
+                "x": 10,
             },
         },
-        'add_suffix_on_collision': True,
+        "add_suffix_on_collision": True,
     }
 
 

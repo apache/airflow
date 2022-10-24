@@ -26,8 +26,8 @@ from datetime import datetime
 from airflow import DAG
 from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
 
-SNOWFLAKE_CONN_ID = 'my_snowflake_conn'
-SNOWFLAKE_SAMPLE_TABLE = 'sample_table'
+SNOWFLAKE_CONN_ID = "my_snowflake_conn"
+SNOWFLAKE_SAMPLE_TABLE = "sample_table"
 
 # SQL commands
 CREATE_TABLE_SQL_STRING = (
@@ -43,30 +43,30 @@ DAG_ID = "example_snowflake"
 with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
-    default_args={'snowflake_conn_id': SNOWFLAKE_CONN_ID},
-    tags=['example'],
+    default_args={"snowflake_conn_id": SNOWFLAKE_CONN_ID},
+    tags=["example"],
     schedule="@once",
     catchup=False,
 ) as dag:
     # [START howto_operator_snowflake]
-    snowflake_op_sql_str = SnowflakeOperator(task_id='snowflake_op_sql_str', sql=CREATE_TABLE_SQL_STRING)
+    snowflake_op_sql_str = SnowflakeOperator(task_id="snowflake_op_sql_str", sql=CREATE_TABLE_SQL_STRING)
 
     snowflake_op_with_params = SnowflakeOperator(
-        task_id='snowflake_op_with_params',
+        task_id="snowflake_op_with_params",
         sql=SQL_INSERT_STATEMENT,
         parameters={"id": 56},
     )
 
-    snowflake_op_sql_list = SnowflakeOperator(task_id='snowflake_op_sql_list', sql=SQL_LIST)
+    snowflake_op_sql_list = SnowflakeOperator(task_id="snowflake_op_sql_list", sql=SQL_LIST)
 
     snowflake_op_sql_multiple_stmts = SnowflakeOperator(
-        task_id='snowflake_op_sql_multiple_stmts',
+        task_id="snowflake_op_sql_multiple_stmts",
         sql=SQL_MULTIPLE_STMTS,
     )
 
     snowflake_op_template_file = SnowflakeOperator(
-        task_id='snowflake_op_template_file',
-        sql='example_snowflake_snowflake_op_template_file.sql',
+        task_id="snowflake_op_template_file",
+        sql="example_snowflake_snowflake_op_template_file.sql",
     )
 
     # [END howto_operator_snowflake]

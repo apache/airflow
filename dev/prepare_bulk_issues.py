@@ -46,7 +46,7 @@ SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir))
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-@click.group(context_settings={'help_option_names': ['-h', '--help'], 'max_content_width': 500})
+@click.group(context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 500})
 def cli():
     ...
 
@@ -116,7 +116,7 @@ option_github_token = click.option(
         Can be generated with:
         https://github.com/settings/tokens/new?description=Write%20issues&scopes=repo:status,public_repo"""
     ),
-    envvar='GITHUB_TOKEN',
+    envvar="GITHUB_TOKEN",
 )
 
 option_verbose = click.option(

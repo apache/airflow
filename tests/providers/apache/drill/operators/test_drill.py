@@ -28,18 +28,18 @@ from airflow.utils import timezone
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
-TEST_DAG_ID = 'unit_test_dag'
+TEST_DAG_ID = "unit_test_dag"
 
 
 @pytest.mark.backend("drill")
 class TestDrillOperator(unittest.TestCase):
     def setUp(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
     def tearDown(self):
-        tables_to_drop = ['dfs.tmp.test_airflow']
+        tables_to_drop = ["dfs.tmp.test_airflow"]
         from airflow.providers.apache.drill.hooks.drill import DrillHook
 
         with DrillHook().get_conn() as conn:
@@ -52,7 +52,7 @@ class TestDrillOperator(unittest.TestCase):
         create table dfs.tmp.test_airflow as
         select * from cp.`employee.json` limit 10
         """
-        op = DrillOperator(task_id='drill_operator_test_single', sql=sql, dag=self.dag)
+        op = DrillOperator(task_id="drill_operator_test_single", sql=sql, dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_drill_operator_multi(self):
@@ -60,5 +60,5 @@ class TestDrillOperator(unittest.TestCase):
             "create table dfs.tmp.test_airflow as select * from cp.`employee.json` limit 10",
             "select sum(employee_id), any_value(full_name) from dfs.tmp.test_airflow",
         ]
-        op = DrillOperator(task_id='drill_operator_test_multi', sql=sql, dag=self.dag)
+        op = DrillOperator(task_id="drill_operator_test_multi", sql=sql, dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

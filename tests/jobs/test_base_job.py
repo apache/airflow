@@ -32,7 +32,7 @@ from tests.test_utils.config import conf_vars
 
 
 class MockJob(BaseJob):
-    __mapper_args__ = {'polymorphic_identity': 'MockJob'}
+    __mapper_args__ = {"polymorphic_identity": "MockJob"}
 
     def __init__(self, func, **kwargs):
         self.func = func
@@ -102,7 +102,7 @@ class TestBaseJob:
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
         assert job.is_alive() is False, "Completed jobs even with recent heartbeat should not be alive"
 
-    @patch('airflow.jobs.base_job.create_session')
+    @patch("airflow.jobs.base_job.create_session")
     def test_heartbeat_failed(self, mock_create_session):
         when = timezone.utcnow() - datetime.timedelta(seconds=60)
         with create_session() as session:
@@ -120,13 +120,13 @@ class TestBaseJob:
 
     @conf_vars(
         {
-            ('scheduler', 'max_tis_per_query'): '100',
-            ('core', 'executor'): 'SequentialExecutor',
+            ("scheduler", "max_tis_per_query"): "100",
+            ("core", "executor"): "SequentialExecutor",
         }
     )
-    @patch('airflow.jobs.base_job.ExecutorLoader.get_default_executor')
-    @patch('airflow.jobs.base_job.get_hostname')
-    @patch('airflow.jobs.base_job.getuser')
+    @patch("airflow.jobs.base_job.ExecutorLoader.get_default_executor")
+    @patch("airflow.jobs.base_job.get_hostname")
+    @patch("airflow.jobs.base_job.getuser")
     def test_essential_attr(self, mock_getuser, mock_hostname, mock_default_executor):
         mock_sequential_executor = SequentialExecutor()
         mock_hostname.return_value = "test_hostname"
@@ -144,7 +144,7 @@ class TestBaseJob:
         assert test_job.executor == mock_sequential_executor
 
     def test_heartbeat(self, frozen_sleep, monkeypatch):
-        monkeypatch.setattr('airflow.jobs.base_job.sleep', frozen_sleep)
+        monkeypatch.setattr("airflow.jobs.base_job.sleep", frozen_sleep)
         with create_session() as session:
             job = MockJob(None, heartrate=10)
             job.latest_heartbeat = timezone.utcnow()

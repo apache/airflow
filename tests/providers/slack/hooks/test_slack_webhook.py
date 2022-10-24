@@ -169,7 +169,7 @@ class TestCheckWebhookResponseDecorator:
         def decorated():
             return test_response
 
-        error_message = fr"Response body: '{body}', Status Code: {status_code}\."
+        error_message = rf"Response body: '{body}', Status Code: {status_code}\."
         with pytest.raises(AirflowException, match=error_message):
             assert decorated()
 
@@ -574,14 +574,14 @@ class TestSlackWebhookHook:
 
     def test__ensure_prefixes_removal(self):
         """Ensure that _ensure_prefixes is removed from snowflake when airflow min version >= 2.5.0."""
-        path = 'airflow.providers.slack.hooks.slack_webhook._ensure_prefixes'
+        path = "airflow.providers.slack.hooks.slack_webhook._ensure_prefixes"
         if not object_exists(path):
             raise Exception(
                 "You must remove this test. It only exists to "
                 "remind us to remove decorator `_ensure_prefixes`."
             )
 
-        if get_provider_min_airflow_version('apache-airflow-providers-slack') >= (2, 5):
+        if get_provider_min_airflow_version("apache-airflow-providers-slack") >= (2, 5):
             raise Exception(
                 "You must now remove `_ensure_prefixes` from SlackWebhookHook."
                 " The functionality is now taken care of by providers manager."
@@ -593,27 +593,27 @@ class TestSlackWebhookHook:
 
         Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
         """
-        assert list(SlackWebhookHook.get_ui_field_behaviour()['placeholders'].keys()) == [
-            'schema',
-            'host',
-            'password',
-            'extra__slackwebhook__timeout',
-            'extra__slackwebhook__proxy',
+        assert list(SlackWebhookHook.get_ui_field_behaviour()["placeholders"].keys()) == [
+            "schema",
+            "host",
+            "password",
+            "extra__slackwebhook__timeout",
+            "extra__slackwebhook__proxy",
         ]
 
     @pytest.mark.parametrize(
-        'uri',
+        "uri",
         [
             param(
-                'a://:abc@?extra__slackwebhook__timeout=123&extra__slackwebhook__proxy=proxy',
-                id='prefix',
+                "a://:abc@?extra__slackwebhook__timeout=123&extra__slackwebhook__proxy=proxy",
+                id="prefix",
             ),
-            param('a://:abc@?timeout=123&proxy=proxy', id='no-prefix'),
+            param("a://:abc@?timeout=123&proxy=proxy", id="no-prefix"),
         ],
     )
     def test_backcompat_prefix_works(self, uri):
         with patch.dict(in_dict=os.environ, AIRFLOW_CONN_MY_CONN=uri):
-            hook = SlackWebhookHook(slack_webhook_conn_id='my_conn')
+            hook = SlackWebhookHook(slack_webhook_conn_id="my_conn")
             params = hook._get_conn_params()
             assert params["url"] == "https://hooks.slack.com/services/abc"
             assert params["timeout"] == 123
@@ -622,10 +622,10 @@ class TestSlackWebhookHook:
     def test_backcompat_prefix_both_causes_warning(self):
         with patch.dict(
             in_dict=os.environ,
-            AIRFLOW_CONN_MY_CONN='a://:abc@?extra__slackwebhook__timeout=111&timeout=222',
+            AIRFLOW_CONN_MY_CONN="a://:abc@?extra__slackwebhook__timeout=111&timeout=222",
         ):
-            hook = SlackWebhookHook(slack_webhook_conn_id='my_conn')
-            with pytest.warns(Warning, match='Using value for `timeout`'):
+            hook = SlackWebhookHook(slack_webhook_conn_id="my_conn")
+            with pytest.warns(Warning, match="Using value for `timeout`"):
                 params = hook._get_conn_params()
                 assert params["timeout"] == 222
 
@@ -639,15 +639,15 @@ class TestSlackWebhookHook:
                 }
             ),
         ):
-            hook = SlackWebhookHook(slack_webhook_conn_id='my_conn')
+            hook = SlackWebhookHook(slack_webhook_conn_id="my_conn")
             params = hook._get_conn_params()
-            assert 'proxy' not in params
+            assert "proxy" not in params
 
     def test_empty_string_ignored_non_prefixed(self):
         with patch.dict(
             in_dict=os.environ,
             AIRFLOW_CONN_MY_CONN=json.dumps({"password": "hi", "extra": {"proxy": ""}}),
         ):
-            hook = SlackWebhookHook(slack_webhook_conn_id='my_conn')
+            hook = SlackWebhookHook(slack_webhook_conn_id="my_conn")
             params = hook._get_conn_params()
-            assert 'proxy' not in params
+            assert "proxy" not in params

@@ -32,12 +32,12 @@ AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
 
 
 @pytest.mark.parametrize(
-    'parameter, value, result, exception',
+    "parameter, value, result, exception",
     [
-        ("backend", "mysql", (True, ['sqlite', 'mysql', 'postgres', 'mssql']), None),
-        ("backend", "xxx", (False, ['sqlite', 'mysql', 'postgres', 'mssql']), None),
-        ("python_major_minor_version", "3.8", (True, ['3.7', '3.8', '3.9', '3.10']), None),
-        ("python_major_minor_version", "3.5", (False, ['3.7', '3.8', '3.9', '3.10']), None),
+        ("backend", "mysql", (True, ["sqlite", "mysql", "postgres", "mssql"]), None),
+        ("backend", "xxx", (False, ["sqlite", "mysql", "postgres", "mssql"]), None),
+        ("python_major_minor_version", "3.8", (True, ["3.7", "3.8", "3.9", "3.10"]), None),
+        ("python_major_minor_version", "3.5", (False, ["3.7", "3.8", "3.9", "3.10"]), None),
         ("missing", "value", None, AttributeError),
     ],
 )
@@ -56,7 +56,7 @@ def test_check_if_cache_exists(path):
 
 
 @pytest.mark.parametrize(
-    'param',
+    "param",
     [
         "test_param",
         "mysql_version",
@@ -73,8 +73,8 @@ def test_read_from_cache_file(param):
             assert param_value in param_list
 
 
-@mock.patch('airflow_breeze.utils.cache.Path')
-@mock.patch('airflow_breeze.utils.cache.check_if_cache_exists')
+@mock.patch("airflow_breeze.utils.cache.Path")
+@mock.patch("airflow_breeze.utils.cache.check_if_cache_exists")
 def test_delete_cache_exists(mock_check_if_cache_exists, mock_path):
     param = "MYSQL_VERSION"
     mock_check_if_cache_exists.return_value = True
@@ -83,8 +83,8 @@ def test_delete_cache_exists(mock_check_if_cache_exists, mock_path):
     assert cache_deleted
 
 
-@mock.patch('airflow_breeze.utils.cache.Path')
-@mock.patch('airflow_breeze.utils.cache.check_if_cache_exists')
+@mock.patch("airflow_breeze.utils.cache.Path")
+@mock.patch("airflow_breeze.utils.cache.check_if_cache_exists")
 def test_delete_cache_not_exists(mock_check_if_cache_exists, mock_path):
     param = "TEST_PARAM"
     mock_check_if_cache_exists.return_value = False

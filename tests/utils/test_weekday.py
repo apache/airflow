@@ -56,7 +56,7 @@ class TestWeekDay:
 
     def test_convert_with_incorrect_input(self):
         invalid = "Sun"
-        error_message = fr'Invalid Week Day passed: "{invalid}"'
+        error_message = rf'Invalid Week Day passed: "{invalid}"'
         with pytest.raises(AttributeError, match=error_message):
             WeekDay.convert(invalid)
 

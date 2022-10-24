@@ -34,15 +34,15 @@ with DAG(
     schedule=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [START howto_operator_drill]
     sql_task = DrillOperator(
-        task_id='json_to_parquet_table',
-        sql='''
+        task_id="json_to_parquet_table",
+        sql="""
         drop table if exists dfs.tmp.employee;
         create table dfs.tmp.employee as select * from cp.`employee.json`;
-        ''',
+        """,
     )
     # [END howto_operator_drill]
 

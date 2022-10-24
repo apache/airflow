@@ -32,20 +32,20 @@ class BigTableExampleDagsSystemTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_BIGTABLE_KEY)
     def test_run_example_dag_gcs_bigtable(self):
-        self.run_dag('example_gcp_bigtable_operators', CLOUD_DAG_FOLDER)
+        self.run_dag("example_gcp_bigtable_operators", CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_BIGTABLE_KEY)
     def tearDown(self):
         self.execute_with_ctx(
             [
-                'gcloud',
-                'bigtable',
-                '--project',
+                "gcloud",
+                "bigtable",
+                "--project",
                 GCP_PROJECT_ID,
-                '--quiet',
-                '--verbosity=none',
-                'instances',
-                'delete',
+                "--quiet",
+                "--verbosity=none",
+                "instances",
+                "delete",
                 CBT_INSTANCE_ID,
             ],
             key=GCP_BIGTABLE_KEY,

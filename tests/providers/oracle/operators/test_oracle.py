@@ -25,11 +25,11 @@ from airflow.providers.oracle.operators.oracle import OracleOperator, OracleStor
 
 
 class TestOracleOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook')
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
     def test_execute(self, mock_get_db_hook):
-        sql = 'SELECT * FROM test_table'
-        oracle_conn_id = 'oracle_default'
-        parameters = {'parameter': 'value'}
+        sql = "SELECT * FROM test_table"
+        oracle_conn_id = "oracle_default"
+        parameters = {"parameter": "value"}
         autocommit = False
         context = "test_context"
         task_id = "test_task_id"
@@ -53,11 +53,11 @@ class TestOracleOperator(unittest.TestCase):
 
 
 class TestOracleStoredProcedureOperator(unittest.TestCase):
-    @mock.patch.object(OracleHook, 'run', autospec=OracleHook.run)
+    @mock.patch.object(OracleHook, "run", autospec=OracleHook.run)
     def test_execute(self, mock_run):
-        procedure = 'test'
-        oracle_conn_id = 'oracle_default'
-        parameters = {'parameter': 'value'}
+        procedure = "test"
+        oracle_conn_id = "oracle_default"
+        parameters = {"parameter": "value"}
         context = "test_context"
         task_id = "test_task_id"
 
@@ -71,7 +71,7 @@ class TestOracleStoredProcedureOperator(unittest.TestCase):
         assert result is mock_run.return_value
         mock_run.assert_called_once_with(
             mock.ANY,
-            'BEGIN test(:parameter); END;',
+            "BEGIN test(:parameter); END;",
             autocommit=True,
             parameters=parameters,
             handler=mock.ANY,

@@ -52,14 +52,14 @@ class TestBasicAuth(BaseTestAuth):
     def with_basic_auth_backend(self, minimal_app_for_api):
         from airflow.www.extensions.init_security import init_api_experimental_auth
 
-        old_auth = getattr(minimal_app_for_api, 'api_auth')
+        old_auth = getattr(minimal_app_for_api, "api_auth")
 
         try:
             with conf_vars({("api", "auth_backends"): "airflow.api.auth.backend.basic_auth"}):
                 init_api_experimental_auth(minimal_app_for_api)
                 yield
         finally:
-            setattr(minimal_app_for_api, 'api_auth', old_auth)
+            setattr(minimal_app_for_api, "api_auth", old_auth)
 
     def test_success(self):
         token = "Basic " + b64encode(b"test:test").decode()
@@ -128,14 +128,14 @@ class TestSessionAuth(BaseTestAuth):
     def with_session_backend(self, minimal_app_for_api):
         from airflow.www.extensions.init_security import init_api_experimental_auth
 
-        old_auth = getattr(minimal_app_for_api, 'api_auth')
+        old_auth = getattr(minimal_app_for_api, "api_auth")
 
         try:
             with conf_vars({("api", "auth_backends"): "airflow.api.auth.backend.session"}):
                 init_api_experimental_auth(minimal_app_for_api)
                 yield
         finally:
-            setattr(minimal_app_for_api, 'api_auth', old_auth)
+            setattr(minimal_app_for_api, "api_auth", old_auth)
 
     def test_success(self):
         clear_db_pools()
@@ -172,7 +172,7 @@ class TestSessionWithBasicAuthFallback(BaseTestAuth):
     def with_basic_auth_backend(self, minimal_app_for_api):
         from airflow.www.extensions.init_security import init_api_experimental_auth
 
-        old_auth = getattr(minimal_app_for_api, 'api_auth')
+        old_auth = getattr(minimal_app_for_api, "api_auth")
 
         try:
             with conf_vars(
@@ -186,7 +186,7 @@ class TestSessionWithBasicAuthFallback(BaseTestAuth):
                 init_api_experimental_auth(minimal_app_for_api)
                 yield
         finally:
-            setattr(minimal_app_for_api, 'api_auth', old_auth)
+            setattr(minimal_app_for_api, "api_auth", old_auth)
 
     def test_basic_auth_fallback(self):
         token = "Basic " + b64encode(b"test:test").decode()

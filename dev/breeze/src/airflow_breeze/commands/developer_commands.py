@@ -130,7 +130,7 @@ class TimerThread(threading.Thread):
 @option_answer
 @option_max_time
 @option_include_mypy_volume
-@click.argument('extra-args', nargs=-1, type=click.UNPROCESSED)
+@click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
 def shell(
     verbose: bool,
     dry_run: bool,
@@ -163,7 +163,7 @@ def shell(
         get_console().print(f"\n[success]Root of Airflow Sources = {AIRFLOW_SOURCES_ROOT}[/]\n")
     if max_time:
         TimerThread(max_time=max_time).start()
-        set_forced_answer('yes')
+        set_forced_answer("yes")
     enter_shell(
         verbose=verbose,
         dry_run=dry_run,
@@ -192,7 +192,7 @@ def shell(
 
 
 @option_verbose
-@main.command(name='start-airflow')
+@main.command(name="start-airflow")
 @option_dry_run
 @option_python
 @option_platform_single
@@ -214,20 +214,20 @@ def shell(
 @option_integration
 @option_image_tag_for_running
 @click.option(
-    '--skip-asset-compilation',
+    "--skip-asset-compilation",
     help="Skips compilation of assets when starting airflow even if the content of www changed "
     "(mutually exclusive with --dev-mode).",
     is_flag=True,
 )
 @click.option(
-    '--dev-mode',
+    "--dev-mode",
     help="Starts webserver in dev mode (assets are always recompiled in this case when starting) "
     "(mutually exclusive with --skip-asset-compilation).",
     is_flag=True,
 )
 @option_db_reset
 @option_answer
-@click.argument('extra-args', nargs=-1, type=click.UNPROCESSED)
+@click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
 def start_airflow(
     verbose: bool,
     dry_run: bool,
@@ -262,7 +262,7 @@ def start_airflow(
     """
     if dev_mode and skip_asset_compilation:
         get_console().print(
-            '[warning]You cannot skip asset compilation in dev mode! Assets will be compiled!'
+            "[warning]You cannot skip asset compilation in dev mode! Assets will be compiled!"
         )
         skip_asset_compilation = True
     if use_airflow_version is None and not skip_asset_compilation:
@@ -297,26 +297,26 @@ def start_airflow(
     )
 
 
-@main.command(name='build-docs')
+@main.command(name="build-docs")
 @option_verbose
 @option_dry_run
 @option_github_repository
-@click.option('-d', '--docs-only', help="Only build documentation.", is_flag=True)
-@click.option('-s', '--spellcheck-only', help="Only run spell checking.", is_flag=True)
+@click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
+@click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
 @click.option(
-    '--package-filter',
+    "--package-filter",
     help="List of packages to consider.",
     type=NotVerifiedBetterChoice(get_available_documentation_packages()),
     multiple=True,
 )
 @click.option(
-    '--clean-build',
+    "--clean-build",
     help="Clean inventories of Inter-Sphinx documentation and generated APIs and sphinx artifacts "
     "before the build - useful for a clean build.",
     is_flag=True,
 )
 @click.option(
-    '--for-production',
+    "--for-production",
     help="Builds documentation for official release i.e. all links point to stable version. "
     "Implies --clean-build",
     is_flag=True,
@@ -340,7 +340,7 @@ def build_docs(
     rebuild_or_pull_ci_image_if_needed(command_params=params, dry_run=dry_run, verbose=verbose)
     if clean_build:
         docs_dir = AIRFLOW_SOURCES_ROOT / "docs"
-        for dir_name in ['_build', "_doctrees", '_inventory_cache', '_api']:
+        for dir_name in ["_build", "_doctrees", "_inventory_cache", "_api"]:
             for dir in docs_dir.rglob(dir_name):
                 get_console().print(f"[info]Removing {dir}")
                 shutil.rmtree(dir, ignore_errors=True)
@@ -378,26 +378,26 @@ def build_docs(
     ),
 )
 @click.option(
-    '-t',
-    '--type',
+    "-t",
+    "--type",
     help="Type(s) of the static checks to run (multiple can be added).",
     type=BetterChoice(PRE_COMMIT_LIST),
     multiple=True,
 )
-@click.option('-a', '--all-files', help="Run checks on all files.", is_flag=True)
-@click.option('-f', '--file', help="List of files to run the checks on.", type=click.Path(), multiple=True)
+@click.option("-a", "--all-files", help="Run checks on all files.", is_flag=True)
+@click.option("-f", "--file", help="List of files to run the checks on.", type=click.Path(), multiple=True)
 @click.option(
-    '-s', '--show-diff-on-failure', help="Show diff for files modified by the checks.", is_flag=True
+    "-s", "--show-diff-on-failure", help="Show diff for files modified by the checks.", is_flag=True
 )
 @click.option(
-    '-c',
-    '--last-commit',
+    "-c",
+    "--last-commit",
     help="Run checks for all files in last commit. Mutually exclusive with --commit-ref.",
     is_flag=True,
 )
 @click.option(
-    '-r',
-    '--commit-ref',
+    "-r",
+    "--commit-ref",
     help="Run checks for this commit reference only "
     "(can be any git commit-ish reference). "
     "Mutually exclusive with --last-commit.",
@@ -405,7 +405,7 @@ def build_docs(
 @option_verbose
 @option_dry_run
 @option_github_repository
-@click.argument('precommit_args', nargs=-1, type=click.UNPROCESSED)
+@click.argument("precommit_args", nargs=-1, type=click.UNPROCESSED)
 def static_checks(
     verbose: bool,
     dry_run: bool,
@@ -420,7 +420,7 @@ def static_checks(
 ):
     assert_pre_commit_installed(verbose=verbose)
     perform_environment_checks(verbose=verbose)
-    command_to_execute = [sys.executable, "-m", "pre_commit", 'run']
+    command_to_execute = [sys.executable, "-m", "pre_commit", "run"]
     if last_commit and commit_ref:
         get_console().print("\n[error]You cannot specify both --last-commit and --commit-ref[/]\n")
         sys.exit(1)
@@ -442,7 +442,7 @@ def static_checks(
     if precommit_args:
         command_to_execute.extend(precommit_args)
     env = os.environ.copy()
-    env['GITHUB_REPOSITORY'] = github_repository
+    env["GITHUB_REPOSITORY"] = github_repository
     static_checks_result = run_command(
         command_to_execute,
         verbose=verbose,
@@ -453,7 +453,7 @@ def static_checks(
         env=env,
     )
     if static_checks_result.returncode != 0:
-        if os.environ.get('CI'):
+        if os.environ.get("CI"):
             get_console().print("[error]There were errors during pre-commit check. They should be fixed[/]")
     sys.exit(static_checks_result.returncode)
 
@@ -496,7 +496,7 @@ def compile_www_assets(
 )
 def stop(verbose: bool, dry_run: bool, preserve_volumes: bool):
     perform_environment_checks(verbose=verbose)
-    command_to_execute = [*DOCKER_COMPOSE_COMMAND, 'down', "--remove-orphans"]
+    command_to_execute = [*DOCKER_COMPOSE_COMMAND, "down", "--remove-orphans"]
     if not preserve_volumes:
         command_to_execute.append("--volumes")
     shell_params = ShellParams(verbose=verbose, backend="all", include_mypy_volume=True)
@@ -504,10 +504,10 @@ def stop(verbose: bool, dry_run: bool, preserve_volumes: bool):
     run_command(command_to_execute, verbose=verbose, dry_run=dry_run, env=env_variables)
 
 
-@main.command(name='exec', help='Joins the interactive shell of running airflow container.')
+@main.command(name="exec", help="Joins the interactive shell of running airflow container.")
 @option_verbose
 @option_dry_run
-@click.argument('exec_args', nargs=-1, type=click.UNPROCESSED)
+@click.argument("exec_args", nargs=-1, type=click.UNPROCESSED)
 def exec(verbose: bool, dry_run: bool, exec_args: tuple):
     perform_environment_checks(verbose=verbose)
     container_running = find_airflow_container(verbose, dry_run)
@@ -546,12 +546,12 @@ def enter_shell(**kwargs) -> RunCommandResult:
     * executes the command to drop the user to Breeze shell
 
     """
-    verbose = kwargs['verbose']
-    dry_run = kwargs['dry_run']
+    verbose = kwargs["verbose"]
+    dry_run = kwargs["dry_run"]
     perform_environment_checks(verbose=verbose)
-    if read_from_cache_file('suppress_asciiart') is None:
+    if read_from_cache_file("suppress_asciiart") is None:
         get_console().print(ASCIIART, style=ASCIIART_STYLE)
-    if read_from_cache_file('suppress_cheatsheet') is None:
+    if read_from_cache_file("suppress_cheatsheet") is None:
         get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
     enter_shell_params = ShellParams(**filter_out_none(**kwargs))
     rebuild_or_pull_ci_image_if_needed(command_params=enter_shell_params, dry_run=dry_run, verbose=verbose)
@@ -572,17 +572,17 @@ def run_shell(verbose: bool, dry_run: bool, shell_params: ShellParams) -> RunCom
     :param shell_params: parameters of the execution
     """
     shell_params.print_badge_info()
-    cmd = [*DOCKER_COMPOSE_COMMAND, 'run', '--service-ports', "-e", "BREEZE", '--rm', 'airflow']
+    cmd = [*DOCKER_COMPOSE_COMMAND, "run", "--service-ports", "-e", "BREEZE", "--rm", "airflow"]
     cmd_added = shell_params.command_passed
     env_variables = get_env_variables_for_docker_commands(shell_params)
     if cmd_added is not None:
-        cmd.extend(['-c', cmd_added])
+        cmd.extend(["-c", cmd_added])
     if "arm64" in DOCKER_DEFAULT_PLATFORM:
         if shell_params.backend == "mysql":
-            get_console().print('\n[error]MySQL is not supported on ARM architecture.[/]\n')
+            get_console().print("\n[error]MySQL is not supported on ARM architecture.[/]\n")
             sys.exit(1)
         if shell_params.backend == "mssql":
-            get_console().print('\n[error]MSSQL is not supported on ARM architecture[/]\n')
+            get_console().print("\n[error]MSSQL is not supported on ARM architecture[/]\n")
             sys.exit(1)
     command_result = run_command(
         cmd, verbose=verbose, dry_run=dry_run, env=env_variables, text=True, check=False
@@ -597,7 +597,7 @@ def run_shell(verbose: bool, dry_run: bool, shell_params: ShellParams) -> RunCom
 
 
 def stop_exec_on_error(returncode: int):
-    get_console().print('\n[error]ERROR in finding the airflow docker-compose process id[/]\n')
+    get_console().print("\n[error]ERROR in finding the airflow docker-compose process id[/]\n")
     sys.exit(returncode)
 
 
@@ -606,7 +606,7 @@ def find_airflow_container(verbose, dry_run) -> str | None:
     check_docker_resources(exec_shell_params.airflow_image_name, verbose=verbose, dry_run=dry_run)
     exec_shell_params.print_badge_info()
     env_variables = get_env_variables_for_docker_commands(exec_shell_params)
-    cmd = [*DOCKER_COMPOSE_COMMAND, 'ps', '--all', '--filter', 'status=running', 'airflow']
+    cmd = [*DOCKER_COMPOSE_COMMAND, "ps", "--all", "--filter", "status=running", "airflow"]
     docker_compose_ps_command = run_command(
         cmd, verbose=verbose, dry_run=dry_run, text=True, capture_output=True, env=env_variables, check=False
     )
@@ -620,10 +620,10 @@ def find_airflow_container(verbose, dry_run) -> str | None:
         return None
 
     output = docker_compose_ps_command.stdout
-    container_info = output.strip().split('\n')
+    container_info = output.strip().split("\n")
     if container_info:
-        container_running = container_info[-1].split(' ')[0]
-        if container_running.startswith('-'):
+        container_running = container_info[-1].split(" ")[0]
+        if container_running.startswith("-"):
             # On docker-compose v1 we get '--------' as output here
             stop_exec_on_error(docker_compose_ps_command.returncode)
         return container_running

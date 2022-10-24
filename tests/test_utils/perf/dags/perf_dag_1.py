@@ -26,29 +26,29 @@ from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
 
 args = {
-    'owner': 'airflow',
-    'start_date': datetime.datetime(2022, 1, 1),
+    "owner": "airflow",
+    "start_date": datetime.datetime(2022, 1, 1),
 }
 
 dag = DAG(
-    dag_id='perf_dag_1',
+    dag_id="perf_dag_1",
     default_args=args,
-    schedule='@daily',
+    schedule="@daily",
     dagrun_timeout=datetime.timedelta(minutes=60),
 )
 
 task_1 = BashOperator(
-    task_id='perf_task_1',
+    task_id="perf_task_1",
     bash_command='sleep 5; echo "run_id={{ run_id }} | dag_run={{ dag_run }}"',
     dag=dag,
 )
 
 for i in range(2, 5):
     task = BashOperator(
-        task_id=f'perf_task_{i}',
-        bash_command='''
+        task_id=f"perf_task_{i}",
+        bash_command="""
             sleep 5; echo "run_id={{ run_id }} | dag_run={{ dag_run }}"
-        ''',
+        """,
         dag=dag,
     )
     task.set_upstream(task_1)

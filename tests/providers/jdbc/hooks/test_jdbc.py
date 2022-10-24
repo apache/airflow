@@ -35,9 +35,9 @@ class TestJdbcHook:
     def setup(self):
         db.merge_conn(
             Connection(
-                conn_id='jdbc_default',
-                conn_type='jdbc',
-                host='jdbc://localhost/',
+                conn_id="jdbc_default",
+                conn_type="jdbc",
+                host="jdbc://localhost/",
                 port=443,
                 extra=json.dumps(
                     {
@@ -71,38 +71,38 @@ class TestJdbcHook:
         jdbc_conn.jconn.getAutoCommit.assert_called_once_with()
 
     @pytest.mark.parametrize(
-        'uri',
+        "uri",
         [
             param(
-                'a://?extra__jdbc__drv_path=abc&extra__jdbc__drv_clsname=abc',
-                id='prefix',
+                "a://?extra__jdbc__drv_path=abc&extra__jdbc__drv_clsname=abc",
+                id="prefix",
             ),
-            param('a://?drv_path=abc&drv_clsname=abc', id='no-prefix'),
+            param("a://?drv_path=abc&drv_clsname=abc", id="no-prefix"),
         ],
     )
-    @patch('airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect')
+    @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect")
     def test_backcompat_prefix_works(self, mock_connect, uri):
         with patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}):
-            hook = JdbcHook('my_conn')
+            hook = JdbcHook("my_conn")
             hook.get_conn()
             mock_connect.assert_called_with(
-                jclassname='abc',
-                url='',
-                driver_args=['None', 'None'],
-                jars='abc'.split(","),
+                jclassname="abc",
+                url="",
+                driver_args=["None", "None"],
+                jars="abc".split(","),
             )
 
-    @patch('airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect')
+    @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect")
     def test_backcompat_prefix_both_prefers_short(self, mock_connect):
         with patch.dict(
             os.environ,
-            {"AIRFLOW_CONN_MY_CONN": 'a://?drv_path=non-prefixed&extra__jdbc__drv_path=prefixed'},
+            {"AIRFLOW_CONN_MY_CONN": "a://?drv_path=non-prefixed&extra__jdbc__drv_path=prefixed"},
         ):
-            hook = JdbcHook('my_conn')
+            hook = JdbcHook("my_conn")
             hook.get_conn()
             mock_connect.assert_called_with(
                 jclassname=None,
-                url='',
-                driver_args=['None', 'None'],
-                jars='non-prefixed'.split(","),
+                url="",
+                driver_args=["None", "None"],
+                jars="non-prefixed".split(","),
             )

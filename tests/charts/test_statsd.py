@@ -90,9 +90,9 @@ class TestStatsd:
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
         values = {"statsd": {"enabled": True}}
         if revision_history_limit:
-            values['statsd']['revisionHistoryLimit'] = revision_history_limit
+            values["statsd"]["revisionHistoryLimit"] = revision_history_limit
         if global_revision_history_limit:
-            values['revisionHistoryLimit'] = global_revision_history_limit
+            values["revisionHistoryLimit"] = global_revision_history_limit
         docs = render_chart(
             values=values,
             show_only=["templates/statsd/statsd-deployment.yaml"],
@@ -149,8 +149,8 @@ class TestStatsd:
             values={
                 "statsd": {
                     "resources": {
-                        "limits": {"cpu": "200m", 'memory': "128Mi"},
-                        "requests": {"cpu": "300m", 'memory': "169Mi"},
+                        "limits": {"cpu": "200m", "memory": "128Mi"},
+                        "requests": {"cpu": "300m", "memory": "169Mi"},
                     }
                 },
             },
