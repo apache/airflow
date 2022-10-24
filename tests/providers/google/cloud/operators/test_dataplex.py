@@ -204,7 +204,7 @@ class TestDataplexDeleteLakeOperator(TestCase):
             delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context=None)
+        op.execute(context=mock.MagicMock())
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             delegate_to=DELEGATE_TO,
@@ -239,7 +239,7 @@ class TestDataplexCreateLakeOperator(TestCase):
         )
         hook_mock.return_value.wait_for_operation.return_value = None
         lake_mock.return_value.to_dict.return_value = None
-        op.execute(context=None)
+        op.execute(context=mock.MagicMock())
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             delegate_to=DELEGATE_TO,
