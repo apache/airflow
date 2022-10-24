@@ -47,8 +47,7 @@ repos:
         exclude: |
           (?x)
           ^\.github/|
-          ^airflow/_vendor/|
-          ^tests/system/providers/snowflake/example_snowflake_snowflake_op_template_file\.sql$
+          ^airflow/_vendor/
         args:
           - --comment-style
           - "/*||*/"
