@@ -24,6 +24,7 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
     AzureDataFactoryPipelineRunStatus,
+    get_field,
 )
 
 if TYPE_CHECKING:
@@ -53,17 +54,16 @@ class AzureDataFactoryPipelineRunLink(BaseOperatorLink):
                 task_id=operator.task_id,
                 execution_date=dttm,
             )
-
-        conn = BaseHook.get_connection(operator.azure_data_factory_conn_id)
-        subscription_id = conn.extra_dejson["extra__azure_data_factory__subscriptionId"]
+        conn_id = operator.azure_data_factory_conn_id
+        conn = BaseHook.get_connection(conn_id)
+        extras = conn.extra_dejson
+        subscription_id = get_field(extras, "subscriptionId")
+        if not subscription_id:
+            raise KeyError(f"Param subscriptionId not found in conn_id '{conn_id}'")
         # Both Resource Group Name and Factory Name can either be declared in the Azure Data Factory
         # connection or passed directly to the operator.
-        resource_group_name = operator.resource_group_name or conn.extra_dejson.get(
-            "extra__azure_data_factory__resource_group_name"
-        )
-        factory_name = operator.factory_name or conn.extra_dejson.get(
-            "extra__azure_data_factory__factory_name"
-        )
+        resource_group_name = operator.resource_group_name or get_field(extras, "resource_group_name")
+        factory_name = operator.factory_name or get_field(extras, "factory_name")
         url = (
             f"https://adf.azure.com/en-us/monitoring/pipelineruns/{run_id}"
             f"?factory=/subscriptions/{subscription_id}/"

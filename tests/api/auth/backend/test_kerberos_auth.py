@@ -40,7 +40,7 @@ def app_for_kerberos():
         {
             ("api", "auth_backends"): "airflow.api.auth.backend.kerberos_auth",
             ("kerberos", "keytab"): KRB5_KTNAME,
-            ('api', 'enable_experimental_api'): 'true',
+            ("api", "enable_experimental_api"): "true",
         }
     ):
         yield app.create_app(testing=True)
@@ -63,21 +63,21 @@ class TestApiKerberos:
 
     def test_trigger_dag(self):
         with self.app.test_client() as client:
-            url_template = '/api/experimental/dags/{}/dag_runs'
+            url_template = "/api/experimental/dags/{}/dag_runs"
             response = client.post(
-                url_template.format('example_bash_operator'),
-                data=json.dumps(dict(run_id='my_run' + datetime.now().isoformat())),
+                url_template.format("example_bash_operator"),
+                data=json.dumps(dict(run_id="my_run" + datetime.now().isoformat())),
                 content_type="application/json",
             )
             assert 401 == response.status_code
 
-            response.url = f'http://{getfqdn()}'
+            response.url = f"http://{getfqdn()}"
 
             class Request:
                 headers = {}
 
             response.request = Request()
-            response.content = ''
+            response.content = ""
             response.raw = mock.MagicMock()
             response.connection = mock.MagicMock()
             response.connection.send = mock.MagicMock()
@@ -86,11 +86,11 @@ class TestApiKerberos:
             CLIENT_AUTH.mutual_authentication = 3
 
             CLIENT_AUTH.handle_response(response)
-            assert 'Authorization' in response.request.headers
+            assert "Authorization" in response.request.headers
 
             response2 = client.post(
-                url_template.format('example_bash_operator'),
-                data=json.dumps(dict(run_id='my_run' + datetime.now().isoformat())),
+                url_template.format("example_bash_operator"),
+                data=json.dumps(dict(run_id="my_run" + datetime.now().isoformat())),
                 content_type="application/json",
                 headers=response.request.headers,
             )
@@ -98,10 +98,10 @@ class TestApiKerberos:
 
     def test_unauthorized(self):
         with self.app.test_client() as client:
-            url_template = '/api/experimental/dags/{}/dag_runs'
+            url_template = "/api/experimental/dags/{}/dag_runs"
             response = client.post(
-                url_template.format('example_bash_operator'),
-                data=json.dumps(dict(run_id='my_run' + datetime.now().isoformat())),
+                url_template.format("example_bash_operator"),
+                data=json.dumps(dict(run_id="my_run" + datetime.now().isoformat())),
                 content_type="application/json",
             )
 

@@ -33,10 +33,10 @@ class YandexCloudBaseHook(BaseHook):
     :param yandex_conn_id: The connection ID to use when fetching connection info.
     """
 
-    conn_name_attr = 'yandex_conn_id'
-    default_conn_name = 'yandexcloud_default'
-    conn_type = 'yandexcloud'
-    hook_name = 'Yandex Cloud'
+    conn_name_attr = "yandex_conn_id"
+    default_conn_name = "yandexcloud_default"
+    conn_type = "yandexcloud"
+    hook_name = "Yandex Cloud"
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
@@ -47,36 +47,36 @@ class YandexCloudBaseHook(BaseHook):
 
         return {
             "service_account_json": PasswordField(
-                lazy_gettext('Service account auth JSON'),
+                lazy_gettext("Service account auth JSON"),
                 widget=BS3PasswordFieldWidget(),
-                description='Service account auth JSON. Looks like '
+                description="Service account auth JSON. Looks like "
                 '{"id", "...", "service_account_id": "...", "private_key": "..."}. '
-                'Will be used instead of OAuth token and SA JSON file path field if specified.',
+                "Will be used instead of OAuth token and SA JSON file path field if specified.",
             ),
             "service_account_json_path": StringField(
-                lazy_gettext('Service account auth JSON file path'),
+                lazy_gettext("Service account auth JSON file path"),
                 widget=BS3TextFieldWidget(),
-                description='Service account auth JSON file path. File content looks like '
+                description="Service account auth JSON file path. File content looks like "
                 '{"id", "...", "service_account_id": "...", "private_key": "..."}. '
-                'Will be used instead of OAuth token if specified.',
+                "Will be used instead of OAuth token if specified.",
             ),
             "oauth": PasswordField(
-                lazy_gettext('OAuth Token'),
+                lazy_gettext("OAuth Token"),
                 widget=BS3PasswordFieldWidget(),
-                description='User account OAuth token. '
-                'Either this or service account JSON must be specified.',
+                description="User account OAuth token. "
+                "Either this or service account JSON must be specified.",
             ),
             "folder_id": StringField(
-                lazy_gettext('Default folder ID'),
+                lazy_gettext("Default folder ID"),
                 widget=BS3TextFieldWidget(),
-                description='Optional. This folder will be used '
-                'to create all new clusters and nodes by default',
+                description="Optional. This folder will be used "
+                "to create all new clusters and nodes by default",
             ),
             "public_ssh_key": StringField(
-                lazy_gettext('Public SSH key'),
+                lazy_gettext("Public SSH key"),
                 widget=BS3TextFieldWidget(),
-                description='Optional. This key will be placed to all created Compute nodes'
-                'to let you have a root shell there',
+                description="Optional. This key will be placed to all created Compute nodes"
+                "to let you have a root shell there",
             ),
         }
 
@@ -90,7 +90,7 @@ class YandexCloudBaseHook(BaseHook):
             manager = ProvidersManager()
             provider_name = manager.hooks[cls.conn_type].package_name  # type: ignore[union-attr]
             provider = manager.providers[provider_name]
-            return f'apache-airflow/{airflow.__version__} {provider_name}/{provider.version}'
+            return f"apache-airflow/{airflow.__version__} {provider_name}/{provider.version}"
         except KeyError:
             warnings.warn(f"Hook '{cls.hook_name}' info is not initialized in airflow.ProviderManager")
             return None
@@ -99,7 +99,7 @@ class YandexCloudBaseHook(BaseHook):
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
+            "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
         }
 
@@ -123,34 +123,34 @@ class YandexCloudBaseHook(BaseHook):
         self.extras = self.connection.extra_dejson
         credentials = self._get_credentials()
         self.sdk = yandexcloud.SDK(user_agent=self.provider_user_agent(), **credentials)
-        self.default_folder_id = default_folder_id or self._get_field('folder_id', False)
-        self.default_public_ssh_key = default_public_ssh_key or self._get_field('public_ssh_key', False)
+        self.default_folder_id = default_folder_id or self._get_field("folder_id", False)
+        self.default_public_ssh_key = default_public_ssh_key or self._get_field("public_ssh_key", False)
         self.client = self.sdk.client
 
     def _get_credentials(self) -> dict[str, Any]:
-        service_account_json_path = self._get_field('service_account_json_path', False)
-        service_account_json = self._get_field('service_account_json', False)
-        oauth_token = self._get_field('oauth', False)
+        service_account_json_path = self._get_field("service_account_json_path", False)
+        service_account_json = self._get_field("service_account_json", False)
+        oauth_token = self._get_field("oauth", False)
         if not (service_account_json or oauth_token or service_account_json_path):
             raise AirflowException(
-                'No credentials are found in connection. Specify either service account '
-                'authentication JSON or user OAuth token in Yandex.Cloud connection'
+                "No credentials are found in connection. Specify either service account "
+                "authentication JSON or user OAuth token in Yandex.Cloud connection"
             )
         if service_account_json_path:
             with open(service_account_json_path) as infile:
                 service_account_json = infile.read()
         if service_account_json:
             service_account_key = json.loads(service_account_json)
-            return {'service_account_key': service_account_key}
+            return {"service_account_key": service_account_key}
         else:
-            return {'token': oauth_token}
+            return {"token": oauth_token}
 
     def _get_field(self, field_name: str, default: Any = None) -> Any:
         """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
-        if not hasattr(self, 'extras'):
+        if not hasattr(self, "extras"):
             return default
-        backcompat_prefix = 'extra__yandexcloud__'
-        if field_name.startswith('extra__'):
+        backcompat_prefix = "extra__yandexcloud__"
+        if field_name.startswith("extra__"):
             raise ValueError(
                 f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
                 "when using this method."

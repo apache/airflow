@@ -45,22 +45,22 @@ class TrinoToMySqlOperator(BaseOperator):
         the task twice won't double load data). (templated)
     """
 
-    template_fields: Sequence[str] = ('sql', 'mysql_table', 'mysql_preoperator')
-    template_ext: Sequence[str] = ('.sql',)
+    template_fields: Sequence[str] = ("sql", "mysql_table", "mysql_preoperator")
+    template_ext: Sequence[str] = (".sql",)
     # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
     template_fields_renderers = {
         "sql": "sql",
         "mysql_preoperator": "mysql" if "mysql" in wwwutils.get_attr_renderer() else "sql",
     }
-    ui_color = '#a0e08c'
+    ui_color = "#a0e08c"
 
     def __init__(
         self,
         *,
         sql: str,
         mysql_table: str,
-        trino_conn_id: str = 'trino_default',
-        mysql_conn_id: str = 'mysql_default',
+        trino_conn_id: str = "trino_default",
+        mysql_conn_id: str = "mysql_default",
         mysql_preoperator: str | None = None,
         **kwargs,
     ) -> None:

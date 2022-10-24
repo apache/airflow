@@ -28,7 +28,7 @@ DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 
 
 class TestPapermillOperator(unittest.TestCase):
-    @patch('airflow.providers.papermill.operators.papermill.pm')
+    @patch("airflow.providers.papermill.operators.papermill.pm")
     def test_execute(self, mock_papermill):
         in_nb = "/tmp/does_not_exist"
         out_nb = "/tmp/will_not_exist"
@@ -59,8 +59,8 @@ class TestPapermillOperator(unittest.TestCase):
         )
 
     def test_render_template(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        dag = DAG('test_render_template', default_args=args)
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        dag = DAG("test_render_template", default_args=args)
 
         operator = PapermillOperator(
             task_id="render_dag_test",
@@ -77,7 +77,7 @@ class TestPapermillOperator(unittest.TestCase):
         ti.render_templates()
 
         assert "/tmp/test_render_template.ipynb" == operator.input_nb
-        assert '/tmp/out-test_render_template.ipynb' == operator.output_nb
+        assert "/tmp/out-test_render_template.ipynb" == operator.output_nb
         assert {"msgs": "dag id is test_render_template!"} == operator.parameters
         assert "python3" == operator.kernel_name
         assert "python" == operator.language_name

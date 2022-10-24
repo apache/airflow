@@ -30,40 +30,40 @@ except ImportError:
     mock_firehose = None
 
 
-@pytest.mark.skipif(mock_firehose is None, reason='moto package not present')
+@pytest.mark.skipif(mock_firehose is None, reason="moto package not present")
 class TestFirehoseHook:
     @mock_firehose
     def test_get_conn_returns_a_boto3_connection(self):
         hook = FirehoseHook(
-            aws_conn_id='aws_default', delivery_stream="test_airflow", region_name="us-east-1"
+            aws_conn_id="aws_default", delivery_stream="test_airflow", region_name="us-east-1"
         )
         assert hook.get_conn() is not None
 
     @mock_firehose
     @mock_s3
     def test_insert_batch_records_kinesis_firehose(self):
-        boto3.client('s3').create_bucket(Bucket='kinesis-test')
+        boto3.client("s3").create_bucket(Bucket="kinesis-test")
         hook = FirehoseHook(
-            aws_conn_id='aws_default', delivery_stream="test_airflow", region_name="us-east-1"
+            aws_conn_id="aws_default", delivery_stream="test_airflow", region_name="us-east-1"
         )
 
         response = hook.get_conn().create_delivery_stream(
             DeliveryStreamName="test_airflow",
             S3DestinationConfiguration={
-                'RoleARN': 'arn:aws:iam::123456789012:role/firehose_delivery_role',
-                'BucketARN': 'arn:aws:s3:::kinesis-test',
-                'Prefix': 'airflow/',
-                'BufferingHints': {'SizeInMBs': 123, 'IntervalInSeconds': 124},
-                'CompressionFormat': 'UNCOMPRESSED',
+                "RoleARN": "arn:aws:iam::123456789012:role/firehose_delivery_role",
+                "BucketARN": "arn:aws:s3:::kinesis-test",
+                "Prefix": "airflow/",
+                "BufferingHints": {"SizeInMBs": 123, "IntervalInSeconds": 124},
+                "CompressionFormat": "UNCOMPRESSED",
             },
         )
 
-        stream_arn = response['DeliveryStreamARN']
+        stream_arn = response["DeliveryStreamARN"]
         assert stream_arn == "arn:aws:firehose:us-east-1:123456789012:deliverystream/test_airflow"
 
         records = [{"Data": str(uuid.uuid4())} for _ in range(100)]
 
         response = hook.put_records(records)
 
-        assert response['FailedPutCount'] == 0
-        assert response['ResponseMetadata']['HTTPStatusCode'] == 200
+        assert response["FailedPutCount"] == 0
+        assert response["ResponseMetadata"]["HTTPStatusCode"] == 200

@@ -38,38 +38,38 @@ from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchanged
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-DAG_ID = 'example_s3'
+DAG_ID = "example_s3"
 
 sys_test_context_task = SystemTestContextBuilder().build()
 
-DATA = '''
+DATA = """
     apple,0.5
     milk,2.5
     bread,4.0
-'''
+"""
 
 # Empty string prefix refers to the bucket root
 # See what prefix is here https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-prefixes.html
-PREFIX = ''
-DELIMITER = '/'
-TAG_KEY = 'test-s3-bucket-tagging-key'
-TAG_VALUE = 'test-s3-bucket-tagging-value'
+PREFIX = ""
+DELIMITER = "/"
+TAG_KEY = "test-s3-bucket-tagging-key"
+TAG_VALUE = "test-s3-bucket-tagging-value"
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
 
-    bucket_name = f'{env_id}-s3-bucket'
-    bucket_name_2 = f'{env_id}-s3-bucket-2'
+    bucket_name = f"{env_id}-s3-bucket"
+    bucket_name_2 = f"{env_id}-s3-bucket-2"
 
-    key = f'{env_id}-key'
-    key_2 = f'{env_id}-key2'
+    key = f"{env_id}-key"
+    key_2 = f"{env_id}-key2"
 
     # [START howto_sensor_s3_key_function_definition]
     def check_fn(files: list) -> bool:
@@ -80,25 +80,25 @@ with DAG(
         :return: true if the criteria is met
         :rtype: bool
         """
-        return all(f.get('Size', 0) > 20 for f in files)
+        return all(f.get("Size", 0) > 20 for f in files)
 
     # [END howto_sensor_s3_key_function_definition]
 
     # [START howto_operator_s3_create_bucket]
     create_bucket = S3CreateBucketOperator(
-        task_id='create_bucket',
+        task_id="create_bucket",
         bucket_name=bucket_name,
     )
     # [END howto_operator_s3_create_bucket]
 
     create_bucket_2 = S3CreateBucketOperator(
-        task_id='create_bucket_2',
+        task_id="create_bucket_2",
         bucket_name=bucket_name_2,
     )
 
     # [START howto_operator_s3_put_bucket_tagging]
     put_tagging = S3PutBucketTaggingOperator(
-        task_id='put_tagging',
+        task_id="put_tagging",
         bucket_name=bucket_name,
         key=TAG_KEY,
         value=TAG_VALUE,
@@ -107,14 +107,14 @@ with DAG(
 
     # [START howto_operator_s3_get_bucket_tagging]
     get_tagging = S3GetBucketTaggingOperator(
-        task_id='get_tagging',
+        task_id="get_tagging",
         bucket_name=bucket_name,
     )
     # [END howto_operator_s3_get_bucket_tagging]
 
     # [START howto_operator_s3_delete_bucket_tagging]
     delete_tagging = S3DeleteBucketTaggingOperator(
-        task_id='delete_tagging',
+        task_id="delete_tagging",
         bucket_name=bucket_name,
     )
     # [END howto_operator_s3_delete_bucket_tagging]
@@ -195,10 +195,10 @@ with DAG(
     # [START howto_operator_s3_file_transform]
     file_transform = S3FileTransformOperator(
         task_id="file_transform",
-        source_s3_key=f's3://{bucket_name}/{key}',
-        dest_s3_key=f's3://{bucket_name_2}/{key_2}',
+        source_s3_key=f"s3://{bucket_name}/{key}",
+        dest_s3_key=f"s3://{bucket_name_2}/{key_2}",
         # Use `cp` command as transform script as an example
-        transform_script='cp',
+        transform_script="cp",
         replace=True,
     )
     # [END howto_operator_s3_file_transform]
@@ -206,7 +206,7 @@ with DAG(
     # This task skips the `sensor_keys_unchanged` task because the S3KeysUnchangedSensor
     # runs in poke mode only, which is not supported by the DebugExecutor, causing system tests to fail.
     branching = BranchPythonOperator(
-        task_id='branch_to_delete_objects', python_callable=lambda: 'delete_objects'
+        task_id="branch_to_delete_objects", python_callable=lambda: "delete_objects"
     )
 
     # [START howto_sensor_s3_keys_unchanged]
@@ -229,7 +229,7 @@ with DAG(
 
     # [START howto_operator_s3_delete_bucket]
     delete_bucket = S3DeleteBucketOperator(
-        task_id='delete_bucket',
+        task_id="delete_bucket",
         bucket_name=bucket_name,
         force_delete=True,
     )
@@ -237,7 +237,7 @@ with DAG(
     delete_bucket.trigger_rule = TriggerRule.ALL_DONE
 
     delete_bucket_2 = S3DeleteBucketOperator(
-        task_id='delete_bucket_2',
+        task_id="delete_bucket_2",
         bucket_name=bucket_name_2,
         force_delete=True,
     )

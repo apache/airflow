@@ -73,7 +73,7 @@ option_verbose = click.option(
     "--verbose",
     is_flag=True,
     help="Print verbose information about performed steps.",
-    envvar='VERBOSE',
+    envvar="VERBOSE",
     callback=_set_default_from_parent,
 )
 option_dry_run = click.option(
@@ -81,359 +81,359 @@ option_dry_run = click.option(
     "--dry-run",
     is_flag=True,
     help="If dry-run is set, commands are only printed, not executed.",
-    envvar='DRY_RUN',
+    envvar="DRY_RUN",
     callback=_set_default_from_parent,
 )
 option_answer = click.option(
     "-a",
     "--answer",
-    type=AnswerChoice(['y', 'n', 'q', 'yes', 'no', 'quit']),
+    type=AnswerChoice(["y", "n", "q", "yes", "no", "quit"]),
     help="Force answer to questions.",
-    envvar='ANSWER',
+    envvar="ANSWER",
     callback=_set_default_from_parent,
 )
 option_github_repository = click.option(
-    '-g',
-    '--github-repository',
-    help='GitHub repository used to pull, push run images.',
+    "-g",
+    "--github-repository",
+    help="GitHub repository used to pull, push run images.",
     default=APACHE_AIRFLOW_GITHUB_REPOSITORY,
     show_default=True,
-    envvar='GITHUB_REPOSITORY',
+    envvar="GITHUB_REPOSITORY",
     callback=_set_default_from_parent,
 )
 option_python = click.option(
-    '-p',
-    '--python',
+    "-p",
+    "--python",
     type=CacheableChoice(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS),
     default=CacheableDefault(value=ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]),
     show_default=True,
-    help='Python major/minor version used in Airflow image for images.',
-    envvar='PYTHON_MAJOR_MINOR_VERSION',
+    help="Python major/minor version used in Airflow image for images.",
+    envvar="PYTHON_MAJOR_MINOR_VERSION",
 )
 option_backend = click.option(
-    '-b',
-    '--backend',
+    "-b",
+    "--backend",
     type=CacheableChoice(ALLOWED_BACKENDS),
     default=CacheableDefault(value=ALLOWED_BACKENDS[0]),
     show_default=True,
     help="Database backend to use.",
-    envvar='BACKEND',
+    envvar="BACKEND",
 )
 option_integration = click.option(
-    '--integration',
+    "--integration",
     help="Integration(s) to enable when running (can be more than one).",
     type=BetterChoice(ALLOWED_INTEGRATIONS),
     multiple=True,
 )
 option_postgres_version = click.option(
-    '-P',
-    '--postgres-version',
+    "-P",
+    "--postgres-version",
     type=CacheableChoice(ALLOWED_POSTGRES_VERSIONS),
     default=CacheableDefault(ALLOWED_POSTGRES_VERSIONS[0]),
     show_default=True,
     help="Version of Postgres used.",
 )
 option_mysql_version = click.option(
-    '-M',
-    '--mysql-version',
+    "-M",
+    "--mysql-version",
     help="Version of MySQL used.",
     type=CacheableChoice(ALLOWED_MYSQL_VERSIONS),
     default=CacheableDefault(ALLOWED_MYSQL_VERSIONS[0]),
     show_default=True,
 )
 option_mssql_version = click.option(
-    '-S',
-    '--mssql-version',
+    "-S",
+    "--mssql-version",
     help="Version of MsSQL used.",
     type=CacheableChoice(ALLOWED_MSSQL_VERSIONS),
     default=CacheableDefault(ALLOWED_MSSQL_VERSIONS[0]),
     show_default=True,
 )
 option_forward_credentials = click.option(
-    '-f', '--forward-credentials', help="Forward local credentials to container when running.", is_flag=True
+    "-f", "--forward-credentials", help="Forward local credentials to container when running.", is_flag=True
 )
 option_use_airflow_version = click.option(
-    '--use-airflow-version',
+    "--use-airflow-version",
     help="Use (reinstall at entry) Airflow version from PyPI. It can also be `none`, `wheel`, or `sdist`"
     " if Airflow should be removed, installed from wheel packages or sdist packages available in dist "
     "folder respectively. Implies --mount-sources `remove`.",
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
-    envvar='USE_AIRFLOW_VERSION',
+    envvar="USE_AIRFLOW_VERSION",
 )
 option_airflow_extras = click.option(
-    '--airflow-extras',
+    "--airflow-extras",
     help="Airflow extras to install when --use-airflow-version is used",
     default="",
     show_default=True,
-    envvar='AIRFLOW_EXTRAS',
+    envvar="AIRFLOW_EXTRAS",
 )
 option_mount_sources = click.option(
-    '--mount-sources',
+    "--mount-sources",
     type=BetterChoice(ALLOWED_MOUNT_OPTIONS),
     default=ALLOWED_MOUNT_OPTIONS[0],
     show_default=True,
     help="Choose scope of local sources that should be mounted, skipped, or removed (default = selected).",
 )
 option_force_build = click.option(
-    '--force-build', help="Force image build no matter if it is determined as needed.", is_flag=True
+    "--force-build", help="Force image build no matter if it is determined as needed.", is_flag=True
 )
 option_db_reset = click.option(
-    '-d',
-    '--db-reset',
+    "-d",
+    "--db-reset",
     help="Reset DB when entering the container.",
     is_flag=True,
-    envvar='DB_RESET',
+    envvar="DB_RESET",
 )
 option_use_packages_from_dist = click.option(
-    '--use-packages-from-dist',
+    "--use-packages-from-dist",
     is_flag=True,
     help="Install all found packages (--package-format determines type) from 'dist' folder "
     "when entering breeze.",
-    envvar='USE_PACKAGES_FROM_DIST',
+    envvar="USE_PACKAGES_FROM_DIST",
 )
 option_docker_cache = click.option(
-    '-c',
-    '--docker-cache',
-    help='Cache option for image used during the build.',
+    "-c",
+    "--docker-cache",
+    help="Cache option for image used during the build.",
     default=ALLOWED_BUILD_CACHE[0],
     show_default=True,
     type=BetterChoice(ALLOWED_BUILD_CACHE),
 )
 option_github_token = click.option(
-    '--github-token',
-    help='The token used to authenticate to GitHub.',
-    envvar='GITHUB_TOKEN',
+    "--github-token",
+    help="The token used to authenticate to GitHub.",
+    envvar="GITHUB_TOKEN",
 )
 option_github_username = click.option(
-    '--github-username',
-    help='The user name used to authenticate to GitHub.',
-    envvar='GITHUB_USERNAME',
+    "--github-username",
+    help="The user name used to authenticate to GitHub.",
+    envvar="GITHUB_USERNAME",
 )
 option_image_tag_for_pulling = click.option(
-    '-t',
-    '--image-tag',
-    help='Tag of the image which is used to pull the image.',
+    "-t",
+    "--image-tag",
+    help="Tag of the image which is used to pull the image.",
     show_default=True,
     default="latest",
-    envvar='IMAGE_TAG',
+    envvar="IMAGE_TAG",
 )
 option_image_tag_for_building = click.option(
-    '-t',
-    '--image-tag',
-    help='Tag the image after building it.',
+    "-t",
+    "--image-tag",
+    help="Tag the image after building it.",
     show_default=True,
     default="latest",
-    envvar='IMAGE_TAG',
+    envvar="IMAGE_TAG",
 )
 option_image_tag_for_running = click.option(
-    '-t',
-    '--image-tag',
-    help='Tag of the image which is used to run the image (implies --mount-sources=skip).',
+    "-t",
+    "--image-tag",
+    help="Tag of the image which is used to run the image (implies --mount-sources=skip).",
     show_default=True,
     default="latest",
-    envvar='IMAGE_TAG',
+    envvar="IMAGE_TAG",
 )
 option_image_tag_for_verifying = click.option(
-    '-t',
-    '--image-tag',
-    help='Tag of the image when verifying it.',
+    "-t",
+    "--image-tag",
+    help="Tag of the image when verifying it.",
     show_default=True,
     default="latest",
-    envvar='IMAGE_TAG',
+    envvar="IMAGE_TAG",
 )
 option_image_name = click.option(
-    '-n', '--image-name', help='Name of the image to verify (overrides --python and --image-tag).'
+    "-n", "--image-name", help="Name of the image to verify (overrides --python and --image-tag)."
 )
 option_platform_multiple = click.option(
-    '--platform',
-    help='Platform for Airflow image.',
-    envvar='PLATFORM',
+    "--platform",
+    help="Platform for Airflow image.",
+    envvar="PLATFORM",
     type=BetterChoice(ALLOWED_PLATFORMS),
 )
 option_platform_single = click.option(
-    '--platform',
-    help='Platform for Airflow image.',
-    envvar='PLATFORM',
+    "--platform",
+    help="Platform for Airflow image.",
+    envvar="PLATFORM",
     type=BetterChoice(SINGLE_PLATFORMS),
 )
 option_upgrade_to_newer_dependencies = click.option(
     "-u",
-    '--upgrade-to-newer-dependencies',
+    "--upgrade-to-newer-dependencies",
     is_flag=True,
-    help='When set, upgrade all PIP packages to latest.',
-    envvar='UPGRADE_TO_NEWER_DEPENDENCIES',
+    help="When set, upgrade all PIP packages to latest.",
+    envvar="UPGRADE_TO_NEWER_DEPENDENCIES",
 )
 option_upgrade_on_failure = click.option(
     "-u",
-    '--upgrade-on-failure',
+    "--upgrade-on-failure",
     is_flag=True,
-    help='When set, attempt to run upgrade to newer dependencies when regular build fails.',
-    envvar='UPGRADE_ON_FAILURE',
+    help="When set, attempt to run upgrade to newer dependencies when regular build fails.",
+    envvar="UPGRADE_ON_FAILURE",
 )
 option_additional_extras = click.option(
-    '--additional-extras',
-    help='Additional extra package while installing Airflow in the image.',
-    envvar='ADDITIONAL_AIRFLOW_EXTRAS',
+    "--additional-extras",
+    help="Additional extra package while installing Airflow in the image.",
+    envvar="ADDITIONAL_AIRFLOW_EXTRAS",
 )
 option_additional_dev_apt_deps = click.option(
-    '--additional-dev-apt-deps',
-    help='Additional apt dev dependencies to use when building the images.',
-    envvar='ADDITIONAL_DEV_APT_DEPS',
+    "--additional-dev-apt-deps",
+    help="Additional apt dev dependencies to use when building the images.",
+    envvar="ADDITIONAL_DEV_APT_DEPS",
 )
 option_additional_runtime_apt_deps = click.option(
-    '--additional-runtime-apt-deps',
-    help='Additional apt runtime dependencies to use when building the images.',
-    envvar='ADDITIONAL_RUNTIME_APT_DEPS',
+    "--additional-runtime-apt-deps",
+    help="Additional apt runtime dependencies to use when building the images.",
+    envvar="ADDITIONAL_RUNTIME_APT_DEPS",
 )
 option_additional_python_deps = click.option(
-    '--additional-python-deps',
-    help='Additional python dependencies to use when building the images.',
-    envvar='ADDITIONAL_PYTHON_DEPS',
+    "--additional-python-deps",
+    help="Additional python dependencies to use when building the images.",
+    envvar="ADDITIONAL_PYTHON_DEPS",
 )
 option_additional_dev_apt_command = click.option(
-    '--additional-dev-apt-command',
-    help='Additional command executed before dev apt deps are installed.',
-    envvar='ADDITIONAL_DEV_APT_COMMAND',
+    "--additional-dev-apt-command",
+    help="Additional command executed before dev apt deps are installed.",
+    envvar="ADDITIONAL_DEV_APT_COMMAND",
 )
 option_additional_runtime_apt_command = click.option(
-    '--additional-runtime-apt-command',
-    help='Additional command executed before runtime apt deps are installed.',
-    envvar='ADDITIONAL_RUNTIME_APT_COMMAND',
+    "--additional-runtime-apt-command",
+    help="Additional command executed before runtime apt deps are installed.",
+    envvar="ADDITIONAL_RUNTIME_APT_COMMAND",
 )
 option_additional_dev_apt_env = click.option(
-    '--additional-dev-apt-env',
-    help='Additional environment variables set when adding dev dependencies.',
-    envvar='ADDITIONAL_DEV_APT_ENV',
+    "--additional-dev-apt-env",
+    help="Additional environment variables set when adding dev dependencies.",
+    envvar="ADDITIONAL_DEV_APT_ENV",
 )
 option_additional_runtime_apt_env = click.option(
-    '--additional-runtime-apt-env',
-    help='Additional environment variables set when adding runtime dependencies.',
-    envvar='ADDITIONAL_RUNTIME_APT_ENV',
+    "--additional-runtime-apt-env",
+    help="Additional environment variables set when adding runtime dependencies.",
+    envvar="ADDITIONAL_RUNTIME_APT_ENV",
 )
 option_dev_apt_command = click.option(
-    '--dev-apt-command',
-    help='Command executed before dev apt deps are installed.',
-    envvar='DEV_APT_COMMAND',
+    "--dev-apt-command",
+    help="Command executed before dev apt deps are installed.",
+    envvar="DEV_APT_COMMAND",
 )
 option_dev_apt_deps = click.option(
-    '--dev-apt-deps',
-    help='Apt dev dependencies to use when building the images.',
-    envvar='DEV_APT_DEPS',
+    "--dev-apt-deps",
+    help="Apt dev dependencies to use when building the images.",
+    envvar="DEV_APT_DEPS",
 )
 option_runtime_apt_command = click.option(
-    '--runtime-apt-command',
-    help='Command executed before runtime apt deps are installed.',
-    envvar='RUNTIME_APT_COMMAND',
+    "--runtime-apt-command",
+    help="Command executed before runtime apt deps are installed.",
+    envvar="RUNTIME_APT_COMMAND",
 )
 option_runtime_apt_deps = click.option(
-    '--runtime-apt-deps',
-    help='Apt runtime dependencies to use when building the images.',
-    envvar='RUNTIME_APT_DEPS',
+    "--runtime-apt-deps",
+    help="Apt runtime dependencies to use when building the images.",
+    envvar="RUNTIME_APT_DEPS",
 )
 option_prepare_buildx_cache = click.option(
-    '--prepare-buildx-cache',
-    help='Prepares build cache (this is done as separate per-platform steps instead of building the image).',
+    "--prepare-buildx-cache",
+    help="Prepares build cache (this is done as separate per-platform steps instead of building the image).",
     is_flag=True,
-    envvar='PREPARE_BUILDX_CACHE',
+    envvar="PREPARE_BUILDX_CACHE",
 )
 option_push = click.option(
-    '--push',
-    help='Push image after building it.',
+    "--push",
+    help="Push image after building it.",
     is_flag=True,
-    envvar='PUSH',
+    envvar="PUSH",
 )
 option_empty_image = click.option(
-    '--empty-image',
-    help='Prepare empty image tagged with the same name as the Airflow image.',
+    "--empty-image",
+    help="Prepare empty image tagged with the same name as the Airflow image.",
     is_flag=True,
-    envvar='EMPTY_IMAGE',
+    envvar="EMPTY_IMAGE",
 )
 option_wait_for_image = click.option(
-    '--wait-for-image',
-    help='Wait until image is available.',
+    "--wait-for-image",
+    help="Wait until image is available.",
     is_flag=True,
-    envvar='WAIT_FOR_IMAGE',
+    envvar="WAIT_FOR_IMAGE",
 )
 option_tag_as_latest = click.option(
-    '--tag-as-latest',
-    help='Tags the image as latest and update checksum of all files after pulling. '
-    'Useful when you build or pull image with --image-tag.',
+    "--tag-as-latest",
+    help="Tags the image as latest and update checksum of all files after pulling. "
+    "Useful when you build or pull image with --image-tag.",
     is_flag=True,
-    envvar='TAG_AS_LATEST',
+    envvar="TAG_AS_LATEST",
 )
 option_verify = click.option(
-    '--verify',
-    help='Verify image.',
+    "--verify",
+    help="Verify image.",
     is_flag=True,
-    envvar='VERIFY',
+    envvar="VERIFY",
 )
 option_additional_pip_install_flags = click.option(
-    '--additional-pip-install-flags',
-    help='Additional flags added to `pip install` commands (except reinstalling `pip` itself).',
-    envvar='ADDITIONAL_PIP_INSTALL_FLAGS',
+    "--additional-pip-install-flags",
+    help="Additional flags added to `pip install` commands (except reinstalling `pip` itself).",
+    envvar="ADDITIONAL_PIP_INSTALL_FLAGS",
 )
 
 option_install_providers_from_sources = click.option(
-    '--install-providers-from-sources',
+    "--install-providers-from-sources",
     help="Install providers from sources when installing.",
     is_flag=True,
-    envvar='INSTALL_PROVIDERS_FROM_SOURCES',
+    envvar="INSTALL_PROVIDERS_FROM_SOURCES",
 )
 option_load_example_dags = click.option(
-    '-e',
-    '--load-example-dags',
+    "-e",
+    "--load-example-dags",
     help="Enable configuration to load example DAGs when starting Airflow.",
     is_flag=True,
-    envvar='LOAD_EXAMPLES',
+    envvar="LOAD_EXAMPLES",
 )
 option_load_default_connection = click.option(
-    '-c',
-    '--load-default-connections',
+    "-c",
+    "--load-default-connections",
     help="Enable configuration to load default connections when starting Airflow.",
     is_flag=True,
-    envvar='LOAD_DEFAULT_CONNECTIONS',
+    envvar="LOAD_DEFAULT_CONNECTIONS",
 )
 option_version_suffix_for_pypi = click.option(
-    '--version-suffix-for-pypi',
-    help='Version suffix used for PyPI packages (alpha, beta, rc1, etc.).',
+    "--version-suffix-for-pypi",
+    help="Version suffix used for PyPI packages (alpha, beta, rc1, etc.).",
     default="",
-    envvar='VERSION_SUFFIX_FOR_PYPI',
+    envvar="VERSION_SUFFIX_FOR_PYPI",
 )
 option_package_format = click.option(
-    '--package-format',
+    "--package-format",
     type=BetterChoice(ALLOWED_PACKAGE_FORMATS),
-    help='Format of packages.',
+    help="Format of packages.",
     default=ALLOWED_PACKAGE_FORMATS[0],
     show_default=True,
-    envvar='PACKAGE_FORMAT',
+    envvar="PACKAGE_FORMAT",
 )
 option_installation_package_format = click.option(
-    '--package-format',
+    "--package-format",
     type=BetterChoice(ALLOWED_INSTALLATION_PACKAGE_FORMATS),
-    help='Format of packages that should be installed from dist.',
+    help="Format of packages that should be installed from dist.",
     default=ALLOWED_INSTALLATION_PACKAGE_FORMATS[0],
     show_default=True,
-    envvar='PACKAGE_FORMAT',
+    envvar="PACKAGE_FORMAT",
 )
 option_python_versions = click.option(
-    '--python-versions',
+    "--python-versions",
     help="Space separated list of python versions used for build with multiple versions.",
     default=" ".join(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS),
     show_default=True,
     envvar="PYTHON_VERSIONS",
 )
 option_run_in_parallel = click.option(
-    '--run-in-parallel',
+    "--run-in-parallel",
     help="Run the operation in parallel on all or selected subset of Python versions.",
     is_flag=True,
-    envvar='RUN_IN_PARALLEL',
+    envvar="RUN_IN_PARALLEL",
 )
 option_parallelism = click.option(
-    '--parallelism',
+    "--parallelism",
     help="Maximum number of processes to use while running the operation in parallel.",
     type=click.IntRange(1, mp.cpu_count() * 2 if not generating_command_images() else 8),
     default=mp.cpu_count() if not generating_command_images() else 4,
-    envvar='PARALLELISM',
+    envvar="PARALLELISM",
     show_default=True,
 )
 argument_packages = click.argument(
@@ -464,75 +464,75 @@ option_airflow_constraints_reference = click.option(
     help="Constraint reference to use. Useful with --use-airflow-version parameter to specify "
     "constraints for the installed version and to find newer dependencies",
     default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
-    envvar='AIRFLOW_CONSTRAINTS_REFERENCE',
+    envvar="AIRFLOW_CONSTRAINTS_REFERENCE",
 )
 option_airflow_constraints_reference_build = click.option(
     "--airflow-constraints-reference",
     default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
     help="Constraint reference to use when building the image.",
-    envvar='AIRFLOW_CONSTRAINTS_REFERENCE',
+    envvar="AIRFLOW_CONSTRAINTS_REFERENCE",
 )
 
 option_airflow_constraints_mode_ci = click.option(
-    '--airflow-constraints-mode',
+    "--airflow-constraints-mode",
     type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_CI),
     default=ALLOWED_CONSTRAINTS_MODES_CI[0],
     show_default=True,
-    help='Mode of constraints for CI image building.',
+    help="Mode of constraints for CI image building.",
 )
 option_airflow_constraints_mode_prod = click.option(
-    '--airflow-constraints-mode',
+    "--airflow-constraints-mode",
     type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_PROD),
     default=ALLOWED_CONSTRAINTS_MODES_PROD[0],
     show_default=True,
-    help='Mode of constraints for PROD image building.',
+    help="Mode of constraints for PROD image building.",
 )
 option_pull = click.option(
-    '--pull',
+    "--pull",
     help="Pull image is missing before attempting to verify it.",
     is_flag=True,
-    envvar='PULL',
+    envvar="PULL",
 )
 option_python_image = click.option(
-    '--python-image',
+    "--python-image",
     help="If specified this is the base python image used to build the image. "
     "Should be something like: python:VERSION-slim-bullseye.",
-    envvar='PYTHON_IMAGE',
+    envvar="PYTHON_IMAGE",
 )
 option_builder = click.option(
-    '--builder',
+    "--builder",
     help="Buildx builder used to perform `docker buildx build` commands.",
-    envvar='BUILDER',
-    default='default',
+    envvar="BUILDER",
+    default="default",
 )
 option_include_success_outputs = click.option(
-    '--include-success-outputs',
+    "--include-success-outputs",
     help="Whether to include outputs of successful parallel runs (skipped by default).",
     is_flag=True,
-    envvar='INCLUDE_SUCCESS_OUTPUTS',
+    envvar="INCLUDE_SUCCESS_OUTPUTS",
 )
 option_skip_cleanup = click.option(
-    '--skip-cleanup',
+    "--skip-cleanup",
     help="Skip cleanup of temporary files created during parallel run.",
     is_flag=True,
-    envvar='SKIP_CLEANUP',
+    envvar="SKIP_CLEANUP",
 )
 option_include_mypy_volume = click.option(
-    '--include-mypy-volume',
+    "--include-mypy-volume",
     help="Whether to include mounting of the mypy volume (useful for debugging mypy).",
     is_flag=True,
-    envvar='INCLUDE_MYPY_VOLUME',
+    envvar="INCLUDE_MYPY_VOLUME",
 )
 option_max_time = click.option(
-    '--max-time',
+    "--max-time",
     help="Maximum time that the command should take - if it takes longer, the command will fail.",
     type=click.IntRange(min=1),
-    envvar='MAX_TIME',
+    envvar="MAX_TIME",
     callback=_set_default_from_parent,
 )
 option_debug_resources = click.option(
-    '--debug-resources',
+    "--debug-resources",
     is_flag=True,
     help="Whether to show resource information while running in parallel.",
-    envvar='DEBUG_RESOURCES',
+    envvar="DEBUG_RESOURCES",
 )

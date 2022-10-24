@@ -67,7 +67,7 @@ class GlacierJobOperationSensor(BaseSensorOperator):
     def __init__(
         self,
         *,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         vault_name: str,
         job_id: str,
         poke_interval: int = 60 * 20,

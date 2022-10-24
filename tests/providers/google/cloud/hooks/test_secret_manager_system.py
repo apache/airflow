@@ -73,9 +73,9 @@ class TestSystemSecretsManager(GoogleSystemTest):
         hook = SecretsManagerHook()
         secret = hook.get_secret(secret_id=TEST_SECRET_ID)
         assert TEST_SECRET_VALUE_UPDATED == secret
-        secret = hook.get_secret(secret_id=TEST_SECRET_ID, secret_version='1')
+        secret = hook.get_secret(secret_id=TEST_SECRET_ID, secret_version="1")
         assert TEST_SECRET_VALUE == secret
-        secret = hook.get_secret(secret_id=TEST_SECRET_ID, secret_version='2')
+        secret = hook.get_secret(secret_id=TEST_SECRET_ID, secret_version="2")
         assert TEST_SECRET_VALUE_UPDATED == secret
 
     def tearDown(self):

@@ -28,16 +28,16 @@ except ImportError:
     mock_cloudformation = None
 
 
-@unittest.skipIf(mock_cloudformation is None, 'moto package not present')
+@unittest.skipIf(mock_cloudformation is None, "moto package not present")
 class TestCloudFormationHook(unittest.TestCase):
     def setUp(self):
-        self.hook = CloudFormationHook(aws_conn_id='aws_default')
+        self.hook = CloudFormationHook(aws_conn_id="aws_default")
 
     def create_stack(self, stack_name):
         timeout = 15
         template_body = json.dumps(
             {
-                'Resources': {
+                "Resources": {
                     "myResource": {
                         "Type": "AWS::EC2::VPC",
                         "Properties": {
@@ -59,9 +59,9 @@ class TestCloudFormationHook(unittest.TestCase):
         self.hook.create_stack(
             stack_name=stack_name,
             cloudformation_parameters={
-                'TimeoutInMinutes': timeout,
-                'TemplateBody': template_body,
-                'Parameters': [{'ParameterKey': "VPCCidr", 'ParameterValue': '10.0.0.0/16'}],
+                "TimeoutInMinutes": timeout,
+                "TemplateBody": template_body,
+                "Parameters": [{"ParameterKey": "VPCCidr", "ParameterValue": "10.0.0.0/16"}],
             },
         )
 
@@ -71,36 +71,36 @@ class TestCloudFormationHook(unittest.TestCase):
 
     @mock_cloudformation
     def test_get_stack_status(self):
-        stack_name = 'my_test_get_stack_status_stack'
+        stack_name = "my_test_get_stack_status_stack"
 
         stack_status = self.hook.get_stack_status(stack_name=stack_name)
         assert stack_status is None
 
         self.create_stack(stack_name)
         stack_status = self.hook.get_stack_status(stack_name=stack_name)
-        assert stack_status == 'CREATE_COMPLETE', 'Incorrect stack status returned.'
+        assert stack_status == "CREATE_COMPLETE", "Incorrect stack status returned."
 
     @mock_cloudformation
     def test_create_stack(self):
-        stack_name = 'my_test_create_stack_stack'
+        stack_name = "my_test_create_stack_stack"
         self.create_stack(stack_name)
 
-        stacks = self.hook.get_conn().describe_stacks()['Stacks']
-        assert len(stacks) > 0, 'CloudFormation should have stacks'
+        stacks = self.hook.get_conn().describe_stacks()["Stacks"]
+        assert len(stacks) > 0, "CloudFormation should have stacks"
 
-        matching_stacks = [x for x in stacks if x['StackName'] == stack_name]
-        assert len(matching_stacks) == 1, f'stack with name {stack_name} should exist'
+        matching_stacks = [x for x in stacks if x["StackName"] == stack_name]
+        assert len(matching_stacks) == 1, f"stack with name {stack_name} should exist"
 
         stack = matching_stacks[0]
-        assert stack['StackStatus'] == 'CREATE_COMPLETE', 'Stack should be in status CREATE_COMPLETE'
+        assert stack["StackStatus"] == "CREATE_COMPLETE", "Stack should be in status CREATE_COMPLETE"
 
     @mock_cloudformation
     def test_delete_stack(self):
-        stack_name = 'my_test_delete_stack_stack'
+        stack_name = "my_test_delete_stack_stack"
         self.create_stack(stack_name)
 
         self.hook.delete_stack(stack_name=stack_name)
 
-        stacks = self.hook.get_conn().describe_stacks()['Stacks']
-        matching_stacks = [x for x in stacks if x['StackName'] == stack_name]
-        assert not matching_stacks, f'stack with name {stack_name} should not exist'
+        stacks = self.hook.get_conn().describe_stacks()["Stacks"]
+        matching_stacks = [x for x in stacks if x["StackName"] == stack_name]
+        assert not matching_stacks, f"stack with name {stack_name} should not exist"

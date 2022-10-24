@@ -34,18 +34,18 @@ from tests.providers.mysql.hooks.test_mysql import MySqlContext
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
-TEST_DAG_ID = 'unit_test_dag'
+TEST_DAG_ID = "unit_test_dag"
 
 
 @pytest.mark.backend("mysql")
 class TestMySql(unittest.TestCase):
     def setUp(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
     def tearDown(self):
-        drop_tables = {'test_mysql_to_mysql', 'test_airflow'}
+        drop_tables = {"test_mysql_to_mysql", "test_airflow"}
         with closing(MySqlHook().get_conn()) as conn:
             with closing(conn.cursor()) as cursor:
                 for table in drop_tables:
@@ -64,7 +64,7 @@ class TestMySql(unittest.TestCase):
                 dummy VARCHAR(50)
             );
             """
-            op = MySqlOperator(task_id='basic_mysql', sql=sql, dag=self.dag)
+            op = MySqlOperator(task_id="basic_mysql", sql=sql, dag=self.dag)
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @parameterized.expand(
@@ -81,7 +81,7 @@ class TestMySql(unittest.TestCase):
                 "INSERT INTO test_airflow VALUES ('X')",
             ]
             op = MySqlOperator(
-                task_id='mysql_operator_test_multi',
+                task_id="mysql_operator_test_multi",
                 sql=sql,
                 dag=self.dag,
             )
@@ -100,7 +100,7 @@ class TestMySql(unittest.TestCase):
         with MySqlContext(client):
             sql = "SELECT 1;"
             op = MySqlOperator(
-                task_id='test_mysql_operator_test_schema_overwrite',
+                task_id="test_mysql_operator_test_schema_overwrite",
                 sql=sql,
                 dag=self.dag,
                 database="foobar",
@@ -115,8 +115,8 @@ class TestMySql(unittest.TestCase):
 
     def test_mysql_operator_resolve_parameters_template_json_file(self):
 
-        with NamedTemporaryFile(suffix='.json') as f:
-            f.write(b"{\n \"foo\": \"{{ ds }}\"}")
+        with NamedTemporaryFile(suffix=".json") as f:
+            f.write(b'{\n "foo": "{{ ds }}"}')
             f.flush()
             template_dir = os.path.dirname(f.name)
             template_file = os.path.basename(f.name)

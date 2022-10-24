@@ -40,12 +40,12 @@ class RegexpSpec(NamedTuple):
 
 
 REPLACEMENTS: list[RegexpSpec] = [
-    RegexpSpec(regexp=r'\t', replacement='    ', description='<TAB> with 4 spaces'),
-    RegexpSpec(regexp=r'\u00A0', replacement=' ', description='&nbsp with space'),
-    RegexpSpec(regexp=r'\u2018', replacement="'", description='left single quotation with straight one'),
-    RegexpSpec(regexp=r'\u2019', replacement="'", description='right single quotation with straight one'),
-    RegexpSpec(regexp=r'\u201C', replacement='"', description='left double quotation with straight one'),
-    RegexpSpec(regexp=r'\u201D', replacement='"', description='right double quotation with straight one'),
+    RegexpSpec(regexp=r"\t", replacement="    ", description="<TAB> with 4 spaces"),
+    RegexpSpec(regexp=r"\u00A0", replacement=" ", description="&nbsp with space"),
+    RegexpSpec(regexp=r"\u2018", replacement="'", description="left single quotation with straight one"),
+    RegexpSpec(regexp=r"\u2019", replacement="'", description="right single quotation with straight one"),
+    RegexpSpec(regexp=r"\u201C", replacement='"', description="left double quotation with straight one"),
+    RegexpSpec(regexp=r"\u201D", replacement='"', description="right double quotation with straight one"),
 ]
 
 

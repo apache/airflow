@@ -79,4 +79,4 @@ class GcpBigqueryDtsSystemTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     def test_run_example_dag_function(self):
-        self.run_dag('example_gcp_bigquery_dts', CLOUD_DAG_FOLDER)
+        self.run_dag("example_gcp_bigquery_dts", CLOUD_DAG_FOLDER)

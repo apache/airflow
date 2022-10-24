@@ -61,31 +61,31 @@ from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-DAG_ID = 'example_google_api_youtube_to_s3'
+DAG_ID = "example_google_api_youtube_to_s3"
 
-YOUTUBE_CHANNEL_ID = 'UCSXwxpWZQ7XZ1WL3wqevChA'
-YOUTUBE_VIDEO_PUBLISHED_AFTER = '2019-09-25T00:00:00Z'
-YOUTUBE_VIDEO_PUBLISHED_BEFORE = '2019-10-18T00:00:00Z'
-YOUTUBE_VIDEO_PARTS = 'snippet'
-YOUTUBE_VIDEO_FIELDS = 'items(id,snippet(description,publishedAt,tags,title))'
+YOUTUBE_CHANNEL_ID = "UCSXwxpWZQ7XZ1WL3wqevChA"
+YOUTUBE_VIDEO_PUBLISHED_AFTER = "2019-09-25T00:00:00Z"
+YOUTUBE_VIDEO_PUBLISHED_BEFORE = "2019-10-18T00:00:00Z"
+YOUTUBE_VIDEO_PARTS = "snippet"
+YOUTUBE_VIDEO_FIELDS = "items(id,snippet(description,publishedAt,tags,title))"
 
-SECRET_ARN_KEY = 'SECRET_ARN'
+SECRET_ARN_KEY = "SECRET_ARN"
 
 sys_test_context_task = SystemTestContextBuilder().add_variable(SECRET_ARN_KEY).build()
 
 
 @task
 def create_connection_gcp(conn_id_name: str, secret_arn: str):
-    json_data = boto3.client('secretsmanager').get_secret_value(SecretId=secret_arn)['SecretString']
+    json_data = boto3.client("secretsmanager").get_secret_value(SecretId=secret_arn)["SecretString"]
     conn = Connection(
         conn_id=conn_id_name,
-        conn_type='google_cloud_platform',
+        conn_type="google_cloud_platform",
     )
-    scopes = 'https://www.googleapis.com/auth/youtube.readonly'
+    scopes = "https://www.googleapis.com/auth/youtube.readonly"
     conn_extra = {
         "scope": scopes,
         "project": "aws-oss-airflow",
-        'keyfile_dict': json_data,
+        "keyfile_dict": json_data,
     }
     conn_extra_json = json.dumps(conn_extra)
     conn.set_extra(conn_extra_json)
@@ -94,62 +94,62 @@ def create_connection_gcp(conn_id_name: str, secret_arn: str):
     session.commit()
 
 
-@task(task_id='wait_for_s3_bucket')
+@task(task_id="wait_for_s3_bucket")
 def wait_for_bucket(s3_bucket_name):
-    waiter = boto3.client('s3').get_waiter('bucket_exists')
+    waiter = boto3.client("s3").get_waiter("bucket_exists")
     waiter.wait(Bucket=s3_bucket_name)
 
 
-@task(task_id='transform_video_ids')
+@task(task_id="transform_video_ids")
 def transform_video_ids(**kwargs):
-    task_instance = kwargs['task_instance']
+    task_instance = kwargs["task_instance"]
     output = task_instance.xcom_pull(task_ids="video_ids_to_s3", key="video_ids_response")
-    video_ids = [item['id']['videoId'] for item in output['items']]
+    video_ids = [item["id"]["videoId"] for item in output["items"]]
 
     if not video_ids:
         video_ids = []
 
-    kwargs['task_instance'].xcom_push(key='video_ids', value={'id': ','.join(video_ids)})
+    kwargs["task_instance"].xcom_push(key="video_ids", value={"id": ",".join(video_ids)})
 
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),  # Override to match your needs
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
-    conn_id_name = f'{env_id}-conn-id'
+    conn_id_name = f"{env_id}-conn-id"
     secret_arn = test_context[SECRET_ARN_KEY]
 
     set_up_connection = create_connection_gcp(conn_id_name, secret_arn=secret_arn)
 
-    s3_bucket_name = f'{env_id}-bucket'
+    s3_bucket_name = f"{env_id}-bucket"
 
-    create_s3_bucket = S3CreateBucketOperator(task_id='create-s3-bucket', bucket_name=s3_bucket_name)
+    create_s3_bucket = S3CreateBucketOperator(task_id="create-s3-bucket", bucket_name=s3_bucket_name)
 
     wait_for_bucket_creation = wait_for_bucket(s3_bucket_name=s3_bucket_name)
 
     # [START howto_transfer_google_api_youtube_search_to_s3]
     video_ids_to_s3 = GoogleApiToS3Operator(
-        task_id='video_ids_to_s3',
-        google_api_service_name='youtube',
-        google_api_service_version='v3',
-        google_api_endpoint_path='youtube.search.list',
+        task_id="video_ids_to_s3",
+        google_api_service_name="youtube",
+        google_api_service_version="v3",
+        google_api_endpoint_path="youtube.search.list",
         gcp_conn_id=conn_id_name,
         google_api_endpoint_params={
-            'part': 'snippet',
-            'channelId': YOUTUBE_CHANNEL_ID,
-            'maxResults': 50,
-            'publishedAfter': YOUTUBE_VIDEO_PUBLISHED_AFTER,
-            'publishedBefore': YOUTUBE_VIDEO_PUBLISHED_BEFORE,
-            'type': 'video',
-            'fields': 'items/id/videoId',
+            "part": "snippet",
+            "channelId": YOUTUBE_CHANNEL_ID,
+            "maxResults": 50,
+            "publishedAfter": YOUTUBE_VIDEO_PUBLISHED_AFTER,
+            "publishedBefore": YOUTUBE_VIDEO_PUBLISHED_BEFORE,
+            "type": "video",
+            "fields": "items/id/videoId",
         },
-        google_api_response_via_xcom='video_ids_response',
-        s3_destination_key=f'https://s3.us-west-2.amazonaws.com/{s3_bucket_name}/youtube_search',
+        google_api_response_via_xcom="video_ids_response",
+        s3_destination_key=f"https://s3.us-west-2.amazonaws.com/{s3_bucket_name}/youtube_search",
         s3_overwrite=True,
     )
     # [END howto_transfer_google_api_youtube_search_to_s3]
@@ -158,24 +158,24 @@ with DAG(
 
     # [START howto_transfer_google_api_youtube_list_to_s3]
     video_data_to_s3 = GoogleApiToS3Operator(
-        task_id='video_data_to_s3',
-        google_api_service_name='youtube',
-        google_api_service_version='v3',
+        task_id="video_data_to_s3",
+        google_api_service_name="youtube",
+        google_api_service_version="v3",
         gcp_conn_id=conn_id_name,
-        google_api_endpoint_path='youtube.videos.list',
+        google_api_endpoint_path="youtube.videos.list",
         google_api_endpoint_params={
-            'part': YOUTUBE_VIDEO_PARTS,
-            'maxResults': 50,
-            'fields': YOUTUBE_VIDEO_FIELDS,
+            "part": YOUTUBE_VIDEO_PARTS,
+            "maxResults": 50,
+            "fields": YOUTUBE_VIDEO_FIELDS,
         },
-        google_api_endpoint_params_via_xcom='video_ids',
-        s3_destination_key=f'https://s3.us-west-2.amazonaws.com/{s3_bucket_name}/youtube_videos',
+        google_api_endpoint_params_via_xcom="video_ids",
+        s3_destination_key=f"https://s3.us-west-2.amazonaws.com/{s3_bucket_name}/youtube_videos",
         s3_overwrite=True,
     )
     # [END howto_transfer_google_api_youtube_list_to_s3]
 
     delete_s3_bucket = S3DeleteBucketOperator(
-        task_id='delete_s3_bucket',
+        task_id="delete_s3_bucket",
         bucket_name=s3_bucket_name,
         force_delete=True,
         trigger_rule=TriggerRule.ALL_DONE,
