@@ -273,7 +273,7 @@ class TestSecurityContext:
             values={
                 "pgbouncer": {
                     "enabled": True,
-                    "metricsExporterSidecar": {"securityContexts": {"container":  ctx_value}},
+                    "metricsExporterSidecar": {"securityContexts": {"container": ctx_value}},
                 },
             },
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
@@ -286,7 +286,9 @@ class TestSecurityContext:
         ctx_value = {"allowPrivilegeEscalation": False}
         docs = render_chart(
             values={
-                "workers": {"kerberosSidecar": {"enabled": True, "securityContexts": {"container": ctx_value}}},
+                "workers": {
+                    "kerberosSidecar": {"enabled": True, "securityContexts": {"container": ctx_value}}
+                },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
@@ -377,6 +379,4 @@ class TestSecurityContext:
         )
 
         for index in range(len(docs)):
-            assert ctx_value == jmespath.search(
-                "spec.template.spec.securityContext", docs[index]
-            )
+            assert ctx_value == jmespath.search("spec.template.spec.securityContext", docs[index])
