@@ -476,7 +476,7 @@ class DataplexCreateLakeOperator(BaseOperator):
         "delegate_to",
         "impersonation_chain",
     )
-    template_fields_renderers = {'body': 'json'}
+    template_fields_renderers = {"body": "json"}
     operator_extra_links = (DataplexLakeLink(),)
 
     def __init__(
@@ -541,7 +541,7 @@ class DataplexCreateLakeOperator(BaseOperator):
                 self.log.info("Is operation done already? %s", is_done)
                 return is_done
         except HttpError as err:
-            if err.resp.status not in (409, '409'):
+            if err.resp.status not in (409, "409"):
                 raise
             self.log.info("Lake %s already exists", self.lake_id)
             # Wait for lake to be ready
@@ -554,7 +554,7 @@ class DataplexCreateLakeOperator(BaseOperator):
                     timeout=self.timeout,
                     metadata=self.metadata,
                 )
-                if lake['state'] != 'CREATING':
+                if lake["state"] != "CREATING":
                     break
                 sleep(time_to_wait)
         DataplexLakeLink.persist(

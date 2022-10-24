@@ -277,7 +277,7 @@ class DataplexHook(GoogleBaseHook):
         client = self.get_dataplex_client()
         result = client.delete_lake(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -312,13 +312,13 @@ class DataplexHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Additional metadata that is provided to the method.
         """
-        parent = f'projects/{project_id}/locations/{region}'
+        parent = f"projects/{project_id}/locations/{region}"
         client = self.get_dataplex_client()
         result = client.create_lake(
             request={
-                'parent': parent,
-                'lake_id': lake_id,
-                'lake': body,
+                "parent": parent,
+                "lake_id": lake_id,
+                "lake": body,
             },
             retry=retry,
             timeout=timeout,
@@ -348,11 +348,11 @@ class DataplexHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Additional metadata that is provided to the method.
         """
-        name = f'projects/{project_id}/locations/{region}/lakes/{lake_id}/'
+        name = f"projects/{project_id}/locations/{region}/lakes/{lake_id}/"
         client = self.get_dataplex_client()
         result = client.get_lake(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
