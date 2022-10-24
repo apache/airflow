@@ -511,6 +511,28 @@ class TestWebserverDeployment:
             "runAsNonRoot": True
             } == jmespath.search("spec.template.spec.securityContext", docs[0])
 
+    def test_webserver_securityContext_legacy(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "securityContext": {
+                        "fsGroup": 1000,
+                        'runAsGroup': 1001,
+                        'runAsNonRoot': "true",
+                        'runAsUser': 2000,
+                    }
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {
+            "runAsUser": 2000,
+            "runAsGroup": 1001,
+            "fsGroup": 1000,
+            "runAsNonRoot": True
+            } == jmespath.search("spec.template.spec.securityContext", docs[0])
+
     def test_webserver_resources_are_not_added_by_default(self):
         docs = render_chart(
             show_only=["templates/webserver/webserver-deployment.yaml"],

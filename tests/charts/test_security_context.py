@@ -380,3 +380,37 @@ class TestSecurityContext:
 
         for index in range(len(docs)):
             assert ctx_value == jmespath.search("spec.template.spec.securityContext", docs[index])
+
+    # Test securityContexts for main pods
+    def test_main_pod_setting_legacy_security(self):
+        ctx_value = {"runAsUser": 7000}
+        security_context = {"securityContext": ctx_value}
+        docs = render_chart(
+            values={
+                "scheduler": {**security_context},
+                "webserver": {**security_context},
+                "workers": {**security_context},
+                "flower": {**security_context},
+                "statsd": {**security_context},
+                "createUserJob": {**security_context},
+                "migrateDatabaseJob": {**security_context},
+                "triggerer": {**security_context},
+                "pgbouncer": {**security_context},
+                "redis": {**security_context},
+            },
+            show_only=[
+                "templates/flower/flower-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/statsd/statsd-deployment.yaml",
+                "templates/jobs/create-user-job.yaml",
+                "templates/jobs/migrate-database-job.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/pgbouncer/pgbouncer-deployment.yaml",
+                "templates/redis/redis-statefulset.yaml",
+            ],
+        )
+
+        for index in range(len(docs)):
+            assert ctx_value == jmespath.search("spec.template.spec.securityContext", docs[index])
