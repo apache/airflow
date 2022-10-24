@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-10-24T07:32:10Z
+# This constraints file was automatically generated on 2022-10-24T22:20:08Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -264,7 +264,7 @@ google-ads==18.0.0
 google-api-core==2.8.2
 google-api-python-client==1.12.11
 google-auth-httplib2==0.1.0
-google-auth-oauthlib==0.5.3
+google-auth-oauthlib==0.6.0
 google-auth==2.13.0
 google-cloud-aiplatform==1.16.1
 google-cloud-appengine-logging==1.1.3
@@ -559,7 +559,7 @@ sqlparse==0.4.3
 sshpubkeys==3.3.1
 sshtunnel==0.4.0
 stack-data==0.5.1
-starkbank-ecdsa==2.1.0
+starkbank-ecdsa==2.2.0
 statsd==3.3.0
 swagger-ui-bundle==0.0.9
 tableauserverclient==0.23
