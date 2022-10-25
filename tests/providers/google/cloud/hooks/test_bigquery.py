@@ -2284,7 +2284,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
                 "fields": [
                     {"name": "f0_", "type": "INTEGER", "mode": "NULLABLE"},
                     {"name": "f1_", "type": "FLOAT", "mode": "NULLABLE"},
-                    {"name": "f1_", "type": "STRING", "mode": "NULLABLE"},
+                    {"name": "f2_", "type": "STRING", "mode": "NULLABLE"},
                 ]
             },
             "jobReference": {
