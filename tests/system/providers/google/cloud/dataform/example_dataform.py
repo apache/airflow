@@ -26,36 +26,72 @@ from datetime import datetime
 from google.cloud.dataform_v1beta1 import WorkflowInvocation
 
 from airflow import models
-from airflow.models.baseoperator import chain
 from airflow.providers.google.cloud.operators.dataform import (
     DataformCancelWorkflowInvocationOperator,
     DataformCreateCompilationResultOperator,
+    DataformCreateRepositoryOperator,
     DataformCreateWorkflowInvocationOperator,
+    DataformCreateWorkspaceOperator,
+    DataformDeleteRepositoryOperator,
+    DataformDeleteWorkspaceOperator,
     DataformGetCompilationResultOperator,
     DataformGetWorkflowInvocationOperator,
+    DataformRemoveDirectoryOperator,
+    DataformRemoveFileOperator,
 )
 from airflow.providers.google.cloud.sensors.dataform import DataformWorkflowInvocationStateSensor
+from airflow.providers.google.cloud.utils.dataform import make_initialization_workspace_flow
+from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "test-project-id")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
-DAG_ID = "dataform"
+DAG_ID = "example_dataform"
 
-REPOSITORY_ID = "dataform-test2"
+REPOSITORY_ID = f"example_dataform_repository_{ENV_ID}"
 REGION = "us-central1"
-WORKSPACE_ID = "testing"
+WORKSPACE_ID = f"example_dataform_workspace_{ENV_ID}"
 
 # This DAG is not self-run we need to do some extra configuration to execute it in automation process
-
 with models.DAG(
-    DAG_ID,
+    dag_id=DAG_ID,
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "dataform"],
 ) as dag:
+    # [START howto_operator_create_repository]
+    make_repository = DataformCreateRepositoryOperator(
+        task_id="make-repository",
+        project_id=PROJECT_ID,
+        region=REGION,
+        repository_id=REPOSITORY_ID,
+    )
+    # [END howto_operator_create_repository]
+
+    # [START howto_operator_create_workspace]
+    make_workspace = DataformCreateWorkspaceOperator(
+        task_id="make-workspace",
+        project_id=PROJECT_ID,
+        region=REGION,
+        repository_id=REPOSITORY_ID,
+        workspace_id=WORKSPACE_ID,
+    )
+    # [END howto_operator_create_workspace]
+
+    # [START howto_initialize_workspace]
+    first_initialization_step, last_initialization_step = make_initialization_workspace_flow(
+        project_id=PROJECT_ID,
+        region=REGION,
+        repository_id=REPOSITORY_ID,
+        workspace_id=WORKSPACE_ID,
+        package_name=f"dataform_package_{ENV_ID}",
+    )
+    # [END howto_initialize_workspace]
+
     # [START howto_operator_create_compilation_result]
     create_compilation_result = DataformCreateCompilationResultOperator(
-        task_id="create_compilation_result",
+        task_id="create-compilation-result",
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
@@ -71,47 +107,47 @@ with models.DAG(
 
     # [START howto_operator_get_compilation_result]
     get_compilation_result = DataformGetCompilationResultOperator(
-        task_id="get_compilation_result",
+        task_id="get-compilation-result",
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
         compilation_result_id=(
-            "{{ task_instance.xcom_pull('create_compilation_result')['name'].split('/')[-1] }}"
+            "{{ task_instance.xcom_pull('create-compilation-result')['name'].split('/')[-1] }}"
         ),
     )
     # [END howto_operator_get_compilation_result]]
 
     # [START howto_operator_create_workflow_invocation]
     create_workflow_invocation = DataformCreateWorkflowInvocationOperator(
-        task_id="create_workflow_invocation",
+        task_id='create-workflow-invocation',
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
         workflow_invocation={
-            "compilation_result": "{{ task_instance.xcom_pull('create_compilation_result')['name'] }}"
+            "compilation_result": "{{ task_instance.xcom_pull('create-compilation-result')['name'] }}"
         },
     )
     # [END howto_operator_create_workflow_invocation]
 
     # [START howto_operator_create_workflow_invocation_async]
     create_workflow_invocation_async = DataformCreateWorkflowInvocationOperator(
-        task_id="create_workflow_invocation_async",
+        task_id='create-workflow-invocation-async',
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
         asynchronous=True,
         workflow_invocation={
-            "compilation_result": "{{ task_instance.xcom_pull('create_compilation_result')['name'] }}"
+            "compilation_result": "{{ task_instance.xcom_pull('create-compilation-result')['name'] }}"
         },
     )
 
     is_workflow_invocation_done = DataformWorkflowInvocationStateSensor(
-        task_id="is_workflow_invocation_done",
+        task_id="is-workflow-invocation-done",
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
         workflow_invocation_id=(
-            "{{ task_instance.xcom_pull('create_workflow_invocation')['name'].split('/')[-1] }}"
+            "{{ task_instance.xcom_pull('create-workflow-invocation')['name'].split('/')[-1] }}"
         ),
         expected_statuses={WorkflowInvocation.State.SUCCEEDED},
     )
@@ -119,44 +155,99 @@ with models.DAG(
 
     # [START howto_operator_get_workflow_invocation]
     get_workflow_invocation = DataformGetWorkflowInvocationOperator(
-        task_id="get_workflow_invocation",
+        task_id='get-workflow-invocation',
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
         workflow_invocation_id=(
-            "{{ task_instance.xcom_pull('create_workflow_invocation')['name'].split('/')[-1] }}"
+            "{{ task_instance.xcom_pull('create-workflow-invocation')['name'].split('/')[-1] }}"
         ),
     )
     # [END howto_operator_get_workflow_invocation]
 
-    create_second_workflow_invocation = DataformCreateWorkflowInvocationOperator(
-        task_id="create_second_workflow_invocation",
+    create_workflow_invocation_for_cancel = DataformCreateWorkflowInvocationOperator(
+        task_id='create-workflow-invocation-for-cancel',
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
         workflow_invocation={
-            "compilation_result": "{{ task_instance.xcom_pull('create_compilation_result')['name'] }}"
+            "compilation_result": "{{ task_instance.xcom_pull('create-compilation-result')['name'] }}"
         },
+        asynchronous=True,
     )
 
     # [START howto_operator_cancel_workflow_invocation]
     cancel_workflow_invocation = DataformCancelWorkflowInvocationOperator(
-        task_id="cancel_workflow_incoation",
+        task_id='cancel-workflow-invocation',
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
         workflow_invocation_id=(
-            "{{ task_instance.xcom_pull('create_second_workflow_invocation')['name'].split('/')[-1] }}"
+            "{{ task_instance.xcom_pull('create-workflow-invocation-for-cancel')['name'].split('/')[-1] }}"
         ),
     )
     # [END howto_operator_cancel_workflow_invocation]
 
-    chain(
-        create_compilation_result,
-        get_compilation_result,
-        create_workflow_invocation >> get_workflow_invocation,
-        create_workflow_invocation_async >> is_workflow_invocation_done,
-        create_second_workflow_invocation >> cancel_workflow_invocation,
+    # [START howto_operator_remove_file]
+    remove_file = DataformRemoveFileOperator(
+        task_id="remove-file",
+        project_id=PROJECT_ID,
+        region=REGION,
+        repository_id=REPOSITORY_ID,
+        workspace_id=WORKSPACE_ID,
+        filepath="package-lock.json",
+    )
+    # [END howto_operator_remove_file]
+
+    # [START howto_operator_remove_directory]
+    remove_directory = DataformRemoveDirectoryOperator(
+        task_id="remove-directory",
+        project_id=PROJECT_ID,
+        region=REGION,
+        repository_id=REPOSITORY_ID,
+        workspace_id=WORKSPACE_ID,
+        directory_path="definitions",
+    )
+    # [END howto_operator_remove_directory]
+
+    # [START howto_operator_delete_workspace]
+    delete_workspace = DataformDeleteWorkspaceOperator(
+        task_id='delete-workspace',
+        project_id=PROJECT_ID,
+        region=REGION,
+        repository_id=REPOSITORY_ID,
+        workspace_id=WORKSPACE_ID,
+    )
+    # [END howto_operator_delete_workspace]
+
+    delete_workspace.trigger_rule = TriggerRule.ALL_DONE
+
+    # [START howto_operator_delete_repository]
+    delete_repository = DataformDeleteRepositoryOperator(
+        task_id='delete-repository',
+        project_id=PROJECT_ID,
+        region=REGION,
+        repository_id=REPOSITORY_ID,
+    )
+    # [END howto_operator_delete_repository]
+
+    delete_repository.trigger_rule = TriggerRule.ALL_DONE
+
+    (make_repository >> make_workspace >> first_initialization_step)
+    (
+        last_initialization_step
+        >> create_compilation_result
+        >> get_compilation_result
+        >> create_workflow_invocation
+        >> get_workflow_invocation
+        >> create_workflow_invocation_async
+        >> is_workflow_invocation_done
+        >> create_workflow_invocation_for_cancel
+        >> cancel_workflow_invocation
+        >> remove_file
+        >> remove_directory
+        >> delete_workspace
+        >> delete_repository
     )
 
     # ### Everything below this line is not part of example ###
