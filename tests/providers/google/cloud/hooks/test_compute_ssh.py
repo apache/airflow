@@ -297,12 +297,12 @@ class TestComputeEngineHookWithPassedProjectId(unittest.TestCase):
             host="conn-host",
             extra=json.dumps(
                 {
-                    "extra__google_cloud_platform__instance_name": "conn-instance-name",
-                    "extra__google_cloud_platform__zone": "zone",
-                    "extra__google_cloud_platform__use_internal_ip": True,
-                    "extra__google_cloud_platform__use_iap_tunnel": True,
-                    "extra__google_cloud_platform__use_oslogin": False,
-                    "extra__google_cloud_platform__expire_time": 4242,
+                    "instance_name": "conn-instance-name",
+                    "zone": "zone",
+                    "use_internal_ip": True,
+                    "use_iap_tunnel": True,
+                    "use_oslogin": False,
+                    "expire_time": 4242,
                 }
             ),
         )

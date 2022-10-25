@@ -41,7 +41,7 @@ def login_to_github_docker_registry(
             )
         elif len(image_params.github_token) > 0:
             run_command(
-                ['docker', 'logout', 'ghcr.io'],
+                ["docker", "logout", "ghcr.io"],
                 dry_run=dry_run,
                 verbose=verbose,
                 output=output,
@@ -50,12 +50,12 @@ def login_to_github_docker_registry(
             )
             command_result = run_command(
                 [
-                    'docker',
-                    'login',
-                    '--username',
+                    "docker",
+                    "login",
+                    "--username",
                     image_params.github_username,
-                    '--password-stdin',
-                    'ghcr.io',
+                    "--password-stdin",
+                    "ghcr.io",
                 ],
                 verbose=verbose,
                 output=output,
@@ -65,5 +65,5 @@ def login_to_github_docker_registry(
             )
             return command_result.returncode, "Docker login"
         else:
-            get_console().print('\n[info]Skip Login to GitHub Container Registry as token is missing')
+            get_console().print("\n[info]Skip Login to GitHub Container Registry as token is missing")
     return 0, "Docker login skipped"

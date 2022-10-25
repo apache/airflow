@@ -27,7 +27,7 @@ from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 
 
 class TestRedshiftSQLOperator(unittest.TestCase):
-    @parameterized.expand([(True, ('a', 'b')), (False, ('c', 'd'))])
+    @parameterized.expand([(True, ("a", "b")), (False, ("c", "d"))])
     @mock.patch("airflow.providers.amazon.aws.operators.redshift_sql.RedshiftSQLOperator.get_db_hook")
     def test_redshift_operator(self, test_autocommit, test_parameters, mock_get_hook):
         hook = MagicMock()
@@ -35,7 +35,7 @@ class TestRedshiftSQLOperator(unittest.TestCase):
         mock_get_hook.return_value = hook
         sql = MagicMock()
         operator = RedshiftSQLOperator(
-            task_id='test', sql=sql, autocommit=test_autocommit, parameters=test_parameters
+            task_id="test", sql=sql, autocommit=test_autocommit, parameters=test_parameters
         )
         operator.execute(None)
         mock_run.assert_called_once_with(

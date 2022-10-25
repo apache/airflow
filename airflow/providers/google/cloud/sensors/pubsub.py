@@ -85,11 +85,11 @@ class PubSubPullSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'subscription',
-        'impersonation_chain',
+        "project_id",
+        "subscription",
+        "impersonation_chain",
     )
-    ui_color = '#ff7f50'
+    ui_color = "#ff7f50"
 
     def __init__(
         self,
@@ -98,7 +98,7 @@ class PubSubPullSensor(BaseSensorOperator):
         subscription: str,
         max_messages: int = 5,
         ack_messages: bool = False,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,

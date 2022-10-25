@@ -22,59 +22,59 @@ import pytest
 from tests.charts.helm_template_generator import render_chart
 
 DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
-    ('Secret', 'test-rbac-postgresql'),
-    ('Secret', 'test-rbac-airflow-metadata'),
-    ('Secret', 'test-rbac-pgbouncer-config'),
-    ('Secret', 'test-rbac-pgbouncer-stats'),
-    ('ConfigMap', 'test-rbac-airflow-config'),
-    ('ConfigMap', 'test-rbac-statsd'),
-    ('Service', 'test-rbac-postgresql-headless'),
-    ('Service', 'test-rbac-postgresql'),
-    ('Service', 'test-rbac-statsd'),
-    ('Service', 'test-rbac-webserver'),
-    ('Service', 'test-rbac-flower'),
-    ('Service', 'test-rbac-pgbouncer'),
-    ('Service', 'test-rbac-redis'),
-    ('Service', 'test-rbac-worker'),
-    ('Deployment', 'test-rbac-scheduler'),
-    ('Deployment', 'test-rbac-statsd'),
-    ('Deployment', 'test-rbac-webserver'),
-    ('Deployment', 'test-rbac-flower'),
-    ('Deployment', 'test-rbac-pgbouncer'),
-    ('Deployment', 'test-rbac-triggerer'),
-    ('StatefulSet', 'test-rbac-postgresql'),
-    ('StatefulSet', 'test-rbac-redis'),
-    ('StatefulSet', 'test-rbac-worker'),
-    ('Secret', 'test-rbac-broker-url'),
-    ('Secret', 'test-rbac-fernet-key'),
-    ('Secret', 'test-rbac-redis-password'),
-    ('Secret', 'test-rbac-webserver-secret-key'),
-    ('Job', 'test-rbac-create-user'),
-    ('Job', 'test-rbac-run-airflow-migrations'),
-    ('CronJob', 'test-rbac-cleanup'),
+    ("Secret", "test-rbac-postgresql"),
+    ("Secret", "test-rbac-airflow-metadata"),
+    ("Secret", "test-rbac-pgbouncer-config"),
+    ("Secret", "test-rbac-pgbouncer-stats"),
+    ("ConfigMap", "test-rbac-airflow-config"),
+    ("ConfigMap", "test-rbac-statsd"),
+    ("Service", "test-rbac-postgresql-headless"),
+    ("Service", "test-rbac-postgresql"),
+    ("Service", "test-rbac-statsd"),
+    ("Service", "test-rbac-webserver"),
+    ("Service", "test-rbac-flower"),
+    ("Service", "test-rbac-pgbouncer"),
+    ("Service", "test-rbac-redis"),
+    ("Service", "test-rbac-worker"),
+    ("Deployment", "test-rbac-scheduler"),
+    ("Deployment", "test-rbac-statsd"),
+    ("Deployment", "test-rbac-webserver"),
+    ("Deployment", "test-rbac-flower"),
+    ("Deployment", "test-rbac-pgbouncer"),
+    ("Deployment", "test-rbac-triggerer"),
+    ("StatefulSet", "test-rbac-postgresql"),
+    ("StatefulSet", "test-rbac-redis"),
+    ("StatefulSet", "test-rbac-worker"),
+    ("Secret", "test-rbac-broker-url"),
+    ("Secret", "test-rbac-fernet-key"),
+    ("Secret", "test-rbac-redis-password"),
+    ("Secret", "test-rbac-webserver-secret-key"),
+    ("Job", "test-rbac-create-user"),
+    ("Job", "test-rbac-run-airflow-migrations"),
+    ("CronJob", "test-rbac-cleanup"),
 ]
 
 RBAC_ENABLED_KIND_NAME_TUPLES = [
-    ('Role', 'test-rbac-pod-launcher-role'),
-    ('Role', 'test-rbac-cleanup-role'),
-    ('Role', 'test-rbac-pod-log-reader-role'),
-    ('RoleBinding', 'test-rbac-pod-launcher-rolebinding'),
-    ('RoleBinding', 'test-rbac-pod-log-reader-rolebinding'),
-    ('RoleBinding', 'test-rbac-cleanup-rolebinding'),
+    ("Role", "test-rbac-pod-launcher-role"),
+    ("Role", "test-rbac-cleanup-role"),
+    ("Role", "test-rbac-pod-log-reader-role"),
+    ("RoleBinding", "test-rbac-pod-launcher-rolebinding"),
+    ("RoleBinding", "test-rbac-pod-log-reader-rolebinding"),
+    ("RoleBinding", "test-rbac-cleanup-rolebinding"),
 ]
 
 SERVICE_ACCOUNT_NAME_TUPLES = [
-    ('ServiceAccount', 'test-rbac-cleanup'),
-    ('ServiceAccount', 'test-rbac-scheduler'),
-    ('ServiceAccount', 'test-rbac-webserver'),
-    ('ServiceAccount', 'test-rbac-worker'),
-    ('ServiceAccount', 'test-rbac-triggerer'),
-    ('ServiceAccount', 'test-rbac-pgbouncer'),
-    ('ServiceAccount', 'test-rbac-flower'),
-    ('ServiceAccount', 'test-rbac-statsd'),
-    ('ServiceAccount', 'test-rbac-create-user-job'),
-    ('ServiceAccount', 'test-rbac-migrate-database-job'),
-    ('ServiceAccount', 'test-rbac-redis'),
+    ("ServiceAccount", "test-rbac-cleanup"),
+    ("ServiceAccount", "test-rbac-scheduler"),
+    ("ServiceAccount", "test-rbac-webserver"),
+    ("ServiceAccount", "test-rbac-worker"),
+    ("ServiceAccount", "test-rbac-triggerer"),
+    ("ServiceAccount", "test-rbac-pgbouncer"),
+    ("ServiceAccount", "test-rbac-flower"),
+    ("ServiceAccount", "test-rbac-statsd"),
+    ("ServiceAccount", "test-rbac-create-user-job"),
+    ("ServiceAccount", "test-rbac-migrate-database-job"),
+    ("ServiceAccount", "test-rbac-redis"),
 ]
 
 CUSTOM_SERVICE_ACCOUNT_NAMES = (
@@ -113,7 +113,7 @@ class TestRBAC:
     def _get_object_count(self, version):
         if version == "2.3.2":
             return [
-                ('Secret', 'test-rbac-airflow-result-backend')
+                ("Secret", "test-rbac-airflow-result-backend")
             ] + DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES
         return DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES
 
@@ -151,7 +151,7 @@ class TestRBAC:
             ),
         )
         list_of_kind_names_tuples = [
-            (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
+            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
         assert sorted(list_of_kind_names_tuples) == sorted(self._get_object_count(version))
 
@@ -171,7 +171,7 @@ class TestRBAC:
             ),
         )
         list_of_kind_names_tuples = [
-            (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
+            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
         real_list_of_kind_names = self._get_object_count(version) + SERVICE_ACCOUNT_NAME_TUPLES
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
@@ -209,7 +209,7 @@ class TestRBAC:
             ),
         )
         list_of_kind_names_tuples = [
-            (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
+            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
         real_list_of_kind_names = self._get_object_count(version) + RBAC_ENABLED_KIND_NAME_TUPLES
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
@@ -229,7 +229,7 @@ class TestRBAC:
             ),
         )
         list_of_kind_names_tuples = [
-            (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
+            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
         real_list_of_kind_names = (
             self._get_object_count(version) + SERVICE_ACCOUNT_NAME_TUPLES + RBAC_ENABLED_KIND_NAME_TUPLES
@@ -265,9 +265,9 @@ class TestRBAC:
             },
         )
         list_of_sa_names = [
-            k8s_object['metadata']['name']
+            k8s_object["metadata"]["name"]
             for k8s_object in k8s_objects
-            if k8s_object['kind'] == "ServiceAccount"
+            if k8s_object["kind"] == "ServiceAccount"
         ]
         assert sorted(list_of_sa_names) == sorted(CUSTOM_SERVICE_ACCOUNT_NAMES)
 
@@ -329,14 +329,14 @@ class TestRBAC:
             },
         )
         list_of_sa_names = [
-            k8s_object['metadata']['name']
+            k8s_object["metadata"]["name"]
             for k8s_object in k8s_objects
-            if k8s_object['kind'] == "ServiceAccount"
+            if k8s_object["kind"] == "ServiceAccount"
         ]
         service_account_names = [
-            'test-rbac-scheduler',
-            'test-rbac-webserver',
-            'test-rbac-triggerer',
-            'test-rbac-migrate-database-job',
+            "test-rbac-scheduler",
+            "test-rbac-webserver",
+            "test-rbac-triggerer",
+            "test-rbac-migrate-database-job",
         ]
         assert sorted(list_of_sa_names) == sorted(service_account_names)

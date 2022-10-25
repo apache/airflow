@@ -44,14 +44,14 @@ class OracleOperator(SQLExecuteQueryOperator):
     """
 
     template_fields: Sequence[str] = (
-        'parameters',
-        'sql',
+        "parameters",
+        "sql",
     )
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'sql'}
-    ui_color = '#ededed'
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "sql"}
+    ui_color = "#ededed"
 
-    def __init__(self, *, oracle_conn_id: str = 'oracle_default', **kwargs) -> None:
+    def __init__(self, *, oracle_conn_id: str = "oracle_default", **kwargs) -> None:
         super().__init__(conn_id=oracle_conn_id, **kwargs)
         warnings.warn(
             """This class is deprecated.
@@ -72,16 +72,16 @@ class OracleStoredProcedureOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'parameters',
-        'procedure',
+        "parameters",
+        "procedure",
     )
-    ui_color = '#ededed'
+    ui_color = "#ededed"
 
     def __init__(
         self,
         *,
         procedure: str,
-        oracle_conn_id: str = 'oracle_default',
+        oracle_conn_id: str = "oracle_default",
         parameters: dict | list | None = None,
         **kwargs,
     ) -> None:
@@ -91,6 +91,6 @@ class OracleStoredProcedureOperator(BaseOperator):
         self.parameters = parameters
 
     def execute(self, context: Context):
-        self.log.info('Executing: %s', self.procedure)
+        self.log.info("Executing: %s", self.procedure)
         hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
         return hook.callproc(self.procedure, autocommit=True, parameters=self.parameters)

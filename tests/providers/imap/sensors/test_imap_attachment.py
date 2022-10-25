@@ -28,16 +28,16 @@ from airflow.providers.imap.sensors.imap_attachment import ImapAttachmentSensor
 class TestImapAttachmentSensor(unittest.TestCase):
     def setUp(self):
         self.kwargs = dict(
-            attachment_name='test_file',
+            attachment_name="test_file",
             check_regex=False,
-            mail_folder='INBOX',
-            mail_filter='All',
-            task_id='test_task',
+            mail_folder="INBOX",
+            mail_filter="All",
+            task_id="test_task",
             dag=None,
         )
 
     @parameterized.expand([(True,), (False,)])
-    @patch('airflow.providers.imap.sensors.imap_attachment.ImapHook')
+    @patch("airflow.providers.imap.sensors.imap_attachment.ImapHook")
     def test_poke(self, has_attachment_return_value, mock_imap_hook):
         mock_imap_hook.return_value.__enter__ = Mock(return_value=mock_imap_hook)
         mock_imap_hook.has_mail_attachment.return_value = has_attachment_return_value
@@ -46,8 +46,8 @@ class TestImapAttachmentSensor(unittest.TestCase):
 
         assert has_attachment == mock_imap_hook.has_mail_attachment.return_value
         mock_imap_hook.has_mail_attachment.assert_called_once_with(
-            name=self.kwargs['attachment_name'],
-            check_regex=self.kwargs['check_regex'],
-            mail_folder=self.kwargs['mail_folder'],
-            mail_filter=self.kwargs['mail_filter'],
+            name=self.kwargs["attachment_name"],
+            check_regex=self.kwargs["check_regex"],
+            mail_folder=self.kwargs["mail_folder"],
+            mail_filter=self.kwargs["mail_filter"],
         )
