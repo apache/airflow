@@ -68,7 +68,6 @@ class FileGroupForCi(Enum):
     HELM_FILES = "helm_files"
     SETUP_FILES = "setup_files"
     DOC_FILES = "doc_files"
-    UI_FILES = "ui_files"
     WWW_FILES = "www_files"
     KUBERNETES_FILES = "kubernetes_files"
     ALL_PYTHON_FILES = "all_python_files"
@@ -134,11 +133,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/RELEASE_NOTES\.txt",
             r"^chart/values\.schema\.json",
             r"^chart/values\.json",
-        ],
-        FileGroupForCi.UI_FILES: [
-            r"^airflow/www/.*\.[tj]sx?$",
-            r"^airflow/www/[^/]+\.json$",
-            r"^airflow/www/.*\.lock$",
         ],
         FileGroupForCi.WWW_FILES: [
             r"^airflow/www/.*\.js[x]?$",
@@ -449,10 +443,6 @@ class SelectiveChecks:
     @cached_property
     def needs_api_codegen(self) -> bool:
         return self._should_be_run(FileGroupForCi.API_CODEGEN_FILES)
-
-    @cached_property
-    def run_ui_tests(self) -> bool:
-        return self._should_be_run(FileGroupForCi.UI_FILES)
 
     @cached_property
     def run_www_tests(self) -> bool:
