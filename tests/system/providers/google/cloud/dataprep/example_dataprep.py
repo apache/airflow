@@ -35,16 +35,16 @@ from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator
 from airflow.providers.google.cloud.sensors.dataprep import DataprepJobGroupIsFinishedSensor
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get('SYSTEM_TESTS_ENV_ID')
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_dataprep"
 
-GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID')
+GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 GCS_BUCKET_NAME = f"dataprep-bucket-heorhi-{DAG_ID}-{ENV_ID}"
 GCS_BUCKET_PATH = f"gs://{GCS_BUCKET_NAME}/task_results/"
 
-FLOW_ID = os.environ.get('FLOW_ID', '')
-RECIPE_ID = os.environ.get('RECIPE_ID')
-RECIPE_NAME = os.environ.get('RECIPE_NAME')
+FLOW_ID = os.environ.get("FLOW_ID", "")
+RECIPE_ID = os.environ.get("RECIPE_ID")
+RECIPE_NAME = os.environ.get("RECIPE_NAME")
 WRITE_SETTINGS = (
     {
         "writesettings": [
@@ -62,7 +62,7 @@ with models.DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),  # Override to match your needs
     catchup=False,
-    tags=['example', 'dataprep'],
+    tags=["example", "dataprep"],
     render_template_as_native_obj=True,
 ) as dag:
     create_bucket_task = GCSCreateBucketOperator(
@@ -73,7 +73,7 @@ with models.DAG(
 
     # [START how_to_dataprep_run_job_group_operator]
     run_job_group_task = DataprepRunJobGroupOperator(
-        task_id='run_job_group',
+        task_id="run_job_group",
         project_id=GCP_PROJECT_ID,
         body_request={
             "wrangledDataset": {"id": RECIPE_ID},
@@ -87,7 +87,7 @@ with models.DAG(
         task_id="copy_flow",
         project_id=GCP_PROJECT_ID,
         flow_id=FLOW_ID,
-        name=f'dataprep_example_flow_{DAG_ID}_{ENV_ID}',
+        name=f"dataprep_example_flow_{DAG_ID}_{ENV_ID}",
     )
     # [END how_to_dataprep_copy_flow_operator]
 
@@ -106,7 +106,7 @@ with models.DAG(
 
     # [START how_to_dataprep_get_job_group_operator]
     get_job_group_task = DataprepGetJobGroupOperator(
-        task_id='get_job_group',
+        task_id="get_job_group",
         project_id=GCP_PROJECT_ID,
         job_group_id="{{ task_instance.xcom_pull('run_flow')['data'][0]['id'] }}",
         embed="",

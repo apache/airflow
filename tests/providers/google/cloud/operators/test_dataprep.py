@@ -90,7 +90,7 @@ class TestDataprepGetJobGroupOperator:
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.GoogleDataprepHook")
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.DataprepJobGroupLink")
     @pytest.mark.parametrize(
-        'provide_project_id, expected_call_count',
+        "provide_project_id, expected_call_count",
         [
             (True, 1),
             (False, 0),
@@ -174,15 +174,15 @@ class TestDataprepCopyFlowOperatorTest:
 
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.GoogleDataprepHook")
     def test_execute_with_templated_params(self, _, create_task_instance_of_operator):
-        dag_id = 'test_execute_with_templated_params'
+        dag_id = "test_execute_with_templated_params"
         ti = create_task_instance_of_operator(
             DataprepCopyFlowOperator,
             dag_id=dag_id,
-            project_id='{{ dag.dag_id }}',
+            project_id="{{ dag.dag_id }}",
             task_id=TASK_ID,
-            flow_id='{{ dag.dag_id }}',
-            name='{{ dag.dag_id }}',
-            description='{{ dag.dag_id }}',
+            flow_id="{{ dag.dag_id }}",
+            name="{{ dag.dag_id }}",
+            description="{{ dag.dag_id }}",
         )
         ti.render_templates()
         assert dag_id == ti.task.project_id
@@ -193,7 +193,7 @@ class TestDataprepCopyFlowOperatorTest:
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.GoogleDataprepHook")
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.DataprepFlowLink")
     @pytest.mark.parametrize(
-        'provide_project_id, expected_call_count',
+        "provide_project_id, expected_call_count",
         [
             (True, 1),
             (False, 0),
@@ -206,7 +206,7 @@ class TestDataprepCopyFlowOperatorTest:
         provide_project_id,
         expected_call_count,
     ):
-        hook_mock.return_value.copy_flow.return_value = {'id': NEW_FLOW_ID}
+        hook_mock.return_value.copy_flow.return_value = {"id": NEW_FLOW_ID}
         context = mock.MagicMock()
         project_id = GCP_PROJECT_ID if provide_project_id else None
 
@@ -247,7 +247,7 @@ class TestDataprepDeleteFlowOperator:
 
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.GoogleDataprepHook")
     def test_execute_with_template_params(self, _, create_task_instance_of_operator):
-        dag_id = 'test_execute_delete_flow_with_template'
+        dag_id = "test_execute_delete_flow_with_template"
         ti = create_task_instance_of_operator(
             DataprepDeleteFlowOperator,
             dag_id=dag_id,
@@ -277,7 +277,7 @@ class TestDataprepRunFlowOperator:
 
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.GoogleDataprepHook")
     def test_execute_with_template_params(self, _, create_task_instance_of_operator):
-        dag_id = 'test_execute_run_flow_with_template'
+        dag_id = "test_execute_run_flow_with_template"
         ti = create_task_instance_of_operator(
             DataprepRunFlowOperator,
             dag_id=dag_id,

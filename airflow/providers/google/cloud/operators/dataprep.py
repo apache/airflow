@@ -158,7 +158,7 @@ class DataprepRunJobGroupOperator(BaseOperator):
         hook = GoogleDataprepHook(dataprep_conn_id=self.dataprep_conn_id)
         response = hook.run_job_group(body_request=self.body_request)
 
-        job_group_id = response.get('id')
+        job_group_id = response.get("id")
         if self.project_id and job_group_id:
             DataprepJobGroupLink.persist(
                 context=context,
@@ -182,10 +182,10 @@ class DataprepCopyFlowOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'flow_id',
-        'name',
-        'project_id',
-        'description',
+        "flow_id",
+        "name",
+        "project_id",
+        "description",
     )
     operator_extra_links = (DataprepFlowLink(),)
 
@@ -209,7 +209,7 @@ class DataprepCopyFlowOperator(BaseOperator):
         self.copy_datasources = copy_datasources
 
     def execute(self, context: Context) -> dict:
-        self.log.info('Copying flow with id %d...', self.flow_id)
+        self.log.info("Copying flow with id %d...", self.flow_id)
         hook = GoogleDataprepHook(dataprep_conn_id=self.dataprep_conn_id)
         response = hook.copy_flow(
             flow_id=int(self.flow_id),
@@ -218,7 +218,7 @@ class DataprepCopyFlowOperator(BaseOperator):
             copy_datasources=self.copy_datasources,
         )
 
-        copied_flow_id = response.get('id')
+        copied_flow_id = response.get("id")
         if self.project_id and copied_flow_id:
             DataprepFlowLink.persist(
                 context=context,
@@ -237,7 +237,7 @@ class DataprepDeleteFlowOperator(BaseOperator):
     :param flow_id: ID of the flow to be copied
     """
 
-    template_fields: Sequence[str] = ('flow_id',)
+    template_fields: Sequence[str] = ("flow_id",)
 
     def __init__(
         self,
@@ -266,8 +266,8 @@ class DataprepRunFlowOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'flow_id',
-        'project_id',
+        "flow_id",
+        "project_id",
     )
     operator_extra_links = (DataprepJobGroupLink(),)
 
@@ -292,7 +292,7 @@ class DataprepRunFlowOperator(BaseOperator):
         response = hooks.run_flow(flow_id=int(self.flow_id), body_request=self.body_request)
 
         if self.project_id:
-            job_group_id = response['data'][0]['id']
+            job_group_id = response["data"][0]["id"]
             DataprepJobGroupLink.persist(
                 context=context,
                 task_instance=self,

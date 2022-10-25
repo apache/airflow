@@ -29,7 +29,7 @@ class TestDataprepJobGroupIsFinishedSensor:
     @mock.patch("airflow.providers.google.cloud.sensors.dataprep.GoogleDataprepHook")
     def test_passing_arguments_to_hook(self, hook_mock):
         sensor = DataprepJobGroupIsFinishedSensor(
-            task_id='check_job_group_finished',
+            task_id="check_job_group_finished",
             job_group_id=JOB_GROUP_ID,
         )
 
@@ -39,7 +39,7 @@ class TestDataprepJobGroupIsFinishedSensor:
         assert is_job_group_finished
 
         hook_mock.assert_called_once_with(
-            dataprep_conn_id='dataprep_default',
+            dataprep_conn_id="dataprep_default",
         )
         hook_mock.return_value.get_job_group_status.assert_called_once_with(
             job_group_id=JOB_GROUP_ID,
