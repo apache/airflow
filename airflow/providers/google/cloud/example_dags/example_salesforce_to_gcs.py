@@ -62,7 +62,7 @@ with models.DAG(
         bucket_name=GCS_BUCKET,
         object_name=GCS_OBJ_PATH,
         salesforce_conn_id=SALESFORCE_CONN_ID,
-        export_format='csv',
+        export_format="csv",
         coerce_to_timestamp=False,
         record_time_added=False,
         gcp_conn_id=GCS_CONN_ID,
@@ -80,23 +80,23 @@ with models.DAG(
         dataset_id=DATASET_NAME,
         table_id=TABLE_NAME,
         schema_fields=[
-            {'name': 'id', 'type': 'STRING', 'mode': 'NULLABLE'},
-            {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
-            {'name': 'company', 'type': 'STRING', 'mode': 'NULLABLE'},
-            {'name': 'phone', 'type': 'STRING', 'mode': 'NULLABLE'},
-            {'name': 'email', 'type': 'STRING', 'mode': 'NULLABLE'},
-            {'name': 'createddate', 'type': 'STRING', 'mode': 'NULLABLE'},
-            {'name': 'lastmodifieddate', 'type': 'STRING', 'mode': 'NULLABLE'},
-            {'name': 'isdeleted', 'type': 'BOOL', 'mode': 'NULLABLE'},
+            {"name": "id", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "name", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "company", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "phone", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "email", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "createddate", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "lastmodifieddate", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "isdeleted", "type": "BOOL", "mode": "NULLABLE"},
         ],
     )
 
     load_csv = GCSToBigQueryOperator(
-        task_id='gcs_to_bq',
+        task_id="gcs_to_bq",
         bucket=GCS_BUCKET,
         source_objects=[GCS_OBJ_PATH],
         destination_project_dataset_table=f"{DATASET_NAME}.{TABLE_NAME}",
-        write_disposition='WRITE_TRUNCATE',
+        write_disposition="WRITE_TRUNCATE",
     )
 
     read_data_from_gcs = BigQueryInsertJobOperator(

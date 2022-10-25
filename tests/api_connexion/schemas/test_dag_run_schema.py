@@ -16,11 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import pytest
 from dateutil.parser import parse
-from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import BadRequest
 from airflow.api_connexion.schemas.dag_run_schema import (
@@ -39,13 +36,13 @@ DEFAULT_TIME = "2020-06-09T13:59:56.336000+00:00"
 SECOND_TIME = "2020-06-10T13:59:56.336000+00:00"
 
 
-class TestDAGRunBase(unittest.TestCase):
-    def setUp(self) -> None:
+class TestDAGRunBase:
+    def setup_method(self) -> None:
         clear_db_runs()
         self.default_time = DEFAULT_TIME
         self.second_time = SECOND_TIME
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         clear_db_runs()
 
 
@@ -55,7 +52,7 @@ class TestDAGRunSchema(TestDAGRunBase):
         dagrun_model = DagRun(
             dag_id="my-dag-run",
             run_id="my-dag-run",
-            state='running',
+            state="running",
             run_type=DagRunType.MANUAL.value,
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
@@ -82,7 +79,8 @@ class TestDAGRunSchema(TestDAGRunBase):
             "run_type": "manual",
         }
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "serialized_dagrun, expected_result",
         [
             (  # Conf not provided
                 {"dag_run_id": "my-dag-run", "execution_date": DEFAULT_TIME},
@@ -112,7 +110,7 @@ class TestDAGRunSchema(TestDAGRunBase):
                     "conf": {"start": "stop"},
                 },
             ),
-        ]
+        ],
     )
     def test_deserialize(self, serialized_dagrun, expected_result):
         result = dagrun_schema.load(serialized_dagrun)
@@ -137,7 +135,7 @@ class TestDagRunCollection(TestDAGRunBase):
         dagrun_model_1 = DagRun(
             dag_id="my-dag-run",
             run_id="my-dag-run",
-            state='running',
+            state="running",
             execution_date=timezone.parse(self.default_time),
             run_type=DagRunType.MANUAL.value,
             start_date=timezone.parse(self.default_time),
@@ -146,7 +144,7 @@ class TestDagRunCollection(TestDAGRunBase):
         dagrun_model_2 = DagRun(
             dag_id="my-dag-run",
             run_id="my-dag-run-2",
-            state='running',
+            state="running",
             execution_date=timezone.parse(self.second_time),
             start_date=timezone.parse(self.default_time),
             run_type=DagRunType.MANUAL.value,

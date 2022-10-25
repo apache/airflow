@@ -120,12 +120,14 @@ DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
         'airflow.processor': {
             'handlers': ['processor_to_stdout' if DAG_PROCESSOR_LOG_TARGET == "stdout" else 'processor'],
             'level': LOG_LEVEL,
-            'propagate': False,
+            # Set to true here (and reset via set_context) so that if no file is configured we still get logs!
+            'propagate': True,
         },
         'airflow.task': {
             'handlers': ['task'],
             'level': LOG_LEVEL,
-            'propagate': False,
+            # Set to true here (and reset via set_context) so that if no file is configured we still get logs!
+            'propagate': True,
             'filters': ['mask_secrets'],
         },
         'flask_appbuilder': {
@@ -156,7 +158,7 @@ if EXTRA_LOGGER_NAMES:
 DEFAULT_DAG_PARSING_LOGGING_CONFIG: dict[str, dict[str, dict[str, Any]]] = {
     'handlers': {
         'processor_manager': {
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': 'airflow.utils.log.non_caching_file_handler.NonCachingRotatingFileHandler',
             'formatter': 'airflow',
             'filename': DAG_PROCESSOR_MANAGER_LOG_LOCATION,
             'mode': 'a',

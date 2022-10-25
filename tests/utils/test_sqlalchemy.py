@@ -19,13 +19,11 @@ from __future__ import annotations
 
 import datetime
 import pickle
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 from kubernetes.client import models as k8s
-from parameterized import parameterized
 from pytest import param
 from sqlalchemy.exc import StatementError
 
@@ -41,8 +39,8 @@ from airflow.utils.timezone import utcnow
 TEST_POD = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
 
 
-class TestSqlAlchemyUtils(unittest.TestCase):
-    def setUp(self):
+class TestSqlAlchemyUtils:
+    def setup_method(self):
         session = Session()
 
         # make sure NOT to run in UTC. Only postgres supports storing
@@ -57,7 +55,7 @@ class TestSqlAlchemyUtils(unittest.TestCase):
         Test whether what we are storing is what we are retrieving
         for datetimes
         """
-        dag_id = 'test_utc_transformations'
+        dag_id = "test_utc_transformations"
         start_date = utcnow()
         iso_date = start_date.isoformat()
         execution_date = start_date + datetime.timedelta(hours=1, days=1)
@@ -91,7 +89,7 @@ class TestSqlAlchemyUtils(unittest.TestCase):
         """
         Check if naive datetimes are prevented from saving to the db
         """
-        dag_id = 'test_process_bind_param_naive'
+        dag_id = "test_process_bind_param_naive"
 
         # naive
         start_date = datetime.datetime.now()
@@ -108,12 +106,13 @@ class TestSqlAlchemyUtils(unittest.TestCase):
             )
         dag.clear()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "dialect, supports_for_update_of, expected_return_value",
         [
             (
                 "postgresql",
                 True,
-                {'skip_locked': True},
+                {"skip_locked": True},
             ),
             (
                 "mysql",
@@ -123,14 +122,14 @@ class TestSqlAlchemyUtils(unittest.TestCase):
             (
                 "mysql",
                 True,
-                {'skip_locked': True},
+                {"skip_locked": True},
             ),
             (
                 "sqlite",
                 False,
-                {'skip_locked': True},
+                {"skip_locked": True},
             ),
-        ]
+        ],
     )
     def test_skip_locked(self, dialect, supports_for_update_of, expected_return_value):
         session = mock.Mock()
@@ -138,12 +137,13 @@ class TestSqlAlchemyUtils(unittest.TestCase):
         session.bind.dialect.supports_for_update_of = supports_for_update_of
         assert skip_locked(session=session) == expected_return_value
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "dialect, supports_for_update_of, expected_return_value",
         [
             (
                 "postgresql",
                 True,
-                {'nowait': True},
+                {"nowait": True},
             ),
             (
                 "mysql",
@@ -153,16 +153,16 @@ class TestSqlAlchemyUtils(unittest.TestCase):
             (
                 "mysql",
                 True,
-                {'nowait': True},
+                {"nowait": True},
             ),
             (
                 "sqlite",
                 False,
                 {
-                    'nowait': True,
+                    "nowait": True,
                 },
             ),
-        ]
+        ],
     )
     def test_nowait(self, dialect, supports_for_update_of, expected_return_value):
         session = mock.Mock()
@@ -170,7 +170,8 @@ class TestSqlAlchemyUtils(unittest.TestCase):
         session.bind.dialect.supports_for_update_of = supports_for_update_of
         assert nowait(session=session) == expected_return_value
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "dialect, supports_for_update_of, use_row_level_lock_conf, expected_use_row_level_lock",
         [
             ("postgresql", True, True, True),
             ("postgresql", True, False, False),
@@ -179,7 +180,7 @@ class TestSqlAlchemyUtils(unittest.TestCase):
             ("mysql", True, True, True),
             ("mysql", True, False, False),
             ("sqlite", False, True, True),
-        ]
+        ],
     )
     def test_with_row_locks(
         self, dialect, supports_for_update_of, use_row_level_lock_conf, expected_use_row_level_lock
@@ -199,17 +200,17 @@ class TestSqlAlchemyUtils(unittest.TestCase):
 
     def test_prohibit_commit(self):
         with prohibit_commit(self.session) as guard:
-            self.session.execute('SELECT 1')
+            self.session.execute("SELECT 1")
             with pytest.raises(RuntimeError):
                 self.session.commit()
             self.session.rollback()
 
-            self.session.execute('SELECT 1')
+            self.session.execute("SELECT 1")
             guard.commit()
 
             # Check the expected_commit is reset
             with pytest.raises(RuntimeError):
-                self.session.execute('SELECT 1')
+                self.session.execute("SELECT 1")
                 self.session.commit()
 
     def test_prohibit_commit_specific_session_only(self):
@@ -224,26 +225,26 @@ class TestSqlAlchemyUtils(unittest.TestCase):
         assert other_session is not self.session
 
         with prohibit_commit(self.session):
-            self.session.execute('SELECT 1')
+            self.session.execute("SELECT 1")
             with pytest.raises(RuntimeError):
                 self.session.commit()
             self.session.rollback()
 
-            other_session.execute('SELECT 1')
+            other_session.execute("SELECT 1")
             other_session.commit()
 
-    def tearDown(self):
+    def teardown_method(self):
         self.session.close()
         settings.engine.dispose()
 
 
 class TestExecutorConfigType:
     @pytest.mark.parametrize(
-        'input, expected',
+        "input, expected",
         [
-            ('anything', 'anything'),
+            ("anything", "anything"),
             (
-                {'pod_override': TEST_POD},
+                {"pod_override": TEST_POD},
                 {
                     "pod_override": {
                         "__var": {"spec": {"containers": [{"name": "base"}]}},
@@ -266,23 +267,23 @@ class TestExecutorConfigType:
         assert pickle.loads(process(input)) == expected, "should should not mutate variable"
 
     @pytest.mark.parametrize(
-        'input',
+        "input",
         [
             param(
-                pickle.dumps('anything'),
-                id='anything',
+                pickle.dumps("anything"),
+                id="anything",
             ),
             param(
-                pickle.dumps({'pod_override': BaseSerialization.serialize(TEST_POD)}),
-                id='serialized_pod',
+                pickle.dumps({"pod_override": BaseSerialization.serialize(TEST_POD)}),
+                id="serialized_pod",
             ),
             param(
-                pickle.dumps({'pod_override': TEST_POD}),
-                id='old_pickled_raw_pod',
+                pickle.dumps({"pod_override": TEST_POD}),
+                id="old_pickled_raw_pod",
             ),
             param(
-                pickle.dumps({'pod_override': {"name": "hi"}}),
-                id='arbitrary_dict',
+                pickle.dumps({"pod_override": {"name": "hi"}}),
+                id="arbitrary_dict",
             ),
         ],
     )
@@ -297,11 +298,11 @@ class TestExecutorConfigType:
         process = config_type.result_processor(mock_dialect, None)
         result = process(input)
         expected = pickle.loads(input)
-        pod_override = isinstance(expected, dict) and expected.get('pod_override')
+        pod_override = isinstance(expected, dict) and expected.get("pod_override")
         if pod_override and isinstance(pod_override, dict) and pod_override.get(Encoding.TYPE):
             # We should only deserialize a pod_override with BaseSerialization if
             # it was serialized with BaseSerialization (which is the behavior added in #24356
-            expected['pod_override'] = BaseSerialization.deserialize(expected['pod_override'])
+            expected["pod_override"] = BaseSerialization.deserialize(expected["pod_override"])
         assert result == expected
 
     def test_compare_values(self):
@@ -313,7 +314,7 @@ class TestExecutorConfigType:
 
         class MockAttrError:
             def __eq__(self, other):
-                raise AttributeError('hello')
+                raise AttributeError("hello")
 
         a = MockAttrError()
         with pytest.raises(AttributeError):
@@ -322,4 +323,4 @@ class TestExecutorConfigType:
 
         instance = ExecutorConfigType()
         assert instance.compare_values(a, a) is False
-        assert instance.compare_values('a', 'a') is True
+        assert instance.compare_values("a", "a") is True

@@ -49,9 +49,13 @@ interface DagRun {
   executionDate: string;
   dataIntervalStart: string;
   dataIntervalEnd: string;
+  queuedAt: string | null;
   startDate: string | null;
   endDate: string | null;
   lastSchedulingDecision: string | null;
+  externalTrigger: boolean;
+  conf: string | null;
+  confIsJson: boolean;
 }
 
 interface TaskInstance {
@@ -105,8 +109,13 @@ interface DepNode {
 }
 
 interface DepEdge {
-  u: string;
-  v: string;
+  source: string;
+  target: string;
+}
+
+interface DatasetListItem extends API.Dataset {
+  lastDatasetUpdate: string | null;
+  totalUpdates: number;
 }
 
 export type {
@@ -120,4 +129,5 @@ export type {
   DepEdge,
   API,
   RunOrdering,
+  DatasetListItem,
 };

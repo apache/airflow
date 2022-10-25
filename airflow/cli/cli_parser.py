@@ -547,6 +547,14 @@ ARG_MIGRATION_TIMEOUT = Arg(
     type=int,
     default=60,
 )
+ARG_DB_RESERIALIZE_DAGS = Arg(
+    ("--no-reserialize-dags",),
+    # Not intended for user, so dont show in help
+    help=argparse.SUPPRESS,
+    action="store_false",
+    default=True,
+    dest="reserialize_dags",
+)
 ARG_DB_VERSION__UPGRADE = Arg(
     ("-n", "--to-version"),
     help=(
@@ -577,7 +585,7 @@ ARG_DB_FROM_REVISION = Arg(
 ARG_DB_SQL_ONLY = Arg(
     ("-s", "--show-sql-only"),
     help="Don't actually run migrations; just print out sql scripts for offline migration. "
-    "Required if using either `--from-version` or `--from-version`.",
+    "Required if using either `--from-revision` or `--from-version`.",
     action="store_true",
     default=False,
 )
@@ -889,7 +897,7 @@ ARG_OPTION = Arg(
 # kubernetes cleanup-pods
 ARG_NAMESPACE = Arg(
     ("--namespace",),
-    default=conf.get('kubernetes', 'namespace'),
+    default=conf.get('kubernetes_executor', 'namespace'),
     help="Kubernetes Namespace. Default value is `[kubernetes] namespace` in configuration.",
 )
 
@@ -916,6 +924,13 @@ ARG_JOB_HOSTNAME_FILTER = Arg(
     default=None,
     type=str,
     help="The hostname of job(s) that will be checked.",
+)
+
+ARG_JOB_HOSTNAME_CALLABLE_FILTER = Arg(
+    ("--local",),
+    action='store_true',
+    help="If passed, this command will only show jobs from the local host "
+    "(those with a hostname matching what `hostname_callable` returns).",
 )
 
 ARG_JOB_LIMIT = Arg(
@@ -1438,6 +1453,7 @@ DB_COMMANDS = (
             ARG_DB_SQL_ONLY,
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
+            ARG_DB_RESERIALIZE_DAGS,
         ),
     ),
     ActionCommand(
@@ -1807,12 +1823,18 @@ JOBS_COMMANDS = (
         name='check',
         help="Checks if job(s) are still alive",
         func=lazy_load_command('airflow.cli.commands.jobs_command.check'),
-        args=(ARG_JOB_TYPE_FILTER, ARG_JOB_HOSTNAME_FILTER, ARG_JOB_LIMIT, ARG_ALLOW_MULTIPLE),
+        args=(
+            ARG_JOB_TYPE_FILTER,
+            ARG_JOB_HOSTNAME_FILTER,
+            ARG_JOB_HOSTNAME_CALLABLE_FILTER,
+            ARG_JOB_LIMIT,
+            ARG_ALLOW_MULTIPLE,
+        ),
         epilog=(
             'examples:\n'
             'To check if the local scheduler is still working properly, run:\n'
             '\n'
-            '    $ airflow jobs check --job-type SchedulerJob --hostname "$(hostname)"\n'
+            '    $ airflow jobs check --job-type SchedulerJob --local"\n'
             '\n'
             'To check if any scheduler is running when you are using high availability, run:\n'
             '\n'

@@ -27,20 +27,20 @@ class TestSalesforceApexRestOperator(unittest.TestCase):
     Test class for SalesforceApexRestOperator
     """
 
-    @patch('airflow.providers.salesforce.operators.salesforce_apex_rest.SalesforceHook.get_conn')
+    @patch("airflow.providers.salesforce.operators.salesforce_apex_rest.SalesforceHook.get_conn")
     def test_execute_salesforce_apex_rest(self, mock_get_conn):
         """
         Test execute apex rest
         """
 
-        endpoint = 'User/Activity'
-        method = 'POST'
+        endpoint = "User/Activity"
+        method = "POST"
         payload = {"activity": [{"user": "12345", "action": "update page", "time": "2014-04-21T13:00:15Z"}]}
 
         mock_get_conn.return_value.apexecute = Mock()
 
         operator = SalesforceApexRestOperator(
-            task_id='task', endpoint=endpoint, method=method, payload=payload
+            task_id="task", endpoint=endpoint, method=method, payload=payload
         )
 
         operator.execute(context={})

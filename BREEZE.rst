@@ -689,8 +689,24 @@ API, Providers. This how our CI runs them - running each group in parallel to ot
 replicate this behaviour.
 
 Another interesting use of the ``breeze testing tests`` command is that you can easily specify sub-set of the
-tests for Providers. ``breeze testing tests --test-type "Providers[airbyte,http]`` for example will only run
-tests for airbyte and http providers.
+tests for Providers.
+
+For example this will only run provider tests for airbyte and http providers:
+
+.. code-block:: bash
+
+   breeze testing tests --test-type "Providers[airbyte,http]``
+
+You can also run parallel tests with ``--run-in-parallel`` flag - by default it will run all tests types
+in parallel, but you can specify the test type that you want to run with space separated list of test
+types passed to ``--test-types`` flag.
+
+For example this will run API and WWW tests in parallel:
+
+.. code-block:: bash
+
+    breeze testing tests --test-types "API WWW" --run-in-parallel
+
 
 Here is the detailed set of options for the ``breeze testing tests`` command.
 
@@ -741,13 +757,16 @@ automatically to run the tests.
 You can:
 
 * Setup environment for k8s tests with ``breeze k8s setup-env``
-* Manage KinD Kubernetes cluster and deploy Airflow to KinD cluster ``breeze k8s create-cluster``,
-  ``breeze k8s deploy-airflow``, ``breeze k8s status``, ``breeze k8s delete-cluster`` commands
+* Build airflow k8S images with ``breeze k8s build-k8s-image``
+* Manage KinD Kubernetes cluster and upload image and deploy Airflow to KinD cluster via
+  ``breeze k8s create-cluster``, ``breeze k8s configure-cluster``, ``breeze k8s deploy-airflow``, ``breeze k8s status``,
+  ``breeze k8s upload-k8s-image``, ``breeze k8s delete-cluster`` commands
 * Run Kubernetes tests  specified with ``breeze k8s tests`` command
+* Run complete test run with ``breeze k8s run-complete-tests`` - performing the full cycle of creating
+  cluster, uploading the image, deploying airflow, running tests and deleting the cluster
 * Enter the interactive kubernetes test environment with ``breeze k8s shell`` and ``breeze k8s k9s`` command
 * Run multi-cluster-operations ``breeze k8s list-all-clusters`` and
   ``breeze k8s delete-all-clusters`` commands as well as running complete tests in parallel
-  via ``breeze k8s run-complete-tests`` and export logs from all clusters to a temp directory
   via ``breeze k8s dump-logs`` command
 
 This is described in detail in `Testing Kubernetes <TESTING.rst#running-tests-with-kubernetes>`_.
@@ -923,6 +942,51 @@ output during test execution.
 .. code-block::bash
 
     breeze k8s tests -- kubernetes_tests/test_kubernetes_executor.py -s
+
+Running k8s complete tests
+..........................
+
+You can run ``breeze k8s run-complete-tests`` command to combine all previous steps in one command. That
+command will create cluster, deploy airflow and run tests and finally delete cluster. It is used in CI
+to run the whole chains in parallel.
+
+Run all tests:
+
+.. code-block::bash
+
+    breeze k8s run-complete-tests
+
+Run selected tests:
+
+.. code-block::bash
+
+    breeze k8s run-complete-tests kubernetes_tests/test_kubernetes_executor.py
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_run-complete-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_run-complete-tests.svg
+  :width: 100%
+  :alt: Breeze k8s tests
+
+You can also specify any pytest flags as extra parameters - they will be passed to the
+shell command directly. In case the shell parameters are the same as the parameters of the command, you
+can pass them after ``--``. For example this is the way how you can see all available parameters of the shell
+you have:
+
+.. code-block::bash
+
+    breeze k8s run-complete-tests -- --help
+
+The options that are not overlapping with the ``tests`` command options can be passed directly and mixed
+with the specifications of tests you want to run. For example the command below will only run
+``test_kubernetes_executor.py`` and will suppress capturing output from Pytest so that you can see the
+output during test execution.
+
+.. code-block::bash
+
+    breeze k8s run-complete-tests -- kubernetes_tests/test_kubernetes_executor.py -s
+
 
 Entering k8s shell
 ..................
@@ -1344,7 +1408,10 @@ should be run on multiple combinations of Python, Kubernetes, Backend versions. 
 needed to run the CI Builds. You can also use the tool to test what tests will be run when you provide
 a specific commit that Breeze should run the tests on.
 
-More details about the algorithm used to pick the right tests can be
+The selective-check command will produce the set of ``name=value`` pairs of outputs derived
+from the context of the commit/PR to be merged via stderr output.
+
+More details about the algorithm used to pick the right tests and the available outputs can be
 found in `Selective Checks <dev/breeze/SELECTIVE_CHECKS.md>`_.
 
 Those are all available flags of ``selective-check`` command:

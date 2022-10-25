@@ -48,72 +48,72 @@ from airflow.providers.amazon.aws.sensors.dms import DmsTaskBaseSensor, DmsTaskC
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-DAG_ID = 'example_dms'
-ROLE_ARN_KEY = 'ROLE_ARN'
-VPC_ID_KEY = 'VPC_ID'
+DAG_ID = "example_dms"
+ROLE_ARN_KEY = "ROLE_ARN"
+VPC_ID_KEY = "VPC_ID"
 
 sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).add_variable(VPC_ID_KEY).build()
 
 # Config values for setting up the "Source" database.
-RDS_ENGINE = 'postgres'
-RDS_PROTOCOL = 'postgresql'
-RDS_USERNAME = 'username'
+RDS_ENGINE = "postgres"
+RDS_PROTOCOL = "postgresql"
+RDS_USERNAME = "username"
 # NEVER store your production password in plaintext in a DAG like this.
 # Use Airflow Secrets or a secret manager for this in production.
-RDS_PASSWORD = 'rds_password'
-TABLE_HEADERS = ['apache_project', 'release_year']
+RDS_PASSWORD = "rds_password"
+TABLE_HEADERS = ["apache_project", "release_year"]
 SAMPLE_DATA = [
-    ('Airflow', '2015'),
-    ('OpenOffice', '2012'),
-    ('Subversion', '2000'),
-    ('NiFi', '2006'),
+    ("Airflow", "2015"),
+    ("OpenOffice", "2012"),
+    ("Subversion", "2000"),
+    ("NiFi", "2006"),
 ]
 SG_IP_PERMISSION = {
-    'FromPort': 5432,
-    'IpProtocol': 'All',
-    'IpRanges': [{'CidrIp': '0.0.0.0/0'}],
+    "FromPort": 5432,
+    "IpProtocol": "All",
+    "IpRanges": [{"CidrIp": "0.0.0.0/0"}],
 }
 
 
 def _get_rds_instance_endpoint(instance_name: str):
-    print('Retrieving RDS instance endpoint.')
-    rds_client = boto3.client('rds')
+    print("Retrieving RDS instance endpoint.")
+    rds_client = boto3.client("rds")
 
     response = rds_client.describe_db_instances(DBInstanceIdentifier=instance_name)
-    rds_instance_endpoint = response['DBInstances'][0]['Endpoint']
+    rds_instance_endpoint = response["DBInstances"][0]["Endpoint"]
     return rds_instance_endpoint
 
 
 @task
 def create_security_group(security_group_name: str, vpc_id: str):
-    client = boto3.client('ec2')
+    client = boto3.client("ec2")
     security_group = client.create_security_group(
         GroupName=security_group_name,
-        Description='Created for DMS system test',
+        Description="Created for DMS system test",
         VpcId=vpc_id,
     )
-    client.get_waiter('security_group_exists').wait(
-        GroupIds=[security_group['GroupId']],
+    client.get_waiter("security_group_exists").wait(
+        GroupIds=[security_group["GroupId"]],
         GroupNames=[security_group_name],
-        WaiterConfig={'Delay': 15, 'MaxAttempts': 4},
+        WaiterConfig={"Delay": 15, "MaxAttempts": 4},
     )
     client.authorize_security_group_ingress(
-        GroupId=security_group['GroupId'],
+        GroupId=security_group["GroupId"],
         GroupName=security_group_name,
         IpPermissions=[SG_IP_PERMISSION],
     )
 
-    return security_group['GroupId']
+    return security_group["GroupId"]
 
 
 @task
 def create_sample_table(instance_name: str, db_name: str, table_name: str):
-    print('Creating sample table.')
+    print("Creating sample table.")
 
     rds_endpoint = _get_rds_instance_endpoint(instance_name)
-    hostname = rds_endpoint['Address']
-    port = rds_endpoint['Port']
-    rds_url = f'{RDS_PROTOCOL}://{RDS_USERNAME}:{RDS_PASSWORD}@{hostname}:{port}/{db_name}'
+    hostname = rds_endpoint["Address"]
+    port = rds_endpoint["Port"]
+    rds_url = f"{RDS_PROTOCOL}://{RDS_USERNAME}:{RDS_PASSWORD}@{hostname}:{port}/{db_name}"
     engine = create_engine(rds_url)
 
     table = Table(
@@ -144,50 +144,50 @@ def create_dms_assets(
     target_endpoint_identifier: str,
     table_definition: dict,
 ):
-    print('Creating DMS assets.')
-    dms_client = boto3.client('dms')
+    print("Creating DMS assets.")
+    dms_client = boto3.client("dms")
     rds_instance_endpoint = _get_rds_instance_endpoint(instance_name)
 
-    print('Creating replication instance.')
+    print("Creating replication instance.")
     instance_arn = dms_client.create_replication_instance(
         ReplicationInstanceIdentifier=replication_instance_name,
-        ReplicationInstanceClass='dms.t3.micro',
-    )['ReplicationInstance']['ReplicationInstanceArn']
+        ReplicationInstanceClass="dms.t3.micro",
+    )["ReplicationInstance"]["ReplicationInstanceArn"]
 
-    print('Creating DMS source endpoint.')
+    print("Creating DMS source endpoint.")
     source_endpoint_arn = dms_client.create_endpoint(
         EndpointIdentifier=source_endpoint_identifier,
-        EndpointType='source',
+        EndpointType="source",
         EngineName=RDS_ENGINE,
         Username=RDS_USERNAME,
         Password=RDS_PASSWORD,
-        ServerName=rds_instance_endpoint['Address'],
-        Port=rds_instance_endpoint['Port'],
+        ServerName=rds_instance_endpoint["Address"],
+        Port=rds_instance_endpoint["Port"],
         DatabaseName=db_name,
-    )['Endpoint']['EndpointArn']
+    )["Endpoint"]["EndpointArn"]
 
-    print('Creating DMS target endpoint.')
+    print("Creating DMS target endpoint.")
     target_endpoint_arn = dms_client.create_endpoint(
         EndpointIdentifier=target_endpoint_identifier,
-        EndpointType='target',
-        EngineName='s3',
+        EndpointType="target",
+        EngineName="s3",
         S3Settings={
-            'BucketName': bucket_name,
-            'BucketFolder': 'folder',
-            'ServiceAccessRoleArn': role_arn,
-            'ExternalTableDefinition': json.dumps(table_definition),
+            "BucketName": bucket_name,
+            "BucketFolder": "folder",
+            "ServiceAccessRoleArn": role_arn,
+            "ExternalTableDefinition": json.dumps(table_definition),
         },
-    )['Endpoint']['EndpointArn']
+    )["Endpoint"]["EndpointArn"]
 
     print("Awaiting replication instance provisioning.")
-    dms_client.get_waiter('replication_instance_available').wait(
-        Filters=[{'Name': 'replication-instance-arn', 'Values': [instance_arn]}]
+    dms_client.get_waiter("replication_instance_available").wait(
+        Filters=[{"Name": "replication-instance-arn", "Values": [instance_arn]}]
     )
 
     return {
-        'replication_instance_arn': instance_arn,
-        'source_endpoint_arn': source_endpoint_arn,
-        'target_endpoint_arn': target_endpoint_arn,
+        "replication_instance_arn": instance_arn,
+        "source_endpoint_arn": source_endpoint_arn,
+        "target_endpoint_arn": target_endpoint_arn,
     }
 
 
@@ -200,22 +200,22 @@ def delete_dms_assets(
     target_endpoint_identifier: str,
     replication_instance_name: str,
 ):
-    dms_client = boto3.client('dms')
+    dms_client = boto3.client("dms")
 
-    print('Deleting DMS assets.')
+    print("Deleting DMS assets.")
     dms_client.delete_replication_instance(ReplicationInstanceArn=replication_instance_arn)
     dms_client.delete_endpoint(EndpointArn=source_endpoint_arn)
     dms_client.delete_endpoint(EndpointArn=target_endpoint_arn)
 
-    print('Awaiting DMS assets tear-down.')
-    dms_client.get_waiter('replication_instance_deleted').wait(
-        Filters=[{'Name': 'replication-instance-id', 'Values': [replication_instance_name]}]
+    print("Awaiting DMS assets tear-down.")
+    dms_client.get_waiter("replication_instance_deleted").wait(
+        Filters=[{"Name": "replication-instance-id", "Values": [replication_instance_name]}]
     )
-    dms_client.get_waiter('endpoint_deleted').wait(
+    dms_client.get_waiter("endpoint_deleted").wait(
         Filters=[
             {
-                'Name': 'endpoint-id',
-                'Values': [source_endpoint_identifier, target_endpoint_identifier],
+                "Name": "endpoint-id",
+                "Values": [source_endpoint_identifier, target_endpoint_identifier],
             }
         ]
     )
@@ -223,14 +223,14 @@ def delete_dms_assets(
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_security_group(security_group_id: str, security_group_name: str):
-    boto3.client('ec2').delete_security_group(GroupId=security_group_id, GroupName=security_group_name)
+    boto3.client("ec2").delete_security_group(GroupId=security_group_id, GroupName=security_group_name)
 
 
 with DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
@@ -238,58 +238,58 @@ with DAG(
     role_arn = test_context[ROLE_ARN_KEY]
     vpc_id = test_context[VPC_ID_KEY]
 
-    bucket_name = f'{env_id}-dms-bucket'
-    rds_instance_name = f'{env_id}-instance'
-    rds_db_name = f'{env_id}_source_database'  # dashes are not allowed in db name
-    rds_table_name = f'{env_id}-table'
-    dms_replication_instance_name = f'{env_id}-replication-instance'
-    dms_replication_task_id = f'{env_id}-replication-task'
-    source_endpoint_identifier = f'{env_id}-source-endpoint'
-    target_endpoint_identifier = f'{env_id}-target-endpoint'
-    security_group_name = f'{env_id}-dms-security-group'
+    bucket_name = f"{env_id}-dms-bucket"
+    rds_instance_name = f"{env_id}-instance"
+    rds_db_name = f"{env_id}_source_database"  # dashes are not allowed in db name
+    rds_table_name = f"{env_id}-table"
+    dms_replication_instance_name = f"{env_id}-replication-instance"
+    dms_replication_task_id = f"{env_id}-replication-task"
+    source_endpoint_identifier = f"{env_id}-source-endpoint"
+    target_endpoint_identifier = f"{env_id}-target-endpoint"
+    security_group_name = f"{env_id}-dms-security-group"
 
     # Sample data.
     table_definition = {
-        'TableCount': '1',
-        'Tables': [
+        "TableCount": "1",
+        "Tables": [
             {
-                'TableName': rds_table_name,
-                'TableColumns': [
+                "TableName": rds_table_name,
+                "TableColumns": [
                     {
-                        'ColumnName': TABLE_HEADERS[0],
-                        'ColumnType': 'STRING',
-                        'ColumnNullable': 'false',
-                        'ColumnIsPk': 'true',
+                        "ColumnName": TABLE_HEADERS[0],
+                        "ColumnType": "STRING",
+                        "ColumnNullable": "false",
+                        "ColumnIsPk": "true",
                     },
-                    {"ColumnName": TABLE_HEADERS[1], "ColumnType": 'STRING', "ColumnLength": "4"},
+                    {"ColumnName": TABLE_HEADERS[1], "ColumnType": "STRING", "ColumnLength": "4"},
                 ],
-                'TableColumnsTotal': '2',
+                "TableColumnsTotal": "2",
             }
         ],
     }
     table_mappings = {
-        'rules': [
+        "rules": [
             {
-                'rule-type': 'selection',
-                'rule-id': '1',
-                'rule-name': '1',
-                'object-locator': {
-                    'schema-name': 'public',
-                    'table-name': rds_table_name,
+                "rule-type": "selection",
+                "rule-id": "1",
+                "rule-name": "1",
+                "object-locator": {
+                    "schema-name": "public",
+                    "table-name": rds_table_name,
                 },
-                'rule-action': 'include',
+                "rule-action": "include",
             }
         ]
     }
 
-    create_s3_bucket = S3CreateBucketOperator(task_id='create_s3_bucket', bucket_name=bucket_name)
+    create_s3_bucket = S3CreateBucketOperator(task_id="create_s3_bucket", bucket_name=bucket_name)
 
     create_sg = create_security_group(security_group_name, vpc_id)
 
     create_db_instance = RdsCreateDbInstanceOperator(
         task_id="create_db_instance",
         db_instance_identifier=rds_instance_name,
-        db_instance_class='db.t3.micro',
+        db_instance_class="db.t3.micro",
         engine=RDS_ENGINE,
         rds_kwargs={
             "DBName": rds_db_name,
@@ -316,11 +316,11 @@ with DAG(
 
     # [START howto_operator_dms_create_task]
     create_task = DmsCreateTaskOperator(
-        task_id='create_task',
+        task_id="create_task",
         replication_task_id=dms_replication_task_id,
-        source_endpoint_arn=create_assets['source_endpoint_arn'],
-        target_endpoint_arn=create_assets['target_endpoint_arn'],
-        replication_instance_arn=create_assets['replication_instance_arn'],
+        source_endpoint_arn=create_assets["source_endpoint_arn"],
+        target_endpoint_arn=create_assets["target_endpoint_arn"],
+        replication_instance_arn=create_assets["replication_instance_arn"],
         table_mappings=table_mappings,
     )
     # [END howto_operator_dms_create_task]
@@ -329,19 +329,19 @@ with DAG(
 
     # [START howto_operator_dms_start_task]
     start_task = DmsStartTaskOperator(
-        task_id='start_task',
+        task_id="start_task",
         replication_task_arn=task_arn,
     )
     # [END howto_operator_dms_start_task]
 
     # [START howto_operator_dms_describe_tasks]
     describe_tasks = DmsDescribeTasksOperator(
-        task_id='describe_tasks',
+        task_id="describe_tasks",
         describe_tasks_kwargs={
-            'Filters': [
+            "Filters": [
                 {
-                    'Name': 'replication-instance-arn',
-                    'Values': [create_assets['replication_instance_arn']],
+                    "Name": "replication-instance-arn",
+                    "Values": [create_assets["replication_instance_arn"]],
                 }
             ]
         },
@@ -350,15 +350,15 @@ with DAG(
     # [END howto_operator_dms_describe_tasks]
 
     await_task_start = DmsTaskBaseSensor(
-        task_id='await_task_start',
+        task_id="await_task_start",
         replication_task_arn=task_arn,
-        target_statuses=['running'],
-        termination_statuses=['stopped', 'deleting', 'failed'],
+        target_statuses=["running"],
+        termination_statuses=["stopped", "deleting", "failed"],
     )
 
     # [START howto_operator_dms_stop_task]
     stop_task = DmsStopTaskOperator(
-        task_id='stop_task',
+        task_id="stop_task",
         replication_task_arn=task_arn,
     )
     # [END howto_operator_dms_stop_task]
@@ -366,30 +366,30 @@ with DAG(
     # TaskCompletedSensor actually waits until task reaches the "Stopped" state, so it will work here.
     # [START howto_sensor_dms_task_completed]
     await_task_stop = DmsTaskCompletedSensor(
-        task_id='await_task_stop',
+        task_id="await_task_stop",
         replication_task_arn=task_arn,
     )
     # [END howto_sensor_dms_task_completed]
 
     # [START howto_operator_dms_delete_task]
     delete_task = DmsDeleteTaskOperator(
-        task_id='delete_task',
+        task_id="delete_task",
         replication_task_arn=task_arn,
     )
     # [END howto_operator_dms_delete_task]
     delete_task.trigger_rule = TriggerRule.ALL_DONE
 
     delete_assets = delete_dms_assets(
-        replication_instance_arn=create_assets['replication_instance_arn'],
-        source_endpoint_arn=create_assets['source_endpoint_arn'],
-        target_endpoint_arn=create_assets['target_endpoint_arn'],
+        replication_instance_arn=create_assets["replication_instance_arn"],
+        source_endpoint_arn=create_assets["source_endpoint_arn"],
+        target_endpoint_arn=create_assets["target_endpoint_arn"],
         source_endpoint_identifier=source_endpoint_identifier,
         target_endpoint_identifier=target_endpoint_identifier,
         replication_instance_name=dms_replication_instance_name,
     )
 
     delete_db_instance = RdsDeleteDbInstanceOperator(
-        task_id='delete_db_instance',
+        task_id="delete_db_instance",
         db_instance_identifier=rds_instance_name,
         rds_kwargs={
             "SkipFinalSnapshot": True,
@@ -398,7 +398,7 @@ with DAG(
     )
 
     delete_s3_bucket = S3DeleteBucketOperator(
-        task_id='delete_s3_bucket',
+        task_id="delete_s3_bucket",
         bucket_name=bucket_name,
         force_delete=True,
         trigger_rule=TriggerRule.ALL_DONE,

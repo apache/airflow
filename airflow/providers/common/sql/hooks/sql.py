@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from contextlib import closing
 from datetime import datetime
 from typing import Any, Callable, Iterable, Mapping, Optional
@@ -28,8 +27,6 @@ from typing_extensions import Protocol
 
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers_manager import ProvidersManager
-from airflow.utils.module_loading import import_string
 from airflow.version import version
 
 
@@ -39,27 +36,6 @@ def fetch_all_handler(cursor) -> list[tuple] | None:
         return cursor.fetchall()
     else:
         return None
-
-
-def _backported_get_hook(connection, *, hook_params=None):
-    """Return hook based on conn_type
-    For supporting Airflow versions < 2.3, we backport "get_hook()" method. This should be removed
-    when "apache-airflow-providers-slack" will depend on Airflow >= 2.3.
-    """
-    hook = ProvidersManager().hooks.get(connection.conn_type, None)
-
-    if hook is None:
-        raise AirflowException(f'Unknown hook type "{connection.conn_type}"')
-    try:
-        hook_class = import_string(hook.hook_class_name)
-    except ImportError:
-        warnings.warn(
-            f"Could not import {hook.hook_class_name} when discovering {hook.hook_name} {hook.package_name}",
-        )
-        raise
-    if hook_params is None:
-        hook_params = {}
-    return hook_class(**{hook.connection_id_attribute_name: connection.conn_id}, **hook_params)
 
 
 class ConnectorProtocol(Protocol):
@@ -81,7 +57,7 @@ class ConnectorProtocol(Protocol):
 # We want the DbApiHook to derive from the original DbApiHook from airflow, because otherwise
 # SqlSensor and BaseSqlOperator from "airflow.operators" and "airflow.sensors" will refuse to
 # accept the new Hooks as not derived from the original DbApiHook
-if Version(version) < Version('2.4'):
+if Version(version) < Version("2.4"):
     try:
         from airflow.hooks.dbapi import DbApiHook as BaseForDbApiHook
     except ImportError:
@@ -104,7 +80,7 @@ class DbApiHook(BaseForDbApiHook):
     # Override to provide the connection name.
     conn_name_attr = None  # type: str
     # Override to have a default connection id for a particular dbHook
-    default_conn_name = 'default_conn_id'
+    default_conn_name = "default_conn_id"
     # Override if this db supports autocommit.
     supports_autocommit = False
     # Override with the object that exposes the connect method
@@ -237,7 +213,7 @@ class DbApiHook(BaseForDbApiHook):
 
     @staticmethod
     def strip_sql_string(sql: str) -> str:
-        return sql.strip().rstrip(';')
+        return sql.strip().rstrip(";")
 
     @staticmethod
     def split_sql_string(sql: str) -> list[str]:
@@ -345,7 +321,7 @@ class DbApiHook(BaseForDbApiHook):
         :return: connection autocommit setting.
         :rtype: bool
         """
-        return getattr(conn, 'autocommit', False) and self.supports_autocommit
+        return getattr(conn, "autocommit", False) and self.supports_autocommit
 
     def get_cursor(self):
         """Returns a cursor"""
@@ -372,7 +348,7 @@ class DbApiHook(BaseForDbApiHook):
             target_fields = ", ".join(target_fields)
             target_fields = f"({target_fields})"
         else:
-            target_fields = ''
+            target_fields = ""
 
         if not replace:
             sql = "INSERT INTO "
@@ -414,7 +390,7 @@ class DbApiHook(BaseForDbApiHook):
                         self.log.info("Loaded %s rows into %s so far", i, table)
 
             conn.commit()
-        self.log.info("Done loading. Loaded a total of %s rows", i)
+        self.log.info("Done loading. Loaded a total of %s rows into %s", i, table)
 
     @staticmethod
     def _serialize_cell(cell, conn=None):
@@ -452,11 +428,11 @@ class DbApiHook(BaseForDbApiHook):
 
     def test_connection(self):
         """Tests the connection using db-specific query"""
-        status, message = False, ''
+        status, message = False, ""
         try:
             if self.get_first(self._test_connection_sql):
                 status = True
-                message = 'Connection successfully tested'
+                message = "Connection successfully tested"
         except Exception as e:
             status = False
             message = str(e)

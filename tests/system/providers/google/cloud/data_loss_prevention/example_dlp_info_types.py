@@ -79,7 +79,7 @@ UPDATE_CUSTOM_INFO_TYPE = {
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["dlp", "example"],
@@ -112,7 +112,7 @@ with models.DAG(
     )
 
     get_stored_info_type = CloudDLPGetStoredInfoTypeOperator(
-        task_id="list_stored_info_type", project_id=PROJECT_ID, stored_info_type_id=CUSTOM_INFO_TYPE_ID
+        task_id="get_stored_info_type", project_id=PROJECT_ID, stored_info_type_id=CUSTOM_INFO_TYPE_ID
     )
 
     # [START howto_operator_dlp_update_info_type]

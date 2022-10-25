@@ -39,6 +39,7 @@ from airflow.utils.helpers import validate_group_key
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
+    from airflow.models.expandinput import ExpandInput
     from airflow.utils.edgemodifier import EdgeModifier
 
 
@@ -390,9 +391,9 @@ class TaskGroup(DAGNode):
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Required by DAGNode."""
-        from airflow.serialization.serialized_objects import SerializedTaskGroup
+        from airflow.serialization.serialized_objects import TaskGroupSerialization
 
-        return DagAttributeTypes.TASK_GROUP, SerializedTaskGroup.serialize_task_group(self)
+        return DagAttributeTypes.TASK_GROUP, TaskGroupSerialization.serialize_task_group(self)
 
     def topological_sort(self, _include_subdag_tasks: bool = False):
         """
@@ -452,6 +453,21 @@ class TaskGroup(DAGNode):
                 raise AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")
 
         return graph_sorted
+
+
+class MappedTaskGroup(TaskGroup):
+    """A mapped task group.
+
+    This doesn't really do anything special, just holds some additional metadata
+    for expansion later.
+
+    Don't instantiate this class directly; call *expand* or *expand_kwargs* on
+    a ``@task_group`` function instead.
+    """
+
+    def __init__(self, *, expand_input: ExpandInput, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self._expand_input = expand_input
 
 
 class TaskGroupContext:

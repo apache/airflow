@@ -188,7 +188,7 @@ class BaseParameters:
     "-n",
     "--name",
     prompt="Your Name",
-    default=lambda: os.environ.get('USER', ''),
+    default=lambda: os.environ.get("USER", ""),
     show_default="Current User",
     help="Name of the Release Manager",
     type=click.STRING,
@@ -336,5 +336,5 @@ def announce(base_parameters, receiver_email: str):
         show_message("Twitter", twitter_msg)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()

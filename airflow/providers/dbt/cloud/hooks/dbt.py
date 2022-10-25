@@ -148,7 +148,7 @@ class DbtCloudHook(HttpHook):
     def __init__(self, dbt_cloud_conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(auth_type=TokenAuth)
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
-        tenant = self.connection.schema if self.connection.schema else 'cloud'
+        tenant = self.connection.schema if self.connection.schema else "cloud"
 
         self.base_url = f"https://{tenant}.getdbt.com/api/v2/accounts/"
 
@@ -253,7 +253,7 @@ class DbtCloudHook(HttpHook):
     ) -> list[Response]:
         """
         Retrieves metadata for all jobs tied to a specified dbt Cloud account. If a ``project_id`` is
-        supplied, only jobs pertaining to this job will be retrieved.
+        supplied, only jobs pertaining to this project will be retrieved.
 
         :param account_id: Optional. The ID of a dbt Cloud account.
         :param order_by: Optional. Field to order the result by. Use '-' to indicate reverse order.

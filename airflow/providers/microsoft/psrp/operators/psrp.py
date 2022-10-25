@@ -28,12 +28,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.psrp.hooks.psrp import PsrpHook
 from airflow.settings import json
-
-
-# TODO: Replace with airflow.utils.helpers.exactly_one in Airflow 2.3.
-def exactly_one(*args):
-    return len(set(filter(None, args))) == 1
-
+from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -110,7 +105,7 @@ class PsrpOperator(BaseOperator):
         if parameters and not cmdlet:
             raise ValueError("Parameters only allowed with 'cmdlet'")
         if cmdlet:
-            kwargs.setdefault('task_id', cmdlet)
+            kwargs.setdefault("task_id", cmdlet)
         super().__init__(**kwargs)
         self.conn_id = psrp_conn_id
         self.command = command

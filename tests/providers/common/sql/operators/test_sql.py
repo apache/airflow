@@ -28,10 +28,12 @@ from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models import Connection, DagRun, TaskInstance as TI, XCom
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
     BranchSQLOperator,
     SQLCheckOperator,
     SQLColumnCheckOperator,
+    SQLExecuteQueryOperator,
     SQLIntervalCheckOperator,
     SQLTableCheckOperator,
     SQLThresholdCheckOperator,
@@ -54,6 +56,44 @@ class MockHook:
 
 def _get_mock_db_hook():
     return MockHook()
+
+
+class TestSQLExecuteQueryOperator(unittest.TestCase):
+    def _construct_operator(self, sql, **kwargs):
+        dag = DAG("test_dag", start_date=datetime.datetime(2017, 1, 1))
+        return SQLExecuteQueryOperator(
+            task_id="test_task",
+            conn_id="default_conn",
+            sql=sql,
+            **kwargs,
+            dag=dag,
+        )
+
+    @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
+    def test_do_xcom_push(self, mock_get_db_hook):
+        operator = self._construct_operator("SELECT 1;", do_xcom_push=True)
+        operator.execute(context=MagicMock())
+
+        mock_get_db_hook.return_value.run.assert_called_once_with(
+            sql="SELECT 1;",
+            autocommit=False,
+            handler=fetch_all_handler,
+            parameters=None,
+            return_last=True,
+            split_statements=False,
+        )
+
+    @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
+    def test_dont_xcom_push(self, mock_get_db_hook):
+        operator = self._construct_operator("SELECT 1;", do_xcom_push=False)
+        operator.execute(context=MagicMock())
+
+        mock_get_db_hook.return_value.run.assert_called_once_with(
+            sql="SELECT 1;",
+            autocommit=False,
+            parameters=None,
+            split_statements=False,
+        )
 
 
 class TestColumnCheckOperator:
@@ -130,10 +170,10 @@ class TestTableCheckOperator:
         return operator
 
     @pytest.mark.parametrize(
-        ['conn_id'],
+        ["conn_id"],
         [
-            pytest.param('postgres_default', marks=[pytest.mark.backend('postgres')]),
-            pytest.param('mysql_default', marks=[pytest.mark.backend('mysql')]),
+            pytest.param("postgres_default", marks=[pytest.mark.backend("postgres")]),
+            pytest.param("mysql_default", marks=[pytest.mark.backend("mysql")]),
         ],
     )
     def test_sql_check(self, conn_id):
@@ -167,12 +207,12 @@ class TestTableCheckOperator:
             hook.run(["DROP TABLE employees"])
 
     def test_pass_all_checks_check(self, monkeypatch):
-        records = [('row_count_check', 1), ('column_sum_check', 'y')]
+        records = [("row_count_check", 1), ("column_sum_check", "y")]
         operator = self._construct_operator(monkeypatch, self.checks, records)
         operator.execute(context=MagicMock())
 
     def test_fail_all_checks_check(self, monkeypatch):
-        records = [('row_count_check', 0), ('column_sum_check', 'n')]
+        records = [("row_count_check", 0), ("column_sum_check", "n")]
         operator = self._construct_operator(monkeypatch, self.checks, records)
         with pytest.raises(AirflowException):
             operator.execute(context=MagicMock())
@@ -207,8 +247,8 @@ SUPPORTED_FALSE_VALUES = [
 
 
 @mock.patch(
-    'airflow.providers.common.sql.operators.sql.BaseHook.get_connection',
-    return_value=Connection(conn_id='sql_default', conn_type='postgres'),
+    "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
+    return_value=Connection(conn_id="sql_default", conn_type="postgres"),
 )
 class TestSQLCheckOperatorDbHook:
     def setup_method(self):
@@ -216,7 +256,7 @@ class TestSQLCheckOperatorDbHook:
         self.conn_id = "sql_default"
         self._operator = SQLCheckOperator(task_id=self.task_id, conn_id=self.conn_id, sql="sql")
 
-    @pytest.mark.parametrize('database', [None, 'test-db'])
+    @pytest.mark.parametrize("database", [None, "test-db"])
     def test_get_hook(self, mock_get_conn, database):
         if database:
             self._operator.database = database
@@ -225,34 +265,34 @@ class TestSQLCheckOperatorDbHook:
         mock_get_conn.assert_called_once_with(self.conn_id)
 
     def test_not_allowed_conn_type(self, mock_get_conn):
-        mock_get_conn.return_value = Connection(conn_id='sql_default', conn_type='airbyte')
+        mock_get_conn.return_value = Connection(conn_id="sql_default", conn_type="airbyte")
         with pytest.raises(AirflowException, match=r"You are trying to use `common-sql`"):
             self._operator._hook
 
     def test_sql_operator_hook_params_snowflake(self, mock_get_conn):
-        mock_get_conn.return_value = Connection(conn_id='snowflake_default', conn_type='snowflake')
+        mock_get_conn.return_value = Connection(conn_id="snowflake_default", conn_type="snowflake")
         self._operator.hook_params = {
-            'warehouse': 'warehouse',
-            'database': 'database',
-            'role': 'role',
-            'schema': 'schema',
-            'log_sql': False,
+            "warehouse": "warehouse",
+            "database": "database",
+            "role": "role",
+            "schema": "schema",
+            "log_sql": False,
         }
-        assert self._operator._hook.conn_type == 'snowflake'
-        assert self._operator._hook.warehouse == 'warehouse'
-        assert self._operator._hook.database == 'database'
-        assert self._operator._hook.role == 'role'
-        assert self._operator._hook.schema == 'schema'
+        assert self._operator._hook.conn_type == "snowflake"
+        assert self._operator._hook.warehouse == "warehouse"
+        assert self._operator._hook.database == "database"
+        assert self._operator._hook.role == "role"
+        assert self._operator._hook.schema == "schema"
         assert not self._operator._hook.log_sql
 
     def test_sql_operator_hook_params_biguery(self, mock_get_conn):
         mock_get_conn.return_value = Connection(
-            conn_id='google_cloud_bigquery_default', conn_type='gcpbigquery'
+            conn_id="google_cloud_bigquery_default", conn_type="gcpbigquery"
         )
-        self._operator.hook_params = {'use_legacy_sql': True, 'location': 'us-east1'}
-        assert self._operator._hook.conn_type == 'gcpbigquery'
+        self._operator.hook_params = {"use_legacy_sql": True, "location": "us-east1"}
+        assert self._operator._hook.conn_type == "gcpbigquery"
         assert self._operator._hook.use_legacy_sql
-        assert self._operator._hook.location == 'us-east1'
+        assert self._operator._hook.location == "us-east1"
 
 
 class TestCheckOperator(unittest.TestCase):
