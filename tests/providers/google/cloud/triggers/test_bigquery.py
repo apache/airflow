@@ -507,9 +507,12 @@ async def test_bigquery_get_data_trigger_success_with_data(mock_job_output, mock
     mock_job_output.return_value = {
         "kind": "bigquery#tableDataList",
         "etag": "test_etag",
-        "schema": {"fields": [
-            {"name": "f0_", "type": "INTEGER", "mode": "NULLABLE"},
-            {"name": "f1_", "type": "STRING", "mode": "NULLABLE"}]},
+        "schema": {
+            "fields": [
+                {"name": "f0_", "type": "INTEGER", "mode": "NULLABLE"},
+                {"name": "f1_", "type": "STRING", "mode": "NULLABLE"},
+            ]
+        },
         "jobReference": {
             "projectId": "test-airflow-providers",
             "jobId": "test_jobid",
