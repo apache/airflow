@@ -38,8 +38,8 @@ class AzureCosmosInsertDocumentOperator(BaseOperator):
         :ref:`Azure CosmosDB connection<howto/connection:azure_cosmos>`.
     """
 
-    template_fields: Sequence[str] = ('database_name', 'collection_name')
-    ui_color = '#e4f0e8'
+    template_fields: Sequence[str] = ("database_name", "collection_name")
+    ui_color = "#e4f0e8"
 
     def __init__(
         self,
@@ -47,7 +47,7 @@ class AzureCosmosInsertDocumentOperator(BaseOperator):
         database_name: str,
         collection_name: str,
         document: dict,
-        azure_cosmos_conn_id: str = 'azure_cosmos_default',
+        azure_cosmos_conn_id: str = "azure_cosmos_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

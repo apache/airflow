@@ -25,7 +25,7 @@ class KubeConfig:
     """Configuration for Kubernetes"""
 
     core_section = 'core'
-    kubernetes_section = 'kubernetes'
+    kubernetes_section = 'kubernetes_executor'
     logging_section = 'logging'
 
     def __init__(self):

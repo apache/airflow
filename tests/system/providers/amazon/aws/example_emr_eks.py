@@ -37,12 +37,12 @@ from airflow.providers.amazon.aws.sensors.emr import EmrContainerSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-DAG_ID = 'example_emr_eks'
+DAG_ID = "example_emr_eks"
 
 # Externally fetched variables
-ROLE_ARN_KEY = 'ROLE_ARN'
-JOB_ROLE_ARN_KEY = 'JOB_ROLE_ARN'
-SUBNETS_KEY = 'SUBNETS'
+ROLE_ARN_KEY = "ROLE_ARN"
+JOB_ROLE_ARN_KEY = "JOB_ROLE_ARN"
+SUBNETS_KEY = "SUBNETS"
 
 sys_test_context_task = (
     SystemTestContextBuilder()
@@ -52,8 +52,8 @@ sys_test_context_task = (
     .build()
 )
 
-S3_FILE_NAME = 'pi.py'
-S3_FILE_CONTENT = '''
+S3_FILE_NAME = "pi.py"
+S3_FILE_CONTENT = """
 k = 1
 s = 0
 
@@ -66,14 +66,14 @@ for i in range(1000000):
     k += 2
 
 print(s)
-'''
+"""
 
 
 @task
 def enable_access_emr_on_eks(cluster, ns):
     # Install eksctl and enable access for EMR on EKS
     # See https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-cluster-access.html
-    file = 'https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz'
+    file = "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz"
     commands = f"""
         curl --silent --location "{file}" | tar xz -C /tmp &&
         sudo mv /tmp/eksctl /usr/local/bin &&
@@ -94,7 +94,7 @@ def enable_access_emr_on_eks(cluster, ns):
 
 @task
 def get_execution_role_name() -> str:
-    return boto3.client('sts').get_caller_identity()['Arn'].split('/')[-1]
+    return boto3.client("sts").get_caller_identity()["Arn"].split("/")[-1]
 
 
 @task
@@ -102,8 +102,8 @@ def update_trust_policy_execution_role(cluster_name, cluster_namespace, role_nam
     # See https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-trust-policy.html
     # The action "update-role-trust-policy" is not available in boto3, thus we need to do it using AWS CLI
     commands = (
-        f'aws emr-containers update-role-trust-policy --cluster-name {cluster_name} '
-        f'--namespace {cluster_namespace} --role-name {role_name}'
+        f"aws emr-containers update-role-trust-policy --cluster-name {cluster_name} "
+        f"--namespace {cluster_namespace} --role-name {role_name}"
     )
 
     build = subprocess.Popen(
@@ -120,16 +120,16 @@ def update_trust_policy_execution_role(cluster_name, cluster_namespace, role_nam
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_virtual_cluster(virtual_cluster_id):
-    boto3.client('emr-containers').delete_virtual_cluster(
+    boto3.client("emr-containers").delete_virtual_cluster(
         id=virtual_cluster_id,
     )
 
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
@@ -138,56 +138,56 @@ with DAG(
     subnets = test_context[SUBNETS_KEY]
     job_role_arn = test_context[JOB_ROLE_ARN_KEY]
 
-    s3_bucket_name = f'{env_id}-bucket'
-    eks_cluster_name = f'{env_id}-cluster'
-    virtual_cluster_name = f'{env_id}-virtual-cluster'
-    nodegroup_name = f'{env_id}-nodegroup'
-    eks_namespace = 'default'
+    s3_bucket_name = f"{env_id}-bucket"
+    eks_cluster_name = f"{env_id}-cluster"
+    virtual_cluster_name = f"{env_id}-virtual-cluster"
+    nodegroup_name = f"{env_id}-nodegroup"
+    eks_namespace = "default"
 
     # [START howto_operator_emr_eks_config]
     job_driver_arg = {
-        'sparkSubmitJobDriver': {
-            'entryPoint': f's3://{s3_bucket_name}/{S3_FILE_NAME}',
-            'sparkSubmitParameters': '--conf spark.executors.instances=2 --conf spark.executors.memory=2G '
-            '--conf spark.executor.cores=2 --conf spark.driver.cores=1',
+        "sparkSubmitJobDriver": {
+            "entryPoint": f"s3://{s3_bucket_name}/{S3_FILE_NAME}",
+            "sparkSubmitParameters": "--conf spark.executors.instances=2 --conf spark.executors.memory=2G "
+            "--conf spark.executor.cores=2 --conf spark.driver.cores=1",
         }
     }
 
     configuration_overrides_arg = {
-        'monitoringConfiguration': {
-            'cloudWatchMonitoringConfiguration': {
-                'logGroupName': '/emr-eks-jobs',
-                'logStreamNamePrefix': 'airflow',
+        "monitoringConfiguration": {
+            "cloudWatchMonitoringConfiguration": {
+                "logGroupName": "/emr-eks-jobs",
+                "logStreamNamePrefix": "airflow",
             }
         },
     }
     # [END howto_operator_emr_eks_config]
 
     create_bucket = S3CreateBucketOperator(
-        task_id='create_bucket',
+        task_id="create_bucket",
         bucket_name=s3_bucket_name,
     )
 
     upload_s3_file = S3CreateObjectOperator(
-        task_id='upload_s3_file',
+        task_id="upload_s3_file",
         s3_bucket=s3_bucket_name,
         s3_key=S3_FILE_NAME,
         data=S3_FILE_CONTENT,
     )
 
     create_cluster_and_nodegroup = EksCreateClusterOperator(
-        task_id='create_cluster_and_nodegroup',
+        task_id="create_cluster_and_nodegroup",
         cluster_name=eks_cluster_name,
         nodegroup_name=nodegroup_name,
         cluster_role_arn=role_arn,
         # Opting to use the same ARN for the cluster and the nodegroup here,
         # but a different ARN could be configured and passed if desired.
         nodegroup_role_arn=role_arn,
-        resources_vpc_config={'subnetIds': subnets},
+        resources_vpc_config={"subnetIds": subnets},
     )
 
     await_create_nodegroup = EksNodegroupStateSensor(
-        task_id='await_create_nodegroup',
+        task_id="await_create_nodegroup",
         cluster_name=eks_cluster_name,
         nodegroup_name=nodegroup_name,
         target_state=NodegroupStates.ACTIVE,
@@ -197,7 +197,7 @@ with DAG(
 
     # [START howto_operator_emr_eks_create_cluster]
     create_emr_eks_cluster = EmrEksCreateClusterOperator(
-        task_id='create_emr_eks_cluster',
+        task_id="create_emr_eks_cluster",
         virtual_cluster_name=virtual_cluster_name,
         eks_cluster_name=eks_cluster_name,
         eks_namespace=eks_namespace,
@@ -210,41 +210,41 @@ with DAG(
 
     # [START howto_operator_emr_container]
     job_starter = EmrContainerOperator(
-        task_id='start_job',
+        task_id="start_job",
         virtual_cluster_id=str(create_emr_eks_cluster.output),
         execution_role_arn=job_role_arn,
-        release_label='emr-6.3.0-latest',
+        release_label="emr-6.3.0-latest",
         job_driver=job_driver_arg,
         configuration_overrides=configuration_overrides_arg,
-        name='pi.py',
+        name="pi.py",
     )
     # [END howto_operator_emr_container]
     job_starter.wait_for_completion = False
 
     # [START howto_sensor_emr_container]
     job_waiter = EmrContainerSensor(
-        task_id='job_waiter',
+        task_id="job_waiter",
         virtual_cluster_id=str(create_emr_eks_cluster.output),
         job_id=str(job_starter.output),
     )
     # [END howto_sensor_emr_container]
 
     delete_eks_cluster = EksDeleteClusterOperator(
-        task_id='delete_eks_cluster',
+        task_id="delete_eks_cluster",
         cluster_name=eks_cluster_name,
         force_delete_compute=True,
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
     await_delete_eks_cluster = EksClusterStateSensor(
-        task_id='await_delete_eks_cluster',
+        task_id="await_delete_eks_cluster",
         cluster_name=eks_cluster_name,
         target_state=ClusterStates.NONEXISTENT,
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_bucket = S3DeleteBucketOperator(
-        task_id='delete_bucket',
+        task_id="delete_bucket",
         bucket_name=s3_bucket_name,
         force_delete=True,
         trigger_rule=TriggerRule.ALL_DONE,

@@ -45,7 +45,7 @@ class TestStackdriverLoggingHandlerSystemTest(GoogleSystemTest):
     def setUp(self) -> None:
         super().setUp()
         clear_db_runs()
-        self.log_name = 'stackdriver-tests-'.join(random.sample(string.ascii_lowercase, 16))
+        self.log_name = "stackdriver-tests-".join(random.sample(string.ascii_lowercase, 16))
 
     def tearDown(self) -> None:
         from airflow.config_templates import airflow_local_settings
@@ -58,7 +58,7 @@ class TestStackdriverLoggingHandlerSystemTest(GoogleSystemTest):
     @provide_session
     def test_should_support_key_auth(self, session):
         with mock.patch.dict(
-            'os.environ',
+            "os.environ",
             AIRFLOW__LOGGING__REMOTE_LOGGING="true",
             AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER=f"stackdriver://{self.log_name}",
             AIRFLOW__LOGGING__GOOGLE_KEY_PATH=resolve_full_gcp_key_path(GCP_STACKDRIVER),
@@ -74,7 +74,7 @@ class TestStackdriverLoggingHandlerSystemTest(GoogleSystemTest):
     @provide_session
     def test_should_support_adc(self, session):
         with mock.patch.dict(
-            'os.environ',
+            "os.environ",
             AIRFLOW__LOGGING__REMOTE_LOGGING="true",
             AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER=f"stackdriver://{self.log_name}",
             AIRFLOW__CORE__LOAD_EXAMPLES="false",
@@ -90,8 +90,8 @@ class TestStackdriverLoggingHandlerSystemTest(GoogleSystemTest):
     def assert_remote_logs(self, expected_message, ti):
         with provide_gcp_context(GCP_STACKDRIVER), conf_vars(
             {
-                ('logging', 'remote_logging'): 'True',
-                ('logging', 'remote_base_log_folder'): f"stackdriver://{self.log_name}",
+                ("logging", "remote_logging"): "True",
+                ("logging", "remote_base_log_folder"): f"stackdriver://{self.log_name}",
             }
         ):
             from airflow.config_templates import airflow_local_settings

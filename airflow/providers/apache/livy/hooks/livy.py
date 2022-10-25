@@ -32,16 +32,16 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 class BatchState(Enum):
     """Batch session states"""
 
-    NOT_STARTED = 'not_started'
-    STARTING = 'starting'
-    RUNNING = 'running'
-    IDLE = 'idle'
-    BUSY = 'busy'
-    SHUTTING_DOWN = 'shutting_down'
-    ERROR = 'error'
-    DEAD = 'dead'
-    KILLED = 'killed'
-    SUCCESS = 'success'
+    NOT_STARTED = "not_started"
+    STARTING = "starting"
+    RUNNING = "running"
+    IDLE = "idle"
+    BUSY = "busy"
+    SHUTTING_DOWN = "shutting_down"
+    ERROR = "error"
+    DEAD = "dead"
+    KILLED = "killed"
+    SUCCESS = "success"
 
 
 class LivyHook(HttpHook, LoggingMixin):
@@ -65,12 +65,12 @@ class LivyHook(HttpHook, LoggingMixin):
         BatchState.ERROR,
     }
 
-    _def_headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+    _def_headers = {"Content-Type": "application/json", "Accept": "application/json"}
 
-    conn_name_attr = 'livy_conn_id'
-    default_conn_name = 'livy_default'
-    conn_type = 'livy'
-    hook_name = 'Apache Livy'
+    conn_name_attr = "livy_conn_id"
+    default_conn_name = "livy_default"
+    conn_type = "livy"
+    hook_name = "Apache Livy"
 
     def __init__(
         self,
@@ -100,7 +100,7 @@ class LivyHook(HttpHook, LoggingMixin):
     def run_method(
         self,
         endpoint: str,
-        method: str = 'GET',
+        method: str = "GET",
         data: Any | None = None,
         headers: dict[str, Any] | None = None,
         retry_args: dict[str, Any] | None = None,
@@ -117,10 +117,10 @@ class LivyHook(HttpHook, LoggingMixin):
         :return: http response
         :rtype: requests.Response
         """
-        if method not in ('GET', 'POST', 'PUT', 'DELETE', 'HEAD'):
+        if method not in ("GET", "POST", "PUT", "DELETE", "HEAD"):
             raise ValueError(f"Invalid http method '{method}'")
         if not self.extra_options:
-            self.extra_options = {'check_response': False}
+            self.extra_options = {"check_response": False}
 
         back_method = self.method
         self.method = method
@@ -155,7 +155,7 @@ class LivyHook(HttpHook, LoggingMixin):
         self.log.info("Submitting job %s to %s", batch_submit_body, self.base_url)
 
         response = self.run_method(
-            method='POST', endpoint='/batches', data=batch_submit_body, headers=self.extra_headers
+            method="POST", endpoint="/batches", data=batch_submit_body, headers=self.extra_headers
         )
         self.log.debug("Got response: %s", response.text)
 
@@ -185,7 +185,7 @@ class LivyHook(HttpHook, LoggingMixin):
         self._validate_session_id(session_id)
 
         self.log.debug("Fetching info for batch session %d", session_id)
-        response = self.run_method(endpoint=f'/batches/{session_id}', headers=self.extra_headers)
+        response = self.run_method(endpoint=f"/batches/{session_id}", headers=self.extra_headers)
 
         try:
             response.raise_for_status()
@@ -211,7 +211,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
         self.log.debug("Fetching info for batch session %d", session_id)
         response = self.run_method(
-            endpoint=f'/batches/{session_id}/state', retry_args=retry_args, headers=self.extra_headers
+            endpoint=f"/batches/{session_id}/state", retry_args=retry_args, headers=self.extra_headers
         )
 
         try:
@@ -223,9 +223,9 @@ class LivyHook(HttpHook, LoggingMixin):
             )
 
         jresp = response.json()
-        if 'state' not in jresp:
+        if "state" not in jresp:
             raise AirflowException(f"Unable to get state for batch with id: {session_id}")
-        return BatchState(jresp['state'])
+        return BatchState(jresp["state"])
 
     def delete_batch(self, session_id: int | str) -> Any:
         """
@@ -239,7 +239,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
         self.log.info("Deleting batch session %d", session_id)
         response = self.run_method(
-            method='DELETE', endpoint=f'/batches/{session_id}', headers=self.extra_headers
+            method="DELETE", endpoint=f"/batches/{session_id}", headers=self.extra_headers
         )
 
         try:
@@ -263,9 +263,9 @@ class LivyHook(HttpHook, LoggingMixin):
         :rtype: dict
         """
         self._validate_session_id(session_id)
-        log_params = {'from': log_start_position, 'size': log_batch_size}
+        log_params = {"from": log_start_position, "size": log_batch_size}
         response = self.run_method(
-            endpoint=f'/batches/{session_id}/log', data=log_params, headers=self.extra_headers
+            endpoint=f"/batches/{session_id}/log", data=log_params, headers=self.extra_headers
         )
         try:
             response.raise_for_status()
@@ -293,9 +293,9 @@ class LivyHook(HttpHook, LoggingMixin):
         while log_start_line <= log_total_lines:
             # Livy log  endpoint is paginated.
             response = self.get_batch_logs(session_id, log_start_line, log_batch_size)
-            log_total_lines = self._parse_request_response(response, 'total')
+            log_total_lines = self._parse_request_response(response, "total")
             log_start_line += log_batch_size
-            log_lines = self._parse_request_response(response, 'log')
+            log_lines = self._parse_request_response(response, "log")
             for log_line in log_lines:
                 self.log.info(log_line)
 
@@ -320,7 +320,7 @@ class LivyHook(HttpHook, LoggingMixin):
         :return: session id
         :rtype: int
         """
-        return response.get('id')
+        return response.get("id")
 
     @staticmethod
     def _parse_request_response(response: dict[Any, Any], parameter) -> Any:
@@ -375,38 +375,38 @@ class LivyHook(HttpHook, LoggingMixin):
         :return: request body
         :rtype: dict
         """
-        body: dict[str, Any] = {'file': file}
+        body: dict[str, Any] = {"file": file}
 
         if proxy_user:
-            body['proxyUser'] = proxy_user
+            body["proxyUser"] = proxy_user
         if class_name:
-            body['className'] = class_name
+            body["className"] = class_name
         if args and LivyHook._validate_list_of_stringables(args):
-            body['args'] = [str(val) for val in args]
+            body["args"] = [str(val) for val in args]
         if jars and LivyHook._validate_list_of_stringables(jars):
-            body['jars'] = jars
+            body["jars"] = jars
         if py_files and LivyHook._validate_list_of_stringables(py_files):
-            body['pyFiles'] = py_files
+            body["pyFiles"] = py_files
         if files and LivyHook._validate_list_of_stringables(files):
-            body['files'] = files
+            body["files"] = files
         if driver_memory and LivyHook._validate_size_format(driver_memory):
-            body['driverMemory'] = driver_memory
+            body["driverMemory"] = driver_memory
         if driver_cores:
-            body['driverCores'] = driver_cores
+            body["driverCores"] = driver_cores
         if executor_memory and LivyHook._validate_size_format(executor_memory):
-            body['executorMemory'] = executor_memory
+            body["executorMemory"] = executor_memory
         if executor_cores:
-            body['executorCores'] = executor_cores
+            body["executorCores"] = executor_cores
         if num_executors:
-            body['numExecutors'] = num_executors
+            body["numExecutors"] = num_executors
         if archives and LivyHook._validate_list_of_stringables(archives):
-            body['archives'] = archives
+            body["archives"] = archives
         if queue:
-            body['queue'] = queue
+            body["queue"] = queue
         if name:
-            body['name'] = name
+            body["name"] = name
         if conf and LivyHook._validate_extra_conf(conf):
-            body['conf'] = conf
+            body["conf"] = conf
 
         return body
 
@@ -419,7 +419,7 @@ class LivyHook(HttpHook, LoggingMixin):
         :return: true if valid format
         :rtype: bool
         """
-        if size and not (isinstance(size, str) and re.match(r'^\d+[kmgt]b?$', size, re.IGNORECASE)):
+        if size and not (isinstance(size, str) and re.match(r"^\d+[kmgt]b?$", size, re.IGNORECASE)):
             raise ValueError(f"Invalid java size format for string'{size}'")
         return True
 

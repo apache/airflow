@@ -391,9 +391,9 @@ class TaskGroup(DAGNode):
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Required by DAGNode."""
-        from airflow.serialization.serialized_objects import SerializedTaskGroup
+        from airflow.serialization.serialized_objects import TaskGroupSerialization
 
-        return DagAttributeTypes.TASK_GROUP, SerializedTaskGroup.serialize_task_group(self)
+        return DagAttributeTypes.TASK_GROUP, TaskGroupSerialization.serialize_task_group(self)
 
     def topological_sort(self, _include_subdag_tasks: bool = False):
         """

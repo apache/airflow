@@ -33,20 +33,20 @@ if TYPE_CHECKING:
 
 CHECK_INTERVAL_SECONDS = 15
 TIMEOUT_SECONDS = 25 * 60
-DEFAULT_COMPUTE_TYPE = 'nodegroup'
-DEFAULT_CONN_ID = 'aws_default'
-DEFAULT_FARGATE_PROFILE_NAME = 'profile'
-DEFAULT_NAMESPACE_NAME = 'default'
-DEFAULT_NODEGROUP_NAME = 'nodegroup'
+DEFAULT_COMPUTE_TYPE = "nodegroup"
+DEFAULT_CONN_ID = "aws_default"
+DEFAULT_FARGATE_PROFILE_NAME = "profile"
+DEFAULT_NAMESPACE_NAME = "default"
+DEFAULT_NODEGROUP_NAME = "nodegroup"
 
 ABORT_MSG = "{compute} are still active after the allocated time limit.  Aborting."
 CAN_NOT_DELETE_MSG = "A cluster can not be deleted with attached {compute}.  Deleting {count} {compute}."
 MISSING_ARN_MSG = "Creating an {compute} requires {requirement} to be passed in."
 SUCCESS_MSG = "No {compute} remain, deleting cluster."
 
-SUPPORTED_COMPUTE_VALUES = frozenset({'nodegroup', 'fargate'})
-NODEGROUP_FULL_NAME = 'Amazon EKS managed node groups'
-FARGATE_FULL_NAME = 'AWS Fargate profiles'
+SUPPORTED_COMPUTE_VALUES = frozenset({"nodegroup", "fargate"})
+NODEGROUP_FULL_NAME = "Amazon EKS managed node groups"
+FARGATE_FULL_NAME = "AWS Fargate profiles"
 
 
 class EksCreateClusterOperator(BaseOperator):
@@ -159,14 +159,14 @@ class EksCreateClusterOperator(BaseOperator):
         if self.compute:
             if self.compute not in SUPPORTED_COMPUTE_VALUES:
                 raise ValueError("Provided compute type is not supported.")
-            elif (self.compute == 'nodegroup') and not self.nodegroup_role_arn:
+            elif (self.compute == "nodegroup") and not self.nodegroup_role_arn:
                 raise ValueError(
-                    MISSING_ARN_MSG.format(compute=NODEGROUP_FULL_NAME, requirement='nodegroup_role_arn')
+                    MISSING_ARN_MSG.format(compute=NODEGROUP_FULL_NAME, requirement="nodegroup_role_arn")
                 )
-            elif (self.compute == 'fargate') and not self.fargate_pod_execution_role_arn:
+            elif (self.compute == "fargate") and not self.fargate_pod_execution_role_arn:
                 raise ValueError(
                     MISSING_ARN_MSG.format(
-                        compute=FARGATE_FULL_NAME, requirement='fargate_pod_execution_role_arn'
+                        compute=FARGATE_FULL_NAME, requirement="fargate_pod_execution_role_arn"
                     )
                 )
 
@@ -205,15 +205,15 @@ class EksCreateClusterOperator(BaseOperator):
                 eks_hook.delete_cluster(name=self.cluster_name)
                 raise RuntimeError(message)
 
-        if self.compute == 'nodegroup':
+        if self.compute == "nodegroup":
             eks_hook.create_nodegroup(
                 clusterName=self.cluster_name,
                 nodegroupName=self.nodegroup_name,
-                subnets=cast(List[str], self.resources_vpc_config.get('subnetIds')),
+                subnets=cast(List[str], self.resources_vpc_config.get("subnetIds")),
                 nodeRole=self.nodegroup_role_arn,
                 **self.create_nodegroup_kwargs,
             )
-        elif self.compute == 'fargate':
+        elif self.compute == "fargate":
             eks_hook.create_fargate_profile(
                 clusterName=self.cluster_name,
                 fargateProfileName=self.fargate_profile_name,

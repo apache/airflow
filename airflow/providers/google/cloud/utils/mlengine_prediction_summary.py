@@ -201,7 +201,7 @@ def run(argv=None):
             | "Write"
             >> beam.io.WriteToText(
                 prediction_summary_path,
-                shard_name_template='',  # without trailing -NNNNN-of-NNNNN.
+                shard_name_template="",  # without trailing -NNNNN-of-NNNNN.
                 coder=JsonCoder(),
             )
         )

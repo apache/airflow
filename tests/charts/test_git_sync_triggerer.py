@@ -16,14 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import jmespath
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class GitSyncTriggererTest(unittest.TestCase):
+class TestGitSyncTriggerer:
     def test_validate_sshkeysecret_not_added_when_persistence_is_enabled(self):
         docs = render_chart(
             values={

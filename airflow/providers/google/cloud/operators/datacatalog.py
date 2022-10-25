@@ -1526,7 +1526,7 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
             metadata=self.metadata,
         )
 
-        project_id, location_id, entry_group_id, entry_id = result.name.split('/')[1::2]
+        project_id, location_id, entry_group_id, entry_id = result.name.split("/")[1::2]
         DataCatalogEntryLink.persist(
             context=context,
             task_instance=self,
