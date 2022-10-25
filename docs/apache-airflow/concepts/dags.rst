@@ -710,7 +710,7 @@ You can either do this all inside of the ``DAG_FOLDER``, with a standard filesys
 
 Note that packaged DAGs come with some caveats:
 
-* They cannot be used if you have picking enabled for serialization
+* They cannot be used if you have pickling enabled for serialization
 * They cannot contain compiled libraries (e.g. ``libz.so``), only pure Python
 * They will be inserted into Python's ``sys.path`` and importable by any other code in the Airflow process, so ensure the package names don't clash with other packages already installed on your system.
 
