@@ -86,7 +86,7 @@ Initial version of the provider.
 """
 
 HTTPS_REMOTE = "apache-https-for-providers"
-HEAD_OF_HTTPS_REMOTE = f"{HTTPS_REMOTE}/main"
+HEAD_OF_HTTPS_REMOTE = f"{HTTPS_REMOTE}"
 
 MY_DIR_PATH = Path(__file__).parent
 AIRFLOW_SOURCES_ROOT_PATH = MY_DIR_PATH.parents[1]
@@ -191,6 +191,11 @@ option_force = click.option(
     "--force",
     is_flag=True,
     help="Forces regeneration of already generated documentation",
+)
+option_base_branch = click.option(
+    "--base-branch",
+    type=str,
+    default="main",
 )
 argument_package_id = click.argument("package_id")
 argument_changelog_files = click.argument("changelog_files", nargs=-1)
@@ -899,10 +904,12 @@ def print_changes_table(changes_table):
 def get_all_changes_for_package(
     provider_package_id: str,
     verbose: bool,
+    base_branch: str,
 ) -> tuple[bool, list[list[Change]] | Change | None, str]:
     """
     Retrieves all changes for the package.
     :param provider_package_id: provider package id
+    :param base_branch: base branch to check changes in apache remote for changes
     :param verbose: whether to print verbose messages
 
     """
@@ -920,7 +927,7 @@ def get_all_changes_for_package(
             console.print(f"The tag {current_tag_no_suffix} exists.")
         # The tag already exists
         changes = subprocess.check_output(
-            get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, current_tag_no_suffix),
+            get_git_log_command(verbose, f"{HEAD_OF_HTTPS_REMOTE}/{base_branch}", current_tag_no_suffix),
             cwd=provider_details.source_provider_package_path,
             text=True,
         )
@@ -934,7 +941,9 @@ def get_all_changes_for_package(
                     last_doc_only_hash = f.read().strip()
                 try:
                     changes_since_last_doc_only_check = subprocess.check_output(
-                        get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, last_doc_only_hash),
+                        get_git_log_command(
+                            verbose, f"{HEAD_OF_HTTPS_REMOTE}/{base_branch}", last_doc_only_hash
+                        ),
                         cwd=provider_details.source_provider_package_path,
                         text=True,
                     )
@@ -975,7 +984,7 @@ def get_all_changes_for_package(
         )
     else:
         console.print(f"New version of the '{provider_package_id}' package is ready to be released!\n")
-    next_version_tag = HEAD_OF_HTTPS_REMOTE
+    next_version_tag = f"{HEAD_OF_HTTPS_REMOTE}/{base_branch}"
     changes_table = ""
     current_version = provider_details.versions[0]
     list_of_list_of_changes: list[list[Change]] = []
@@ -1206,6 +1215,7 @@ def update_release_notes(
     force: bool,
     verbose: bool,
     answer: str | None,
+    base_branch: str,
 ) -> bool:
     """
     Updates generated files (readme, changes and/or setup.cfg/setup.py/manifest.in/provider_info)
@@ -1215,10 +1225,11 @@ def update_release_notes(
     :param force: regenerate already released documentation
     :param verbose: whether to print verbose messages
     :param answer: force answer to question if set.
+    :param base_branch: base branch to check changes in apache remote for changes
     :returns False if the package should be skipped, True if everything generated properly
     """
     verify_provider_package(provider_package_id)
-    proceed, latest_change, changes = get_all_changes_for_package(provider_package_id, verbose)
+    proceed, latest_change, changes = get_all_changes_for_package(provider_package_id, verbose, base_branch)
     if not force:
         if proceed:
             if not confirm("Provider marked for release. Proceed", answer=answer):
@@ -1245,7 +1256,9 @@ def update_release_notes(
                 return False
             elif type_of_change in [TypeOfChange.BUGFIX, TypeOfChange.FEATURE, TypeOfChange.BREAKING_CHANGE]:
                 add_new_version(type_of_change, provider_package_id)
-            proceed, latest_change, changes = get_all_changes_for_package(provider_package_id, verbose)
+            proceed, latest_change, changes = get_all_changes_for_package(
+                provider_package_id, verbose, base_branch
+            )
     provider_details = get_provider_details(provider_package_id)
     provider_info = get_provider_info_from_provider_yaml(provider_package_id)
     jinja_context = get_provider_jinja_context(
@@ -1493,6 +1506,7 @@ def list_providers_packages():
 @argument_package_id
 @option_force
 @option_verbose
+@option_base_branch
 @click.option(
     "-a",
     "--answer",
@@ -1507,6 +1521,7 @@ def update_package_documentation(
     package_id: str,
     force: bool,
     verbose: bool,
+    base_branch: str,
 ):
     """
     Updates package documentation.
@@ -1519,7 +1534,12 @@ def update_package_documentation(
         console.print("Updating documentation for the latest release version.")
         make_sure_remote_apache_exists_and_fetch(git_update, verbose)
         if not update_release_notes(
-            provider_package_id, version_suffix, force=force, verbose=verbose, answer=answer
+            provider_package_id,
+            version_suffix,
+            force=force,
+            verbose=verbose,
+            answer=answer,
+            base_branch=base_branch,
         ):
             # Returns 64 in case of skipped package
             sys.exit(64)
@@ -1729,17 +1749,19 @@ def get_changes_classified(changes: list[Change]) -> ClassifiedChanges:
 
 @cli.command()
 @argument_package_id
+@option_base_branch
 @option_verbose
-def update_changelog(package_id: str, verbose: bool):
+def update_changelog(package_id: str, base_branch: str, verbose: bool):
     """Updates changelog for the provider."""
-    if _update_changelog(package_id, verbose):
+    if _update_changelog(package_id, base_branch, verbose):
         sys.exit(64)
 
 
-def _update_changelog(package_id: str, verbose: bool) -> bool:
+def _update_changelog(package_id: str, base_branch: str, verbose: bool) -> bool:
     """
     Internal update changelog method
     :param package_id: package id
+    :param base_branch: base branch to check changes in apache remote for changes
     :param verbose: verbose flag
     :return: true if package is skipped
     """
@@ -1755,10 +1777,7 @@ def _update_changelog(package_id: str, verbose: bool) -> bool:
             version_suffix="",
         )
         changelog_path = os.path.join(provider_details.source_provider_package_path, "CHANGELOG.rst")
-        proceed, changes, _ = get_all_changes_for_package(
-            package_id,
-            verbose,
-        )
+        proceed, changes, _ = get_all_changes_for_package(package_id, verbose, base_branch)
         if not proceed:
             console.print(
                 f"[yellow]The provider {package_id} is not being released. Skipping the package.[/]"
@@ -1842,14 +1861,15 @@ def get_package_from_changelog(changelog_path: str):
 @cli.command()
 @argument_changelog_files
 @option_git_update
+@option_base_branch
 @option_verbose
-def update_changelogs(changelog_files: list[str], git_update: bool, verbose: bool):
+def update_changelogs(changelog_files: list[str], git_update: bool, base_branch: str, verbose: bool):
     """Updates changelogs for multiple packages."""
     if git_update:
         make_sure_remote_apache_exists_and_fetch(git_update, verbose)
     for changelog_file in changelog_files:
         package_id = get_package_from_changelog(changelog_file)
-        _update_changelog(package_id=package_id, verbose=verbose)
+        _update_changelog(package_id=package_id, base_branch=base_branch, verbose=verbose)
 
 
 def get_prs_for_package(package_id: str) -> list[int]:

@@ -73,6 +73,7 @@ class ShellParams:
     airflow_extras: str = ""
     answer: str | None = None
     backend: str = ALLOWED_BACKENDS[0]
+    base_branch: str = "main"
     ci: bool = False
     db_reset: bool = False
     dev_mode: bool = False

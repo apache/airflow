@@ -566,6 +566,7 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "AIRFLOW_CONSTRAINTS_REFERENCE", "constraints-source-providers")
     set_value_to_default_if_not_set(env, "AIRFLOW_EXTRAS", "")
     set_value_to_default_if_not_set(env, "ANSWER", "")
+    set_value_to_default_if_not_set(env, "BASE_BRANCH", "main")
     set_value_to_default_if_not_set(env, "BREEZE", "true")
     set_value_to_default_if_not_set(env, "BREEZE_INIT_COMMAND", "")
     set_value_to_default_if_not_set(env, "CI", "false")
@@ -616,6 +617,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "AIRFLOW_VERSION": "airflow_version",
     "ANSWER": "answer",
     "BACKEND": "backend",
+    "BASE_BRANCH": "base_branch",
     "COMPOSE_FILE": "compose_file",
     "DB_RESET": "db_reset",
     "DEV_MODE": "dev_mode",
