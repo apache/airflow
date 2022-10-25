@@ -431,7 +431,7 @@ exit 0
             retries=0,
             timeout=5,
             poke_interval=1,
-            dag=dag
+            dag=dag,
         )
 
         # We need to test for an AirflowException explicitly since
