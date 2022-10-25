@@ -18,11 +18,13 @@ from __future__ import annotations
 
 import copy
 import os
+import re
 import subprocess
 import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -82,6 +84,29 @@ class TestBeamHook(unittest.TestCase):
             cmd=expected_cmd, process_line_callback=process_line_callback, working_directory=None
         )
         wait_for_done.assert_called_once_with()
+
+    @mock.patch("subprocess.check_output", return_value=b"2.35.0")
+    def test_start_python_pipeline_unsupported_option(self, mock_check_output):
+        hook = BeamHook(runner=DEFAULT_RUNNER)
+
+        with pytest.raises(
+            AirflowException,
+            match=re.escape(
+                "The impersonateServiceAccount option requires Apache Beam 2.39.0 or newer. "
+                "Current version: 2.35.0"
+            ),
+        ):
+            hook.start_python_pipeline(
+                variables={
+                    "impersonate_service_account": "test@impersonation.com",
+                },
+                py_file="/tmp/file.py",
+                py_options=["-m"],
+                py_interpreter="python3",
+                py_requirements=None,
+                py_system_site_packages=False,
+                process_line_callback=MagicMock(),
+            )
 
     @parameterized.expand(
         [
