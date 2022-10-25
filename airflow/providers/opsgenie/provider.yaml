@@ -49,13 +49,11 @@ integrations:
 operators:
   - integration-name: Opsgenie
     python-modules:
-      - airflow.providers.opsgenie.operators.opsgenie_alert
       - airflow.providers.opsgenie.operators.opsgenie
 
 hooks:
   - integration-name: Opsgenie
     python-modules:
-      - airflow.providers.opsgenie.hooks.opsgenie_alert
       - airflow.providers.opsgenie.hooks.opsgenie
 
 connection-types:
