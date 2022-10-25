@@ -487,13 +487,13 @@ class TestWebserverDeployment:
                     "securityContexts": {
                         "pod": {
                             "fsGroup": 1000,
-                            'runAsGroup': 1001,
-                            'runAsNonRoot': "true",
-                            'runAsUser': 2000,
+                            "runAsGroup": 1001,
+                            "runAsNonRoot": "true",
+                            "runAsUser": 2000,
                         },
                         "container": {
                             "allowPrivilegeEscalation": "false",
-                            'readOnlyRootFilesystem': "true",
+                            "readOnlyRootFilesystem": "true",
                         },
                     }
                 },
@@ -509,7 +509,7 @@ class TestWebserverDeployment:
             "runAsGroup": 1001,
             "fsGroup": 1000,
             "runAsNonRoot": True
-            } == jmespath.search("spec.template.spec.securityContext", docs[0])
+        } == jmespath.search("spec.template.spec.securityContext", docs[0])
 
     def test_webserver_securityContext_legacy(self):
         docs = render_chart(
@@ -517,9 +517,9 @@ class TestWebserverDeployment:
                 "webserver": {
                     "securityContext": {
                         "fsGroup": 1000,
-                        'runAsGroup': 1001,
-                        'runAsNonRoot': "true",
-                        'runAsUser': 2000,
+                        "runAsGroup": 1001,
+                        "runAsNonRoot": "true",
+                        "runAsUser": 2000,
                     }
                 },
             },
@@ -531,7 +531,7 @@ class TestWebserverDeployment:
             "runAsGroup": 1001,
             "fsGroup": 1000,
             "runAsNonRoot": True
-            } == jmespath.search("spec.template.spec.securityContext", docs[0])
+        } == jmespath.search("spec.template.spec.securityContext", docs[0])
 
     def test_webserver_resources_are_not_added_by_default(self):
         docs = render_chart(
