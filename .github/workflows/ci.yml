@@ -604,7 +604,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -626,7 +626,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs: [build-info]
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -949,7 +949,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           breeze release-management prepare-airflow-package
           --package-format sdist --version-suffix-for-pypi dev0
       - name: "Upload provider distribution artifacts"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: airflow-provider-packages
           path: "./dist/apache-airflow-providers-*.tar.gz"
@@ -1841,7 +1841,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
