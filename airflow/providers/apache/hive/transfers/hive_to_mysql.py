@@ -25,13 +25,9 @@ from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils.operator_helpers import context_to_airflow_vars
-from airflow.www import utils as wwwutils
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-# TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
-MYSQL_RENDERER = "mysql" if "mysql" in wwwutils.get_attr_renderer() else "sql"
 
 
 class HiveToMySqlOperator(BaseOperator):
@@ -64,8 +60,8 @@ class HiveToMySqlOperator(BaseOperator):
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {
         "sql": "hql",
-        "mysql_preoperator": MYSQL_RENDERER,
-        "mysql_postoperator": MYSQL_RENDERER,
+        "mysql_preoperator": "mysql",
+        "mysql_postoperator": "mysql",
     }
     ui_color = "#a0e08c"
 

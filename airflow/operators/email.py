@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Any, Sequence
 
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.utils.context import Context
 from airflow.utils.email import send_email
 
