@@ -36,7 +36,7 @@ class RedshiftHook(AwsBaseHook):
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     """
 
-    template_fields: Sequence[str] = ('cluster_identifier',)
+    template_fields: Sequence[str] = ("cluster_identifier",)
 
     def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = "redshift"
@@ -86,10 +86,10 @@ class RedshiftHook(AwsBaseHook):
         :param final_cluster_snapshot_identifier: Optional[str]
         """
         try:
-            response = self.get_conn().describe_clusters(ClusterIdentifier=cluster_identifier)['Clusters']
-            return response[0]['ClusterStatus'] if response else None
+            response = self.get_conn().describe_clusters(ClusterIdentifier=cluster_identifier)["Clusters"]
+            return response[0]["ClusterStatus"] if response else None
         except self.get_conn().exceptions.ClusterNotFoundFault:
-            return 'cluster_not_found'
+            return "cluster_not_found"
 
     def delete_cluster(
         self,
@@ -104,14 +104,14 @@ class RedshiftHook(AwsBaseHook):
         :param skip_final_cluster_snapshot: determines cluster snapshot creation
         :param final_cluster_snapshot_identifier: name of final cluster snapshot
         """
-        final_cluster_snapshot_identifier = final_cluster_snapshot_identifier or ''
+        final_cluster_snapshot_identifier = final_cluster_snapshot_identifier or ""
 
         response = self.get_conn().delete_cluster(
             ClusterIdentifier=cluster_identifier,
             SkipFinalClusterSnapshot=skip_final_cluster_snapshot,
             FinalClusterSnapshotIdentifier=final_cluster_snapshot_identifier,
         )
-        return response['Cluster'] if response['Cluster'] else None
+        return response["Cluster"] if response["Cluster"] else None
 
     def describe_cluster_snapshots(self, cluster_identifier: str) -> list[str] | None:
         """
@@ -120,11 +120,11 @@ class RedshiftHook(AwsBaseHook):
         :param cluster_identifier: unique identifier of a cluster
         """
         response = self.get_conn().describe_cluster_snapshots(ClusterIdentifier=cluster_identifier)
-        if 'Snapshots' not in response:
+        if "Snapshots" not in response:
             return None
-        snapshots = response['Snapshots']
+        snapshots = response["Snapshots"]
         snapshots = [snapshot for snapshot in snapshots if snapshot["Status"]]
-        snapshots.sort(key=lambda x: x['SnapshotCreateTime'], reverse=True)
+        snapshots.sort(key=lambda x: x["SnapshotCreateTime"], reverse=True)
         return snapshots
 
     def restore_from_cluster_snapshot(self, cluster_identifier: str, snapshot_identifier: str) -> str:
@@ -137,7 +137,7 @@ class RedshiftHook(AwsBaseHook):
         response = self.get_conn().restore_from_cluster_snapshot(
             ClusterIdentifier=cluster_identifier, SnapshotIdentifier=snapshot_identifier
         )
-        return response['Cluster'] if response['Cluster'] else None
+        return response["Cluster"] if response["Cluster"] else None
 
     def create_cluster_snapshot(
         self, snapshot_identifier: str, cluster_identifier: str, retention_period: int = -1
@@ -155,7 +155,7 @@ class RedshiftHook(AwsBaseHook):
             ClusterIdentifier=cluster_identifier,
             ManualSnapshotRetentionPeriod=retention_period,
         )
-        return response['Snapshot'] if response['Snapshot'] else None
+        return response["Snapshot"] if response["Snapshot"] else None
 
     def get_cluster_snapshot_status(self, snapshot_identifier: str, cluster_identifier: str):
         """

@@ -64,32 +64,32 @@ class MainGroupWithAliases(BreezeGroup):
         rv = click.Group.get_command(self, ctx, cmd_name)
         if rv is not None:
             return rv
-        if cmd_name == 'build-image':
-            print_deprecated('build-image', 'ci-image build')
-            return ci_image.get_command(ctx, 'build')
-        if cmd_name == 'build-prod-image':
-            print_deprecated('build-prod-image', 'prod-image build')
-            return prod_image.get_command(ctx, 'build')
-        if cmd_name == 'tests':
-            print_deprecated('tests', 'testing tests')
-            return testing.get_command(ctx, 'tests')
-        if cmd_name == 'config':
-            print_deprecated('config', 'setup config')
-            return setup.get_command(ctx, 'config')
-        if cmd_name == 'setup-autocomplete':
-            print_deprecated('setup-autocomplete', 'setup autocomplete')
-            return setup.get_command(ctx, 'autocomplete')
-        if cmd_name == 'version':
+        if cmd_name == "build-image":
+            print_deprecated("build-image", "ci-image build")
+            return ci_image.get_command(ctx, "build")
+        if cmd_name == "build-prod-image":
+            print_deprecated("build-prod-image", "prod-image build")
+            return prod_image.get_command(ctx, "build")
+        if cmd_name == "tests":
+            print_deprecated("tests", "testing tests")
+            return testing.get_command(ctx, "tests")
+        if cmd_name == "config":
+            print_deprecated("config", "setup config")
+            return setup.get_command(ctx, "config")
+        if cmd_name == "setup-autocomplete":
+            print_deprecated("setup-autocomplete", "setup autocomplete")
+            return setup.get_command(ctx, "autocomplete")
+        if cmd_name == "version":
             # version alias does not need to be deprecated. It's ok to keep it also at top level
             # even if it is not displayed in help
-            return setup.get_command(ctx, 'version')
+            return setup.get_command(ctx, "version")
         return None
 
 
 @click.group(
     cls=MainGroupWithAliases,
     invoke_without_command=True,
-    context_settings={'help_option_names': ['-h', '--help']},
+    context_settings={"help_option_names": ["-h", "--help"]},
 )
 @option_python
 @option_backend
@@ -123,15 +123,15 @@ def check_for_python_emulation():
             from airflow_breeze.utils.console import get_console
 
             get_console().print(
-                f'\n\n[error]Your Python architecture is {python_machine} and '
-                f'system architecture is {system_machine}[/]'
+                f"\n\n[error]Your Python architecture is {python_machine} and "
+                f"system architecture is {system_machine}[/]"
             )
             get_console().print(
-                '[warning]This is very bad and your Python is 10x slower as it is emulated[/]'
+                "[warning]This is very bad and your Python is 10x slower as it is emulated[/]"
             )
             get_console().print(
-                '[warning]You likely installed your Python wrongly and you should '
-                'remove it and reinstall from scratch[/]\n'
+                "[warning]You likely installed your Python wrongly and you should "
+                "remove it and reinstall from scratch[/]\n"
             )
             from inputimeout import inputimeout
 
@@ -139,7 +139,7 @@ def check_for_python_emulation():
                 prompt="Are you REALLY sure you want to continue? (press y otherwise we exit in 20s) ",
                 timeout=20,
             )
-            if not user_status.upper() in ['Y', 'YES']:
+            if not user_status.upper() in ["Y", "YES"]:
                 sys.exit(1)
     except subprocess.CalledProcessError:
         pass
@@ -148,7 +148,7 @@ def check_for_python_emulation():
 
 
 def check_for_rosetta_environment():
-    if sys.platform != 'darwin':
+    if sys.platform != "darwin":
         return
     try:
         runs_in_rosetta = subprocess.check_output(
@@ -156,25 +156,25 @@ def check_for_rosetta_environment():
             text=True,
             stderr=subprocess.DEVNULL,
         ).strip()
-        if runs_in_rosetta == '1':
+        if runs_in_rosetta == "1":
             from airflow_breeze.utils.console import get_console
 
             get_console().print(
-                '\n\n[error]You are starting breeze in `rosetta 2` emulated environment on Mac[/]\n'
+                "\n\n[error]You are starting breeze in `rosetta 2` emulated environment on Mac[/]\n"
             )
             get_console().print(
-                '[warning]This is very bad and your Python is 10x slower as it is emulated[/]\n'
+                "[warning]This is very bad and your Python is 10x slower as it is emulated[/]\n"
             )
             get_console().print(
-                'You have emulated Python interpreter (Intel rather than ARM). You should check:\n\n'
+                "You have emulated Python interpreter (Intel rather than ARM). You should check:\n\n"
                 '  * Your IDE (PyCharm/VSCode/Intellij): the "About" window should show `aarch64` '
                 'not `x86_64` in "Runtime version".\n'
                 '  * Your python: run  "python -c '
                 'import platform; print(platform.uname().machine)"). '
-                'It should show `arm64` not `x86_64`.\n'
+                "It should show `arm64` not `x86_64`.\n"
                 '  * Your `brew`: run "brew config" and it should show `arm` in CPU line not `x86`.\n\n'
-                'If you have mixed Intel/ARM binaries installed you should likely nuke and '
-                'reinstall your development environment (including brew and Python) from scratch!\n\n'
+                "If you have mixed Intel/ARM binaries installed you should likely nuke and "
+                "reinstall your development environment (including brew and Python) from scratch!\n\n"
             )
             from inputimeout import inputimeout
 
@@ -182,7 +182,7 @@ def check_for_rosetta_environment():
                 prompt="Are you REALLY sure you want to continue? (press y otherwise we exit in 20s) ",
                 timeout=20,
             )
-            if not user_status.upper() in ['Y', 'YES']:
+            if not user_status.upper() in ["Y", "YES"]:
                 sys.exit(1)
     except subprocess.CalledProcessError:
         pass
@@ -195,9 +195,9 @@ def check_for_rosetta_environment():
     help="Cleans the cache of parameters, docker cache and optionally built CI/PROD images.",
 )
 @click.option(
-    '--all',
+    "--all",
     is_flag=True,
-    help='Also remove currently downloaded Breeze images.',
+    help="Also remove currently downloaded Breeze images.",
 )
 @option_verbose
 @option_answer
@@ -213,12 +213,12 @@ def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, ans
         get_console().print("[info]Removing cache of parameters, and cleans up docker cache[/]")
     if all:
         docker_images_command_to_execute = [
-            'docker',
-            'images',
-            '--filter',
-            'label=org.apache.airflow.image',
-            '--format',
-            '{{.Repository}}:{{.Tag}}',
+            "docker",
+            "images",
+            "--filter",
+            "label=org.apache.airflow.image",
+            "--format",
+            "{{.Repository}}:{{.Tag}}",
         ]
         command_result = run_command(
             docker_images_command_to_execute, verbose=verbose, text=True, capture_output=True
@@ -230,9 +230,9 @@ def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, ans
                 get_console().print(f"[info] * {image}[/]")
             get_console().print()
             docker_rmi_command_to_execute = [
-                'docker',
-                'rmi',
-                '--force',
+                "docker",
+                "rmi",
+                "--force",
             ]
             docker_rmi_command_to_execute.extend(images)
             given_answer = user_confirm("Are you sure with the removal?")
@@ -245,7 +245,7 @@ def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, ans
     get_console().print("Pruning docker images")
     given_answer = user_confirm("Are you sure with the removal?")
     if given_answer == Answer.YES:
-        system_prune_command_to_execute = ['docker', 'system', 'prune']
+        system_prune_command_to_execute = ["docker", "system", "prune"]
         run_command(
             system_prune_command_to_execute,
             verbose=verbose,

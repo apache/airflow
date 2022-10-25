@@ -69,7 +69,7 @@ class AwsLogsHook(AwsBaseHook):
         next_token = None
         while True:
             if next_token is not None:
-                token_arg: dict[str, str] | None = {'nextToken': next_token}
+                token_arg: dict[str, str] | None = {"nextToken": next_token}
             else:
                 token_arg = {}
 
@@ -81,7 +81,7 @@ class AwsLogsHook(AwsBaseHook):
                 **token_arg,
             )
 
-            events = response['events']
+            events = response["events"]
             event_count = len(events)
 
             if event_count > skip:
@@ -93,7 +93,7 @@ class AwsLogsHook(AwsBaseHook):
 
             yield from events
 
-            if next_token != response['nextForwardToken']:
-                next_token = response['nextForwardToken']
+            if next_token != response["nextForwardToken"]:
+                next_token = response["nextForwardToken"]
             else:
                 return

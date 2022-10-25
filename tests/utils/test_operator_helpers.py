@@ -27,27 +27,27 @@ from airflow.utils import operator_helpers
 
 class TestOperatorHelpers:
     def setup_method(self):
-        self.dag_id = 'dag_id'
-        self.task_id = 'task_id'
+        self.dag_id = "dag_id"
+        self.task_id = "task_id"
         self.try_number = 1
-        self.execution_date = '2017-05-21T00:00:00'
-        self.dag_run_id = 'dag_run_id'
-        self.owner = ['owner1', 'owner2']
-        self.email = ['email1@test.com']
+        self.execution_date = "2017-05-21T00:00:00"
+        self.dag_run_id = "dag_run_id"
+        self.owner = ["owner1", "owner2"]
+        self.email = ["email1@test.com"]
         self.context = {
-            'dag_run': mock.MagicMock(
-                name='dag_run',
+            "dag_run": mock.MagicMock(
+                name="dag_run",
                 run_id=self.dag_run_id,
-                execution_date=datetime.strptime(self.execution_date, '%Y-%m-%dT%H:%M:%S'),
+                execution_date=datetime.strptime(self.execution_date, "%Y-%m-%dT%H:%M:%S"),
             ),
-            'task_instance': mock.MagicMock(
-                name='task_instance',
+            "task_instance": mock.MagicMock(
+                name="task_instance",
                 task_id=self.task_id,
                 dag_id=self.dag_id,
                 try_number=self.try_number,
-                execution_date=datetime.strptime(self.execution_date, '%Y-%m-%dT%H:%M:%S'),
+                execution_date=datetime.strptime(self.execution_date, "%Y-%m-%dT%H:%M:%S"),
             ),
-            'task': mock.MagicMock(name='task', owner=self.owner, email=self.email),
+            "task": mock.MagicMock(name="task", owner=self.owner, email=self.email),
         }
 
     def test_context_to_airflow_vars_empty_context(self):
@@ -55,47 +55,47 @@ class TestOperatorHelpers:
 
     def test_context_to_airflow_vars_all_context(self):
         assert operator_helpers.context_to_airflow_vars(self.context) == {
-            'airflow.ctx.dag_id': self.dag_id,
-            'airflow.ctx.execution_date': self.execution_date,
-            'airflow.ctx.task_id': self.task_id,
-            'airflow.ctx.dag_run_id': self.dag_run_id,
-            'airflow.ctx.try_number': str(self.try_number),
-            'airflow.ctx.dag_owner': 'owner1,owner2',
-            'airflow.ctx.dag_email': 'email1@test.com',
+            "airflow.ctx.dag_id": self.dag_id,
+            "airflow.ctx.execution_date": self.execution_date,
+            "airflow.ctx.task_id": self.task_id,
+            "airflow.ctx.dag_run_id": self.dag_run_id,
+            "airflow.ctx.try_number": str(self.try_number),
+            "airflow.ctx.dag_owner": "owner1,owner2",
+            "airflow.ctx.dag_email": "email1@test.com",
         }
 
         assert operator_helpers.context_to_airflow_vars(self.context, in_env_var_format=True) == {
-            'AIRFLOW_CTX_DAG_ID': self.dag_id,
-            'AIRFLOW_CTX_EXECUTION_DATE': self.execution_date,
-            'AIRFLOW_CTX_TASK_ID': self.task_id,
-            'AIRFLOW_CTX_TRY_NUMBER': str(self.try_number),
-            'AIRFLOW_CTX_DAG_RUN_ID': self.dag_run_id,
-            'AIRFLOW_CTX_DAG_OWNER': 'owner1,owner2',
-            'AIRFLOW_CTX_DAG_EMAIL': 'email1@test.com',
+            "AIRFLOW_CTX_DAG_ID": self.dag_id,
+            "AIRFLOW_CTX_EXECUTION_DATE": self.execution_date,
+            "AIRFLOW_CTX_TASK_ID": self.task_id,
+            "AIRFLOW_CTX_TRY_NUMBER": str(self.try_number),
+            "AIRFLOW_CTX_DAG_RUN_ID": self.dag_run_id,
+            "AIRFLOW_CTX_DAG_OWNER": "owner1,owner2",
+            "AIRFLOW_CTX_DAG_EMAIL": "email1@test.com",
         }
 
     def test_context_to_airflow_vars_with_default_context_vars(self):
-        with mock.patch('airflow.settings.get_airflow_context_vars') as mock_method:
-            airflow_cluster = 'cluster-a'
-            mock_method.return_value = {'airflow_cluster': airflow_cluster}
+        with mock.patch("airflow.settings.get_airflow_context_vars") as mock_method:
+            airflow_cluster = "cluster-a"
+            mock_method.return_value = {"airflow_cluster": airflow_cluster}
 
             context_vars = operator_helpers.context_to_airflow_vars(self.context)
-            assert context_vars['airflow.ctx.airflow_cluster'] == airflow_cluster
+            assert context_vars["airflow.ctx.airflow_cluster"] == airflow_cluster
 
             context_vars = operator_helpers.context_to_airflow_vars(self.context, in_env_var_format=True)
-            assert context_vars['AIRFLOW_CTX_AIRFLOW_CLUSTER'] == airflow_cluster
+            assert context_vars["AIRFLOW_CTX_AIRFLOW_CLUSTER"] == airflow_cluster
 
-        with mock.patch('airflow.settings.get_airflow_context_vars') as mock_method:
-            mock_method.return_value = {'airflow_cluster': [1, 2]}
+        with mock.patch("airflow.settings.get_airflow_context_vars") as mock_method:
+            mock_method.return_value = {"airflow_cluster": [1, 2]}
             with pytest.raises(TypeError) as error:
                 operator_helpers.context_to_airflow_vars(self.context)
             assert "value of key <airflow_cluster> must be string, not <class 'list'>" == str(error.value)
 
-        with mock.patch('airflow.settings.get_airflow_context_vars') as mock_method:
+        with mock.patch("airflow.settings.get_airflow_context_vars") as mock_method:
             mock_method.return_value = {1: "value"}
             with pytest.raises(TypeError) as error:
                 operator_helpers.context_to_airflow_vars(self.context)
-            assert 'key <1> must be string' == str(error.value)
+            assert "key <1> must be string" == str(error.value)
 
 
 def callable1(ds_nodash):

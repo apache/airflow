@@ -26,28 +26,28 @@ from airflow.providers.amazon.aws.operators.dms import DmsDescribeTasksOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 
-TEST_DAG_ID = 'unit_tests'
+TEST_DAG_ID = "unit_tests"
 DEFAULT_DATE = datetime(2018, 1, 1)
-MOCK_TASK_ARN = 'test_arn'
-FILTER = {'Name': 'replication-task-arn', 'Values': [MOCK_TASK_ARN]}
+MOCK_TASK_ARN = "test_arn"
+FILTER = {"Name": "replication-task-arn", "Values": [MOCK_TASK_ARN]}
 MOCK_DATA = {
-    'replication_task_id': 'test_task',
-    'source_endpoint_arn': 'source-endpoint-arn',
-    'target_endpoint_arn': 'target-endpoint-arn',
-    'replication_instance_arn': 'replication-instance-arn',
-    'migration_type': 'full-load',
-    'table_mappings': {},
+    "replication_task_id": "test_task",
+    "source_endpoint_arn": "source-endpoint-arn",
+    "target_endpoint_arn": "target-endpoint-arn",
+    "replication_instance_arn": "replication-instance-arn",
+    "migration_type": "full-load",
+    "table_mappings": {},
 }
 MOCK_RESPONSE = [
     {
-        'ReplicationTaskIdentifier': MOCK_DATA['replication_task_id'],
-        'SourceEndpointArn': MOCK_DATA['source_endpoint_arn'],
-        'TargetEndpointArn': MOCK_DATA['target_endpoint_arn'],
-        'ReplicationInstanceArn': MOCK_DATA['replication_instance_arn'],
-        'MigrationType': MOCK_DATA['migration_type'],
-        'TableMappings': json.dumps(MOCK_DATA['table_mappings']),
-        'ReplicationTaskArn': MOCK_TASK_ARN,
-        'Status': 'creating',
+        "ReplicationTaskIdentifier": MOCK_DATA["replication_task_id"],
+        "SourceEndpointArn": MOCK_DATA["source_endpoint_arn"],
+        "TargetEndpointArn": MOCK_DATA["target_endpoint_arn"],
+        "ReplicationInstanceArn": MOCK_DATA["replication_instance_arn"],
+        "MigrationType": MOCK_DATA["migration_type"],
+        "TableMappings": json.dumps(MOCK_DATA["table_mappings"]),
+        "ReplicationTaskArn": MOCK_TASK_ARN,
+        "Status": "creating",
     }
 ]
 
@@ -63,27 +63,27 @@ class TestDmsDescribeTasksOperator(unittest.TestCase):
 
     def test_init(self):
         dms_operator = DmsDescribeTasksOperator(
-            task_id='describe_tasks', describe_tasks_kwargs={'Filters': [FILTER]}
+            task_id="describe_tasks", describe_tasks_kwargs={"Filters": [FILTER]}
         )
 
-        assert dms_operator.describe_tasks_kwargs == {'Filters': [FILTER]}
+        assert dms_operator.describe_tasks_kwargs == {"Filters": [FILTER]}
 
-    @mock.patch.object(DmsHook, 'describe_replication_tasks', return_value=(None, MOCK_RESPONSE))
-    @mock.patch.object(DmsHook, 'get_conn')
+    @mock.patch.object(DmsHook, "describe_replication_tasks", return_value=(None, MOCK_RESPONSE))
+    @mock.patch.object(DmsHook, "get_conn")
     def test_describe_tasks(self, mock_conn, mock_describe_replication_tasks):
-        describe_tasks_kwargs = {'Filters': [FILTER]}
+        describe_tasks_kwargs = {"Filters": [FILTER]}
         describe_task = DmsDescribeTasksOperator(
-            task_id='describe_tasks', describe_tasks_kwargs=describe_tasks_kwargs
+            task_id="describe_tasks", describe_tasks_kwargs=describe_tasks_kwargs
         )
         describe_task.execute(None)
 
         mock_describe_replication_tasks.assert_called_once_with(**describe_tasks_kwargs)
 
-    @mock.patch.object(DmsHook, 'describe_replication_tasks', return_value=(None, MOCK_RESPONSE))
-    @mock.patch.object(DmsHook, 'get_conn')
+    @mock.patch.object(DmsHook, "describe_replication_tasks", return_value=(None, MOCK_RESPONSE))
+    @mock.patch.object(DmsHook, "get_conn")
     def test_describe_tasks_return_value(self, mock_conn, mock_describe_replication_tasks):
         describe_task = DmsDescribeTasksOperator(
-            task_id='describe_tasks', dag=self.dag, describe_tasks_kwargs={'Filters': [FILTER]}
+            task_id="describe_tasks", dag=self.dag, describe_tasks_kwargs={"Filters": [FILTER]}
         )
 
         dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=timezone.utcnow(), run_id="test")

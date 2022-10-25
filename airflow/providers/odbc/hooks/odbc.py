@@ -33,11 +33,11 @@ class OdbcHook(DbApiHook):
     See :doc:`/connections/odbc` for full documentation.
     """
 
-    DEFAULT_SQLALCHEMY_SCHEME = 'mssql+pyodbc'
-    conn_name_attr = 'odbc_conn_id'
-    default_conn_name = 'odbc_default'
-    conn_type = 'odbc'
-    hook_name = 'ODBC'
+    DEFAULT_SQLALCHEMY_SCHEME = "mssql+pyodbc"
+    conn_name_attr = "odbc_conn_id"
+    default_conn_name = "odbc_default"
+    conn_type = "odbc"
+    hook_name = "ODBC"
     supports_autocommit = True
 
     def __init__(
@@ -86,7 +86,7 @@ class OdbcHook(DbApiHook):
         """Sqlalchemy scheme either from constructor, connection extras or default."""
         return (
             self._sqlalchemy_scheme
-            or self.connection_extra_lower.get('sqlalchemy_scheme')
+            or self.connection_extra_lower.get("sqlalchemy_scheme")
             or self.DEFAULT_SQLALCHEMY_SCHEME
         )
 
@@ -103,16 +103,16 @@ class OdbcHook(DbApiHook):
     def driver(self) -> str | None:
         """Driver from init param if given; else try to find one in connection extra."""
         if not self._driver:
-            driver = self.connection_extra_lower.get('driver')
+            driver = self.connection_extra_lower.get("driver")
             if driver:
                 self._driver = driver
-        return self._driver and self._driver.strip().lstrip('{').rstrip('}').strip()
+        return self._driver and self._driver.strip().lstrip("{").rstrip("}").strip()
 
     @property
     def dsn(self) -> str | None:
         """DSN from init param if given; else try to find one in connection extra."""
         if not self._dsn:
-            dsn = self.connection_extra_lower.get('dsn')
+            dsn = self.connection_extra_lower.get("dsn")
             if dsn:
                 self._dsn = dsn.strip()
         return self._dsn
@@ -126,7 +126,7 @@ class OdbcHook(DbApiHook):
         ``Connection.extra`` will be added to the connection string.
         """
         if not self._conn_str:
-            conn_str = ''
+            conn_str = ""
             if self.driver:
                 conn_str += f"DRIVER={{{self.driver}}};"
             if self.dsn:
@@ -143,7 +143,7 @@ class OdbcHook(DbApiHook):
             if self.connection.port:
                 conn_str += f"PORT={self.connection.port};"
 
-            extra_exclude = {'driver', 'dsn', 'connect_kwargs', 'sqlalchemy_scheme'}
+            extra_exclude = {"driver", "dsn", "connect_kwargs", "sqlalchemy_scheme"}
             extra_params = {
                 k: v for k, v in self.connection.extra_dejson.items() if not k.lower() in extra_exclude
             }
@@ -163,13 +163,13 @@ class OdbcHook(DbApiHook):
 
         If ``attrs_before`` provided, keys and values are converted to int, as required by pyodbc.
         """
-        conn_connect_kwargs = self.connection_extra_lower.get('connect_kwargs', {})
+        conn_connect_kwargs = self.connection_extra_lower.get("connect_kwargs", {})
         hook_connect_kwargs = self._connect_kwargs or {}
         merged_connect_kwargs = merge_dicts(conn_connect_kwargs, hook_connect_kwargs)
 
-        if 'attrs_before' in merged_connect_kwargs:
-            merged_connect_kwargs['attrs_before'] = {
-                int(k): int(v) for k, v in merged_connect_kwargs['attrs_before'].items()
+        if "attrs_before" in merged_connect_kwargs:
+            merged_connect_kwargs["attrs_before"] = {
+                int(k): int(v) for k, v in merged_connect_kwargs["attrs_before"].items()
             }
 
         return merged_connect_kwargs

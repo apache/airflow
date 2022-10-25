@@ -31,10 +31,10 @@ class TestLocalExecutor:
 
     TEST_SUCCESS_COMMANDS = 5
 
-    @mock.patch('airflow.executors.local_executor.subprocess.check_call')
+    @mock.patch("airflow.executors.local_executor.subprocess.check_call")
     def execution_parallelism_subprocess(self, mock_check_call, parallelism=0):
-        success_command = ['airflow', 'tasks', 'run', 'true', 'some_parameter', '2020-10-07']
-        fail_command = ['airflow', 'tasks', 'run', 'false', 'task_id', '2020-10-07']
+        success_command = ["airflow", "tasks", "run", "true", "some_parameter", "2020-10-07"]
+        fail_command = ["airflow", "tasks", "run", "false", "task_id", "2020-10-07"]
 
         def fake_execute_command(command, close_fds=True):
             if command != success_command:
@@ -46,14 +46,14 @@ class TestLocalExecutor:
 
         self._test_execute(parallelism, success_command, fail_command)
 
-    @mock.patch('airflow.cli.commands.task_command.task_run')
+    @mock.patch("airflow.cli.commands.task_command.task_run")
     def execution_parallelism_fork(self, mock_run, parallelism=0):
-        success_command = ['airflow', 'tasks', 'run', 'success', 'some_parameter', '2020-10-07']
-        fail_command = ['airflow', 'tasks', 'run', 'failure', 'some_parameter', '2020-10-07']
+        success_command = ["airflow", "tasks", "run", "success", "some_parameter", "2020-10-07"]
+        fail_command = ["airflow", "tasks", "run", "failure", "some_parameter", "2020-10-07"]
 
         def fake_task_run(args):
-            if args.dag_id != 'success':
-                raise AirflowException('Simulate failed task')
+            if args.dag_id != "success":
+                raise AirflowException("Simulate failed task")
 
         mock_run.side_effect = fake_task_run
 
@@ -64,17 +64,17 @@ class TestLocalExecutor:
         executor = LocalExecutor(parallelism=parallelism)
         executor.start()
 
-        success_key = 'success {}'
+        success_key = "success {}"
         assert executor.result_queue.empty()
 
         execution_date = datetime.datetime.now()
         for i in range(self.TEST_SUCCESS_COMMANDS):
             key_id, command = success_key.format(i), success_command
-            key = key_id, 'fake_ti', execution_date, 0
+            key = key_id, "fake_ti", execution_date, 0
             executor.running.add(key)
             executor.execute_async(key=key, command=command)
 
-        fail_key = 'fail', 'fake_ti', execution_date, 0
+        fail_key = "fail", "fake_ti", execution_date, 0
         executor.running.add(fail_key)
         executor.execute_async(key=fail_key, command=fail_command)
 
@@ -84,7 +84,7 @@ class TestLocalExecutor:
 
         for i in range(self.TEST_SUCCESS_COMMANDS):
             key_id = success_key.format(i)
-            key = key_id, 'fake_ti', execution_date, 0
+            key = key_id, "fake_ti", execution_date, 0
             assert executor.event_buffer[key][0] == State.SUCCESS
         assert executor.event_buffer[fail_key][0] == State.FAILED
 
@@ -93,35 +93,35 @@ class TestLocalExecutor:
 
     def test_execution_subprocess_unlimited_parallelism(self):
         with mock.patch.object(
-            settings, 'EXECUTE_TASKS_NEW_PYTHON_INTERPRETER', new_callable=mock.PropertyMock
+            settings, "EXECUTE_TASKS_NEW_PYTHON_INTERPRETER", new_callable=mock.PropertyMock
         ) as option:
             option.return_value = True
             self.execution_parallelism_subprocess(parallelism=0)
 
     def test_execution_subprocess_limited_parallelism(self):
         with mock.patch.object(
-            settings, 'EXECUTE_TASKS_NEW_PYTHON_INTERPRETER', new_callable=mock.PropertyMock
+            settings, "EXECUTE_TASKS_NEW_PYTHON_INTERPRETER", new_callable=mock.PropertyMock
         ) as option:
             option.return_value = True
             self.execution_parallelism_subprocess(parallelism=2)
 
-    @mock.patch.object(settings, 'EXECUTE_TASKS_NEW_PYTHON_INTERPRETER', False)
+    @mock.patch.object(settings, "EXECUTE_TASKS_NEW_PYTHON_INTERPRETER", False)
     def test_execution_unlimited_parallelism_fork(self):
         self.execution_parallelism_fork(parallelism=0)
 
-    @mock.patch.object(settings, 'EXECUTE_TASKS_NEW_PYTHON_INTERPRETER', False)
+    @mock.patch.object(settings, "EXECUTE_TASKS_NEW_PYTHON_INTERPRETER", False)
     def test_execution_limited_parallelism_fork(self):
         self.execution_parallelism_fork(parallelism=2)
 
-    @mock.patch('airflow.executors.local_executor.LocalExecutor.sync')
-    @mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')
-    @mock.patch('airflow.executors.base_executor.Stats.gauge')
+    @mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
+    @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
+    @mock.patch("airflow.executors.base_executor.Stats.gauge")
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
         executor = LocalExecutor()
         executor.heartbeat()
         calls = [
-            mock.call('executor.open_slots', mock.ANY),
-            mock.call('executor.queued_tasks', mock.ANY),
-            mock.call('executor.running_tasks', mock.ANY),
+            mock.call("executor.open_slots", mock.ANY),
+            mock.call("executor.queued_tasks", mock.ANY),
+            mock.call("executor.running_tasks", mock.ANY),
         ]
         mock_stats_gauge.assert_has_calls(calls)

@@ -125,11 +125,11 @@ class PubSubHook(GoogleBaseHook):
         try:
             for message in messages:
                 future = publisher.publish(
-                    topic=topic_path, data=message.get("data", b''), **message.get('attributes', {})
+                    topic=topic_path, data=message.get("data", b""), **message.get("attributes", {})
                 )
                 future.result()
         except GoogleAPICallError as e:
-            raise PubSubException(f'Error publishing to topic {topic_path}', e)
+            raise PubSubException(f"Error publishing to topic {topic_path}", e)
 
         self.log.info("Published %d messages to topic (path) %s", len(messages), topic_path)
 
@@ -208,7 +208,7 @@ class PubSubHook(GoogleBaseHook):
 
         # Add airflow-version label to the topic
         labels = labels or {}
-        labels['airflow-version'] = 'v' + version.replace('.', '-').replace('+', '-')
+        labels["airflow-version"] = "v" + version.replace(".", "-").replace("+", "-")
 
         self.log.info("Creating topic (path) %s", topic_path)
         try:
@@ -225,11 +225,11 @@ class PubSubHook(GoogleBaseHook):
                 metadata=metadata,
             )
         except AlreadyExists:
-            self.log.warning('Topic already exists: %s', topic)
+            self.log.warning("Topic already exists: %s", topic)
             if fail_if_exists:
-                raise PubSubException(f'Topic already exists: {topic}')
+                raise PubSubException(f"Topic already exists: {topic}")
         except GoogleAPICallError as e:
-            raise PubSubException(f'Error creating topic {topic}', e)
+            raise PubSubException(f"Error creating topic {topic}", e)
 
         self.log.info("Created topic (path) %s", topic_path)
 
@@ -269,11 +269,11 @@ class PubSubHook(GoogleBaseHook):
                 request={"topic": topic_path}, retry=retry, timeout=timeout, metadata=metadata or ()
             )
         except NotFound:
-            self.log.warning('Topic does not exist: %s', topic_path)
+            self.log.warning("Topic does not exist: %s", topic_path)
             if fail_if_not_exists:
-                raise PubSubException(f'Topic does not exist: {topic_path}')
+                raise PubSubException(f"Topic does not exist: {topic_path}")
         except GoogleAPICallError as e:
-            raise PubSubException(f'Error deleting topic {topic}', e)
+            raise PubSubException(f"Error deleting topic {topic}", e)
         self.log.info("Deleted topic (path) %s", topic_path)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -364,13 +364,13 @@ class PubSubHook(GoogleBaseHook):
         subscriber = self.subscriber_client
 
         if not subscription:
-            subscription = f'sub-{uuid4()}'
+            subscription = f"sub-{uuid4()}"
         if not subscription_project_id:
             subscription_project_id = project_id
 
         # Add airflow-version label to the subscription
         labels = labels or {}
-        labels['airflow-version'] = 'v' + version.replace('.', '-').replace('+', '-')
+        labels["airflow-version"] = "v" + version.replace(".", "-").replace("+", "-")
 
         subscription_path = f"projects/{subscription_project_id}/subscriptions/{subscription}"
         topic_path = f"projects/{project_id}/topics/{topic}"
@@ -397,11 +397,11 @@ class PubSubHook(GoogleBaseHook):
                 metadata=metadata,
             )
         except AlreadyExists:
-            self.log.warning('Subscription already exists: %s', subscription_path)
+            self.log.warning("Subscription already exists: %s", subscription_path)
             if fail_if_exists:
-                raise PubSubException(f'Subscription already exists: {subscription_path}')
+                raise PubSubException(f"Subscription already exists: {subscription_path}")
         except GoogleAPICallError as e:
-            raise PubSubException(f'Error creating subscription {subscription_path}', e)
+            raise PubSubException(f"Error creating subscription {subscription_path}", e)
 
         self.log.info("Created subscription (path) %s for topic (path) %s", subscription_path, topic_path)
         return subscription
@@ -446,11 +446,11 @@ class PubSubHook(GoogleBaseHook):
             )
 
         except NotFound:
-            self.log.warning('Subscription does not exist: %s', subscription_path)
+            self.log.warning("Subscription does not exist: %s", subscription_path)
             if fail_if_not_exists:
-                raise PubSubException(f'Subscription does not exist: {subscription_path}')
+                raise PubSubException(f"Subscription does not exist: {subscription_path}")
         except GoogleAPICallError as e:
-            raise PubSubException(f'Error deleting subscription {subscription_path}', e)
+            raise PubSubException(f"Error deleting subscription {subscription_path}", e)
 
         self.log.info("Deleted subscription (path) %s", subscription_path)
 
@@ -505,11 +505,11 @@ class PubSubHook(GoogleBaseHook):
                 timeout=timeout,
                 metadata=metadata,
             )
-            result = getattr(response, 'received_messages', [])
+            result = getattr(response, "received_messages", [])
             self.log.info("Pulled %d messages from subscription (path) %s", len(result), subscription_path)
             return result
         except (HttpError, GoogleAPICallError) as e:
-            raise PubSubException(f'Error pulling messages from subscription {subscription_path}', e)
+            raise PubSubException(f"Error pulling messages from subscription {subscription_path}", e)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def acknowledge(
@@ -562,7 +562,7 @@ class PubSubHook(GoogleBaseHook):
             )
         except (HttpError, GoogleAPICallError) as e:
             raise PubSubException(
-                f'Error acknowledging {len(ack_ids)} messages pulled from subscription {subscription_path}',
+                f"Error acknowledging {len(ack_ids)} messages pulled from subscription {subscription_path}",
                 e,
             )
 

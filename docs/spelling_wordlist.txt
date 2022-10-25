@@ -44,6 +44,7 @@ analyzeSyntax
 AnalyzeSyntaxResponse
 Aneesh
 AnnotateTextResponse
+ans
 Ansible
 apache
 api
@@ -1253,6 +1254,7 @@ securityManager
 seealso
 Seedlist
 seedlist
+seekable
 segmentGranularity
 Sendgrid
 sendgrid

@@ -45,7 +45,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils import timezone
 from airflow.version import version
 
-RT = TypeVar('RT')
+RT = TypeVar("RT")
 T = TypeVar("T", bound=Callable)
 
 # GCSHook has a method named 'list' (to junior devs: please don't do this), so
@@ -57,9 +57,9 @@ DEFAULT_TIMEOUT = 60
 
 
 def _fallback_object_url_to_object_name_and_bucket_name(
-    object_url_keyword_arg_name='object_url',
-    bucket_name_keyword_arg_name='bucket_name',
-    object_name_keyword_arg_name='object_name',
+    object_url_keyword_arg_name="object_url",
+    bucket_name_keyword_arg_name="bucket_name",
+    object_name_keyword_arg_name="object_name",
 ) -> Callable[[T], T]:
     """
     Decorator factory that convert object URL parameter to object name and bucket name parameter.
@@ -180,11 +180,11 @@ class GCSHook(GoogleBaseHook):
         if source_bucket == destination_bucket and source_object == destination_object:
 
             raise ValueError(
-                f'Either source/destination bucket or source/destination object must be different, '
-                f'not both the same: bucket={source_bucket}, object={source_object}'
+                f"Either source/destination bucket or source/destination object must be different, "
+                f"not both the same: bucket={source_bucket}, object={source_object}"
             )
         if not source_bucket or not source_object:
-            raise ValueError('source_bucket and source_object cannot be empty.')
+            raise ValueError("source_bucket and source_object cannot be empty.")
 
         client = self.get_conn()
         source_bucket = client.bucket(source_bucket)
@@ -195,7 +195,7 @@ class GCSHook(GoogleBaseHook):
         )
 
         self.log.info(
-            'Object %s in bucket %s copied to object %s in bucket %s',
+            "Object %s in bucket %s copied to object %s in bucket %s",
             source_object.name,  # type: ignore[attr-defined]
             source_bucket.name,  # type: ignore[attr-defined]
             destination_object.name,  # type: ignore[union-attr]
@@ -225,11 +225,11 @@ class GCSHook(GoogleBaseHook):
         destination_object = destination_object or source_object
         if source_bucket == destination_bucket and source_object == destination_object:
             raise ValueError(
-                f'Either source/destination bucket or source/destination object must be different, '
-                f'not both the same: bucket={source_bucket}, object={source_object}'
+                f"Either source/destination bucket or source/destination object must be different, "
+                f"not both the same: bucket={source_bucket}, object={source_object}"
             )
         if not source_bucket or not source_object:
-            raise ValueError('source_bucket and source_object cannot be empty.')
+            raise ValueError("source_bucket and source_object cannot be empty.")
 
         client = self.get_conn()
         source_bucket = client.bucket(source_bucket)
@@ -240,16 +240,16 @@ class GCSHook(GoogleBaseHook):
             blob_name=destination_object
         ).rewrite(source=source_object)
 
-        self.log.info('Total Bytes: %s | Bytes Written: %s', total_bytes, bytes_rewritten)
+        self.log.info("Total Bytes: %s | Bytes Written: %s", total_bytes, bytes_rewritten)
 
         while token is not None:
             token, bytes_rewritten, total_bytes = destination_bucket.blob(  # type: ignore[attr-defined]
                 blob_name=destination_object
             ).rewrite(source=source_object, token=token)
 
-            self.log.info('Total Bytes: %s | Bytes Written: %s', total_bytes, bytes_rewritten)
+            self.log.info("Total Bytes: %s | Bytes Written: %s", total_bytes, bytes_rewritten)
         self.log.info(
-            'Object %s in bucket %s rewritten to object %s in bucket %s',
+            "Object %s in bucket %s rewritten to object %s in bucket %s",
             source_object.name,  # type: ignore[attr-defined]
             source_bucket.name,  # type: ignore[attr-defined]
             destination_object,
@@ -318,7 +318,7 @@ class GCSHook(GoogleBaseHook):
 
                 if filename:
                     blob.download_to_filename(filename, timeout=timeout)
-                    self.log.info('File downloaded to %s', filename)
+                    self.log.info("File downloaded to %s", filename)
                     return filename
                 else:
                     return blob.download_as_bytes()
@@ -326,7 +326,7 @@ class GCSHook(GoogleBaseHook):
             except GoogleCloudError:
                 if num_file_attempts == num_max_attempts:
                     self.log.error(
-                        'Download attempt of object: %s from %s has failed. Attempt: %s, max %s.',
+                        "Download attempt of object: %s from %s has failed. Attempt: %s, max %s.",
                         object_name,
                         bucket_name,
                         num_file_attempts,
@@ -436,7 +436,7 @@ class GCSHook(GoogleBaseHook):
         data: str | bytes | None = None,
         mime_type: str | None = None,
         gzip: bool = False,
-        encoding: str = 'utf-8',
+        encoding: str = "utf-8",
         chunk_size: int | None = None,
         timeout: int | None = DEFAULT_TIMEOUT,
         num_max_attempts: int = 1,
@@ -472,7 +472,7 @@ class GCSHook(GoogleBaseHook):
                 except GoogleCloudError as e:
                     if num_file_attempts == num_max_attempts:
                         self.log.error(
-                            'Upload attempt of object: %s from %s has failed. Attempt: %s, max %s.',
+                            "Upload attempt of object: %s from %s has failed. Attempt: %s, max %s.",
                             object_name,
                             object_name,
                             num_file_attempts,
@@ -500,12 +500,12 @@ class GCSHook(GoogleBaseHook):
             )
         elif filename:
             if not mime_type:
-                mime_type = 'application/octet-stream'
+                mime_type = "application/octet-stream"
             if gzip:
-                filename_gz = filename + '.gz'
+                filename_gz = filename + ".gz"
 
-                with open(filename, 'rb') as f_in:
-                    with gz.open(filename_gz, 'wb') as f_out:
+                with open(filename, "rb") as f_in:
+                    with gz.open(filename_gz, "wb") as f_out:
                         shutil.copyfileobj(f_in, f_out)
                         filename = filename_gz
 
@@ -515,10 +515,10 @@ class GCSHook(GoogleBaseHook):
 
             if gzip:
                 os.remove(filename)
-            self.log.info('File %s uploaded to %s in %s bucket', filename, object_name, bucket_name)
+            self.log.info("File %s uploaded to %s in %s bucket", filename, object_name, bucket_name)
         elif data:
             if not mime_type:
-                mime_type = 'text/plain'
+                mime_type = "text/plain"
             if gzip:
                 if isinstance(data, str):
                     data = bytes(data, encoding)
@@ -529,7 +529,7 @@ class GCSHook(GoogleBaseHook):
 
             _call_with_retry(partial(blob.upload_from_string, data, content_type=mime_type, timeout=timeout))
 
-            self.log.info('Data stream uploaded to %s in %s bucket', object_name, bucket_name)
+            self.log.info("Data stream uploaded to %s in %s bucket", object_name, bucket_name)
         else:
             raise ValueError("'filename' and 'data' parameter missing. One is required to upload to gcs.")
 
@@ -655,7 +655,7 @@ class GCSHook(GoogleBaseHook):
         blob = bucket.blob(blob_name=object_name)
         blob.delete()
 
-        self.log.info('Blob %s deleted.', object_name)
+        self.log.info("Blob %s deleted.", object_name)
 
     def delete_bucket(self, bucket_name: str, force: bool = False) -> None:
         """
@@ -782,12 +782,12 @@ class GCSHook(GoogleBaseHook):
             cloud storage bucket_name.
 
         """
-        self.log.info('Checking the file size of object: %s in bucket_name: %s', object_name, bucket_name)
+        self.log.info("Checking the file size of object: %s in bucket_name: %s", object_name, bucket_name)
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
         blob = bucket.get_blob(blob_name=object_name)
         blob_size = blob.size
-        self.log.info('The file size of %s is %s bytes.', object_name, blob_size)
+        self.log.info("The file size of %s is %s bytes.", object_name, blob_size)
         return blob_size
 
     def get_crc32c(self, bucket_name: str, object_name: str):
@@ -799,7 +799,7 @@ class GCSHook(GoogleBaseHook):
             storage bucket_name.
         """
         self.log.info(
-            'Retrieving the crc32c checksum of object_name: %s in bucket_name: %s',
+            "Retrieving the crc32c checksum of object_name: %s in bucket_name: %s",
             object_name,
             bucket_name,
         )
@@ -807,7 +807,7 @@ class GCSHook(GoogleBaseHook):
         bucket = client.bucket(bucket_name)
         blob = bucket.get_blob(blob_name=object_name)
         blob_crc32c = blob.crc32c
-        self.log.info('The crc32c checksum of %s is %s', object_name, blob_crc32c)
+        self.log.info("The crc32c checksum of %s is %s", object_name, blob_crc32c)
         return blob_crc32c
 
     def get_md5hash(self, bucket_name: str, object_name: str) -> str:
@@ -818,12 +818,12 @@ class GCSHook(GoogleBaseHook):
         :param object_name: The name of the object to check in the Google cloud
             storage bucket_name.
         """
-        self.log.info('Retrieving the MD5 hash of object: %s in bucket: %s', object_name, bucket_name)
+        self.log.info("Retrieving the MD5 hash of object: %s in bucket: %s", object_name, bucket_name)
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
         blob = bucket.get_blob(blob_name=object_name)
         blob_md5hash = blob.md5_hash
-        self.log.info('The md5Hash of %s is %s', object_name, blob_md5hash)
+        self.log.info("The md5Hash of %s is %s", object_name, blob_md5hash)
         return blob_md5hash
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -831,8 +831,8 @@ class GCSHook(GoogleBaseHook):
         self,
         bucket_name: str,
         resource: dict | None = None,
-        storage_class: str = 'MULTI_REGIONAL',
-        location: str = 'US',
+        storage_class: str = "MULTI_REGIONAL",
+        location: str = "US",
         project_id: str | None = None,
         labels: dict | None = None,
     ) -> str:
@@ -871,12 +871,12 @@ class GCSHook(GoogleBaseHook):
         :return: If successful, it returns the ``id`` of the bucket.
         """
         self.log.info(
-            'Creating Bucket: %s; Location: %s; Storage Class: %s', bucket_name, location, storage_class
+            "Creating Bucket: %s; Location: %s; Storage Class: %s", bucket_name, location, storage_class
         )
 
         # Add airflow-version label to the bucket
         labels = labels or {}
-        labels['airflow-version'] = 'v' + version.replace('.', '-').replace('+', '-')
+        labels["airflow-version"] = "v" + version.replace(".", "-").replace("+", "-")
 
         client = self.get_conn()
         bucket = client.bucket(bucket_name=bucket_name)
@@ -908,7 +908,7 @@ class GCSHook(GoogleBaseHook):
         :param user_project: (Optional) The project to be billed for this request.
             Required for Requester Pays buckets.
         """
-        self.log.info('Creating a new ACL entry in bucket: %s', bucket_name)
+        self.log.info("Creating a new ACL entry in bucket: %s", bucket_name)
         client = self.get_conn()
         bucket = client.bucket(bucket_name=bucket_name)
         bucket.acl.reload()
@@ -917,7 +917,7 @@ class GCSHook(GoogleBaseHook):
             bucket.acl.user_project = user_project
         bucket.acl.save()
 
-        self.log.info('A new ACL entry created in bucket: %s', bucket_name)
+        self.log.info("A new ACL entry created in bucket: %s", bucket_name)
 
     def insert_object_acl(
         self,
@@ -946,7 +946,7 @@ class GCSHook(GoogleBaseHook):
         :param user_project: (Optional) The project to be billed for this request.
             Required for Requester Pays buckets.
         """
-        self.log.info('Creating a new ACL entry for object: %s in bucket: %s', object_name, bucket_name)
+        self.log.info("Creating a new ACL entry for object: %s in bucket: %s", object_name, bucket_name)
         client = self.get_conn()
         bucket = client.bucket(bucket_name=bucket_name)
         blob = bucket.blob(blob_name=object_name, generation=generation)
@@ -957,7 +957,7 @@ class GCSHook(GoogleBaseHook):
             blob.acl.user_project = user_project
         blob.acl.save()
 
-        self.log.info('A new ACL entry created for object: %s in bucket: %s', object_name, bucket_name)
+        self.log.info("A new ACL entry created for object: %s in bucket: %s", object_name, bucket_name)
 
     def compose(self, bucket_name: str, source_objects: List[str], destination_object: str) -> None:
         """
@@ -975,10 +975,10 @@ class GCSHook(GoogleBaseHook):
         :param destination_object: The path of the object if given.
         """
         if not source_objects:
-            raise ValueError('source_objects cannot be empty.')
+            raise ValueError("source_objects cannot be empty.")
 
         if not bucket_name or not destination_object:
-            raise ValueError('bucket_name and destination_object cannot be empty.')
+            raise ValueError("bucket_name and destination_object cannot be empty.")
 
         self.log.info("Composing %s to %s in the bucket %s", source_objects, destination_object, bucket_name)
         client = self.get_conn()
@@ -1153,7 +1153,7 @@ def gcs_object_is_directory(bucket: str) -> bool:
     """
     _, blob = _parse_gcs_url(bucket)
 
-    return len(blob) == 0 or blob.endswith('/')
+    return len(blob) == 0 or blob.endswith("/")
 
 
 def _parse_gcs_url(gsurl: str) -> tuple[str, str]:
@@ -1163,11 +1163,11 @@ def _parse_gcs_url(gsurl: str) -> tuple[str, str]:
     """
     parsed_url = urlparse(gsurl)
     if not parsed_url.netloc:
-        raise AirflowException('Please provide a bucket name')
+        raise AirflowException("Please provide a bucket name")
     if parsed_url.scheme.lower() != "gs":
         raise AirflowException(f"Schema must be to 'gs://': Current schema: '{parsed_url.scheme}://'")
 
     bucket = parsed_url.netloc
     # Remove leading '/' but NOT trailing one
-    blob = parsed_url.path.lstrip('/')
+    blob = parsed_url.path.lstrip("/")
     return bucket, blob

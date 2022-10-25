@@ -82,13 +82,13 @@ class CloudTranslateTextOperator(BaseOperator):
 
     # [START translate_template_fields]
     template_fields: Sequence[str] = (
-        'values',
-        'target_language',
-        'format_',
-        'source_language',
-        'model',
-        'gcp_conn_id',
-        'impersonation_chain',
+        "values",
+        "target_language",
+        "format_",
+        "source_language",
+        "model",
+        "gcp_conn_id",
+        "impersonation_chain",
     )
     # [END translate_template_fields]
 
@@ -100,7 +100,7 @@ class CloudTranslateTextOperator(BaseOperator):
         format_: str,
         source_language: str | None,
         model: str,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -129,6 +129,6 @@ class CloudTranslateTextOperator(BaseOperator):
             self.log.debug("Translation %s", translation)
             return translation
         except ValueError as e:
-            self.log.error('An error has been thrown from translate method:')
+            self.log.error("An error has been thrown from translate method:")
             self.log.error(e)
             raise AirflowException(e)

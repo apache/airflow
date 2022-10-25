@@ -37,12 +37,12 @@ DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 @pytest.mark.backend("mysql")
 class TestTransfer:
     env_vars = {
-        'AIRFLOW_CTX_DAG_ID': 'test_dag_id',
-        'AIRFLOW_CTX_TASK_ID': 'test_task_id',
-        'AIRFLOW_CTX_EXECUTION_DATE': '2015-01-01T00:00:00+00:00',
-        'AIRFLOW_CTX_DAG_RUN_ID': '55',
-        'AIRFLOW_CTX_DAG_OWNER': 'airflow',
-        'AIRFLOW_CTX_DAG_EMAIL': 'test@airflow.com',
+        "AIRFLOW_CTX_DAG_ID": "test_dag_id",
+        "AIRFLOW_CTX_TASK_ID": "test_task_id",
+        "AIRFLOW_CTX_EXECUTION_DATE": "2015-01-01T00:00:00+00:00",
+        "AIRFLOW_CTX_DAG_RUN_ID": "55",
+        "AIRFLOW_CTX_DAG_OWNER": "airflow",
+        "AIRFLOW_CTX_DAG_EMAIL": "test@airflow.com",
     }
 
     @pytest.fixture
@@ -51,7 +51,7 @@ class TestTransfer:
 
         class Capturer:
             def __enter__(self):
-                self._patch = mock.patch.object(HiveCliHook, 'load_file', side_effect=self.capture_file)
+                self._patch = mock.patch.object(HiveCliHook, "load_file", side_effect=self.capture_file)
                 self.load_file = self._patch.start()
                 return self
 
@@ -78,14 +78,14 @@ class TestTransfer:
         with closing(MySqlHook().get_conn()) as conn:
             with closing(conn.cursor()) as cur:
                 cur.execute(
-                    '''
+                    """
                 CREATE TABLE IF NOT EXISTS baby_names (
                   org_year integer(4),
                   baby_name VARCHAR(25),
                   rate FLOAT(7,6),
                   sex VARCHAR(4)
                 )
-                '''
+                """
                 )
                 for row in rows:
                     cur.execute("INSERT INTO baby_names VALUES(%s, %s, %s, %s);", row)
@@ -99,22 +99,22 @@ class TestTransfer:
                 cur.execute("DROP TABLE IF EXISTS baby_names CASCADE;")
 
     @pytest.mark.parametrize(
-        ('params', 'expected', 'csv'),
+        ("params", "expected", "csv"),
         [
             pytest.param(
-                {'recreate': True, 'delimiter': ','},
+                {"recreate": True, "delimiter": ","},
                 {
-                    'field_dict': {
-                        'org_year': 'BIGINT',
-                        'baby_name': 'STRING',
-                        'rate': 'DOUBLE',
-                        'sex': 'STRING',
+                    "field_dict": {
+                        "org_year": "BIGINT",
+                        "baby_name": "STRING",
+                        "rate": "DOUBLE",
+                        "sex": "STRING",
                     },
-                    'create': True,
-                    'partition': {},
-                    'delimiter': ',',
-                    'recreate': True,
-                    'tblproperties': None,
+                    "create": True,
+                    "partition": {},
+                    "delimiter": ",",
+                    "recreate": True,
+                    "tblproperties": None,
                 },
                 textwrap.dedent(
                     """\
@@ -128,19 +128,19 @@ class TestTransfer:
                 id="recreate-delimiter",
             ),
             pytest.param(
-                {'partition': {'ds': DEFAULT_DATE_DS}},
+                {"partition": {"ds": DEFAULT_DATE_DS}},
                 {
-                    'field_dict': {
-                        'org_year': 'BIGINT',
-                        'baby_name': 'STRING',
-                        'rate': 'DOUBLE',
-                        'sex': 'STRING',
+                    "field_dict": {
+                        "org_year": "BIGINT",
+                        "baby_name": "STRING",
+                        "rate": "DOUBLE",
+                        "sex": "STRING",
                     },
-                    'create': True,
-                    'partition': {'ds': DEFAULT_DATE_DS},
-                    'delimiter': '\x01',
-                    'recreate': False,
-                    'tblproperties': None,
+                    "create": True,
+                    "partition": {"ds": DEFAULT_DATE_DS},
+                    "delimiter": "\x01",
+                    "recreate": False,
+                    "tblproperties": None,
                 },
                 textwrap.dedent(
                     """\
@@ -154,19 +154,19 @@ class TestTransfer:
                 id="partition",
             ),
             pytest.param(
-                {'tblproperties': {'test_property': 'test_value'}},
+                {"tblproperties": {"test_property": "test_value"}},
                 {
-                    'field_dict': {
-                        'org_year': 'BIGINT',
-                        'baby_name': 'STRING',
-                        'rate': 'DOUBLE',
-                        'sex': 'STRING',
+                    "field_dict": {
+                        "org_year": "BIGINT",
+                        "baby_name": "STRING",
+                        "rate": "DOUBLE",
+                        "sex": "STRING",
                     },
-                    'create': True,
-                    'partition': {},
-                    'delimiter': '\x01',
-                    'recreate': False,
-                    'tblproperties': {'test_property': 'test_value'},
+                    "create": True,
+                    "partition": {},
+                    "delimiter": "\x01",
+                    "recreate": False,
+                    "tblproperties": {"test_property": "test_value"},
                 },
                 textwrap.dedent(
                     """\
@@ -181,25 +181,25 @@ class TestTransfer:
             ),
         ],
     )
-    @pytest.mark.usefixtures('baby_names_table')
+    @pytest.mark.usefixtures("baby_names_table")
     def test_mysql_to_hive(self, spy_on_hive, params, expected, csv):
 
         sql = "SELECT * FROM baby_names LIMIT 1000;"
         op = MySqlToHiveOperator(
-            task_id='test_m2h',
-            hive_cli_conn_id='hive_cli_default',
+            task_id="test_m2h",
+            hive_cli_conn_id="hive_cli_default",
             sql=sql,
-            hive_table='test_mysql_to_hive',
+            hive_table="test_mysql_to_hive",
             **params,
         )
         op.execute({})
 
-        spy_on_hive.load_file.assert_called_with(mock.ANY, 'test_mysql_to_hive', **expected)
+        spy_on_hive.load_file.assert_called_with(mock.ANY, "test_mysql_to_hive", **expected)
 
         assert spy_on_hive.csv_contents == csv
 
     def test_mysql_to_hive_type_conversion(self, spy_on_hive):
-        mysql_table = 'test_mysql_to_hive'
+        mysql_table = "test_mysql_to_hive"
 
         hook = MySqlHook()
 
@@ -221,10 +221,10 @@ class TestTransfer:
                     )
 
             op = MySqlToHiveOperator(
-                task_id='test_m2h',
-                hive_cli_conn_id='hive_cli_default',
+                task_id="test_m2h",
+                hive_cli_conn_id="hive_cli_default",
                 sql=f"SELECT * FROM {mysql_table}",
-                hive_table='test_mysql_to_hive',
+                hive_table="test_mysql_to_hive",
             )
             op.execute({})
 
@@ -244,13 +244,13 @@ class TestTransfer:
 
     def test_mysql_to_hive_verify_csv_special_char(self, spy_on_hive):
 
-        mysql_table = 'test_mysql_to_hive'
-        hive_table = 'test_mysql_to_hive'
+        mysql_table = "test_mysql_to_hive"
+        hive_table = "test_mysql_to_hive"
 
         hook = MySqlHook()
 
         try:
-            db_record = ('c0', '["true",1]')
+            db_record = ("c0", '["true",1]')
             with closing(hook.get_conn()) as conn:
                 with closing(conn.cursor()) as cursor:
                     cursor.execute(f"DROP TABLE IF EXISTS {mysql_table}")
@@ -276,15 +276,15 @@ class TestTransfer:
             import unicodecsv as csv
 
             op = MySqlToHiveOperator(
-                task_id='test_m2h',
-                hive_cli_conn_id='hive_cli_default',
+                task_id="test_m2h",
+                hive_cli_conn_id="hive_cli_default",
                 sql=f"SELECT * FROM {mysql_table}",
                 hive_table=hive_table,
                 recreate=True,
                 delimiter=",",
                 quoting=csv.QUOTE_NONE,
-                quotechar='',
-                escapechar='@',
+                quotechar="",
+                escapechar="@",
             )
 
             op.execute({})

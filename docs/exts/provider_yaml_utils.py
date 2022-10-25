@@ -70,8 +70,8 @@ def load_package_data() -> list[dict[str, Any]]:
         except jsonschema.ValidationError:
             raise Exception(f"Unable to parse: {provider_yaml_path}.")
         provider_yaml_dir = os.path.dirname(provider_yaml_path)
-        provider['python-module'] = _filepath_to_module(provider_yaml_dir)
-        provider['package-dir'] = provider_yaml_dir
-        provider['system-tests-dir'] = _filepath_to_system_tests(provider_yaml_dir)
+        provider["python-module"] = _filepath_to_module(provider_yaml_dir)
+        provider["package-dir"] = provider_yaml_dir
+        provider["system-tests-dir"] = _filepath_to_system_tests(provider_yaml_dir)
         result.append(provider)
     return result
