@@ -100,7 +100,7 @@ jobs:
       # we checkout the target commit and it's parent to be able to compare them
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ env.TARGET_COMMIT_SHA }}
           persist-credentials: false
@@ -390,7 +390,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ needs.build-info.outputs.target-commit-sha }}
           persist-credentials: false
@@ -398,7 +398,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: >
           Checkout "main" branch to 'main-airflow' folder
           to use ci/scripts from there.
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: "main-airflow"
           ref: "main"

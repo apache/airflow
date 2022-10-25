@@ -80,7 +80,7 @@ set to False.[/]
 For security reasons - make sure all of the checkout actions have persist_credentials set, similar to:
 
   - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-    uses: actions/checkout@v2
+    uses: actions/checkout@v3
     with:
       persist-credentials: false
 
