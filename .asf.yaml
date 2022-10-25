@@ -71,6 +71,7 @@ github:
     - gmcdonald
     - o-nikolas
     - ferruzzi
+    - Taragolis
 
 notifications:
   jobs: jobs@airflow.apache.org
