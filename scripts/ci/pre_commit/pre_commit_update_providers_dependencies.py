@@ -175,7 +175,7 @@ def check_if_different_provider_used(file_path: Path) -> None:
         if imported_provider is not None and imported_provider not in ALL_PROVIDERS:
             warnings.append(f"The provider {imported_provider} from {file_path} cannot be found.")
         elif imported_provider and file_provider != imported_provider:
-            ALL_DEPENDENCIES[file_provider][CROSS_PROVIDERS_DEPS].append(imported_provider)
+            ALL_DEPENDENCIES[file_provider]["cross-providers-deps"].append(imported_provider)
 
 
 if __name__ == "__main__":
@@ -187,7 +187,7 @@ if __name__ == "__main__":
         check_if_different_provider_used(file)
     for provider, provider_yaml_content in ALL_PROVIDERS.items():
         if not provider_yaml_content.get("suspended"):
-            ALL_DEPENDENCIES[provider][DEPS].extend(provider_yaml_content["dependencies"])
+            ALL_DEPENDENCIES[provider]["deps"].extend(provider_yaml_content["dependencies"])
     if warnings:
         console.print("[yellow]Warnings!\n")
         for warning in warnings:
@@ -200,9 +200,13 @@ if __name__ == "__main__":
         console.print(f"[bright_blue]Total: {len(errors)} errors.")
     unique_sorted_dependencies: dict[str, dict[str, list[str]]] = defaultdict(dict)
     for key in sorted(ALL_DEPENDENCIES.keys()):
-        unique_sorted_dependencies[key][DEPS] = sorted(ALL_DEPENDENCIES[key][DEPS])
-        unique_sorted_dependencies[key][CROSS_PROVIDERS_DEPS] = sorted(
-            set(ALL_DEPENDENCIES[key][CROSS_PROVIDERS_DEPS])
+        unique_sorted_dependencies[key]["deps"] = sorted(ALL_DEPENDENCIES[key]["deps"])
+        unique_sorted_dependencies[key]["cross-providers-deps"] = sorted(
+            set(ALL_DEPENDENCIES[key]["cross-providers-deps"])
+        )
+        excluded_versions = ALL_PROVIDERS[key].get("excluded-python-versions")
+        unique_sorted_dependencies[key]["excluded-python-versions"] = (
+            excluded_versions if excluded_versions else []
         )
     if errors:
         console.print()

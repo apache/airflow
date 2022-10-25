@@ -134,7 +134,26 @@ known-third-party = [
 [tool.ruff.per-file-ignores]
 "airflow/models/__init__.py" = ["F401"]
 "airflow/models/sqla_models.py" = ["F401"]
-
+"tests/providers/google/cloud/_internal_client/test_secret_manager_client.py" = ["E402"]
+"tests/providers/google/cloud/hooks/test_secret_manager.py" = ["E402"]
+"tests/providers/google/cloud/hooks/test_secret_manager_system.py" = ["E402"]
+"tests/providers/google/cloud/hooks/test_spanner.py" = ["E402"]
+"tests/providers/google/cloud/operators/test_spanner.py" = ["E402"]
+"tests/providers/google/cloud/hooks/test_speech_to_text.py" = ["E402"]
+"tests/providers/google/cloud/operators/test_speech_to_text.py" = ["E402"]
+"tests/providers/google/cloud/hooks/test_text_to_speech.py" = ["E402"]
+"tests/providers/google/cloud/operators/test_text_to_speech.py" = ["E402"]
+"tests/providers/google/cloud/hooks/test_translate.py" = ["E402"]
+"tests/providers/google/cloud/operators/test_translate.py" = ["E402"]
+"tests/providers/google/cloud/hooks/test_video_intelligence.py" = ["E402"]
+"tests/providers/google/cloud/operators/test_video_intelligence.py" = ["E402"]
+"tests/providers/google/cloud/hooks/test_vision.py" = ["E402"]
+"tests/providers/google/cloud/operators/test_vision.py" = ["E402"]
+"tests/providers/google/cloud/operators/test_translate_speech.py" = ["E402"]
+"tests/providers/google/cloud/operators/test_vertex_ai.py" = ["E402"]
+"tests/providers/google/cloud/operators/test_vertex_ai_system.py" = ["E402"]
+"tests/providers/google/cloud/secrets/test_secret_manager.py" = ["E402"]
+"tests/providers/google/cloud/secrets/test_secret_manager_system.py" = ["E402"]
 
 # The test_python.py is needed because adding __future__.annotations breaks runtime checks that are
 # needed for the test to work

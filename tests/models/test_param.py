@@ -20,6 +20,7 @@ from contextlib import nullcontext
 
 import pytest
 
+from airflow import PY311
 from airflow.decorators import task
 from airflow.exceptions import ParamValidationError, RemovedInAirflow3Warning
 from airflow.models.param import Param, ParamsDict
@@ -130,8 +131,12 @@ class TestParam:
         with pytest.raises(ParamValidationError, match=error_pattern):
             Param("01/01/2021", type="string", format="date").resolve()
 
-        with pytest.raises(ParamValidationError, match=error_pattern):
+        if PY311:
+            # in Python 3.11 `fromisoformat` will not raise an error for this one
             Param("20120503", type="string", format="date").resolve()
+        else:
+            with pytest.raises(ParamValidationError, match=error_pattern):
+                Param("20120503", type="string", format="date").resolve()
 
         with pytest.raises(ParamValidationError, match=error_pattern):
             Param("21 May 1975", type="string", format="date").resolve()

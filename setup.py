@@ -58,6 +58,7 @@ PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 
 CROSS_PROVIDERS_DEPS = "cross-providers-deps"
 DEPS = "deps"
+CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
 
 
 #
@@ -67,7 +68,17 @@ DEPS = "deps"
 #
 def fill_provider_dependencies() -> dict[str, dict[str, list[str]]]:
     try:
-        return json.loads((AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text())
+        dependencies = json.loads(
+            (AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text()
+        )
+        for key in list(dependencies.keys()):
+            if CURRENT_PYTHON_VERSION in dependencies[key]["excluded-python-versions"]:
+                print(
+                    f"Excluding provider {key} because it is not "
+                    f"compatible with Python {CURRENT_PYTHON_VERSION}"
+                )
+                del dependencies[key]
+        return dependencies
     except Exception as e:
         print(f"Exception while loading provider dependencies {e}")
         # we can ignore loading dependencies when they are missing - they are only used to generate
@@ -490,6 +501,11 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "statsd": statsd,
     "virtualenv": virtualenv,
 }
+
+for key in list(CORE_EXTRAS_DEPENDENCIES.keys()):
+    if not CORE_EXTRAS_DEPENDENCIES[key]:
+        print(f"Removing extra {key} as it has been excluded")
+        del CORE_EXTRAS_DEPENDENCIES[key]
 
 EXTRAS_DEPENDENCIES: dict[str, list[str]] = deepcopy(CORE_EXTRAS_DEPENDENCIES)
 

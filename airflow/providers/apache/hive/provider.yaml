@@ -63,6 +63,11 @@ dependencies:
   - sasl>=0.3.1; python_version>="3.9"
   - thrift>=0.9.2
 
+# Excluded because SASL is not yet compatible
+# with 3.11. See https://github.com/cloudera/python-sasl/issues/30
+excluded-python-versions:
+  - "3.11"
+
 integrations:
   - integration-name: Apache Hive
     external-doc-url: https://hive.apache.org/
