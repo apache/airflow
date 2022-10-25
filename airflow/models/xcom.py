@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import collections.abc
+import contextlib
 import datetime
 import inspect
 import json
@@ -24,8 +26,9 @@ import logging
 import pickle
 import warnings
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Iterable, cast, overload
+from typing import TYPE_CHECKING, Any, Generator, Iterable, cast, overload
 
+import attr
 import pendulum
 from sqlalchemy import (
     Column,
@@ -41,6 +44,8 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Query, Session, reconstructor, relationship
 from sqlalchemy.orm.exc import NoResultFound
 
+from airflow import settings
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
@@ -589,8 +594,15 @@ class BaseXCom(Base, LoggingMixin):
         dag_id: str | None = None,
         run_id: str | None = None,
         map_index: int | None = None,
-    ):
-        """Serialize XCom value to str or pickled object"""
+    ) -> Any:
+        """Serialize XCom value to str or pickled object."""
+        # Seamlessly resolve LazyXComAccess to a list. This is intended to work
+        # as a "lazy list" to avoid pulling a ton of XComs unnecessarily, but if
+        # it's pushed into XCom, the user should be aware of the performance
+        # implications, and this avoids leaking the implementation detail.
+        if isinstance(value, LazyXComAccess):
+            value = list(value)
+
         if conf.getboolean('core', 'enable_xcom_pickling'):
             return pickle.dumps(value)
         try:
@@ -630,6 +642,92 @@ class BaseXCom(Base, LoggingMixin):
         in the webserver, for example.
         """
         return BaseXCom.deserialize_value(self)
+
+
+class _LazyXComAccessIterator(collections.abc.Iterator):
+    def __init__(self, cm: contextlib.AbstractContextManager[Query]) -> None:
+        self._cm = cm
+        self._entered = False
+
+    def __del__(self) -> None:
+        if self._entered:
+            self._cm.__exit__(None, None, None)
+
+    def __iter__(self) -> collections.abc.Iterator:
+        return self
+
+    def __next__(self) -> Any:
+        return XCom.deserialize_value(next(self._it))
+
+    @cached_property
+    def _it(self) -> collections.abc.Iterator:
+        self._entered = True
+        return iter(self._cm.__enter__())
+
+
+@attr.define(slots=True)
+class LazyXComAccess(collections.abc.Sequence):
+    """Wrapper to lazily pull XCom with a sequence-like interface.
+
+    Note that since the session bound to the parent query may have died when we
+    actually access the sequence's content, we must create a new session
+    for every function call with ``with_session()``.
+    """
+
+    dag_id: str
+    run_id: str
+    task_id: str
+    _query: Query = attr.ib(repr=False)
+    _len: int | None = attr.ib(init=False, repr=False, default=None)
+
+    @classmethod
+    def build_from_single_xcom(cls, first: XCom, query: Query) -> LazyXComAccess:
+        return cls(
+            dag_id=first.dag_id,
+            run_id=first.run_id,
+            task_id=first.task_id,
+            query=query.with_entities(XCom.value)
+            .filter(
+                XCom.run_id == first.run_id,
+                XCom.task_id == first.task_id,
+                XCom.dag_id == first.dag_id,
+                XCom.map_index >= 0,
+            )
+            .order_by(None)
+            .order_by(XCom.map_index.asc()),
+        )
+
+    def __len__(self):
+        if self._len is None:
+            with self._get_bound_query() as query:
+                self._len = query.count()
+        return self._len
+
+    def __iter__(self):
+        return _LazyXComAccessIterator(self._get_bound_query())
+
+    def __getitem__(self, key):
+        if not isinstance(key, int):
+            raise ValueError("only support index access for now")
+        try:
+            with self._get_bound_query() as query:
+                r = query.offset(key).limit(1).one()
+        except NoResultFound:
+            raise IndexError(key) from None
+        return XCom.deserialize_value(r)
+
+    @contextlib.contextmanager
+    def _get_bound_query(self) -> Generator[Query, None, None]:
+        # Do we have a valid session already?
+        if self._query.session and self._query.session.is_active:
+            yield self._query
+            return
+
+        session = settings.Session()
+        try:
+            yield self._query.with_session(session)
+        finally:
+            session.close()
 
 
 def _patch_outdated_serializer(clazz: type[BaseXCom], params: Iterable[str]) -> None:
