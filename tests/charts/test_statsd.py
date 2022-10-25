@@ -169,13 +169,13 @@ class TestStatsd:
                     "securityContexts": {
                         "pod": {
                             "fsGroup": 1000,
-                            'runAsGroup': 1001,
-                            'runAsNonRoot': "true",
-                            'runAsUser': 2000,
+                            "runAsGroup": 1001,
+                            "runAsNonRoot": "true",
+                            "runAsUser": 2000,
                         },
                         "container": {
                             "allowPrivilegeEscalation": "false",
-                            'readOnlyRootFilesystem': "true",
+                            "readOnlyRootFilesystem": "true",
                         },
                     }
                 },
@@ -191,7 +191,7 @@ class TestStatsd:
             "runAsGroup": 1001,
             "fsGroup": 1000,
             "runAsNonRoot": True
-            } == jmespath.search("spec.template.spec.securityContext", docs[0])
+        } == jmespath.search("spec.template.spec.securityContext", docs[0])
 
     def test_statsd_securityContext_legacy(self):
         docs = render_chart(
@@ -199,9 +199,9 @@ class TestStatsd:
                 "statsd": {
                     "securityContexts": {
                         "fsGroup": 1000,
-                        'runAsGroup': 1001,
-                        'runAsNonRoot': "true",
-                        'runAsUser': 2000,
+                        "runAsGroup": 1001,
+                        "runAsNonRoot": "true",
+                        "runAsUser": 2000,
                     }
                 },
             },
@@ -213,7 +213,7 @@ class TestStatsd:
             "runAsGroup": 1001,
             "fsGroup": 1000,
             "runAsNonRoot": True
-            } == jmespath.search("spec.template.spec.securityContext", docs[0])
+        } == jmespath.search("spec.template.spec.securityContext", docs[0])
 
     def test_statsd_resources_are_not_added_by_default(self):
         docs = render_chart(

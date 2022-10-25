@@ -359,13 +359,13 @@ class TestScheduler:
                     "securityContexts": {
                         "pod": {
                             "fsGroup": 1000,
-                            'runAsGroup': 1001,
-                            'runAsNonRoot': "true",
-                            'runAsUser': 2000,
+                            "runAsGroup": 1001,
+                            "runAsNonRoot": "true",
+                            "runAsUser": 2000,
                         },
                         "container": {
                             "allowPrivilegeEscalation": "false",
-                            'readOnlyRootFilesystem': "true",
+                            "readOnlyRootFilesystem": "true",
                         },
                     }
                 },
@@ -389,9 +389,9 @@ class TestScheduler:
                 "scheduler": {
                     "securityContexts": {
                         "fsGroup": 1000,
-                        'runAsGroup': 1001,
-                        'runAsNonRoot': "true",
-                        'runAsUser': 2000,
+                        "runAsGroup": 1001,
+                        "runAsNonRoot": "true",
+                        "runAsUser": 2000,
                     }
                 },
             },
