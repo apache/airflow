@@ -63,8 +63,8 @@ spec:
       annotations:
         checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
         checksum/pgbouncer-certificates-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-certificates-secret.yaml") . | sha256sum }}
-{{- if .Values.pgbouncer.service.extraAnnotations }}
-{{- toYaml .Values.pgbouncer.service.extraAnnotations | nindent 8 }}
+{{- if .Values.pgbouncer.extraAnnotations }}
+{{- toYaml .Values.pgbouncer.extraAnnotations | nindent 8 }}
 {{- end }}
     spec:
       {{- if .Values.pgbouncer.priorityClassName }}
