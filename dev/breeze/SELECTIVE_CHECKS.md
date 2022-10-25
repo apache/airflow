@@ -104,3 +104,51 @@ The logic implements the following rules:
 * if `Image building` is disabled, only basic pre-commits are enabled - no 'image-depending` pre-commits
   are enabled.
 * If there are some setup files changed, `upgrade to newer dependencies` is enabled.
+
+The selective check outputs available are described below:
+
+| Output                             | Meaning of the output                                                                                  | Example value                                                 |
+|------------------------------------|--------------------------------------------------------------------------------------------------------|---------------------------------------------------------------|
+| all-python-versions                | List of all python versions there are available in the form of JSON array                              | ['3.7', '3.8', '3.9', '3.10']                                 |
+| all-python-versions-list-as-string | List of all python versions there are available in the form of space separated string                  | 3.7 3.8 3.9 3.10                                              |
+| basic-checks-only                  | Whether to run all static checks ("false") or only basic set of static checks ("true")                 | false                                                         |
+| cache-directive                    | Which cache should be be used for images ("registry", "local" , "disabled")                            | registry                                                      |
+| debug-resources                    | Whether resources usage should be printed during parallel job execution ("true"/ "false")              | false                                                         |
+| default-branch                     | Which branch is default for the the build ("main" for main branch, "v2-4-test" for 2.4 line etc.)      | main                                                          |
+| default-constraints-branch         | Which branch is default for the the build ("constraints-main" for main branch, "constraints-2-4" etc.) | constraints-main                                              |
+| default-helm-version               | Which Helm version to use as default                                                                   | v3.9.4                                                        |
+| default-kind-version               | Which Kind version to use as default                                                                   | v0.16.0                                                       |
+| default-kubernetes-version         | Which Kubernetes version to use as default                                                             | v1.25.2                                                       |
+| default-mssql-version              | Which MsSQL version to use as default                                                                  | 2017-latest                                                   |
+| default-mysql-version              | Which MySQL version to use as default                                                                  | 5.7                                                           |
+| default-postgres-version           | Which Postgres version to use as default                                                               | 10                                                            |
+| default-python-version             | Which Python version to use as default                                                                 | 3.7                                                           |
+| docs-build                         | Whether to build documentation ("true"/"false")                                                        | true                                                          |
+| docs-filter                        | What filter to apply to docs building - used in non-main branches to skip provider and chart docs.     | --package-filter apache-airflow --package-filter docker-stack |
+| helm-version                       | Which Helm version to use for tests                                                                    | v3.9.4                                                        |
+| image-build                        | Whether CI image build is needed                                                                       | true                                                          |
+| kind-version                       | Which Kind version to use for tests                                                                    | v0.16.0                                                       |
+| kubernetes-combos                  | All combinations of Python version and Kubernetes version to use for tests as space-separated string   | 3.7-v1.25.2 3.8-v1.26.4                                       |
+| kubernetes-versions                | All Kubernetes versions to use for tests as JSON array                                                 | ['v1.25.2']                                                   |
+| kubernetes-versions-list-as-string | All Kubernetes versions to use for tests as space-separated string                                     | v1.25.2                                                       |
+| mssql-exclude                      | Which versions of MsSQL to exclude for tests as JSON array                                             | []                                                            |
+| mssql-versions                     | Which versions of MsSQL to use for tests as JSON array                                                 | ['2017-latest']                                               |
+| mysql-exclude                      | Which versions of MySQL to exclude for tests as JSON array                                             | []                                                            |
+| mysql-versions                     | Which versions of MySQL to use for tests as JSON array                                                 | ['5.7']                                                       |
+| needs-api-codegen                  | Whether "api-codegen" are needed to run ("true"/"false")                                               | true                                                          |
+| needs-api-tests                    | Whether "api-tests" are needed to run ("true"/"false")                                                 | true                                                          |
+| needs-helm-tests                   | Whether Helm tests are needed to run ("true"/"false")                                                  | true                                                          |
+| needs-javascript-scans             | Whether javascript CodeQL scans should be run ("true"/"false")                                         | true                                                          |
+| needs-python-scans                 | Whether Python CodeQL scans should be run ("true"/"false")                                             | true                                                          |
+| postgres-exclude                   | Which versions of Postgres to exclude for tests as JSON array                                          | []                                                            |
+| postgres-versions                  | Which versions of Postgres to use for tests as JSON array                                              | ['10']                                                        |
+| python-versions                    | Which versions of Python to use for tests as JSON array                                                | ['3.7']                                                       |
+| python-versions-list-as-string     | Which versions of MySQL to use for tests as space-separated string                                     | 3.7                                                           |
+| run-kubernetes-tests               | Whether Kubernetes tests should be run ("true"/"false")                                                | true                                                          |
+| run-tests                          | Whether unit tests should be run ("true"/"false")                                                      | true                                                          |
+| run-ui-tests                       | Whether UI tests should be run ("true"/"false")                                                        | true                                                          |
+| run-www-tests                      | Whether WWW tests should be run ("true"/"false")                                                       | true                                                          |
+| skip-pre-commits                   | Which pre-commits should be skipped during the static-checks run                                       | identity                                                      |
+| sqlite-exclude                     | Which versions of Sqlite to exclude for tests as JSON array                                            | []                                                            |
+| test-types                         | Which test types should be run for unit tests                                                          | API Always CLI Core Integration Other Providers WWW           |
+| upgrade-to-newer-dependencies      | Whether the image build should attempt to upgrade all dependencies                                     | false                                                         |

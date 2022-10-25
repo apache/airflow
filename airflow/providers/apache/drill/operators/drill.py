@@ -39,12 +39,12 @@ class DrillOperator(SQLExecuteQueryOperator):
     :param parameters: (optional) the parameters to render the SQL query with.
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_fields_renderers = {'sql': 'sql'}
-    template_ext: Sequence[str] = ('.sql',)
-    ui_color = '#ededed'
+    template_fields: Sequence[str] = ("sql",)
+    template_fields_renderers = {"sql": "sql"}
+    template_ext: Sequence[str] = (".sql",)
+    ui_color = "#ededed"
 
-    def __init__(self, *, drill_conn_id: str = 'drill_default', **kwargs) -> None:
+    def __init__(self, *, drill_conn_id: str = "drill_default", **kwargs) -> None:
         super().__init__(conn_id=drill_conn_id, **kwargs)
         warnings.warn(
             """This class is deprecated.

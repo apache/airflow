@@ -82,13 +82,13 @@ class BigQueryToGCSOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'source_project_dataset_table',
-        'destination_cloud_storage_uris',
-        'labels',
-        'impersonation_chain',
+        "source_project_dataset_table",
+        "destination_cloud_storage_uris",
+        "labels",
+        "impersonation_chain",
     )
     template_ext: Sequence[str] = ()
-    ui_color = '#e4e6f0'
+    ui_color = "#e4e6f0"
     operator_extra_links = (BigQueryTableLink(),)
 
     def __init__(
@@ -97,11 +97,11 @@ class BigQueryToGCSOperator(BaseOperator):
         source_project_dataset_table: str,
         destination_cloud_storage_uris: list[str],
         project_id: str | None = None,
-        compression: str = 'NONE',
-        export_format: str = 'CSV',
-        field_delimiter: str = ',',
+        compression: str = "NONE",
+        export_format: str = "CSV",
+        field_delimiter: str = ",",
         print_header: bool = True,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         labels: dict | None = None,
         location: str | None = None,
@@ -142,36 +142,36 @@ class BigQueryToGCSOperator(BaseOperator):
         source_project, source_dataset, source_table = self.hook.split_tablename(
             table_input=self.source_project_dataset_table,
             default_project_id=self.project_id or self.hook.project_id,
-            var_name='source_project_dataset_table',
+            var_name="source_project_dataset_table",
         )
 
         configuration: dict[str, Any] = {
-            'extract': {
-                'sourceTable': {
-                    'projectId': source_project,
-                    'datasetId': source_dataset,
-                    'tableId': source_table,
+            "extract": {
+                "sourceTable": {
+                    "projectId": source_project,
+                    "datasetId": source_dataset,
+                    "tableId": source_table,
                 },
-                'compression': self.compression,
-                'destinationUris': self.destination_cloud_storage_uris,
-                'destinationFormat': self.export_format,
+                "compression": self.compression,
+                "destinationUris": self.destination_cloud_storage_uris,
+                "destinationFormat": self.export_format,
             }
         }
 
         if self.labels:
-            configuration['labels'] = self.labels
+            configuration["labels"] = self.labels
 
-        if self.export_format == 'CSV':
+        if self.export_format == "CSV":
             # Only set fieldDelimiter and printHeader fields if using CSV.
             # Google does not like it if you set these fields for other export
             # formats.
-            configuration['extract']['fieldDelimiter'] = self.field_delimiter
-            configuration['extract']['printHeader'] = self.print_header
+            configuration["extract"]["fieldDelimiter"] = self.field_delimiter
+            configuration["extract"]["printHeader"] = self.print_header
         return configuration
 
     def execute(self, context: Context):
         self.log.info(
-            'Executing extract of %s into: %s',
+            "Executing extract of %s into: %s",
             self.source_project_dataset_table,
             self.destination_cloud_storage_uris,
         )

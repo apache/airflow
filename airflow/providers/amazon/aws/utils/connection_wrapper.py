@@ -29,15 +29,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
-
-try:
-    from airflow.utils.types import NOTSET, ArgNotSet
-except ImportError:  # TODO: Remove when the provider has an Airflow 2.3+ requirement.
-
-    class ArgNotSet:  # type: ignore[no-redef]
-        """Sentinel type for annotations, useful when None is not viable."""
-
-    NOTSET = ArgNotSet()
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection  # Avoid circular imports.
@@ -402,11 +394,11 @@ class AwsConnectionWrapper(LoggingMixin):
             # There is no reason obtain `assume_role_method` and `assume_role_kwargs` if `role_arn` not set.
             return None, None, {}
 
-        supported_methods = ['assume_role', 'assume_role_with_saml', 'assume_role_with_web_identity']
+        supported_methods = ["assume_role", "assume_role_with_saml", "assume_role_with_web_identity"]
         if assume_role_method not in supported_methods:
             raise NotImplementedError(
-                f'Found assume_role_method={assume_role_method!r} in {self.conn_repr} extra.'
-                f' Currently {supported_methods} are supported.'
+                f"Found assume_role_method={assume_role_method!r} in {self.conn_repr} extra."
+                f" Currently {supported_methods} are supported."
                 ' (Exclude this setting will default to "assume_role").'
             )
         self.log.debug("Retrieve assume_role_method=%r from %s.", assume_role_method, self.conn_repr)

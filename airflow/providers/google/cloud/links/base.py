@@ -17,12 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TYPE_CHECKING, ClassVar
 
 from airflow.models import BaseOperatorLink, XCom
 
 if TYPE_CHECKING:
+    from airflow.models import BaseOperator
     from airflow.models.taskinstance import TaskInstanceKey
 
 
@@ -38,20 +38,11 @@ class BaseGoogleLink(BaseOperatorLink):
 
     def get_link(
         self,
-        operator,
-        dttm: datetime | None = None,
-        ti_key: TaskInstanceKey | None = None,
+        operator: BaseOperator,
+        *,
+        ti_key: TaskInstanceKey,
     ) -> str:
-        if ti_key is not None:
-            conf = XCom.get_value(key=self.key, ti_key=ti_key)
-        else:
-            assert dttm
-            conf = XCom.get_one(
-                key=self.key,
-                dag_id=operator.dag.dag_id,
-                task_id=operator.task_id,
-                execution_date=dttm,
-            )
+        conf = XCom.get_value(key=self.key, ti_key=ti_key)
         if not conf:
             return ""
         if self.format_str.startswith(BASE_LINK):

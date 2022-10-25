@@ -219,7 +219,7 @@ class PinotAdminHook(BaseHook):
         ) as sub_process:
             stdout = ""
             if sub_process.stdout:
-                for line in iter(sub_process.stdout.readline, b''):
+                for line in iter(sub_process.stdout.readline, b""):
                     stdout += line.decode("utf-8")
                     if verbose:
                         self.log.info(line.decode("utf-8").strip())
@@ -245,8 +245,8 @@ class PinotDbApiHook(DbApiHook):
     https://docs.pinot.apache.org/users/api/querying-pinot-using-standard-sql
     """
 
-    conn_name_attr = 'pinot_broker_conn_id'
-    default_conn_name = 'pinot_broker_default'
+    conn_name_attr = "pinot_broker_conn_id"
+    default_conn_name = "pinot_broker_default"
     supports_autocommit = False
 
     def get_conn(self) -> Any:
@@ -256,10 +256,10 @@ class PinotDbApiHook(DbApiHook):
         pinot_broker_conn = connect(
             host=conn.host,
             port=conn.port,
-            path=conn.extra_dejson.get('endpoint', '/query/sql'),
-            scheme=conn.extra_dejson.get('schema', 'http'),
+            path=conn.extra_dejson.get("endpoint", "/query/sql"),
+            scheme=conn.extra_dejson.get("schema", "http"),
         )
-        self.log.info('Get the connection to pinot broker on %s', conn.host)
+        self.log.info("Get the connection to pinot broker on %s", conn.host)
         return pinot_broker_conn
 
     def get_uri(self) -> str:
@@ -271,10 +271,10 @@ class PinotDbApiHook(DbApiHook):
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         host = conn.host
         if conn.port is not None:
-            host += f':{conn.port}'
-        conn_type = conn.conn_type or 'http'
-        endpoint = conn.extra_dejson.get('endpoint', 'query/sql')
-        return f'{conn_type}://{host}/{endpoint}'
+            host += f":{conn.port}"
+        conn_type = conn.conn_type or "http"
+        endpoint = conn.extra_dejson.get("endpoint", "query/sql")
+        return f"{conn_type}://{host}/{endpoint}"
 
     def get_records(
         self, sql: str | list[str], parameters: Iterable | Mapping | None = None, **kwargs

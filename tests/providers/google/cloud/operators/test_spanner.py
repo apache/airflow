@@ -33,12 +33,12 @@ from airflow.providers.google.cloud.operators.spanner import (
     SpannerUpdateDatabaseInstanceOperator,
 )
 
-PROJECT_ID = 'project-id'
-INSTANCE_ID = 'instance-id'
-DB_ID = 'db1'
-CONFIG_NAME = 'projects/project-id/instanceConfigs/eur3'
-NODE_COUNT = '1'
-DISPLAY_NAME = 'Test Instance'
+PROJECT_ID = "project-id"
+INSTANCE_ID = "instance-id"
+DB_ID = "db1"
+CONFIG_NAME = "projects/project-id/instanceConfigs/eur3"
+NODE_COUNT = "1"
+DISPLAY_NAME = "Test Instance"
 INSERT_QUERY = "INSERT my_table1 (id, name) VALUES (1, 'One')"
 INSERT_QUERY_2 = "INSERT my_table2 (id, name) VALUES (1, 'One')"
 CREATE_QUERY = "CREATE TABLE my_table1 (id INT64, name STRING(100))"
@@ -415,9 +415,9 @@ class TestCloudSpanner(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, 'project_id'),
-            (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, 'instance_id'),
-            (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, 'database_id'),
+            ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, "project_id"),
+            (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, "instance_id"),
+            (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, "database_id"),
         ]
     )
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
@@ -484,9 +484,9 @@ class TestCloudSpanner(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, 'project_id'),
-            (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, 'instance_id'),
-            (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, 'database_id'),
+            ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, "project_id"),
+            (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, "instance_id"),
+            (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, "database_id"),
         ]
     )
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
@@ -573,9 +573,9 @@ class TestCloudSpanner(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, 'project_id'),
-            (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, 'instance_id'),
-            (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, 'database_id'),
+            ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, "project_id"),
+            (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, "instance_id"),
+            (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, "database_id"),
         ]
     )
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")

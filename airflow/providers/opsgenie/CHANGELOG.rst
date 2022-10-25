@@ -24,6 +24,15 @@
 Changelog
 ---------
 
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* Remove 'OpsgenieAlertOperator' also removed hooks.opsgenie_alert path
+
+
 4.0.0
 .....
 

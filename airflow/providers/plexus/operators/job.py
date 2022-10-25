@@ -122,8 +122,8 @@ class PlexusJobOperator(BaseOperator):
             for dct in results:
                 if dct[mapping[0]] == mapping[1]:
                     v = dct[key]
-                if param == 'app':
-                    self.is_service = dct['is_service']
+                if param == "app":
+                    self.is_service = dct["is_service"]
         if v is None:
             raise AirflowException(f"Could not locate value for param:{key} at endpoint: {endpoint}")
 

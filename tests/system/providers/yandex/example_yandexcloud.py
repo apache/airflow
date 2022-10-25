@@ -34,12 +34,12 @@ from airflow.decorators import task
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = 'example_yandexcloud_hook'
+DAG_ID = "example_yandexcloud_hook"
 
 # Fill it with your identifiers
-YC_S3_BUCKET_NAME = ''  # Fill to use S3 instead of HFDS
+YC_S3_BUCKET_NAME = ""  # Fill to use S3 instead of HFDS
 YC_FOLDER_ID = None  # Fill to override default YC folder from connection data
-YC_ZONE_NAME = 'ru-central1-b'
+YC_ZONE_NAME = "ru-central1-b"
 YC_SUBNET_ID = None  # Fill if you have more than one VPC subnet in given folder and zone
 YC_SERVICE_ACCOUNT_ID = None  # Fill if you have more than one YC service account in given folder
 
@@ -61,19 +61,19 @@ def create_cluster_request(
         bucket=YC_S3_BUCKET_NAME,
         config_spec=cluster_service_pb.CreateClusterConfigSpec(
             hadoop=cluster_pb.HadoopConfig(
-                services=('SPARK', 'YARN'),
+                services=("SPARK", "YARN"),
                 ssh_public_keys=[ssh_public_key],
             ),
             subclusters_spec=[
                 cluster_service_pb.CreateSubclusterConfigSpec(
-                    name='master',
+                    name="master",
                     role=subcluster_pb.Role.MASTERNODE,
                     resources=resources,
                     subnet_id=subnet_id,
                     hosts_count=1,
                 ),
                 cluster_service_pb.CreateSubclusterConfigSpec(
-                    name='compute',
+                    name="compute",
                     role=subcluster_pb.Role.COMPUTENODE,
                     resources=resources,
                     subnet_id=subnet_id,
@@ -107,19 +107,19 @@ def create_cluster(
     service_account_id = service_account_id or hook.sdk.helpers.find_service_account_id()
     ssh_public_key = ssh_public_key or hook.default_public_ssh_key
 
-    dag_id = dag and dag.dag_id or 'dag'
+    dag_id = dag and dag.dag_id or "dag"
 
     request = create_cluster_request(
         folder_id=folder_id,
         subnet_id=subnet_id,
         zone=zone,
-        cluster_name=f'airflow_{dag_id}_{ts_nodash}'[:62],
-        cluster_desc='Created via Airflow custom hook task',
+        cluster_name=f"airflow_{dag_id}_{ts_nodash}"[:62],
+        cluster_desc="Created via Airflow custom hook task",
         service_account_id=service_account_id,
         ssh_public_key=ssh_public_key,
         resources=common_pb.Resources(
-            resource_preset_id='s2.micro',
-            disk_type_id='network-ssd',
+            resource_preset_id="s2.micro",
+            disk_type_id="network-ssd",
         ),
     )
     operation = hook.sdk.client(cluster_service_grpc_pb.ClusterServiceStub).Create(request)
@@ -138,11 +138,11 @@ def run_spark_job(
 
     request = job_service_pb.CreateJobRequest(
         cluster_id=cluster_id,
-        name='Spark job: Find total urban population in distribution by country',
+        name="Spark job: Find total urban population in distribution by country",
         spark_job=job_pb.SparkJob(
-            main_jar_file_uri='file:///usr/lib/spark/examples/jars/spark-examples.jar',
-            main_class='org.apache.spark.examples.SparkPi',
-            args=['1000'],
+            main_jar_file_uri="file:///usr/lib/spark/examples/jars/spark-examples.jar",
+            main_class="org.apache.spark.examples.SparkPi",
+            args=["1000"],
         ),
     )
     operation = hook.sdk.client(job_service_grpc_pb.JobServiceStub).Create(request)
@@ -152,7 +152,7 @@ def run_spark_job(
     return MessageToDict(operation_result.response)
 
 
-@task(trigger_rule='all_done')
+@task(trigger_rule="all_done")
 def delete_cluster(
     cluster_id: str,
     yandex_conn_id: str | None = None,
@@ -172,7 +172,7 @@ with DAG(
     dag_id=DAG_ID,
     schedule=None,
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     cluster_id = create_cluster(
         folder_id=YC_FOLDER_ID,

@@ -40,22 +40,22 @@ p = "password"
 def logger(caplog):
     logging.config.dictConfig(
         {
-            'version': 1,
-            'handlers': {
+            "version": 1,
+            "handlers": {
                 __name__: {
                     # Reset later
-                    'class': 'logging.StreamHandler',
-                    'stream': 'ext://sys.stdout',
+                    "class": "logging.StreamHandler",
+                    "stream": "ext://sys.stdout",
                 }
             },
-            'loggers': {
+            "loggers": {
                 __name__: {
-                    'handlers': [__name__],
-                    'level': logging.INFO,
-                    'propagate': False,
+                    "handlers": [__name__],
+                    "level": logging.INFO,
+                    "propagate": False,
                 }
             },
-            'disable_existing_loggers': False,
+            "disable_existing_loggers": False,
         }
     )
     formatter = ShortExcFormatter("%(levelname)s %(message)s")
@@ -66,7 +66,7 @@ def logger(caplog):
     filt = SecretsMasker()
     logger.addFilter(filt)
 
-    filt.add_mask('password')
+    filt.add_mask("password")
 
     return logger
 
@@ -84,7 +84,7 @@ class TestSecretsMasker:
 
     def test_extra(self, logger, caplog):
         logger.handlers[0].formatter = ShortExcFormatter("%(levelname)s %(message)s %(conn)s")
-        logger.info("Cannot connect", extra={'conn': "user:password"})
+        logger.info("Cannot connect", extra={"conn": "user:password"})
 
         assert caplog.text == "INFO Cannot connect user:***\n"
 
@@ -163,9 +163,9 @@ class TestSecretsMasker:
                 try:
                     raise RuntimeError(f"Cannot connect to user:{p}")
                 except RuntimeError as ex1:
-                    raise RuntimeError(f'Exception: {ex1}')
+                    raise RuntimeError(f"Exception: {ex1}")
             except RuntimeError as ex2:
-                raise RuntimeError(f'Exception: {ex2}')
+                raise RuntimeError(f"Exception: {ex2}")
         except RuntimeError:
             logger.exception("Err")
 
@@ -183,14 +183,14 @@ class TestSecretsMasker:
 
             Traceback (most recent call last):
               File ".../test_secrets_masker.py", line {line+2}, in test_masking_in_implicit_context_exceptions
-                raise RuntimeError(f'Exception: {{ex1}}')
+                raise RuntimeError(f"Exception: {{ex1}}")
             RuntimeError: Exception: Cannot connect to user:***
 
             During handling of the above exception, another exception occurred:
 
             Traceback (most recent call last):
               File ".../test_secrets_masker.py", line {line+4}, in test_masking_in_implicit_context_exceptions
-                raise RuntimeError(f'Exception: {{ex2}}')
+                raise RuntimeError(f"Exception: {{ex2}}")
             RuntimeError: Exception: Exception: Cannot connect to user:***
             """
         )
@@ -205,7 +205,7 @@ class TestSecretsMasker:
         except RuntimeError as ex:
             exception = ex
         try:
-            raise RuntimeError(f'Exception: {exception}') from exception
+            raise RuntimeError(f"Exception: {exception}") from exception
         except RuntimeError:
             logger.exception("Err")
 
@@ -223,7 +223,7 @@ class TestSecretsMasker:
 
             Traceback (most recent call last):
               File ".../test_secrets_masker.py", line {line+4}, in test_masking_in_explicit_context_exceptions
-                raise RuntimeError(f'Exception: {{exception}}') from exception
+                raise RuntimeError(f"Exception: {{exception}}") from exception
             RuntimeError: Exception: Cannot connect to user:***
             """
         )
@@ -274,9 +274,9 @@ class TestSecretsMasker:
             (
                 # Test that masking still works based on name even when no patterns given
                 set(),
-                'env',
-                {'api_key': 'masked based on key name', 'other': 'foo'},
-                {'api_key': '***', 'other': 'foo'},
+                "env",
+                {"api_key": "masked based on key name", "other": "foo"},
+                {"api_key": "***", "other": "foo"},
             ),
         ],
     )
@@ -300,7 +300,7 @@ class TestShouldHideValueForKey:
     @pytest.mark.parametrize(
         ("key", "expected_result"),
         [
-            ('', False),
+            ("", False),
             (None, False),
             ("key", False),
             ("google_api_key", True),
@@ -315,20 +315,20 @@ class TestShouldHideValueForKey:
     @pytest.mark.parametrize(
         ("sensitive_variable_fields", "key", "expected_result"),
         [
-            ('key', 'TRELLO_KEY', True),
-            ('key', 'TRELLO_API_KEY', True),
-            ('key', 'GITHUB_APIKEY', True),
-            ('key, token', 'TRELLO_TOKEN', True),
-            ('mysecretword, mysensitivekey', 'GITHUB_mysecretword', True),
-            (None, 'TRELLO_API', False),
-            ('token', 'TRELLO_KEY', False),
-            ('token, mysecretword', 'TRELLO_KEY', False),
+            ("key", "TRELLO_KEY", True),
+            ("key", "TRELLO_API_KEY", True),
+            ("key", "GITHUB_APIKEY", True),
+            ("key, token", "TRELLO_TOKEN", True),
+            ("mysecretword, mysensitivekey", "GITHUB_mysecretword", True),
+            (None, "TRELLO_API", False),
+            ("token", "TRELLO_KEY", False),
+            ("token, mysecretword", "TRELLO_KEY", False),
         ],
     )
     def test_hiding_config(self, sensitive_variable_fields, key, expected_result):
         from airflow.utils.log.secrets_masker import get_sensitive_variables_fields
 
-        with conf_vars({('core', 'sensitive_var_conn_names'): str(sensitive_variable_fields)}):
+        with conf_vars({("core", "sensitive_var_conn_names"): str(sensitive_variable_fields)}):
             get_sensitive_variables_fields.cache_clear()
             assert expected_result == should_hide_value_for_key(key)
         get_sensitive_variables_fields.cache_clear()
@@ -372,6 +372,6 @@ class TestRedactedIO:
 
         This is used by debuggers!
         """
-        monkeypatch.setattr(sys, 'stdin', io.StringIO("a\n"))
+        monkeypatch.setattr(sys, "stdin", io.StringIO("a\n"))
         with contextlib.redirect_stdout(RedactedIO()):
             assert input() == "a"

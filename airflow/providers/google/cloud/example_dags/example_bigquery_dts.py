@@ -69,7 +69,7 @@ with models.DAG(
     "example_gcp_bigquery_dts",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [START howto_bigquery_create_data_transfer]
     gcp_bigquery_create_transfer = BigQueryCreateDataTransferOperator(

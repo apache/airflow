@@ -195,7 +195,7 @@ jobs:
         # the build-images.yml (there we cannot import python code coming from the PR - we need to
         # treat the python code as text and extract the variables from there.
         run: |
-          python - <<EOF >>$GITHUB_ENV
+          python - <<EOF >> ${GITHUB_ENV}
           from pathlib import Path
           import re
           import sys
@@ -219,13 +219,13 @@ jobs:
       - run: ./scripts/ci/install_breeze.sh
       - name: "Get information about the Workflow"
         id: source-run-info
-        run: breeze ci get-workflow-info
+        run: breeze ci get-workflow-info 2>> ${GITHUB_OUTPUT}
       - name: Selective checks
         id: selective-checks
         env:
           PR_LABELS: "${{ steps.source-run-info.outputs.pr-labels }}"
           COMMIT_REF: "${{ github.sha }}"
-        run: breeze ci selective-check
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
       - name: env
         run: printenv
         env:
@@ -409,6 +409,15 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
           DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
         if: needs.build-info.outputs.in-workflow-build == 'true'
+      - name: "Show dependencies to be upgraded"
+        run: >
+          breeze release-management generate-constraints --run-in-parallel
+          --airflow-constraints-mode constraints-source-providers
+        env:
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+        if: >
+          needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' &&
+          needs.build-info.outputs.in-workflow-build == 'true'
       - name: "Candidates for pip resolver backtrack triggers"
         if: failure() || cancelled()
         run: >
@@ -595,7 +604,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -617,7 +626,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs: [build-info]
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -696,8 +705,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Get Python version"
-        run: "echo \"::set-output name=host-python-version::$(python -c
- 'import platform; print(platform.python_version())')\""
+        run: >
+         echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
+         >> ${GITHUB_OUTPUT}
         id: host-python-version
       - name: "Static checks"
         run: breeze static-checks --all-files --show-diff-on-failure --color always
@@ -747,8 +757,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Free space"
         run: breeze ci free-space
       - name: "Get Python version"
-        run: "echo \"::set-output name=host-python-version::$(python -c
- 'import platform; print(platform.python_version())')\""
+        run: >
+          echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
+          >> ${GITHUB_OUTPUT}
         id: host-python-version
       - name: "Static checks: basic checks only"
         run: >
@@ -873,32 +884,22 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: |
           pipx install twine
           twine check dist/*.whl
-      - name: "Remove airflow package and replace providers with 2.2-compliant versions"
+      - name: "Remove airflow package and replace providers with 2.3-compliant versions"
         run: |
           rm -vf dist/apache_airflow-*.whl \
-             dist/apache_airflow_providers_cncf_kubernetes*.whl \
-             dist/apache_airflow_providers_celery*.whl
+             dist/apache_airflow_providers_docker*.whl
           pip download --no-deps --dest dist \
-              apache-airflow-providers-cncf-kubernetes==3.0.0 \
-              apache-airflow-providers-celery==2.1.3
-      - name: "Install and test provider packages and airflow on Airflow 2.2 files"
+              apache-airflow-providers-docker==3.1.0
+      - name: "Get all provider extras as AIRFLOW_EXTRAS evn variable"
         run: >
-          breeze release-management verify-provider-packages --use-airflow-version 2.2.0
-          --use-packages-from-dist --package-format wheel --airflow-constraints-reference constraints-2.2.0
-        env:
-          # The extras below are all extras that should be installed with Airflow 2.2.0
-          AIRFLOW_EXTRAS: "airbyte,alibaba,amazon,apache.atlas,apache.beam,apache.cassandra,apache.drill,\
-            apache.druid,apache.hdfs,apache.hive,apache.kylin,apache.livy,apache.pig,apache.pinot,\
-            apache.spark,apache.sqoop,apache.webhdfs,asana,async,\
-            celery,cgroups,cloudant,cncf.kubernetes,dask,databricks,datadog,\
-            deprecated_api,dingding,discord,docker,\
-            elasticsearch,exasol,facebook,ftp,github_enterprise,google,google_auth,\
-            grpc,hashicorp,http,imap,influxdb,jdbc,jenkins,jira,kerberos,ldap,\
-            leveldb,microsoft.azure,microsoft.mssql,microsoft.psrp,microsoft.winrm,mongo,mysql,\
-            neo4j,odbc,openfaas,opsgenie,oracle,pagerduty,pandas,papermill,password,plexus,\
-            postgres,presto,qubole,rabbitmq,redis,salesforce,samba,segment,sendgrid,sentry,\
-            sftp,singularity,slack,snowflake,sqlite,ssh,statsd,tableau,telegram,trino,vertica,\
-            virtualenv,yandex,zendesk"
+          python -c 'from pathlib import Path; import json;
+          providers = json.loads(Path("generated/provider_dependencies.json").read_text());
+          provider_keys = ",".join(providers.keys());
+          print("AIRFLOW_EXTRAS={}".format(provider_keys))' >> $GITHUB_ENV
+      - name: "Install and test provider packages and airflow on Airflow 2.3 files"
+        run: >
+          breeze release-management verify-provider-packages --use-airflow-version 2.3.0
+          --use-packages-from-dist --package-format wheel --airflow-constraints-reference constraints-2.3.0
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
@@ -948,7 +949,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           breeze release-management prepare-airflow-package
           --package-format sdist --version-suffix-for-pypi dev0
       - name: "Upload provider distribution artifacts"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: airflow-provider-packages
           path: "./dist/apache-airflow-providers-*.tar.gz"
@@ -1398,15 +1399,15 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Set issue id for main"
         if: github.ref == 'refs/heads/main'
         run: |
-          echo "ISSUE_ID=10118" >> $GITHUB_ENV
+          echo "ISSUE_ID=10118" >> ${GITHUB_ENV}
       - name: "Set issue id for v1-10-stable"
         if: github.ref == 'refs/heads/v1-10-stable'
         run: |
-          echo "ISSUE_ID=10127" >> $GITHUB_ENV
+          echo "ISSUE_ID=10127" >> ${GITHUB_ENV}
       - name: "Set issue id for v1-10-test"
         if: github.ref == 'refs/heads/v1-10-test'
         run: |
-          echo "ISSUE_ID=10128" >> $GITHUB_ENV
+          echo "ISSUE_ID=10128" >> ${GITHUB_ENV}
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: breeze ci free-space
@@ -1689,7 +1690,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       - name: "Set constraints branch name"
         id: constraints-branch
-        run: ./scripts/ci/constraints/ci_branch_constraints.sh
+        run: ./scripts/ci/constraints/ci_branch_constraints.sh >> ${GITHUB_OUTPUT}
         if: needs.build-info.outputs.canary-run == 'true'
       - name: Checkout ${{ steps.constraints-branch.outputs.branch }}
         uses: actions/checkout@v3
@@ -1840,7 +1841,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false

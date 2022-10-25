@@ -32,7 +32,7 @@ from tests.test_utils.db import clear_db_pools
 def google_openid_app():
     confs = {
         ("api", "auth_backends"): "airflow.providers.google.common.auth_backend.google_openid",
-        ('api', 'enable_experimental_api'): 'true',
+        ("api", "enable_experimental_api"): "true",
     }
     with conf_vars(confs):
         return create_app(testing=True)

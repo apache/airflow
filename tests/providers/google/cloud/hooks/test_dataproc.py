@@ -78,7 +78,7 @@ class TestDataprocHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("ClusterControllerClient"))
     def test_get_cluster_client_region(self, mock_client, mock_get_credentials):
-        self.hook.get_cluster_client(region='region1')
+        self.hook.get_cluster_client(region="region1")
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
@@ -98,7 +98,7 @@ class TestDataprocHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("WorkflowTemplateServiceClient"))
     def test_get_template_client_region(self, mock_client, mock_get_credentials):
-        _ = self.hook.get_template_client(region='region1')
+        _ = self.hook.get_template_client(region="region1")
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
@@ -118,7 +118,7 @@ class TestDataprocHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("JobControllerClient"))
     def test_get_job_client_region(self, mock_client, mock_get_credentials):
-        self.hook.get_job_client(region='region1')
+        self.hook.get_job_client(region="region1")
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
@@ -138,7 +138,7 @@ class TestDataprocHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("BatchControllerClient"))
     def test_get_batch_client_region(self, mock_client, mock_get_credentials):
-        self.hook.get_batch_client(region='region1')
+        self.hook.get_batch_client(region="region1")
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value, client_info=CLIENT_INFO, client_options=ANY
         )
@@ -270,7 +270,7 @@ class TestDataprocHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
     def test_create_workflow_template(self, mock_client):
         template = {"test": "test"}
-        parent = f'projects/{GCP_PROJECT}/regions/{GCP_LOCATION}'
+        parent = f"projects/{GCP_PROJECT}/regions/{GCP_LOCATION}"
         self.hook.create_workflow_template(region=GCP_LOCATION, template=template, project_id=GCP_PROJECT)
         mock_client.return_value.create_workflow_template.assert_called_once_with(
             request=dict(parent=parent, template=template), retry=DEFAULT, timeout=None, metadata=()
@@ -279,7 +279,7 @@ class TestDataprocHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
     def test_instantiate_workflow_template(self, mock_client):
         template_name = "template_name"
-        name = f'projects/{GCP_PROJECT}/regions/{GCP_LOCATION}/workflowTemplates/{template_name}'
+        name = f"projects/{GCP_PROJECT}/regions/{GCP_LOCATION}/workflowTemplates/{template_name}"
         self.hook.instantiate_workflow_template(
             region=GCP_LOCATION, template_name=template_name, project_id=GCP_PROJECT
         )
@@ -298,7 +298,7 @@ class TestDataprocHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
     def test_instantiate_inline_workflow_template(self, mock_client):
         template = {"test": "test"}
-        parent = f'projects/{GCP_PROJECT}/regions/{GCP_LOCATION}'
+        parent = f"projects/{GCP_PROJECT}/regions/{GCP_LOCATION}"
         self.hook.instantiate_inline_workflow_template(
             region=GCP_LOCATION, template=template, project_id=GCP_PROJECT
         )
@@ -481,7 +481,7 @@ class TestDataprocAsyncHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("ClusterControllerAsyncClient"))
     def test_get_cluster_client_region(self, mock_client, mock_get_credentials):
-        self.hook.get_cluster_client(region='region1')
+        self.hook.get_cluster_client(region="region1")
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
@@ -501,7 +501,7 @@ class TestDataprocAsyncHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("WorkflowTemplateServiceAsyncClient"))
     def test_get_template_client_region(self, mock_client, mock_get_credentials):
-        _ = self.hook.get_template_client(region='region1')
+        _ = self.hook.get_template_client(region="region1")
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
@@ -521,7 +521,7 @@ class TestDataprocAsyncHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("JobControllerAsyncClient"))
     def test_get_job_client_region(self, mock_client, mock_get_credentials):
-        self.hook.get_job_client(region='region1')
+        self.hook.get_job_client(region="region1")
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
@@ -541,7 +541,7 @@ class TestDataprocAsyncHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("BatchControllerAsyncClient"))
     def test_get_batch_client_region(self, mock_client, mock_get_credentials):
-        self.hook.get_batch_client(region='region1')
+        self.hook.get_batch_client(region="region1")
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value, client_info=CLIENT_INFO, client_options=ANY
         )
@@ -682,7 +682,7 @@ class TestDataprocAsyncHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_template_client"))
     async def test_create_workflow_template(self, mock_client):
         template = {"test": "test"}
-        parent = f'projects/{GCP_PROJECT}/regions/{GCP_LOCATION}'
+        parent = f"projects/{GCP_PROJECT}/regions/{GCP_LOCATION}"
         await self.hook.create_workflow_template(
             region=GCP_LOCATION, template=template, project_id=GCP_PROJECT
         )
@@ -694,7 +694,7 @@ class TestDataprocAsyncHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_template_client"))
     async def test_instantiate_workflow_template(self, mock_client):
         template_name = "template_name"
-        name = f'projects/{GCP_PROJECT}/regions/{GCP_LOCATION}/workflowTemplates/{template_name}'
+        name = f"projects/{GCP_PROJECT}/regions/{GCP_LOCATION}/workflowTemplates/{template_name}"
         await self.hook.instantiate_workflow_template(
             region=GCP_LOCATION, template_name=template_name, project_id=GCP_PROJECT
         )
@@ -714,7 +714,7 @@ class TestDataprocAsyncHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_template_client"))
     async def test_instantiate_inline_workflow_template(self, mock_client):
         template = {"test": "test"}
-        parent = f'projects/{GCP_PROJECT}/regions/{GCP_LOCATION}'
+        parent = f"projects/{GCP_PROJECT}/regions/{GCP_LOCATION}"
         await self.hook.instantiate_inline_workflow_template(
             region=GCP_LOCATION, template=template, project_id=GCP_PROJECT
         )
