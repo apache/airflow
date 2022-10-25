@@ -296,6 +296,41 @@ class TestKubernetesExecutor:
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
+    @mock.patch("airflow.executors.kubernetes_executor.pod_mutation_hook")
+    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    def test_run_next_pmh_error_requeue(self, mock_get_kube_client, mock_pmh):
+        """
+        Exception during Pod Mutation Hook execution should be handled gracefully.
+        The job should also be re-queued in case the Pod Mutation Hook failed due to transient reason.
+
+        """
+        mock_pmh.side_effect = Exception("Purposely generate error for test")
+
+        mock_kube_client = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
+        mock_kube_client.create_namespaced_pod = mock.MagicMock()
+        mock_get_kube_client.return_value = mock_kube_client
+
+        kubernetes_executor = self.kubernetes_executor
+        kubernetes_executor.start()
+        try_number = 1
+        task_instance_key = TaskInstanceKey("dag", "task", "run_id", try_number)
+        kubernetes_executor.execute_async(
+            key=task_instance_key,
+            queue=None,
+            command=["airflow", "tasks", "run", "true", "some_parameter"],
+        )
+        kubernetes_executor.sync()
+
+        # The pod_mutation_hook should have been called once.
+        assert mock_pmh.call_count == 1
+        # There should be no pod creation request sent
+        assert mock_kube_client.create_namespaced_pod.call_count == 0
+        # The task should have been re-queued
+        assert not kubernetes_executor.task_queue.empty()
+
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
     def test_run_next_pod_reconciliation_error(self, mock_get_kube_client, mock_kubernetes_job_watcher):
