@@ -85,6 +85,28 @@ class TestGSheetsHook(unittest.TestCase):
         )
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
+    def test_get_values_empty(self, get_conn):
+        get_method = get_conn.return_value.spreadsheets.return_value.values.return_value.get
+        execute_method = get_method.return_value.execute
+        execute_method.return_value = {}
+        result = self.hook.get_values(
+            spreadsheet_id=SPREADSHEET_ID,
+            range_=RANGE_,
+            major_dimension=MAJOR_DIMENSION,
+            value_render_option=VALUE_RENDER_OPTION,
+            date_time_render_option=DATE_TIME_RENDER_OPTION,
+        )
+        assert result == []
+        execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
+        get_method.assert_called_once_with(
+            spreadsheetId=SPREADSHEET_ID,
+            range=RANGE_,
+            majorDimension=MAJOR_DIMENSION,
+            valueRenderOption=VALUE_RENDER_OPTION,
+            dateTimeRenderOption=DATE_TIME_RENDER_OPTION,
+        )
+
+    @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_batch_get_values(self, get_conn):
         batch_get_method = get_conn.return_value.spreadsheets.return_value.values.return_value.batchGet
         execute_method = batch_get_method.return_value.execute
