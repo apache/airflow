@@ -19,7 +19,9 @@
 
 /* global localStorage */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, {
+  useState, useRef, useEffect, useCallback,
+} from 'react';
 import {
   Box,
   Flex,
@@ -76,29 +78,32 @@ const Main = () => {
     }
   }, []);
 
-  useEffect(() => {
-    const resize = (e: any) => {
-      if (gridRef.current && e.x > 350 && e.x < window.innerWidth - 400) {
-        gridRef.current.style.width = `${e.x}px`;
-      }
-    };
+  const resize = useCallback((e: MouseEvent) => {
+    const gridEl = gridRef.current;
+    if (gridEl && e.x > 350 && e.x < window.innerWidth - 400) {
+      gridEl.style.width = `${e.x}px`;
+    }
+  }, [gridRef]);
 
+  useEffect(() => {
     const resizeEl = resizeRef.current;
     if (resizeEl) {
-      resizeEl?.addEventListener('mousedown', (e) => {
+      resizeEl.addEventListener('mousedown', (e) => {
         e.preventDefault();
-        document.addEventListener('mousemove', resize, false);
-      }, false);
+        document.addEventListener('mousemove', resize);
+      });
 
       document.addEventListener('mouseup', () => {
-        document.removeEventListener('mousemove', resize, false);
-      }, false);
+        document.removeEventListener('mousemove', resize);
+      });
+
+      return () => {
+        resizeEl?.removeEventListener('mousedown', resize);
+        document.removeEventListener('mouseup', resize);
+      };
     }
-    return () => {
-      resizeEl?.removeEventListener('mousedown', resize);
-      document.removeEventListener('mouseup', resize);
-    };
-  }, []);
+    return () => {};
+  }, [resize, isLoading]);
 
   return (
     <Box flex={1}>
