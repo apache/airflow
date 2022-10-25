@@ -223,7 +223,7 @@ class ExasolHook(DbApiHook):
         return autocommit
 
     @staticmethod
-    def _serialize_cell(cell, conn=None) -> object:  # type: ignore[override]
+    def _serialize_cell(cell, conn=None) -> Any:
         """
         Exasol will adapt all arguments to the execute() method internally,
         hence we return cell without any conversion.

@@ -273,13 +273,13 @@ class DatastoreHook(GoogleBaseHook):
         """
         admin_conn = self.get_conn()
 
-        output_uri_prefix: str = "gs://" + "/".join(filter(None, [bucket, namespace]))
+        output_url_prefix = f"gs://{'/'.join(filter(None, [bucket, namespace]))}"
         if not entity_filter:
             entity_filter = {}
         if not labels:
             labels = {}
         body = {
-            "outputUrlPrefix": output_uri_prefix,
+            "outputUrlPrefix": output_url_prefix,
             "entityFilter": entity_filter,
             "labels": labels,
         }
@@ -320,7 +320,7 @@ class DatastoreHook(GoogleBaseHook):
         """
         admin_conn = self.get_conn()
 
-        input_url: str = "gs://" + "/".join(filter(None, [bucket, namespace, file]))
+        input_url = f"gs://{'/'.join(filter(None, [bucket, namespace, file]))}"
         if not entity_filter:
             entity_filter = {}
         if not labels:

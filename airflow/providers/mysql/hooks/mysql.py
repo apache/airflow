@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Union
 
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -205,7 +205,7 @@ class MySqlHook(DbApiHook):
         conn.close()
 
     @staticmethod
-    def _serialize_cell(cell: object, conn: Connection | None = None) -> object:  # type: ignore[override]
+    def _serialize_cell(cell: object, conn: Connection | None = None) -> Any:
         """
         Convert argument to a literal.
 

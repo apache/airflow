@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 from contextlib import closing
 from copy import deepcopy
-from typing import Iterable, Union
+from typing import Any, Iterable, Union
 
 import psycopg2
 import psycopg2.extensions
@@ -155,7 +155,7 @@ class PostgresHook(DbApiHook):
         self.copy_expert(f"COPY {table} TO STDOUT", tmp_file)
 
     @staticmethod
-    def _serialize_cell(cell: object, conn: connection | None = None) -> object:  # type: ignore[override]
+    def _serialize_cell(cell: object, conn: connection | None = None) -> Any:
         """
         Postgresql will adapt all arguments to the execute() method internally,
         hence we return cell without any conversion.
