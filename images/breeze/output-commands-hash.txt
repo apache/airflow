@@ -50,7 +50,7 @@ setup:version:d11da4c17a23179830079b646160149c
 setup:a6bccf7a73bfac49ce5b027c8900ea61
 shell:557ee58e7c70af052f5ea7a173b39137
 start-airflow:b089191910e9c3f2ffd9c0079cdf38c6
-static-checks:425cd78507278494e345fb7648260c24
+static-checks:8acd42315c78e91537634a54095ee3e6
 stop:8ebd8a42f1003495d37b884de5ac7ce6
 testing:docker-compose-tests:70c744105ff61025f25d93a2f1f427c2
 testing:helm-tests:35f7ecef86fd9c9dbad73f20ebd64496
