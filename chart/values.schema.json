@@ -4230,7 +4230,7 @@
                     "default": null
                 },
                 "extraAnnotations": {
-                    "description": "Extra annotations for the PgBouncer Service.",
+                    "description": "Extra annotations for the PgBouncer Pod.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
