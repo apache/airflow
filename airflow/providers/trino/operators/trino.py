@@ -45,10 +45,10 @@ class TrinoOperator(SQLExecuteQueryOperator):
     :param parameters: (optional) the parameters to render the SQL query with.
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_fields_renderers = {'sql': 'sql'}
-    template_ext: Sequence[str] = ('.sql',)
-    ui_color = '#ededed'
+    template_fields: Sequence[str] = ("sql",)
+    template_fields_renderers = {"sql": "sql"}
+    template_ext: Sequence[str] = (".sql",)
+    ui_color = "#ededed"
 
     def __init__(self, *, trino_conn_id: str = "trino_default", **kwargs: Any) -> None:
         super().__init__(conn_id=trino_conn_id, **kwargs)

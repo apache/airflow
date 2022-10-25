@@ -56,17 +56,17 @@ def get_output_files(titles: list[str]) -> list[Output]:
 
 
 def nice_timedelta(delta: datetime.timedelta):
-    d = {'d': delta.days}
-    d['h'], rem = divmod(delta.seconds, 3600)
-    d['m'], d['s'] = divmod(rem, 60)
-    return "{d} days {h:02}:{m:02}:{s:02}".format(**d) if d['d'] else "{h:02}:{m:02}:{s:02}".format(**d)
+    d = {"d": delta.days}
+    d["h"], rem = divmod(delta.seconds, 3600)
+    d["m"], d["s"] = divmod(rem, 60)
+    return "{d} days {h:02}:{m:02}:{s:02}".format(**d) if d["d"] else "{h:02}:{m:02}:{s:02}".format(**d)
 
 
-ANSI_COLOUR_MATCHER = re.compile(r'(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]')
+ANSI_COLOUR_MATCHER = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
 
 
 def remove_ansi_colours(line):
-    return ANSI_COLOUR_MATCHER.sub('', line)
+    return ANSI_COLOUR_MATCHER.sub("", line)
 
 
 def get_last_lines_of_file(file_name: str, num_lines: int = 2) -> tuple[list[str], list[str]]:
@@ -84,7 +84,7 @@ def get_last_lines_of_file(file_name: str, num_lines: int = 2) -> tuple[list[str
         seek_size = min(os.stat(file_name).st_size, max_read)
     except FileNotFoundError:
         return [], []
-    with open(file_name, 'rb') as temp_f:
+    with open(file_name, "rb") as temp_f:
         temp_f.seek(-seek_size, os.SEEK_END)
         tail = temp_f.read().decode(errors="ignore")
     last_lines = tail.splitlines()[-num_lines:]
@@ -102,7 +102,7 @@ class AbstractProgressInfoMatcher(metaclass=ABCMeta):
 
 
 class DockerBuildxProgressMatcher(AbstractProgressInfoMatcher):
-    DOCKER_BUILDX_PROGRESS_MATCHER = re.compile(r'\s*#(\d*) ')
+    DOCKER_BUILDX_PROGRESS_MATCHER = re.compile(r"\s*#(\d*) ")
 
     def __init__(self):
         self.last_docker_build_lines: dict[str, str] = {}
@@ -176,23 +176,23 @@ class GenericRegexpProgressMatcher(AbstractProgressInfoMatcher):
         return [last_match]
 
 
-DOCKER_PULL_PROGRESS_REGEXP = r'^[0-9a-f]+: .*|.*\[[ \d%]*\].*|^Waiting'
+DOCKER_PULL_PROGRESS_REGEXP = r"^[0-9a-f]+: .*|.*\[[ \d%]*\].*|^Waiting"
 
 
 def bytes2human(n):
-    symbols = ('K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y')
+    symbols = ("K", "M", "G", "T", "P", "E", "Z", "Y")
     prefix = {}
     for i, s in enumerate(symbols):
         prefix[s] = 1 << (i + 1) * 10
     for s in reversed(symbols):
         if n >= prefix[s]:
             value = float(n) / prefix[s]
-            return f'{value:.1f}{s}'
+            return f"{value:.1f}{s}"
     return f"{n}B"
 
 
 def get_printable_value(key: str, value: Any) -> str:
-    if key == 'percent':
+    if key == "percent":
         return f"{value} %"
     if isinstance(value, (int, float)):
         return bytes2human(value)
@@ -227,21 +227,21 @@ def get_multi_tuple_array(title: str, tuples: list[tuple[NamedTuple, ...]]) -> T
 
 
 IGNORED_FSTYPES = [
-    'autofs',
-    'bps',
-    'cgroup',
-    'cgroup2',
-    'configfs',
-    'debugfs',
-    'devpts',
-    'fusectl',
-    'mqueue',
-    'nsfs',
-    'overlay',
-    'proc',
-    'pstore',
-    'squashfs',
-    'tracefs',
+    "autofs",
+    "bps",
+    "cgroup",
+    "cgroup2",
+    "configfs",
+    "debugfs",
+    "devpts",
+    "fusectl",
+    "mqueue",
+    "nsfs",
+    "overlay",
+    "proc",
+    "pstore",
+    "squashfs",
+    "tracefs",
 ]
 
 

@@ -87,10 +87,10 @@ MULTI_ACTION_PIPELINE = {
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
 
@@ -103,7 +103,7 @@ with models.DAG(
 
     # [START howto_run_pipeline]
     simple_life_science_action_pipeline = LifeSciencesRunPipelineOperator(
-        task_id='simple-action-pipeline',
+        task_id="simple-action-pipeline",
         body=SIMPLE_ACTION_PIPELINE,
         project_id=PROJECT_ID,
         location=LOCATION,
@@ -111,7 +111,7 @@ with models.DAG(
     # [END howto_run_pipeline]
 
     multiple_life_science_action_pipeline = LifeSciencesRunPipelineOperator(
-        task_id='multi-action-pipeline', body=MULTI_ACTION_PIPELINE, project_id=PROJECT_ID, location=LOCATION
+        task_id="multi-action-pipeline", body=MULTI_ACTION_PIPELINE, project_id=PROJECT_ID, location=LOCATION
     )
 
     delete_bucket = GCSDeleteBucketOperator(

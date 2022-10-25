@@ -26,7 +26,7 @@ from airflow.providers.influxdb.hooks.influxdb import InfluxDBHook
 
 @task(task_id="influxdb_task")
 def test_influxdb_hook():
-    bucket_name = 'test-influx'
+    bucket_name = "test-influx"
     influxdb_hook = InfluxDBHook()
     client = influxdb_hook.get_conn()
     print(client)
@@ -57,7 +57,7 @@ with DAG(
     schedule=None,
     start_date=datetime(2021, 1, 1),
     max_active_runs=1,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     test_influxdb_hook()
 

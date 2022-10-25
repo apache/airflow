@@ -68,10 +68,10 @@ class MySqlToHiveOperator(BaseOperator):
     :param tblproperties: TBLPROPERTIES of the hive table being created
     """
 
-    template_fields: Sequence[str] = ('sql', 'partition', 'hive_table')
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'mysql'}
-    ui_color = '#a0e08c'
+    template_fields: Sequence[str] = ("sql", "partition", "hive_table")
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "mysql"}
+    ui_color = "#a0e08c"
 
     def __init__(
         self,
@@ -85,8 +85,8 @@ class MySqlToHiveOperator(BaseOperator):
         quoting: str | None = None,
         quotechar: str = '"',
         escapechar: str | None = None,
-        mysql_conn_id: str = 'mysql_default',
-        hive_cli_conn_id: str = 'hive_cli_default',
+        mysql_conn_id: str = "mysql_default",
+        hive_cli_conn_id: str = "hive_cli_default",
         tblproperties: dict | None = None,
         **kwargs,
     ) -> None:
@@ -110,20 +110,20 @@ class MySqlToHiveOperator(BaseOperator):
         """Maps MySQL type to Hive type."""
         types = MySQLdb.constants.FIELD_TYPE
         type_map = {
-            types.BIT: 'INT',
-            types.DECIMAL: 'DOUBLE',
-            types.NEWDECIMAL: 'DOUBLE',
-            types.DOUBLE: 'DOUBLE',
-            types.FLOAT: 'DOUBLE',
-            types.INT24: 'INT',
-            types.LONG: 'BIGINT',
-            types.LONGLONG: 'DECIMAL(38,0)',
-            types.SHORT: 'INT',
-            types.TINY: 'SMALLINT',
-            types.YEAR: 'INT',
-            types.TIMESTAMP: 'TIMESTAMP',
+            types.BIT: "INT",
+            types.DECIMAL: "DOUBLE",
+            types.NEWDECIMAL: "DOUBLE",
+            types.DOUBLE: "DOUBLE",
+            types.FLOAT: "DOUBLE",
+            types.INT24: "INT",
+            types.LONG: "BIGINT",
+            types.LONGLONG: "DECIMAL(38,0)",
+            types.SHORT: "INT",
+            types.TINY: "SMALLINT",
+            types.YEAR: "INT",
+            types.TIMESTAMP: "TIMESTAMP",
         }
-        return type_map.get(mysql_type, 'STRING')
+        return type_map.get(mysql_type, "STRING")
 
     def execute(self, context: Context):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)

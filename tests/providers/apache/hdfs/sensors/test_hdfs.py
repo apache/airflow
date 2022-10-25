@@ -30,7 +30,7 @@ from airflow.utils.timezone import datetime
 from tests.test_utils.hdfs_utils import FakeHDFSHook
 
 DEFAULT_DATE = datetime(2015, 1, 1)
-TEST_DAG_ID = 'unit_test_dag'
+TEST_DAG_ID = "unit_test_dag"
 
 
 class TestHdfsSensor(unittest.TestCase):
@@ -44,8 +44,8 @@ class TestHdfsSensor(unittest.TestCase):
         """
         # When
         task = HdfsSensor(
-            task_id='Should_be_file_legacy',
-            filepath='/datadirectory/datafile',
+            task_id="Should_be_file_legacy",
+            filepath="/datadirectory/datafile",
             timeout=1,
             retry_delay=timedelta(seconds=1),
             poke_interval=1,
@@ -63,8 +63,8 @@ class TestHdfsSensor(unittest.TestCase):
         """
         # When
         task = HdfsSensor(
-            task_id='Should_be_file_legacy',
-            filepath='/datadirectory/datafile',
+            task_id="Should_be_file_legacy",
+            filepath="/datadirectory/datafile",
             timeout=1,
             file_size=20,
             retry_delay=timedelta(seconds=1),
@@ -83,8 +83,8 @@ class TestHdfsSensor(unittest.TestCase):
         :return:
         """
         task = HdfsSensor(
-            task_id='Should_not_be_file_legacy',
-            filepath='/datadirectory/not_existing_file_or_directory',
+            task_id="Should_not_be_file_legacy",
+            filepath="/datadirectory/not_existing_file_or_directory",
             timeout=1,
             retry_delay=timedelta(seconds=1),
             poke_interval=1,
@@ -109,12 +109,12 @@ class TestHdfsSensorFolder(unittest.TestCase):
         :return:
         """
         # Given
-        self.log.debug('#' * 10)
-        self.log.debug('Running %s', self._testMethodName)
-        self.log.debug('#' * 10)
+        self.log.debug("#" * 10)
+        self.log.debug("Running %s", self._testMethodName)
+        self.log.debug("#" * 10)
         task = HdfsFolderSensor(
-            task_id='Should_be_empty_directory',
-            filepath='/datadirectory/empty_directory',
+            task_id="Should_be_empty_directory",
+            filepath="/datadirectory/empty_directory",
             be_empty=True,
             timeout=1,
             retry_delay=timedelta(seconds=1),
@@ -134,12 +134,12 @@ class TestHdfsSensorFolder(unittest.TestCase):
         :return:
         """
         # Given
-        self.log.debug('#' * 10)
-        self.log.debug('Running %s', self._testMethodName)
-        self.log.debug('#' * 10)
+        self.log.debug("#" * 10)
+        self.log.debug("Running %s", self._testMethodName)
+        self.log.debug("#" * 10)
         task = HdfsFolderSensor(
-            task_id='Should_be_empty_directory_fail',
-            filepath='/datadirectory/not_empty_directory',
+            task_id="Should_be_empty_directory_fail",
+            filepath="/datadirectory/not_empty_directory",
             be_empty=True,
             timeout=1,
             retry_delay=timedelta(seconds=1),
@@ -158,12 +158,12 @@ class TestHdfsSensorFolder(unittest.TestCase):
         :return:
         """
         # Given
-        self.log.debug('#' * 10)
-        self.log.debug('Running %s', self._testMethodName)
-        self.log.debug('#' * 10)
+        self.log.debug("#" * 10)
+        self.log.debug("Running %s", self._testMethodName)
+        self.log.debug("#" * 10)
         task = HdfsFolderSensor(
-            task_id='Should_be_non_empty_directory',
-            filepath='/datadirectory/not_empty_directory',
+            task_id="Should_be_non_empty_directory",
+            filepath="/datadirectory/not_empty_directory",
             timeout=1,
             retry_delay=timedelta(seconds=1),
             poke_interval=1,
@@ -182,12 +182,12 @@ class TestHdfsSensorFolder(unittest.TestCase):
         :return:
         """
         # Given
-        self.log.debug('#' * 10)
-        self.log.debug('Running %s', self._testMethodName)
-        self.log.debug('#' * 10)
+        self.log.debug("#" * 10)
+        self.log.debug("Running %s", self._testMethodName)
+        self.log.debug("#" * 10)
         task = HdfsFolderSensor(
-            task_id='Should_be_empty_directory_fail',
-            filepath='/datadirectory/empty_directory',
+            task_id="Should_be_empty_directory_fail",
+            filepath="/datadirectory/empty_directory",
             timeout=1,
             retry_delay=timedelta(seconds=1),
             poke_interval=1,
@@ -212,13 +212,13 @@ class TestHdfsSensorRegex(unittest.TestCase):
         :return:
         """
         # Given
-        self.log.debug('#' * 10)
-        self.log.debug('Running %s', self._testMethodName)
-        self.log.debug('#' * 10)
+        self.log.debug("#" * 10)
+        self.log.debug("Running %s", self._testMethodName)
+        self.log.debug("#" * 10)
         compiled_regex = re.compile("test[1-2]file")
         task = HdfsRegexSensor(
-            task_id='Should_match_the_regex',
-            filepath='/datadirectory/regex_dir',
+            task_id="Should_match_the_regex",
+            filepath="/datadirectory/regex_dir",
             regex=compiled_regex,
             timeout=1,
             retry_delay=timedelta(seconds=1),
@@ -238,13 +238,13 @@ class TestHdfsSensorRegex(unittest.TestCase):
         :return:
         """
         # Given
-        self.log.debug('#' * 10)
-        self.log.debug('Running %s', self._testMethodName)
-        self.log.debug('#' * 10)
+        self.log.debug("#" * 10)
+        self.log.debug("Running %s", self._testMethodName)
+        self.log.debug("#" * 10)
         compiled_regex = re.compile("^IDoNotExist")
         task = HdfsRegexSensor(
-            task_id='Should_not_match_the_regex',
-            filepath='/datadirectory/regex_dir',
+            task_id="Should_not_match_the_regex",
+            filepath="/datadirectory/regex_dir",
             regex=compiled_regex,
             timeout=1,
             retry_delay=timedelta(seconds=1),
@@ -263,16 +263,16 @@ class TestHdfsSensorRegex(unittest.TestCase):
         :return:
         """
         # Given
-        self.log.debug('#' * 10)
-        self.log.debug('Running %s', self._testMethodName)
-        self.log.debug('#' * 10)
+        self.log.debug("#" * 10)
+        self.log.debug("Running %s", self._testMethodName)
+        self.log.debug("#" * 10)
         compiled_regex = re.compile("test[1-2]file")
         task = HdfsRegexSensor(
-            task_id='Should_match_the_regex_and_filesize',
-            filepath='/datadirectory/regex_dir',
+            task_id="Should_match_the_regex_and_filesize",
+            filepath="/datadirectory/regex_dir",
             regex=compiled_regex,
             ignore_copying=True,
-            ignored_ext=['_COPYING_', 'sftp'],
+            ignored_ext=["_COPYING_", "sftp"],
             file_size=10,
             timeout=1,
             retry_delay=timedelta(seconds=1),
@@ -292,13 +292,13 @@ class TestHdfsSensorRegex(unittest.TestCase):
         :return:
         """
         # Given
-        self.log.debug('#' * 10)
-        self.log.debug('Running %s', self._testMethodName)
-        self.log.debug('#' * 10)
+        self.log.debug("#" * 10)
+        self.log.debug("Running %s", self._testMethodName)
+        self.log.debug("#" * 10)
         compiled_regex = re.compile("test[1-2]file")
         task = HdfsRegexSensor(
-            task_id='Should_match_the_regex_but_filesize',
-            filepath='/datadirectory/regex_dir',
+            task_id="Should_match_the_regex_but_filesize",
+            filepath="/datadirectory/regex_dir",
             regex=compiled_regex,
             file_size=20,
             timeout=1,
@@ -318,15 +318,15 @@ class TestHdfsSensorRegex(unittest.TestCase):
         :return:
         """
         # Given
-        self.log.debug('#' * 10)
-        self.log.debug('Running %s', self._testMethodName)
-        self.log.debug('#' * 10)
+        self.log.debug("#" * 10)
+        self.log.debug("Running %s", self._testMethodName)
+        self.log.debug("#" * 10)
         compiled_regex = re.compile(r"copying_file_\d+.txt")
         task = HdfsRegexSensor(
-            task_id='Should_match_the_regex_but_filesize',
-            filepath='/datadirectory/regex_dir',
+            task_id="Should_match_the_regex_but_filesize",
+            filepath="/datadirectory/regex_dir",
             regex=compiled_regex,
-            ignored_ext=['_COPYING_', 'sftp'],
+            ignored_ext=["_COPYING_", "sftp"],
             file_size=20,
             timeout=1,
             retry_delay=timedelta(seconds=1),

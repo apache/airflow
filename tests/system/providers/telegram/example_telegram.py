@@ -31,15 +31,15 @@ DAG_ID = "example_telegram"
 CONN_ID = "telegram_conn_id"
 CHAT_ID = "-3222103937"
 
-with DAG(DAG_ID, start_date=datetime(2021, 1, 1), tags=['example']) as dag:
+with DAG(DAG_ID, start_date=datetime(2021, 1, 1), tags=["example"]) as dag:
 
     # [START howto_operator_telegram]
 
     send_message_telegram_task = TelegramOperator(
-        task_id='send_message_telegram',
+        task_id="send_message_telegram",
         telegram_conn_id=CONN_ID,
         chat_id=CHAT_ID,
-        text='Hello from Airflow!',
+        text="Hello from Airflow!",
         dag=dag,
     )
 

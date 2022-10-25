@@ -81,7 +81,7 @@ class GoogleDriveToLocalOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
-        self.log.info('Executing download: %s into %s', self.file_name, self.output_file)
+        self.log.info("Executing download: %s into %s", self.file_name, self.output_file)
         gdrive_hook = GoogleDriveHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

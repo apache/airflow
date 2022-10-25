@@ -81,10 +81,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     :param labels: The BigQuery resource label.
     """
 
-    conn_name_attr = 'gcp_conn_id'
-    default_conn_name = 'google_cloud_bigquery_default'
-    conn_type = 'gcpbigquery'
-    hook_name = 'Google Bigquery'
+    conn_name_attr = "gcp_conn_id"
+    default_conn_name = "google_cloud_bigquery_default"
+    conn_type = "gcpbigquery"
+    hook_name = "Google Bigquery"
 
     def __init__(
         self,
@@ -126,7 +126,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             "This method will be deprecated. Please use `BigQueryHook.get_client` method", DeprecationWarning
         )
         http_authorized = self._authorize()
-        return build('bigquery', 'v2', http=http_authorized, cache_discovery=False)
+        return build("bigquery", "v2", http=http_authorized, cache_discovery=False)
 
     def get_client(self, project_id: str | None = None, location: str | None = None) -> Client:
         """
@@ -157,10 +157,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if engine_kwargs is None:
             engine_kwargs = {}
         extras = self.get_connection(self.gcp_conn_id).extra_dejson
-        credentials_path = get_field(extras, 'key_path')
+        credentials_path = get_field(extras, "key_path")
         if credentials_path:
             return create_engine(self.get_uri(), credentials_path=credentials_path, **engine_kwargs)
-        keyfile_dict = get_field(extras, 'keyfile_dict')
+        keyfile_dict = get_field(extras, "keyfile_dict")
         if keyfile_dict:
             keyfile_content = keyfile_dict if isinstance(keyfile_dict, dict) else json.loads(keyfile_dict)
             return create_engine(self.get_uri(), credentials_info=keyfile_content, **engine_kwargs)
@@ -246,7 +246,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param kwargs: (optional) passed into pandas_gbq.read_gbq method
         """
         if dialect is None:
-            dialect = 'legacy' if self.use_legacy_sql else 'standard'
+            dialect = "legacy" if self.use_legacy_sql else "standard"
 
         credentials, project_id = self.get_credentials_and_project_id()
 
@@ -367,25 +367,25 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         _table_resource: dict[str, Any] = {}
 
         if self.location:
-            _table_resource['location'] = self.location
+            _table_resource["location"] = self.location
 
         if schema_fields:
-            _table_resource['schema'] = {'fields': schema_fields}
+            _table_resource["schema"] = {"fields": schema_fields}
 
         if time_partitioning:
-            _table_resource['timePartitioning'] = time_partitioning
+            _table_resource["timePartitioning"] = time_partitioning
 
         if cluster_fields:
-            _table_resource['clustering'] = {'fields': cluster_fields}
+            _table_resource["clustering"] = {"fields": cluster_fields}
 
         if labels:
-            _table_resource['labels'] = labels
+            _table_resource["labels"] = labels
 
         if view:
-            _table_resource['view'] = view
+            _table_resource["view"] = view
 
         if materialized_view:
-            _table_resource['materializedView'] = materialized_view
+            _table_resource["materializedView"] = materialized_view
 
         if encryption_configuration:
             _table_resource["encryptionConfiguration"] = encryption_configuration
@@ -454,11 +454,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             dataset_reference["location"] = dataset_reference.get("location", location)
 
         dataset: Dataset = Dataset.from_api_repr(dataset_reference)
-        self.log.info('Creating dataset: %s in project: %s ', dataset.dataset_id, dataset.project)
+        self.log.info("Creating dataset: %s in project: %s ", dataset.dataset_id, dataset.project)
         dataset_object = self.get_client(project_id=project_id, location=location).create_dataset(
             dataset=dataset, exists_ok=exists_ok
         )
-        self.log.info('Dataset created successfully.')
+        self.log.info("Dataset created successfully.")
         return dataset_object.to_api_repr()
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -482,7 +482,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param retry: How to retry the RPC.
         :return: List of tables associated with the dataset.
         """
-        self.log.info('Start getting tables list from dataset: %s.%s', project_id, dataset_id)
+        self.log.info("Start getting tables list from dataset: %s.%s", project_id, dataset_id)
         tables = self.get_client().list_tables(
             dataset=DatasetReference(project=project_id, dataset_id=dataset_id),
             max_results=max_results,
@@ -508,7 +508,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             If False and the dataset contains tables, the request will fail.
         :param retry: How to retry the RPC.
         """
-        self.log.info('Deleting from project: %s  Dataset:%s', project_id, dataset_id)
+        self.log.info("Deleting from project: %s  Dataset:%s", project_id, dataset_id)
         self.get_client(project_id=project_id).delete_dataset(
             dataset=DatasetReference(project=project_id, dataset_id=dataset_id),
             delete_contents=delete_contents,
@@ -522,13 +522,13 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         external_project_dataset_table: str,
         schema_fields: list,
         source_uris: list,
-        source_format: str = 'CSV',
+        source_format: str = "CSV",
         autodetect: bool = False,
-        compression: str = 'NONE',
+        compression: str = "NONE",
         ignore_unknown_values: bool = False,
         max_bad_records: int = 0,
         skip_leading_rows: int = 0,
-        field_delimiter: str = ',',
+        field_delimiter: str = ",",
         quote_character: str | None = None,
         allow_quoted_newlines: bool = False,
         allow_jagged_rows: bool = False,
@@ -609,34 +609,34 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         compression = compression.upper()
 
         external_config_api_repr = {
-            'autodetect': autodetect,
-            'sourceFormat': source_format,
-            'sourceUris': source_uris,
-            'compression': compression,
-            'ignoreUnknownValues': ignore_unknown_values,
+            "autodetect": autodetect,
+            "sourceFormat": source_format,
+            "sourceUris": source_uris,
+            "compression": compression,
+            "ignoreUnknownValues": ignore_unknown_values,
         }
 
         # if following fields are not specified in src_fmt_configs,
         # honor the top-level params for backward-compatibility
         backward_compatibility_configs = {
-            'skipLeadingRows': skip_leading_rows,
-            'fieldDelimiter': field_delimiter,
-            'quote': quote_character,
-            'allowQuotedNewlines': allow_quoted_newlines,
-            'allowJaggedRows': allow_jagged_rows,
-            'encoding': encoding,
+            "skipLeadingRows": skip_leading_rows,
+            "fieldDelimiter": field_delimiter,
+            "quote": quote_character,
+            "allowQuotedNewlines": allow_quoted_newlines,
+            "allowJaggedRows": allow_jagged_rows,
+            "encoding": encoding,
         }
-        src_fmt_to_param_mapping = {'CSV': 'csvOptions', 'GOOGLE_SHEETS': 'googleSheetsOptions'}
+        src_fmt_to_param_mapping = {"CSV": "csvOptions", "GOOGLE_SHEETS": "googleSheetsOptions"}
         src_fmt_to_configs_mapping = {
-            'csvOptions': [
-                'allowJaggedRows',
-                'allowQuotedNewlines',
-                'fieldDelimiter',
-                'skipLeadingRows',
-                'quote',
-                'encoding',
+            "csvOptions": [
+                "allowJaggedRows",
+                "allowQuotedNewlines",
+                "fieldDelimiter",
+                "skipLeadingRows",
+                "quote",
+                "encoding",
             ],
-            'googleSheetsOptions': ['skipLeadingRows'],
+            "googleSheetsOptions": ["skipLeadingRows"],
         }
         if source_format in src_fmt_to_param_mapping.keys():
             valid_configs = src_fmt_to_configs_mapping[src_fmt_to_param_mapping[source_format]]
@@ -664,11 +664,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if encryption_configuration:
             table.encryption_configuration = EncryptionConfiguration.from_api_repr(encryption_configuration)
 
-        self.log.info('Creating external table: %s', external_project_dataset_table)
+        self.log.info("Creating external table: %s", external_project_dataset_table)
         table_object = self.create_empty_table(
             table_resource=table.to_api_repr(), project_id=project_id, location=location, exists_ok=True
         )
-        self.log.info('External table created successfully: %s', external_project_dataset_table)
+        self.log.info("External table created successfully: %s", external_project_dataset_table)
         return table_object
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -709,9 +709,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         )
 
         table = Table.from_api_repr(table_resource)
-        self.log.info('Updating table: %s', table_resource["tableReference"])
+        self.log.info("Updating table: %s", table_resource["tableReference"])
         table_object = self.get_client(project_id=project_id).update_table(table=table, fields=fields)
-        self.log.info('Table %s.%s.%s updated successfully', project_id, dataset_id, table_id)
+        self.log.info("Table %s.%s.%s updated successfully", project_id, dataset_id, table_id)
         return table_object.to_api_repr()
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -785,23 +785,23 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         table_resource: dict[str, Any] = {}
 
         if description is not None:
-            table_resource['description'] = description
+            table_resource["description"] = description
         if expiration_time is not None:
-            table_resource['expirationTime'] = expiration_time
+            table_resource["expirationTime"] = expiration_time
         if external_data_configuration:
-            table_resource['externalDataConfiguration'] = external_data_configuration
+            table_resource["externalDataConfiguration"] = external_data_configuration
         if friendly_name is not None:
-            table_resource['friendlyName'] = friendly_name
+            table_resource["friendlyName"] = friendly_name
         if labels:
-            table_resource['labels'] = labels
+            table_resource["labels"] = labels
         if schema:
-            table_resource['schema'] = {'fields': schema}
+            table_resource["schema"] = {"fields": schema}
         if time_partitioning:
-            table_resource['timePartitioning'] = time_partitioning
+            table_resource["timePartitioning"] = time_partitioning
         if view:
-            table_resource['view'] = view
+            table_resource["view"] = view
         if require_partition_filter is not None:
-            table_resource['requirePartitionFilter'] = require_partition_filter
+            table_resource["requirePartitionFilter"] = require_partition_filter
         if encryption_configuration:
             table_resource["encryptionConfiguration"] = encryption_configuration
 
@@ -850,7 +850,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             The default value is false, which indicates the task should not fail
             even if any insertion errors occur.
         """
-        self.log.info('Inserting %s row(s) into table %s:%s.%s', len(rows), project_id, dataset_id, table_id)
+        self.log.info("Inserting %s row(s) into table %s:%s.%s", len(rows), project_id, dataset_id, table_id)
 
         table_ref = TableReference(dataset_ref=DatasetReference(project_id, dataset_id), table_id=table_id)
         bq_client = self.get_client(project_id=project_id)
@@ -865,9 +865,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             error_msg = f"{len(errors)} insert error(s) occurred. Details: {errors}"
             self.log.error(error_msg)
             if fail_on_error:
-                raise AirflowException(f'BigQuery job failed. Error was: {error_msg}')
+                raise AirflowException(f"BigQuery job failed. Error was: {error_msg}")
         else:
-            self.log.info('All row(s) inserted successfully: %s:%s.%s', project_id, dataset_id, table_id)
+            self.log.info("All row(s) inserted successfully: %s:%s.%s", project_id, dataset_id, table_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def update_dataset(
@@ -907,7 +907,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             if value and not spec_value:
                 dataset_resource["datasetReference"][key] = value
 
-        self.log.info('Start updating dataset')
+        self.log.info("Start updating dataset")
         dataset = self.get_client(project_id=project_id).update_dataset(
             dataset=Dataset.from_api_repr(dataset_resource),
             fields=fields,
@@ -941,7 +941,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         service = self.get_service()
         dataset_project_id = project_id or self.project_id
 
-        self.log.info('Start patching dataset: %s:%s', dataset_project_id, dataset_id)
+        self.log.info("Start patching dataset: %s:%s", dataset_project_id, dataset_id)
         dataset = (
             service.datasets()
             .patch(
@@ -1080,7 +1080,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         view_access = AccessEntry(
             role=None,
             entity_type="view",
-            entity_id={'projectId': view_project, 'datasetId': view_dataset, 'tableId': view_table},
+            entity_id={"projectId": view_project, "datasetId": view_dataset, "tableId": view_table},
         )
 
         dataset = self.get_dataset(project_id=project_id, dataset_id=source_dataset)
@@ -1088,7 +1088,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         # Check to see if the view we want to add already exists.
         if view_access not in dataset.access_entries:
             self.log.info(
-                'Granting table %s:%s.%s authorized view access to %s:%s dataset.',
+                "Granting table %s:%s.%s authorized view access to %s:%s dataset.",
                 view_project,
                 view_dataset,
                 view_table,
@@ -1101,7 +1101,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             )
         else:
             self.log.info(
-                'Table %s:%s.%s already has authorized view access to %s:%s dataset.',
+                "Table %s:%s.%s already has authorized view access to %s:%s dataset.",
                 view_project,
                 view_dataset,
                 view_table,
@@ -1126,17 +1126,17 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             project will be self.project_id.
         :return:
         """
-        table_id = table_resource['tableReference']['tableId']
+        table_id = table_resource["tableReference"]["tableId"]
         table_resource = self._resolve_table_reference(
             table_resource=table_resource, project_id=project_id, dataset_id=dataset_id, table_id=table_id
         )
 
         tables_list_resp = self.get_dataset_tables(dataset_id=dataset_id, project_id=project_id)
-        if any(table['tableId'] == table_id for table in tables_list_resp):
-            self.log.info('Table %s:%s.%s exists, updating.', project_id, dataset_id, table_id)
+        if any(table["tableId"] == table_id for table in tables_list_resp):
+            self.log.info("Table %s:%s.%s exists, updating.", project_id, dataset_id, table_id)
             table = self.update_table(table_resource=table_resource)
         else:
-            self.log.info('Table %s:%s.%s does not exist. creating.', project_id, dataset_id, table_id)
+            self.log.info("Table %s:%s.%s does not exist. creating.", project_id, dataset_id, table_id)
             table = self.create_empty_table(
                 table_resource=table_resource, project_id=project_id
             ).to_api_repr()
@@ -1179,7 +1179,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table=table_id,
             not_found_ok=not_found_ok,
         )
-        self.log.info('Deleted table %s', table_id)
+        self.log.info("Deleted table %s", table_id)
 
     def get_tabledata(
         self,
@@ -1405,7 +1405,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if self.running_job_id:
             self.cancel_job(job_id=self.running_job_id)
         else:
-            self.log.info('No running BigQuery jobs to cancel.')
+            self.log.info("No running BigQuery jobs to cancel.")
 
     @GoogleBaseHook.fallback_to_default_project_id
     def cancel_job(
@@ -1424,10 +1424,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         location = location or self.location
 
         if self.poll_job_complete(job_id=job_id):
-            self.log.info('No running BigQuery jobs to cancel.')
+            self.log.info("No running BigQuery jobs to cancel.")
             return
 
-        self.log.info('Attempting to cancel job : %s, %s', project_id, job_id)
+        self.log.info("Attempting to cancel job : %s, %s", project_id, job_id)
         self.get_client(location=location, project_id=project_id).cancel_job(job_id=job_id)
 
         # Wait for all the calls to cancel to finish
@@ -1439,7 +1439,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             polling_attempts += 1
             job_complete = self.poll_job_complete(job_id)
             if job_complete:
-                self.log.info('Job successfully canceled: %s, %s', project_id, job_id)
+                self.log.info("Job successfully canceled: %s, %s", project_id, job_id)
             elif polling_attempts == max_polling_attempts:
                 self.log.info(
                     "Stopping polling due to timeout. Job with id %s "
@@ -1447,7 +1447,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                     job_id,
                 )
             else:
-                self.log.info('Waiting for canceled job with id %s to finish.', job_id)
+                self.log.info("Waiting for canceled job with id %s to finish.", job_id)
                 time.sleep(5)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -1568,11 +1568,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         destination_project_dataset_table: str,
         source_uris: list,
         schema_fields: list | None = None,
-        source_format: str = 'CSV',
-        create_disposition: str = 'CREATE_IF_NEEDED',
+        source_format: str = "CSV",
+        create_disposition: str = "CREATE_IF_NEEDED",
         skip_leading_rows: int = 0,
-        write_disposition: str = 'WRITE_EMPTY',
-        field_delimiter: str = ',',
+        write_disposition: str = "WRITE_EMPTY",
+        field_delimiter: str = ",",
         max_bad_records: int = 0,
         quote_character: str | None = None,
         ignore_unknown_values: bool = False,
@@ -1669,7 +1669,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.tableDefinitions.(key).sourceFormat # noqa
 
         if schema_fields is None and not autodetect:
-            raise ValueError('You must either pass a schema or autodetect=True.')
+            raise ValueError("You must either pass a schema or autodetect=True.")
 
         if src_fmt_configs is None:
             src_fmt_configs = {}
@@ -1693,7 +1693,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         # as a side effect of a load
         # for more details:
         # https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schemaUpdateOptions
-        allowed_schema_update_options = ['ALLOW_FIELD_ADDITION', "ALLOW_FIELD_RELAXATION"]
+        allowed_schema_update_options = ["ALLOW_FIELD_ADDITION", "ALLOW_FIELD_RELAXATION"]
         if not set(allowed_schema_update_options).issuperset(set(schema_update_options)):
             raise ValueError(
                 f"{schema_update_options} contains invalid schema update options. "
@@ -1703,34 +1703,34 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         destination_project, destination_dataset, destination_table = self.split_tablename(
             table_input=destination_project_dataset_table,
             default_project_id=self.project_id,
-            var_name='destination_project_dataset_table',
+            var_name="destination_project_dataset_table",
         )
 
         configuration: dict[str, Any] = {
-            'load': {
-                'autodetect': autodetect,
-                'createDisposition': create_disposition,
-                'destinationTable': {
-                    'projectId': destination_project,
-                    'datasetId': destination_dataset,
-                    'tableId': destination_table,
+            "load": {
+                "autodetect": autodetect,
+                "createDisposition": create_disposition,
+                "destinationTable": {
+                    "projectId": destination_project,
+                    "datasetId": destination_dataset,
+                    "tableId": destination_table,
                 },
-                'sourceFormat': source_format,
-                'sourceUris': source_uris,
-                'writeDisposition': write_disposition,
-                'ignoreUnknownValues': ignore_unknown_values,
+                "sourceFormat": source_format,
+                "sourceUris": source_uris,
+                "writeDisposition": write_disposition,
+                "ignoreUnknownValues": ignore_unknown_values,
             }
         }
 
         time_partitioning = _cleanse_time_partitioning(destination_project_dataset_table, time_partitioning)
         if time_partitioning:
-            configuration['load'].update({'timePartitioning': time_partitioning})
+            configuration["load"].update({"timePartitioning": time_partitioning})
 
         if cluster_fields:
-            configuration['load'].update({'clustering': {'fields': cluster_fields}})
+            configuration["load"].update({"clustering": {"fields": cluster_fields}})
 
         if schema_fields:
-            configuration['load']['schema'] = {'fields': schema_fields}
+            configuration["load"]["schema"] = {"fields": schema_fields}
 
         if schema_update_options:
             if write_disposition not in ["WRITE_APPEND", "WRITE_TRUNCATE"]:
@@ -1741,39 +1741,39 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 )
             else:
                 self.log.info("Adding experimental 'schemaUpdateOptions': %s", schema_update_options)
-                configuration['load']['schemaUpdateOptions'] = schema_update_options
+                configuration["load"]["schemaUpdateOptions"] = schema_update_options
 
         if max_bad_records:
-            configuration['load']['maxBadRecords'] = max_bad_records
+            configuration["load"]["maxBadRecords"] = max_bad_records
 
         if encryption_configuration:
             configuration["load"]["destinationEncryptionConfiguration"] = encryption_configuration
 
         if labels or description:
-            configuration['load'].update({'destinationTableProperties': {}})
+            configuration["load"].update({"destinationTableProperties": {}})
 
             if labels:
-                configuration['load']['destinationTableProperties']['labels'] = labels
+                configuration["load"]["destinationTableProperties"]["labels"] = labels
 
             if description:
-                configuration['load']['destinationTableProperties']['description'] = description
+                configuration["load"]["destinationTableProperties"]["description"] = description
 
         src_fmt_to_configs_mapping = {
-            'CSV': [
-                'allowJaggedRows',
-                'allowQuotedNewlines',
-                'autodetect',
-                'fieldDelimiter',
-                'skipLeadingRows',
-                'ignoreUnknownValues',
-                'nullMarker',
-                'quote',
-                'encoding',
+            "CSV": [
+                "allowJaggedRows",
+                "allowQuotedNewlines",
+                "autodetect",
+                "fieldDelimiter",
+                "skipLeadingRows",
+                "ignoreUnknownValues",
+                "nullMarker",
+                "quote",
+                "encoding",
             ],
-            'DATASTORE_BACKUP': ['projectionFields'],
-            'NEWLINE_DELIMITED_JSON': ['autodetect', 'ignoreUnknownValues'],
-            'PARQUET': ['autodetect', 'ignoreUnknownValues'],
-            'AVRO': ['useAvroLogicalTypes'],
+            "DATASTORE_BACKUP": ["projectionFields"],
+            "NEWLINE_DELIMITED_JSON": ["autodetect", "ignoreUnknownValues"],
+            "PARQUET": ["autodetect", "ignoreUnknownValues"],
+            "AVRO": ["useAvroLogicalTypes"],
         }
 
         valid_configs = src_fmt_to_configs_mapping[source_format]
@@ -1781,22 +1781,22 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         # if following fields are not specified in src_fmt_configs,
         # honor the top-level params for backward-compatibility
         backward_compatibility_configs = {
-            'skipLeadingRows': skip_leading_rows,
-            'fieldDelimiter': field_delimiter,
-            'ignoreUnknownValues': ignore_unknown_values,
-            'quote': quote_character,
-            'allowQuotedNewlines': allow_quoted_newlines,
-            'encoding': encoding,
+            "skipLeadingRows": skip_leading_rows,
+            "fieldDelimiter": field_delimiter,
+            "ignoreUnknownValues": ignore_unknown_values,
+            "quote": quote_character,
+            "allowQuotedNewlines": allow_quoted_newlines,
+            "encoding": encoding,
         }
 
         src_fmt_configs = _validate_src_fmt_configs(
             source_format, src_fmt_configs, valid_configs, backward_compatibility_configs
         )
 
-        configuration['load'].update(src_fmt_configs)
+        configuration["load"].update(src_fmt_configs)
 
         if allow_jagged_rows:
-            configuration['load']['allowJaggedRows'] = allow_jagged_rows
+            configuration["load"]["allowJaggedRows"] = allow_jagged_rows
 
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
         self.running_job_id = job.job_id
@@ -1806,8 +1806,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self,
         source_project_dataset_tables: list | str,
         destination_project_dataset_table: str,
-        write_disposition: str = 'WRITE_EMPTY',
-        create_disposition: str = 'CREATE_IF_NEEDED',
+        write_disposition: str = "WRITE_EMPTY",
+        create_disposition: str = "CREATE_IF_NEEDED",
         labels: dict | None = None,
         encryption_configuration: dict | None = None,
     ) -> str:
@@ -1855,30 +1855,30 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             source_project, source_dataset, source_table = self.split_tablename(
                 table_input=source_project_dataset_table,
                 default_project_id=self.project_id,
-                var_name='source_project_dataset_table',
+                var_name="source_project_dataset_table",
             )
             source_project_dataset_tables_fixup.append(
-                {'projectId': source_project, 'datasetId': source_dataset, 'tableId': source_table}
+                {"projectId": source_project, "datasetId": source_dataset, "tableId": source_table}
             )
 
         destination_project, destination_dataset, destination_table = self.split_tablename(
             table_input=destination_project_dataset_table, default_project_id=self.project_id
         )
         configuration = {
-            'copy': {
-                'createDisposition': create_disposition,
-                'writeDisposition': write_disposition,
-                'sourceTables': source_project_dataset_tables_fixup,
-                'destinationTable': {
-                    'projectId': destination_project,
-                    'datasetId': destination_dataset,
-                    'tableId': destination_table,
+            "copy": {
+                "createDisposition": create_disposition,
+                "writeDisposition": write_disposition,
+                "sourceTables": source_project_dataset_tables_fixup,
+                "destinationTable": {
+                    "projectId": destination_project,
+                    "datasetId": destination_dataset,
+                    "tableId": destination_table,
                 },
             }
         }
 
         if labels:
-            configuration['labels'] = labels
+            configuration["labels"] = labels
 
         if encryption_configuration:
             configuration["copy"]["destinationEncryptionConfiguration"] = encryption_configuration
@@ -1891,9 +1891,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self,
         source_project_dataset_table: str,
         destination_cloud_storage_uris: list[str],
-        compression: str = 'NONE',
-        export_format: str = 'CSV',
-        field_delimiter: str = ',',
+        compression: str = "NONE",
+        export_format: str = "CSV",
+        field_delimiter: str = ",",
         print_header: bool = True,
         labels: dict | None = None,
         return_full_job: bool = False,
@@ -1929,31 +1929,31 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         source_project, source_dataset, source_table = self.split_tablename(
             table_input=source_project_dataset_table,
             default_project_id=self.project_id,
-            var_name='source_project_dataset_table',
+            var_name="source_project_dataset_table",
         )
 
         configuration: dict[str, Any] = {
-            'extract': {
-                'sourceTable': {
-                    'projectId': source_project,
-                    'datasetId': source_dataset,
-                    'tableId': source_table,
+            "extract": {
+                "sourceTable": {
+                    "projectId": source_project,
+                    "datasetId": source_dataset,
+                    "tableId": source_table,
                 },
-                'compression': compression,
-                'destinationUris': destination_cloud_storage_uris,
-                'destinationFormat': export_format,
+                "compression": compression,
+                "destinationUris": destination_cloud_storage_uris,
+                "destinationFormat": export_format,
             }
         }
 
         if labels:
-            configuration['labels'] = labels
+            configuration["labels"] = labels
 
-        if export_format == 'CSV':
+        if export_format == "CSV":
             # Only set fieldDelimiter and printHeader fields if using CSV.
             # Google does not like it if you set these fields for other export
             # formats.
-            configuration['extract']['fieldDelimiter'] = field_delimiter
-            configuration['extract']['printHeader'] = print_header
+            configuration["extract"]["fieldDelimiter"] = field_delimiter
+            configuration["extract"]["printHeader"] = print_header
 
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
         self.running_job_id = job.job_id
@@ -1965,18 +1965,18 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self,
         sql: str,
         destination_dataset_table: str | None = None,
-        write_disposition: str = 'WRITE_EMPTY',
+        write_disposition: str = "WRITE_EMPTY",
         allow_large_results: bool = False,
         flatten_results: bool | None = None,
         udf_config: list | None = None,
         use_legacy_sql: bool | None = None,
         maximum_billing_tier: int | None = None,
         maximum_bytes_billed: float | None = None,
-        create_disposition: str = 'CREATE_IF_NEEDED',
+        create_disposition: str = "CREATE_IF_NEEDED",
         query_params: list | None = None,
         labels: dict | None = None,
         schema_update_options: Iterable | None = None,
-        priority: str = 'INTERACTIVE',
+        priority: str = "INTERACTIVE",
         time_partitioning: dict | None = None,
         api_resource_configs: dict | None = None,
         cluster_fields: list[str] | None = None,
@@ -2061,23 +2061,23 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if not api_resource_configs:
             api_resource_configs = self.api_resource_configs
         else:
-            _validate_value('api_resource_configs', api_resource_configs, dict)
+            _validate_value("api_resource_configs", api_resource_configs, dict)
         configuration = deepcopy(api_resource_configs)
-        if 'query' not in configuration:
-            configuration['query'] = {}
+        if "query" not in configuration:
+            configuration["query"] = {}
 
         else:
-            _validate_value("api_resource_configs['query']", configuration['query'], dict)
+            _validate_value("api_resource_configs['query']", configuration["query"], dict)
 
-        if sql is None and not configuration['query'].get('query', None):
-            raise TypeError('`BigQueryBaseCursor.run_query` missing 1 required positional argument: `sql`')
+        if sql is None and not configuration["query"].get("query", None):
+            raise TypeError("`BigQueryBaseCursor.run_query` missing 1 required positional argument: `sql`")
 
         # BigQuery also allows you to define how you want a table's schema to change
         # as a side effect of a query job
         # for more details:
         #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.schemaUpdateOptions  # noqa
 
-        allowed_schema_update_options = ['ALLOW_FIELD_ADDITION', "ALLOW_FIELD_RELAXATION"]
+        allowed_schema_update_options = ["ALLOW_FIELD_ADDITION", "ALLOW_FIELD_RELAXATION"]
 
         if not set(allowed_schema_update_options).issuperset(set(schema_update_options)):
             raise ValueError(
@@ -2099,55 +2099,55 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             )
 
             destination_dataset_table = {  # type: ignore
-                'projectId': destination_project,
-                'datasetId': destination_dataset,
-                'tableId': destination_table,
+                "projectId": destination_project,
+                "datasetId": destination_dataset,
+                "tableId": destination_table,
             }
 
         if cluster_fields:
-            cluster_fields = {'fields': cluster_fields}  # type: ignore
+            cluster_fields = {"fields": cluster_fields}  # type: ignore
 
         query_param_list = [
-            (sql, 'query', None, (str,)),
-            (priority, 'priority', 'INTERACTIVE', (str,)),
-            (use_legacy_sql, 'useLegacySql', self.use_legacy_sql, bool),
-            (query_params, 'queryParameters', None, list),
-            (udf_config, 'userDefinedFunctionResources', None, list),
-            (maximum_billing_tier, 'maximumBillingTier', None, int),
-            (maximum_bytes_billed, 'maximumBytesBilled', None, float),
-            (time_partitioning, 'timePartitioning', {}, dict),
-            (schema_update_options, 'schemaUpdateOptions', None, list),
-            (destination_dataset_table, 'destinationTable', None, dict),
-            (cluster_fields, 'clustering', None, dict),
+            (sql, "query", None, (str,)),
+            (priority, "priority", "INTERACTIVE", (str,)),
+            (use_legacy_sql, "useLegacySql", self.use_legacy_sql, bool),
+            (query_params, "queryParameters", None, list),
+            (udf_config, "userDefinedFunctionResources", None, list),
+            (maximum_billing_tier, "maximumBillingTier", None, int),
+            (maximum_bytes_billed, "maximumBytesBilled", None, float),
+            (time_partitioning, "timePartitioning", {}, dict),
+            (schema_update_options, "schemaUpdateOptions", None, list),
+            (destination_dataset_table, "destinationTable", None, dict),
+            (cluster_fields, "clustering", None, dict),
         ]  # type: List[Tuple]
 
         for param, param_name, param_default, param_type in query_param_list:
-            if param_name not in configuration['query'] and param in [None, {}, ()]:
-                if param_name == 'timePartitioning':
+            if param_name not in configuration["query"] and param in [None, {}, ()]:
+                if param_name == "timePartitioning":
                     param_default = _cleanse_time_partitioning(destination_dataset_table, time_partitioning)
                 param = param_default
 
             if param in [None, {}, ()]:
                 continue
 
-            _api_resource_configs_duplication_check(param_name, param, configuration['query'])
+            _api_resource_configs_duplication_check(param_name, param, configuration["query"])
 
-            configuration['query'][param_name] = param
+            configuration["query"][param_name] = param
 
             # check valid type of provided param,
             # it last step because we can get param from 2 sources,
             # and first of all need to find it
 
-            _validate_value(param_name, configuration['query'][param_name], param_type)
+            _validate_value(param_name, configuration["query"][param_name], param_type)
 
-            if param_name == 'schemaUpdateOptions' and param:
+            if param_name == "schemaUpdateOptions" and param:
                 self.log.info("Adding experimental 'schemaUpdateOptions': %s", schema_update_options)
 
-            if param_name != 'destinationTable':
+            if param_name != "destinationTable":
                 continue
 
-            for key in ['projectId', 'datasetId', 'tableId']:
-                if key not in configuration['query']['destinationTable']:
+            for key in ["projectId", "datasetId", "tableId"]:
+                if key not in configuration["query"]["destinationTable"]:
                     raise ValueError(
                         "Not correct 'destinationTable' in "
                         "api_resource_configs. 'destinationTable' "
@@ -2155,25 +2155,25 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                         "'datasetId':'', 'tableId':''}"
                     )
 
-            configuration['query'].update(
+            configuration["query"].update(
                 {
-                    'allowLargeResults': allow_large_results,
-                    'flattenResults': flatten_results,
-                    'writeDisposition': write_disposition,
-                    'createDisposition': create_disposition,
+                    "allowLargeResults": allow_large_results,
+                    "flattenResults": flatten_results,
+                    "writeDisposition": write_disposition,
+                    "createDisposition": create_disposition,
                 }
             )
 
         if (
-            'useLegacySql' in configuration['query']
-            and configuration['query']['useLegacySql']
-            and 'queryParameters' in configuration['query']
+            "useLegacySql" in configuration["query"]
+            and configuration["query"]["useLegacySql"]
+            and "queryParameters" in configuration["query"]
         ):
             raise ValueError("Query parameters are not allowed when using legacy SQL")
 
         if labels:
-            _api_resource_configs_duplication_check('labels', labels, configuration)
-            configuration['labels'] = labels
+            _api_resource_configs_duplication_check("labels", labels, configuration)
+            configuration["labels"] = labels
 
         if encryption_configuration:
             configuration["query"]["destinationEncryptionConfiguration"] = encryption_configuration
@@ -2201,8 +2201,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self, table_input: str, default_project_id: str, var_name: str | None = None
     ) -> tuple[str, str, str]:
 
-        if '.' not in table_input:
-            raise ValueError(f'Expected table name in the format of <dataset>.<table>. Got: {table_input}')
+        if "." not in table_input:
+            raise ValueError(f"Expected table name in the format of <dataset>.<table>. Got: {table_input}")
 
         if not default_project_id:
             raise ValueError("INTERNAL: No default project is specified")
@@ -2213,24 +2213,24 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             else:
                 return f"Format exception for {var_name}: "
 
-        if table_input.count('.') + table_input.count(':') > 3:
-            raise Exception(f'{var_print(var_name)}Use either : or . to specify project got {table_input}')
-        cmpt = table_input.rsplit(':', 1)
+        if table_input.count(".") + table_input.count(":") > 3:
+            raise Exception(f"{var_print(var_name)}Use either : or . to specify project got {table_input}")
+        cmpt = table_input.rsplit(":", 1)
         project_id = None
         rest = table_input
         if len(cmpt) == 1:
             project_id = None
             rest = cmpt[0]
-        elif len(cmpt) == 2 and cmpt[0].count(':') <= 1:
-            if cmpt[-1].count('.') != 2:
+        elif len(cmpt) == 2 and cmpt[0].count(":") <= 1:
+            if cmpt[-1].count(".") != 2:
                 project_id = cmpt[0]
                 rest = cmpt[1]
         else:
             raise Exception(
-                f'{var_print(var_name)}Expect format of (<project:)<dataset>.<table>, got {table_input}'
+                f"{var_print(var_name)}Expect format of (<project:)<dataset>.<table>, got {table_input}"
             )
 
-        cmpt = rest.split('.')
+        cmpt = rest.split(".")
         if len(cmpt) == 3:
             if project_id:
                 raise ValueError(f"{var_print(var_name)}Use either : or . to specify project")
@@ -2243,8 +2243,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table_id = cmpt[1]
         else:
             raise Exception(
-                f'{var_print(var_name)} Expect format of (<project.|<project:)<dataset>.<table>, '
-                f'got {table_input}'
+                f"{var_print(var_name)} Expect format of (<project.|<project:)<dataset>.<table>, "
+                f"got {table_input}"
             )
 
         if project_id is None:
@@ -2734,14 +2734,14 @@ class BigQueryCursor(BigQueryBaseCursor):
                 return None
 
             query_results = self._get_query_result()
-            if 'rows' in query_results and query_results['rows']:
-                self.page_token = query_results.get('pageToken')
-                fields = query_results['schema']['fields']
-                col_types = [field['type'] for field in fields]
-                rows = query_results['rows']
+            if "rows" in query_results and query_results["rows"]:
+                self.page_token = query_results.get("pageToken")
+                fields = query_results["schema"]["fields"]
+                col_types = [field["type"] for field in fields]
+                rows = query_results["rows"]
 
                 for dict_row in rows:
-                    typed_row = [_bq_cast(vs['v'], col_types[idx]) for idx, vs in enumerate(dict_row['f'])]
+                    typed_row = [_bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
                     self.buffer.append(typed_row)
 
                 if not self.page_token:
@@ -2827,7 +2827,7 @@ def _bind_parameters(operation: str, parameters: dict) -> str:
     string_parameters = {}  # type Dict[str, str]
     for (name, value) in parameters.items():
         if value is None:
-            string_parameters[name] = 'NULL'
+            string_parameters[name] = "NULL"
         elif isinstance(value, str):
             string_parameters[name] = "'" + _escape(value) + "'"
         else:
@@ -2838,9 +2838,9 @@ def _bind_parameters(operation: str, parameters: dict) -> str:
 def _escape(s: str) -> str:
     """Helper method that escapes parameters to a SQL query"""
     e = s
-    e = e.replace('\\', '\\\\')
-    e = e.replace('\n', '\\n')
-    e = e.replace('\r', '\\r')
+    e = e.replace("\\", "\\\\")
+    e = e.replace("\n", "\\n")
+    e = e.replace("\r", "\\r")
     e = e.replace("'", "\\'")
     e = e.replace('"', '\\"')
     return e
@@ -2853,14 +2853,14 @@ def _bq_cast(string_field: str, bq_type: str) -> None | int | float | bool | str
     """
     if string_field is None:
         return None
-    elif bq_type == 'INTEGER':
+    elif bq_type == "INTEGER":
         return int(string_field)
-    elif bq_type in ('FLOAT', 'TIMESTAMP'):
+    elif bq_type in ("FLOAT", "TIMESTAMP"):
         return float(string_field)
-    elif bq_type == 'BOOLEAN':
-        if string_field not in ['true', 'false']:
+    elif bq_type == "BOOLEAN":
+        if string_field not in ["true", "false"]:
             raise ValueError(f"{string_field} must have value 'true' or 'false'")
-        return string_field == 'true'
+        return string_field == "true"
     else:
         return string_field
 
@@ -2868,8 +2868,8 @@ def _bq_cast(string_field: str, bq_type: str) -> None | int | float | bool | str
 def split_tablename(
     table_input: str, default_project_id: str, var_name: str | None = None
 ) -> tuple[str, str, str]:
-    if '.' not in table_input:
-        raise ValueError(f'Expected table name in the format of <dataset>.<table>. Got: {table_input}')
+    if "." not in table_input:
+        raise ValueError(f"Expected table name in the format of <dataset>.<table>. Got: {table_input}")
 
     if not default_project_id:
         raise ValueError("INTERNAL: No default project is specified")
@@ -2880,24 +2880,24 @@ def split_tablename(
         else:
             return f"Format exception for {var_name}: "
 
-    if table_input.count('.') + table_input.count(':') > 3:
-        raise Exception(f'{var_print(var_name)}Use either : or . to specify project got {table_input}')
-    cmpt = table_input.rsplit(':', 1)
+    if table_input.count(".") + table_input.count(":") > 3:
+        raise Exception(f"{var_print(var_name)}Use either : or . to specify project got {table_input}")
+    cmpt = table_input.rsplit(":", 1)
     project_id = None
     rest = table_input
     if len(cmpt) == 1:
         project_id = None
         rest = cmpt[0]
-    elif len(cmpt) == 2 and cmpt[0].count(':') <= 1:
-        if cmpt[-1].count('.') != 2:
+    elif len(cmpt) == 2 and cmpt[0].count(":") <= 1:
+        if cmpt[-1].count(".") != 2:
             project_id = cmpt[0]
             rest = cmpt[1]
     else:
         raise Exception(
-            f'{var_print(var_name)}Expect format of (<project:)<dataset>.<table>, got {table_input}'
+            f"{var_print(var_name)}Expect format of (<project:)<dataset>.<table>, got {table_input}"
         )
 
-    cmpt = rest.split('.')
+    cmpt = rest.split(".")
     if len(cmpt) == 3:
         if project_id:
             raise ValueError(f"{var_print(var_name)}Use either : or . to specify project")
@@ -2910,7 +2910,7 @@ def split_tablename(
         table_id = cmpt[1]
     else:
         raise Exception(
-            f'{var_print(var_name)}Expect format of (<project.|<project:)<dataset>.<table>, got {table_input}'
+            f"{var_print(var_name)}Expect format of (<project.|<project:)<dataset>.<table>, got {table_input}"
         )
 
     if project_id is None:
@@ -2934,8 +2934,8 @@ def _cleanse_time_partitioning(
         time_partitioning_in = {}
 
     time_partitioning_out = {}
-    if destination_dataset_table and '$' in destination_dataset_table:
-        time_partitioning_out['type'] = 'DAY'
+    if destination_dataset_table and "$" in destination_dataset_table:
+        time_partitioning_out["type"] = "DAY"
     time_partitioning_out.update(time_partitioning_in)
     return time_partitioning_out
 
@@ -2947,7 +2947,7 @@ def _validate_value(key: Any, value: Any, expected_type: type) -> None:
 
 
 def _api_resource_configs_duplication_check(
-    key: Any, value: Any, config_dict: dict, config_dict_name='api_resource_configs'
+    key: Any, value: Any, config_dict: dict, config_dict_name="api_resource_configs"
 ) -> None:
     if key in config_dict and value != config_dict[key]:
         raise ValueError(

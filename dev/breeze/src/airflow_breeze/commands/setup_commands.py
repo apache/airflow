@@ -60,20 +60,20 @@ from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE
 
 
-@click.group(cls=BreezeGroup, name='setup', help='Tools that developers can use to configure Breeze')
+@click.group(cls=BreezeGroup, name="setup", help="Tools that developers can use to configure Breeze")
 def setup():
     pass
 
 
 @click.option(
-    '-a',
-    '--use-current-airflow-sources',
+    "-a",
+    "--use-current-airflow-sources",
     is_flag=True,
-    help='Use current workdir Airflow sources for upgrade'
+    help="Use current workdir Airflow sources for upgrade"
     + (f" rather than {get_installation_airflow_sources()}." if not generating_command_images() else "."),
 )
 @setup.command(
-    name='self-upgrade',
+    name="self-upgrade",
     help="Self upgrade Breeze. By default it re-installs Breeze "
     f"from {get_installation_airflow_sources()}."
     if not generating_command_images()
@@ -95,21 +95,21 @@ def self_upgrade(use_current_airflow_sources: bool):
 @option_verbose
 @option_dry_run
 @click.option(
-    '-f',
-    '--force',
+    "-f",
+    "--force",
     is_flag=True,
-    help='Force autocomplete setup even if already setup before (overrides the setup).',
+    help="Force autocomplete setup even if already setup before (overrides the setup).",
 )
 @option_answer
-@setup.command(name='autocomplete')
+@setup.command(name="autocomplete")
 def autocomplete(verbose: bool, dry_run: bool, force: bool, answer: str | None):
     """
     Enables autocompletion of breeze commands.
     """
     # Determine if the shell is bash/zsh/powershell. It helps to build the autocomplete path
-    detected_shell = os.environ.get('SHELL')
+    detected_shell = os.environ.get("SHELL")
     detected_shell = None if detected_shell is None else detected_shell.split(os.sep)[-1]
-    if detected_shell not in ['bash', 'zsh', 'fish']:
+    if detected_shell not in ["bash", "zsh", "fish"]:
         get_console().print(f"\n[error] The shell {detected_shell} is not supported for autocomplete![/]\n")
         sys.exit(1)
     get_console().print(f"Installing {detected_shell} completion for local user")
@@ -122,31 +122,31 @@ def autocomplete(verbose: bool, dry_run: bool, force: bool, answer: str | None):
         "Should we proceed with modifying the script?", default_answer=Answer.NO, timeout=STANDARD_TIMEOUT
     )
     if given_answer == Answer.YES:
-        if detected_shell == 'bash':
-            script_path = str(Path('~').expanduser() / '.bash_completion')
+        if detected_shell == "bash":
+            script_path = str(Path("~").expanduser() / ".bash_completion")
             command_to_execute = f"source {autocomplete_path}"
             write_to_shell(command_to_execute, dry_run, script_path, force)
-        elif detected_shell == 'zsh':
-            script_path = str(Path('~').expanduser() / '.zshrc')
+        elif detected_shell == "zsh":
+            script_path = str(Path("~").expanduser() / ".zshrc")
             command_to_execute = f"source {autocomplete_path}"
             write_to_shell(command_to_execute, dry_run, script_path, force)
-        elif detected_shell == 'fish':
+        elif detected_shell == "fish":
             # Include steps for fish shell
-            script_path = str(Path('~').expanduser() / f'.config/fish/completions/{NAME}.fish')
+            script_path = str(Path("~").expanduser() / f".config/fish/completions/{NAME}.fish")
             if os.path.exists(script_path) and not force:
                 get_console().print(
                     "\n[warning]Autocompletion is already setup. Skipping. "
                     "You can force autocomplete installation by adding --force/]\n"
                 )
             else:
-                with open(autocomplete_path) as source_file, open(script_path, 'w') as destination_file:
+                with open(autocomplete_path) as source_file, open(script_path, "w") as destination_file:
                     for line in source_file:
                         destination_file.write(line)
         else:
             # Include steps for powershell
-            subprocess.check_call(['powershell', 'Set-ExecutionPolicy Unrestricted -Scope CurrentUser'])
+            subprocess.check_call(["powershell", "Set-ExecutionPolicy Unrestricted -Scope CurrentUser"])
             script_path = (
-                subprocess.check_output(['powershell', '-NoProfile', 'echo $profile']).decode("utf-8").strip()
+                subprocess.check_output(["powershell", "-NoProfile", "echo $profile"]).decode("utf-8").strip()
             )
             command_to_execute = f". {autocomplete_path}"
             write_to_shell(command_to_execute, dry_run, script_path, force)
@@ -181,16 +181,16 @@ def version(verbose: bool):
         )
 
 
-@setup.command(name='config')
+@setup.command(name="config")
 @option_python
 @option_backend
 @option_postgres_version
 @option_mysql_version
 @option_mssql_version
-@click.option('-C/-c', '--cheatsheet/--no-cheatsheet', help="Enable/disable cheatsheet.", default=None)
-@click.option('-A/-a', '--asciiart/--no-asciiart', help="Enable/disable ASCIIart.", default=None)
+@click.option("-C/-c", "--cheatsheet/--no-cheatsheet", help="Enable/disable cheatsheet.", default=None)
+@click.option("-A/-a", "--asciiart/--no-asciiart", help="Enable/disable ASCIIart.", default=None)
 @click.option(
-    '--colour/--no-colour',
+    "--colour/--no-colour",
     help="Enable/disable Colour mode (useful for colour blind-friendly communication).",
     default=None,
 )
@@ -214,24 +214,24 @@ def change_config(
     if asciiart is not None:
         if asciiart:
             delete_cache(asciiart_file)
-            get_console().print('[info]Enable ASCIIART![/]')
+            get_console().print("[info]Enable ASCIIART![/]")
         else:
             touch_cache_file(asciiart_file)
-            get_console().print('[info]Disable ASCIIART![/]')
+            get_console().print("[info]Disable ASCIIART![/]")
     if cheatsheet is not None:
         if cheatsheet:
             delete_cache(cheatsheet_file)
-            get_console().print('[info]Enable Cheatsheet[/]')
+            get_console().print("[info]Enable Cheatsheet[/]")
         elif cheatsheet is not None:
             touch_cache_file(cheatsheet_file)
-            get_console().print('[info]Disable Cheatsheet[/]')
+            get_console().print("[info]Disable Cheatsheet[/]")
     if colour is not None:
         if colour:
             delete_cache(colour_file)
-            get_console().print('[info]Enable Colour[/]')
+            get_console().print("[info]Enable Colour[/]")
         elif colour is not None:
             touch_cache_file(colour_file)
-            get_console().print('[info]Disable Colour[/]')
+            get_console().print("[info]Disable Colour[/]")
 
     def get_status(file: str):
         return "disabled" if check_if_cache_exists(file) else "enabled"
@@ -270,11 +270,11 @@ def get_command_hash_export(verbose: bool) -> str:
         if verbose:
             get_stderr_console().print(the_context_dict)
         hashes.append(f"main:{dict_hash(the_context_dict['command']['params'])}")
-        commands_dict = the_context_dict['command']['commands']
+        commands_dict = the_context_dict["command"]["commands"]
         for command in sorted(commands_dict.keys()):
             current_command_dict = commands_dict[command]
-            if 'commands' in current_command_dict:
-                subcommands = current_command_dict['commands']
+            if "commands" in current_command_dict:
+                subcommands = current_command_dict["commands"]
                 for subcommand in sorted(subcommands.keys()):
                     hashes.append(f"{command}:{subcommand}:{dict_hash(subcommands[subcommand])}")
                 hashes.append(f"{command}:{dict_hash(current_command_dict)}")
@@ -299,7 +299,7 @@ def write_to_shell(command_to_execute: str, dry_run: bool, script_path: str, for
             else:
                 backup(script_path_file)
                 remove_autogenerated_code(script_path)
-    text = ''
+    text = ""
     if script_path_file.exists():
         get_console().print(f"\nModifying the {script_path} file!\n")
         get_console().print(f"\nCopy of the original file is held in {script_path}.bak !\n")
@@ -362,9 +362,9 @@ def get_commands() -> list[str]:
         content = COMMAND_HASH_FILE_PATH.read_text()
         for line in content.splitlines():
             strip_line = line.strip()
-            if strip_line == '' or strip_line.startswith("#"):
+            if strip_line == "" or strip_line.startswith("#"):
                 continue
-            results.append(':'.join(strip_line.split(":")[:-1]))
+            results.append(":".join(strip_line.split(":")[:-1]))
     return results
 
 
@@ -380,9 +380,9 @@ def get_command_hash_dict(hash_file_content: str) -> dict[str, str]:
     results = {}
     for line in hash_file_content.splitlines():
         strip_line = line.strip()
-        if strip_line.strip() == '' or strip_line.startswith("#"):
+        if strip_line.strip() == "" or strip_line.startswith("#"):
             continue
-        command = ':'.join(strip_line.split(":")[:-1])
+        command = ":".join(strip_line.split(":")[:-1])
         the_hash = strip_line.split(":")[-1]
         results[command] = the_hash
     return results
@@ -404,12 +404,12 @@ def regenerate_help_images_for_all_commands(
         console.print("[error]The --check-only flag cannot be used with --command flag.")
         return 2
     env = os.environ.copy()
-    env['AIRFLOW_SOURCES_ROOT'] = str(AIRFLOW_SOURCES_ROOT)
-    env['RECORD_BREEZE_WIDTH'] = SCREENSHOT_WIDTH
-    env['RECORD_BREEZE_TITLE'] = "Breeze commands"
-    env['RECORD_BREEZE_OUTPUT_FILE'] = str(BREEZE_IMAGES_DIR / "output-commands.svg")
-    env['TERM'] = "xterm-256color"
-    env['PYTHONPATH'] = str(BREEZE_SOURCES_DIR)
+    env["AIRFLOW_SOURCES_ROOT"] = str(AIRFLOW_SOURCES_ROOT)
+    env["RECORD_BREEZE_WIDTH"] = SCREENSHOT_WIDTH
+    env["RECORD_BREEZE_TITLE"] = "Breeze commands"
+    env["RECORD_BREEZE_OUTPUT_FILE"] = str(BREEZE_IMAGES_DIR / "output-commands.svg")
+    env["TERM"] = "xterm-256color"
+    env["PYTHONPATH"] = str(BREEZE_SOURCES_DIR)
     new_hash_text_dump = PREAMBLE + get_command_hash_export(verbose=verbose)
     regenerate_all_commands = False
     commands_list = list(commands)
@@ -451,29 +451,29 @@ def regenerate_help_images_for_all_commands(
         regenerate_all_commands = True
     if regenerate_all_commands:
         env = os.environ.copy()
-        env['AIRFLOW_SOURCES_ROOT'] = str(AIRFLOW_SOURCES_ROOT)
-        env['RECORD_BREEZE_WIDTH'] = SCREENSHOT_WIDTH
-        env['RECORD_BREEZE_TITLE'] = "Breeze commands"
-        env['RECORD_BREEZE_OUTPUT_FILE'] = str(BREEZE_IMAGES_DIR / "output-commands.svg")
-        env['TERM'] = "xterm-256color"
+        env["AIRFLOW_SOURCES_ROOT"] = str(AIRFLOW_SOURCES_ROOT)
+        env["RECORD_BREEZE_WIDTH"] = SCREENSHOT_WIDTH
+        env["RECORD_BREEZE_TITLE"] = "Breeze commands"
+        env["RECORD_BREEZE_OUTPUT_FILE"] = str(BREEZE_IMAGES_DIR / "output-commands.svg")
+        env["TERM"] = "xterm-256color"
         run_command(
-            ['breeze', "--help"],
+            ["breeze", "--help"],
             env=env,
             verbose=verbose,
             dry_run=dry_run,
         )
     for command in commands_list:
-        if command == 'main':
+        if command == "main":
             continue
         if ":" not in command:
             env = os.environ.copy()
-            env['AIRFLOW_SOURCES_ROOT'] = str(AIRFLOW_SOURCES_ROOT)
-            env['RECORD_BREEZE_WIDTH'] = SCREENSHOT_WIDTH
-            env['RECORD_BREEZE_TITLE'] = f"Command: {command}"
-            env['RECORD_BREEZE_OUTPUT_FILE'] = str(BREEZE_IMAGES_DIR / f"output_{command}.svg")
-            env['TERM'] = "xterm-256color"
+            env["AIRFLOW_SOURCES_ROOT"] = str(AIRFLOW_SOURCES_ROOT)
+            env["RECORD_BREEZE_WIDTH"] = SCREENSHOT_WIDTH
+            env["RECORD_BREEZE_TITLE"] = f"Command: {command}"
+            env["RECORD_BREEZE_OUTPUT_FILE"] = str(BREEZE_IMAGES_DIR / f"output_{command}.svg")
+            env["TERM"] = "xterm-256color"
             run_command(
-                ['breeze', command, "--help"],
+                ["breeze", command, "--help"],
                 env=env,
                 verbose=verbose,
                 dry_run=dry_run,
@@ -481,13 +481,13 @@ def regenerate_help_images_for_all_commands(
         else:
             split_command = command.split(":")
             env = os.environ.copy()
-            env['AIRFLOW_SOURCES_ROOT'] = str(AIRFLOW_SOURCES_ROOT)
-            env['RECORD_BREEZE_WIDTH'] = SCREENSHOT_WIDTH
-            env['RECORD_BREEZE_TITLE'] = f"Command: {split_command[0]} {split_command[1]}"
-            env['RECORD_BREEZE_OUTPUT_FILE'] = str(
+            env["AIRFLOW_SOURCES_ROOT"] = str(AIRFLOW_SOURCES_ROOT)
+            env["RECORD_BREEZE_WIDTH"] = SCREENSHOT_WIDTH
+            env["RECORD_BREEZE_TITLE"] = f"Command: {split_command[0]} {split_command[1]}"
+            env["RECORD_BREEZE_OUTPUT_FILE"] = str(
                 BREEZE_IMAGES_DIR / f"output_{split_command[0]}_{split_command[1]}.svg"
             )
-            env['TERM'] = "xterm-256color"
+            env["TERM"] = "xterm-256color"
             run_command(
                 [
                     "breeze",
@@ -506,16 +506,16 @@ def regenerate_help_images_for_all_commands(
 
 
 @setup.command(name="regenerate-command-images", help="Regenerate breeze command images.")
-@click.option("--force", is_flag=True, help="Forces regeneration of all images", envvar='FORCE')
+@click.option("--force", is_flag=True, help="Forces regeneration of all images", envvar="FORCE")
 @click.option(
     "--check-only",
     is_flag=True,
     help="Only check if some images need to be regenerated. Return 0 if no need or 1 if needed. "
     "Cannot be used together with --command flag or --force.",
-    envvar='CHECK_ONLY',
+    envvar="CHECK_ONLY",
 )
 @click.option(
-    '--command',
+    "--command",
     help="Command(s) to regenerate images for (optional, might be repeated)",
     show_default=True,
     multiple=True,

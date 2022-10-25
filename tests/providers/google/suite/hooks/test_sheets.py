@@ -29,26 +29,26 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
-GCP_CONN_ID = 'test'
-SPREADSHEET_ID = '1234567890'
-RANGE_ = 'test!A:E'
-RANGES = ['test!A:Q', 'test!R:Z']
+GCP_CONN_ID = "test"
+SPREADSHEET_ID = "1234567890"
+RANGE_ = "test!A:E"
+RANGES = ["test!A:Q", "test!R:Z"]
 VALUES = [[1, 2, 3]]
 VALUES_BATCH = [[[1, 2, 3]], [[4, 5, 6]]]
-MAJOR_DIMENSION = 'ROWS'
-VALUE_RENDER_OPTION = 'FORMATTED_VALUE'
-DATE_TIME_RENDER_OPTION = 'SERIAL_NUMBER'
+MAJOR_DIMENSION = "ROWS"
+VALUE_RENDER_OPTION = "FORMATTED_VALUE"
+DATE_TIME_RENDER_OPTION = "SERIAL_NUMBER"
 INCLUDE_VALUES_IN_RESPONSE = True
-VALUE_INPUT_OPTION = 'RAW'
-INSERT_DATA_OPTION = 'OVERWRITE'
+VALUE_INPUT_OPTION = "RAW"
+INSERT_DATA_OPTION = "OVERWRITE"
 NUM_RETRIES = 5
-API_RESPONSE = {'test': 'response'}
+API_RESPONSE = {"test": "response"}
 
 
 class TestGSheetsHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__',
+            "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = GSheetsHook(gcp_conn_id=GCP_CONN_ID)
@@ -58,7 +58,7 @@ class TestGSheetsHook(unittest.TestCase):
     def test_gsheets_client_creation(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
-            'sheets', 'v4', http=mock_authorize.return_value, cache_discovery=False
+            "sheets", "v4", http=mock_authorize.return_value, cache_discovery=False
         )
         assert mock_build.return_value == result
 
@@ -172,7 +172,7 @@ class TestGSheetsHook(unittest.TestCase):
         with pytest.raises(AirflowException) as ctx:
             self.hook.batch_update_values(
                 spreadsheet_id=SPREADSHEET_ID,
-                ranges=['test!A1:B2', 'test!C1:C2'],
+                ranges=["test!A1:B2", "test!C1:C2"],
                 values=[[1, 2, 3]],  # bad data
                 major_dimension=MAJOR_DIMENSION,
                 value_input_option=VALUE_INPUT_OPTION,

@@ -31,13 +31,13 @@ try:
 except ImportError:
     mock_ecs = None
 
-DEFAULT_CONN_ID: str = 'aws_default'
-REGION: str = 'us-east-1'
+DEFAULT_CONN_ID: str = "aws_default"
+REGION: str = "us-east-1"
 
 
 @pytest.fixture
 def mock_conn():
-    with mock.patch.object(EcsHook, 'conn') as _conn:
+    with mock.patch.object(EcsHook, "conn") as _conn:
         yield _conn
 
 
@@ -50,24 +50,24 @@ class TestEksHooks:
         assert hook.region_name == REGION
 
     def test_get_cluster_state(self, mock_conn) -> None:
-        mock_conn.describe_clusters.return_value = {'clusters': [{'status': 'ACTIVE'}]}
-        assert EcsHook().get_cluster_state(cluster_name='cluster_name') == 'ACTIVE'
+        mock_conn.describe_clusters.return_value = {"clusters": [{"status": "ACTIVE"}]}
+        assert EcsHook().get_cluster_state(cluster_name="cluster_name") == "ACTIVE"
 
     def test_get_task_definition_state(self, mock_conn) -> None:
-        mock_conn.describe_task_definition.return_value = {'taskDefinition': {'status': 'ACTIVE'}}
-        assert EcsHook().get_task_definition_state(task_definition='task_name') == 'ACTIVE'
+        mock_conn.describe_task_definition.return_value = {"taskDefinition": {"status": "ACTIVE"}}
+        assert EcsHook().get_task_definition_state(task_definition="task_name") == "ACTIVE"
 
     def test_get_task_state(self, mock_conn) -> None:
-        mock_conn.describe_tasks.return_value = {'tasks': [{'lastStatus': 'ACTIVE'}]}
-        assert EcsHook().get_task_state(cluster='cluster_name', task='task_name') == 'ACTIVE'
+        mock_conn.describe_tasks.return_value = {"tasks": [{"lastStatus": "ACTIVE"}]}
+        assert EcsHook().get_task_state(cluster="cluster_name", task="task_name") == "ACTIVE"
 
 
 class TestShouldRetry(unittest.TestCase):
     def test_return_true_on_valid_reason(self):
-        self.assertTrue(should_retry(EcsOperatorError([{'reason': 'RESOURCE:MEMORY'}], 'Foo')))
+        self.assertTrue(should_retry(EcsOperatorError([{"reason": "RESOURCE:MEMORY"}], "Foo")))
 
     def test_return_false_on_invalid_reason(self):
-        self.assertFalse(should_retry(EcsOperatorError([{'reason': 'CLUSTER_NOT_FOUND'}], 'Foo')))
+        self.assertFalse(should_retry(EcsOperatorError([{"reason": "CLUSTER_NOT_FOUND"}], "Foo")))
 
 
 class TestShouldRetryEni(unittest.TestCase):
@@ -94,7 +94,7 @@ class TestShouldRetryEni(unittest.TestCase):
 
 
 class TestEcsTaskLogFetcher(unittest.TestCase):
-    @mock.patch('logging.Logger')
+    @mock.patch("logging.Logger")
     def set_up_log_fetcher(self, logger_mock):
         self.logger_mock = logger_mock
 
@@ -109,21 +109,21 @@ class TestEcsTaskLogFetcher(unittest.TestCase):
         self.set_up_log_fetcher()
 
     @mock.patch(
-        'threading.Event.is_set',
+        "threading.Event.is_set",
         side_effect=(False, False, False, True),
     )
     @mock.patch(
-        'airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events',
+        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
         side_effect=(
             iter(
                 [
-                    {'timestamp': 1617400267123, 'message': 'First'},
-                    {'timestamp': 1617400367456, 'message': 'Second'},
+                    {"timestamp": 1617400267123, "message": "First"},
+                    {"timestamp": 1617400367456, "message": "Second"},
                 ]
             ),
             iter(
                 [
-                    {'timestamp': 1617400467789, 'message': 'Third'},
+                    {"timestamp": 1617400467789, "message": "Third"},
                 ]
             ),
             iter([]),
@@ -135,14 +135,14 @@ class TestEcsTaskLogFetcher(unittest.TestCase):
 
         self.logger_mock.info.assert_has_calls(
             [
-                mock.call('[2021-04-02 21:51:07,123] First'),
-                mock.call('[2021-04-02 21:52:47,456] Second'),
-                mock.call('[2021-04-02 21:54:27,789] Third'),
+                mock.call("[2021-04-02 21:51:07,123] First"),
+                mock.call("[2021-04-02 21:52:47,456] Second"),
+                mock.call("[2021-04-02 21:54:27,789] Third"),
             ]
         )
 
     @mock.patch(
-        'airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events',
+        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
         side_effect=ClientError({"Error": {"Code": "ResourceNotFoundException"}}, None),
     )
     def test_get_log_events_with_expected_error(self, get_log_events_mock):
@@ -150,7 +150,7 @@ class TestEcsTaskLogFetcher(unittest.TestCase):
             next(self.log_fetcher._get_log_events())
 
     @mock.patch(
-        'airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events',
+        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
         side_effect=Exception(),
     )
     def test_get_log_events_with_unexpected_error(self, get_log_events_mock):
@@ -159,52 +159,52 @@ class TestEcsTaskLogFetcher(unittest.TestCase):
 
     def test_event_to_str(self):
         events = [
-            {'timestamp': 1617400267123, 'message': 'First'},
-            {'timestamp': 1617400367456, 'message': 'Second'},
-            {'timestamp': 1617400467789, 'message': 'Third'},
+            {"timestamp": 1617400267123, "message": "First"},
+            {"timestamp": 1617400367456, "message": "Second"},
+            {"timestamp": 1617400467789, "message": "Third"},
         ]
         assert [self.log_fetcher._event_to_str(event) for event in events] == (
             [
-                '[2021-04-02 21:51:07,123] First',
-                '[2021-04-02 21:52:47,456] Second',
-                '[2021-04-02 21:54:27,789] Third',
+                "[2021-04-02 21:51:07,123] First",
+                "[2021-04-02 21:52:47,456] Second",
+                "[2021-04-02 21:54:27,789] Third",
             ]
         )
 
     @mock.patch(
-        'airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events',
+        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
         return_value=(),
     )
     def test_get_last_log_message_with_no_log_events(self, mock_log_events):
         assert self.log_fetcher.get_last_log_message() is None
 
     @mock.patch(
-        'airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events',
+        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
         return_value=iter(
             [
-                {'timestamp': 1617400267123, 'message': 'First'},
-                {'timestamp': 1617400367456, 'message': 'Second'},
+                {"timestamp": 1617400267123, "message": "First"},
+                {"timestamp": 1617400367456, "message": "Second"},
             ]
         ),
     )
     def test_get_last_log_message_with_log_events(self, mock_log_events):
-        assert self.log_fetcher.get_last_log_message() == 'Second'
+        assert self.log_fetcher.get_last_log_message() == "Second"
 
     @mock.patch(
-        'airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events',
+        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
         return_value=iter(
             [
-                {'timestamp': 1617400267123, 'message': 'First'},
-                {'timestamp': 1617400367456, 'message': 'Second'},
-                {'timestamp': 1617400367458, 'message': 'Third'},
+                {"timestamp": 1617400267123, "message": "First"},
+                {"timestamp": 1617400367456, "message": "Second"},
+                {"timestamp": 1617400367458, "message": "Third"},
             ]
         ),
     )
     def test_get_last_log_messages_with_log_events(self, mock_log_events):
-        assert self.log_fetcher.get_last_log_messages(2) == ['Second', 'Third']
+        assert self.log_fetcher.get_last_log_messages(2) == ["Second", "Third"]
 
     @mock.patch(
-        'airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events',
+        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
         return_value=(),
     )
     def test_get_last_log_messages_with_no_log_events(self, mock_log_events):

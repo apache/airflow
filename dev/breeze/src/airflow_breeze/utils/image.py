@@ -84,7 +84,7 @@ def run_pull_in_parallel(
                     "verbose": verbose,
                 }
                 if verify:
-                    d['extra_pytest_args'] = extra_pytest_args
+                    d["extra_pytest_args"] = extra_pytest_args
                 return d
 
             results = [

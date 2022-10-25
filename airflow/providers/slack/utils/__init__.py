@@ -19,14 +19,7 @@ from __future__ import annotations
 import warnings
 from typing import Any
 
-try:
-    from airflow.utils.types import NOTSET
-except ImportError:  # TODO: Remove when the provider has an Airflow 2.3+ requirement.
-
-    class ArgNotSet:
-        """Sentinel type for annotations, useful when None is not viable."""
-
-    NOTSET = ArgNotSet()  # type: ignore[assignment]
+from airflow.utils.types import NOTSET
 
 
 class ConnectionExtraConfig:
@@ -50,8 +43,8 @@ class ConnectionExtraConfig:
         :param default: If specified then use as default value if field not present in Connection Extra.
         """
         backcompat_key = f"extra__{self.conn_type}__{field}"
-        if self.extra.get(field) not in (None, ''):
-            if self.extra.get(backcompat_key) not in (None, ''):
+        if self.extra.get(field) not in (None, ""):
+            if self.extra.get(backcompat_key) not in (None, ""):
                 warnings.warn(
                     f"Conflicting params `{field}` and `{backcompat_key}` found in extras for conn "
                     f"{self.conn_id}. Using value for `{field}`.  Please ensure this is the correct value "

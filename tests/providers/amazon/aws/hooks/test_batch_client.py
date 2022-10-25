@@ -50,7 +50,7 @@ class TestBatchClient(unittest.TestCase):
         self.batch_client = BatchClientHook(
             max_retries=self.MAX_RETRIES,
             status_retries=self.STATUS_RETRIES,
-            aws_conn_id='airflow_test',
+            aws_conn_id="airflow_test",
             region_name=AWS_REGION,
         )
         # We're mocking all actual AWS calls and don't need a connection. This
@@ -69,7 +69,7 @@ class TestBatchClient(unittest.TestCase):
         assert self.batch_client.max_retries == self.MAX_RETRIES
         assert self.batch_client.status_retries == self.STATUS_RETRIES
         assert self.batch_client.region_name == AWS_REGION
-        assert self.batch_client.aws_conn_id == 'airflow_test'
+        assert self.batch_client.aws_conn_id == "airflow_test"
         assert self.batch_client.client == self.client_mock
 
         self.get_client_type_mock.assert_called_once_with(region_name=AWS_REGION)
@@ -281,7 +281,7 @@ class TestBatchClient(unittest.TestCase):
                 }
             ]
         }
-        with self.assertLogs(level='WARNING') as capture_logs:
+        with self.assertLogs(level="WARNING") as capture_logs:
             assert self.batch_client.get_job_awslogs_info(JOB_ID) is None
             assert len(capture_logs.records) == 1
 
@@ -299,7 +299,7 @@ class TestBatchClient(unittest.TestCase):
                 }
             ]
         }
-        with self.assertLogs(level='WARNING') as capture_logs:
+        with self.assertLogs(level="WARNING") as capture_logs:
             assert self.batch_client.get_job_awslogs_info(JOB_ID) is None
             assert len(capture_logs.records) == 1
 
@@ -309,7 +309,7 @@ class TestBatchClientDelays(unittest.TestCase):
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
     def setUp(self):
-        self.batch_client = BatchClientHook(aws_conn_id='airflow_test', region_name=AWS_REGION)
+        self.batch_client = BatchClientHook(aws_conn_id="airflow_test", region_name=AWS_REGION)
         # We're mocking all actual AWS calls and don't need a connection. This
         # avoids an Airflow warning about connection cannot be found.
         self.batch_client.get_connection = lambda _: None
@@ -318,7 +318,7 @@ class TestBatchClientDelays(unittest.TestCase):
         assert self.batch_client.max_retries == self.batch_client.MAX_RETRIES
         assert self.batch_client.status_retries == self.batch_client.STATUS_RETRIES
         assert self.batch_client.region_name == AWS_REGION
-        assert self.batch_client.aws_conn_id == 'airflow_test'
+        assert self.batch_client.aws_conn_id == "airflow_test"
 
     def test_add_jitter(self):
         minima = 0

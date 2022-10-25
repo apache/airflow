@@ -33,7 +33,7 @@ class TestOdbcHook:
         conn_params = conn_params or {}
         connection = Connection(
             **{
-                **dict(login='login', password='password', host='host', schema='schema', port=1234),
+                **dict(login="login", password="password", host="host", schema="schema", port=1234),
                 **conn_params,
             }
         )
@@ -44,106 +44,106 @@ class TestOdbcHook:
         return hook
 
     def test_driver_in_extra(self):
-        conn_params = dict(extra=json.dumps(dict(Driver='Fake Driver', Fake_Param='Fake Param')))
+        conn_params = dict(extra=json.dumps(dict(Driver="Fake Driver", Fake_Param="Fake Param")))
         hook = self.get_hook(conn_params=conn_params)
         expected = (
-            'DRIVER={Fake Driver};'
-            'SERVER=host;'
-            'DATABASE=schema;'
-            'UID=login;'
-            'PWD=password;'
-            'PORT=1234;'
-            'Fake_Param=Fake Param;'
+            "DRIVER={Fake Driver};"
+            "SERVER=host;"
+            "DATABASE=schema;"
+            "UID=login;"
+            "PWD=password;"
+            "PORT=1234;"
+            "Fake_Param=Fake Param;"
         )
         assert hook.odbc_connection_string == expected
 
     def test_driver_in_both(self):
-        conn_params = dict(extra=json.dumps(dict(Driver='Fake Driver', Fake_Param='Fake Param')))
-        hook_params = dict(driver='ParamDriver')
+        conn_params = dict(extra=json.dumps(dict(Driver="Fake Driver", Fake_Param="Fake Param")))
+        hook_params = dict(driver="ParamDriver")
         hook = self.get_hook(hook_params=hook_params, conn_params=conn_params)
         expected = (
-            'DRIVER={ParamDriver};'
-            'SERVER=host;'
-            'DATABASE=schema;'
-            'UID=login;'
-            'PWD=password;'
-            'PORT=1234;'
-            'Fake_Param=Fake Param;'
+            "DRIVER={ParamDriver};"
+            "SERVER=host;"
+            "DATABASE=schema;"
+            "UID=login;"
+            "PWD=password;"
+            "PORT=1234;"
+            "Fake_Param=Fake Param;"
         )
         assert hook.odbc_connection_string == expected
 
     def test_dsn_in_extra(self):
-        conn_params = dict(extra=json.dumps(dict(DSN='MyDSN', Fake_Param='Fake Param')))
+        conn_params = dict(extra=json.dumps(dict(DSN="MyDSN", Fake_Param="Fake Param")))
         hook = self.get_hook(conn_params=conn_params)
         expected = (
-            'DSN=MyDSN;SERVER=host;DATABASE=schema;UID=login;PWD=password;PORT=1234;Fake_Param=Fake Param;'
+            "DSN=MyDSN;SERVER=host;DATABASE=schema;UID=login;PWD=password;PORT=1234;Fake_Param=Fake Param;"
         )
         assert hook.odbc_connection_string == expected
 
     def test_dsn_in_both(self):
-        conn_params = dict(extra=json.dumps(dict(DSN='MyDSN', Fake_Param='Fake Param')))
-        hook_params = dict(driver='ParamDriver', dsn='ParamDSN')
+        conn_params = dict(extra=json.dumps(dict(DSN="MyDSN", Fake_Param="Fake Param")))
+        hook_params = dict(driver="ParamDriver", dsn="ParamDSN")
         hook = self.get_hook(hook_params=hook_params, conn_params=conn_params)
         expected = (
-            'DRIVER={ParamDriver};'
-            'DSN=ParamDSN;'
-            'SERVER=host;'
-            'DATABASE=schema;'
-            'UID=login;'
-            'PWD=password;'
-            'PORT=1234;'
-            'Fake_Param=Fake Param;'
+            "DRIVER={ParamDriver};"
+            "DSN=ParamDSN;"
+            "SERVER=host;"
+            "DATABASE=schema;"
+            "UID=login;"
+            "PWD=password;"
+            "PORT=1234;"
+            "Fake_Param=Fake Param;"
         )
         assert hook.odbc_connection_string == expected
 
     def test_get_uri(self):
-        conn_params = dict(extra=json.dumps(dict(DSN='MyDSN', Fake_Param='Fake Param')))
-        hook_params = dict(dsn='ParamDSN')
+        conn_params = dict(extra=json.dumps(dict(DSN="MyDSN", Fake_Param="Fake Param")))
+        hook_params = dict(dsn="ParamDSN")
         hook = self.get_hook(hook_params=hook_params, conn_params=conn_params)
         uri_param = quote_plus(
-            'DSN=ParamDSN;SERVER=host;DATABASE=schema;UID=login;PWD=password;PORT=1234;Fake_Param=Fake Param;'
+            "DSN=ParamDSN;SERVER=host;DATABASE=schema;UID=login;PWD=password;PORT=1234;Fake_Param=Fake Param;"
         )
-        expected = 'mssql+pyodbc:///?odbc_connect=' + uri_param
+        expected = "mssql+pyodbc:///?odbc_connect=" + uri_param
         assert hook.get_uri() == expected
 
     def test_connect_kwargs_from_hook(self):
         hook = self.get_hook(
             hook_params=dict(
                 connect_kwargs={
-                    'attrs_before': {
+                    "attrs_before": {
                         1: 2,
                         pyodbc.SQL_TXN_ISOLATION: pyodbc.SQL_TXN_READ_UNCOMMITTED,
                     },
-                    'readonly': True,
-                    'autocommit': False,
+                    "readonly": True,
+                    "autocommit": False,
                 }
             ),
         )
         assert hook.connect_kwargs == {
-            'attrs_before': {1: 2, pyodbc.SQL_TXN_ISOLATION: pyodbc.SQL_TXN_READ_UNCOMMITTED},
-            'readonly': True,
-            'autocommit': False,
+            "attrs_before": {1: 2, pyodbc.SQL_TXN_ISOLATION: pyodbc.SQL_TXN_READ_UNCOMMITTED},
+            "readonly": True,
+            "autocommit": False,
         }
 
     def test_connect_kwargs_from_conn(self):
         extra = json.dumps(
             dict(
                 connect_kwargs={
-                    'attrs_before': {
+                    "attrs_before": {
                         1: 2,
                         pyodbc.SQL_TXN_ISOLATION: pyodbc.SQL_TXN_READ_UNCOMMITTED,
                     },
-                    'readonly': True,
-                    'autocommit': True,
+                    "readonly": True,
+                    "autocommit": True,
                 }
             )
         )
 
         hook = self.get_hook(conn_params=dict(extra=extra))
         assert hook.connect_kwargs == {
-            'attrs_before': {1: 2, pyodbc.SQL_TXN_ISOLATION: pyodbc.SQL_TXN_READ_UNCOMMITTED},
-            'readonly': True,
-            'autocommit': True,
+            "attrs_before": {1: 2, pyodbc.SQL_TXN_ISOLATION: pyodbc.SQL_TXN_READ_UNCOMMITTED},
+            "readonly": True,
+            "autocommit": True,
         }
 
     def test_connect_kwargs_from_conn_and_hook(self):
@@ -151,54 +151,54 @@ class TestOdbcHook:
         When connect_kwargs in both hook and conn, should be merged properly.
         Hook beats conn.
         """
-        conn_extra = json.dumps(dict(connect_kwargs={'attrs_before': {1: 2, 3: 4}, 'readonly': False}))
+        conn_extra = json.dumps(dict(connect_kwargs={"attrs_before": {1: 2, 3: 4}, "readonly": False}))
         hook_params = dict(
-            connect_kwargs={'attrs_before': {3: 5, pyodbc.SQL_TXN_ISOLATION: 0}, 'readonly': True}
+            connect_kwargs={"attrs_before": {3: 5, pyodbc.SQL_TXN_ISOLATION: 0}, "readonly": True}
         )
 
         hook = self.get_hook(conn_params=dict(extra=conn_extra), hook_params=hook_params)
         assert hook.connect_kwargs == {
-            'attrs_before': {1: 2, 3: 5, pyodbc.SQL_TXN_ISOLATION: 0},
-            'readonly': True,
+            "attrs_before": {1: 2, 3: 5, pyodbc.SQL_TXN_ISOLATION: 0},
+            "readonly": True,
         }
 
     def test_connect_kwargs_bool_from_uri(self):
         """
         Bools will be parsed from uri as strings
         """
-        conn_extra = json.dumps(dict(connect_kwargs={'ansi': True}))
+        conn_extra = json.dumps(dict(connect_kwargs={"ansi": True}))
         hook = self.get_hook(conn_params=dict(extra=conn_extra))
         assert hook.connect_kwargs == {
-            'ansi': True,
+            "ansi": True,
         }
 
     def test_driver(self):
-        hook = self.get_hook(hook_params=dict(driver='Blah driver'))
-        assert hook.driver == 'Blah driver'
-        hook = self.get_hook(hook_params=dict(driver='{Blah driver}'))
-        assert hook.driver == 'Blah driver'
+        hook = self.get_hook(hook_params=dict(driver="Blah driver"))
+        assert hook.driver == "Blah driver"
+        hook = self.get_hook(hook_params=dict(driver="{Blah driver}"))
+        assert hook.driver == "Blah driver"
         hook = self.get_hook(conn_params=dict(extra='{"driver": "Blah driver"}'))
-        assert hook.driver == 'Blah driver'
+        assert hook.driver == "Blah driver"
         hook = self.get_hook(conn_params=dict(extra='{"driver": "{Blah driver}"}'))
-        assert hook.driver == 'Blah driver'
+        assert hook.driver == "Blah driver"
 
     def test_database(self):
-        hook = self.get_hook(hook_params=dict(database='abc'))
-        assert hook.database == 'abc'
+        hook = self.get_hook(hook_params=dict(database="abc"))
+        assert hook.database == "abc"
         hook = self.get_hook()
-        assert hook.database == 'schema'
+        assert hook.database == "schema"
 
     def test_sqlalchemy_scheme_default(self):
         hook = self.get_hook()
         uri = hook.get_uri()
-        assert urlparse(uri).scheme == 'mssql+pyodbc'
+        assert urlparse(uri).scheme == "mssql+pyodbc"
 
     def test_sqlalchemy_scheme_param(self):
-        hook = self.get_hook(hook_params=dict(sqlalchemy_scheme='my-scheme'))
+        hook = self.get_hook(hook_params=dict(sqlalchemy_scheme="my-scheme"))
         uri = hook.get_uri()
-        assert urlparse(uri).scheme == 'my-scheme'
+        assert urlparse(uri).scheme == "my-scheme"
 
     def test_sqlalchemy_scheme_extra(self):
-        hook = self.get_hook(conn_params=dict(extra=json.dumps(dict(sqlalchemy_scheme='my-scheme'))))
+        hook = self.get_hook(conn_params=dict(extra=json.dumps(dict(sqlalchemy_scheme="my-scheme"))))
         uri = hook.get_uri()
-        assert urlparse(uri).scheme == 'my-scheme'
+        assert urlparse(uri).scheme == "my-scheme"

@@ -60,13 +60,13 @@ def resoure_check():
     cpus_available = psutil.cpu_count(logical=True)
 
     # Disk current available
-    partition_usage = psutil.disk_usage('/')
+    partition_usage = psutil.disk_usage("/")
     disk_available = round(get_size(partition_usage.free))
 
     resources: dict[str, Resource] = {
-        'Memory': Resource(current=mem_available, minimumAllowed=MINIMUM_ALLOWED_MEMORY),
-        'Cpus': Resource(current=cpus_available, minimumAllowed=MINIMUM_ALLOWED_CPUS),
-        'Disk': Resource(current=disk_available, minimumAllowed=MINIMUM_ALLOWED_DISK),
+        "Memory": Resource(current=mem_available, minimumAllowed=MINIMUM_ALLOWED_MEMORY),
+        "Cpus": Resource(current=cpus_available, minimumAllowed=MINIMUM_ALLOWED_CPUS),
+        "Disk": Resource(current=disk_available, minimumAllowed=MINIMUM_ALLOWED_DISK),
     }
     return resources
 
@@ -79,7 +79,7 @@ def resoure_validate():
 
     for resource, capacity in resources.items():
 
-        check = '' if resource == "Cpus" else 'GB'
+        check = "" if resource == "Cpus" else "GB"
 
         if capacity.current < capacity.minimumAllowed:
             console.print(f"[yellow]WARNING!!!: Not enough {resource} available for Docker.")
