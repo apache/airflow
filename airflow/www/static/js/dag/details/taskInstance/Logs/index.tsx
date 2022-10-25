@@ -87,6 +87,7 @@ interface Props {
   mapIndex?: TaskInstance['mapIndex'];
   executionDate: DagRun['executionDate'];
   tryNumber: TaskInstance['tryNumber'];
+  state?: TaskInstance['state'];
 }
 
 const Logs = ({
@@ -96,6 +97,7 @@ const Logs = ({
   mapIndex,
   executionDate,
   tryNumber,
+  state,
 }: Props) => {
   const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
   const [selectedTryNumber, setSelectedTryNumber] = useState<number | undefined>();
@@ -105,7 +107,6 @@ const Logs = ({
   const [fileSourceFilters, setFileSourceFilters] = useState<Array<FileSourceOption>>([]);
   const { timezone } = useTimezone();
 
-  //
   const taskTryNumber = selectedTryNumber || tryNumber || 1;
   const { data, isSuccess } = useTaskLog({
     dagId,
@@ -114,6 +115,7 @@ const Logs = ({
     mapIndex,
     taskTryNumber,
     fullContent: shouldRequestFullContent,
+    state,
   });
 
   const params = new URLSearchParamsWrapper({
