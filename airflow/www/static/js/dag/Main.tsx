@@ -19,7 +19,7 @@
 
 /* global localStorage */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Box,
   Flex,
@@ -42,6 +42,9 @@ const detailsPanelKey = 'hideDetailsPanel';
 
 const Main = () => {
   const { data: { groups }, isLoading } = useGridData();
+  const resizeRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const isPanelOpen = localStorage.getItem(detailsPanelKey) !== 'true';
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
   const { clearSelection } = useSelection();
@@ -65,24 +68,80 @@ const Main = () => {
     onToggle();
   };
 
+  useEffect(() => {
+    if (contentRef.current) {
+      const topOffset = contentRef.current.offsetTop;
+      const footerHeight = parseInt(getComputedStyle(document.getElementsByTagName('body')[0]).paddingBottom.replace('px', '').replace('em', ''), 10) || 0;
+      contentRef.current.style.height = `${window.innerHeight - topOffset - footerHeight}px`;
+    }
+  }, []);
+
+  useEffect(() => {
+    const resize = (e: any) => {
+      if (gridRef.current && e.x > 350 && e.x < window.innerWidth - 400) {
+        gridRef.current.style.width = `${e.x}px`;
+      }
+    };
+
+    const resizeEl = resizeRef.current;
+    if (resizeEl) {
+      resizeEl?.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        document.addEventListener('mousemove', resize, false);
+      }, false);
+
+      document.addEventListener('mouseup', () => {
+        document.removeEventListener('mousemove', resize, false);
+      }, false);
+    }
+    return () => {
+      resizeEl?.removeEventListener('mousedown', resize);
+      document.removeEventListener('mouseup', resize);
+    };
+  }, []);
+
   return (
-    <Box>
+    <Box flex={1}>
       <FilterBar />
       <LegendRow onStatusHover={onStatusHover} onStatusLeave={onStatusLeave} />
       <Divider mb={5} borderBottomWidth={2} />
-      <Flex justifyContent="space-between">
+      <Flex ref={contentRef}>
         {isLoading || isEmpty(groups)
           ? (<Spinner />)
           : (
             <>
-              <Grid
-                isPanelOpen={isOpen}
-                onPanelToggle={onPanelToggle}
-                hoveredTaskState={hoveredTaskState}
-              />
-              <Box borderLeftWidth={isOpen ? 1 : 0} position="relative">
-                {isOpen && (<Details />)}
+              <Box
+                minWidth="350px"
+                flex={isOpen ? undefined : 1}
+                ref={gridRef}
+                height="100%"
+              >
+                <Grid
+                  isPanelOpen={isOpen}
+                  onPanelToggle={onPanelToggle}
+                  hoveredTaskState={hoveredTaskState}
+                />
               </Box>
+              {isOpen && (
+                <>
+                  <Box
+                    width={2}
+                    cursor="ew-resize"
+                    bg="gray.200"
+                    ref={resizeRef}
+                    zIndex={1}
+                  />
+                  <Box
+                    flexGrow={1}
+                    minWidth="400px"
+                    zIndex={1}
+                    bg="white"
+                    height="100%"
+                  >
+                    <Details />
+                  </Box>
+                </>
+              )}
             </>
           )}
       </Flex>
