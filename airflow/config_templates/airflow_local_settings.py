@@ -158,7 +158,7 @@ if EXTRA_LOGGER_NAMES:
 DEFAULT_DAG_PARSING_LOGGING_CONFIG: dict[str, dict[str, dict[str, Any]]] = {
     'handlers': {
         'processor_manager': {
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': 'airflow.utils.log.non_caching_file_handler.NonCachingRotatingFileHandler',
             'formatter': 'airflow',
             'filename': DAG_PROCESSOR_MANAGER_LOG_LOCATION,
             'mode': 'a',
