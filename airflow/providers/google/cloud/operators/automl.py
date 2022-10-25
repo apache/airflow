@@ -137,7 +137,7 @@ class AutoMLTrainModelOperator(BaseOperator):
             AutoMLModelLink.persist(
                 context=context,
                 task_instance=self,
-                dataset_id=self.model['dataset_id'] or '-',
+                dataset_id=self.model["dataset_id"] or "-",
                 model_id=model_id,
                 project_id=project_id,
             )
@@ -807,7 +807,7 @@ class AutoMLGetModelOperator(BaseOperator):
             AutoMLModelLink.persist(
                 context=context,
                 task_instance=self,
-                dataset_id=model['dataset_id'],
+                dataset_id=model["dataset_id"],
                 model_id=self.model_id,
                 project_id=project_id,
             )

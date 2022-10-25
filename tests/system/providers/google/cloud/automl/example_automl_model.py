@@ -67,7 +67,7 @@ DATASET = {
 AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl/bank-marketing.csv"
 IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [AUTOML_DATASET_BUCKET]}}
 IMPORT_OUTPUT_CONFIG = {
-    "gcs_destination": {"output_uri_prefix": F"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl"}
+    "gcs_destination": {"output_uri_prefix": f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl"}
 }
 
 MODEL_NAME = f"model_{DAG_ID}_{ENV_ID}"
@@ -110,7 +110,7 @@ def get_target_column_spec(columns_specs: list[dict], column_name: str) -> str:
 
 with models.DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     user_defined_macros={
@@ -118,7 +118,7 @@ with models.DAG(
         "target": "Class",
         "extract_object_id": extract_object_id,
     },
-    tags=['example', 'automl'],
+    tags=["example", "automl"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
@@ -130,9 +130,9 @@ with models.DAG(
     move_dataset_file = GCSSynchronizeBucketsOperator(
         task_id="move_data_to_bucket",
         source_bucket=RESOURCE_DATA_BUCKET,
-        source_object='automl',
+        source_object="automl",
         destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
-        destination_object='automl',
+        destination_object="automl",
         recursive=True,
     )
 
@@ -143,7 +143,7 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    dataset_id = create_dataset.output['dataset_id']
+    dataset_id = create_dataset.output["dataset_id"]
     MODEL["dataset_id"] = dataset_id
     import_dataset = AutoMLImportDataOperator(
         task_id="import_dataset",
@@ -186,7 +186,7 @@ with models.DAG(
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
     )
-    model_id = create_model.output['model_id']
+    model_id = create_model.output["model_id"]
     # [END howto_operator_automl_create_model]
 
     # [START howto_operator_get_model]

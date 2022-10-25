@@ -95,9 +95,9 @@ with models.DAG(
     move_dataset_file = GCSSynchronizeBucketsOperator(
         task_id="move_dataset_to_bucket",
         source_bucket=RESOURCE_DATA_BUCKET,
-        source_object='automl',
+        source_object="automl",
         destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
-        destination_object='automl',
+        destination_object="automl",
         recursive=True,
     )
 
@@ -108,7 +108,7 @@ with models.DAG(
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
     )
-    dataset_id = create_dataset.output['dataset_id']
+    dataset_id = create_dataset.output["dataset_id"]
     # [END howto_operator_automl_create_dataset]
 
     # [START howto_operator_automl_import_data]
