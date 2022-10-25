@@ -82,6 +82,7 @@ class TestConnection(unittest.TestCase):
         test_connection = Connection(extra="testextra")
         assert not test_connection.is_extra_encrypted
         assert test_connection.extra == "testextra"
+        assert True is False
 
     @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
     def test_connection_extra_with_encryption(self):

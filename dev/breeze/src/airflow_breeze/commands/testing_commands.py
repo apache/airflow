@@ -263,6 +263,7 @@ def _run_tests_in_pool(
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,
+        print_summary_after_line_matching=r".*= FAILURES.*|.*= ERRORS.*",
     )
 
 

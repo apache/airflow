@@ -65,7 +65,7 @@ def nice_timedelta(delta: datetime.timedelta):
 ANSI_COLOUR_MATCHER = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
 
 
-def remove_ansi_colours(line):
+def remove_ansi_colours(line: str):
     return ANSI_COLOUR_MATCHER.sub("", line)
 
 
@@ -343,6 +343,8 @@ def check_async_run_results(
     include_success_outputs: bool,
     poll_time: float = 0.2,
     skip_cleanup: bool = False,
+    print_summary_after_line_matching: str | None = None,
+    print_summary_also_after_success: bool = False,
 ):
     """
     Check if all async results were success. Exits with error if not.
@@ -352,6 +354,11 @@ def check_async_run_results(
     :param include_success_outputs: include outputs of successful parallel runs
     :param poll_time: what's the poll time between checks
     :param skip_cleanup: whether to skip cleanup of temporary files.
+    :param print_summary_after_line_matching: if it is not None, the regexp determines line after which
+        outputs should be printed as summary, so that you do not have to look at the folded details of
+        the run in CI
+    :param print_summary_also_after_success: if summary is printed, this flag determines if summaries should
+        be only printed on failure (False) or also on success (True).
     """
     from airflow_breeze.utils.ci_group import ci_group
 
@@ -387,6 +394,17 @@ def check_async_run_results(
                 os.write(1, Path(outputs[i].file_name).read_bytes())
         else:
             get_console().print(f"[success]{outputs[i].title}")
+    if print_summary_after_line_matching is not None:
+        regex = re.compile(print_summary_after_line_matching)
+        for i, result in enumerate(results):
+            error = result.get()[0] != 0
+            if error or print_summary_also_after_success:
+                print_lines = False
+                for line in Path(outputs[i].file_name).read_bytes().decode(errors="ignore").splitlines():
+                    if not print_lines and regex.match(remove_ansi_colours(line)):
+                        print_lines = True
+                        get_console().print("\n[info]Summary: {output.title:<30}:\n")
+                    print(line)
     try:
         if errors:
             get_console().print("\n[error]There were errors when running some tasks. Quitting.[/]\n")
