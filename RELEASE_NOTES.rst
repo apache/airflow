@@ -149,9 +149,9 @@ A dataset is identified by a URI:
     from airflow import Dataset
 
     # The URI doesn't have to be absolute
-    dataset = Dataset(uri='my-dataset')
+    dataset = Dataset(uri="my-dataset")
     # Or you can use a scheme to show where it lives.
-    dataset2 = Dataset(uri='s3://bucket/prefix')
+    dataset2 = Dataset(uri="s3://bucket/prefix")
 
 To create a DAG that runs whenever a Dataset is updated use the new ``schedule`` parameter (see below) and
 pass a list of 1 or more Datasets:
@@ -241,9 +241,9 @@ If you previously used the ``@daily`` cron preset, your DAG may have looked like
 .. code-block:: python
 
     with DAG(
-        dag_id='my_example',
+        dag_id="my_example",
         start_date=datetime(2021, 1, 1),
-        schedule_interval='@daily',
+        schedule_interval="@daily",
     ):
         ...
 
@@ -252,9 +252,9 @@ Going forward, you should use the ``schedule`` argument instead:
 .. code-block:: python
 
     with DAG(
-        dag_id='my_example',
+        dag_id="my_example",
         start_date=datetime(2021, 1, 1),
-        schedule='@daily',
+        schedule="@daily",
     ):
         ...
 
@@ -263,7 +263,7 @@ The same is true if you used a custom timetable.  Previously you would have used
 .. code-block:: python
 
     with DAG(
-        dag_id='my_example',
+        dag_id="my_example",
         start_date=datetime(2021, 1, 1),
         timetable=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5)]),
     ):
@@ -274,7 +274,7 @@ Now you should use the ``schedule`` argument:
 .. code-block:: python
 
     with DAG(
-        dag_id='my_example',
+        dag_id="my_example",
         start_date=datetime(2021, 1, 1),
         schedule=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5)]),
     ):

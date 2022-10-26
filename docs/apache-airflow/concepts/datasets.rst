@@ -59,7 +59,7 @@ A dataset is defined by a Uniform Resource Identifier (URI):
 
     from airflow import Dataset
 
-    example_dataset = Dataset('s3://dataset-bucket/example.csv')
+    example_dataset = Dataset("s3://dataset-bucket/example.csv")
 
 Airflow makes no assumptions about the content or location of the data represented by the URI. It is treated as a string, so any use of regular expressions (eg ``input_\d+.csv``) or file glob patterns (eg ``input_2022*.csv``) as an attempt to create multiple datasets from one declaration will not work.
 
@@ -90,7 +90,7 @@ If required, an extra dictionary can be included in a Dataset:
 
     example_dataset = Dataset(
         "s3://dataset/example.csv",
-        extra={'team': 'trainees'},
+        extra={"team": "trainees"},
     )
 
 .. note:: **Security Note:** Dataset URI and extra fields are not encrypted, they are stored in cleartext, in Airflow's metadata database. Do NOT store any sensitive values, especially credentials, in dataset URIs or extra key values!
@@ -106,10 +106,10 @@ You can use datasets to specify data dependencies in your DAGs. Take the followi
 
     example_dataset = Dataset("s3://dataset/example.csv")
 
-    with DAG(dag_id='producer', ...):
-        BashOperator(task_id='producer', outlets=[example_dataset], ...)
+    with DAG(dag_id="producer", ...):
+        BashOperator(task_id="producer", outlets=[example_dataset], ...)
 
-    with DAG(dag_id='consumer', schedule=[example_dataset], ...):
+    with DAG(dag_id="consumer", schedule=[example_dataset], ...):
         ...
 
 Once the ``producer`` task in the ``producer`` DAG has completed successfully, Airflow schedules the ``consumer`` DAG. A dataset will be marked as updated only if the task completes successfully — if the task fails or if it is skipped, no update occurs, and the ``consumer`` DAG will not be scheduled.
@@ -125,7 +125,7 @@ As the ``schedule`` parameter is a list, DAGs can require multiple datasets, and
 .. code-block:: python
 
     with DAG(
-        dag_id='multiple_datasets_example',
+        dag_id="multiple_datasets_example",
         schedule=[
             example_dataset_1,
             example_dataset_2,

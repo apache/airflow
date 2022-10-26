@@ -43,11 +43,11 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 DAG_ID = "example_gcp_cloud_build_trigger"
 
-GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repository"
+GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repo"
 
 # [START howto_operator_gcp_create_build_trigger_body]
 create_build_trigger_body = {
-    "name": "test-cloud-build-trigger",
+    "name": f"test-cloud-build-trigger-{ENV_ID}",
     "trigger_template": {
         "project_id": PROJECT_ID,
         "repo_name": GCP_SOURCE_REPOSITORY_NAME,
@@ -59,7 +59,7 @@ create_build_trigger_body = {
 
 # [START howto_operator_gcp_update_build_trigger_body]
 update_build_trigger_body = {
-    "name": "test-cloud-build-trigger",
+    "name": f"test-cloud-build-trigger-{ENV_ID}",
     "trigger_template": {
         "project_id": PROJECT_ID,
         "repo_name": GCP_SOURCE_REPOSITORY_NAME,

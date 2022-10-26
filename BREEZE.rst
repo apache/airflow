@@ -695,7 +695,7 @@ For example this will only run provider tests for airbyte and http providers:
 
 .. code-block:: bash
 
-   breeze testing tests --test-type "Providers[airbyte,http]``
+   breeze testing tests --test-type "Providers[airbyte,http]"
 
 You can also run parallel tests with ``--run-in-parallel`` flag - by default it will run all tests types
 in parallel, but you can specify the test type that you want to run with space separated list of test
