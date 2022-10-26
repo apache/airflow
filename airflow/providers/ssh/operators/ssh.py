@@ -53,7 +53,7 @@ class SSHOperator(BaseOperator):
     :param timeout: (deprecated) timeout (in seconds) for executing the command. The default is 10 seconds.
         Use conn_timeout and cmd_timeout parameters instead.
     :param environment: a dict of shell environment variables. Note that the
-        server will reject them silently if `AcceptEnv` is not set in SSH config.
+        server will reject them silently if `AcceptEnv` is not set in SSH config. (templated)
     :param get_pty: request a pseudo-terminal from the server. Set to ``True``
         to have the remote process killed upon task timeout.
         The default is ``False`` but note that `get_pty` is forced to ``True``
