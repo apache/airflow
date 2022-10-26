@@ -422,12 +422,12 @@ exit 0
         # ExternalTaskSensor will also report a failure and return without
         # waiting for a timeout.
         task_chain_with_failure = ExternalTaskSensor(
-            task_id='task_chain_with_failure',
+            task_id="task_chain_with_failure",
             external_dag_id=dag_external_id,
-            external_task_id='task_external_with_failure',
+            external_task_id="task_external_with_failure",
             execution_date_fn=lambda dt: [dt + timedelta(seconds=i) for i in range(3)],
-            allowed_states=['success'],
-            failed_states=['failed'],
+            allowed_states=["success"],
+            failed_states=["failed"],
             retries=0,
             timeout=5,
             poke_interval=1,
