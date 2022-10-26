@@ -242,7 +242,6 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: set[str] = {
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.secrets.key_vault`.",
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.sensors.cosmos`.",
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.transfers.local_to_wasb`.",
-    "This module is deprecated. Please use `airflow.providers.tableau.operators.tableau`.",
     "This module is deprecated. Please use `kubernetes.client.models.V1Volume`.",
     "This module is deprecated. Please use `kubernetes.client.models.V1VolumeMount`.",
     (
@@ -252,7 +251,6 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: set[str] = {
     "This module is deprecated. Please use `kubernetes.client.models.V1EnvVar`.",
     "numpy.ufunc size changed, may indicate binary incompatibility. Expected 192 from C header,"
     " got 216 from PyObject",
-    "This module is deprecated. Please use `airflow.providers.tableau.sensors.tableau`.",
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.lambda_function`.",
     (
         """
