@@ -27,6 +27,7 @@ import {
   Thead,
   Flex,
   IconButton,
+  useDimensions,
 } from '@chakra-ui/react';
 
 import { MdReadMore } from 'react-icons/md';
@@ -51,6 +52,8 @@ interface Props {
 const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }: Props) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableSectionElement>(null);
+  const buttonsRef = useRef<HTMLDivElement>(null);
+  const dimensions = useDimensions(buttonsRef);
 
   const { data: { groups, dagRuns } } = useGridData();
   const dagRunIds = dagRuns.map((dr) => dr.runId);
@@ -90,10 +93,9 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }: Props) =
 
   return (
     <Box
-      minWidth={isPanelOpen ? '350px' : undefined}
-      flexGrow={1}
       m={3}
       mt={0}
+      height="100%"
     >
       <Flex
         alignItems="center"
@@ -101,6 +103,7 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }: Props) =
         mb={2}
         p={1}
         backgroundColor="white"
+        ref={buttonsRef}
       >
         <Flex alignItems="center">
           <AutoRefresh />
@@ -122,9 +125,9 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }: Props) =
         />
       </Flex>
       <Box
-        overflow="auto"
+        height={`calc(100% - ${dimensions?.borderBox.height}px)`}
         ref={scrollRef}
-        maxHeight="900px"
+        overflow="auto"
         position="relative"
         pr={4}
       >
