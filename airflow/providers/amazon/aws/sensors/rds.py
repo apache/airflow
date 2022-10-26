@@ -42,15 +42,15 @@ class RdsBaseSensor(BaseSensorOperator):
         super().__init__(*args, **kwargs)
 
     def _describe_item(self, item_type: str, item_name: str) -> list:
-        if item_type == 'instance_snapshot':
+        if item_type == "instance_snapshot":
             db_snaps = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=item_name)
-            return db_snaps['DBSnapshots']
-        elif item_type == 'cluster_snapshot':
+            return db_snaps["DBSnapshots"]
+        elif item_type == "cluster_snapshot":
             cl_snaps = self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=item_name)
-            return cl_snaps['DBClusterSnapshots']
-        elif item_type == 'export_task':
+            return cl_snaps["DBClusterSnapshots"]
+        elif item_type == "export_task":
             exports = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=item_name)
-            return exports['ExportTasks']
+            return exports["ExportTasks"]
         elif item_type == "db_instance":
             instances = self.hook.conn.describe_db_instances(DBInstanceIdentifier=item_name)
             return instances["DBInstances"]
@@ -90,8 +90,8 @@ class RdsSnapshotExistenceSensor(RdsBaseSensor):
     """
 
     template_fields: Sequence[str] = (
-        'db_snapshot_identifier',
-        'target_statuses',
+        "db_snapshot_identifier",
+        "target_statuses",
     )
 
     def __init__(
@@ -106,16 +106,16 @@ class RdsSnapshotExistenceSensor(RdsBaseSensor):
         super().__init__(aws_conn_id=aws_conn_id, **kwargs)
         self.db_type = RdsDbType(db_type)
         self.db_snapshot_identifier = db_snapshot_identifier
-        self.target_statuses = target_statuses or ['available']
+        self.target_statuses = target_statuses or ["available"]
 
     def poke(self, context: Context):
         self.log.info(
-            'Poking for statuses : %s\nfor snapshot %s', self.target_statuses, self.db_snapshot_identifier
+            "Poking for statuses : %s\nfor snapshot %s", self.target_statuses, self.db_snapshot_identifier
         )
         if self.db_type.value == "instance":
-            return self._check_item(item_type='instance_snapshot', item_name=self.db_snapshot_identifier)
+            return self._check_item(item_type="instance_snapshot", item_name=self.db_snapshot_identifier)
         else:
-            return self._check_item(item_type='cluster_snapshot', item_name=self.db_snapshot_identifier)
+            return self._check_item(item_type="cluster_snapshot", item_name=self.db_snapshot_identifier)
 
 
 class RdsExportTaskExistenceSensor(RdsBaseSensor):
@@ -131,8 +131,8 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
     """
 
     template_fields: Sequence[str] = (
-        'export_task_identifier',
-        'target_statuses',
+        "export_task_identifier",
+        "target_statuses",
     )
 
     def __init__(
@@ -147,18 +147,18 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
 
         self.export_task_identifier = export_task_identifier
         self.target_statuses = target_statuses or [
-            'starting',
-            'in_progress',
-            'complete',
-            'canceling',
-            'canceled',
+            "starting",
+            "in_progress",
+            "complete",
+            "canceling",
+            "canceled",
         ]
 
     def poke(self, context: Context):
         self.log.info(
-            'Poking for statuses : %s\nfor export task %s', self.target_statuses, self.export_task_identifier
+            "Poking for statuses : %s\nfor export task %s", self.target_statuses, self.export_task_identifier
         )
-        return self._check_item(item_type='export_task', item_name=self.export_task_identifier)
+        return self._check_item(item_type="export_task", item_name=self.export_task_identifier)
 
 
 class RdsDbSensor(RdsBaseSensor):
@@ -175,9 +175,9 @@ class RdsDbSensor(RdsBaseSensor):
     """
 
     template_fields: Sequence[str] = (
-        'db_identifier',
-        'db_type',
-        'target_statuses',
+        "db_identifier",
+        "db_type",
+        "target_statuses",
     )
 
     def __init__(
