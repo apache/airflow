@@ -94,7 +94,7 @@ def enable_access_emr_on_eks(cluster, ns):
 
 @task
 def get_execution_role_name() -> str:
-    return boto3.client("sts").get_caller_identity()["Arn"].split("/")[-1]
+    return boto3.client("sts").get_caller_identity()["Arn"].split("/")[-2]
 
 
 @task
