@@ -146,7 +146,6 @@ The selective check outputs available are described below:
 | python-versions-list-as-string     | Which versions of MySQL to use for tests as space-separated string                                     | 3.7                                                           |
 | run-kubernetes-tests               | Whether Kubernetes tests should be run ("true"/"false")                                                | true                                                          |
 | run-tests                          | Whether unit tests should be run ("true"/"false")                                                      | true                                                          |
-| run-ui-tests                       | Whether UI tests should be run ("true"/"false")                                                        | true                                                          |
 | run-www-tests                      | Whether WWW tests should be run ("true"/"false")                                                       | true                                                          |
 | skip-pre-commits                   | Which pre-commits should be skipped during the static-checks run                                       | identity                                                      |
 | sqlite-exclude                     | Which versions of Sqlite to exclude for tests as JSON array                                            | []                                                            |
