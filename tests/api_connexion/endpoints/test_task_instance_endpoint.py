@@ -184,7 +184,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         # This prevents issue when users upgrade to 2.0+
         # from 1.10.x
         # https://github.com/apache/airflow/issues/14421
-        session.query(TaskInstance).update({TaskInstance.operator: None}, synchronize_session='fetch')
+        session.query(TaskInstance).update({TaskInstance.operator: None}, synchronize_session="fetch")
         session.commit()
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
@@ -220,14 +220,14 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         }
 
     def test_should_respond_200_with_task_state_in_deferred(self, session):
-        now = pendulum.now('UTC')
+        now = pendulum.now("UTC")
         ti = self.create_task_instances(
             session, task_instances=[{"state": State.DEFERRED}], update_extras=True
         )[0]
-        ti.trigger = Trigger('none', {})
+        ti.trigger = Trigger("none", {})
         ti.trigger.created_date = now
         ti.triggerer_job = TriggererJob()
-        ti.triggerer_job.state = 'running'
+        ti.triggerer_job.state = "running"
         session.commit()
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
@@ -237,8 +237,8 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
 
         # this logic in effect replicates mock.ANY for these values
         values_to_ignore = {
-            'trigger': ['created_date', 'id', 'triggerer_id'],
-            'triggerer_job': ['executor_class', 'hostname', 'id', 'latest_heartbeat', 'start_date'],
+            "trigger": ["created_date", "id", "triggerer_id"],
+            "triggerer_job": ["executor_class", "hostname", "id", "latest_heartbeat", "start_date"],
         }
         for k, v in values_to_ignore.items():
             for elem in v:
@@ -269,16 +269,16 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "rendered_fields": {},
-            'trigger': {
-                'classpath': 'none',
-                'kwargs': '{}',
+            "trigger": {
+                "classpath": "none",
+                "kwargs": "{}",
             },
-            'triggerer_job': {
-                'dag_id': None,
-                'end_date': None,
-                'job_type': 'TriggererJob',
-                'state': 'running',
-                'unixname': getuser(),
+            "triggerer_job": {
+                "dag_id": None,
+                "end_date": None,
+                "job_type": "TriggererJob",
+                "state": "running",
+                "unixname": getuser(),
             },
         }
 
@@ -367,7 +367,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
-            "rendered_fields": {'op_args': [], 'op_kwargs': {}, 'templates_dict': None},
+            "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
             "trigger": None,
             "triggerer_job": None,
         }
@@ -382,7 +382,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         session.add(rendered_fields)
         session.commit()
         new_ti = TaskInstance(task=ti.task, run_id=ti.run_id, map_index=2)
-        for attr in ['duration', 'end_date', 'pid', 'start_date', 'state', 'queue']:
+        for attr in ["duration", "end_date", "pid", "start_date", "state", "queue"]:
             setattr(new_ti, attr, getattr(ti, attr))
         session.add(new_ti)
         rendered_fields = RTIF(new_ti, render_templates=False)
@@ -414,14 +414,14 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "priority_weight": 9,
                 "queue": "default_queue",
                 "queued_when": None,
-                'sla_miss': None,
+                "sla_miss": None,
                 "start_date": "2020-01-02T00:00:00+00:00",
                 "state": "running",
                 "task_id": "print_the_context",
                 "try_number": 0,
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
-                "rendered_fields": {'op_args': [], 'op_kwargs': {}, 'templates_dict': None},
+                "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
                 "trigger": None,
                 "triggerer_job": None,
             }
@@ -435,7 +435,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
             "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
-            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
@@ -449,7 +449,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
 
     def test_should_return_404_for_mapped_endpoint(self, session):
         self.create_task_instances(session)
-        for index in ['0', '1', '2']:
+        for index in ["0", "1", "2"]:
             response = self.client.get(
                 "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/"
                 f"taskInstances/print_the_context/{index}",
@@ -651,7 +651,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/~/taskInstances",
-            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
@@ -860,19 +860,19 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
     def test_should_raise_403_forbidden(self):
         response = self.client.post(
             "/api/v1/dags/~/dagRuns/~/taskInstances/list",
-            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
             json={"dag_ids": ["example_python_operator", "example_skip_dag"]},
         )
         assert response.status_code == 403
 
     @parameterized.expand(
         [
-            ({"end_date_lte": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
-            ({"end_date_gte": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
-            ({"start_date_lte": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
-            ({"start_date_gte": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
-            ({"execution_date_gte": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
-            ({"execution_date_lte": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
+            ({"end_date_lte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
+            ({"end_date_gte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
+            ({"start_date_lte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
+            ({"start_date_gte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
+            ({"execution_date_gte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
+            ({"execution_date_lte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
         ]
     )
     @provide_session
@@ -880,11 +880,11 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
         response = self.client.post(
             "/api/v1/dags/~/dagRuns/~/taskInstances/list",
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
             json=payload,
         )
         assert response.status_code == 400
-        assert response.json['detail'] == expected
+        assert response.json["detail"] == expected
 
 
 class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
@@ -1112,7 +1112,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         dag_id = "example_python_operator"
         tis = self.create_task_instances(session)
         dagrun = tis[0].get_dagrun()
-        assert dagrun.state == 'running'
+        assert dagrun.state == "running"
 
         payload = {"dry_run": False, "reset_dag_runs": True, "task_ids": [""]}
         self.app.dag_bag.sync_to_db()
@@ -1124,8 +1124,8 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200
 
         dagrun.refresh_from_db()
-        assert dagrun.state == 'running'
-        assert all(ti.state == 'running' for ti in tis)
+        assert dagrun.state == "running"
+        assert all(ti.state == "running" for ti in tis)
 
     def test_should_respond_200_with_reset_dag_run(self, session):
         dag_id = "example_python_operator"
@@ -1177,40 +1177,40 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert 200 == response.status_code
         expected_response = [
             {
-                'dag_id': 'example_python_operator',
-                'dag_run_id': 'TEST_DAG_RUN_ID_0',
-                'execution_date': '2020-01-01T00:00:00+00:00',
-                'task_id': 'print_the_context',
+                "dag_id": "example_python_operator",
+                "dag_run_id": "TEST_DAG_RUN_ID_0",
+                "execution_date": "2020-01-01T00:00:00+00:00",
+                "task_id": "print_the_context",
             },
             {
-                'dag_id': 'example_python_operator',
-                'dag_run_id': 'TEST_DAG_RUN_ID_1',
-                'execution_date': '2020-01-02T00:00:00+00:00',
-                'task_id': 'log_sql_query',
+                "dag_id": "example_python_operator",
+                "dag_run_id": "TEST_DAG_RUN_ID_1",
+                "execution_date": "2020-01-02T00:00:00+00:00",
+                "task_id": "log_sql_query",
             },
             {
-                'dag_id': 'example_python_operator',
-                'dag_run_id': 'TEST_DAG_RUN_ID_2',
-                'execution_date': '2020-01-03T00:00:00+00:00',
-                'task_id': 'sleep_for_0',
+                "dag_id": "example_python_operator",
+                "dag_run_id": "TEST_DAG_RUN_ID_2",
+                "execution_date": "2020-01-03T00:00:00+00:00",
+                "task_id": "sleep_for_0",
             },
             {
-                'dag_id': 'example_python_operator',
-                'dag_run_id': 'TEST_DAG_RUN_ID_3',
-                'execution_date': '2020-01-04T00:00:00+00:00',
-                'task_id': 'sleep_for_1',
+                "dag_id": "example_python_operator",
+                "dag_run_id": "TEST_DAG_RUN_ID_3",
+                "execution_date": "2020-01-04T00:00:00+00:00",
+                "task_id": "sleep_for_1",
             },
             {
-                'dag_id': 'example_python_operator',
-                'dag_run_id': 'TEST_DAG_RUN_ID_4',
-                'execution_date': '2020-01-05T00:00:00+00:00',
-                'task_id': 'sleep_for_2',
+                "dag_id": "example_python_operator",
+                "dag_run_id": "TEST_DAG_RUN_ID_4",
+                "execution_date": "2020-01-05T00:00:00+00:00",
+                "task_id": "sleep_for_2",
             },
             {
-                'dag_id': 'example_python_operator',
-                'dag_run_id': 'TEST_DAG_RUN_ID_5',
-                'execution_date': '2020-01-06T00:00:00+00:00',
-                'task_id': 'sleep_for_3',
+                "dag_id": "example_python_operator",
+                "dag_run_id": "TEST_DAG_RUN_ID_5",
+                "execution_date": "2020-01-06T00:00:00+00:00",
+                "task_id": "sleep_for_3",
             },
         ]
         for task_instance in expected_response:
@@ -1235,7 +1235,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
     def test_should_raise_403_forbidden(self, username: str):
         response = self.client.post(
             "/api/v1/dags/example_python_operator/clearTaskInstances",
-            environ_overrides={'REMOTE_USER': username},
+            environ_overrides={"REMOTE_USER": username},
             json={
                 "dry_run": False,
                 "reset_dag_runs": True,
@@ -1248,10 +1248,10 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
 
     @parameterized.expand(
         [
-            ({"end_date": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
-            ({"end_date": '2020-11-10T12:4po'}, "{'end_date': ['Not a valid datetime.']}"),
-            ({"start_date": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
-            ({"start_date": '2020-11-10T12:4po'}, "{'start_date': ['Not a valid datetime.']}"),
+            ({"end_date": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
+            ({"end_date": "2020-11-10T12:4po"}, "{'end_date': ['Not a valid datetime.']}"),
+            ({"start_date": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
+            ({"start_date": "2020-11-10T12:4po"}, "{'start_date': ['Not a valid datetime.']}"),
         ]
     )
     @provide_session
@@ -1276,11 +1276,11 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             json=payload,
         )
         assert response.status_code == 400
-        assert response.json['detail'] == expected
+        assert response.json["detail"] == expected
 
 
 class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
-    @mock.patch('airflow.models.dag.DAG.set_task_instance_state')
+    @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
     def test_should_assert_call_mocked_api(self, mock_set_task_instance_state, session):
         self.create_task_instances(session)
         mock_set_task_instance_state.return_value = (
@@ -1292,7 +1292,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         )
         response = self.client.post(
             "/api/v1/dags/example_python_operator/updateTaskInstancesState",
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
             json={
                 "dry_run": True,
                 "task_id": "print_the_context",
@@ -1306,12 +1306,12 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200
         assert response.json == {
-            'task_instances': [
+            "task_instances": [
                 {
-                    'dag_id': 'example_python_operator',
-                    'dag_run_id': 'TEST_DAG_RUN_ID',
-                    'execution_date': '2020-01-01T00:00:00+00:00',
-                    'task_id': 'print_the_context',
+                    "dag_id": "example_python_operator",
+                    "dag_run_id": "TEST_DAG_RUN_ID",
+                    "execution_date": "2020-01-01T00:00:00+00:00",
+                    "task_id": "print_the_context",
                 }
             ]
         }
@@ -1323,13 +1323,13 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             execution_date=DEFAULT_DATETIME_1,
             future=True,
             past=True,
-            state='failed',
-            task_id='print_the_context',
+            state="failed",
+            task_id="print_the_context",
             upstream=True,
             session=session,
         )
 
-    @mock.patch('airflow.models.dag.DAG.set_task_instance_state')
+    @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
     def test_should_assert_call_mocked_api_when_run_id(self, mock_set_task_instance_state, session):
         self.create_task_instances(session)
         run_id = "TEST_DAG_RUN_ID"
@@ -1341,7 +1341,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         )
         response = self.client.post(
             "/api/v1/dags/example_python_operator/updateTaskInstancesState",
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
             json={
                 "dry_run": True,
                 "task_id": "print_the_context",
@@ -1355,12 +1355,12 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200
         assert response.json == {
-            'task_instances': [
+            "task_instances": [
                 {
-                    'dag_id': 'example_python_operator',
-                    'dag_run_id': 'TEST_DAG_RUN_ID',
-                    'execution_date': '2020-01-01T00:00:00+00:00',
-                    'task_id': 'print_the_context',
+                    "dag_id": "example_python_operator",
+                    "dag_run_id": "TEST_DAG_RUN_ID",
+                    "execution_date": "2020-01-01T00:00:00+00:00",
+                    "task_id": "print_the_context",
                 }
             ]
         }
@@ -1372,8 +1372,8 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             execution_date=None,
             future=True,
             past=True,
-            state='failed',
-            task_id='print_the_context',
+            state="failed",
+            task_id="print_the_context",
             upstream=True,
             session=session,
         )
@@ -1401,7 +1401,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
                 {
                     "dry_run": True,
                     "task_id": "print_the_context",
-                    "execution_date": '2021-01-01T00:00:00+00:00',
+                    "execution_date": "2021-01-01T00:00:00+00:00",
                     "include_upstream": True,
                     "include_downstream": True,
                     "include_future": True,
@@ -1415,7 +1415,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
                 {
                     "dry_run": True,
                     "task_id": "print_the_context",
-                    "dag_run_id": 'TEST_DAG_RUN_',
+                    "dag_run_id": "TEST_DAG_RUN_",
                     "include_upstream": True,
                     "include_downstream": True,
                     "include_future": True,
@@ -1429,7 +1429,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
                 {
                     "dry_run": True,
                     "task_id": "print_the_context",
-                    "dag_run_id": 'TEST_DAG_RUN_',
+                    "dag_run_id": "TEST_DAG_RUN_",
                     "execution_date": "2020-01-01T00:00:00+00:00",
                     "include_upstream": True,
                     "include_downstream": True,
@@ -1444,11 +1444,11 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
         response = self.client.post(
             "/api/v1/dags/example_python_operator/updateTaskInstancesState",
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
             json=payload,
         )
         assert response.status_code == code
-        assert response.json['detail'] == error
+        assert response.json["detail"] == error
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.post(
@@ -1470,7 +1470,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
     def test_should_raise_403_forbidden(self, username):
         response = self.client.post(
             "/api/v1/dags/example_python_operator/updateTaskInstancesState",
-            environ_overrides={'REMOTE_USER': username},
+            environ_overrides={"REMOTE_USER": username},
             json={
                 "dry_run": True,
                 "task_id": "print_the_context",
@@ -1487,7 +1487,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
     def test_should_raise_404_not_found_dag(self):
         response = self.client.post(
             "/api/v1/dags/INVALID_DAG/updateTaskInstancesState",
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
             json={
                 "dry_run": True,
                 "task_id": "print_the_context",
@@ -1501,13 +1501,13 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 404
 
-    @mock.patch('airflow.models.dag.DAG.set_task_instance_state')
+    @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
     def test_should_raise_not_found_if_execution_date_is_wrong(self, mock_set_task_instance_state, session):
         self.create_task_instances(session)
         date = DEFAULT_DATETIME_1 + dt.timedelta(days=1)
         response = self.client.post(
             "/api/v1/dags/example_python_operator/updateTaskInstancesState",
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
             json={
                 "dry_run": True,
                 "task_id": "print_the_context",
@@ -1520,7 +1520,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 404
-        assert response.json['detail'] == (
+        assert response.json["detail"] == (
             f"Task instance not found for task 'print_the_context' on execution_date {date}"
         )
         assert mock_set_task_instance_state.call_count == 0
@@ -1528,7 +1528,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
     def test_should_raise_404_not_found_task(self):
         response = self.client.post(
             "/api/v1/dags/example_python_operator/updateTaskInstancesState",
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
             json={
                 "dry_run": True,
                 "task_id": "INVALID_TASK",
@@ -1548,7 +1548,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
                 {
                     "dry_run": True,
                     "task_id": "print_the_context",
-                    "execution_date": '2020-11-10T12:42:39.442973',
+                    "execution_date": "2020-11-10T12:42:39.442973",
                     "include_upstream": True,
                     "include_downstream": True,
                     "include_future": True,
@@ -1561,7 +1561,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
                 {
                     "dry_run": True,
                     "task_id": "print_the_context",
-                    "execution_date": '2020-11-10T12:4opfo',
+                    "execution_date": "2020-11-10T12:4opfo",
                     "include_upstream": True,
                     "include_downstream": True,
                     "include_future": True,
@@ -1577,8 +1577,8 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
         response = self.client.post(
             "/api/v1/dags/example_python_operator/updateTaskInstancesState",
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
             json=payload,
         )
         assert response.status_code == 400
-        assert response.json['detail'] == expected
+        assert response.json["detail"] == expected

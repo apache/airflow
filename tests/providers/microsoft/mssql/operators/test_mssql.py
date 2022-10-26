@@ -26,7 +26,7 @@ from airflow.providers.microsoft.mssql.operators.mssql import MsSqlOperator
 
 
 class TestMsSqlOperator:
-    @mock.patch('airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook')
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
     def test_get_hook_from_conn(self, mock_get_db_hook):
         """
         :class:`~.MsSqlOperator` should use the hook returned by :meth:`airflow.models.Connection.get_hook`
@@ -40,11 +40,11 @@ class TestMsSqlOperator:
         mock_hook = MagicMock()
         mock_get_db_hook.return_value = mock_hook
 
-        op = MsSqlOperator(task_id='test', sql='')
+        op = MsSqlOperator(task_id="test", sql="")
         assert op.get_db_hook() == mock_hook
 
     @mock.patch(
-        'airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook', autospec=MsSqlHook
+        "airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook", autospec=MsSqlHook
     )
     def test_get_hook_default(self, mock_get_db_hook):
         """
@@ -53,5 +53,5 @@ class TestMsSqlOperator:
         """
         mock_get_db_hook.return_value.side_effect = Mock(side_effect=AirflowException())
 
-        op = MsSqlOperator(task_id='test', sql='')
-        assert op.get_db_hook().__class__.__name__ == 'MsSqlHook'
+        op = MsSqlOperator(task_id="test", sql="")
+        assert op.get_db_hook().__class__.__name__ == "MsSqlHook"

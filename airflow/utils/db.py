@@ -73,6 +73,7 @@ REVISION_HEADS_MAP = {
     "2.3.4": "f5fcbda3e651",
     "2.4.0": "ecb43d2a1842",
     "2.4.1": "ecb43d2a1842",
+    "2.4.2": "b0d31815b5a6",
 }
 
 
@@ -973,9 +974,9 @@ def check_table_for_duplicates(
                 return
             yield from check_table_for_duplicates(
                 table_name=task_fail.name,
-                uniqueness=['dag_id', 'task_id', 'execution_date'],
+                uniqueness=["dag_id", "task_id", "execution_date"],
                 session=session,
-                version='2.3',
+                version="2.3",
             )
 
     :param table_name: table name to check

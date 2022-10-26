@@ -43,14 +43,14 @@ class OSSKeySensor(BaseSensorOperator):
     :param oss_conn_id: The Airflow connection used for OSS credentials.
     """
 
-    template_fields: Sequence[str] = ('bucket_key', 'bucket_name')
+    template_fields: Sequence[str] = ("bucket_key", "bucket_name")
 
     def __init__(
         self,
         bucket_key: str,
         region: str,
         bucket_name: str | None = None,
-        oss_conn_id: str | None = 'oss_default',
+        oss_conn_id: str | None = "oss_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -70,20 +70,20 @@ class OSSKeySensor(BaseSensorOperator):
         """
         if self.bucket_name is None:
             parsed_url = urlparse(self.bucket_key)
-            if parsed_url.netloc == '':
-                raise AirflowException('If key is a relative path from root, please provide a bucket_name')
+            if parsed_url.netloc == "":
+                raise AirflowException("If key is a relative path from root, please provide a bucket_name")
             self.bucket_name = parsed_url.netloc
-            self.bucket_key = parsed_url.path.lstrip('/')
+            self.bucket_key = parsed_url.path.lstrip("/")
         else:
             parsed_url = urlparse(self.bucket_key)
-            if parsed_url.scheme != '' or parsed_url.netloc != '':
+            if parsed_url.scheme != "" or parsed_url.netloc != "":
                 raise AirflowException(
-                    'If bucket_name is provided, bucket_key'
-                    ' should be relative path from root'
-                    ' level, rather than a full oss:// url'
+                    "If bucket_name is provided, bucket_key"
+                    " should be relative path from root"
+                    " level, rather than a full oss:// url"
                 )
 
-        self.log.info('Poking for key : oss://%s/%s', self.bucket_name, self.bucket_key)
+        self.log.info("Poking for key : oss://%s/%s", self.bucket_name, self.bucket_key)
         return self.get_hook.object_exists(key=self.bucket_key, bucket_name=self.bucket_name)
 
     @cached_property

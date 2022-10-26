@@ -67,15 +67,15 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
     """
 
     template_fields: Sequence[str] = (
-        'sql',
-        '_output_path',
-        'schema',
-        'catalog',
-        'http_headers',
-        'databricks_conn_id',
+        "sql",
+        "_output_path",
+        "schema",
+        "catalog",
+        "http_headers",
+        "databricks_conn_id",
     )
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'sql'}
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "sql"}
 
     def __init__(
         self,
@@ -89,7 +89,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
         schema: str | None = None,
         do_xcom_push: bool = False,
         output_path: str | None = None,
-        output_format: str = 'csv',
+        output_format: str = "csv",
         csv_params: dict[str, Any] | None = None,
         client_parameters: dict[str, Any] | None = None,
         **kwargs,
@@ -101,16 +101,16 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
         self._csv_params = csv_params
 
         client_parameters = {} if client_parameters is None else client_parameters
-        hook_params = kwargs.pop('hook_params', {})
+        hook_params = kwargs.pop("hook_params", {})
 
         self.hook_params = {
-            'http_path': http_path,
-            'session_configuration': session_configuration,
-            'sql_endpoint_name': sql_endpoint_name,
-            'http_headers': http_headers,
-            'catalog': catalog,
-            'schema': schema,
-            'caller': "DatabricksSqlOperator",
+            "http_path": http_path,
+            "session_configuration": session_configuration,
+            "sql_endpoint_name": sql_endpoint_name,
+            "http_headers": http_headers,
+            "catalog": catalog,
+            "schema": schema,
+            "caller": "DatabricksSqlOperator",
             **client_parameters,
             **hook_params,
         }
@@ -125,7 +125,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
             raise AirflowException("Output format should be specified!")
         field_names = [field[0] for field in schema]
         if self._output_format.lower() == "csv":
-            with open(self._output_path, "w", newline='') as file:
+            with open(self._output_path, "w", newline="") as file:
                 if self._csv_params:
                     csv_params = self._csv_params
                 else:
@@ -196,10 +196,10 @@ class DatabricksCopyIntoOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        '_file_location',
-        '_files',
-        '_table_name',
-        'databricks_conn_id',
+        "_file_location",
+        "_files",
+        "_table_name",
+        "databricks_conn_id",
     )
 
     def __init__(
@@ -259,7 +259,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
         self._http_headers = http_headers
         self._client_parameters = client_parameters or {}
         if force_copy is not None:
-            self._copy_options["force"] = 'true' if force_copy else 'false'
+            self._copy_options["force"] = "true" if force_copy else "false"
 
     def _get_hook(self) -> DatabricksSqlHook:
         return DatabricksSqlHook(
@@ -340,6 +340,6 @@ FILEFORMAT = {self._file_format}
 
     def execute(self, context: Context) -> Any:
         sql = self._create_sql_query()
-        self.log.info('Executing: %s', sql)
+        self.log.info("Executing: %s", sql)
         hook = self._get_hook()
         hook.run(sql)

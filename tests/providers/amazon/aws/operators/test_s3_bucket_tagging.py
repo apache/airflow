@@ -31,7 +31,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
 )
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "test-airflow-bucket")
-TAG_SET = [{'Key': 'Color', 'Value': 'Green'}]
+TAG_SET = [{"Key": "Color", "Value": "Green"}]
 TASK_ID = os.environ.get("TASK_ID", "test-s3-operator")
 
 

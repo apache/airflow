@@ -86,7 +86,7 @@ class TestBranchDayOfWeekOperator:
             try:
                 expected_state = task_ids_to_states[ti.task_id]
             except KeyError:
-                raise ValueError(f'Invalid task id {ti.task_id} found!')
+                raise ValueError(f"Invalid task id {ti.task_id} found!")
             else:
                 assert_msg = f"Task {ti.task_id} has state {ti.state} instead of expected {expected_state}"
                 assert ti.state == expected_state, assert_msg
@@ -124,10 +124,10 @@ class TestBranchDayOfWeekOperator:
         self._assert_task_ids_match_states(
             dr,
             {
-                'make_choice': State.SUCCESS,
-                'branch_1': State.NONE,
-                'branch_2': State.NONE,
-                'branch_3': State.SKIPPED,
+                "make_choice": State.SUCCESS,
+                "branch_1": State.NONE,
+                "branch_2": State.NONE,
+                "branch_3": State.SKIPPED,
             },
         )
 
@@ -160,9 +160,9 @@ class TestBranchDayOfWeekOperator:
         self._assert_task_ids_match_states(
             dr,
             {
-                'make_choice': State.SUCCESS,
-                'branch_1': State.NONE,
-                'branch_2': State.SKIPPED,
+                "make_choice": State.SUCCESS,
+                "branch_1": State.NONE,
+                "branch_2": State.SKIPPED,
             },
         )
 
@@ -194,9 +194,9 @@ class TestBranchDayOfWeekOperator:
         self._assert_task_ids_match_states(
             dr,
             {
-                'make_choice': State.SUCCESS,
-                'branch_1': State.SKIPPED,
-                'branch_2': State.NONE,
+                "make_choice": State.SUCCESS,
+                "branch_1": State.SKIPPED,
+                "branch_2": State.NONE,
             },
         )
 
@@ -271,8 +271,8 @@ class TestBranchDayOfWeekOperator:
 
         tis = dr.get_task_instances()
         for ti in tis:
-            if ti.task_id == 'make_choice':
-                assert ti.xcom_pull(task_ids='make_choice') == 'branch_1'
+            if ti.task_id == "make_choice":
+                assert ti.xcom_pull(task_ids="make_choice") == "branch_1"
 
     def test_deprecation_warning(self):
         warning_message = (

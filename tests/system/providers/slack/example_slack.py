@@ -30,9 +30,9 @@ with DAG(
     dag_id=DAG_ID,
     schedule=None,
     start_date=datetime(2021, 1, 1),
-    default_args={'slack_conn_id': 'slack', 'channel': '#general', 'initial_comment': 'Hello World!'},
+    default_args={"slack_conn_id": "slack", "channel": "#general", "initial_comment": "Hello World!"},
     max_active_runs=1,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
 
     # Send file with filename and filetype

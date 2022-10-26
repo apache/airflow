@@ -34,7 +34,7 @@ class TestJenkinsOperator(unittest.TestCase):
         [
             (
                 "dict params",
-                {'a_param': 'blip', 'another_param': '42'},
+                {"a_param": "blip", "another_param": "42"},
             ),
             (
                 "string params",
@@ -42,27 +42,27 @@ class TestJenkinsOperator(unittest.TestCase):
             ),
             (
                 "list params",
-                ['final_one', 'bop', 'real_final', 'eggs'],
+                ["final_one", "bop", "real_final", "eggs"],
             ),
         ]
     )
     def test_execute(self, _, parameters):
-        jenkins_mock = Mock(spec=jenkins.Jenkins, auth='secret')
+        jenkins_mock = Mock(spec=jenkins.Jenkins, auth="secret")
         jenkins_mock.get_build_info.return_value = {
-            'result': 'SUCCESS',
-            'url': 'http://aaa.fake-url.com/congratulation/its-a-job',
+            "result": "SUCCESS",
+            "url": "http://aaa.fake-url.com/congratulation/its-a-job",
         }
-        jenkins_mock.build_job_url.return_value = 'http://www.jenkins.url/somewhere/in/the/universe'
+        jenkins_mock.build_job_url.return_value = "http://www.jenkins.url/somewhere/in/the/universe"
 
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
 
         with patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked, patch(
-            'airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers'
+            "airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers"
         ) as mock_make_request:
             mock_make_request.side_effect = [
-                {'body': '', 'headers': {'Location': 'http://what-a-strange.url/18'}},
-                {'body': '{"executable":{"number":"1"}}', 'headers': {}},
+                {"body": "", "headers": {"Location": "http://what-a-strange.url/18"}},
+                {"body": '{"executable":{"number":"1"}}', "headers": {}},
             ]
             get_hook_mocked.return_value = hook_mock
             operator = JenkinsJobTriggerOperator(
@@ -78,13 +78,13 @@ class TestJenkinsOperator(unittest.TestCase):
             operator.execute(None)
 
             assert jenkins_mock.get_build_info.call_count == 1
-            jenkins_mock.get_build_info.assert_called_once_with(name='a_job_on_jenkins', number='1')
+            jenkins_mock.get_build_info.assert_called_once_with(name="a_job_on_jenkins", number="1")
 
     @parameterized.expand(
         [
             (
                 "dict params",
-                {'a_param': 'blip', 'another_param': '42'},
+                {"a_param": "blip", "another_param": "42"},
             ),
             (
                 "string params",
@@ -92,28 +92,28 @@ class TestJenkinsOperator(unittest.TestCase):
             ),
             (
                 "list params",
-                ['final_one', 'bop', 'real_final', 'eggs'],
+                ["final_one", "bop", "real_final", "eggs"],
             ),
         ]
     )
     def test_execute_job_polling_loop(self, _, parameters):
-        jenkins_mock = Mock(spec=jenkins.Jenkins, auth='secret')
-        jenkins_mock.get_job_info.return_value = {'nextBuildNumber': '1'}
+        jenkins_mock = Mock(spec=jenkins.Jenkins, auth="secret")
+        jenkins_mock.get_job_info.return_value = {"nextBuildNumber": "1"}
         jenkins_mock.get_build_info.side_effect = [
-            {'result': None},
-            {'result': 'SUCCESS', 'url': 'http://aaa.fake-url.com/congratulation/its-a-job'},
+            {"result": None},
+            {"result": "SUCCESS", "url": "http://aaa.fake-url.com/congratulation/its-a-job"},
         ]
-        jenkins_mock.build_job_url.return_value = 'http://www.jenkins.url/somewhere/in/the/universe'
+        jenkins_mock.build_job_url.return_value = "http://www.jenkins.url/somewhere/in/the/universe"
 
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
 
         with patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked, patch(
-            'airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers'
+            "airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers"
         ) as mock_make_request:
             mock_make_request.side_effect = [
-                {'body': '', 'headers': {'Location': 'http://what-a-strange.url/18'}},
-                {'body': '{"executable":{"number":"1"}}', 'headers': {}},
+                {"body": "", "headers": {"Location": "http://what-a-strange.url/18"}},
+                {"body": '{"executable":{"number":"1"}}', "headers": {}},
             ]
             get_hook_mocked.return_value = hook_mock
             operator = JenkinsJobTriggerOperator(
@@ -133,7 +133,7 @@ class TestJenkinsOperator(unittest.TestCase):
         [
             (
                 "dict params",
-                {'a_param': 'blip', 'another_param': '42'},
+                {"a_param": "blip", "another_param": "42"},
             ),
             (
                 "string params",
@@ -141,28 +141,28 @@ class TestJenkinsOperator(unittest.TestCase):
             ),
             (
                 "list params",
-                ['final_one', 'bop', 'real_final', 'eggs'],
+                ["final_one", "bop", "real_final", "eggs"],
             ),
         ]
     )
     def test_execute_job_failure(self, _, parameters):
-        jenkins_mock = Mock(spec=jenkins.Jenkins, auth='secret')
-        jenkins_mock.get_job_info.return_value = {'nextBuildNumber': '1'}
+        jenkins_mock = Mock(spec=jenkins.Jenkins, auth="secret")
+        jenkins_mock.get_job_info.return_value = {"nextBuildNumber": "1"}
         jenkins_mock.get_build_info.return_value = {
-            'result': 'FAILURE',
-            'url': 'http://aaa.fake-url.com/congratulation/its-a-job',
+            "result": "FAILURE",
+            "url": "http://aaa.fake-url.com/congratulation/its-a-job",
         }
-        jenkins_mock.build_job_url.return_value = 'http://www.jenkins.url/somewhere/in/the/universe'
+        jenkins_mock.build_job_url.return_value = "http://www.jenkins.url/somewhere/in/the/universe"
 
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
 
         with patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked, patch(
-            'airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers'
+            "airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers"
         ) as mock_make_request:
             mock_make_request.side_effect = [
-                {'body': '', 'headers': {'Location': 'http://what-a-strange.url/18'}},
-                {'body': '{"executable":{"number":"1"}}', 'headers': {}},
+                {"body": "", "headers": {"Location": "http://what-a-strange.url/18"}},
+                {"body": '{"executable":{"number":"1"}}', "headers": {}},
             ]
             get_hook_mocked.return_value = hook_mock
             operator = JenkinsJobTriggerOperator(
@@ -181,41 +181,41 @@ class TestJenkinsOperator(unittest.TestCase):
     @parameterized.expand(
         [
             (
-                'SUCCESS',
-                ['SUCCESS', 'UNSTABLE'],
+                "SUCCESS",
+                ["SUCCESS", "UNSTABLE"],
             ),
             (
-                'UNSTABLE',
-                ['SUCCESS', 'UNSTABLE'],
+                "UNSTABLE",
+                ["SUCCESS", "UNSTABLE"],
             ),
             (
-                'UNSTABLE',
-                ['UNSTABLE'],
+                "UNSTABLE",
+                ["UNSTABLE"],
             ),
             (
-                'SUCCESS',
+                "SUCCESS",
                 None,
             ),
         ]
     )
     def test_allowed_jenkins_states(self, state, allowed_jenkins_states):
-        jenkins_mock = Mock(spec=jenkins.Jenkins, auth='secret')
-        jenkins_mock.get_job_info.return_value = {'nextBuildNumber': '1'}
+        jenkins_mock = Mock(spec=jenkins.Jenkins, auth="secret")
+        jenkins_mock.get_job_info.return_value = {"nextBuildNumber": "1"}
         jenkins_mock.get_build_info.return_value = {
-            'result': state,
-            'url': 'http://aaa.fake-url.com/congratulation/its-a-job',
+            "result": state,
+            "url": "http://aaa.fake-url.com/congratulation/its-a-job",
         }
-        jenkins_mock.build_job_url.return_value = 'http://www.jenkins.url/somewhere/in/the/universe'
+        jenkins_mock.build_job_url.return_value = "http://www.jenkins.url/somewhere/in/the/universe"
 
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
 
         with patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked, patch(
-            'airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers'
+            "airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers"
         ) as mock_make_request:
             mock_make_request.side_effect = [
-                {'body': '', 'headers': {'Location': 'http://what-a-strange.url/18'}},
-                {'body': '{"executable":{"number":"1"}}', 'headers': {}},
+                {"body": "", "headers": {"Location": "http://what-a-strange.url/18"}},
+                {"body": '{"executable":{"number":"1"}}', "headers": {}},
             ]
             get_hook_mocked.return_value = hook_mock
             operator = JenkinsJobTriggerOperator(
@@ -231,50 +231,50 @@ class TestJenkinsOperator(unittest.TestCase):
             try:
                 operator.execute(None)
             except AirflowException:
-                pytest.fail(f'Job failed with state={state} while allowed states={allowed_jenkins_states}')
+                pytest.fail(f"Job failed with state={state} while allowed states={allowed_jenkins_states}")
 
     @parameterized.expand(
         [
             (
-                'FAILURE',
-                ['SUCCESS', 'UNSTABLE'],
+                "FAILURE",
+                ["SUCCESS", "UNSTABLE"],
             ),
             (
-                'UNSTABLE',
-                ['SUCCESS'],
+                "UNSTABLE",
+                ["SUCCESS"],
             ),
             (
-                'SUCCESS',
-                ['UNSTABLE'],
+                "SUCCESS",
+                ["UNSTABLE"],
             ),
             (
-                'FAILURE',
+                "FAILURE",
                 None,
             ),
             (
-                'UNSTABLE',
+                "UNSTABLE",
                 None,
             ),
         ]
     )
     def test_allowed_jenkins_states_failure(self, state, allowed_jenkins_states):
-        jenkins_mock = Mock(spec=jenkins.Jenkins, auth='secret')
-        jenkins_mock.get_job_info.return_value = {'nextBuildNumber': '1'}
+        jenkins_mock = Mock(spec=jenkins.Jenkins, auth="secret")
+        jenkins_mock.get_job_info.return_value = {"nextBuildNumber": "1"}
         jenkins_mock.get_build_info.return_value = {
-            'result': state,
-            'url': 'http://aaa.fake-url.com/congratulation/its-a-job',
+            "result": state,
+            "url": "http://aaa.fake-url.com/congratulation/its-a-job",
         }
-        jenkins_mock.build_job_url.return_value = 'http://www.jenkins.url/somewhere/in/the/universe'
+        jenkins_mock.build_job_url.return_value = "http://www.jenkins.url/somewhere/in/the/universe"
 
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
 
         with patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked, patch(
-            'airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers'
+            "airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers"
         ) as mock_make_request:
             mock_make_request.side_effect = [
-                {'body': '', 'headers': {'Location': 'http://what-a-strange.url/18'}},
-                {'body': '{"executable":{"number":"1"}}', 'headers': {}},
+                {"body": "", "headers": {"Location": "http://what-a-strange.url/18"}},
+                {"body": '{"executable":{"number":"1"}}', "headers": {}},
             ]
             get_hook_mocked.return_value = hook_mock
             operator = JenkinsJobTriggerOperator(
@@ -291,11 +291,11 @@ class TestJenkinsOperator(unittest.TestCase):
                 operator.execute(None)
 
     def test_build_job_request_settings(self):
-        jenkins_mock = Mock(spec=jenkins.Jenkins, auth='secret', timeout=2)
-        jenkins_mock.build_job_url.return_value = 'http://apache.org'
+        jenkins_mock = Mock(spec=jenkins.Jenkins, auth="secret", timeout=2)
+        jenkins_mock.build_job_url.return_value = "http://apache.org"
 
         with patch(
-            'airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers'
+            "airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers"
         ) as mock_make_request:
             operator = JenkinsJobTriggerOperator(
                 dag=None,
@@ -306,5 +306,5 @@ class TestJenkinsOperator(unittest.TestCase):
             operator.build_job(jenkins_mock)
             mock_request = mock_make_request.call_args_list[0][0][1]
 
-        assert mock_request.method == 'POST'
-        assert mock_request.url == 'http://apache.org'
+        assert mock_request.method == "POST"
+        assert mock_request.url == "http://apache.org"

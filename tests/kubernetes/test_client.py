@@ -26,26 +26,26 @@ from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keep
 
 
 class TestClient:
-    @mock.patch('airflow.kubernetes.kube_client.config')
+    @mock.patch("airflow.kubernetes.kube_client.config")
     def test_load_cluster_config(self, config):
         get_kube_client(in_cluster=True)
         assert config.load_incluster_config.called
         assert config.load_kube_config.not_called
 
-    @mock.patch('airflow.kubernetes.kube_client.config')
+    @mock.patch("airflow.kubernetes.kube_client.config")
     def test_load_file_config(self, config):
         get_kube_client(in_cluster=False)
         assert config.load_incluster_config.not_called
         assert config.load_kube_config.called
 
-    @mock.patch('airflow.kubernetes.kube_client.config')
-    @mock.patch('airflow.kubernetes.kube_client.conf')
+    @mock.patch("airflow.kubernetes.kube_client.config")
+    @mock.patch("airflow.kubernetes.kube_client.conf")
     def test_load_config_disable_ssl(self, conf, config):
         conf.getboolean.return_value = False
         get_kube_client(in_cluster=False)
-        conf.getboolean.assert_called_with('kubernetes_executor', 'verify_ssl')
+        conf.getboolean.assert_called_with("kubernetes_executor", "verify_ssl")
         # Support wide range of kube client libraries
-        if hasattr(Configuration, 'get_default_copy'):
+        if hasattr(Configuration, "get_default_copy"):
             configuration = Configuration.get_default_copy()
         else:
             configuration = Configuration()
@@ -73,7 +73,7 @@ class TestClient:
         _disable_verify_ssl()
 
         # Support wide range of kube client libraries
-        if hasattr(Configuration, 'get_default_copy'):
+        if hasattr(Configuration, "get_default_copy"):
             configuration = Configuration.get_default_copy()
         else:
             configuration = Configuration()

@@ -36,9 +36,9 @@ DAG_ID = "example_sqlite"
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@daily',
+    schedule="@daily",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
 
@@ -46,7 +46,7 @@ with DAG(
 
     # Example of creating a task that calls a common CREATE TABLE sql command.
     create_table_sqlite_task = SqliteOperator(
-        task_id='create_table_sqlite',
+        task_id="create_table_sqlite",
         sql=r"""
         CREATE TABLE Customers (
             customer_id INT PRIMARY KEY,
@@ -62,24 +62,24 @@ with DAG(
     def insert_sqlite_hook():
         sqlite_hook = SqliteHook()
 
-        rows = [('James', '11'), ('James', '22'), ('James', '33')]
-        target_fields = ['first_name', 'last_name']
-        sqlite_hook.insert_rows(table='Customers', rows=rows, target_fields=target_fields)
+        rows = [("James", "11"), ("James", "22"), ("James", "33")]
+        target_fields = ["first_name", "last_name"]
+        sqlite_hook.insert_rows(table="Customers", rows=rows, target_fields=target_fields)
 
     @dag.task(task_id="replace_sqlite_task")
     def replace_sqlite_hook():
         sqlite_hook = SqliteHook()
 
-        rows = [('James', '11'), ('James', '22'), ('James', '33')]
-        target_fields = ['first_name', 'last_name']
-        sqlite_hook.insert_rows(table='Customers', rows=rows, target_fields=target_fields, replace=True)
+        rows = [("James", "11"), ("James", "22"), ("James", "33")]
+        target_fields = ["first_name", "last_name"]
+        sqlite_hook.insert_rows(table="Customers", rows=rows, target_fields=target_fields, replace=True)
 
     # [START howto_operator_sqlite_external_file]
 
     # Example of creating a task that calls an sql command from an external file.
     external_create_table_sqlite_task = SqliteOperator(
-        task_id='create_table_sqlite_external_file',
-        sql='create_table.sql',
+        task_id="create_table_sqlite_external_file",
+        sql="create_table.sql",
     )
 
     # [END howto_operator_sqlite_external_file]

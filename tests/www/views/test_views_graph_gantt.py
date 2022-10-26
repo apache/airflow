@@ -127,7 +127,7 @@ def test_with_execution_date_parameter_only(admin_client, runs, endpoint):
     Should set base date to execution date.
     """
     response = admin_client.get(
-        f'{endpoint}&execution_date={runs[1].execution_date.isoformat()}',
+        f"{endpoint}&execution_date={runs[1].execution_date.isoformat()}",
         data={"username": "test", "password": "test"},
         follow_redirects=True,
     )
@@ -136,7 +136,7 @@ def test_with_execution_date_parameter_only(admin_client, runs, endpoint):
     data = response.data.decode()
     _assert_base_date_and_num_runs(
         runs[1].execution_date,
-        conf.getint('webserver', 'default_dag_run_display_number'),
+        conf.getint("webserver", "default_dag_run_display_number"),
         data,
     )
     _assert_run_is_not_in_dropdown(runs[0], data)
@@ -155,7 +155,7 @@ def test_with_base_date_and_num_runs_parameters_only(admin_client, runs, endpoin
     Should set base date and num runs to submitted values.
     """
     response = admin_client.get(
-        f'{endpoint}&base_date={runs[1].execution_date.isoformat()}&num_runs=2',
+        f"{endpoint}&base_date={runs[1].execution_date.isoformat()}&num_runs=2",
         data={"username": "test", "password": "test"},
         follow_redirects=True,
     )
@@ -182,7 +182,7 @@ def test_with_base_date_and_num_runs_and_execution_date_outside(admin_client, ru
     base_date = runs[1].execution_date.isoformat()
     exec_date = runs[0].execution_date.isoformat()
     response = admin_client.get(
-        f'{endpoint}&base_date={base_date}&num_runs=42&execution_date={exec_date}',
+        f"{endpoint}&base_date={base_date}&num_runs=42&execution_date={exec_date}",
         data={"username": "test", "password": "test"},
         follow_redirects=True,
     )
@@ -209,7 +209,7 @@ def test_with_base_date_and_num_runs_and_execution_date_within(admin_client, run
     base_date = runs[2].execution_date.isoformat()
     exec_date = runs[3].execution_date.isoformat()
     response = admin_client.get(
-        f'{endpoint}&base_date={base_date}&num_runs=5&execution_date={exec_date}',
+        f"{endpoint}&base_date={base_date}&num_runs=5&execution_date={exec_date}",
         data={"username": "test", "password": "test"},
         follow_redirects=True,
     )
@@ -231,7 +231,7 @@ def very_close_dagruns(dag, session):
         execution_date = VERY_CLOSE_RUNS_DATE.replace(microsecond=idx)
         dag_runs.append(
             dag.create_dagrun(
-                run_id=run_id + '_close',
+                run_id=run_id + "_close",
                 execution_date=execution_date,
                 data_interval=(execution_date, execution_date),
                 state=State.SUCCESS,
@@ -248,7 +248,7 @@ def very_close_dagruns(dag, session):
 def test_rounds_base_date_but_queries_with_execution_date(admin_client, very_close_dagruns, endpoint):
     exec_date = quote(very_close_dagruns[1].execution_date.isoformat())
     response = admin_client.get(
-        f'{endpoint}&num_runs=2&execution_date={exec_date}',
+        f"{endpoint}&num_runs=2&execution_date={exec_date}",
         data={"username": "test", "password": "test"},
         follow_redirects=True,
     )
@@ -269,7 +269,7 @@ def test_uses_execution_date_on_filter_application_if_base_date_hasnt_changed(
     base_date = quote((VERY_CLOSE_RUNS_DATE + timedelta(seconds=1)).isoformat())
     exec_date = quote(very_close_dagruns[1].execution_date.isoformat())
     response = admin_client.get(
-        f'{endpoint}&base_date={base_date}&num_runs=2&execution_date={exec_date}',
+        f"{endpoint}&base_date={base_date}&num_runs=2&execution_date={exec_date}",
         data={"username": "test", "password": "test"},
         follow_redirects=True,
     )
@@ -288,7 +288,7 @@ def test_uses_base_date_if_changed_away_from_execution_date(admin_client, very_c
     base_date = quote((VERY_CLOSE_RUNS_DATE + timedelta(seconds=2)).isoformat())
     exec_date = quote(very_close_dagruns[1].execution_date.isoformat())
     response = admin_client.get(
-        f'{endpoint}&base_date={base_date}&num_runs=2&execution_date={exec_date}',
+        f"{endpoint}&base_date={base_date}&num_runs=2&execution_date={exec_date}",
         data={"username": "test", "password": "test"},
         follow_redirects=True,
     )
@@ -342,7 +342,7 @@ def test_view_works_with_deleted_tasks(request, admin_client, app, endpoint):
     app.dag_bag.bag_dag(dag=dag, root_dag=dag)
 
     response = admin_client.get(
-        f'{endpoint}&execution_date={execution_date.isoformat()}',
+        f"{endpoint}&execution_date={execution_date.isoformat()}",
         data={"username": "test", "password": "test"},
         follow_redirects=True,
     )

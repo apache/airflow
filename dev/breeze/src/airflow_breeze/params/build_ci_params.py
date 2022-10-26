@@ -43,7 +43,7 @@ class BuildCiParams(CommonBuildParams):
 
     @property
     def image_type(self) -> str:
-        return 'CI'
+        return "CI"
 
     @property
     def extra_docker_build_flags(self) -> list[str]:

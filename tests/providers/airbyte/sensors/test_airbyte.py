@@ -34,12 +34,12 @@ class TestAirbyteJobSensor(unittest.TestCase):
 
     def get_job(self, status):
         response = mock.Mock()
-        response.json.return_value = {'job': {'status': status}}
+        response.json.return_value = {"job": {"status": status}}
         return response
 
-    @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job')
+    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job")
     def test_done(self, mock_get_job):
-        mock_get_job.return_value = self.get_job('succeeded')
+        mock_get_job.return_value = self.get_job("succeeded")
 
         sensor = AirbyteJobSensor(
             task_id=self.task_id,
@@ -50,9 +50,9 @@ class TestAirbyteJobSensor(unittest.TestCase):
         mock_get_job.assert_called_once_with(job_id=self.job_id)
         assert ret
 
-    @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job')
+    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job")
     def test_failed(self, mock_get_job):
-        mock_get_job.return_value = self.get_job('failed')
+        mock_get_job.return_value = self.get_job("failed")
 
         sensor = AirbyteJobSensor(
             task_id=self.task_id,
@@ -64,9 +64,9 @@ class TestAirbyteJobSensor(unittest.TestCase):
 
         mock_get_job.assert_called_once_with(job_id=self.job_id)
 
-    @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job')
+    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job")
     def test_running(self, mock_get_job):
-        mock_get_job.return_value = self.get_job('running')
+        mock_get_job.return_value = self.get_job("running")
 
         sensor = AirbyteJobSensor(
             task_id=self.task_id,
@@ -79,9 +79,9 @@ class TestAirbyteJobSensor(unittest.TestCase):
 
         assert not ret
 
-    @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job')
+    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job")
     def test_cancelled(self, mock_get_job):
-        mock_get_job.return_value = self.get_job('cancelled')
+        mock_get_job.return_value = self.get_job("cancelled")
 
         sensor = AirbyteJobSensor(
             task_id=self.task_id,

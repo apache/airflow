@@ -27,61 +27,61 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.datadog.hooks.datadog import DatadogHook
 
-APP_KEY = 'app_key'
-API_KEY = 'api_key'
-API_HOST = 'api_host'
-METRIC_NAME = 'metric'
+APP_KEY = "app_key"
+API_KEY = "api_key"
+API_HOST = "api_host"
+METRIC_NAME = "metric"
 DATAPOINT = 7
-TAGS = ['tag']
-TYPE = 'rate'
+TAGS = ["tag"]
+TYPE = "rate"
 INTERVAL = 30
-TITLE = 'title'
-TEXT = 'text'
-AGGREGATION_KEY = 'aggregation-key'
-ALERT_TYPE = 'warning'
+TITLE = "title"
+TEXT = "text"
+AGGREGATION_KEY = "aggregation-key"
+ALERT_TYPE = "warning"
 DATE_HAPPENED = 12345
-HANDLE = 'handle'
-PRIORITY = 'normal'
+HANDLE = "handle"
+PRIORITY = "normal"
 RELATED_EVENT_ID = 7
-DEVICE_NAME = 'device-name'
+DEVICE_NAME = "device-name"
 
 
 class TestDatadogHook(unittest.TestCase):
-    @mock.patch('airflow.providers.datadog.hooks.datadog.initialize')
-    @mock.patch('airflow.providers.datadog.hooks.datadog.DatadogHook.get_connection')
+    @mock.patch("airflow.providers.datadog.hooks.datadog.initialize")
+    @mock.patch("airflow.providers.datadog.hooks.datadog.DatadogHook.get_connection")
     def setUp(self, mock_get_connection, mock_initialize):
         mock_get_connection.return_value = Connection(
             extra=json.dumps(
                 {
-                    'app_key': APP_KEY,
-                    'api_key': API_KEY,
-                    'api_host': API_HOST,
+                    "app_key": APP_KEY,
+                    "api_key": API_KEY,
+                    "api_host": API_HOST,
                 }
             )
         )
         self.hook = DatadogHook()
 
-    @mock.patch('airflow.providers.datadog.hooks.datadog.initialize')
-    @mock.patch('airflow.providers.datadog.hooks.datadog.DatadogHook.get_connection')
+    @mock.patch("airflow.providers.datadog.hooks.datadog.initialize")
+    @mock.patch("airflow.providers.datadog.hooks.datadog.DatadogHook.get_connection")
     def test_api_key_required(self, mock_get_connection, mock_initialize):
         mock_get_connection.return_value = Connection()
         with pytest.raises(AirflowException) as ctx:
             DatadogHook()
-        assert str(ctx.value) == 'api_key must be specified in the Datadog connection details'
+        assert str(ctx.value) == "api_key must be specified in the Datadog connection details"
 
     def test_validate_response_valid(self):
         try:
-            self.hook.validate_response({'status': 'ok'})
+            self.hook.validate_response({"status": "ok"})
         except AirflowException:
-            self.fail('Unexpected AirflowException raised')
+            self.fail("Unexpected AirflowException raised")
 
     def test_validate_response_invalid(self):
         with pytest.raises(AirflowException):
-            self.hook.validate_response({'status': 'error'})
+            self.hook.validate_response({"status": "error"})
 
-    @mock.patch('airflow.providers.datadog.hooks.datadog.api.Metric.send')
+    @mock.patch("airflow.providers.datadog.hooks.datadog.api.Metric.send")
     def test_send_metric(self, mock_send):
-        mock_send.return_value = {'status': 'ok'}
+        mock_send.return_value = {"status": "ok"}
         self.hook.send_metric(
             METRIC_NAME,
             DATAPOINT,
@@ -98,22 +98,22 @@ class TestDatadogHook(unittest.TestCase):
             interval=INTERVAL,
         )
 
-    @mock.patch('airflow.providers.datadog.hooks.datadog.api.Metric.query')
-    @mock.patch('airflow.providers.datadog.hooks.datadog.time.time')
+    @mock.patch("airflow.providers.datadog.hooks.datadog.api.Metric.query")
+    @mock.patch("airflow.providers.datadog.hooks.datadog.time.time")
     def test_query_metric(self, mock_time, mock_query):
         now = 12345
         mock_time.return_value = now
-        mock_query.return_value = {'status': 'ok'}
-        self.hook.query_metric('query', 60, 30)
+        mock_query.return_value = {"status": "ok"}
+        self.hook.query_metric("query", 60, 30)
         mock_query.assert_called_once_with(
             start=now - 60,
             end=now - 30,
-            query='query',
+            query="query",
         )
 
-    @mock.patch('airflow.providers.datadog.hooks.datadog.api.Event.create')
+    @mock.patch("airflow.providers.datadog.hooks.datadog.api.Event.create")
     def test_post_event(self, mock_create):
-        mock_create.return_value = {'status': 'ok'}
+        mock_create.return_value = {"status": "ok"}
         self.hook.post_event(
             TITLE,
             TEXT,
