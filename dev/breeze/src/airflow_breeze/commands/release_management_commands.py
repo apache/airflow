@@ -68,7 +68,12 @@ from airflow_breeze.utils.docker_command_utils import (
     get_extra_docker_flags,
     perform_environment_checks,
 )
-from airflow_breeze.utils.parallel import GenericRegexpProgressMatcher, check_async_run_results, run_with_pool
+from airflow_breeze.utils.parallel import (
+    GenericRegexpProgressMatcher,
+    SummarizeAfter,
+    check_async_run_results,
+    run_with_pool,
+)
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
@@ -363,6 +368,8 @@ def run_generate_constraints_in_parallel(
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,
+        summarize_on_ci=SummarizeAfter.SUCCESS,
+        summary_start_regexp=".*Constraints generated in.*",
     )
 
 
