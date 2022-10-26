@@ -115,7 +115,7 @@ class GSheetsHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
 
-        return response["values"]
+        return response.get("values", [])
 
     def batch_get_values(
         self,
