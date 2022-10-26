@@ -116,7 +116,6 @@ class Trigger(Base):
         session.query(Trigger).filter(Trigger.id.in_(ids)).delete(synchronize_session=False)
 
     @classmethod
-    @provide_session
     @retry_db_transaction
     def submit_event(cls, trigger_id, event, session=None):
         """
