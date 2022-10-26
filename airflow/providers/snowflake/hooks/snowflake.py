@@ -112,6 +112,7 @@ class SnowflakeHook(DbApiHook):
     conn_type = "snowflake"
     hook_name = "Snowflake"
     supports_autocommit = True
+    _test_connection_sql = "select 1"
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
@@ -390,11 +391,3 @@ class SnowflakeHook(DbApiHook):
             return results[-1]
         else:
             return results
-
-    def test_connection(self):
-        """Test the Snowflake connection by running a simple query."""
-        try:
-            self.run(sql="select 1")
-        except Exception as e:
-            return False, str(e)
-        return True, "Connection successfully tested"
