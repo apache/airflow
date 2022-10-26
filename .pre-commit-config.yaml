@@ -180,7 +180,6 @@ repos:
           - --target-version=py38
           - --target-version=py39
           - --target-version=py310
-          - --skip-string-normalization
         alias: black
         additional_dependencies: [black==22.3.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
