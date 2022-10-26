@@ -41,6 +41,7 @@ import FilterBar from './nav/FilterBar';
 import LegendRow from './nav/LegendRow';
 
 const detailsPanelKey = 'hideDetailsPanel';
+const minPanelWidth = 300;
 
 const Main = () => {
   const { data: { groups }, isLoading } = useGridData();
@@ -73,14 +74,14 @@ const Main = () => {
   useEffect(() => {
     if (contentRef.current) {
       const topOffset = contentRef.current.offsetTop;
-      const footerHeight = parseInt(getComputedStyle(document.getElementsByTagName('body')[0]).paddingBottom.replace('px', '').replace('em', ''), 10) || 0;
+      const footerHeight = parseInt(getComputedStyle(document.getElementsByTagName('body')[0]).paddingBottom.replace('px', ''), 10) || 0;
       contentRef.current.style.height = `${window.innerHeight - topOffset - footerHeight}px`;
     }
   }, []);
 
   const resize = useCallback((e: MouseEvent) => {
     const gridEl = gridRef.current;
-    if (gridEl && e.x > 350 && e.x < window.innerWidth - 400) {
+    if (gridEl && e.x > minPanelWidth && e.x < window.innerWidth - minPanelWidth) {
       gridEl.style.width = `${e.x}px`;
     }
   }, [gridRef]);
@@ -103,20 +104,20 @@ const Main = () => {
       };
     }
     return () => {};
-  }, [resize, isLoading]);
+  }, [resize, isLoading, isOpen]);
 
   return (
     <Box flex={1}>
       <FilterBar />
       <LegendRow onStatusHover={onStatusHover} onStatusLeave={onStatusLeave} />
       <Divider mb={5} borderBottomWidth={2} />
-      <Flex ref={contentRef}>
+      <Flex ref={contentRef} overflow="hidden">
         {isLoading || isEmpty(groups)
           ? (<Spinner />)
           : (
             <>
               <Box
-                minWidth="350px"
+                minWidth={minPanelWidth}
                 flex={isOpen ? undefined : 1}
                 ref={gridRef}
                 height="100%"
@@ -137,8 +138,8 @@ const Main = () => {
                     zIndex={1}
                   />
                   <Box
-                    flexGrow={1}
-                    minWidth="400px"
+                    flex={1}
+                    minWidth={minPanelWidth}
                     zIndex={1}
                     bg="white"
                     height="100%"

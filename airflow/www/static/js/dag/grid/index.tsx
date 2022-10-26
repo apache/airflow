@@ -125,7 +125,7 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }: Props) =
         />
       </Flex>
       <Box
-        height={`calc(100% - ${dimensions?.borderBox.height || 36}px)`}
+        height={`calc(100% - ${dimensions?.borderBox.height}px)`}
         ref={scrollRef}
         overflow="auto"
         position="relative"
