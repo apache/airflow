@@ -69,7 +69,7 @@ Optionally you can supply a profile name to reference aws profile, e.g. defined 
 The value of the SSM parameter must be the :ref:`connection URI representation <generating_connection_uri>`
 or in the :ref:`JSON Format <connection-serialization-json-example>` of the connection object.
 
-In some cases, URI's you will need stored in AWS SSM Parameter Store may not be intuitive,
+In some cases, URI's that you will need to store in AWS SSM Parameter Store may not be intuitive,
 for example when using HTTP / HTTPS or SPARK, you may need URI's that will look like this:
 
 .. code-block:: ini
