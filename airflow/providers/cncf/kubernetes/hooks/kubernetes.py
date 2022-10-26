@@ -331,7 +331,7 @@ class KubernetesHook(BaseHook):
                 "cncf.kubernetes provider version 6.0 we will return None when namespace is "
                 "not defined in the connection so that it's clear whether user intends 'default' or "
                 "whether namespace is unset (which is required in order to apply precedence logic in "
-                "KubernetesPodOperator.",
+                "KubernetesPodOperator).",
                 DeprecationWarning,
             )
             return "default"
