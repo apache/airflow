@@ -159,15 +159,16 @@ class SFTPHook(SSHHook):
         files = sorted(conn.listdir(path))
         return files
 
-    def mkdir(self, path: str, mode: int = 777) -> None:
+    def mkdir(self, path: str, mode: int = 0o777) -> None:
         """
         Creates a directory on the remote system.
+        The default mode is 0777, but on some systems, the current umask value is first masked out.
 
         :param path: full path to the remote directory to create
-        :param mode: permissions to set the directory with
+        :param mode: int permissions of octal mode for directory
         """
         conn = self.get_conn()
-        conn.mkdir(path, mode=int(str(mode), 8))
+        conn.mkdir(path, mode=mode)
 
     def isdir(self, path: str) -> bool:
         """
@@ -195,12 +196,13 @@ class SFTPHook(SSHHook):
             result = False
         return result
 
-    def create_directory(self, path: str, mode: int = 777) -> None:
+    def create_directory(self, path: str, mode: int = 0o777) -> None:
         """
         Creates a directory on the remote system.
+        The default mode is 0777, but on some systems, the current umask value is first masked out.
 
         :param path: full path to the remote directory to create
-        :param mode: int representation of octal mode for directory
+        :param mode: int permissions of octal mode for directory
         """
         conn = self.get_conn()
         if self.isdir(path):

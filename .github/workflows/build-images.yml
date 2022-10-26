@@ -100,7 +100,7 @@ jobs:
       # we checkout the target commit and it's parent to be able to compare them
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ env.TARGET_COMMIT_SHA }}
           persist-credentials: false
@@ -242,7 +242,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           breeze release-management generate-constraints --run-in-parallel
           --airflow-constraints-mode constraints-source-providers
         env:
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
         if: needs.build-info.outputs.upgrade-to-newer-dependencies != 'false'
       - name: Push empty CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         if: failure() || cancelled()
@@ -390,7 +390,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ needs.build-info.outputs.target-commit-sha }}
           persist-credentials: false
@@ -398,7 +398,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: >
           Checkout "main" branch to 'main-airflow' folder
           to use ci/scripts from there.
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: "main-airflow"
           ref: "main"
