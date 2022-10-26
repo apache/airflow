@@ -242,7 +242,9 @@ class TestSecurityContext:
         )
 
         for index in range(len(docs)):
-            assert ctx_value == jmespath.search("spec.template.spec.containers[0].securityContext", docs[index])
+            assert ctx_value == jmespath.search(
+                    "spec.template.spec.containers[0].securityContext", docs[index]
+                )
 
     # Test securityContexts for log-groomer-sidecar main container
     def test_log_groomer_sidecar_container_setting(self):
@@ -316,7 +318,9 @@ class TestSecurityContext:
         )
 
         for index in range(len(docs)):
-            assert ctx_value == jmespath.search("spec.template.spec.initContainers[0].securityContext", docs[index])
+            assert ctx_value == jmespath.search(
+                    "spec.template.spec.initContainers[0].securityContext", docs[index]
+                )
 
     # Test securityContexts for volume-permissions init container
     def test_volume_permissions_init_container_setting(self):
@@ -337,7 +341,9 @@ class TestSecurityContext:
             "runAsUser": 0,  # hardcoded in the values.yaml file
         }
 
-        assert expected_ctx == jmespath.search("spec.template.spec.initContainers[0].securityContext", docs[0])
+        assert expected_ctx == jmespath.search(
+                "spec.template.spec.initContainers[0].securityContext", docs[0]
+            )
 
     # Test securityContexts for main pods
     def test_main_pod_setting(self):
