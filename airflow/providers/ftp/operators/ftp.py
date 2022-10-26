@@ -30,8 +30,8 @@ from airflow.providers.ftp.hooks.ftp import FTPHook
 class FTPOperation:
     """Operation that can be used with FTP"""
 
-    PUT = 'put'
-    GET = 'get'
+    PUT = "put"
+    GET = "get"
 
 
 class FTPOperator(BaseOperator):
@@ -68,7 +68,7 @@ class FTPOperator(BaseOperator):
             )
     """
 
-    template_fields: Sequence[str] = ('local_filepath', 'remote_filepath')
+    template_fields: Sequence[str] = ("local_filepath", "remote_filepath")
 
     def __init__(
         self,
@@ -97,8 +97,8 @@ class FTPOperator(BaseOperator):
 
         if len(self.local_filepath) != len(self.remote_filepath):
             raise ValueError(
-                f'{len(self.local_filepath)} paths in local_filepath '
-                f'!= {len(self.remote_filepath)} paths in remote_filepath'
+                f"{len(self.local_filepath)} paths in local_filepath "
+                f"!= {len(self.remote_filepath)} paths in remote_filepath"
             )
 
         if self.operation.lower() not in [FTPOperation.GET, FTPOperation.PUT]:

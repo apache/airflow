@@ -36,19 +36,19 @@ class TestFTPOperator:
         self.test_local_dir_int = "/tmp/interdir"
         self.test_remote_dir = "/ftphome"
         self.test_remote_dir_int = "/ftphome/interdir"
-        self.test_local_filename = 'test_local_file'
-        self.test_remote_filename = 'test_remote_file'
-        self.test_local_filepath = f'{self.test_local_dir}/{self.test_local_filename}'
-        self.test_remote_filepath = f'{self.test_remote_dir}/{self.test_remote_filename}'
-        self.test_local_filepath_int_dir = f'{self.test_local_dir_int}/{self.test_local_filename}'
-        self.test_remote_filepath_int_dir = f'{self.test_remote_dir_int}/{self.test_remote_filename}'
+        self.test_local_filename = "test_local_file"
+        self.test_remote_filename = "test_remote_file"
+        self.test_local_filepath = f"{self.test_local_dir}/{self.test_local_filename}"
+        self.test_remote_filepath = f"{self.test_remote_dir}/{self.test_remote_filename}"
+        self.test_local_filepath_int_dir = f"{self.test_local_dir_int}/{self.test_local_filename}"
+        self.test_remote_filepath_int_dir = f"{self.test_remote_dir_int}/{self.test_remote_filename}"
 
     def teardown_method(self):
         if os.path.exists(self.test_local_dir_int):
             os.rmdir(self.test_local_dir_int)
 
-    @mock.patch('airflow.providers.ftp.operators.ftp.FTPHook.store_file')
-    @mock.patch('airflow.providers.ftp.operators.ftp.FTPHook.create_directory')
+    @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.store_file")
+    @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.create_directory")
     def test_file_transfer_put(self, mock_create_dir, mock_put):
         ftp_op = FTPOperator(
             task_id="test_ftp_put",
@@ -62,8 +62,8 @@ class TestFTPOperator:
         assert not mock_create_dir.called
         mock_put.assert_called_with(self.test_remote_filepath, self.test_local_filepath)
 
-    @mock.patch('airflow.providers.ftp.operators.ftp.FTPHook.store_file')
-    @mock.patch('airflow.providers.ftp.operators.ftp.FTPHook.create_directory')
+    @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.store_file")
+    @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.create_directory")
     def test_file_transfer_with_intermediate_dir_put(self, mock_create_dir, mock_put):
         ftp_op = FTPOperator(
             task_id="test_ftp_put_imm_dirs",
@@ -78,7 +78,7 @@ class TestFTPOperator:
         mock_create_dir.assert_called_with(self.test_remote_dir_int)
         mock_put.assert_called_with(self.test_remote_filepath_int_dir, self.test_local_filepath)
 
-    @mock.patch('airflow.providers.ftp.operators.ftp.FTPHook.retrieve_file')
+    @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.retrieve_file")
     def test_file_transfer_get(self, mock_get):
         ftp_op = FTPOperator(
             task_id="test_ftp_get",
@@ -91,7 +91,7 @@ class TestFTPOperator:
         assert mock_get.call_count == 1
         mock_get.assert_called_with(self.test_remote_filepath, self.test_local_filepath)
 
-    @mock.patch('airflow.providers.ftp.operators.ftp.FTPHook.retrieve_file')
+    @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.retrieve_file")
     def test_file_transfer_with_intermediate_dir_get(self, mock_get):
         ftp_op = FTPOperator(
             task_id="test_ftp_get_imm_dirs",
@@ -106,12 +106,12 @@ class TestFTPOperator:
         assert os.path.exists(self.test_local_dir_int)
         mock_get.assert_called_with(self.test_remote_filepath, self.test_local_filepath_int_dir)
 
-    @mock.patch('airflow.providers.ftp.operators.ftp.FTPHook.retrieve_file')
+    @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.retrieve_file")
     def test_multiple_paths_get(self, mock_get):
-        local_filepath = ['/tmp/ltest1', '/tmp/ltest2']
-        remote_filepath = ['/tmp/rtest1', '/tmp/rtest2']
+        local_filepath = ["/tmp/ltest1", "/tmp/ltest2"]
+        remote_filepath = ["/tmp/rtest1", "/tmp/rtest2"]
         ftp_op = FTPOperator(
-            task_id='test_multiple_paths_get',
+            task_id="test_multiple_paths_get",
             ftp_conn_id=DEFAULT_CONN_ID,
             local_filepath=local_filepath,
             remote_filepath=remote_filepath,
@@ -124,12 +124,12 @@ class TestFTPOperator:
         assert args0 == (remote_filepath[0], local_filepath[0])
         assert args1 == (remote_filepath[1], local_filepath[1])
 
-    @mock.patch('airflow.providers.ftp.operators.ftp.FTPHook.store_file')
+    @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.store_file")
     def test_multiple_paths_put(self, mock_put):
-        local_filepath = ['/tmp/ltest1', '/tmp/ltest2']
-        remote_filepath = ['/tmp/rtest1', '/tmp/rtest2']
+        local_filepath = ["/tmp/ltest1", "/tmp/ltest2"]
+        remote_filepath = ["/tmp/rtest1", "/tmp/rtest2"]
         ftp_op = FTPOperator(
-            task_id='test_multiple_paths_put',
+            task_id="test_multiple_paths_put",
             ftp_conn_id=DEFAULT_CONN_ID,
             local_filepath=local_filepath,
             remote_filepath=remote_filepath,
@@ -142,7 +142,7 @@ class TestFTPOperator:
         assert args0 == (remote_filepath[0], local_filepath[0])
         assert args1 == (remote_filepath[1], local_filepath[1])
 
-    @mock.patch('airflow.providers.ftp.operators.ftp.FTPHook.store_file')
+    @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.store_file")
     def test_arg_checking(self, mock_put):
         dag = DAG(dag_id="unit_tests_ftp_op_arg_checking", default_args={"start_date": DEFAULT_DATE})
         # If ftp_conn_id is not passed in, it should be assigned the default connection id
@@ -163,7 +163,7 @@ class TestFTPOperator:
                 ftp_conn_id=DEFAULT_CONN_ID,
                 local_filepath=self.test_local_filepath,
                 remote_filepath=self.test_remote_filepath,
-                operation='invalid_operation',
+                operation="invalid_operation",
                 dag=dag,
             )
             task_1.execute(None)
@@ -171,16 +171,16 @@ class TestFTPOperator:
     def test_unequal_local_remote_file_paths(self):
         with pytest.raises(ValueError):
             FTPOperator(
-                task_id='test_ftp_unequal_paths',
+                task_id="test_ftp_unequal_paths",
                 ftp_conn_id=DEFAULT_CONN_ID,
-                local_filepath='/tmp/test',
-                remote_filepath=['/tmp/test1', '/tmp/test2'],
+                local_filepath="/tmp/test",
+                remote_filepath=["/tmp/test1", "/tmp/test2"],
             )
 
         with pytest.raises(ValueError):
             FTPOperator(
-                task_id='test_ftp_unequal_paths',
+                task_id="test_ftp_unequal_paths",
                 ftp_conn_id=DEFAULT_CONN_ID,
-                local_filepath=['/tmp/test1', '/tmp/test2'],
-                remote_filepath='/tmp/test1',
+                local_filepath=["/tmp/test1", "/tmp/test2"],
+                remote_filepath="/tmp/test1",
             )
