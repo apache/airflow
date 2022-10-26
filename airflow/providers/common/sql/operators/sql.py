@@ -19,10 +19,10 @@ from __future__ import annotations
 
 import ast
 import re
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Sequence, SupportsAbs
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, SkipMixin
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
@@ -31,7 +31,14 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-def parse_boolean(val: str) -> str | bool:
+def _convert_to_float_if_possible(s: str) -> float | str:
+    try:
+        return float(s)
+    except (ValueError, TypeError):
+        return s
+
+
+def _parse_boolean(val: str) -> str | bool:
     """Try to parse a string into boolean.
 
     Raises ValueError if the input is not a valid true- or false-like string value.
@@ -42,20 +49,6 @@ def parse_boolean(val: str) -> str | bool:
     if val in ("n", "no", "f", "false", "off", "0"):
         return False
     raise ValueError(f"{val!r} is not a boolean-like string value")
-
-
-def _get_failed_checks(checks, col=None):
-    if col:
-        return [
-            f"Column: {col}\nCheck: {check},\nCheck Values: {check_values}\n"
-            for check, check_values in checks.items()
-            if not check_values["success"]
-        ]
-    return [
-        f"\tCheck: {check},\n\tCheck Values: {check_values}\n"
-        for check, check_values in checks.items()
-        if not check_values["success"]
-    ]
 
 
 _PROVIDERS_MATCHER = re.compile(r"airflow\.providers\.(.*)\.hooks.*")
@@ -103,12 +96,14 @@ class BaseSQLOperator(BaseOperator):
         conn_id: str | None = None,
         database: str | None = None,
         hook_params: dict | None = None,
+        retry_on_failure: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.conn_id = conn_id
         self.database = database
         self.hook_params = {} if hook_params is None else hook_params
+        self.retry_on_failure = retry_on_failure
 
     @cached_property
     def _hook(self):
@@ -154,6 +149,11 @@ class BaseSQLOperator(BaseOperator):
         :rtype: DbApiHook
         """
         return self._hook
+
+    def _raise_exception(self, exception_string: str) -> NoReturn:
+        if self.retry_on_failure:
+            raise AirflowException(exception_string)
+        raise AirflowFailException(exception_string)
 
 
 class SQLExecuteQueryOperator(BaseSQLOperator):
@@ -239,6 +239,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
     - geq_to: value that results should be greater than or equal to
     - leq_to: value that results should be less than or equal to
     - tolerance: the percentage that the result may be off from the expected value
+    - partition_clause: an extra clause passed into a WHERE statement to partition data
 
     :param table: the table to run checks on
     :param column_mapping: the dictionary of columns and their associated checks, e.g.
@@ -249,6 +250,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
             "col_name": {
                 "null_check": {
                     "equal_to": 0,
+                    "partition_clause": "foreign_key IS NOT NULL",
                 },
                 "min": {
                     "greater_than": 5,
@@ -268,6 +270,8 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
     :param conn_id: the connection ID used to connect to the database
     :param database: name of database which overwrite the defined one in connection
+    :param accept_none: whether or not to accept None values returned by the query. If true, converts None
+        to 0.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -276,12 +280,17 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
     template_fields = ("partition_clause",)
 
+    sql_check_template = """
+        SELECT '{column}' AS col_name, '{check}' AS check_type, {column}_{check} AS check_result
+        FROM (SELECT {check_statement} AS {column}_{check} FROM {table} {partition_clause}) AS sq
+    """
+
     column_checks = {
-        "null_check": "SUM(CASE WHEN column IS NULL THEN 1 ELSE 0 END) AS column_null_check",
-        "distinct_check": "COUNT(DISTINCT(column)) AS column_distinct_check",
-        "unique_check": "COUNT(column) - COUNT(DISTINCT(column)) AS column_unique_check",
-        "min": "MIN(column) AS column_min",
-        "max": "MAX(column) AS column_max",
+        "null_check": "SUM(CASE WHEN {column} IS NULL THEN 1 ELSE 0 END)",
+        "distinct_check": "COUNT(DISTINCT({column}))",
+        "unique_check": "COUNT({column}) - COUNT(DISTINCT({column}))",
+        "min": "MIN({column})",
+        "max": "MAX({column})",
     }
 
     def __init__(
@@ -292,53 +301,84 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         partition_clause: str | None = None,
         conn_id: str | None = None,
         database: str | None = None,
+        accept_none: bool = True,
         **kwargs,
     ):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
-        for checks in column_mapping.values():
-            for check, check_values in checks.items():
-                self._column_mapping_validation(check, check_values)
 
         self.table = table
         self.column_mapping = column_mapping
         self.partition_clause = partition_clause
-        # OpenLineage needs a valid SQL query with the input/output table(s) to parse
-        self.sql = f"SELECT * FROM {self.table};"
+        self.accept_none = accept_none
+
+        def _build_checks_sql():
+            for column, checks in self.column_mapping.items():
+                for check, check_values in checks.items():
+                    self._column_mapping_validation(check, check_values)
+                yield self._generate_sql_query(column, checks)
+
+        checks_sql = "UNION ALL".join(_build_checks_sql())
+
+        self.sql = f"SELECT col_name, check_type, check_result FROM ({checks_sql}) AS check_columns"
 
     def execute(self, context: Context):
         hook = self.get_db_hook()
-        failed_tests = []
-        for column in self.column_mapping:
-            checks = [*self.column_mapping[column]]
-            checks_sql = ",".join([self.column_checks[check].replace("column", column) for check in checks])
-            partition_clause_statement = f"WHERE {self.partition_clause}" if self.partition_clause else ""
-            self.sql = f"SELECT {checks_sql} FROM {self.table} {partition_clause_statement};"
-            records = hook.get_first(self.sql)
+        records = hook.get_records(self.sql)
 
-            if not records:
-                raise AirflowException(f"The following query returned zero rows: {self.sql}")
+        if not records:
+            self._raise_exception(f"The following query returned zero rows: {self.sql}")
 
-            self.log.info("Record: %s", records)
+        self.log.info("Record: %s", records)
 
-            for idx, result in enumerate(records):
-                tolerance = self.column_mapping[column][checks[idx]].get("tolerance")
+        for column, check, result in records:
+            tolerance = self.column_mapping[column][check].get("tolerance")
 
-                self.column_mapping[column][checks[idx]]["result"] = result
-                self.column_mapping[column][checks[idx]]["success"] = self._get_match(
-                    self.column_mapping[column][checks[idx]], result, tolerance
-                )
-
-            failed_tests.extend(_get_failed_checks(self.column_mapping[column], column))
-        if failed_tests:
-            raise AirflowException(
-                f"Test failed.\nResults:\n{records!s}\n"
-                "The following tests have failed:"
-                f"\n{''.join(failed_tests)}"
+            self.column_mapping[column][check]["result"] = result
+            self.column_mapping[column][check]["success"] = self._get_match(
+                self.column_mapping[column][check], result, tolerance
             )
+
+        failed_tests = [
+            f"Column: {col}\n\tCheck: {check},\n\tCheck Values: {check_values}\n"
+            for col, checks in self.column_mapping.items()
+            for check, check_values in checks.items()
+            if not check_values["success"]
+        ]
+        if failed_tests:
+            exception_string = (
+                f"Test failed.\nResults:\n{records!s}\n"
+                f"The following tests have failed:\n{''.join(failed_tests)}"
+            )
+            self._raise_exception(exception_string)
 
         self.log.info("All tests have passed")
 
+    def _generate_sql_query(self, column, checks):
+        def _generate_partition_clause(check):
+            if self.partition_clause and "partition_clause" not in checks[check]:
+                return f"WHERE {self.partition_clause}"
+            elif not self.partition_clause and "partition_clause" in checks[check]:
+                return f"WHERE {checks[check]['partition_clause']}"
+            elif self.partition_clause and "partition_clause" in checks[check]:
+                return f"WHERE {self.partition_clause} AND {checks[check]['partition_clause']}"
+            else:
+                return ""
+
+        checks_sql = "UNION ALL".join(
+            self.sql_check_template.format(
+                check_statement=self.column_checks[check].format(column=column),
+                check=check,
+                table=self.table,
+                column=column,
+                partition_clause=_generate_partition_clause(check),
+            )
+            for check in checks
+        )
+        return checks_sql
+
     def _get_match(self, check_values, record, tolerance=None) -> bool:
+        if record is None and self.accept_none:
+            record = 0
         match_boolean = True
         if "geq_to" in check_values:
             if tolerance is not None:
@@ -437,13 +477,15 @@ class SQLTableCheckOperator(BaseSQLOperator):
     Checks should be written to return a boolean result.
 
     :param table: the table to run checks on
-    :param checks: the dictionary of checks, e.g.:
+    :param checks: the dictionary of checks, where check names are followed by a dictionary containing at
+        least a check statement, and optionally a partition clause, e.g.:
 
     .. code-block:: python
 
         {
             "row_count_check": {"check_statement": "COUNT(*) = 1000"},
             "column_sum_check": {"check_statement": "col_a + col_b < col_c"},
+            "third_check": {"check_statement": "MIN(col) = 1", "partition_clause": "col IS NOT NULL"},
         }
 
 
@@ -465,8 +507,9 @@ class SQLTableCheckOperator(BaseSQLOperator):
     template_fields = ("partition_clause",)
 
     sql_check_template = """
-        SELECT '_check_name' AS check_name, MIN(_check_name) AS check_result
-        FROM (SELECT CASE WHEN check_statement THEN 1 ELSE 0 END AS _check_name FROM table) AS sq
+    SELECT '{check_name}' AS check_name, MIN({check_name}) AS check_result
+    FROM (SELECT CASE WHEN {check_statement} THEN 1 ELSE 0 END AS {check_name}
+          FROM {table} {partition_clause}) AS sq
     """
 
     def __init__(
@@ -484,45 +527,55 @@ class SQLTableCheckOperator(BaseSQLOperator):
         self.table = table
         self.checks = checks
         self.partition_clause = partition_clause
-        # OpenLineage needs a valid SQL query with the input/output table(s) to parse
-        self.sql = f"SELECT * FROM {self.table};"
+        self.sql = f"SELECT check_name, check_result FROM ({self._generate_sql_query()}) AS check_table"
 
     def execute(self, context: Context):
         hook = self.get_db_hook()
-        checks_sql = " UNION ALL ".join(
-            [
-                self.sql_check_template.replace("check_statement", value["check_statement"])
-                .replace("_check_name", check_name)
-                .replace("table", self.table)
-                for check_name, value in self.checks.items()
-            ]
-        )
-        partition_clause_statement = f"WHERE {self.partition_clause}" if self.partition_clause else ""
-        self.sql = f"""
-            SELECT check_name, check_result FROM ({checks_sql})
-            AS check_table {partition_clause_statement}
-        """
-
         records = hook.get_records(self.sql)
 
         if not records:
-            raise AirflowException(f"The following query returned zero rows: {self.sql}")
+            self._raise_exception(f"The following query returned zero rows: {self.sql}")
 
         self.log.info("Record:\n%s", records)
 
         for row in records:
             check, result = row
-            self.checks[check]["success"] = parse_boolean(str(result))
+            self.checks[check]["success"] = _parse_boolean(str(result))
 
-        failed_tests = _get_failed_checks(self.checks)
+        failed_tests = [
+            f"\tCheck: {check},\n\tCheck Values: {check_values}\n"
+            for check, check_values in self.checks.items()
+            if not check_values["success"]
+        ]
         if failed_tests:
-            raise AirflowException(
+            exception_string = (
                 f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n"
-                "The following tests have failed:"
-                f"\n{', '.join(failed_tests)}"
+                f"The following tests have failed:\n{', '.join(failed_tests)}"
             )
+            self._raise_exception(exception_string)
 
         self.log.info("All tests have passed")
+
+    def _generate_sql_query(self):
+        def _generate_partition_clause(check_name):
+            if self.partition_clause and "partition_clause" not in self.checks[check_name]:
+                return f"WHERE {self.partition_clause}"
+            elif not self.partition_clause and "partition_clause" in self.checks[check_name]:
+                return f"WHERE {self.checks[check_name]['partition_clause']}"
+            elif self.partition_clause and "partition_clause" in self.checks[check_name]:
+                return f"WHERE {self.partition_clause} AND {self.checks[check_name]['partition_clause']}"
+            else:
+                return ""
+
+        return "UNION ALL".join(
+            self.sql_check_template.format(
+                check_statement=value["check_statement"],
+                check_name=check_name,
+                table=self.table,
+                partition_clause=_generate_partition_clause(check_name),
+            )
+            for check_name, value in self.checks.items()
+        )
 
 
 class SQLCheckOperator(BaseSQLOperator):
@@ -578,9 +631,9 @@ class SQLCheckOperator(BaseSQLOperator):
 
         self.log.info("Record: %s", records)
         if not records:
-            raise AirflowException("The query returned None")
+            self._raise_exception(f"The following query returned zero rows: {self.sql}")
         elif not all(bool(r) for r in records):
-            raise AirflowException(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
+            self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
 
         self.log.info("Success.")
 
@@ -628,7 +681,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
         records = self.get_db_hook().get_first(self.sql)
 
         if not records:
-            raise AirflowException("The query returned None")
+            self._raise_exception(f"The following query returned zero rows: {self.sql}")
 
         pass_value_conv = _convert_to_float_if_possible(self.pass_value)
         is_numeric_value_check = isinstance(pass_value_conv, float)
@@ -657,7 +710,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
             tests = []
 
         if not all(tests):
-            raise AirflowException(error_msg)
+            self._raise_exception(error_msg)
 
     def _to_float(self, records):
         return [float(record) for record in records]
@@ -729,7 +782,7 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         if ratio_formula not in self.ratio_formulas:
             msg_template = "Invalid diff_method: {diff_method}. Supported diff methods are: {diff_methods}"
 
-            raise AirflowException(
+            raise AirflowFailException(
                 msg_template.format(diff_method=ratio_formula, diff_methods=self.ratio_formulas)
             )
         self.ratio_formula = ratio_formula
@@ -754,9 +807,9 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         row1 = hook.get_first(self.sql1)
 
         if not row2:
-            raise AirflowException(f"The query {self.sql2} returned None")
+            self._raise_exception(f"The following query returned zero rows: {self.sql2}")
         if not row1:
-            raise AirflowException(f"The query {self.sql1} returned None")
+            self._raise_exception(f"The following query returned zero rows: {self.sql1}")
 
         current = dict(zip(self.metrics_sorted, row1))
         reference = dict(zip(self.metrics_sorted, row2))
@@ -809,7 +862,7 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
                     ratios[k],
                     self.metrics_thresholds[k],
                 )
-            raise AirflowException(f"The following tests have failed:\n {', '.join(sorted(failed_tests))}")
+            self._raise_exception(f"The following tests have failed:\n {', '.join(sorted(failed_tests))}")
 
         self.log.info("All tests have passed")
 
@@ -852,6 +905,8 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
     def execute(self, context: Context):
         hook = self.get_db_hook()
         result = hook.get_first(self.sql)[0]
+        if not result:
+            self._raise_exception(f"The following query returned zero rows: {self.sql}")
 
         if isinstance(self.min_threshold, float):
             lower_bound = self.min_threshold
@@ -886,7 +941,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
                 f"Result: {result} is not within thresholds "
                 f'{meta_data.get("min_threshold")} and {meta_data.get("max_threshold")}'
             )
-            raise AirflowException(error_msg)
+            self._raise_exception(error_msg)
 
         self.log.info("Test %s Successful.", self.task_id)
 
@@ -969,7 +1024,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
                     follow_branch = self.follow_task_ids_if_true
             elif isinstance(query_result, str):
                 # return result is not Boolean, try to convert from String to Boolean
-                if parse_boolean(query_result):
+                if _parse_boolean(query_result):
                     follow_branch = self.follow_task_ids_if_true
             elif isinstance(query_result, int):
                 if bool(query_result):
@@ -987,17 +1042,3 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
             )
 
         self.skip_all_except(context["ti"], follow_branch)
-
-
-def _convert_to_float_if_possible(s):
-    """
-    A small helper function to convert a string to a numeric value
-    if appropriate
-
-    :param s: the string to be converted
-    """
-    try:
-        ret = float(s)
-    except (ValueError, TypeError):
-        ret = s
-    return ret

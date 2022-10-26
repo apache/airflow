@@ -37,8 +37,7 @@ from airflow.providers.common.sql.operators.sql import (
     SQLIntervalCheckOperator,
     SQLTableCheckOperator,
     SQLValueCheckOperator,
-    _get_failed_checks,
-    parse_boolean,
+    _parse_boolean,
 )
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
@@ -248,7 +247,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         if not records:
             raise AirflowException("The query returned empty results")
         elif not all(bool(r) for r in records):
-            raise AirflowException(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
+            self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
         self.log.info("Record: %s", event["records"])
         self.log.info("Success.")
 
@@ -544,6 +543,8 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
         table: str,
         column_mapping: dict,
         partition_clause: str | None = None,
+        database: str | None = None,
+        accept_none: bool = True,
         gcp_conn_id: str = "google_cloud_default",
         use_legacy_sql: bool = True,
         location: str | None = None,
@@ -552,18 +553,23 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
         **kwargs,
     ) -> None:
         super().__init__(
-            table=table, column_mapping=column_mapping, partition_clause=partition_clause, **kwargs
+            table=table,
+            column_mapping=column_mapping,
+            partition_clause=partition_clause,
+            database=database,
+            accept_none=accept_none,
+            **kwargs,
         )
         self.table = table
         self.column_mapping = column_mapping
         self.partition_clause = partition_clause
+        self.database = database
+        self.accept_none = accept_none
         self.gcp_conn_id = gcp_conn_id
         self.use_legacy_sql = use_legacy_sql
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.labels = labels
-        # OpenLineage needs a valid SQL query with the input/output table(s) to parse
-        self.sql = ""
 
     def _submit_job(
         self,
@@ -585,42 +591,41 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
         """Perform checks on the given columns."""
         hook = self.get_db_hook()
         failed_tests = []
-        for column in self.column_mapping:
-            checks = [*self.column_mapping[column]]
-            checks_sql = ",".join([self.column_checks[check].replace("column", column) for check in checks])
-            partition_clause_statement = f"WHERE {self.partition_clause}" if self.partition_clause else ""
-            self.sql = f"SELECT {checks_sql} FROM {self.table} {partition_clause_statement};"
 
-            job_id = hook.generate_job_id(
-                dag_id=self.dag_id,
-                task_id=self.task_id,
-                logical_date=context["logical_date"],
-                configuration=self.configuration,
+        job = self._submit_job(hook, job_id="")
+        context["ti"].xcom_push(key="job_id", value=job.job_id)
+        records = job.result().to_dataframe()
+
+        if records.empty:
+            raise AirflowException(f"The following query returned zero rows: {self.sql}")
+
+        records.columns = records.columns.str.lower()
+        self.log.info("Record: %s", records)
+
+        for row in records.iterrows():
+            column = row[1].get("col_name")
+            check = row[1].get("check_type")
+            result = row[1].get("check_result")
+            tolerance = self.column_mapping[column][check].get("tolerance")
+
+            self.column_mapping[column][check]["result"] = result
+            self.column_mapping[column][check]["success"] = self._get_match(
+                self.column_mapping[column][check], result, tolerance
             )
-            job = self._submit_job(hook, job_id=job_id)
-            context["ti"].xcom_push(key="job_id", value=job.job_id)
-            records = list(job.result().to_dataframe().values.flatten())
 
-            if not records:
-                raise AirflowException(f"The following query returned zero rows: {self.sql}")
-
-            self.log.info("Record: %s", records)
-
-            for idx, result in enumerate(records):
-                tolerance = self.column_mapping[column][checks[idx]].get("tolerance")
-
-                self.column_mapping[column][checks[idx]]["result"] = result
-                self.column_mapping[column][checks[idx]]["success"] = self._get_match(
-                    self.column_mapping[column][checks[idx]], result, tolerance
-                )
-
-            failed_tests.extend(_get_failed_checks(self.column_mapping[column], column))
+        failed_tests(
+            f"Column: {col}\n\tCheck: {check},\n\tCheck Values: {check_values}\n"
+            for col, checks in self.column_mapping.items()
+            for check, check_values in checks.items()
+            if not check_values["success"]
+        )
         if failed_tests:
-            raise AirflowException(
+            exception_string = (
                 f"Test failed.\nResults:\n{records!s}\n"
-                "The following tests have failed:"
+                f"The following tests have failed:"
                 f"\n{''.join(failed_tests)}"
             )
+            self._raise_exception(exception_string)
 
         self.log.info("All tests have passed")
 
@@ -677,8 +682,6 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.labels = labels
-        # OpenLineage needs a valid SQL query with the input/output table(s) to parse
-        self.sql = ""
 
     def _submit_job(
         self,
@@ -699,25 +702,7 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
     def execute(self, context=None):
         """Execute the given checks on the table."""
         hook = self.get_db_hook()
-        checks_sql = " UNION ALL ".join(
-            [
-                self.sql_check_template.replace("check_statement", value["check_statement"])
-                .replace("_check_name", check_name)
-                .replace("table", self.table)
-                for check_name, value in self.checks.items()
-            ]
-        )
-        partition_clause_statement = f"WHERE {self.partition_clause}" if self.partition_clause else ""
-        self.sql = f"SELECT check_name, check_result FROM ({checks_sql}) "
-        f"AS check_table {partition_clause_statement};"
-
-        job_id = hook.generate_job_id(
-            dag_id=self.dag_id,
-            task_id=self.task_id,
-            logical_date=context["logical_date"],
-            configuration=self.configuration,
-        )
-        job = self._submit_job(hook, job_id=job_id)
+        job = self._submit_job(hook, job_id="")
         context["ti"].xcom_push(key="job_id", value=job.job_id)
         records = job.result().to_dataframe()
 
@@ -730,15 +715,19 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
         for row in records.iterrows():
             check = row[1].get("check_name")
             result = row[1].get("check_result")
-            self.checks[check]["success"] = parse_boolean(str(result))
+            self.checks[check]["success"] = _parse_boolean(str(result))
 
-        failed_tests = _get_failed_checks(self.checks)
+        failed_tests = [
+            f"\tCheck: {check},\n\tCheck Values: {check_values}\n"
+            for check, check_values in self.checks.items()
+            if not check_values["success"]
+        ]
         if failed_tests:
-            raise AirflowException(
+            exception_string = (
                 f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n"
-                "The following tests have failed:"
-                f"\n{', '.join(failed_tests)}"
+                f"The following tests have failed:\n{', '.join(failed_tests)}"
             )
+            self._raise_exception(exception_string)
 
         self.log.info("All tests have passed")
 

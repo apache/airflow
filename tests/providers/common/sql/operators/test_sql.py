@@ -47,9 +47,6 @@ from tests.providers.apache.hive import TestHiveEnvironment
 
 
 class MockHook:
-    def get_first(self):
-        return
-
     def get_records(self):
         return
 
@@ -108,17 +105,56 @@ class TestColumnCheckOperator:
         }
     }
 
+    short_valid_column_mapping = {
+        "X": {
+            "null_check": {"equal_to": 0},
+            "distinct_check": {"equal_to": 10, "tolerance": 0.1},
+        }
+    }
+
     invalid_column_mapping = {"Y": {"invalid_check_name": {"expectation": 5}}}
 
-    def _construct_operator(self, monkeypatch, column_mapping, return_vals):
-        def get_first_return(*arg):
-            return return_vals
+    correct_generate_sql_query_no_partitions = """
+        SELECT 'X' AS col_name, 'null_check' AS check_type, X_null_check AS check_result
+        FROM (SELECT SUM(CASE WHEN X IS NULL THEN 1 ELSE 0 END) AS X_null_check FROM test_table ) AS sq
+    UNION ALL
+        SELECT 'X' AS col_name, 'distinct_check' AS check_type, X_distinct_check AS check_result
+        FROM (SELECT COUNT(DISTINCT(X)) AS X_distinct_check FROM test_table ) AS sq
+    """
+
+    correct_generate_sql_query_with_partition = """
+        SELECT 'X' AS col_name, 'null_check' AS check_type, X_null_check AS check_result
+        FROM (SELECT SUM(CASE WHEN X IS NULL THEN 1 ELSE 0 END) AS X_null_check FROM test_table WHERE Y > 1) AS sq
+    UNION ALL
+        SELECT 'X' AS col_name, 'distinct_check' AS check_type, X_distinct_check AS check_result
+        FROM (SELECT COUNT(DISTINCT(X)) AS X_distinct_check FROM test_table WHERE Y > 1) AS sq
+    """  # noqa 501
+
+    correct_generate_sql_query_with_partition_and_where = """
+        SELECT 'X' AS col_name, 'null_check' AS check_type, X_null_check AS check_result
+        FROM (SELECT SUM(CASE WHEN X IS NULL THEN 1 ELSE 0 END) AS X_null_check FROM test_table WHERE Y > 1 AND Z < 100) AS sq
+    UNION ALL
+        SELECT 'X' AS col_name, 'distinct_check' AS check_type, X_distinct_check AS check_result
+        FROM (SELECT COUNT(DISTINCT(X)) AS X_distinct_check FROM test_table WHERE Y > 1) AS sq
+    """  # noqa 501
+
+    correct_generate_sql_query_with_where = """
+        SELECT 'X' AS col_name, 'null_check' AS check_type, X_null_check AS check_result
+        FROM (SELECT SUM(CASE WHEN X IS NULL THEN 1 ELSE 0 END) AS X_null_check FROM test_table ) AS sq
+    UNION ALL
+        SELECT 'X' AS col_name, 'distinct_check' AS check_type, X_distinct_check AS check_result
+        FROM (SELECT COUNT(DISTINCT(X)) AS X_distinct_check FROM test_table WHERE Z < 100) AS sq
+    """  # 501
+
+    def _construct_operator(self, monkeypatch, column_mapping, records):
+        def get_records(*arg):
+            return records
 
         operator = SQLColumnCheckOperator(
             task_id="test_task", table="test_table", column_mapping=column_mapping
         )
         monkeypatch.setattr(operator, "get_db_hook", _get_mock_db_hook)
-        monkeypatch.setattr(MockHook, "get_first", get_first_return)
+        monkeypatch.setattr(MockHook, "get_records", get_records)
         return operator
 
     def test_check_not_in_column_checks(self, monkeypatch):
@@ -126,43 +162,164 @@ class TestColumnCheckOperator:
             self._construct_operator(monkeypatch, self.invalid_column_mapping, ())
 
     def test_pass_all_checks_exact_check(self, monkeypatch):
-        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, (0, 10, 10, 1, 19))
+        records = [
+            ("X", "null_check", 0),
+            ("X", "distinct_check", 10),
+            ("X", "unique_check", 10),
+            ("X", "min", 1),
+            ("X", "max", 19),
+        ]
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
         operator.execute(context=MagicMock())
+        assert [
+            operator.column_mapping["X"][check]["success"] is True
+            for check in [*operator.column_mapping["X"]]
+        ]
 
     def test_max_less_than_fails_check(self, monkeypatch):
         with pytest.raises(AirflowException):
-            operator = self._construct_operator(monkeypatch, self.valid_column_mapping, (0, 10, 10, 1, 21))
+            records = [
+                ("X", "null_check", 1),
+                ("X", "distinct_check", 10),
+                ("X", "unique_check", 10),
+                ("X", "min", 1),
+                ("X", "max", 21),
+            ]
+            operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
             operator.execute(context=MagicMock())
             assert operator.column_mapping["X"]["max"]["success"] is False
 
     def test_max_greater_than_fails_check(self, monkeypatch):
         with pytest.raises(AirflowException):
-            operator = self._construct_operator(monkeypatch, self.valid_column_mapping, (0, 10, 10, 1, 9))
+            records = [
+                ("X", "null_check", 1),
+                ("X", "distinct_check", 10),
+                ("X", "unique_check", 10),
+                ("X", "min", 1),
+                ("X", "max", 9),
+            ]
+            operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
             operator.execute(context=MagicMock())
             assert operator.column_mapping["X"]["max"]["success"] is False
 
     def test_pass_all_checks_inexact_check(self, monkeypatch):
-        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, (0, 9, 12, 0, 15))
+        records = [
+            ("X", "null_check", 0),
+            ("X", "distinct_check", 9),
+            ("X", "unique_check", 12),
+            ("X", "min", 0),
+            ("X", "max", 15),
+        ]
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
         operator.execute(context=MagicMock())
+        assert [
+            operator.column_mapping["X"][check]["success"] is True
+            for check in [*operator.column_mapping["X"]]
+        ]
 
     def test_fail_all_checks_check(self, monkeypatch):
-        operator = operator = self._construct_operator(
-            monkeypatch, self.valid_column_mapping, (1, 12, 11, -1, 20)
-        )
+        records = [
+            ("X", "null_check", 1),
+            ("X", "distinct_check", 12),
+            ("X", "unique_check", 11),
+            ("X", "min", -1),
+            ("X", "max", 20),
+        ]
+        operator = operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
         with pytest.raises(AirflowException):
             operator.execute(context=MagicMock())
+
+    def test_generate_sql_query_no_partitions(self, monkeypatch):
+        checks = self.short_valid_column_mapping["X"]
+        operator = self._construct_operator(monkeypatch, self.short_valid_column_mapping, ())
+        assert (
+            operator._generate_sql_query("X", checks).lstrip()
+            == self.correct_generate_sql_query_no_partitions.lstrip()
+        )
+
+    def test_generate_sql_query_with_partitions(self, monkeypatch):
+        checks = self.short_valid_column_mapping["X"]
+        operator = self._construct_operator(monkeypatch, self.short_valid_column_mapping, ())
+        operator.partition_clause = "Y > 1"
+        assert (
+            operator._generate_sql_query("X", checks).lstrip()
+            == self.correct_generate_sql_query_with_partition.lstrip()
+        )
+
+    def test_generate_sql_query_with_partitions_and_check_partition(self, monkeypatch):
+        self.short_valid_column_mapping["X"]["null_check"]["partition_clause"] = "Z < 100"
+        checks = self.short_valid_column_mapping["X"]
+        operator = self._construct_operator(monkeypatch, self.short_valid_column_mapping, ())
+        operator.partition_clause = "Y > 1"
+        assert (
+            operator._generate_sql_query("X", checks).lstrip()
+            == self.correct_generate_sql_query_with_partition_and_where.lstrip()
+        )
+        del self.short_valid_column_mapping["X"]["null_check"]["partition_clause"]
+
+    def test_generate_sql_query_with_check_partition(self, monkeypatch):
+        self.short_valid_column_mapping["X"]["distinct_check"]["partition_clause"] = "Z < 100"
+        checks = self.short_valid_column_mapping["X"]
+        operator = self._construct_operator(monkeypatch, self.short_valid_column_mapping, ())
+        assert (
+            operator._generate_sql_query("X", checks).lstrip()
+            == self.correct_generate_sql_query_with_where.lstrip()
+        )
+        del self.short_valid_column_mapping["X"]["distinct_check"]["partition_clause"]
 
 
 class TestTableCheckOperator:
 
+    count_check = "COUNT(*) == 1000"
+    sum_check = "col_a + col_b < col_c"
     checks = {
-        "row_count_check": {"check_statement": "COUNT(*) == 1000"},
-        "column_sum_check": {"check_statement": "col_a + col_b < col_c"},
+        "row_count_check": {"check_statement": f"{count_check}"},
+        "column_sum_check": {"check_statement": f"{sum_check}"},
     }
 
-    def _construct_operator(self, monkeypatch, checks, return_df):
+    correct_generate_sql_query_no_partitions = f"""
+    SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
+    FROM (SELECT CASE WHEN {count_check} THEN 1 ELSE 0 END AS row_count_check
+          FROM test_table ) AS sq
+    UNION ALL
+    SELECT 'column_sum_check' AS check_name, MIN(column_sum_check) AS check_result
+    FROM (SELECT CASE WHEN {sum_check} THEN 1 ELSE 0 END AS column_sum_check
+          FROM test_table ) AS sq
+    """
+
+    correct_generate_sql_query_with_partition = f"""
+    SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
+    FROM (SELECT CASE WHEN {count_check} THEN 1 ELSE 0 END AS row_count_check
+          FROM test_table WHERE col_a > 10) AS sq
+    UNION ALL
+    SELECT 'column_sum_check' AS check_name, MIN(column_sum_check) AS check_result
+    FROM (SELECT CASE WHEN {sum_check} THEN 1 ELSE 0 END AS column_sum_check
+          FROM test_table WHERE col_a > 10) AS sq
+    """
+
+    correct_generate_sql_query_with_partition_and_where = f"""
+    SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
+    FROM (SELECT CASE WHEN {count_check} THEN 1 ELSE 0 END AS row_count_check
+          FROM test_table WHERE col_a > 10 AND id = 100) AS sq
+    UNION ALL
+    SELECT 'column_sum_check' AS check_name, MIN(column_sum_check) AS check_result
+    FROM (SELECT CASE WHEN {sum_check} THEN 1 ELSE 0 END AS column_sum_check
+          FROM test_table WHERE col_a > 10) AS sq
+    """
+
+    correct_generate_sql_query_with_where = f"""
+    SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
+    FROM (SELECT CASE WHEN {count_check} THEN 1 ELSE 0 END AS row_count_check
+          FROM test_table ) AS sq
+    UNION ALL
+    SELECT 'column_sum_check' AS check_name, MIN(column_sum_check) AS check_result
+    FROM (SELECT CASE WHEN {sum_check} THEN 1 ELSE 0 END AS column_sum_check
+          FROM test_table WHERE id = 100) AS sq
+    """
+
+    def _construct_operator(self, monkeypatch, checks, records):
         def get_records(*arg):
-            return return_df
+            return records
 
         operator = SQLTableCheckOperator(task_id="test_task", table="test_table", checks=checks)
         monkeypatch.setattr(operator, "get_db_hook", _get_mock_db_hook)
@@ -210,12 +367,42 @@ class TestTableCheckOperator:
         records = [("row_count_check", 1), ("column_sum_check", "y")]
         operator = self._construct_operator(monkeypatch, self.checks, records)
         operator.execute(context=MagicMock())
+        assert [operator.checks[check]["success"] is True for check in operator.checks.keys()]
 
     def test_fail_all_checks_check(self, monkeypatch):
         records = [("row_count_check", 0), ("column_sum_check", "n")]
         operator = self._construct_operator(monkeypatch, self.checks, records)
         with pytest.raises(AirflowException):
             operator.execute(context=MagicMock())
+
+    def test_generate_sql_query_no_partitions(self, monkeypatch):
+        operator = self._construct_operator(monkeypatch, self.checks, ())
+        assert (
+            operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_no_partitions.lstrip()
+        )
+
+    def test_generate_sql_query_with_partitions(self, monkeypatch):
+        operator = self._construct_operator(monkeypatch, self.checks, ())
+        operator.partition_clause = "col_a > 10"
+        assert (
+            operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_with_partition.lstrip()
+        )
+
+    def test_generate_sql_query_with_partitions_and_check_partition(self, monkeypatch):
+        self.checks["row_count_check"]["partition_clause"] = "id = 100"
+        operator = self._construct_operator(monkeypatch, self.checks, ())
+        operator.partition_clause = "col_a > 10"
+        assert (
+            operator._generate_sql_query().lstrip()
+            == self.correct_generate_sql_query_with_partition_and_where.lstrip()
+        )
+        del self.checks["row_count_check"]["partition_clause"]
+
+    def test_generate_sql_query_with_check_partition(self, monkeypatch):
+        self.checks["column_sum_check"]["partition_clause"] = "id = 100"
+        operator = self._construct_operator(monkeypatch, self.checks, ())
+        assert operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_with_where.lstrip()
+        del self.checks["column_sum_check"]["partition_clause"]
 
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -303,7 +490,7 @@ class TestCheckOperator(unittest.TestCase):
     def test_execute_no_records(self, mock_get_db_hook):
         mock_get_db_hook.return_value.get_first.return_value = []
 
-        with pytest.raises(AirflowException, match=r"The query returned None"):
+        with pytest.raises(AirflowException, match=r"The following query returned zero rows: sql"):
             self._operator.execute({})
 
     @mock.patch.object(SQLCheckOperator, "get_db_hook")
