@@ -61,9 +61,12 @@ class SSHOperator(BaseOperator):
     :param banner_timeout: timeout to wait for banner from the server in seconds
     """
 
-    template_fields: Sequence[str] = ("command", "remote_host")
+    template_fields: Sequence[str] = ("command", "environment", "remote_host")
     template_ext: Sequence[str] = (".sh",)
-    template_fields_renderers = {"command": "bash"}
+    template_fields_renderers = {
+        "command": "bash",
+        "environment": "python",
+    }
 
     def __init__(
         self,
