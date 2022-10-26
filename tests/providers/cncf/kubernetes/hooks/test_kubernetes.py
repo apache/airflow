@@ -32,9 +32,14 @@ from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.utils import db
 from tests.test_utils.db import clear_db_connections
+from tests.test_utils.providers import get_provider_min_airflow_version
 
 KUBE_CONFIG_PATH = os.getenv("KUBECONFIG", "~/.kube/config")
 HOOK_MODULE = "airflow.providers.cncf.kubernetes.hooks.kubernetes"
+
+
+class DeprecationRemovalRequired(AirflowException):
+    ...
 
 
 class TestKubernetesHook:
@@ -304,6 +309,12 @@ class TestKubernetesHook:
     def test_get_namespace(self, conn_id, expected):
         hook = KubernetesHook(conn_id=conn_id)
         assert hook.get_namespace() == expected
+        if get_provider_min_airflow_version("apache-airflow-providers-cncf-kubernetes") >= (6, 0):
+            raise DeprecationRemovalRequired(
+                "You must update get_namespace so that if namespace not set "
+                "in the connection, then None is returned. To do so, remove get_namespace "
+                "and rename _get_namespace to get_namespace."
+            )
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")

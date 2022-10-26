@@ -39,6 +39,13 @@ Features
 * KubernetsPodOperator argument ``namespace`` is now optional.  If not supplied via KPO param or pod template file or full pod spec, then we'll check the airflow conn,
   then if in a k8s pod, try to infer the namespace from the container, then finally will use the ``default`` namespace.
 
+Deprecations
+~~~~~~~~~~~~
+
+* In ``KubernetesHook.get_namespace``, if a connection is defined but a namespace isn't set, we currently return 'default'; this behavior is deprecated. In the next release, we'll return ``None``.
+
+
+
 4.4.0
 .....
 
