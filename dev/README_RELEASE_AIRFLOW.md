@@ -882,7 +882,8 @@ cd ..
 [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
 svn update --set-depth=infinity asf-dist/{release,dev}/airflow
 AIRFLOW_DEV_SVN="${PWD}/asf-dist/dev/airflow"
-cd asf-dist/release/airflow
+AIRFLOW_RELEASE_SVN="${PWD}/asf-dist/release/airflow"
+cd "${AIRFLOW_RELEASE_SVN}"
 
 export RC=2.0.2rc5
 export VERSION=${RC/rc?/}
