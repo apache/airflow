@@ -78,7 +78,7 @@ A timetable that accepts a cron expression, and triggers DAG runs according to i
 
 
     @dag(
-        timetable=CronTriggerTimetable('0 1 * * 3', timezone='UTC'),  # At 01:00 on Wednesday
+        timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"),  # At 01:00 on Wednesday
     )
     def example_dag():
         pass

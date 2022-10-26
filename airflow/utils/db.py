@@ -974,9 +974,9 @@ def check_table_for_duplicates(
                 return
             yield from check_table_for_duplicates(
                 table_name=task_fail.name,
-                uniqueness=['dag_id', 'task_id', 'execution_date'],
+                uniqueness=["dag_id", "task_id", "execution_date"],
                 session=session,
-                version='2.3',
+                version="2.3",
             )
 
     :param table_name: table name to check

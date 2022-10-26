@@ -233,7 +233,7 @@ Bad example:
 
 
     class CustomTimetable(CronDataIntervalTimetable):
-        def __init__(self, *args, something=Variable.get('something'), **kwargs):
+        def __init__(self, *args, something=Variable.get("something"), **kwargs):
             self._something = something
             super().__init__(*args, **kwargs)
 
@@ -246,7 +246,7 @@ Good example:
 
 
     class CustomTimetable(CronDataIntervalTimetable):
-        def __init__(self, *args, something='something', **kwargs):
+        def __init__(self, *args, something="something", **kwargs):
             self._something = Variable.get(something)
             super().__init__(*args, **kwargs)
 
