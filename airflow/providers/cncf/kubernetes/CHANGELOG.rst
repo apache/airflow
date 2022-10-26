@@ -42,7 +42,7 @@ Features
 Deprecations
 ~~~~~~~~~~~~
 
-* In KubernetesHook if connection defined but namespace unset, we currently return 'default'; this behavior is deprecated. In next release, we'll return ``None``.
+* In ``KubernetesHook.get_namespace``, if a connection is defined but a namespace isn't set, we currently return 'default'; this behavior is deprecated. In the next release, we'll return ``None``.
 
 
 
