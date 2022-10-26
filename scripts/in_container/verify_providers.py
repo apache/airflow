@@ -767,12 +767,16 @@ def summarise_total_vs_bad_and_warnings(total: int, bad: int, warns: list[warnin
         console.print()
     else:
         console.print()
+        if os.environ.get("CI") != "":
+            console.print("::endgroup::")
         console.print(
             f"[red]ERROR! There are in total: {bad} entities badly named out of {total} entities[/]"
         )
         console.print()
         raise_error = True
     if warns:
+        if os.environ.get("CI") != "" and bad == 0:
+            console.print("::endgroup::")
         console.print()
         console.print("[red]Unknown warnings generated:[/]")
         console.print()
