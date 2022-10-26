@@ -30,6 +30,7 @@ import pytest
 from parameterized import parameterized
 
 from airflow import settings
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils import db
@@ -906,6 +907,24 @@ class TestSSHHook(unittest.TestCase):
                 30,
             )
             assert ret == (0, b"airflow\n", b"")
+
+    @pytest.mark.flaky(max_runs=5, min_passes=1)
+    def test_command_timeout(self):
+        hook = SSHHook(
+            ssh_conn_id="ssh_default",
+            conn_timeout=30,
+            banner_timeout=100,
+        )
+
+        with hook.get_conn() as client:
+            with pytest.raises(AirflowException):
+                hook.exec_ssh_client_command(
+                    client,
+                    "sleep 10",
+                    False,
+                    None,
+                    1,
+                )
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
     def test_ssh_connection_with_no_host_key_check_true_and_allow_host_key_changes_true(self, ssh_mock):
