@@ -47,8 +47,7 @@ repos:
         exclude: |
           (?x)
           ^\.github/|
-          ^airflow/_vendor/|
-          ^tests/system/providers/snowflake/example_snowflake_snowflake_op_template_file\.sql$
+          ^airflow/_vendor/
         args:
           - --comment-style
           - "/*||*/"
@@ -181,7 +180,6 @@ repos:
           - --target-version=py38
           - --target-version=py39
           - --target-version=py310
-          - --skip-string-normalization
         alias: black
         additional_dependencies: [black==22.3.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -360,10 +358,9 @@ repos:
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_setup_extra_packages_ref.py
         additional_dependencies: ['rich>=12.4.4']
-        # This check might be removed when min-airflow-version in providers is 2.2
-      - id: check-airflow-2-2-compatibility
-        name: Check that providers are 2.2 compatible.
-        entry: ./scripts/ci/pre_commit/pre_commit_check_2_2_compatibility.py
+      - id: check-airflow-provider-compatibility
+        name: Check compatibility of Providers with Airflow
+        entry: ./scripts/ci/pre_commit/pre_commit_check_provider_airflow_compatibility.py
         language: python
         pass_filenames: true
         files: ^airflow/providers/.*\.py$

@@ -68,7 +68,12 @@ from airflow_breeze.utils.docker_command_utils import (
     get_extra_docker_flags,
     perform_environment_checks,
 )
-from airflow_breeze.utils.parallel import GenericRegexpProgressMatcher, check_async_run_results, run_with_pool
+from airflow_breeze.utils.parallel import (
+    GenericRegexpProgressMatcher,
+    SummarizeAfter,
+    check_async_run_results,
+    run_with_pool,
+)
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
@@ -199,6 +204,11 @@ def prepare_airflow_packages(
 )
 @option_verbose
 @option_dry_run
+@click.option(
+    "--base-branch",
+    type=str,
+    default="main",
+)
 @option_github_repository
 @option_answer
 @option_debug_release_management
@@ -206,6 +216,7 @@ def prepare_airflow_packages(
 def prepare_provider_documentation(
     verbose: bool,
     dry_run: bool,
+    base_branch: str,
     github_repository: str,
     answer: str | None,
     debug: bool,
@@ -218,6 +229,7 @@ def prepare_provider_documentation(
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         answer=answer,
+        base_branch=base_branch,
         skip_environment_initialization=True,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params, dry_run=dry_run, verbose=verbose)
@@ -356,6 +368,8 @@ def run_generate_constraints_in_parallel(
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,
+        summarize_on_ci=SummarizeAfter.SUCCESS,
+        summary_start_regexp=".*Constraints generated in.*",
     )
 
 

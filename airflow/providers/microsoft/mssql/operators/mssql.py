@@ -21,7 +21,6 @@ import warnings
 from typing import Sequence
 
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
-from airflow.www import utils as wwwutils
 
 
 class MsSqlOperator(SQLExecuteQueryOperator):
@@ -47,8 +46,7 @@ class MsSqlOperator(SQLExecuteQueryOperator):
 
     template_fields: Sequence[str] = ("sql",)
     template_ext: Sequence[str] = (".sql",)
-    # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
-    template_fields_renderers = {"sql": "tsql" if "tsql" in wwwutils.get_attr_renderer() else "sql"}
+    template_fields_renderers = {"sql": "tsql"}
     ui_color = "#ededed"
 
     def __init__(

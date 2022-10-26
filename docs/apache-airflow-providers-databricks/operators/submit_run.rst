@@ -38,12 +38,12 @@ execution of Databricks jobs with multiple tasks, but it's harder to detect erro
 .. code-block:: python
 
   json = {
-      'new_cluster': {'spark_version': '2.1.0-db3-scala2.11', 'num_workers': 2},
-      'notebook_task': {
-          'notebook_path': '/Users/airflow@example.com/PrepareData',
+      "new_cluster": {"spark_version": "2.1.0-db3-scala2.11", "num_workers": 2},
+      "notebook_task": {
+          "notebook_path": "/Users/airflow@example.com/PrepareData",
       },
   }
-  notebook_run = DatabricksSubmitRunOperator(task_id='notebook_run', json=json)
+  notebook_run = DatabricksSubmitRunOperator(task_id="notebook_run", json=json)
 
 The second way to accomplish the same thing is to use the named parameters of the ``DatabricksSubmitRunOperator`` directly. Note that there is exactly
 one named parameter for each top level parameter in the ``runs/submit`` endpoint.  When using named parameters you must to specify following:
@@ -81,12 +81,12 @@ Currently the named parameters that ``DatabricksSubmitRunOperator`` supports are
 
 .. code-block:: python
 
-  new_cluster = {'spark_version': '10.1.x-scala2.12', 'num_workers': 2}
+  new_cluster = {"spark_version": "10.1.x-scala2.12", "num_workers": 2}
   notebook_task = {
-      'notebook_path': '/Users/airflow@example.com/PrepareData',
+      "notebook_path": "/Users/airflow@example.com/PrepareData",
   }
   notebook_run = DatabricksSubmitRunOperator(
-      task_id='notebook_run', new_cluster=new_cluster, notebook_task=notebook_task
+      task_id="notebook_run", new_cluster=new_cluster, notebook_task=notebook_task
   )
 
 Another way to do is use the param tasks to pass array of objects to instantiate this operator. Here the value of tasks param that is used to invoke ``api/2.1/jobs/runs/submit`` endpoint is passed through the ``tasks`` param in ``DatabricksSubmitRunOperator``. Instead of invoking single task, you can pass array of task and submit a one-time run.
@@ -99,7 +99,7 @@ Another way to do is use the param tasks to pass array of objects to instantiate
           "notebook_task": {"notebook_path": "/Users/airflow@example.com/PrepareData"},
       }
   ]
-  notebook_run = DatabricksSubmitRunOperator(task_id='notebook_run', tasks=tasks)
+  notebook_run = DatabricksSubmitRunOperator(task_id="notebook_run", tasks=tasks)
 
 
 

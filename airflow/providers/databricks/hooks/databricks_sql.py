@@ -51,6 +51,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
     """
 
     hook_name = "Databricks SQL"
+    _test_connection_sql = "select 42"
 
     def __init__(
         self,
@@ -196,14 +197,6 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             return results[-1]
         else:
             return results
-
-    def test_connection(self):
-        """Test the Databricks SQL connection by running a simple query."""
-        try:
-            self.run(sql="select 42")
-        except Exception as e:
-            return False, str(e)
-        return True, "Connection successfully checked"
 
     def bulk_dump(self, table, tmp_file):
         raise NotImplementedError()

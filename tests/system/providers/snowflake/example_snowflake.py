@@ -62,6 +62,7 @@ with DAG(
     snowflake_op_sql_multiple_stmts = SnowflakeOperator(
         task_id="snowflake_op_sql_multiple_stmts",
         sql=SQL_MULTIPLE_STMTS,
+        split_statements=True,
     )
 
     snowflake_op_template_file = SnowflakeOperator(
