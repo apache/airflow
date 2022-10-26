@@ -21,6 +21,111 @@
 
 .. towncrier release notes start
 
+Airflow 2.4.2 (2022-10-24)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Default for ``[webserver] expose_stacktrace`` changed to ``False`` (#27059)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+  The default for ``[webserver] expose_stacktrace`` has been set to ``False``, instead of ``True``. This means administrators must opt-in to expose tracebacks to end users.
+
+Bug Fixes
+^^^^^^^^^
+- Make tracebacks opt-in (#27059)
+- Add missing AUTOINC/SERIAL for FAB tables (#26885)
+- Add separate error handler for 405(Method not allowed) errors (#26880)
+- Don't re-patch pods that are already controlled by current worker (#26778)
+- Handle mapped tasks in task duration chart (#26722)
+- Fix task duration cumulative chart (#26717)
+- Avoid 500 on dag redirect (#27064)
+- Filter dataset dependency data on webserver (#27046)
+- Remove double collection of dags in ``airflow dags reserialize``  (#27030)
+- Fix auto refresh for graph view (#26926)
+- Don't overwrite connection extra with invalid json (#27142)
+- Fix next run dataset modal links (#26897)
+- Change dag audit log sort by date from asc to desc (#26895)
+- Bump min version of jinja2 (#26866)
+- Add missing colors to ``state_color_mapping`` jinja global (#26822)
+- Fix running debuggers inside ``airflow tasks test`` (#26806)
+- Fix warning when using xcomarg dependencies (#26801)
+- demote Removed state in priority for displaying task summaries (#26789)
+- Ensure the log messages from operators during parsing go somewhere (#26779)
+- Add restarting state to TaskState Enum in REST API (#26776)
+- Allow retrieving error message from data.detail (#26762)
+- Simplify origin string cleaning (#27143)
+- Remove DAG parsing from StandardTaskRunner (#26750)
+- Fix non-hidden cumulative chart on duration view (#26716)
+- Remove TaskFail duplicates check (#26714)
+- Fix airflow tasks run --local when dags_folder differs from that of processor (#26509)
+- Fix yarn warning from d3-color (#27139)
+- Fix version for a couple configurations (#26491)
+- Revert "No grid auto-refresh for backfill dag runs (#25042)" (#26463)
+- Retry on Airflow Schedule DAG Run DB Deadlock (#26347)
+
+Misc/Internal
+^^^^^^^^^^^^^
+- Clean-ups around task-mapping code (#26879)
+- Move user-facing string to template (#26815)
+- add icon legend to datasets graph (#26781)
+- Bump ``sphinx`` and ``sphinx-autoapi`` (#26743)
+- Simplify ``RTIF.delete_old_records()`` (#26667)
+- Bump FAB to ``4.1.4`` (#26393)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+- Fixed triple quotes in task group example (#26829)
+- Documentation fixes (#26819)
+- make consistency on markup title string level (#26696)
+- Add a note against use of top level code in timetable (#26649)
+- Fix broken URL for ``docker-compose.yaml`` (#26726)
+
+
+Airflow 2.4.1 (2022-09-30)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+^^^^^^^^^
+
+- When rendering template, unmap task in context (#26702)
+- Fix scroll overflow for ConfirmDialog (#26681)
+- Resolve deprecation warning re ``Table.exists()`` (#26616)
+- Fix XComArg zip bug (#26636)
+- Use COALESCE when ordering runs to handle NULL (#26626)
+- Check user is active (#26635)
+- No missing user warning for public admin (#26611)
+- Allow MapXComArg to resolve after serialization  (#26591)
+- Resolve warning about DISTINCT ON query on dags view (#26608)
+- Log warning when secret backend kwargs is invalid (#26580)
+- Fix grid view log try numbers (#26556)
+- Template rendering issue in passing ``templates_dict`` to task decorator (#26390)
+- Fix Deferrable stuck as ``scheduled`` during backfill (#26205)
+- Suppress SQLALCHEMY_TRACK_MODIFICATIONS warning in db init (#26617)
+- Correctly set ``json_provider_class`` on Flask app so it uses our encoder (#26554)
+- Fix WSGI root app (#26549)
+- Fix deadlock when mapped task with removed upstream is rerun (#26518)
+- ExecutorConfigType should be ``cacheable`` (#26498)
+- Fix proper joining of the path for logs retrieved from celery workers (#26493)
+- DAG Deps extends ``base_template`` (#26439)
+- Don't update backfill run from the scheduler (#26342)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+
+- Clarify owner links document (#26515)
+- Fix invalid RST in dataset concepts doc (#26434)
+- Document the ``non-sensitive-only`` option for ``expose_config`` (#26507)
+- Fix ``example_datasets`` dag names (#26495)
+- Zip-like effect is now possible in task mapping (#26435)
+- Use task decorator in docs instead of classic operators (#25711)
+
 Airflow 2.4.0 (2022-09-19)
 --------------------------
 
@@ -44,9 +149,9 @@ A dataset is identified by a URI:
     from airflow import Dataset
 
     # The URI doesn't have to be absolute
-    dataset = Dataset(uri='my-dataset')
+    dataset = Dataset(uri="my-dataset")
     # Or you can use a scheme to show where it lives.
-    dataset2 = Dataset(uri='s3://bucket/prefix')
+    dataset2 = Dataset(uri="s3://bucket/prefix")
 
 To create a DAG that runs whenever a Dataset is updated use the new ``schedule`` parameter (see below) and
 pass a list of 1 or more Datasets:
@@ -136,9 +241,9 @@ If you previously used the ``@daily`` cron preset, your DAG may have looked like
 .. code-block:: python
 
     with DAG(
-        dag_id='my_example',
+        dag_id="my_example",
         start_date=datetime(2021, 1, 1),
-        schedule_interval='@daily',
+        schedule_interval="@daily",
     ):
         ...
 
@@ -147,9 +252,9 @@ Going forward, you should use the ``schedule`` argument instead:
 .. code-block:: python
 
     with DAG(
-        dag_id='my_example',
+        dag_id="my_example",
         start_date=datetime(2021, 1, 1),
-        schedule='@daily',
+        schedule="@daily",
     ):
         ...
 
@@ -158,7 +263,7 @@ The same is true if you used a custom timetable.  Previously you would have used
 .. code-block:: python
 
     with DAG(
-        dag_id='my_example',
+        dag_id="my_example",
         start_date=datetime(2021, 1, 1),
         timetable=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5)]),
     ):
@@ -169,7 +274,7 @@ Now you should use the ``schedule`` argument:
 .. code-block:: python
 
     with DAG(
-        dag_id='my_example',
+        dag_id="my_example",
         start_date=datetime(2021, 1, 1),
         schedule=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5)]),
     ):
@@ -423,6 +528,7 @@ Doc only changes
 - Fix ``task-generated mapping`` example (#23424)
 - Add note on subtle logical date change in ``2.2.0`` (#24413)
 - Add missing import in best-practices code example (#25391)
+
 
 
 Airflow 2.3.4 (2022-08-23)
@@ -851,7 +957,7 @@ Details in the `SQLAlchemy Changelog <https://docs.sqlalchemy.org/en/14/changelo
 ``auth_backends`` replaces ``auth_backend`` configuration setting (#21472)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-Previously, only one backend was used to authorize use of the REST API. In 2.3 this was changed to support multiple backends, separated by whitespace. Each will be tried in turn until a successful response is returned.
+Previously, only one backend was used to authorize use of the REST API. In 2.3 this was changed to support multiple backends, separated by comma. Each will be tried in turn until a successful response is returned.
 
 This setting is also used for the deprecated experimental API, which only uses the first option even if multiple are given.
 

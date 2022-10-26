@@ -28,9 +28,13 @@ const commonDagRunParams = {
   dataIntervalStart: '2022-01-01T05:00+00:00',
   dataIntervalEnd: '2022-01-01T10:00+00:00',
   runType: 'scheduled' as DagRun['runType'],
+  queuedAt: null,
   startDate: null,
   endDate: null,
   lastSchedulingDecision: null,
+  externalTrigger: false,
+  conf: null,
+  confIsJson: false,
 };
 
 describe('Test areActiveRuns()', () => {

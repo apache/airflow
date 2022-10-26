@@ -62,11 +62,11 @@ class TestDatasetSchema(TestDatasetSchemaBase):
         dataset_model = session.query(DatasetModel).filter_by(uri=dataset.uri).one()
 
         serialized_data = dataset_schema.dump(dataset_model)
-        serialized_data['id'] = 1
+        serialized_data["id"] = 1
         assert serialized_data == {
             "id": 1,
             "uri": "s3://bucket/key",
-            "extra": {'foo': 'bar'},
+            "extra": {"foo": "bar"},
             "created_at": self.timestamp,
             "updated_at": self.timestamp,
             "consuming_dags": [
@@ -102,14 +102,14 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
         serialized_data = dataset_collection_schema.dump(
             DatasetCollection(datasets=datasets, total_entries=2)
         )
-        serialized_data['datasets'][0]['id'] = 1
-        serialized_data['datasets'][1]['id'] = 2
+        serialized_data["datasets"][0]["id"] = 1
+        serialized_data["datasets"][1]["id"] = 2
         assert serialized_data == {
             "datasets": [
                 {
                     "id": 1,
                     "uri": "s3://bucket/key/1",
-                    "extra": {'foo': 'bar'},
+                    "extra": {"foo": "bar"},
                     "created_at": self.timestamp,
                     "updated_at": self.timestamp,
                     "consuming_dags": [],
@@ -118,7 +118,7 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
                 {
                     "id": 2,
                     "uri": "s3://bucket/key/2",
-                    "extra": {'foo': 'bar'},
+                    "extra": {"foo": "bar"},
                     "created_at": self.timestamp,
                     "updated_at": self.timestamp,
                     "consuming_dags": [],
@@ -131,7 +131,7 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
 
 class TestDatasetEventSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
-        d = DatasetModel('s3://abc')
+        d = DatasetModel("s3://abc")
         session.add(d)
         session.commit()
         event = DatasetEvent(
@@ -150,7 +150,7 @@ class TestDatasetEventSchema(TestDatasetSchemaBase):
             "id": 1,
             "dataset_id": d.id,
             "dataset_uri": "s3://abc",
-            "extra": {'foo': 'bar'},
+            "extra": {"foo": "bar"},
             "source_dag_id": "foo",
             "source_task_id": "bar",
             "source_run_id": "custom",
@@ -164,7 +164,7 @@ class TestDatasetEventCollectionSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
         common = {
             "dataset_id": 10,
-            "extra": {'foo': 'bar'},
+            "extra": {"foo": "bar"},
             "source_dag_id": "foo",
             "source_task_id": "bar",
             "source_run_id": "custom",

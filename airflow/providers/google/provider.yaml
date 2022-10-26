@@ -29,6 +29,7 @@ description: |
       - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 versions:
+  - 8.4.0
   - 8.3.0
   - 8.2.0
   - 8.1.0
@@ -53,8 +54,8 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.2.0
-  - apache-airflow-providers-common-sql>=1.1.0
+  - apache-airflow>=2.3.0
+  - apache-airflow-providers-common-sql>=1.2.0
   # Google has very clear rules on what dependencies should be used. All the limits below
   # follow strict guidelines of Google Libraries as quoted here:
   # While this issue is open, dependents of google-api-core, google-cloud-core. and google-auth
@@ -96,7 +97,7 @@ dependencies:
   - google-cloud-secret-manager>=0.2.0,<2.0.0
   - google-cloud-spanner>=1.10.0,<2.0.0
   - google-cloud-speech>=0.36.3,<2.0.0
-  - google-cloud-storage>=1.30,<2.0.0
+  - google-cloud-storage>=1.30,<3.0.0
   - google-cloud-tasks>=2.0.0
   - google-cloud-texttospeech>=0.4.0,<2.0.0
   - google-cloud-translate>=1.5.0,<2.0.0
@@ -1020,6 +1021,22 @@ extra-links:
   - airflow.providers.google.cloud.links.cloud_storage_transfer.CloudStorageTransferListLink
   - airflow.providers.google.cloud.links.cloud_storage_transfer.CloudStorageTransferJobLink
   - airflow.providers.google.cloud.links.cloud_storage_transfer.CloudStorageTransferDetailsLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPDeidentifyTemplatesListLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPDeidentifyTemplateDetailsLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPJobTriggersListLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPJobTriggerDetailsLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPJobsListLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPJobDetailsLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPInspectTemplatesListLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPInspectTemplateDetailsLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPInfoTypesListLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPInfoTypeDetailsLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPPossibleInfoTypesListLink
+  - airflow.providers.google.cloud.links.mlengine.MLEngineModelLink
+  - airflow.providers.google.cloud.links.mlengine.MLEngineModelsListLink
+  - airflow.providers.google.cloud.links.mlengine.MLEngineJobDetailsLink
+  - airflow.providers.google.cloud.links.mlengine.MLEngineJobSListLink
+  - airflow.providers.google.cloud.links.mlengine.MLEngineModelVersionDetailsLink
   - airflow.providers.google.common.links.storage.StorageLink
   - airflow.providers.google.common.links.storage.FileDetailsLink
 

@@ -35,7 +35,7 @@ for filename in files:
         lines = [line.strip() for line in f.readlines()]
     num_lines = len(lines)
 
-    name_parts = Path(filename).name.split('.')
+    name_parts = Path(filename).name.split(".")
     if len(name_parts) != 3:
         print(f"Newsfragment {filename} has an unexpected filename. Should be {{pr_number}}.{{type}}.rst.")
         failed = True

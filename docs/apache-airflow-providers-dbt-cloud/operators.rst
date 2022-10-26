@@ -106,3 +106,24 @@ For more information on dbt Cloud artifacts, reference
     :dedent: 4
     :start-after: [START howto_operator_dbt_cloud_get_artifact]
     :end-before: [END howto_operator_dbt_cloud_get_artifact]
+
+
+.. _howto/operator:DbtCloudListJobsOperator:
+
+List jobs
+~~~~~~~~~
+
+Use the :class:`~airflow.providers.dbt.cloud.operators.dbt.DbtCloudListJobsOperator` to list
+all jobs tied to a specified dbt Cloud account. The ``account_id`` must be supplied either
+through the connection or supplied as a parameter to the task.
+
+If a ``project_id`` is supplied, only jobs pertaining to this project id will be retrieved.
+
+For more information on dbt Cloud list jobs, reference
+`this documentation <https://docs.getdbt.com/dbt-cloud/api-v2#tag/Jobs/operation/listJobsForAccount>`__.
+
+.. exampleinclude:: /../../tests/system/providers/dbt/cloud/example_dbt_cloud.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dbt_cloud_list_jobs]
+    :end-before: [END howto_operator_dbt_cloud_list_jobs]

@@ -44,23 +44,23 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
     """
 
-    INTERMEDIATE_STATES = ('RUNNING',)
+    INTERMEDIATE_STATES = ("RUNNING",)
     FAILURE_STATES = (
-        'FAILED',
-        'TIMED_OUT',
-        'ABORTED',
+        "FAILED",
+        "TIMED_OUT",
+        "ABORTED",
     )
-    SUCCESS_STATES = ('SUCCEEDED',)
+    SUCCESS_STATES = ("SUCCEEDED",)
 
-    template_fields: Sequence[str] = ('execution_arn',)
+    template_fields: Sequence[str] = ("execution_arn",)
     template_ext: Sequence[str] = ()
-    ui_color = '#66c3ff'
+    ui_color = "#66c3ff"
 
     def __init__(
         self,
         *,
         execution_arn: str,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         region_name: str | None = None,
         **kwargs,
     ):
@@ -72,17 +72,17 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
 
     def poke(self, context: Context):
         execution_status = self.get_hook().describe_execution(self.execution_arn)
-        state = execution_status['status']
-        output = json.loads(execution_status['output']) if 'output' in execution_status else None
+        state = execution_status["status"]
+        output = json.loads(execution_status["output"]) if "output" in execution_status else None
 
         if state in self.FAILURE_STATES:
-            raise AirflowException(f'Step Function sensor failed. State Machine Output: {output}')
+            raise AirflowException(f"Step Function sensor failed. State Machine Output: {output}")
 
         if state in self.INTERMEDIATE_STATES:
             return False
 
-        self.log.info('Doing xcom_push of output')
-        self.xcom_push(context, 'output', output)
+        self.log.info("Doing xcom_push of output")
+        self.xcom_push(context, "output", output)
         return True
 
     def get_hook(self) -> StepFunctionHook:

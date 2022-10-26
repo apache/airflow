@@ -56,6 +56,7 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.console import get_console
 
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
+DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
 
 
 class FileGroupForCi(Enum):
@@ -67,14 +68,13 @@ class FileGroupForCi(Enum):
     HELM_FILES = "helm_files"
     SETUP_FILES = "setup_files"
     DOC_FILES = "doc_files"
-    UI_FILES = "ui_files"
     WWW_FILES = "www_files"
     KUBERNETES_FILES = "kubernetes_files"
     ALL_PYTHON_FILES = "all_python_files"
     ALL_SOURCE_FILES = "all_sources_for_tests"
 
 
-T = TypeVar('T', FileGroupForCi, SelectiveUnitTestTypes)
+T = TypeVar("T", FileGroupForCi, SelectiveUnitTestTypes)
 
 
 class HashableDict(Dict[T, List[str]]):
@@ -87,6 +87,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.ENVIRONMENT_FILES: [
             r"^.github/workflows",
             r"^dev/breeze",
+            r"^dev/.*\.py$",
             r"^Dockerfile",
             r"^scripts",
             r"^setup.py",
@@ -105,13 +106,14 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/api",
         ],
         FileGroupForCi.API_CODEGEN_FILES: [
-            "^airflow/api_connexion/openapi/v1.yaml",
-            "^clients/gen",
+            r"^airflow/api_connexion/openapi/v1\.yaml",
+            r"^clients/gen",
         ],
         FileGroupForCi.HELM_FILES: [
-            "^chart",
-            "^airflow/kubernetes",
-            "^tests/kubernetes",
+            r"^chart",
+            r"^airflow/kubernetes",
+            r"^tests/kubernetes",
+            r"^tests/charts",
         ],
         FileGroupForCi.SETUP_FILES: [
             r"^pyproject.toml",
@@ -131,11 +133,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/RELEASE_NOTES\.txt",
             r"^chart/values\.schema\.json",
             r"^chart/values\.json",
-        ],
-        FileGroupForCi.UI_FILES: [
-            r"^airflow/www/.*\.[tj]sx?$",
-            r"^airflow/www/[^/]+\.json$",
-            r"^airflow/www/.*\.lock$",
         ],
         FileGroupForCi.WWW_FILES: [
             r"^airflow/www/.*\.js[x]?$",
@@ -216,8 +213,12 @@ def add_dependent_providers(
     providers: set[str], provider_to_check: str, dependencies: dict[str, dict[str, list[str]]]
 ):
     for provider, provider_info in dependencies.items():
-        if provider_to_check in provider_info['cross-providers-deps']:
+        # Providers that use this provider
+        if provider_to_check in provider_info["cross-providers-deps"]:
             providers.add(provider)
+        # and providers we use directly
+        for dep_name in dependencies[provider_to_check]["cross-providers-deps"]:
+            providers.add(dep_name)
 
 
 def find_all_providers_affected(changed_files: tuple[str, ...]) -> set[str]:
@@ -235,7 +236,7 @@ def find_all_providers_affected(changed_files: tuple[str, ...]) -> set[str]:
 
 
 class SelectiveChecks:
-    __HASHABLE_FIELDS = {'_files', '_default_branch', '_commit_ref', "_pr_labels", "_github_event"}
+    __HASHABLE_FIELDS = {"_files", "_default_branch", "_commit_ref", "_pr_labels", "_github_event"}
 
     def __init__(
         self,
@@ -267,7 +268,7 @@ class SelectiveChecks:
     def __str__(self) -> str:
         output = []
         for field_name in dir(self):
-            if not field_name.startswith('_'):
+            if not field_name.startswith("_"):
                 output.append(get_ga_output(field_name, getattr(self, field_name)))
         return "\n".join(output)
 
@@ -444,10 +445,6 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.API_CODEGEN_FILES)
 
     @cached_property
-    def run_ui_tests(self) -> bool:
-        return self._should_be_run(FileGroupForCi.UI_FILES)
-
-    @cached_property
     def run_www_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.WWW_FILES)
 
@@ -563,7 +560,7 @@ class SelectiveChecks:
     def docs_filter(self) -> str:
         return (
             ""
-            if self._default_branch == 'main'
+            if self._default_branch == "main"
             else "--package-filter apache-airflow --package-filter docker-stack"
         )
 
@@ -574,3 +571,7 @@ class SelectiveChecks:
     @cached_property
     def cache_directive(self) -> str:
         return "disabled" if self._github_event == GithubEvents.SCHEDULE else "registry"
+
+    @cached_property
+    def debug_resources(self) -> bool:
+        return DEBUG_CI_RESOURCES_LABEL in self._pr_labels

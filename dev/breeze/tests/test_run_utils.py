@@ -29,8 +29,8 @@ from airflow_breeze.utils.run_utils import (
 
 
 def test_change_file_permission(tmpdir):
-    tmpfile = Path(tmpdir, 'test.config')
-    tmpfile.write_text('content')
+    tmpfile = Path(tmpdir, "test.config")
+    tmpfile.write_text("content")
     change_file_permission(tmpfile)
     mode = os.stat(tmpfile).st_mode
     assert not (mode & stat.S_IWGRP) and not (mode & stat.S_IWOTH)
@@ -48,7 +48,7 @@ def test_change_directory_permission(tmpdir):
 
 
 def test_filter_out_none():
-    dict_input_with_none = {'sample': None, 'sample1': 'One', 'sample2': 'Two', 'samplen': None}
-    expected_dict_output = {'sample1': 'One', 'sample2': 'Two'}
+    dict_input_with_none = {"sample": None, "sample1": "One", "sample2": "Two", "samplen": None}
+    expected_dict_output = {"sample1": "One", "sample2": "Two"}
     output_dict = filter_out_none(**dict_input_with_none)
     TestCase().assertDictEqual(output_dict, expected_dict_output)

@@ -83,10 +83,10 @@ class CassandraHook(BaseHook, LoggingMixin):
     For details of the Cluster config, see cassandra.cluster.
     """
 
-    conn_name_attr = 'cassandra_conn_id'
-    default_conn_name = 'cassandra_default'
-    conn_type = 'cassandra'
-    hook_name = 'Cassandra'
+    conn_name_attr = "cassandra_conn_id"
+    default_conn_name = "cassandra_default"
+    conn_type = "cassandra"
+    hook_name = "Cassandra"
 
     def __init__(self, cassandra_conn_id: str = default_conn_name):
         super().__init__()
@@ -94,31 +94,31 @@ class CassandraHook(BaseHook, LoggingMixin):
 
         conn_config = {}
         if conn.host:
-            conn_config['contact_points'] = conn.host.split(',')
+            conn_config["contact_points"] = conn.host.split(",")
 
         if conn.port:
-            conn_config['port'] = int(conn.port)
+            conn_config["port"] = int(conn.port)
 
         if conn.login:
-            conn_config['auth_provider'] = PlainTextAuthProvider(username=conn.login, password=conn.password)
+            conn_config["auth_provider"] = PlainTextAuthProvider(username=conn.login, password=conn.password)
 
-        policy_name = conn.extra_dejson.get('load_balancing_policy', None)
-        policy_args = conn.extra_dejson.get('load_balancing_policy_args', {})
+        policy_name = conn.extra_dejson.get("load_balancing_policy", None)
+        policy_args = conn.extra_dejson.get("load_balancing_policy_args", {})
         lb_policy = self.get_lb_policy(policy_name, policy_args)
         if lb_policy:
-            conn_config['load_balancing_policy'] = lb_policy
+            conn_config["load_balancing_policy"] = lb_policy
 
-        cql_version = conn.extra_dejson.get('cql_version', None)
+        cql_version = conn.extra_dejson.get("cql_version", None)
         if cql_version:
-            conn_config['cql_version'] = cql_version
+            conn_config["cql_version"] = cql_version
 
-        ssl_options = conn.extra_dejson.get('ssl_options', None)
+        ssl_options = conn.extra_dejson.get("ssl_options", None)
         if ssl_options:
-            conn_config['ssl_options'] = ssl_options
+            conn_config["ssl_options"] = ssl_options
 
-        protocol_version = conn.extra_dejson.get('protocol_version', None)
+        protocol_version = conn.extra_dejson.get("protocol_version", None)
         if protocol_version:
-            conn_config['protocol_version'] = protocol_version
+            conn_config["protocol_version"] = protocol_version
 
         self.cluster = Cluster(**conn_config)
         self.keyspace = conn.schema
@@ -148,25 +148,25 @@ class CassandraHook(BaseHook, LoggingMixin):
         :param policy_name: Name of the policy to use.
         :param policy_args: Parameters for the policy.
         """
-        if policy_name == 'DCAwareRoundRobinPolicy':
-            local_dc = policy_args.get('local_dc', '')
-            used_hosts_per_remote_dc = int(policy_args.get('used_hosts_per_remote_dc', 0))
+        if policy_name == "DCAwareRoundRobinPolicy":
+            local_dc = policy_args.get("local_dc", "")
+            used_hosts_per_remote_dc = int(policy_args.get("used_hosts_per_remote_dc", 0))
             return DCAwareRoundRobinPolicy(local_dc, used_hosts_per_remote_dc)
 
-        if policy_name == 'WhiteListRoundRobinPolicy':
-            hosts = policy_args.get('hosts')
+        if policy_name == "WhiteListRoundRobinPolicy":
+            hosts = policy_args.get("hosts")
             if not hosts:
-                raise Exception('Hosts must be specified for WhiteListRoundRobinPolicy')
+                raise Exception("Hosts must be specified for WhiteListRoundRobinPolicy")
             return WhiteListRoundRobinPolicy(hosts)
 
-        if policy_name == 'TokenAwarePolicy':
+        if policy_name == "TokenAwarePolicy":
             allowed_child_policies = (
-                'RoundRobinPolicy',
-                'DCAwareRoundRobinPolicy',
-                'WhiteListRoundRobinPolicy',
+                "RoundRobinPolicy",
+                "DCAwareRoundRobinPolicy",
+                "WhiteListRoundRobinPolicy",
             )
-            child_policy_name = policy_args.get('child_load_balancing_policy', 'RoundRobinPolicy')
-            child_policy_args = policy_args.get('child_load_balancing_policy_args', {})
+            child_policy_name = policy_args.get("child_load_balancing_policy", "RoundRobinPolicy")
+            child_policy_args = policy_args.get("child_load_balancing_policy_args", {})
             if child_policy_name not in allowed_child_policies:
                 return TokenAwarePolicy(RoundRobinPolicy())
             child_policy = CassandraHook.get_lb_policy(child_policy_name, child_policy_args)
@@ -183,8 +183,8 @@ class CassandraHook(BaseHook, LoggingMixin):
                       Use dot notation to target a specific keyspace.
         """
         keyspace = self.keyspace
-        if '.' in table:
-            keyspace, table = table.split('.', 1)
+        if "." in table:
+            keyspace, table = table.split(".", 1)
         cluster_metadata = self.get_conn().cluster.metadata
         return keyspace in cluster_metadata.keyspaces and table in cluster_metadata.keyspaces[keyspace].tables
 
@@ -197,8 +197,8 @@ class CassandraHook(BaseHook, LoggingMixin):
         :param keys: The keys and their values to check the existence.
         """
         keyspace = self.keyspace
-        if '.' in table:
-            keyspace, table = table.split('.', 1)
+        if "." in table:
+            keyspace, table = table.split(".", 1)
         ks_str = " AND ".join(f"{key}=%({key})s" for key in keys)
         query = f"SELECT * FROM {keyspace}.{table} WHERE {ks_str}"
         try:

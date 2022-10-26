@@ -138,7 +138,9 @@ def init_plugins(app):
             log.debug("Adding view %s without menu", str(type(view["view"])))
             appbuilder.add_view_no_menu(view["view"])
 
-    for menu_link in sorted(plugins_manager.flask_appbuilder_menu_links, key=lambda x: x["name"]):
+    for menu_link in sorted(
+        plugins_manager.flask_appbuilder_menu_links, key=lambda x: (x.get("category", ""), x["name"])
+    ):
         log.debug("Adding menu link %s to %s", menu_link["name"], menu_link["href"])
         appbuilder.add_link(**menu_link)
 
@@ -188,8 +190,7 @@ def init_api_connexion(app: Flask) -> None:
     from airflow.www import views
 
     @app.errorhandler(404)
-    @app.errorhandler(405)
-    def _handle_api_error(ex):
+    def _handle_api_not_found(ex):
         if request.path.startswith(base_path):
             # 404 errors are never handled on the blueprint level
             # unless raised from a view func so actual 404 errors,
@@ -198,6 +199,13 @@ def init_api_connexion(app: Flask) -> None:
             return common_error_handler(ex)
         else:
             return views.not_found(ex)
+
+    @app.errorhandler(405)
+    def _handle_method_not_allowed(ex):
+        if request.path.startswith(base_path):
+            return common_error_handler(ex)
+        else:
+            return views.method_not_allowed(ex)
 
     spec_dir = path.join(ROOT_APP_DIR, 'api_connexion', 'openapi')
     connexion_app = App(__name__, specification_dir=spec_dir, skip_error_handlers=True)

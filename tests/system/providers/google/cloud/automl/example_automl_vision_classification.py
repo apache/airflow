@@ -70,7 +70,7 @@ with models.DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
     user_defined_macros={"extract_object_id": extract_object_id},
-    tags=['example', 'automl'],
+    tags=["example", "automl"],
 ) as dag:
     create_dataset_task = AutoMLCreateDatasetOperator(
         task_id="create_dataset_task", dataset=DATASET, location=GCP_AUTOML_LOCATION

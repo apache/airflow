@@ -42,16 +42,16 @@ from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftCluste
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-DAG_ID = 'example_redshift'
-DB_LOGIN = 'adminuser'
-DB_PASS = 'MyAmazonPassword1'
-DB_NAME = 'dev'
+DAG_ID = "example_redshift"
+DB_LOGIN = "adminuser"
+DB_PASS = "MyAmazonPassword1"
+DB_NAME = "dev"
 POLL_INTERVAL = 10
 
 IP_PERMISSION = {
-    'FromPort': -1,
-    'IpProtocol': 'All',
-    'IpRanges': [{'CidrIp': '0.0.0.0/0', 'Description': 'Test description'}],
+    "FromPort": -1,
+    "IpProtocol": "All",
+    "IpRanges": [{"CidrIp": "0.0.0.0/0", "Description": "Test description"}],
 }
 
 sys_test_context_task = SystemTestContextBuilder().build()
@@ -60,15 +60,15 @@ sys_test_context_task = SystemTestContextBuilder().build()
 @task
 def create_connection(conn_id_name: str, cluster_id: str):
     redshift_hook = RedshiftHook()
-    cluster_endpoint = redshift_hook.get_conn().describe_clusters(ClusterIdentifier=cluster_id)['Clusters'][0]
+    cluster_endpoint = redshift_hook.get_conn().describe_clusters(ClusterIdentifier=cluster_id)["Clusters"][0]
     conn = Connection(
         conn_id=conn_id_name,
-        conn_type='redshift',
-        host=cluster_endpoint['Endpoint']['Address'],
+        conn_type="redshift",
+        host=cluster_endpoint["Endpoint"]["Address"],
         login=DB_LOGIN,
         password=DB_PASS,
-        port=cluster_endpoint['Endpoint']['Port'],
-        schema=cluster_endpoint['DBName'],
+        port=cluster_endpoint["Endpoint"]["Port"],
+        schema=cluster_endpoint["DBName"],
     )
     session = settings.Session()
     session.add(conn)
@@ -77,35 +77,35 @@ def create_connection(conn_id_name: str, cluster_id: str):
 
 @task
 def setup_security_group(sec_group_name: str, ip_permissions: list[dict]):
-    client = boto3.client('ec2')
-    vpc_id = client.describe_vpcs()['Vpcs'][0]['VpcId']
+    client = boto3.client("ec2")
+    vpc_id = client.describe_vpcs()["Vpcs"][0]["VpcId"]
     security_group = client.create_security_group(
-        Description='Redshift-system-test', GroupName=sec_group_name, VpcId=vpc_id
+        Description="Redshift-system-test", GroupName=sec_group_name, VpcId=vpc_id
     )
-    client.get_waiter('security_group_exists').wait(
-        GroupIds=[security_group['GroupId']],
+    client.get_waiter("security_group_exists").wait(
+        GroupIds=[security_group["GroupId"]],
         GroupNames=[sec_group_name],
-        WaiterConfig={'Delay': 15, 'MaxAttempts': 4},
+        WaiterConfig={"Delay": 15, "MaxAttempts": 4},
     )
     client.authorize_security_group_ingress(
-        GroupId=security_group['GroupId'], GroupName=sec_group_name, IpPermissions=ip_permissions
+        GroupId=security_group["GroupId"], GroupName=sec_group_name, IpPermissions=ip_permissions
     )
-    ti = get_current_context()['ti']
-    ti.xcom_push(key='security_group_id', value=security_group['GroupId'])
+    ti = get_current_context()["ti"]
+    ti.xcom_push(key="security_group_id", value=security_group["GroupId"])
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_security_group(sec_group_id: str, sec_group_name: str):
-    boto3.client('ec2').delete_security_group(GroupId=sec_group_id, GroupName=sec_group_name)
+    boto3.client("ec2").delete_security_group(GroupId=sec_group_id, GroupName=sec_group_name)
 
 
 @task
 def await_cluster_snapshot(cluster_identifier):
-    waiter = boto3.client('redshift').get_waiter('snapshot_available')
+    waiter = boto3.client("redshift").get_waiter("snapshot_available")
     waiter.wait(
         ClusterIdentifier=cluster_identifier,
         WaiterConfig={
-            'MaxAttempts': 100,
+            "MaxAttempts": 100,
         },
     )
 
@@ -113,16 +113,16 @@ def await_cluster_snapshot(cluster_identifier):
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
-    schedule='@once',
+    schedule="@once",
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
-    redshift_cluster_identifier = f'{env_id}-redshift-cluster'
-    redshift_cluster_snapshot_identifier = f'{env_id}-snapshot'
-    conn_id_name = f'{env_id}-conn-id'
-    sg_name = f'{env_id}-sg'
+    redshift_cluster_identifier = f"{env_id}-redshift-cluster"
+    redshift_cluster_snapshot_identifier = f"{env_id}-snapshot"
+    conn_id_name = f"{env_id}-conn-id"
+    sg_name = f"{env_id}-sg"
 
     set_up_sg = setup_security_group(sec_group_name=sg_name, ip_permissions=[IP_PERMISSION])
 
@@ -130,7 +130,7 @@ with DAG(
     create_cluster = RedshiftCreateClusterOperator(
         task_id="create_cluster",
         cluster_identifier=redshift_cluster_identifier,
-        vpc_security_group_ids=[set_up_sg['security_group_id']],
+        vpc_security_group_ids=[set_up_sg["security_group_id"]],
         publicly_accessible=True,
         cluster_type="single-node",
         node_type="dc2.large",
@@ -141,9 +141,9 @@ with DAG(
 
     # [START howto_sensor_redshift_cluster]
     wait_cluster_available = RedshiftClusterSensor(
-        task_id='wait_cluster_available',
+        task_id="wait_cluster_available",
         cluster_identifier=redshift_cluster_identifier,
-        target_status='available',
+        target_status="available",
         poke_interval=15,
         timeout=60 * 30,
     )
@@ -151,7 +151,7 @@ with DAG(
 
     # [START howto_operator_redshift_create_cluster_snapshot]
     create_cluster_snapshot = RedshiftCreateClusterSnapshotOperator(
-        task_id='create_cluster_snapshot',
+        task_id="create_cluster_snapshot",
         cluster_identifier=redshift_cluster_identifier,
         snapshot_identifier=redshift_cluster_snapshot_identifier,
         poll_interval=30,
@@ -163,30 +163,30 @@ with DAG(
 
     # [START howto_operator_redshift_pause_cluster]
     pause_cluster = RedshiftPauseClusterOperator(
-        task_id='pause_cluster',
+        task_id="pause_cluster",
         cluster_identifier=redshift_cluster_identifier,
     )
     # [END howto_operator_redshift_pause_cluster]
 
     wait_cluster_paused = RedshiftClusterSensor(
-        task_id='wait_cluster_paused',
+        task_id="wait_cluster_paused",
         cluster_identifier=redshift_cluster_identifier,
-        target_status='paused',
+        target_status="paused",
         poke_interval=15,
         timeout=60 * 30,
     )
 
     # [START howto_operator_redshift_resume_cluster]
     resume_cluster = RedshiftResumeClusterOperator(
-        task_id='resume_cluster',
+        task_id="resume_cluster",
         cluster_identifier=redshift_cluster_identifier,
     )
     # [END howto_operator_redshift_resume_cluster]
 
     wait_cluster_available_after_resume = RedshiftClusterSensor(
-        task_id='wait_cluster_available_after_resume',
+        task_id="wait_cluster_available_after_resume",
         cluster_identifier=redshift_cluster_identifier,
-        target_status='available',
+        target_status="available",
         poke_interval=15,
         timeout=60 * 30,
     )
@@ -195,7 +195,7 @@ with DAG(
 
     # [START howto_operator_redshift_data]
     create_table_redshift_data = RedshiftDataOperator(
-        task_id='create_table_redshift_data',
+        task_id="create_table_redshift_data",
         cluster_identifier=redshift_cluster_identifier,
         database=DB_NAME,
         db_user=DB_LOGIN,
@@ -212,7 +212,7 @@ with DAG(
     # [END howto_operator_redshift_data]
 
     insert_data = RedshiftDataOperator(
-        task_id='insert_data',
+        task_id="insert_data",
         cluster_identifier=redshift_cluster_identifier,
         database=DB_NAME,
         db_user=DB_LOGIN,
@@ -230,7 +230,7 @@ with DAG(
 
     # [START howto_operator_redshift_sql]
     select_data = RedshiftSQLOperator(
-        task_id='select_data',
+        task_id="select_data",
         redshift_conn_id=conn_id_name,
         sql="""CREATE TABLE more_fruit AS SELECT * FROM fruit;""",
     )
@@ -238,23 +238,23 @@ with DAG(
 
     # [START howto_operator_redshift_sql_with_params]
     select_filtered_data = RedshiftSQLOperator(
-        task_id='select_filtered_data',
+        task_id="select_filtered_data",
         redshift_conn_id=conn_id_name,
         sql="""CREATE TABLE filtered_fruit AS SELECT * FROM fruit WHERE color = '{{ params.color }}';""",
-        params={'color': 'Red'},
+        params={"color": "Red"},
     )
     # [END howto_operator_redshift_sql_with_params]
 
     drop_table = RedshiftSQLOperator(
-        task_id='drop_table',
+        task_id="drop_table",
         redshift_conn_id=conn_id_name,
-        sql='DROP TABLE IF EXISTS fruit',
+        sql="DROP TABLE IF EXISTS fruit",
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
     # [START howto_operator_redshift_delete_cluster]
     delete_cluster = RedshiftDeleteClusterOperator(
-        task_id='delete_cluster',
+        task_id="delete_cluster",
         cluster_identifier=redshift_cluster_identifier,
     )
     # [END howto_operator_redshift_delete_cluster]
@@ -262,14 +262,14 @@ with DAG(
 
     # [START howto_operator_redshift_delete_cluster_snapshot]
     delete_cluster_snapshot = RedshiftDeleteClusterSnapshotOperator(
-        task_id='delete_cluster_snapshot',
+        task_id="delete_cluster_snapshot",
         cluster_identifier=redshift_cluster_identifier,
         snapshot_identifier=redshift_cluster_snapshot_identifier,
     )
     # [END howto_operator_redshift_delete_cluster_snapshot]
 
     delete_sg = delete_security_group(
-        sec_group_id=set_up_sg['security_group_id'],
+        sec_group_id=set_up_sg["security_group_id"],
         sec_group_name=sg_name,
     )
     chain(

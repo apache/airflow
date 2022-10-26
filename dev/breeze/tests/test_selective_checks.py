@@ -22,9 +22,9 @@ from airflow_breeze.global_constants import GithubEvents
 from airflow_breeze.utils.selective_checks import SelectiveChecks
 
 
-def assert_outputs_are_printed(expected_outputs: dict[str, str], output: str):
+def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
     for name, value in expected_outputs.items():
-        assert f"::set-output name={name}::{value}" in output
+        assert f"{name}={value}" in stderr
 
 
 @pytest.mark.parametrize(
@@ -66,7 +66,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], output: str):
             pytest.param(
                 (
                     "airflow/api/file.py",
-                    "tests/providers/google/file.py",
+                    "tests/providers/postgres/file.py",
                 ),
                 {
                     "all-python-versions": "['3.7']",
@@ -76,8 +76,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], output: str):
                     "run-tests": "true",
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "API Always Providers[amazon,apache.beam,google,hashicorp,"
-                    "microsoft.azure,presto,trino]",
+                    "test-types": "API Always Providers[amazon,common.sql,google,postgres]",
                 },
                 id="API and providers tests and docs should run",
             )
@@ -120,7 +119,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], output: str):
             pytest.param(
                 (
                     "chart/aaaa.txt",
-                    "tests/providers/google/file.py",
+                    "tests/providers/postgres/file.py",
                 ),
                 {
                     "all-python-versions": "['3.7']",
@@ -131,10 +130,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], output: str):
                     "docs-build": "true",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "Always Providers[amazon,apache.beam,google,"
-                    "hashicorp,microsoft.azure,presto,trino]",
+                    "test-types": "Always Providers[amazon,common.sql,google,postgres]",
                 },
-                id="Helm tests, providers, kubernetes tests and docs should run",
+                id="Helm tests, providers (both upstream and downstream),"
+                "kubernetes tests and docs should run",
             )
         ),
         (
@@ -153,8 +152,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], output: str):
                     "docs-build": "true",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "Always Providers[airbyte,apache.livy,"
-                    "dbt.cloud,dingding,discord,http,slack]",
+                    "test-types": "Always Providers[airbyte,apache.livy,dbt.cloud,dingding,discord,http]",
                 },
                 id="Helm tests, http and all relevant providers, kubernetes tests and "
                 "docs should run even if unimportant files were added",
@@ -176,9 +174,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], output: str):
                     "docs-build": "true",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "Always Providers[airbyte]",
+                    "test-types": "Always Providers[airbyte,http]",
                 },
-                id="Helm tests, airbyte providers, kubernetes tests and "
+                id="Helm tests, airbyte/http providers, kubernetes tests and "
                 "docs should run even if unimportant files were added",
             )
         ),
@@ -243,14 +241,14 @@ def test_expected_output_pull_request_main(
     files: tuple[str, ...],
     expected_outputs: dict[str, str],
 ):
-    sc = SelectiveChecks(
+    stderr = SelectiveChecks(
         files=files,
         commit_ref="HEAD",
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=(),
         default_branch="main",
     )
-    assert_outputs_are_printed(expected_outputs, str(sc))
+    assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
 @pytest.mark.parametrize(
@@ -338,15 +336,14 @@ def test_expected_output_full_tests_needed(
     default_branch: str,
     expected_outputs: dict[str, str],
 ):
-    sc = SelectiveChecks(
+    stderr = SelectiveChecks(
         files=files,
         commit_ref="HEAD",
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=pr_labels,
         default_branch=default_branch,
     )
-    output = str(sc)
-    assert_outputs_are_printed(expected_outputs, output)
+    assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
 @pytest.mark.parametrize(
@@ -428,14 +425,14 @@ def test_expected_output_pull_request_v2_3(
     files: tuple[str, ...],
     expected_outputs: dict[str, str],
 ):
-    sc = SelectiveChecks(
+    stderr = SelectiveChecks(
         files=files,
         commit_ref="HEAD",
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=(),
         default_branch="v2-3-stable",
     )
-    assert_outputs_are_printed(expected_outputs, str(sc))
+    assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
 @pytest.mark.parametrize(
@@ -498,14 +495,14 @@ def test_expected_output_pull_request_target(
     files: tuple[str, ...],
     expected_outputs: dict[str, str],
 ):
-    sc = SelectiveChecks(
+    stderr = SelectiveChecks(
         files=files,
         commit_ref="HEAD",
         github_event=GithubEvents.PULL_REQUEST_TARGET,
         pr_labels=(),
         default_branch="main",
     )
-    assert_outputs_are_printed(expected_outputs, str(sc))
+    assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
 @pytest.mark.parametrize(
@@ -568,14 +565,14 @@ def test_expected_output_push(
     default_branch: str,
     expected_outputs: dict[str, str],
 ):
-    sc = SelectiveChecks(
+    stderr = SelectiveChecks(
         files=files,
         commit_ref="HEAD",
         github_event=GithubEvents.PUSH,
         pr_labels=pr_labels,
         default_branch=default_branch,
     )
-    assert_outputs_are_printed(expected_outputs, str(sc))
+    assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
 @pytest.mark.parametrize(
@@ -589,7 +586,7 @@ def test_expected_output_push(
     ],
 )
 def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
-    sc = SelectiveChecks(
+    stderr = SelectiveChecks(
         files=(),
         commit_ref="",
         github_event=github_event,
@@ -609,7 +606,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             else "false",
             "test-types": "API Always CLI Core Integration Other Providers WWW",
         },
-        str(sc),
+        str(stderr),
     )
 
 
@@ -638,14 +635,14 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             id="Setup.cfg changed",
         ),
         pytest.param(
-            ('airflow/providers/microsoft/azure/provider.yaml',),
+            ("airflow/providers/microsoft/azure/provider.yaml",),
             {
                 "upgrade-to-newer-dependencies": "true",
             },
             id="Provider.yaml changed",
         ),
         pytest.param(
-            ('generated/provider_dependencies.json',),
+            ("generated/provider_dependencies.json",),
             {
                 "upgrade-to-newer-dependencies": "true",
             },
@@ -654,11 +651,11 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
     ],
 )
 def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs: dict[str, str]):
-    sc = SelectiveChecks(
+    stderr = SelectiveChecks(
         files=files,
         commit_ref="HEAD",
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=(),
         default_branch="main",
     )
-    assert_outputs_are_printed(expected_outputs, str(sc))
+    assert_outputs_are_printed(expected_outputs, str(stderr))

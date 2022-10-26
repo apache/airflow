@@ -28,14 +28,14 @@ from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
 
 class TestWinRMOperator(unittest.TestCase):
     def test_no_winrm_hook_no_ssh_conn_id(self):
-        op = WinRMOperator(task_id='test_task_id', winrm_hook=None, ssh_conn_id=None)
+        op = WinRMOperator(task_id="test_task_id", winrm_hook=None, ssh_conn_id=None)
         exception_msg = "Cannot operate without winrm_hook or ssh_conn_id."
         with pytest.raises(AirflowException, match=exception_msg):
             op.execute(None)
 
-    @mock.patch('airflow.providers.microsoft.winrm.operators.winrm.WinRMHook')
+    @mock.patch("airflow.providers.microsoft.winrm.operators.winrm.WinRMHook")
     def test_no_command(self, mock_hook):
-        op = WinRMOperator(task_id='test_task_id', winrm_hook=mock_hook, command=None)
+        op = WinRMOperator(task_id="test_task_id", winrm_hook=mock_hook, command=None)
         exception_msg = "No command specified so nothing to execute here."
         with pytest.raises(AirflowException, match=exception_msg):
             op.execute(None)
