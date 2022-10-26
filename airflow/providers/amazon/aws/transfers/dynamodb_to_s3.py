@@ -81,6 +81,7 @@ class DynamoDBToS3Operator(BaseOperator):
 
     template_fields: Sequence[str] = (
         "s3_bucket_name",
+        "s3_key_prefix",
         "dynamodb_table_name",
     )
     template_fields_renderers = {
