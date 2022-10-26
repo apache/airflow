@@ -61,6 +61,7 @@ from airflow_breeze.utils.docker_command_utils import (
 )
 from airflow_breeze.utils.parallel import (
     GenericRegexpProgressMatcher,
+    SummarizeAfter,
     bytes2human,
     check_async_run_results,
     run_with_pool,
@@ -263,6 +264,8 @@ def _run_tests_in_pool(
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,
+        summarize_on_ci=SummarizeAfter.FAILURE,
+        summary_start_regexp=r".*= FAILURES.*|.*= ERRORS.*",
     )
 
 

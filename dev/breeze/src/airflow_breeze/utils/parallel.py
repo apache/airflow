@@ -24,6 +24,7 @@ import textwrap
 import time
 from abc import ABCMeta, abstractmethod
 from contextlib import contextmanager
+from enum import Enum
 from multiprocessing.pool import ApplyResult, Pool
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -65,7 +66,7 @@ def nice_timedelta(delta: datetime.timedelta):
 ANSI_COLOUR_MATCHER = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
 
 
-def remove_ansi_colours(line):
+def remove_ansi_colours(line: str):
     return ANSI_COLOUR_MATCHER.sub("", line)
 
 
@@ -336,6 +337,13 @@ def get_completed_result_list(results: list[ApplyResult]) -> list[ApplyResult]:
     return list(filter(lambda result: result.ready(), results))
 
 
+class SummarizeAfter(Enum):
+    NO_SUMMARY = 0
+    FAILURE = 1
+    SUCCESS = 2
+    BOTH = 3
+
+
 def check_async_run_results(
     results: list[ApplyResult],
     success: str,
@@ -343,6 +351,8 @@ def check_async_run_results(
     include_success_outputs: bool,
     poll_time: float = 0.2,
     skip_cleanup: bool = False,
+    summarize_on_ci: SummarizeAfter = SummarizeAfter.NO_SUMMARY,
+    summary_start_regexp: str | None = None,
 ):
     """
     Check if all async results were success. Exits with error if not.
@@ -352,6 +362,11 @@ def check_async_run_results(
     :param include_success_outputs: include outputs of successful parallel runs
     :param poll_time: what's the poll time between checks
     :param skip_cleanup: whether to skip cleanup of temporary files.
+    :param summarize_on_ci: determines when to summarize the parallel jobs  when they are completed in CI,
+        outside the folded CI output
+    :param summary_start_regexp: the regexp that determines line after which
+        outputs should be printed as summary, so that you do not have to look at the folded details of
+        the run in CI
     """
     from airflow_breeze.utils.ci_group import ci_group
 
@@ -387,6 +402,21 @@ def check_async_run_results(
                 os.write(1, Path(outputs[i].file_name).read_bytes())
         else:
             get_console().print(f"[success]{outputs[i].title}")
+    if summarize_on_ci != SummarizeAfter.NO_SUMMARY:
+        regex = re.compile(summary_start_regexp) if summary_start_regexp is not None else None
+        for i, result in enumerate(results):
+            failure = result.get()[0] != 0
+            if summarize_on_ci in [
+                SummarizeAfter.BOTH,
+                SummarizeAfter.FAILURE if failure else SummarizeAfter.SUCCESS,
+            ]:
+                print_lines = False
+                for line in Path(outputs[i].file_name).read_bytes().decode(errors="ignore").splitlines():
+                    if not print_lines and (regex is None or regex.match(remove_ansi_colours(line))):
+                        print_lines = True
+                        get_console().print(f"\n[info]Summary: {outputs[i].title:<30}:\n")
+                    if print_lines:
+                        print(line)
     try:
         if errors:
             get_console().print("\n[error]There were errors when running some tasks. Quitting.[/]\n")
