@@ -138,7 +138,9 @@ def init_plugins(app):
             log.debug("Adding view %s without menu", str(type(view["view"])))
             appbuilder.add_view_no_menu(view["view"])
 
-    for menu_link in sorted(plugins_manager.flask_appbuilder_menu_links, key=lambda x: x["name"]):
+    for menu_link in sorted(
+        plugins_manager.flask_appbuilder_menu_links, key=lambda x: (x.get("category", ""), x["name"])
+    ):
         log.debug("Adding menu link %s to %s", menu_link["name"], menu_link["href"])
         appbuilder.add_link(**menu_link)
 
