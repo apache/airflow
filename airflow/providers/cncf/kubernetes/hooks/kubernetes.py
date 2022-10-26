@@ -327,7 +327,7 @@ class KubernetesHook(BaseHook):
         namespace = self._get_namespace()
         if self.conn_id and not namespace:
             warnings.warn(
-                "Airflow connection defined but namespace is not set; 'default'.  In "
+                "Airflow connection defined but namespace is not set; returning 'default'.  In "
                 "cncf.kubernetes provider version 6.0 we will return None when namespace is "
                 "not defined in the connection so that it's clear whether user intends 'default' or "
                 "whether namespace is unset (which is required in order to apply precedence logic in "
