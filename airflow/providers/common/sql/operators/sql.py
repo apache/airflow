@@ -19,9 +19,7 @@ from __future__ import annotations
 
 import ast
 import re
-from typing import TYPE_CHECKING, Any, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
-
-from packaging.version import Version
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowFailException
@@ -53,7 +51,7 @@ def _parse_boolean(val: str) -> str | bool:
     raise ValueError(f"{val!r} is not a boolean-like string value")
 
 
-_PROVIDERS_MATCHER = re.compile(r'airflow\.providers\.(.*)\.hooks.*')
+_PROVIDERS_MATCHER = re.compile(r"airflow\.providers\.(.*)\.hooks.*")
 
 _MIN_SUPPORTED_PROVIDERS_VERSION = {
     "amazon": "4.1.0",

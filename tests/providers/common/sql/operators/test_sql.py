@@ -163,11 +163,11 @@ class TestColumnCheckOperator:
 
     def test_pass_all_checks_exact_check(self, monkeypatch):
         records = [
-            ('X', 'null_check', 0),
-            ('X', 'distinct_check', 10),
-            ('X', 'unique_check', 10),
-            ('X', 'min', 1),
-            ('X', 'max', 19),
+            ("X", "null_check", 0),
+            ("X", "distinct_check", 10),
+            ("X", "unique_check", 10),
+            ("X", "min", 1),
+            ("X", "max", 19),
         ]
         operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
         operator.execute(context=MagicMock())
@@ -179,11 +179,11 @@ class TestColumnCheckOperator:
     def test_max_less_than_fails_check(self, monkeypatch):
         with pytest.raises(AirflowException):
             records = [
-                ('X', 'null_check', 1),
-                ('X', 'distinct_check', 10),
-                ('X', 'unique_check', 10),
-                ('X', 'min', 1),
-                ('X', 'max', 21),
+                ("X", "null_check", 1),
+                ("X", "distinct_check", 10),
+                ("X", "unique_check", 10),
+                ("X", "min", 1),
+                ("X", "max", 21),
             ]
             operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
             operator.execute(context=MagicMock())
@@ -192,11 +192,11 @@ class TestColumnCheckOperator:
     def test_max_greater_than_fails_check(self, monkeypatch):
         with pytest.raises(AirflowException):
             records = [
-                ('X', 'null_check', 1),
-                ('X', 'distinct_check', 10),
-                ('X', 'unique_check', 10),
-                ('X', 'min', 1),
-                ('X', 'max', 9),
+                ("X", "null_check", 1),
+                ("X", "distinct_check", 10),
+                ("X", "unique_check", 10),
+                ("X", "min", 1),
+                ("X", "max", 9),
             ]
             operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
             operator.execute(context=MagicMock())
@@ -204,11 +204,11 @@ class TestColumnCheckOperator:
 
     def test_pass_all_checks_inexact_check(self, monkeypatch):
         records = [
-            ('X', 'null_check', 0),
-            ('X', 'distinct_check', 9),
-            ('X', 'unique_check', 12),
-            ('X', 'min', 0),
-            ('X', 'max', 15),
+            ("X", "null_check", 0),
+            ("X", "distinct_check", 9),
+            ("X", "unique_check", 12),
+            ("X", "min", 0),
+            ("X", "max", 15),
         ]
         operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
         operator.execute(context=MagicMock())
@@ -219,11 +219,11 @@ class TestColumnCheckOperator:
 
     def test_fail_all_checks_check(self, monkeypatch):
         records = [
-            ('X', 'null_check', 1),
-            ('X', 'distinct_check', 12),
-            ('X', 'unique_check', 11),
-            ('X', 'min', -1),
-            ('X', 'max', 20),
+            ("X", "null_check", 1),
+            ("X", "distinct_check", 12),
+            ("X", "unique_check", 11),
+            ("X", "min", -1),
+            ("X", "max", 20),
         ]
         operator = operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
         with pytest.raises(AirflowException):
