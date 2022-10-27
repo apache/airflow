@@ -107,6 +107,5 @@ class JdbcHook(DbApiHook):
 
         :param conn: The connection.
         :return: connection autocommit setting.
-        :rtype: bool
         """
         return conn.jconn.getAutoCommit()

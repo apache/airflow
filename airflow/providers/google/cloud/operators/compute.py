@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from googleapiclient.errors import HttpError
 from json_merge_patch import merge
@@ -226,7 +226,7 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
         **kwargs,
     ) -> None:
         self.body = body
-        self._field_validator = None  # type: Optional[GcpBodyFieldValidator]
+        self._field_validator: GcpBodyFieldValidator | None = None
         if validate_body:
             self._field_validator = GcpBodyFieldValidator(
                 SET_MACHINE_TYPE_VALIDATION_SPECIFICATION, api_version=api_version
@@ -257,7 +257,7 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
         )
 
 
-GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION = [
+GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION: list[dict[str, Any]] = [
     dict(name="name", regexp="^.+$"),
     dict(name="description", optional=True),
     dict(
@@ -296,7 +296,7 @@ GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION = [
             dict(name="minCpuPlatform", optional=True),
         ],
     ),
-]  # type: List[Dict[str, Any]]
+]
 
 GCE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE = [
     "kind",
@@ -381,7 +381,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
     ) -> None:
         self.body_patch = body_patch
         self.request_id = request_id
-        self._field_validator = None  # Optional[GcpBodyFieldValidator]
+        self._field_validator = None  # GcpBodyFieldValidator | None
         if "name" not in self.body_patch:
             raise AirflowException(
                 f"The body '{body_patch}' should contain at least name for the new operator "

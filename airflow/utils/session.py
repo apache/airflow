@@ -78,7 +78,7 @@ def provide_session(func: Callable[PS, RT]) -> Callable[PS, RT]:
 
 
 # A fake session to use in functions decorated by provide_session. This allows
-# the 'session' argument to be of type Session instead of Optional[Session],
+# the 'session' argument to be of type Session instead of Session | None,
 # making it easier to type hint the function body without dealing with the None
 # case that can never happen at runtime.
 NEW_SESSION: settings.SASession = cast(settings.SASession, None)

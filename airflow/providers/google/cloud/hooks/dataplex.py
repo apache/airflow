@@ -17,7 +17,7 @@
 """This module contains Google Dataplex hook."""
 from __future__ import annotations
 
-from typing import Any, Optional, Sequence
+from typing import Any, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -49,7 +49,7 @@ class DataplexHook(GoogleBaseHook):
         account from the list granting this role to the originating account (templated).
     """
 
-    _conn = None  # type: Optional[Resource]
+    _conn: Resource | None = None
 
     def __init__(
         self,

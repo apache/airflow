@@ -146,7 +146,6 @@ class BaseSQLOperator(BaseOperator):
         Get the database hook for the connection.
 
         :return: the database hook object.
-        :rtype: DbApiHook
         """
         return self._hook
 

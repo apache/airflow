@@ -21,7 +21,7 @@ from __future__ import annotations
 import enum
 import json
 import warnings
-from typing import TYPE_CHECKING, Any, Iterable, Optional, Sequence, SupportsAbs
+from typing import TYPE_CHECKING, Any, Iterable, Sequence, SupportsAbs
 
 import attr
 from google.api_core.exceptions import Conflict
@@ -1071,7 +1071,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         self.cluster_fields = cluster_fields
         self.location = location
         self.encryption_configuration = encryption_configuration
-        self.hook = None  # type: Optional[BigQueryHook]
+        self.hook: BigQueryHook | None = None
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
@@ -1861,9 +1861,6 @@ class BigQueryGetDatasetOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-
-    :rtype: dataset
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
     """
 
     template_fields: Sequence[str] = (
@@ -2003,9 +2000,6 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-
-    :rtype: dataset
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
     """
 
     template_fields: Sequence[str] = (
@@ -2086,9 +2080,6 @@ class BigQueryUpdateTableOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-
-    :rtype: table
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource
     """
 
     template_fields: Sequence[str] = (
@@ -2181,9 +2172,6 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-
-    :rtype: dataset
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
     """
 
     template_fields: Sequence[str] = (

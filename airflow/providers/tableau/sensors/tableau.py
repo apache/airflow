@@ -62,7 +62,6 @@ class TableauJobStatusSensor(BaseSensorOperator):
 
         :param context: The task context during execution.
         :return: True if it succeeded and False if not.
-        :rtype: bool
         """
         with TableauHook(self.site_id, self.tableau_conn_id) as tableau_hook:
             finish_code = tableau_hook.get_job_status(job_id=self.job_id)

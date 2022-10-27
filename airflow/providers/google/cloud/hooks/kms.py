@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import base64
-from typing import Optional, Sequence
+from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -68,14 +68,13 @@ class CloudKMSHook(GoogleBaseHook):
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._conn = None  # type: Optional[KeyManagementServiceClient]
+        self._conn: KeyManagementServiceClient | None = None
 
     def get_conn(self) -> KeyManagementServiceClient:
         """
         Retrieves connection to Cloud Key Management service.
 
         :return: Cloud Key Management service object
-        :rtype: google.cloud.kms_v1.KeyManagementServiceClient
         """
         if not self._conn:
             self._conn = KeyManagementServiceClient(
@@ -107,7 +106,6 @@ class CloudKMSHook(GoogleBaseHook):
             retry is specified, the timeout applies to each individual attempt.
         :param metadata: Additional metadata that is provided to the method.
         :return: The base 64 encoded ciphertext of the original message.
-        :rtype: str
         """
         response = self.get_conn().encrypt(
             request={
@@ -146,7 +144,6 @@ class CloudKMSHook(GoogleBaseHook):
             retry is specified, the timeout applies to each individual attempt.
         :param metadata: Additional metadata that is provided to the method.
         :return: The original message.
-        :rtype: bytes
         """
         response = self.get_conn().decrypt(
             request={

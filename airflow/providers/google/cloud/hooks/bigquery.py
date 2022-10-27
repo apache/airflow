@@ -30,7 +30,7 @@ import uuid
 import warnings
 from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import Any, Iterable, List, Mapping, NoReturn, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Iterable, Mapping, NoReturn, Sequence, Union, cast
 
 from aiohttp import ClientSession as ClientSession
 from gcloud.aio.bigquery import Job, Table as Table_async
@@ -928,8 +928,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             in request body.
             https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         :param project_id: The Google Cloud Project ID
-        :rtype: dataset
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         """
         warnings.warn("This method is deprecated. Please use ``update_dataset``.", DeprecationWarning)
         project_id = project_id or self.project_id
@@ -1390,7 +1388,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param project_id: Google Cloud Project where the job is running
         :param location: location the job is running
         :param retry: How to retry the RPC.
-        :rtype: bool
         """
         location = location or self.location
         job = self.get_client(project_id=project_id, location=location).get_job(job_id=job_id)
@@ -2107,7 +2104,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if cluster_fields:
             cluster_fields = {"fields": cluster_fields}  # type: ignore
 
-        query_param_list = [
+        query_param_list: list[tuple[Any, str, str | bool | None | dict, type | tuple[type]]] = [
             (sql, "query", None, (str,)),
             (priority, "priority", "INTERACTIVE", (str,)),
             (use_legacy_sql, "useLegacySql", self.use_legacy_sql, bool),
@@ -2119,7 +2116,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             (schema_update_options, "schemaUpdateOptions", None, list),
             (destination_dataset_table, "destinationTable", None, dict),
             (cluster_fields, "clustering", None, dict),
-        ]  # type: List[Tuple]
+        ]
 
         for param, param_name, param_default, param_type in query_param_list:
             if param_name not in configuration["query"] and param in [None, {}, ()]:
@@ -2311,7 +2308,7 @@ class BigQueryBaseCursor(LoggingMixin):
         if api_resource_configs:
             _validate_value("api_resource_configs", api_resource_configs, dict)
         self.api_resource_configs: dict = api_resource_configs if api_resource_configs else {}
-        self.running_job_id = None  # type: Optional[str]
+        self.running_job_id: str | None = None
         self.location = location
         self.num_retries = num_retries
         self.labels = labels
@@ -2657,12 +2654,12 @@ class BigQueryCursor(BigQueryBaseCursor):
             location=location,
             num_retries=num_retries,
         )
-        self.buffersize = None  # type: Optional[int]
-        self.page_token = None  # type: Optional[str]
-        self.job_id = None  # type: Optional[str]
-        self.buffer = []  # type: list
-        self.all_pages_loaded = False  # type: bool
-        self._description = []  # type: List
+        self.buffersize: int | None = None
+        self.page_token: str | None = None
+        self.job_id: str | None = None
+        self.buffer: list = []
+        self.all_pages_loaded: bool = False
+        self._description: list = []
 
     @property
     def description(self) -> list:
@@ -2824,7 +2821,7 @@ class BigQueryCursor(BigQueryBaseCursor):
 def _bind_parameters(operation: str, parameters: dict) -> str:
     """Helper method that binds parameters to a SQL query"""
     # inspired by MySQL Python Connector (conversion.py)
-    string_parameters = {}  # type Dict[str, str]
+    string_parameters = {}  # type dict[str, str]
     for (name, value) in parameters.items():
         if value is None:
             string_parameters[name] = "NULL"
@@ -2940,7 +2937,7 @@ def _cleanse_time_partitioning(
     return time_partitioning_out
 
 
-def _validate_value(key: Any, value: Any, expected_type: type) -> None:
+def _validate_value(key: Any, value: Any, expected_type: type | tuple[type]) -> None:
     """Function to check expected type and raise error if type is not correct"""
     if not isinstance(value, expected_type):
         raise TypeError(f"{key} argument must have a type {expected_type} not {type(value)}")

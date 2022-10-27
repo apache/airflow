@@ -18,7 +18,7 @@
 """This module contains Google Search Ads 360 hook."""
 from __future__ import annotations
 
-from typing import Any, Optional, Sequence
+from typing import Any, Sequence
 
 from googleapiclient.discovery import build
 
@@ -28,7 +28,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 class GoogleSearchAdsHook(GoogleBaseHook):
     """Hook for Google Search Ads 360."""
 
-    _conn = None  # type: Optional[Any]
+    _conn = None
 
     def __init__(
         self,

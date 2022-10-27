@@ -54,7 +54,7 @@ class QuickSightHook(AwsBaseHook):
         ingestion_type: str,
         wait_for_completion: bool = True,
         check_interval: int = 30,
-    ):
+    ) -> dict:
         """
         Creates and starts a new SPICE ingestion for a dataset. Refreshes the SPICE datasets
 
@@ -66,7 +66,6 @@ class QuickSightHook(AwsBaseHook):
             will check the status of QuickSight Ingestion
         :return: Returns descriptive information about the created data ingestion
             having Ingestion ARN, HTTP status, ingestion ID and ingestion status.
-        :rtype: Dict
         """
         self.log.info("Creating QuickSight Ingestion for data set id %s.", data_set_id)
         quicksight_client = self.get_conn()
@@ -92,7 +91,7 @@ class QuickSightHook(AwsBaseHook):
             self.log.error("Failed to run Amazon QuickSight create_ingestion API, error: %s", general_error)
             raise
 
-    def get_status(self, aws_account_id: str, data_set_id: str, ingestion_id: str):
+    def get_status(self, aws_account_id: str, data_set_id: str, ingestion_id: str) -> str:
         """
         Get the current status of QuickSight Create Ingestion API.
 
@@ -100,7 +99,6 @@ class QuickSightHook(AwsBaseHook):
         :param data_set_id: QuickSight Data Set ID
         :param ingestion_id: QuickSight Ingestion ID
         :return: An QuickSight Ingestion Status
-        :rtype: str
         """
         try:
             describe_ingestion_response = self.get_conn().describe_ingestion(

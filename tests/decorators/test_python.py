@@ -18,8 +18,7 @@
 import sys
 from collections import namedtuple
 from datetime import date, timedelta
-from typing import Dict  # noqa: F401  # This is used by annotation tests.
-from typing import Tuple
+from typing import Dict, Tuple  # noqa: F401  # This is used by annotation tests.
 
 import pytest
 

@@ -49,7 +49,7 @@ AUDIO = {"uri": f"gs://{BUCKET_NAME}/{FILE_NAME}"}
 TARGET_LANGUAGE = "pl"
 FORMAT = "text"
 MODEL = "base"
-SOURCE_LANGUAGE = None  # type: None
+SOURCE_LANGUAGE = None
 # [END howto_operator_translate_speech_arguments]
 
 

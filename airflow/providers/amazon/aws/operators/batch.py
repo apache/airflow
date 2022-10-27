@@ -26,7 +26,7 @@ An Airflow operator for AWS Batch services
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Any, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.providers.amazon.aws.utils import trim_none_values
 
@@ -100,7 +100,7 @@ class BatchOperator(BaseOperator):
     """
 
     ui_color = "#c3dae0"
-    arn = None  # type: Optional[str]
+    arn: str | None = None
     template_fields: Sequence[str] = (
         "job_id",
         "job_name",

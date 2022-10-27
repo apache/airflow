@@ -166,7 +166,6 @@ class LocalKubernetesExecutor(LoggingMixin):
         re-scheduling)
 
         :return: any TaskInstances that were unable to be adopted
-        :rtype: list[airflow.models.TaskInstance]
         """
         local_tis = [ti for ti in tis if ti.queue != self.KUBERNETES_QUEUE]
         kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
@@ -191,7 +190,6 @@ class LocalKubernetesExecutor(LoggingMixin):
 
         :param simple_task_instance: SimpleTaskInstance
         :return: local_executor or kubernetes_executor
-        :rtype: Union[LocalExecutor, KubernetesExecutor]
         """
         if simple_task_instance.queue == self.KUBERNETES_QUEUE:
             return self.kubernetes_executor

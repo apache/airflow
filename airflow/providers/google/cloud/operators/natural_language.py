@@ -135,7 +135,6 @@ class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.language_v1.types.AnalyzeEntitiesResponse
     """
 
     # [START natural_language_analyze_entity_sentiment_template_fields]
@@ -212,7 +211,6 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.language_v1.types.AnalyzeEntitiesResponse
     """
 
     # [START natural_language_analyze_sentiment_template_fields]

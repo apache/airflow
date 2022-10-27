@@ -70,7 +70,6 @@ class GoogleCalendarHook(GoogleBaseHook):
         Retrieves connection to Google Calendar.
 
         :return: Google Calendar services object.
-        :rtype: Any
         """
         if not self._conn:
             http_authorized = self._authorize()
@@ -126,7 +125,6 @@ class GoogleCalendarHook(GoogleBaseHook):
             Default is no filter
         :param time_zone: Optional. Time zone used in response. Default is calendars time zone.
         :param updated_min: Optional. Lower bound for an event's last modification time
-        :rtype: List
         """
         service = self.get_conn()
         page_token = None
@@ -184,7 +182,6 @@ class GoogleCalendarHook(GoogleBaseHook):
         :param send_updates: Optional. Default is "false". Acceptable values as "all", "none",
             ``"externalOnly"``
             https://developers.google.com/calendar/api/v3/reference/events#resource
-        :rtype: Dict
         """
         if "start" not in event or "end" not in event:
             raise AirflowException(

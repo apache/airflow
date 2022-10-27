@@ -18,14 +18,14 @@
 from __future__ import annotations
 
 import unittest
-from typing import Any, Dict
+from typing import Any
 from unittest import mock
 
 from google.cloud.tasks_v2.types import Task
 
 from airflow.providers.google.cloud.sensors.tasks import TaskQueueEmptySensor
 
-API_RESPONSE = {}  # type: Dict[Any, Any]
+API_RESPONSE: dict[Any, Any] = {}
 PROJECT_ID = "test-project"
 LOCATION = "asia-east2"
 FULL_LOCATION_PATH = "projects/test-project/locations/asia-east2"

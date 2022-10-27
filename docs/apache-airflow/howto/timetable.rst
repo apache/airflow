@@ -238,11 +238,11 @@ implementing two additional methods on our timetable class:
     class SometimeAfterWorkdayTimetable(Timetable):
         ...
 
-        def serialize(self) -> Dict[str, Any]:
+        def serialize(self) -> dict[str, Any]:
             return {"schedule_at": self._schedule_at.isoformat()}
 
         @classmethod
-        def deserialize(cls, value: Dict[str, Any]) -> Timetable:
+        def deserialize(cls, value: dict[str, Any]) -> Timetable:
             return cls(Time.fromisoformat(value["schedule_at"]))
 
 When the DAG is being serialized, ``serialize`` is called to obtain a

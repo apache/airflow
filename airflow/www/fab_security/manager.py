@@ -1541,13 +1541,12 @@ class BaseSecurityManager:
         """Returns all permissions from public role"""
         raise NotImplementedError
 
-    def get_action(self, name: str):
+    def get_action(self, name: str) -> Action:
         """
         Gets an existing action record.
 
         :param name: name
         :return: Action record, if it exists
-        :rtype: Action
         """
         raise NotImplementedError
 
@@ -1575,7 +1574,6 @@ class BaseSecurityManager:
 
         :param name: Name of action to delete (e.g. can_read).
         :return: Whether or not delete was successful.
-        :rtype: bool
         """
         raise NotImplementedError
 
@@ -1593,12 +1591,11 @@ class BaseSecurityManager:
         """
         raise NotImplementedError
 
-    def get_all_resources(self):
+    def get_all_resources(self) -> list[Resource]:
         """
         Gets all existing resource records.
 
         :return: List of all resources
-        :rtype: List[Resource]
         """
         raise NotImplementedError
 
@@ -1625,35 +1622,32 @@ class BaseSecurityManager:
     ----------------------
     """
 
-    def get_permission(self, action_name: str, resource_name: str):
+    def get_permission(self, action_name: str, resource_name: str) -> Permission | None:
         """
         Gets a permission made with the given action->resource pair, if the permission already exists.
 
         :param action_name: Name of action
         :param resource_name: Name of resource
         :return: The existing permission
-        :rtype: Permission
         """
         raise NotImplementedError
 
-    def get_resource_permissions(self, resource):
+    def get_resource_permissions(self, resource) -> Permission:
         """
         Retrieve permission pairs associated with a specific resource object.
 
         :param resource: Object representing a single resource.
         :return: Action objects representing resource->action pair
-        :rtype: Permission
         """
         raise NotImplementedError
 
-    def create_permission(self, action_name: str, resource_name: str):
+    def create_permission(self, action_name: str, resource_name: str) -> Permission | None:
         """
         Creates a permission linking an action and resource.
 
         :param action_name: Name of existing action
         :param resource_name: Name of existing resource
         :return: Resource created
-        :rtype: Permission
         """
         raise NotImplementedError
 
@@ -1665,7 +1659,6 @@ class BaseSecurityManager:
         :param action_name: Name of existing action
         :param resource_name: Name of existing resource
         :return: None
-        :rtype: None
         """
         raise NotImplementedError
 
@@ -1679,7 +1672,6 @@ class BaseSecurityManager:
         :param role: The role about to get a new permission.
         :param permission: The permission pair to add to a role.
         :return: None
-        :rtype: None
         """
         raise NotImplementedError
 

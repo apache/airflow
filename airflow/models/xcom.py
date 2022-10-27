@@ -662,7 +662,6 @@ def _get_function_params(function) -> list[str]:
     Returns the list of variables names of a function
 
     :param function: The function to inspect
-    :rtype: List[str]
     """
     parameters = inspect.signature(function).parameters
     bound_arguments = [

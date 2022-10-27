@@ -397,7 +397,7 @@ class BackfillJob(BaseJob):
         pickle_id,
         start_date=None,
         session=None,
-    ):
+    ) -> list:
         """
         Process a set of task instances from a set of dag runs. Special handling is done
         to account for different task instance states that could be present when running
@@ -409,7 +409,6 @@ class BackfillJob(BaseJob):
         :param start_date: the start date of the backfill job
         :param session: the current session object
         :return: the list of execution_dates for the finished dag runs
-        :rtype: list
         """
         executed_run_dates = []
 
@@ -881,7 +880,7 @@ class BackfillJob(BaseJob):
         self.log.info("Backfill done for DAG %s. Exiting.", self.dag)
 
     @provide_session
-    def reset_state_for_orphaned_tasks(self, filter_by_dag_run=None, session=None):
+    def reset_state_for_orphaned_tasks(self, filter_by_dag_run=None, session=None) -> int | None:
         """
         This function checks if there are any tasks in the dagrun (or all) that
         have a schedule or queued states but are not known by the executor. If
@@ -891,7 +890,6 @@ class BackfillJob(BaseJob):
 
         :param filter_by_dag_run: the dag_run we want to process, None if all
         :return: the number of TIs reset
-        :rtype: int
         """
         queued_tis = self.executor.queued_tasks
         # also consider running as the state might not have changed in the db yet

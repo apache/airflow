@@ -66,7 +66,6 @@ class ComputeEngineHook(GoogleBaseHook):
         """
         Retrieves connection to Google Compute Engine.
         :return: Google Compute Engine services object
-        :rtype: dict
         """
         if not self._conn:
             http_authorized = self._authorize()
@@ -167,7 +166,6 @@ class ComputeEngineHook(GoogleBaseHook):
             the default project_id from the Google Cloud connection is used.
         :return: Instance template representation as object according to
             https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
-        :rtype: dict
         """
         response = (
             self.get_conn()
@@ -229,7 +227,6 @@ class ComputeEngineHook(GoogleBaseHook):
             the default project_id from the Google Cloud connection is used.
         :return: Instance group manager representation as object according to
             https://cloud.google.com/compute/docs/reference/rest/beta/instanceGroupManagers
-        :rtype: dict
         """
         response = (
             self.get_conn()

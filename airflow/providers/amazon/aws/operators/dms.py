@@ -181,12 +181,11 @@ class DmsDescribeTasksOperator(BaseOperator):
         self.describe_tasks_kwargs = describe_tasks_kwargs or {}
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> tuple[str | None, list]:
         """
         Describes AWS DMS replication tasks from Airflow
 
         :return: Marker and list of replication tasks
-        :rtype: (Optional[str], list)
         """
         dms_hook = DmsHook(aws_conn_id=self.aws_conn_id)
         return dms_hook.describe_replication_tasks(**self.describe_tasks_kwargs)

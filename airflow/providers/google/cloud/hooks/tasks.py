@@ -75,7 +75,6 @@ class CloudTasksHook(GoogleBaseHook):
         Provides a client for interacting with the Google Cloud Tasks API.
 
         :return: Google Cloud Tasks API Client
-        :rtype: google.cloud.tasks_v2.CloudTasksClient
         """
         if self._client is None:
             self._client = CloudTasksClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
@@ -109,7 +108,6 @@ class CloudTasksHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.tasks_v2.types.Queue
         """
         client = self.get_conn()
 
@@ -162,7 +160,6 @@ class CloudTasksHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.tasks_v2.types.Queue
         """
         client = self.get_conn()
 
@@ -204,7 +201,6 @@ class CloudTasksHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.tasks_v2.types.Queue
         """
         client = self.get_conn()
 
@@ -242,7 +238,6 @@ class CloudTasksHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: list[google.cloud.tasks_v2.types.Queue]
         """
         client = self.get_conn()
 
@@ -312,7 +307,6 @@ class CloudTasksHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: list[google.cloud.tasks_v2.types.Queue]
         """
         client = self.get_conn()
 
@@ -347,7 +341,6 @@ class CloudTasksHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: list[google.cloud.tasks_v2.types.Queue]
         """
         client = self.get_conn()
 
@@ -382,7 +375,6 @@ class CloudTasksHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: list[google.cloud.tasks_v2.types.Queue]
         """
         client = self.get_conn()
 
@@ -426,7 +418,6 @@ class CloudTasksHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.tasks_v2.types.Task
         """
         client = self.get_conn()
 
@@ -476,7 +467,6 @@ class CloudTasksHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.tasks_v2.types.Task
         """
         client = self.get_conn()
 
@@ -517,7 +507,6 @@ class CloudTasksHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: list[google.cloud.tasks_v2.types.Task]
         """
         client = self.get_conn()
         full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
@@ -593,7 +582,6 @@ class CloudTasksHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.tasks_v2.types.Task
         """
         client = self.get_conn()
 

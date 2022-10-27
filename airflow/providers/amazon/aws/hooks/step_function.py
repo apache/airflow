@@ -50,7 +50,6 @@ class StepFunctionHook(AwsBaseHook):
         :param name: The name of the execution.
         :param state_machine_input: JSON data input to pass to the State Machine
         :return: Execution ARN
-        :rtype: str
         """
         execution_args = {"stateMachineArn": state_machine_arn}
         if name is not None:
@@ -73,6 +72,5 @@ class StepFunctionHook(AwsBaseHook):
 
         :param execution_arn: ARN of the State Machine Execution
         :return: Dict with Execution details
-        :rtype: dict
         """
         return self.get_conn().describe_execution(executionArn=execution_arn)

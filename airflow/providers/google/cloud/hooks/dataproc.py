@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import Any, Dict, Sequence
+from typing import Any, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import ServerError
@@ -65,14 +65,14 @@ class DataProcJobBuilder:
     ) -> None:
         name = f"{task_id.replace('.', '_')}_{uuid.uuid4()!s:.8}"
         self.job_type = job_type
-        self.job = {
+        self.job: dict[str, Any] = {
             "job": {
                 "reference": {"project_id": project_id, "job_id": name},
                 "placement": {"cluster_name": cluster_name},
                 "labels": {"airflow-version": "v" + airflow_version.replace(".", "-").replace("+", "-")},
                 job_type: {},
             }
-        }  # type: Dict[str, Any]
+        }
         if properties is not None:
             self.job["job"][job_type]["properties"] = properties
 
@@ -192,7 +192,6 @@ class DataProcJobBuilder:
         Returns Dataproc job.
 
         :return: Dataproc job
-        :rtype: dict
         """
         return self.job
 

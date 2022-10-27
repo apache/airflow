@@ -160,7 +160,6 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         """
         Get data from Vault
 
-        :rtype: dict
         :return: The data from the Vault path if exists
         """
         if self.connections_path is None:
@@ -174,7 +173,6 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         Get serialized representation of connection
 
         :param conn_id: The connection id
-        :rtype: str
         :return: The connection uri retrieved from the secret
         """
         # Since VaultBackend implements `get_connection`, `get_conn_uri` is not used. So we
@@ -198,7 +196,6 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         Get connection from Vault as secret. Prioritize conn_uri if exists,
         if not fall back to normal Connection creation.
 
-        :rtype: Connection
         :return: A Connection object constructed from Vault data
         """
         # The Connection needs to be locally imported because otherwise we get into cyclic import
@@ -220,7 +217,6 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         Get Airflow Variable
 
         :param key: Variable Key
-        :rtype: str
         :return: Variable Value retrieved from the vault
         """
         if self.variables_path is None:
@@ -235,7 +231,6 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         Get Airflow Configuration
 
         :param key: Configuration Option Key
-        :rtype: str
         :return: Configuration Option Value retrieved from the vault
         """
         if self.config_path is None:

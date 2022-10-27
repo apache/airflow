@@ -28,7 +28,7 @@ from __future__ import annotations
 import json
 import time
 import warnings
-from typing import Optional, Sequence
+from typing import Sequence
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -67,7 +67,7 @@ class GKEHook(GoogleBaseHook):
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._client = None  # type: Optional[ClusterManagerClient]
+        self._client: ClusterManagerClient | None = None
         self.location = location
 
     def get_cluster_manager_client(self) -> ClusterManagerClient:

@@ -24,7 +24,7 @@ This module contains a Google AutoML hook.
 """
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
@@ -72,7 +72,7 @@ class CloudAutoMLHook(GoogleBaseHook):
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._client = None  # type: Optional[AutoMlClient]
+        self._client: AutoMlClient | None = None
 
     @staticmethod
     def extract_object_id(obj: dict) -> str:
@@ -84,7 +84,6 @@ class CloudAutoMLHook(GoogleBaseHook):
         Retrieves connection to AutoML.
 
         :return: Google Cloud AutoML client object.
-        :rtype: google.cloud.automl_v1beta1.AutoMlClient
         """
         if self._client is None:
             self._client = AutoMlClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
@@ -96,7 +95,6 @@ class CloudAutoMLHook(GoogleBaseHook):
         Creates PredictionServiceClient.
 
         :return: Google Cloud AutoML PredictionServiceClient client object.
-        :rtype: google.cloud.automl_v1beta1.PredictionServiceClient
         """
         return PredictionServiceClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
 

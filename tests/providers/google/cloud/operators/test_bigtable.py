@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Dict, List
 from unittest import mock
 
 import google.api_core.exceptions
@@ -52,8 +51,8 @@ INSTANCE_DISPLAY_NAME = "test instance"
 INSTANCE_TYPE = enums.Instance.Type.PRODUCTION
 INSTANCE_LABELS = {"env": "sit"}
 TABLE_ID = "test-table-id"
-INITIAL_SPLIT_KEYS = []  # type: List
-EMPTY_COLUMN_FAMILIES = {}  # type: Dict
+INITIAL_SPLIT_KEYS: list = []
+EMPTY_COLUMN_FAMILIES: dict = {}
 
 
 class TestBigtableInstanceCreate:

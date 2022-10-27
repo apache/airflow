@@ -2309,7 +2309,6 @@ class DataprocListBatchesOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: List[dict]
     """
 
     template_fields: Sequence[str] = ("region", "project_id", "impersonation_chain")

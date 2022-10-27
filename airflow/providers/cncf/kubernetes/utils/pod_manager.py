@@ -275,7 +275,7 @@ class PodManager(LoggingMixin):
         Monitors a pod and returns the final state
 
         :param pod: pod spec that will be monitored
-        :return:  Tuple[State, Optional[str]]
+        :return: tuple[State, str | None]
         """
         while True:
             remote_pod = self.read_pod(pod)
@@ -291,7 +291,6 @@ class PodManager(LoggingMixin):
 
         :param line: k8s log line
         :return: timestamp and log message
-        :rtype: Tuple[str, str]
         """
         split_at = line.find(" ")
         if split_at == -1:

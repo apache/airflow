@@ -28,7 +28,7 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from time import sleep
-from typing import Any, NamedTuple, Optional
+from typing import Any, NamedTuple
 from urllib import request
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
@@ -510,7 +510,7 @@ def _get_kubernetes_port_numbers(python: str, kubernetes_version: str) -> tuple[
     return api_server_port, web_server_port
 
 
-def _attempt_to_connect(port_number: int, output=Optional[Output], wait_seconds: int = 0) -> bool:
+def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: int = 0) -> bool:
     import requests
 
     start_time = datetime.now(timezone.utc)
@@ -549,7 +549,7 @@ def _attempt_to_connect(port_number: int, output=Optional[Output], wait_seconds:
 
 
 def print_cluster_urls(
-    python: str, kubernetes_version: str, output=Optional[Output], wait_time_in_seconds: int = 0
+    python: str, kubernetes_version: str, output: Output | None, wait_time_in_seconds: int = 0
 ):
     api_server_port, web_server_port = _get_kubernetes_port_numbers(
         python=python, kubernetes_version=kubernetes_version

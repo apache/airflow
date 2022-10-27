@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Union
+from typing import Any
 
 from docutils import nodes
 from docutils.nodes import Node, system_message
@@ -61,7 +61,7 @@ class SubstitutionCodeBlockTransform(SphinxTransform):
         def condition(node):
             return isinstance(node, (nodes.literal_block, nodes.literal))
 
-        for node in self.document.traverse(condition):  # type: Union[nodes.literal_block, nodes.literal]
+        for node in self.document.traverse(condition):
             if _SUBSTITUTION_OPTION_NAME not in node:
                 continue
 

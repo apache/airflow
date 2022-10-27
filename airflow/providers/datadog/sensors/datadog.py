@@ -48,7 +48,7 @@ class DatadogSensor(BaseSensorOperator):
         the response object as the first positional argument and optionally any number of
         keyword arguments available in the context dictionary. It should return True for
         'pass' and False otherwise.
-    :param response_check: Optional[Callable[[Dict[str, Any]], bool]]
+    :param response_check: Callable[[dict[str, Any]], bool] | None
     """
 
     ui_color = "#66c3dd"

@@ -805,7 +805,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
 
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.protobuf.field_mask_pb2.FieldMask`)
-            Union[Dict, google.protobuf.field_mask_pb2.FieldMask]
+            Union[dict, google.protobuf.field_mask_pb2.FieldMask]
         :param instance: Required. Update description. Only fields specified in ``update_mask`` are updated.
 
             If a dict is provided, it must be of the same form as the protobuf message
@@ -861,7 +861,6 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         :param update_mask: Required. Mask of fields to update.
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.protobuf.field_mask_pb2.FieldMask`
-            Union[Dict, google.protobuf.field_mask_pb2.FieldMask]
         :param parameters: The parameters to apply to the instance.
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.memcache_v1beta2.types.cloud_memcache.MemcacheParameters`

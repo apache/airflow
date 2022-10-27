@@ -43,7 +43,6 @@ class TaskLogReader:
         :param try_number: If provided, logs for the given try will be returned.
             Otherwise, logs from all attempts are returned.
         :param metadata: A dictionary containing information about how to read the task log
-        :rtype: Tuple[List[Tuple[Tuple[str, str]]], Dict[str, str]]
 
         The following is an example of how to use this method to read log:
 
@@ -67,7 +66,6 @@ class TaskLogReader:
         :param ti: The Task Instance
         :param try_number: the task try number
         :param metadata: A dictionary containing information about how to read the task log
-        :rtype: Iterator[str]
         """
         if try_number is None:
             next_try = ti.next_try_number
@@ -114,13 +112,12 @@ class TaskLogReader:
         try_number: int | None = None,
         *,
         session: Session = NEW_SESSION,
-    ):
+    ) -> str:
         """
         Renders the log attachment filename
 
         :param ti: The task instance
         :param try_number: The task try number
-        :rtype: str
         """
         dagrun = ti.get_dagrun(session=session)
         attachment_filename = render_log_filename(

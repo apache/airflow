@@ -30,7 +30,7 @@ from inspect import signature
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile, gettempdir
-from typing import Any, Callable, List, TypeVar, cast
+from typing import Any, Callable, TypeVar, cast
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -150,7 +150,6 @@ class S3Hook(AwsBaseHook):
 
         :param s3url: The S3 Url to parse.
         :return: the parsed bucket name and key
-        :rtype: tuple of str
         """
         format = s3url.split("//")
         if format[0].lower() == "s3:":
@@ -187,7 +186,6 @@ class S3Hook(AwsBaseHook):
         :param bucket_param_name: The parameter name containing the bucket name
         :param key_param_name: The parameter name containing the key name
         :return: the parsed bucket name and key
-        :rtype: tuple of str
         """
         if bucket is None:
             return S3Hook.parse_s3_url(key)
@@ -208,7 +206,6 @@ class S3Hook(AwsBaseHook):
 
         :param bucket_name: the name of the bucket
         :return: True if it exists and False if not.
-        :rtype: bool
         """
         try:
             self.get_conn().head_bucket(Bucket=bucket_name)
@@ -236,7 +233,6 @@ class S3Hook(AwsBaseHook):
 
         :param bucket_name: the name of the bucket
         :return: the bucket object to the bucket name.
-        :rtype: boto3.S3.Bucket
         """
         s3_resource = self.get_session().resource(
             "s3",
@@ -278,7 +274,6 @@ class S3Hook(AwsBaseHook):
         :param prefix: a key prefix
         :param delimiter: the delimiter marks key hierarchy.
         :return: False if the prefix does not exist in the bucket and True if it does.
-        :rtype: bool
         """
         prefix = prefix + delimiter if prefix[-1] != delimiter else prefix
         prefix_split = re.split(rf"(\w+[{delimiter}])$", prefix, 1)
@@ -304,7 +299,6 @@ class S3Hook(AwsBaseHook):
         :param page_size: pagination size
         :param max_items: maximum items to return
         :return: a list of matched prefixes
-        :rtype: list
         """
         prefix = prefix or ""
         delimiter = delimiter or ""
@@ -318,7 +312,7 @@ class S3Hook(AwsBaseHook):
             Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
         )
 
-        prefixes = []  # type: List[str]
+        prefixes: list[str] = []
         for page in response:
             if "CommonPrefixes" in page:
                 prefixes.extend(common_prefix["Prefix"] for common_prefix in page["CommonPrefixes"])
@@ -372,8 +366,8 @@ class S3Hook(AwsBaseHook):
 
             def object_filter(
                 keys: list,
-                from_datetime: Optional[datetime] = None,
-                to_datetime: Optional[datetime] = None,
+                from_datetime: datetime | None = None,
+                to_datetime: datetime | None = None,
             ) -> list:
                 def _is_in_period(input_date: datetime) -> bool:
                     if from_datetime is not None and input_date < from_datetime:
@@ -386,7 +380,6 @@ class S3Hook(AwsBaseHook):
                 return [k["Key"] for k in keys if _is_in_period(k["LastModified"])]
 
         :return: a list of matched keys
-        :rtype: list
         """
         prefix = prefix or ""
         delimiter = delimiter or ""
@@ -406,7 +399,7 @@ class S3Hook(AwsBaseHook):
             StartAfter=start_after_key,
         )
 
-        keys = []  # type: List[str]
+        keys: list[str] = []
         for page in response:
             if "Contents" in page:
                 keys.extend(iter(page["Contents"]))
@@ -431,7 +424,6 @@ class S3Hook(AwsBaseHook):
         :param page_size: pagination size
         :param max_items: maximum items to return
         :return: a list of metadata of objects
-        :rtype: list
         """
         config = {
             "PageSize": page_size,
@@ -456,7 +448,6 @@ class S3Hook(AwsBaseHook):
         :param key: S3 key that will point to the file
         :param bucket_name: Name of the bucket in which the file is stored
         :return: metadata of an object
-        :rtype: dict
         """
         try:
             return self.get_conn().head_object(Bucket=bucket_name, Key=key)
@@ -475,7 +466,6 @@ class S3Hook(AwsBaseHook):
         :param key: S3 key that will point to the file
         :param bucket_name: Name of the bucket in which the file is stored
         :return: True if the key exists and False if not.
-        :rtype: bool
         """
         obj = self.head_object(key, bucket_name)
         return obj is not None
@@ -489,7 +479,6 @@ class S3Hook(AwsBaseHook):
         :param key: the path to the key
         :param bucket_name: the name of the bucket
         :return: the key object from the bucket
-        :rtype: boto3.s3.Object
         """
         s3_resource = self.get_session().resource(
             "s3",
@@ -510,7 +499,6 @@ class S3Hook(AwsBaseHook):
         :param key: S3 key that will point to the file
         :param bucket_name: Name of the bucket in which the file is stored
         :return: the content of the key
-        :rtype: str
         """
         obj = self.get_key(key, bucket_name)
         return obj.get()["Body"].read().decode("utf-8")
@@ -536,7 +524,6 @@ class S3Hook(AwsBaseHook):
         :param input_serialization: S3 Select input data serialization format
         :param output_serialization: S3 Select output data serialization format
         :return: retrieved subset of original data by S3 Select
-        :rtype: str
 
         .. seealso::
             For more details about S3 Select parameters:
@@ -575,7 +562,6 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: the name of the bucket
         :param delimiter: the delimiter marks key hierarchy
         :return: True if a key exists and False if not.
-        :rtype: bool
         """
         return (
             self.get_wildcard_key(wildcard_key=wildcard_key, bucket_name=bucket_name, delimiter=delimiter)
@@ -594,7 +580,6 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: the name of the bucket
         :param delimiter: the delimiter marks key hierarchy
         :return: the key object from the bucket or None if none has been found.
-        :rtype: boto3.s3.Object
         """
         prefix = re.split(r"[\[\*\?]", wildcard_key, 1)[0]
         key_list = self.list_keys(bucket_name, prefix=prefix, delimiter=delimiter)
@@ -841,7 +826,6 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: Bucket name
         :param force_delete: Enable this to delete bucket even if not empty
         :return: None
-        :rtype: None
         """
         if force_delete:
             bucket_keys = self.list_keys(bucket_name=bucket_name)
@@ -904,7 +888,6 @@ class S3Hook(AwsBaseHook):
             predictable path.
             Default: True.
         :return: the file name.
-        :rtype: str
         """
         self.log.info(
             "This function shadows the 'download_file' method of S3 API, but it is not the same. If you "
@@ -966,7 +949,6 @@ class S3Hook(AwsBaseHook):
         :param http_method: The http method to use on the generated url.
             By default, the http method is whatever is used in the method's model.
         :return: The presigned url.
-        :rtype: str
         """
         s3_client = self.get_conn()
         try:
@@ -985,7 +967,6 @@ class S3Hook(AwsBaseHook):
 
         :param bucket_name: The name of the bucket.
         :return: A List containing the key/value pairs for the tags
-        :rtype: Optional[List[Dict[str, str]]]
         """
         try:
             s3_client = self.get_conn()
@@ -1012,7 +993,6 @@ class S3Hook(AwsBaseHook):
         :param value: The Value for the new TagSet entry.
         :param bucket_name: The name of the bucket.
         :return: None
-        :rtype: None
         """
         self.log.info("S3 Bucket Tag Info:\tKey: %s\tValue: %s\tSet: %s", key, value, tag_set)
         if not tag_set:
@@ -1038,7 +1018,6 @@ class S3Hook(AwsBaseHook):
 
         :param bucket_name: The name of the bucket.
         :return: None
-        :rtype: None
         """
         s3_client = self.get_conn()
         s3_client.delete_bucket_tagging(Bucket=bucket_name)

@@ -77,7 +77,6 @@ def prepare_virtualenv(
     :param requirements: List of additional python packages.
     :param requirements_file_path: Path to the ``requirements.txt`` file.
     :return: Path to a binary file with Python in a virtual environment.
-    :rtype: str
     """
     if pip_install_options is None:
         pip_install_options = []

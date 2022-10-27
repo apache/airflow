@@ -79,7 +79,6 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         :param web_property_ad_words_link_id: to retrieve the Google Ads link for.
 
         :returns: web property-Google Ads
-        :rtype: Dict
         """
         self.log.info("Retrieving ad words links...")
         ad_words_link = (
@@ -103,7 +102,6 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         :param web_property_id: Web property UA-string to retrieve the Google Ads links for.
 
         :returns: list of entity Google Ads links.
-        :rtype: list
         """
         self.log.info("Retrieving ad words list...")
         conn = self.get_conn()

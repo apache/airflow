@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import tempfile
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -108,8 +108,8 @@ class GCSToGoogleDriveOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.gcs_hook = None  # type: Optional[GCSHook]
-        self.gdrive_hook = None  # type: Optional[GoogleDriveHook]
+        self.gcs_hook: GCSHook | None = None
+        self.gdrive_hook: GoogleDriveHook | None = None
 
     def execute(self, context: Context):
 

@@ -74,7 +74,6 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         Retrieves connection to Cloud Natural Language service.
 
         :return: Cloud Natural Language service object
-        :rtype: google.cloud.language_v1.LanguageServiceClient
         """
         if not self._conn:
             self._conn = LanguageServiceClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
@@ -101,7 +100,6 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             retry is specified, the timeout applies to each individual attempt.
         :param metadata: Additional metadata that is provided to the method.
-        :rtype: google.cloud.language_v1.types.AnalyzeEntitiesResponse
         """
         client = self.get_conn()
 
@@ -130,7 +128,6 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             retry is specified, the timeout applies to each individual attempt.
         :param metadata: Additional metadata that is provided to the method.
-        :rtype: google.cloud.language_v1.types.AnalyzeEntitiesResponse
         """
         client = self.get_conn()
 
@@ -158,7 +155,6 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             retry is specified, the timeout applies to each individual attempt.
         :param metadata: Additional metadata that is provided to the method.
-        :rtype: google.cloud.language_v1.types.AnalyzeSentimentResponse
         """
         client = self.get_conn()
 
@@ -187,7 +183,6 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             retry is specified, the timeout applies to each individual attempt.
         :param metadata: Additional metadata that is provided to the method.
-        :rtype: google.cloud.language_v1.types.AnalyzeSyntaxResponse
         """
         client = self.get_conn()
 
@@ -219,7 +214,6 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             retry is specified, the timeout applies to each individual attempt.
         :param metadata: Additional metadata that is provided to the method.
-        :rtype: google.cloud.language_v1.types.AnnotateTextResponse
         """
         client = self.get_conn()
 
@@ -250,7 +244,6 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             retry is specified, the timeout applies to each individual attempt.
         :param metadata: Additional metadata that is provided to the method.
-        :rtype: google.cloud.language_v1.types.ClassifyTextResponse
         """
         client = self.get_conn()
 

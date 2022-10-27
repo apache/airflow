@@ -173,7 +173,6 @@ class _VaultClient(LoggingMixin):
         it is still authenticated to Vault, and invalidates the cache if this
         is not the case.
 
-        :rtype: hvac.Client
         :return: Vault Client
 
         """
@@ -188,7 +187,6 @@ class _VaultClient(LoggingMixin):
         """
         Return an authenticated Hashicorp Vault client.
 
-        :rtype: hvac.Client
         :return: Vault Client
 
         """
@@ -362,7 +360,6 @@ class _VaultClient(LoggingMixin):
         Reads secret metadata (including versions) from the engine. It is only valid for KV version 2.
 
         :param secret_path: The path of the secret.
-        :rtype: dict
         :return: secret metadata. This is a Dict containing metadata for the secret.
 
                  See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
@@ -389,7 +386,6 @@ class _VaultClient(LoggingMixin):
         :param secret_path: The path of the secret.
         :param secret_version: Specifies the version of Secret to return. If not set, the latest
             version is returned. (Can only be used in case of version 2 of KV).
-        :rtype: dict
         :return: The key info. This is a Dict with "data" mapping keeping secret
                  and "metadata" mapping keeping metadata of the secret.
         """
@@ -423,7 +419,6 @@ class _VaultClient(LoggingMixin):
             allowed. If set to 0 a write will only be allowed if the key doesn't exist.
             If the index is non-zero the write will only be allowed if the key's current version
             matches the version specified in the cas parameter. Only valid for KV engine version 2.
-        :rtype: requests.Response
         :return: The response of the create_or_update_secret request.
 
                  See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v1.html

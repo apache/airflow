@@ -92,7 +92,6 @@ class TableauOperator(BaseOperator):
         Executes the Tableau API resource and pushes the job id or downloaded file URI to xcom.
         :param context: The task context during execution.
         :return: the id of the job that executes the extract refresh or downloaded file URI.
-        :rtype: str
         """
         available_resources = RESOURCES_METHODS.keys()
         if self.resource not in available_resources:

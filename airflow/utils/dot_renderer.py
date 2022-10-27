@@ -147,7 +147,6 @@ def render_dag_dependencies(deps: dict[str, list[DagDependency]]) -> graphviz.Di
 
     :param deps: List of DAG dependencies
     :return: Graphviz object
-    :rtype: graphviz.Digraph
     """
     dot = graphviz.Digraph(graph_attr={"rankdir": "LR"})
 
@@ -176,7 +175,6 @@ def render_dag(dag: DAG, tis: list[TaskInstance] | None = None) -> graphviz.Digr
     :param dag: DAG that will be rendered.
     :param tis: List of task instances
     :return: Graphviz object
-    :rtype: graphviz.Digraph
     """
     dot = graphviz.Digraph(
         dag.dag_id,

@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Dict, List, Sequence
+from typing import Any, Sequence
 
 from googleapiclient.discovery import Resource, build
 
@@ -44,11 +44,7 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
         )
 
     def get_conn(self) -> Resource:
-        """
-        Returns a Google Deployment Manager service object.
-
-        :rtype: googleapiclient.discovery.Resource
-        """
+        """Returns a Google Deployment Manager service object."""
         http_authorized = self._authorize()
         return build("deploymentmanager", "v2", http=http_authorized, cache_discovery=False)
 
@@ -65,9 +61,8 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
         :param project_id: The project ID for this request.
         :param deployment_filter: A filter expression which limits resources returned in the response.
         :param order_by: A field name to order by, ex: "creationTimestamp desc"
-        :rtype: list
         """
-        deployments = []  # type: List[Dict]
+        deployments: list[dict] = []
         conn = self.get_conn()
 
         request = conn.deployments().list(project=project_id, filter=deployment_filter, orderBy=order_by)
@@ -89,8 +84,6 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
         :param project_id: The project ID for this request.
         :param deployment: The name of the deployment for this request.
         :param delete_policy: Sets the policy to use for deleting resources. (ABANDON | DELETE)
-
-        :rtype: None
         """
         conn = self.get_conn()
 

@@ -282,7 +282,7 @@ def list_py_file_paths(
     directory: str | pathlib.Path,
     safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE', fallback=True),
     include_examples: bool | None = None,
-):
+) -> list[str]:
     """
     Traverse a directory and look for Python files.
 
@@ -293,7 +293,6 @@ def list_py_file_paths(
         to safe.
     :param include_examples: include example DAGs
     :return: a list of paths to Python files in the specified directory
-    :rtype: list[unicode]
     """
     if include_examples is None:
         include_examples = conf.getboolean('core', 'LOAD_EXAMPLES')

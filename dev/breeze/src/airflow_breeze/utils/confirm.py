@@ -46,7 +46,6 @@ def user_confirm(
     """
     Ask the user for confirmation.
 
-    :rtype: object
     :param message: message to display to the user (should end with the question mark)
     :param timeout: time given user to answer
     :param default_answer: default value returned on timeout. If no default - is set, the timeout is ignored.

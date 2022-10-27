@@ -63,7 +63,6 @@ class CloudantHook(BaseHook):
             - 'password' equals the 'Password' (required)
 
         :return: an authorized cloudant session context manager object.
-        :rtype: cloudant
         """
         conn = self.get_connection(self.cloudant_conn_id)
 

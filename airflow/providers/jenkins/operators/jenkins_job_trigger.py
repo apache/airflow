@@ -21,7 +21,7 @@ import ast
 import json
 import socket
 import time
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Union
+from typing import Any, Iterable, List, Mapping, Sequence, Union
 from urllib.error import HTTPError, URLError
 
 import jenkins
@@ -33,7 +33,7 @@ from airflow.models import BaseOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 
 JenkinsRequest = Mapping[str, Any]
-ParamType = Optional[Union[str, Dict, List]]
+ParamType = Union[str, dict, List, None]
 
 
 def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> JenkinsRequest | None:

@@ -93,7 +93,7 @@ class PubSubCreateTopicOperator(BaseOperator):
         of Google Cloud regions where messages published to
         the topic may be stored. If not present, then no constraints
         are in effect.
-        Union[Dict, google.cloud.pubsub_v1.types.MessageStoragePolicy]
+        Union[dict, google.cloud.pubsub_v1.types.MessageStoragePolicy]
     :param kms_key_name: The resource name of the Cloud KMS CryptoKey
         to be used to protect access to messages published on this topic.
         The expected format is

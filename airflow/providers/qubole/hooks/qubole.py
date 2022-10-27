@@ -115,7 +115,7 @@ COMMAND_ARGS, HYPHEN_ARGS = build_command_args()
 class QuboleHook(BaseHook):
     """Hook for Qubole communication"""
 
-    conn_name_attr = "qubole_conn_id"
+    conn_name_attr: str = "qubole_conn_id"
     default_conn_name = "qubole_default"
     conn_type = "qubole"
     hook_name = "Qubole"

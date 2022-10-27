@@ -25,7 +25,7 @@ from airflow import DAG
 from airflow.operators.empty import EmptyOperator
 
 
-def subdag(parent_dag_name, child_dag_name, args):
+def subdag(parent_dag_name, child_dag_name, args) -> DAG:
     """
     Generate a DAG to be used as a subdag.
 
@@ -33,7 +33,6 @@ def subdag(parent_dag_name, child_dag_name, args):
     :param str child_dag_name: Id of the child DAG
     :param dict args: Default arguments to provide to the subdag
     :return: DAG to use as a subdag
-    :rtype: airflow.models.DAG
     """
     dag_subdag = DAG(
         dag_id=f'{parent_dag_name}.{child_dag_name}',

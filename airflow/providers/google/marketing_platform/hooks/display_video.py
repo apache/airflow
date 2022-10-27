@@ -140,7 +140,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
         :param line_items: downloaded data from GCS and passed to the body request
         :return: response body.
-        :rtype: List[Dict[str, Any]]
         """
         request_body = {
             "lineItems": line_items,

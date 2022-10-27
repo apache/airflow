@@ -26,7 +26,7 @@ import logging
 import os
 import sys
 import types
-from typing import TYPE_CHECKING, Any, Iterable, List, Optional
+from typing import TYPE_CHECKING, Any, Iterable
 
 try:
     import importlib_metadata
@@ -49,7 +49,7 @@ log = logging.getLogger(__name__)
 
 import_errors: dict[str, str] = {}
 
-plugins = None  # type: Optional[List[AirflowPlugin]]
+plugins: list[AirflowPlugin] | None = None
 
 # Plugin components to integrate as modules
 registered_hooks: list[BaseHook] | None = None

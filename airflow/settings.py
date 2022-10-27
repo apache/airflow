@@ -466,11 +466,10 @@ def validate_session():
         return conn_status
 
 
-def configure_action_logging():
+def configure_action_logging() -> None:
     """
     Any additional configuration (register callback) for airflow.utils.action_loggers
     module
-    :rtype: None
     """
 
 

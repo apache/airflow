@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from copy import copy
-from typing import Optional, Sequence
+from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -48,7 +48,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
-    _conn = None  # type: Optional[Resource]
+    _conn: Resource | None = None
 
     def __init__(
         self,
@@ -91,7 +91,6 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         Retrieves connection to Google Bigquery.
 
         :return: Google Bigquery API client
-        :rtype: google.cloud.bigquery_datatransfer_v1.DataTransferServiceClient
         """
         if not self._conn:
             self._conn = DataTransferServiceClient(

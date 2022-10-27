@@ -165,8 +165,9 @@ class DagBag(LoggingMixin):
     @property
     def dag_ids(self) -> list[str]:
         """
+        Get DAG ids.
+
         :return: a list of DAG IDs in this bag
-        :rtype: List[unicode]
         """
         return list(self.dags.keys())
 

@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
@@ -82,7 +82,7 @@ class AthenaOperator(BaseOperator):
         self.result_configuration = result_configuration or {}
         self.sleep_time = sleep_time
         self.max_polling_attempts = max_polling_attempts
-        self.query_execution_id = None  # type: Optional[str]
+        self.query_execution_id: str | None = None
 
         if max_tries:
             warnings.warn(

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -58,7 +57,7 @@ class NullFernet:
         return b
 
 
-_fernet = None  # type: Optional[FernetProtocol]
+_fernet: FernetProtocol | None = None
 
 
 def get_fernet():

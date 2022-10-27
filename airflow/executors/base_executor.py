@@ -321,7 +321,6 @@ class BaseExecutor(LoggingMixin):
         re-scheduling)
 
         :return: any TaskInstances that were unable to be adopted
-        :rtype: Sequence[airflow.models.TaskInstance]
         """
         # By default, assume Executors cannot adopt tasks, so just say we failed to adopt anything.
         # Subclasses can do better!

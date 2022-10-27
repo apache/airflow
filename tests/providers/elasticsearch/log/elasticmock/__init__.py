@@ -40,14 +40,13 @@ from __future__ import annotations
 # SOFTWARE.
 """Elastic mock module used for testing"""
 from functools import wraps
-from typing import Dict
 from unittest.mock import patch
 
 from elasticsearch.client.utils import _normalize_hosts
 
 from .fake_elasticsearch import FakeElasticsearch
 
-ELASTIC_INSTANCES = {}  # type: Dict[str, FakeElasticsearch]
+ELASTIC_INSTANCES: dict[str, FakeElasticsearch] = {}
 
 
 def _get_elasticmock(hosts=None, *args, **kwargs):

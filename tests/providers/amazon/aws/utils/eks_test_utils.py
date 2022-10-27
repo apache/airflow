@@ -54,7 +54,6 @@ def attributes_to_test(
     :param fargate_profile_name: The name of the Fargate profile under test if applicable.
     :param nodegroup_name: The name of the nodegroup under test if applicable.
     :return: Returns a list of tuples containing the keys and values to be validated in testing.
-    :rtype: List[Tuple]
     """
     result: list[tuple] = deepcopy(inputs.REQUIRED + inputs.OPTIONAL + [STATUS])  # type: ignore
     if inputs == ClusterInputs:
@@ -90,7 +89,6 @@ def generate_clusters(eks_hook: EksHook, num_clusters: int, minimal: bool) -> li
     :param num_clusters: Number of clusters to generate.
     :param minimal: If True, only the required values are generated; if False all values are generated.
     :return: Returns a list of the names of the generated clusters.
-    :rtype: List[str]
     """
     # Generates N clusters named cluster0, cluster1, .., clusterN
     return [
@@ -112,7 +110,6 @@ def generate_fargate_profiles(
     :param num_profiles: Number of Fargate profiles to generate.
     :param minimal: If True, only the required values are generated; if False all values are generated.
     :return: Returns a list of the names of the generated nodegroups.
-    :rtype: List[str]
     """
     # Generates N Fargate profiles named profile0, profile1, .., profileN
     return [
@@ -136,7 +133,6 @@ def generate_nodegroups(
     :param num_nodegroups: Number of clusters to generate.
     :param minimal: If True, only the required values are generated; if False all values are generated.
     :return: Returns a list of the names of the generated nodegroups.
-    :rtype: List[str]
     """
     # Generates N nodegroups named nodegroup0, nodegroup1, .., nodegroupN
     return [
@@ -156,7 +152,6 @@ def region_matches_partition(region: str, partition: str) -> bool:
     :param region: AWS region code to test.
     :param partition: AWS partition code to test.
     :return: Returns True if the provided region and partition are a valid pair.
-    :rtype: bool
     """
     valid_matches: list[tuple[str, str]] = [
         ("cn-", "aws-cn"),
@@ -179,7 +174,6 @@ def _input_builder(options: InputTypes, minimal: bool) -> dict:
     the cluster or nodegroup used in testing.
     :param minimal: If True, only the required values are generated; if False all values are generated.
     :return: Returns a dict containing the keys and values to be validated in testing.
-    :rtype: Dict
     """
     values: list[tuple] = deepcopy(options.REQUIRED)  # type: ignore
     if not minimal:
@@ -193,7 +187,6 @@ def string_to_regex(value: str) -> Pattern[str]:
 
     :param value: The template string to convert.
     :returns: Returns a regex pattern
-    :rtype: Pattern[str]
     """
     return re.compile(re.sub(r"[{](.*?)[}]", r"(?P<\1>.+)", value))
 

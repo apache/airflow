@@ -62,7 +62,7 @@ def process_line_and_extract_dataflow_job_id_callback(
 
     def _process_line_and_extract_job_id(
         line: str,
-        # on_new_job_id_callback: Optional[Callable[[str], None]]
+        # on_new_job_id_callback: Callable[[str], None] | None
     ) -> None:
         # Job id info: https://goo.gl/SE29y9.
         matched_job = JOB_ID_PATTERN.search(line)
@@ -219,7 +219,6 @@ class _DataflowJobsController(LoggingMixin):
         Helper method to check if jos is still running in dataflow
 
         :return: True if job is running.
-        :rtype: bool
         """
         self._refresh_jobs()
         if not self._jobs:
@@ -235,7 +234,6 @@ class _DataflowJobsController(LoggingMixin):
         Helper method to get list of jobs that start with job name or id
 
         :return: list of jobs including id's
-        :rtype: list
         """
         if not self._multiple_jobs and self._job_id:
             return [self.fetch_job_by_id(self._job_id)]
@@ -253,7 +251,6 @@ class _DataflowJobsController(LoggingMixin):
 
         :param job_id: Job ID to get.
         :return: the Job
-        :rtype: dict
         """
         return (
             self._dataflow.projects()
@@ -274,7 +271,6 @@ class _DataflowJobsController(LoggingMixin):
         :param job_id: Job ID to get.
         :return: the JobMetrics. See:
             https://cloud.google.com/dataflow/docs/reference/rest/v1b3/JobMetrics
-        :rtype: dict
         """
         result = (
             self._dataflow.projects()
@@ -294,7 +290,6 @@ class _DataflowJobsController(LoggingMixin):
         :param job_id: Job ID to get.
         :return: yields the ListJobMessagesResponse. See:
             https://cloud.google.com/dataflow/docs/reference/rest/v1b3/ListJobMessagesResponse
-        :rtype: Generator[dict, None, None]
         """
         request = (
             self._dataflow.projects()
@@ -323,7 +318,6 @@ class _DataflowJobsController(LoggingMixin):
         :param job_id: Job ID to get.
         :return: the list of JobMessages. See:
             https://cloud.google.com/dataflow/docs/reference/rest/v1b3/ListJobMessagesResponse#JobMessage
-        :rtype: List[dict]
         """
         messages: list[dict] = []
         for response in self._fetch_list_job_messages_responses(job_id=job_id):
@@ -337,7 +331,6 @@ class _DataflowJobsController(LoggingMixin):
         :param job_id: Job ID to get.
         :return: the list of AutoscalingEvents. See:
             https://cloud.google.com/dataflow/docs/reference/rest/v1b3/ListJobMessagesResponse#autoscalingevent
-        :rtype: List[dict]
         """
         autoscaling_events: list[dict] = []
         for response in self._fetch_list_job_messages_responses(job_id=job_id):
@@ -377,7 +370,6 @@ class _DataflowJobsController(LoggingMixin):
         Helper method to get all jobs by name
 
         :return: jobs
-        :rtype: list
         """
         self._jobs = self._get_current_jobs()
 
@@ -397,7 +389,6 @@ class _DataflowJobsController(LoggingMixin):
         if job failed raise exception
 
         :return: True if job is done.
-        :rtype: bool
         :raise: Exception
         """
         if self._wait_until_finished is None:
@@ -437,7 +428,6 @@ class _DataflowJobsController(LoggingMixin):
 
         :param refresh: Forces the latest data to be fetched.
         :return: list of jobs
-        :rtype: list
         """
         if not self._jobs or refresh:
             self._refresh_jobs()
@@ -893,7 +883,6 @@ class DataflowHook(GoogleBaseHook):
             If set to None or missing, the default project_id from the Google Cloud connection is used.
         :param location: Job location.
         :return: True if job is running.
-        :rtype: bool
         """
         if variables:
             warnings.warn(
@@ -1055,7 +1044,6 @@ class DataflowHook(GoogleBaseHook):
         :param location: The location of the Dataflow job (for example europe-west1). See:
             https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
         :return: the Job
-        :rtype: dict
         """
         jobs_controller = _DataflowJobsController(
             dataflow=self.get_conn(),
@@ -1081,7 +1069,6 @@ class DataflowHook(GoogleBaseHook):
             https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
         :return: the JobMetrics. See:
             https://cloud.google.com/dataflow/docs/reference/rest/v1b3/JobMetrics
-        :rtype: dict
         """
         jobs_controller = _DataflowJobsController(
             dataflow=self.get_conn(),
@@ -1106,7 +1093,6 @@ class DataflowHook(GoogleBaseHook):
         :param location: Job location.
         :return: the list of JobMessages. See:
             https://cloud.google.com/dataflow/docs/reference/rest/v1b3/ListJobMessagesResponse#JobMessage
-        :rtype: List[dict]
         """
         jobs_controller = _DataflowJobsController(
             dataflow=self.get_conn(),
@@ -1131,7 +1117,6 @@ class DataflowHook(GoogleBaseHook):
         :param location: Job location.
         :return: the list of AutoscalingEvents. See:
             https://cloud.google.com/dataflow/docs/reference/rest/v1b3/ListJobMessagesResponse#autoscalingevent
-        :rtype: List[dict]
         """
         jobs_controller = _DataflowJobsController(
             dataflow=self.get_conn(),

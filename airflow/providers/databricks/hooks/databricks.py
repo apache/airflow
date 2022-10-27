@@ -138,7 +138,6 @@ class DatabricksHook(BaseDatabricksHook):
 
         :param json: The data used in the body of the request to the ``run-now`` endpoint.
         :return: the run_id as an int
-        :rtype: str
         """
         response = self._do_api_call(RUN_NOW_ENDPOINT, json)
         return response["run_id"]
@@ -149,7 +148,6 @@ class DatabricksHook(BaseDatabricksHook):
 
         :param json: The data used in the body of the request to the ``submit`` endpoint.
         :return: the run_id as an int
-        :rtype: str
         """
         response = self._do_api_call(SUBMIT_RUN_ENDPOINT, json)
         return response["run_id"]
@@ -436,7 +434,7 @@ class DatabricksHook(BaseDatabricksHook):
 
         return None
 
-    def test_connection(self):
+    def test_connection(self) -> tuple[bool, str]:
         """Test the Databricks connectivity from UI"""
         hook = DatabricksHook(databricks_conn_id=self.databricks_conn_id)
         try:

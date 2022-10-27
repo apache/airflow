@@ -38,12 +38,11 @@ import shlex
 import subprocess
 import sys
 import time
-from typing import Optional
 
 from airflow.configuration import conf
 from airflow.utils.net import get_hostname
 
-NEED_KRB181_WORKAROUND = None  # type: Optional[bool]
+NEED_KRB181_WORKAROUND: bool | None = None
 
 log = logging.getLogger(__name__)
 
