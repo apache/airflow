@@ -14,30 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-import os
-from datetime import datetime
-
-from airflow import models
-from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
-
-S3_BUCKET = os.environ.get("S3_BUCKET", "test-bucket")
-S3_KEY = os.environ.get("S3_KEY", "key")
-SQL_QUERY = os.environ.get("SQL_QUERY", "SHOW tables")
-
-with models.DAG(
-    "example_sql_to_s3",
-    start_date=datetime(2021, 1, 1),
-    catchup=False,
-) as dag:
-    # [START howto_transfer_sql_to_s3]
-    sql_to_s3_task = SqlToS3Operator(
-        task_id="sql_to_s3_task",
-        sql_conn_id="mysql_default",
-        query=SQL_QUERY,
-        s3_bucket=S3_BUCKET,
-        s3_key=S3_KEY,
-        replace=True,
-    )
-    # [END howto_transfer_sql_to_s3]

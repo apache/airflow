@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 from contextlib import closing
 from copy import deepcopy
-from typing import Iterable, Union
+from typing import Any, Iterable, Union
 
 import psycopg2
 import psycopg2.extensions
@@ -155,7 +155,7 @@ class PostgresHook(DbApiHook):
         self.copy_expert(f"COPY {table} TO STDOUT", tmp_file)
 
     @staticmethod
-    def _serialize_cell(cell: object, conn: connection | None = None) -> object:
+    def _serialize_cell(cell: object, conn: connection | None = None) -> Any:
         """
         Postgresql will adapt all arguments to the execute() method internally,
         hence we return cell without any conversion.
@@ -166,7 +166,6 @@ class PostgresHook(DbApiHook):
         :param cell: The cell to insert into the table
         :param conn: The database connection
         :return: The cell
-        :rtype: object
         """
         return cell
 
@@ -217,7 +216,6 @@ class PostgresHook(DbApiHook):
         :param table: Name of the target table
         :param schema: Name of the target schema, public by default
         :return: Primary key columns list
-        :rtype: List[str]
         """
         sql = """
             select kcu.column_name
@@ -248,7 +246,6 @@ class PostgresHook(DbApiHook):
         :param replace_index: the column or list of column names to act as
             index for the ON CONFLICT clause
         :return: The generated INSERT or REPLACE SQL statement
-        :rtype: str
         """
         placeholders = [
             "%s",

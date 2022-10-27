@@ -56,7 +56,7 @@ def create_pod_id(dag_id: str, task_id: str) -> str:
     return safe_dag_id + safe_task_id
 
 
-def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey | None:
+def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
     """Build a TaskInstanceKey based on pod annotations"""
     log.debug("Creating task key for annotations %s", annotations)
     dag_id = annotations['dag_id']

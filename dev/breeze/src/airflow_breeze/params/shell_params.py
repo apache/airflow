@@ -47,6 +47,7 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DIR,
 )
 from airflow_breeze.utils.run_utils import get_filesystem_type, run_command
+from airflow_breeze.utils.shared_options import get_verbose
 
 DOCKER_COMPOSE_DIR = SCRIPTS_CI_DIR / "docker-compose"
 
@@ -71,13 +72,11 @@ class ShellParams:
     )
     airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     airflow_extras: str = ""
-    answer: str | None = None
     backend: str = ALLOWED_BACKENDS[0]
     base_branch: str = "main"
     ci: bool = False
     db_reset: bool = False
     dev_mode: bool = False
-    dry_run: bool = False
     extra_args: tuple = ()
     force_build: bool = False
     forward_ports: bool = True
@@ -108,8 +107,9 @@ class ShellParams:
     test_type: str | None = None
     use_airflow_version: str | None = None
     use_packages_from_dist: bool = False
-    verbose: bool = False
     version_suffix_for_pypi: str = ""
+    dry_run: bool = False
+    verbose: bool = False
 
     def clone_with_test(self, test_type: str, integration: tuple[str, ...]) -> ShellParams:
         new_params = deepcopy(self)
@@ -189,7 +189,7 @@ class ShellParams:
         return sqlite_url
 
     def print_badge_info(self):
-        if self.verbose:
+        if get_verbose():
             get_console().print(f"[info]Use {self.image_type} image[/]")
             get_console().print(f"[info]Branch Name: {self.airflow_branch}[/]")
             get_console().print(f"[info]Docker Image: {self.airflow_image_name_with_tag}[/]")

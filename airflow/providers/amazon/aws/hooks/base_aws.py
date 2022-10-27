@@ -492,7 +492,6 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         Get the underlying boto3 client/resource (cached)
 
         :return: boto3.client or boto3.resource
-        :rtype: Union[boto3.client, boto3.resource]
         """
         if not ((not self.client_type) ^ (not self.resource_type)):
             raise ValueError(
@@ -530,7 +529,6 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         with subclasses that rely on a super().get_conn() method.
 
         :return: boto3.client or boto3.resource
-        :rtype: Union[boto3.client, boto3.resource]
         """
         # Compat shim
         return self.conn

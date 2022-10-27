@@ -845,89 +845,80 @@ class DagFileProcessorManager(LoggingMixin):
 
         self.log.info(log_str)
 
-    def get_pid(self, file_path):
+    def get_pid(self, file_path) -> int | None:
         """
         :param file_path: the path to the file that's being processed
         :return: the PID of the process processing the given file or None if
             the specified file is not being processed
-        :rtype: int
         """
         if file_path in self._processors:
             return self._processors[file_path].pid
         return None
 
-    def get_all_pids(self):
+    def get_all_pids(self) -> list[int]:
         """
+        Get all pids.
+
         :return: a list of the PIDs for the processors that are running
-        :rtype: List[int]
         """
         return [x.pid for x in self._processors.values()]
 
-    def get_last_runtime(self, file_path):
+    def get_last_runtime(self, file_path) -> float | None:
         """
         :param file_path: the path to the file that was processed
         :return: the runtime (in seconds) of the process of the last run, or
             None if the file was never processed.
-        :rtype: float
         """
         stat = self._file_stats.get(file_path)
         return stat.last_duration.total_seconds() if stat and stat.last_duration else None
 
-    def get_last_dag_count(self, file_path):
+    def get_last_dag_count(self, file_path) -> int | None:
         """
         :param file_path: the path to the file that was processed
         :return: the number of dags loaded from that file, or None if the file
             was never processed.
-        :rtype: int
         """
         stat = self._file_stats.get(file_path)
         return stat.num_dags if stat else None
 
-    def get_last_error_count(self, file_path):
+    def get_last_error_count(self, file_path) -> int | None:
         """
         :param file_path: the path to the file that was processed
         :return: the number of import errors from processing, or None if the file
             was never processed.
-        :rtype: int
         """
         stat = self._file_stats.get(file_path)
         return stat.import_errors if stat else None
 
-    def get_last_finish_time(self, file_path):
+    def get_last_finish_time(self, file_path) -> datetime | None:
         """
         :param file_path: the path to the file that was processed
         :return: the finish time of the process of the last run, or None if the
             file was never processed.
-        :rtype: datetime
         """
         stat = self._file_stats.get(file_path)
         return stat.last_finish_time if stat else None
 
-    def get_start_time(self, file_path):
+    def get_start_time(self, file_path) -> datetime | None:
         """
         :param file_path: the path to the file that's being processed
         :return: the start time of the process that's processing the
             specified file or None if the file is not currently being processed
-        :rtype: datetime
         """
         if file_path in self._processors:
             return self._processors[file_path].start_time
         return None
 
-    def get_run_count(self, file_path):
+    def get_run_count(self, file_path) -> int:
         """
         :param file_path: the path to the file that's being processed
         :return: the number of times the given file has been parsed
-        :rtype: int
         """
         stat = self._file_stats.get(file_path)
         return stat.run_count if stat else 0
 
     def get_dag_directory(self) -> str:
-        """
-        Returns the dag_director as a string.
-        :rtype: str
-        """
+        """Returns the dag_director as a string."""
         if isinstance(self._dag_directory, Path):
             return str(self._dag_directory.resolve())
         else:

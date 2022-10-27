@@ -57,6 +57,7 @@ from airflow_breeze.utils.path_utils import (
 from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.reinstall import reinstall_breeze, warn_non_editable
 from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE
 
 
@@ -92,17 +93,17 @@ def self_upgrade(use_current_airflow_sources: bool):
         sys.exit(1)
 
 
-@option_verbose
-@option_dry_run
+@setup.command(name="autocomplete")
 @click.option(
     "-f",
     "--force",
     is_flag=True,
     help="Force autocomplete setup even if already setup before (overrides the setup).",
 )
+@option_verbose
+@option_dry_run
 @option_answer
-@setup.command(name="autocomplete")
-def autocomplete(verbose: bool, dry_run: bool, force: bool, answer: str | None):
+def autocomplete(force: bool):
     """
     Enables autocompletion of breeze commands.
     """
@@ -125,11 +126,11 @@ def autocomplete(verbose: bool, dry_run: bool, force: bool, answer: str | None):
         if detected_shell == "bash":
             script_path = str(Path("~").expanduser() / ".bash_completion")
             command_to_execute = f"source {autocomplete_path}"
-            write_to_shell(command_to_execute, dry_run, script_path, force)
+            write_to_shell(command_to_execute, script_path, force)
         elif detected_shell == "zsh":
             script_path = str(Path("~").expanduser() / ".zshrc")
             command_to_execute = f"source {autocomplete_path}"
-            write_to_shell(command_to_execute, dry_run, script_path, force)
+            write_to_shell(command_to_execute, script_path, force)
         elif detected_shell == "fish":
             # Include steps for fish shell
             script_path = str(Path("~").expanduser() / f".config/fish/completions/{NAME}.fish")
@@ -149,7 +150,7 @@ def autocomplete(verbose: bool, dry_run: bool, force: bool, answer: str | None):
                 subprocess.check_output(["powershell", "-NoProfile", "echo $profile"]).decode("utf-8").strip()
             )
             command_to_execute = f". {autocomplete_path}"
-            write_to_shell(command_to_execute, dry_run, script_path, force)
+            write_to_shell(command_to_execute=command_to_execute, script_path=script_path, force_setup=force)
     elif given_answer == Answer.NO:
         get_console().print(
             "\nPlease follow the https://click.palletsprojects.com/en/8.1.x/shell-completion/ "
@@ -159,16 +160,17 @@ def autocomplete(verbose: bool, dry_run: bool, force: bool, answer: str | None):
         sys.exit(0)
 
 
-@option_verbose
 @setup.command()
-def version(verbose: bool):
+@option_verbose
+@option_dry_run
+def version():
     """Print information about version of apache-airflow-breeze."""
 
     get_console().print(ASCIIART, style=ASCIIART_STYLE)
     get_console().print(f"\n[info]Breeze version: {VERSION}[/]")
     get_console().print(f"[info]Breeze installed from: {get_installation_airflow_sources()}[/]")
     get_console().print(f"[info]Used Airflow sources : {get_used_airflow_sources()}[/]\n")
-    if verbose:
+    if get_verbose():
         get_console().print(
             f"[info]Installation sources config hash : "
             f"{get_installation_sources_config_metadata_hash()}[/]"
@@ -263,11 +265,11 @@ def dict_hash(dictionary: dict[str, Any]) -> str:
     return dhash.hexdigest()
 
 
-def get_command_hash_export(verbose: bool) -> str:
+def get_command_hash_export() -> str:
     hashes = []
     with Context(main) as ctx:
         the_context_dict = ctx.to_info_dict()
-        if verbose:
+        if get_verbose():
             get_stderr_console().print(the_context_dict)
         hashes.append(f"main:{dict_hash(the_context_dict['command']['params'])}")
         commands_dict = the_context_dict["command"]["commands"]
@@ -283,7 +285,7 @@ def get_command_hash_export(verbose: bool) -> str:
     return "\n".join(hashes) + "\n"
 
 
-def write_to_shell(command_to_execute: str, dry_run: bool, script_path: str, force_setup: bool) -> bool:
+def write_to_shell(command_to_execute: str, script_path: str, force_setup: bool) -> bool:
     skip_check = False
     script_path_file = Path(script_path)
     if not script_path_file.exists():
@@ -303,12 +305,12 @@ def write_to_shell(command_to_execute: str, dry_run: bool, script_path: str, for
     if script_path_file.exists():
         get_console().print(f"\nModifying the {script_path} file!\n")
         get_console().print(f"\nCopy of the original file is held in {script_path}.bak !\n")
-        if not dry_run:
+        if not get_dry_run():
             backup(script_path_file)
             text = script_path_file.read_text()
     else:
         get_console().print(f"\nCreating the {script_path} file!\n")
-    if not dry_run:
+    if not get_dry_run():
         script_path_file.write_text(
             text
             + ("\n" if not text.endswith("\n") else "")
@@ -393,9 +395,7 @@ def print_difference(dict1: dict[str, str], dict2: dict[str, str]):
     console.print(f"Difference: {set(dict1.items()) ^ set(dict2.items())}")
 
 
-def regenerate_help_images_for_all_commands(
-    commands: tuple[str, ...], check_only: bool, force: bool, verbose: bool, dry_run: bool
-) -> int:
+def regenerate_help_images_for_all_commands(commands: tuple[str, ...], check_only: bool, force: bool) -> int:
     console = Console(width=int(SCREENSHOT_WIDTH), color_system="standard")
     if check_only and force:
         console.print("[error]The --check-only flag cannot be used with --force flag.")
@@ -410,7 +410,7 @@ def regenerate_help_images_for_all_commands(
     env["RECORD_BREEZE_OUTPUT_FILE"] = str(BREEZE_IMAGES_DIR / "output-commands.svg")
     env["TERM"] = "xterm-256color"
     env["PYTHONPATH"] = str(BREEZE_SOURCES_DIR)
-    new_hash_text_dump = PREAMBLE + get_command_hash_export(verbose=verbose)
+    new_hash_text_dump = PREAMBLE + get_command_hash_export()
     regenerate_all_commands = False
     commands_list = list(commands)
     if force:
@@ -459,8 +459,6 @@ def regenerate_help_images_for_all_commands(
         run_command(
             ["breeze", "--help"],
             env=env,
-            verbose=verbose,
-            dry_run=dry_run,
         )
     for command in commands_list:
         if command == "main":
@@ -475,8 +473,6 @@ def regenerate_help_images_for_all_commands(
             run_command(
                 ["breeze", command, "--help"],
                 env=env,
-                verbose=verbose,
-                dry_run=dry_run,
             )
         else:
             split_command = command.split(":")
@@ -496,8 +492,6 @@ def regenerate_help_images_for_all_commands(
                     "--help",
                 ],
                 env=env,
-                verbose=verbose,
-                dry_run=dry_run,
             )
     if regenerate_all_commands:
         COMMAND_HASH_FILE_PATH.write_text(new_hash_text_dump)
@@ -523,10 +517,8 @@ def regenerate_help_images_for_all_commands(
 )
 @option_verbose
 @option_dry_run
-def regenerate_command_images(
-    command: tuple[str, ...], force: bool, check_only: bool, verbose: bool, dry_run: bool
-):
+def regenerate_command_images(command: tuple[str, ...], force: bool, check_only: bool):
     return_code = regenerate_help_images_for_all_commands(
-        commands=command, check_only=check_only, force=force, verbose=verbose, dry_run=dry_run
+        commands=command, check_only=check_only, force=force
     )
     sys.exit(return_code)
