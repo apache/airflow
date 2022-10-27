@@ -403,6 +403,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
         # dags/branch_without_trigger.py
         import pendulum
 
+        from airflow.decorators import task
         from airflow.models import DAG
         from airflow.operators.empty import EmptyOperator
 
