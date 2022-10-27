@@ -2128,7 +2128,7 @@ class DataprocCreateBatchOperator(BaseOperator):
                 metadata=self.metadata,
             )
 
-            # The existing batch may be a in a number of states other than 'SUCCEEDED'
+            # The existing batch may be a number of states other than 'SUCCEEDED'
             if result.state != Batch.State.SUCCEEDED:
                 if result.state == Batch.State.FAILED or result.state == Batch.State.CANCELLED:
                     raise AirflowException(
