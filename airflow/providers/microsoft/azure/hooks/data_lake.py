@@ -109,7 +109,6 @@ class AzureDataLakeHook(BaseHook):
 
         :param file_path: Path and name of the file.
         :return: True if the file exists, False otherwise.
-        :rtype: bool
         """
         try:
             files = self.get_conn().glob(file_path, details=False, invalidate_cache=True)

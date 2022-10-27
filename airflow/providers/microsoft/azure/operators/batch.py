@@ -83,7 +83,7 @@ class AzureBatchOperator(BaseOperator):
         use_latest_image_and_sku is set to True
     :param vm_sku: The name of the virtual machine sku to use
     :param vm_version: The version of the virtual machine
-    :param vm_version: Optional[str]
+    :param vm_version: str | None
     :param vm_node_agent_sku_id: The node agent sku id of the virtual machine
     :param os_family: The Azure Guest OS family to be installed on the virtual machines in the Pool.
     :param os_version: The OS family version

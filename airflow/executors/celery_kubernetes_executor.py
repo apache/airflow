@@ -167,7 +167,6 @@ class CeleryKubernetesExecutor(LoggingMixin):
         re-scheduling)
 
         :return: any TaskInstances that were unable to be adopted
-        :rtype: Sequence[airflow.models.TaskInstance]
         """
         celery_tis = [ti for ti in tis if ti.queue != self.KUBERNETES_QUEUE]
         kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
@@ -192,7 +191,6 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
         :param simple_task_instance: SimpleTaskInstance
         :return: celery_executor or kubernetes_executor
-        :rtype: Union[CeleryExecutor, KubernetesExecutor]
         """
         if simple_task_instance.queue == self.KUBERNETES_QUEUE:
             return self.kubernetes_executor

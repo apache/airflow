@@ -59,7 +59,6 @@ class SpannerHook(GoogleBaseHook):
 
         :param project_id: The ID of the Google Cloud project.
         :return: Client
-        :rtype: google.cloud.spanner_v1.client.Client
         """
         if not self._client:
             self._client = Client(
@@ -81,7 +80,6 @@ class SpannerHook(GoogleBaseHook):
             is used.
         :param instance_id: The ID of the Cloud Spanner instance.
         :return: Spanner instance
-        :rtype: google.cloud.spanner_v1.instance.Instance
         """
         instance = self._get_client(project_id=project_id).instance(instance_id=instance_id)
         if not instance.exists():
@@ -117,7 +115,7 @@ class SpannerHook(GoogleBaseHook):
             display_name=display_name,
         )
         try:
-            operation = func(instance)  # type: Operation
+            operation: Operation = func(instance)
         except GoogleAPICallError as e:
             self.log.error("An error occurred: %s. Exiting.", e.message)
             raise e
@@ -222,7 +220,6 @@ class SpannerHook(GoogleBaseHook):
             database. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
         :return: Database object or None if database does not exist
-        :rtype: google.cloud.spanner_v1.database.Database or None
         """
         instance = self._get_client(project_id=project_id).instance(instance_id=instance_id)
         if not instance.exists():
@@ -257,7 +254,7 @@ class SpannerHook(GoogleBaseHook):
             raise AirflowException(f"The instance {instance_id} does not exist in project {project_id} !")
         database = instance.database(database_id=database_id, ddl_statements=ddl_statements)
         try:
-            operation = database.create()  # type: Operation
+            operation: Operation = database.create()
         except GoogleAPICallError as e:
             self.log.error("An error occurred: %s. Exiting.", e.message)
             raise e
@@ -320,7 +317,6 @@ class SpannerHook(GoogleBaseHook):
             database. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
         :return: True if everything succeeded
-        :rtype: bool
         """
         instance = self._get_client(project_id=project_id).instance(instance_id=instance_id)
         if not instance.exists():

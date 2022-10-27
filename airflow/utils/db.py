@@ -911,7 +911,6 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
     Check unique conn_id in connection table
 
     :param session:  session of the sqlalchemy
-    :rtype: str
     """
     from airflow.models.connection import Connection
 
@@ -982,7 +981,6 @@ def check_table_for_duplicates(
     :param table_name: table name to check
     :param uniqueness: uniqueness constraint to evaluate against
     :param session:  session of the sqlalchemy
-    :rtype: str
     """
     minimal_table_obj = table(table_name, *[column(x) for x in uniqueness])
     try:
@@ -1024,7 +1022,6 @@ def check_conn_type_null(session: Session) -> Iterable[str]:
     Check nullable conn_type column in Connection table
 
     :param session:  session of the sqlalchemy
-    :rtype: str
     """
     from airflow.models.connection import Connection
 
@@ -1395,10 +1392,7 @@ def check_bad_references(session: Session) -> Iterable[str]:
 
 @provide_session
 def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
-    """
-    :session: session of the sqlalchemy
-    :rtype: list[str]
-    """
+    """:session: session of the sqlalchemy"""
     check_functions: tuple[Callable[..., Iterable[str]], ...] = (
         check_conn_id_duplicates,
         check_conn_type_null,
@@ -1444,14 +1438,13 @@ def _revision_greater(config, this_rev, base_rev):
         return False
 
 
-def _revisions_above_min_for_offline(config, revisions):
+def _revisions_above_min_for_offline(config, revisions) -> None:
     """
     Checks that all supplied revision ids are above the minimum revision for the dialect.
 
     :param config: Alembic config
     :param revisions: list of Alembic revision ids
     :return: None
-    :rtype: None
     """
     dbname = settings.engine.dialect.name
     if dbname == 'sqlite':
@@ -1488,7 +1481,6 @@ def upgradedb(
     :param show_sql_only: if True, migration statements will be printed but not executed.
     :param session: sqlalchemy session with connection to Airflow metadata database
     :return: None
-    :rtype: None
     """
     if from_revision and not show_sql_only:
         raise AirflowException("`from_revision` only supported with `sql_only=True`.")

@@ -123,7 +123,6 @@ class AzureFileShareHook(BaseHook):
         :param kwargs: Optional keyword arguments that
             `FileService.exists()` takes.
         :return: True if the file exists, False otherwise.
-        :rtype: bool
         """
         return self.get_conn().exists(share_name, directory_name, **kwargs)
 
@@ -137,7 +136,6 @@ class AzureFileShareHook(BaseHook):
         :param kwargs: Optional keyword arguments that
             `FileService.exists()` takes.
         :return: True if the file exists, False otherwise.
-        :rtype: bool
         """
         return self.get_conn().exists(share_name, directory_name, file_name, **kwargs)
 
@@ -152,7 +150,6 @@ class AzureFileShareHook(BaseHook):
         :param kwargs: Optional keyword arguments that
             `FileService.list_directories_and_files()` takes.
         :return: A list of files and directories
-        :rtype: list
         """
         return self.get_conn().list_directories_and_files(share_name, directory_name, **kwargs)
 
@@ -165,7 +162,6 @@ class AzureFileShareHook(BaseHook):
         :param kwargs: Optional keyword arguments that
             `FileService.list_directories_and_files()` takes.
         :return: A list of files
-        :rtype: list
         """
         return [
             obj.name
@@ -181,7 +177,6 @@ class AzureFileShareHook(BaseHook):
         :param kwargs: Optional keyword arguments that
             `FileService.create_share()` takes.
         :return: True if share is created, False if share already exists.
-        :rtype: bool
         """
         return self.get_conn().create_share(share_name, **kwargs)
 
@@ -193,7 +188,6 @@ class AzureFileShareHook(BaseHook):
         :param kwargs: Optional keyword arguments that
             `FileService.delete_share()` takes.
         :return: True if share is deleted, False if share does not exist.
-        :rtype: bool
         """
         return self.get_conn().delete_share(share_name, **kwargs)
 
@@ -206,7 +200,6 @@ class AzureFileShareHook(BaseHook):
         :param kwargs: Optional keyword arguments that
             `FileService.create_directory()` takes.
         :return: A list of files and directories
-        :rtype: list
         """
         return self.get_conn().create_directory(share_name, directory_name, **kwargs)
 

@@ -61,7 +61,6 @@ class WebHDFSHook(BaseHook):
         """
         Establishes a connection depending on the security mode set via config or environment variable.
         :return: a hdfscli InsecureClient or KerberosClient object.
-        :rtype: hdfs.InsecureClient or hdfs.ext.kerberos.KerberosClient
         """
         connection = self._find_valid_server()
         if connection is None:
@@ -125,7 +124,6 @@ class WebHDFSHook(BaseHook):
 
         :param hdfs_path: The path to check.
         :return: True if the path exists and False if not.
-        :rtype: bool
         """
         conn = self.get_conn()
 

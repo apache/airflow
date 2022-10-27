@@ -285,7 +285,7 @@ class BaseJinjaReferenceDirective(Directive):
 
         with switch_source_input(self.state, self.content):
             new_content = StringList(new_content.splitlines(), source="")
-            node = nodes.section()  # type: Element
+            node: Element = nodes.section()
             # necessary so that the child nodes get the right source/line set
             node.document = self.state.document
             nested_parse_with_titles(self.state, new_content, node)

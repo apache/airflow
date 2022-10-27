@@ -311,7 +311,7 @@ class DataprocMetastoreCreateMetadataImportOperator(BaseOperator):
         project_id: str,
         region: str,
         service_id: str,
-        metadata_import: MetadataImport,
+        metadata_import: dict | MetadataImport,
         metadata_import_id: str,
         request_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,

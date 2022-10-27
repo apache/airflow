@@ -744,7 +744,6 @@ class TaskInstance(Base, LoggingMixin):
         :param pool: the Airflow pool that the task should run in
         :param cfg_path: the Path to the configuration file
         :return: shell command that can be used to run the task instance
-        :rtype: list[str]
         """
         cmd = ["airflow", "tasks", "run", dag_id, task_id, run_id]
         if mark_success:
@@ -1283,7 +1282,6 @@ class TaskInstance(Base, LoggingMixin):
         :param external_executor_id: The identifier of the celery executor
         :param session: SQLAlchemy ORM Session
         :return: whether the state was changed to running or not
-        :rtype: bool
         """
         task = self.task
         self.refresh_from_task(task, pool_override=pool)

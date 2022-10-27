@@ -264,7 +264,6 @@ option_upgrade_to_newer_dependencies = click.option(
     envvar="UPGRADE_TO_NEWER_DEPENDENCIES",
 )
 option_upgrade_on_failure = click.option(
-    "-u",
     "--upgrade-on-failure",
     is_flag=True,
     help="When set, attempt to run upgrade to newer dependencies when regular build fails.",

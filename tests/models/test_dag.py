@@ -1556,7 +1556,7 @@ class TestDag:
         )
 
         assert len(dagruns) == 1
-        dagrun = dagruns[0]  # type: DagRun
+        dagrun: DagRun = dagruns[0]
         assert dagrun.state == dag_run_state
 
     @pytest.mark.parametrize("dag_run_state", [DagRunState.QUEUED, DagRunState.RUNNING])
@@ -1622,7 +1622,7 @@ class TestDag:
         )
 
         assert len(dagruns) == 1
-        dagrun = dagruns[0]  # type: DagRun
+        dagrun: DagRun = dagruns[0]
         assert dagrun.state == dag_run_state
 
     def test_dag_test_basic(self):
@@ -1837,7 +1837,7 @@ my_postgres_conn:
         )
 
         assert len(task_instances) == 1
-        task_instance = task_instances[0]  # type: TI
+        task_instance: TI = task_instances[0]
         assert task_instance.state == ti_state_end
         self._clean_up(dag_id)
 
