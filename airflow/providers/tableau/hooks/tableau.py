@@ -105,7 +105,6 @@ class TableauHook(BaseHook):
         Sign in to the Tableau Server.
 
         :return: an authorized Tableau Server Context Manager object.
-        :rtype: tableauserverclient.server.Auth.contextmgr
         """
         if self.conn.login and self.conn.password:
             return self._auth_via_password()
@@ -141,7 +140,6 @@ class TableauHook(BaseHook):
         :param resource_name: The name of the resource to paginate.
             For example: jobs or workbooks.
         :return: all items by returning a Pager.
-        :rtype: tableauserverclient.Pager
         """
         try:
             resource = getattr(self.server, resource_name)
@@ -156,7 +154,6 @@ class TableauHook(BaseHook):
 
         :param job_id: The id of the job to check.
         :return: An Enum that describe the Tableau job's return code
-        :rtype: TableauJobFinishCode
         """
         return TableauJobFinishCode(int(self.server.jobs.get_by_id(job_id).finish_code))
 
@@ -170,7 +167,6 @@ class TableauHook(BaseHook):
         :param check_interval: time in seconds that the job should wait in
             between each instance state checks until operation is completed
         :return: return True if the job is equal to the target_status, False otherwise.
-        :rtype: bool
         """
         finish_code = self.get_job_status(job_id=job_id)
         while finish_code == TableauJobFinishCode.PENDING and finish_code != target_state:

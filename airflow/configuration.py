@@ -829,7 +829,6 @@ class AirflowConfigParser(ConfigParser):
         as required.
 
         :param section: section from the config
-        :rtype: dict
         """
         if not self.has_section(section) and not self.airflow_defaults.has_section(section):
             return None
@@ -921,7 +920,6 @@ class AirflowConfigParser(ConfigParser):
         :param include_secret: Should the result of calling any *_secret config be
             set (True, default), or should the _secret options be left as the
             path to get the secret from (False)
-        :rtype: Dict[str, Dict[str, str]]
         :return: Dictionary, where the key is the name of the section and the content is
             the dictionary with the name of the parameter and its value.
         """
@@ -1087,7 +1085,6 @@ class AirflowConfigParser(ConfigParser):
             Source is either 'airflow.cfg', 'default', 'env var', or 'cmd'.
         :param getter_func: A callback function that gets the user configured
             override value for a particular sensitive_config_values config.
-        :rtype: None
         :return: None, the given config_sources is filtered if necessary,
             otherwise untouched.
         """

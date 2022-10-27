@@ -176,7 +176,6 @@ class SageMakerHook(AwsBaseHook):
         Extract the S3 operations from the configuration and execute them.
 
         :param config: config of SageMaker operation
-        :rtype: dict
         """
         s3_operations = config.pop("S3Operations", None)
 
@@ -196,7 +195,6 @@ class SageMakerHook(AwsBaseHook):
         Check if an S3 URL exists
 
         :param s3url: S3 url
-        :rtype: bool
         """
         bucket, key = S3Hook.parse_s3_url(s3url)
         if not self.s3_hook.check_for_bucket(bucket_name=bucket):

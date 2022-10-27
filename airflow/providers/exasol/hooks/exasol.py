@@ -216,7 +216,6 @@ class ExasolHook(DbApiHook):
 
         :param conn: Connection to get autocommit setting from.
         :return: connection autocommit setting.
-        :rtype: bool
         """
         autocommit = conn.attr.get("autocommit")
         if autocommit is None:
@@ -224,7 +223,7 @@ class ExasolHook(DbApiHook):
         return autocommit
 
     @staticmethod
-    def _serialize_cell(cell, conn=None) -> object:
+    def _serialize_cell(cell, conn=None) -> Any:
         """
         Exasol will adapt all arguments to the execute() method internally,
         hence we return cell without any conversion.
@@ -232,6 +231,5 @@ class ExasolHook(DbApiHook):
         :param cell: The cell to insert into the table
         :param conn: The database connection
         :return: The cell
-        :rtype: object
         """
         return cell

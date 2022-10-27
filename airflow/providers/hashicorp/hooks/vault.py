@@ -273,7 +273,6 @@ class VaultHook(BaseHook):
         """
         Retrieves connection to Vault.
 
-        :rtype: hvac.Client
         :return: connection used.
         """
         return self.vault_client.client
@@ -289,7 +288,6 @@ class VaultHook(BaseHook):
         and https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
 
         :param secret_path: Path of the secret
-        :rtype: dict
         :return: secret stored in the vault as a dictionary
         """
         return self.vault_client.get_secret(secret_path=secret_path, secret_version=secret_version)
@@ -299,7 +297,6 @@ class VaultHook(BaseHook):
         Reads secret metadata (including versions) from the engine. It is only valid for KV version 2.
 
         :param secret_path: Path to read from
-        :rtype: dict
         :return: secret metadata. This is a Dict containing metadata for the secret.
 
         See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
@@ -317,7 +314,6 @@ class VaultHook(BaseHook):
 
         :param secret_path: Path of the secret
         :param secret_version: Optional version of key to read - can only be used in case of version 2 of KV
-        :rtype: dict
         :return: key info. This is a Dict with "data" mapping keeping secret
             and "metadata" mapping keeping metadata of the secret.
 
@@ -341,7 +337,6 @@ class VaultHook(BaseHook):
             allowed. If set to 0 a write will only be allowed if the key doesn't exist.
             If the index is non-zero the write will only be allowed if the key's current version
             matches the version specified in the cas parameter. Only valid for KV engine version 2.
-        :rtype: requests.Response
         :return: The response of the create_or_update_secret request.
 
         See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v1.html

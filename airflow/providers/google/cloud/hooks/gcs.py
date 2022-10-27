@@ -119,7 +119,7 @@ def _fallback_object_url_to_object_name_and_bucket_name(
 
 
 # A fake bucket to use in functions decorated by _fallback_object_url_to_object_name_and_bucket_name.
-# This allows the 'bucket' argument to be of type str instead of Optional[str],
+# This allows the 'bucket' argument to be of type str instead of str | None,
 # making it easier to type hint the function body without dealing with the None
 # case that can never happen at runtime.
 PROVIDE_BUCKET: str = cast(str, None)

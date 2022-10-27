@@ -85,7 +85,6 @@ class GlueCatalogHook(AwsBaseHook):
         :param table_name: Name of hive table @partition belongs to
         :expression: Expression that matches the partitions to check for
             (eg `a = 'b' AND c = 'd'`)
-        :rtype: bool
 
         >>> hook = GlueCatalogHook()
         >>> t = 'static_babynames_partitioned'
@@ -102,7 +101,6 @@ class GlueCatalogHook(AwsBaseHook):
 
         :param database_name: Name of hive database (schema) @table belongs to
         :param table_name: Name of hive table
-        :rtype: dict
 
         >>> hook = GlueCatalogHook()
         >>> r = hook.get_table('db', 'table_foo')
@@ -134,7 +132,6 @@ class GlueCatalogHook(AwsBaseHook):
             Please see official AWS documentation for further information.
             https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api-catalog-partitions.html#aws-glue-api-catalog-partitions-GetPartition
 
-        :rtype: dict
 
         :raises: AirflowException
 
@@ -161,7 +158,6 @@ class GlueCatalogHook(AwsBaseHook):
             Please see official AWS documentation for further information.
             https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api-catalog-partitions.html#aws-glue-api-catalog-partitions-CreatePartition
 
-        :rtype: dict
 
         :raises: AirflowException
 

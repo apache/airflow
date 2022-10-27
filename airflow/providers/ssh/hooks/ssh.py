@@ -269,11 +269,7 @@ class SSHHook(BaseHook):
         return paramiko.ProxyCommand(cmd) if cmd else None
 
     def get_conn(self) -> paramiko.SSHClient:
-        """
-        Opens a ssh connection to the remote host.
-
-        :rtype: paramiko.client.SSHClient
-        """
+        """Opens a ssh connection to the remote host."""
         self.log.debug("Creating SSH client for conn_id: %s", self.ssh_conn_id)
         client = paramiko.SSHClient()
 
@@ -345,12 +341,12 @@ class SSHHook(BaseHook):
 
         if self.keepalive_interval:
             # MyPy check ignored because "paramiko" isn't well-typed. The `client.get_transport()` returns
-            # type "Optional[Transport]" and item "None" has no attribute "set_keepalive".
+            # type "Transport | None" and item "None" has no attribute "set_keepalive".
             client.get_transport().set_keepalive(self.keepalive_interval)  # type: ignore[union-attr]
 
         if self.ciphers:
             # MyPy check ignored because "paramiko" isn't well-typed. The `client.get_transport()` returns
-            # type "Optional[Transport]" and item "None" has no method `get_security_options`".
+            # type "Transport | None" and item "None" has no method `get_security_options`".
             client.get_transport().get_security_options().ciphers = self.ciphers  # type: ignore[union-attr]
 
         self.client = client
