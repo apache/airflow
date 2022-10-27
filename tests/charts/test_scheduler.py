@@ -125,7 +125,7 @@ class TestScheduler:
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+        assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.template.spec.containers[0].env", docs[0]
         )
 
@@ -141,7 +141,7 @@ class TestScheduler:
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+        assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.template.spec.initContainers[0].env", docs[0]
         )
 
@@ -166,9 +166,9 @@ class TestScheduler:
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
         values = {"scheduler": {}}
         if revision_history_limit:
-            values['scheduler']['revisionHistoryLimit'] = revision_history_limit
+            values["scheduler"]["revisionHistoryLimit"] = revision_history_limit
         if global_revision_history_limit:
-            values['revisionHistoryLimit'] = global_revision_history_limit
+            values["revisionHistoryLimit"] = global_revision_history_limit
         docs = render_chart(
             values=values,
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
@@ -357,8 +357,8 @@ class TestScheduler:
             values={
                 "scheduler": {
                     "resources": {
-                        "limits": {"cpu": "200m", 'memory': "128Mi"},
-                        "requests": {"cpu": "300m", 'memory': "169Mi"},
+                        "limits": {"cpu": "200m", "memory": "128Mi"},
+                        "requests": {"cpu": "300m", "memory": "169Mi"},
                     }
                 },
             },
@@ -687,7 +687,7 @@ class TestScheduler:
         )
 
         assert 1 == len(docs)
-        assert executor == docs[0]['metadata']['labels'].get('executor')
+        assert executor == docs[0]["metadata"]["labels"].get("executor")
 
 
 class TestSchedulerNetworkPolicy:

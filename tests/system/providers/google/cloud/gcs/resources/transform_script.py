@@ -21,7 +21,7 @@ import sys
 source = sys.argv[1]
 destination = sys.argv[2]
 
-print('Running script')
+print("Running script")
 with open(source) as src, open(destination, "w+") as dest:
     lines = [line.upper() for line in src.readlines()]
     print(lines)

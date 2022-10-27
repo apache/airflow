@@ -65,7 +65,7 @@ class DataplexTaskStateSensor(BaseSensorOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ['dataplex_task_id']
+    template_fields = ["dataplex_task_id"]
 
     def __init__(
         self,

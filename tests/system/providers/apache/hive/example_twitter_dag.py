@@ -78,12 +78,12 @@ def transfer_to_db():
 with DAG(
     dag_id=DAG_ID,
     default_args={
-        'owner': 'Ekhtiar',
-        'retries': 1,
+        "owner": "Ekhtiar",
+        "retries": 1,
     },
     schedule="@daily",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     fetch = fetch_tweets()
@@ -101,8 +101,8 @@ with DAG(
     # and hence they are kept separated in this example.
     # --------------------------------------------------------------------------------
 
-    from_channels = ['fromTwitter_A', 'fromTwitter_B', 'fromTwitter_C', 'fromTwitter_D']
-    to_channels = ['toTwitter_A', 'toTwitter_B', 'toTwitter_C', 'toTwitter_D']
+    from_channels = ["fromTwitter_A", "fromTwitter_B", "fromTwitter_C", "fromTwitter_D"]
+    to_channels = ["toTwitter_A", "toTwitter_B", "toTwitter_C", "toTwitter_D"]
     yesterday = date.today() - timedelta(days=1)
     dt = yesterday.strftime("%Y-%m-%d")
     # define where you want to store the tweets csv file in your local directory

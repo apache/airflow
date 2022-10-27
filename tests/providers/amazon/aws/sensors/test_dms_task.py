@@ -29,43 +29,43 @@ from airflow.providers.amazon.aws.sensors.dms import DmsTaskCompletedSensor
 class TestDmsTaskCompletedSensor(unittest.TestCase):
     def setUp(self):
         self.sensor = DmsTaskCompletedSensor(
-            task_id='test_dms_sensor',
-            aws_conn_id='aws_default',
-            replication_task_arn='task_arn',
+            task_id="test_dms_sensor",
+            aws_conn_id="aws_default",
+            replication_task_arn="task_arn",
         )
 
-    @mock.patch.object(DmsHook, 'get_task_status', side_effect=("stopped",))
+    @mock.patch.object(DmsHook, "get_task_status", side_effect=("stopped",))
     def test_poke_stopped(self, mock_get_task_status):
         assert self.sensor.poke(None)
 
-    @mock.patch.object(DmsHook, 'get_task_status', side_effect=("running",))
+    @mock.patch.object(DmsHook, "get_task_status", side_effect=("running",))
     def test_poke_running(self, mock_get_task_status):
         assert not self.sensor.poke(None)
 
-    @mock.patch.object(DmsHook, 'get_task_status', side_effect=("starting",))
+    @mock.patch.object(DmsHook, "get_task_status", side_effect=("starting",))
     def test_poke_starting(self, mock_get_task_status):
         assert not self.sensor.poke(None)
 
-    @mock.patch.object(DmsHook, 'get_task_status', side_effect=("ready",))
+    @mock.patch.object(DmsHook, "get_task_status", side_effect=("ready",))
     def test_poke_ready(self, mock_get_task_status):
         with pytest.raises(AirflowException) as ctx:
             self.sensor.poke(None)
-        assert 'Unexpected status: ready' in str(ctx.value)
+        assert "Unexpected status: ready" in str(ctx.value)
 
-    @mock.patch.object(DmsHook, 'get_task_status', side_effect=("creating",))
+    @mock.patch.object(DmsHook, "get_task_status", side_effect=("creating",))
     def test_poke_creating(self, mock_get_task_status):
         with pytest.raises(AirflowException) as ctx:
             self.sensor.poke(None)
-        assert 'Unexpected status: creating' in str(ctx.value)
+        assert "Unexpected status: creating" in str(ctx.value)
 
-    @mock.patch.object(DmsHook, 'get_task_status', side_effect=("failed",))
+    @mock.patch.object(DmsHook, "get_task_status", side_effect=("failed",))
     def test_poke_failed(self, mock_get_task_status):
         with pytest.raises(AirflowException) as ctx:
             self.sensor.poke(None)
-        assert 'Unexpected status: failed' in str(ctx.value)
+        assert "Unexpected status: failed" in str(ctx.value)
 
-    @mock.patch.object(DmsHook, 'get_task_status', side_effect=("deleting",))
+    @mock.patch.object(DmsHook, "get_task_status", side_effect=("deleting",))
     def test_poke_deleting(self, mock_get_task_status):
         with pytest.raises(AirflowException) as ctx:
             self.sensor.poke(None)
-        assert 'Unexpected status: deleting' in str(ctx.value)
+        assert "Unexpected status: deleting" in str(ctx.value)

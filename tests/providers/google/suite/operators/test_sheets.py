@@ -44,5 +44,5 @@ class TestGoogleSheetsCreateSpreadsheet:
 
         mock_hook.return_value.create_spreadsheet.assert_called_once_with(spreadsheet=spreadsheet)
 
-        assert op_execute_result['spreadsheetId'] == '1234567890'
-        assert op_execute_result['spreadsheetUrl'] == 'https://example/sheets'
+        assert op_execute_result["spreadsheetId"] == "1234567890"
+        assert op_execute_result["spreadsheetUrl"] == "https://example/sheets"

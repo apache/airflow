@@ -74,7 +74,7 @@ class DataplexCreateTaskOperator(BaseOperator):
         "delegate_to",
         "impersonation_chain",
     )
-    template_fields_renderers = {'body': 'json'}
+    template_fields_renderers = {"body": "json"}
     operator_extra_links = (DataplexTaskLink(),)
 
     def __init__(
@@ -143,7 +143,7 @@ class DataplexCreateTaskOperator(BaseOperator):
                 self.log.info("Is operation done already? %s", is_done)
                 return is_done
         except HttpError as err:
-            if err.resp.status not in (409, '409'):
+            if err.resp.status not in (409, "409"):
                 raise
             self.log.info("Task %s already exists", self.dataplex_task_id)
             # Wait for task to be ready
@@ -157,7 +157,7 @@ class DataplexCreateTaskOperator(BaseOperator):
                     timeout=self.timeout,
                     metadata=self.metadata,
                 )
-                if task['state'] != 'CREATING':
+                if task["state"] != "CREATING":
                     break
                 sleep(time_to_wait)
 

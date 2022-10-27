@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import os
 from time import monotonic, sleep
-from typing import Any, Dict, Optional, Sequence
+from typing import Any, Dict, Sequence
 from urllib.parse import quote, urlencode
 
 import google.auth
@@ -54,7 +54,7 @@ SUCCESS_STATES = [PipelineStates.COMPLETED]
 class DataFusionHook(GoogleBaseHook):
     """Hook for Google DataFusion."""
 
-    _conn = None  # type: Optional[Resource]
+    _conn: Resource | None = None
 
     def __init__(
         self,

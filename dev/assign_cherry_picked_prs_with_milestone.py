@@ -52,7 +52,7 @@ DOC_ONLY_CHANGES_FILE = "doc-only-changes.txt"
 EXCLUDED_CHANGES_FILE = "excluded-changes.txt"
 
 
-@click.group(context_settings={'help_option_names': ['-h', '--help'], 'max_content_width': 500})
+@click.group(context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 500})
 def cli():
     ...
 
@@ -95,7 +95,7 @@ option_github_token = click.option(
         Can be generated with:
         https://github.com/settings/tokens/new?description=Read%20Write%20isssues&scopes=repo"""
     ),
-    envvar='GITHUB_TOKEN',
+    envvar="GITHUB_TOKEN",
 )
 
 option_limit_pr_count = click.option(
@@ -185,7 +185,7 @@ def get_git_log_command(
         git_cmd.append(f"{from_commit}...{to_commit}")
     elif from_commit:
         git_cmd.append(from_commit)
-    git_cmd.extend(['--', '.'])
+    git_cmd.extend(["--", "."])
     if verbose:
         console.print(f"Command to run: '{' '.join(git_cmd)}'")
     return git_cmd
@@ -214,7 +214,7 @@ def get_change_from_line(line: str) -> Change:
         short_hash=split_line[1],
         date=split_line[2],
         message=message,
-        message_without_backticks=message.replace("`", "'").replace("&#39;", "'").replace('&amp;', "&"),
+        message_without_backticks=message.replace("`", "'").replace("&#39;", "'").replace("&amp;", "&"),
         pr=int(pr) if pr else None,
     )
 
@@ -293,7 +293,7 @@ def assign_prs(
         if pr_number is None:
             # Should not happen but MyPy is not happy
             continue
-        console.print('-' * 80)
+        console.print("-" * 80)
         console.print(
             f"\n >>>> Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
         )

@@ -34,13 +34,13 @@ There are four ways to connect to Azure Blob Storage using Airflow.
    i.e. add specific credentials (client_id, secret, tenant) and subscription id to the Airflow connection.
 2. Use `Azure Shared Key Credential
    <https://docs.microsoft.com/en-us/rest/api/storageservices/authorize-with-shared-key>`_
-   i.e. add shared key credentials to ``extra__wasb__shared_access_key`` the Airflow connection.
+   i.e. add shared key credentials to ``shared_access_key`` the Airflow connection.
 3. Use a `SAS Token
    <https://docs.microsoft.com/en-us/rest/api/storageservices/create-account-sas>`_
-   i.e. add a key config to ``extra__wasb__sas_token`` in the Airflow connection.
+   i.e. add a key config to ``sas_token`` in the Airflow connection.
 4. Use a `Connection String
    <https://docs.microsoft.com/en-us/azure/data-explorer/kusto/api/connection-strings/storage>`_
-   i.e. add connection string to ``extra__wasb__connection_string`` in the Airflow connection.
+   i.e. add connection string to ``connection_string`` in the Airflow connection.
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
 configure multiple connections.
@@ -67,10 +67,10 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in Azure connection.
     The following parameters are all optional:
 
-    * ``extra__wasb__tenant_id``: Specify the tenant to use. Needed for Active Directory (token) authentication.
-    * ``extra__wasb__shared_access_key``: Specify the shared access key. Needed for shared access key authentication.
-    * ``extra__wasb__connection_string``: Connection string for use with connection string authentication.
-    * ``extra__wasb__sas_token``: SAS Token for use with SAS Token authentication.
+    * ``tenant_id``: Specify the tenant to use. Needed for Active Directory (token) authentication.
+    * ``shared_access_key``: Specify the shared access key. Needed for shared access key authentication.
+    * ``connection_string``: Connection string for use with connection string authentication.
+    * ``sas_token``: SAS Token for use with SAS Token authentication.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.

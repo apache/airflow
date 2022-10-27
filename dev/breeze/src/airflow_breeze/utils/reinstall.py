@@ -37,7 +37,7 @@ def reinstall_breeze(breeze_sources: Path, re_run: bool = True):
     get_console().print(f"\n[info]Reinstalling Breeze from {breeze_sources}\n")
     subprocess.check_call(["pipx", "install", "-e", str(breeze_sources), "--force"])
     if re_run:
-        os.execl(sys.executable, 'breeze', *sys.argv)
+        os.execl(sys.executable, "breeze", *sys.argv)
     get_console().print(f"\n[info]Breeze has been reinstalled from {breeze_sources}. Exiting now.[/]\n\n")
     sys.exit(0)
 

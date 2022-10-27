@@ -67,8 +67,8 @@ class CustomJobHook(GoogleBaseHook):
         region: str | None = None,
     ) -> PipelineServiceClient:
         """Returns PipelineServiceClient."""
-        if region and region != 'global':
-            client_options = ClientOptions(api_endpoint=f'{region}-aiplatform.googleapis.com:443')
+        if region and region != "global":
+            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
             client_options = ClientOptions()
         return PipelineServiceClient(
@@ -80,8 +80,8 @@ class CustomJobHook(GoogleBaseHook):
         region: str | None = None,
     ) -> JobServiceClient:
         """Returns JobServiceClient"""
-        if region and region != 'global':
-            client_options = ClientOptions(api_endpoint=f'{region}-aiplatform.googleapis.com:443')
+        if region and region != "global":
+            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
             client_options = ClientOptions()
 
@@ -366,7 +366,7 @@ class CustomJobHook(GoogleBaseHook):
 
         client.cancel_pipeline_job(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -405,7 +405,7 @@ class CustomJobHook(GoogleBaseHook):
 
         client.cancel_training_pipeline(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -444,7 +444,7 @@ class CustomJobHook(GoogleBaseHook):
 
         client.cancel_custom_job(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -481,9 +481,9 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.create_pipeline_job(
             request={
-                'parent': parent,
-                'pipeline_job': pipeline_job,
-                'pipeline_job_id': pipeline_job_id,
+                "parent": parent,
+                "pipeline_job": pipeline_job,
+                "pipeline_job_id": pipeline_job_id,
             },
             retry=retry,
             timeout=timeout,
@@ -516,8 +516,8 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.create_training_pipeline(
             request={
-                'parent': parent,
-                'training_pipeline': training_pipeline,
+                "parent": parent,
+                "training_pipeline": training_pipeline,
             },
             retry=retry,
             timeout=timeout,
@@ -551,8 +551,8 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.create_custom_job(
             request={
-                'parent': parent,
-                'custom_job': custom_job,
+                "parent": parent,
+                "custom_job": custom_job,
             },
             retry=retry,
             timeout=timeout,
@@ -1658,7 +1658,7 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.delete_pipeline_job(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -1691,7 +1691,7 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.delete_training_pipeline(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -1724,7 +1724,7 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.delete_custom_job(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -1757,7 +1757,7 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.get_pipeline_job(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -1790,7 +1790,7 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.get_training_pipeline(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -1823,7 +1823,7 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.get_custom_job(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -1907,11 +1907,11 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.list_pipeline_jobs(
             request={
-                'parent': parent,
-                'page_size': page_size,
-                'page_token': page_token,
-                'filter': filter,
-                'order_by': order_by,
+                "parent": parent,
+                "page_size": page_size,
+                "page_token": page_token,
+                "filter": filter,
+                "order_by": order_by,
             },
             retry=retry,
             timeout=timeout,
@@ -1968,11 +1968,11 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.list_training_pipelines(
             request={
-                'parent': parent,
-                'page_size': page_size,
-                'page_token': page_token,
-                'filter': filter,
-                'read_mask': read_mask,
+                "parent": parent,
+                "page_size": page_size,
+                "page_token": page_token,
+                "filter": filter,
+                "read_mask": read_mask,
             },
             retry=retry,
             timeout=timeout,
@@ -2029,11 +2029,11 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.list_custom_jobs(
             request={
-                'parent': parent,
-                'page_size': page_size,
-                'page_token': page_token,
-                'filter': filter,
-                'read_mask': read_mask,
+                "parent": parent,
+                "page_size": page_size,
+                "page_token": page_token,
+                "filter": filter,
+                "read_mask": read_mask,
             },
             retry=retry,
             timeout=timeout,

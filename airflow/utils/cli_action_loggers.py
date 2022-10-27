@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Callable, List
+from typing import Callable
 
 
 def register_pre_exec_callback(action_logger):
@@ -125,8 +125,8 @@ def default_action_log(sub_command, user, task_id, dag_id, execution_date, host_
         logging.warning("Failed to log action with %s", error)
 
 
-__pre_exec_callbacks = []  # type: List[Callable]
-__post_exec_callbacks = []  # type: List[Callable]
+__pre_exec_callbacks: list[Callable] = []
+__post_exec_callbacks: list[Callable] = []
 
 # By default, register default action log into pre-execution callback
 register_pre_exec_callback(default_action_log)

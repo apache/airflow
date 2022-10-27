@@ -67,13 +67,13 @@ class SlackWebhookOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'webhook_token',
-        'message',
-        'attachments',
-        'blocks',
-        'channel',
-        'username',
-        'proxy',
+        "webhook_token",
+        "message",
+        "attachments",
+        "blocks",
+        "channel",
+        "username",
+        "proxy",
     )
 
     def __init__(
@@ -95,7 +95,7 @@ class SlackWebhookOperator(BaseOperator):
         http_conn_id = kwargs.pop("http_conn_id", None)
         if http_conn_id:
             warnings.warn(
-                'Parameter `http_conn_id` is deprecated. Please use `slack_webhook_conn_id` instead.',
+                "Parameter `http_conn_id` is deprecated. Please use `slack_webhook_conn_id` instead.",
                 DeprecationWarning,
                 stacklevel=2,
             )
