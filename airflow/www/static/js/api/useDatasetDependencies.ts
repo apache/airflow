@@ -113,7 +113,7 @@ const findDownstreamGraph = (
           edges: [...newGraphs[i].edges, e],
         };
         filteredEdges = filteredEdges
-          .filter((fe) => fe.source !== e.source && fe.target !== e.target);
+          .filter((fe) => !(fe.source === e.source && fe.target === e.target));
       }
     });
   });
@@ -125,7 +125,10 @@ const findDownstreamGraph = (
       values.forEach((v) => {
         newGraphs[realKey] = {
           nodes: unionBy(newGraphs[realKey].nodes, newGraphs[v].nodes, 'id'),
-          edges: [...newGraphs[realKey].edges, ...newGraphs[v].edges],
+          edges: [...newGraphs[realKey].edges, ...newGraphs[v].edges]
+            .filter((e, i, s) => (
+              i === s.findIndex((t) => t.source === e.source && t.target === e.target)
+            )),
         };
       });
     });
