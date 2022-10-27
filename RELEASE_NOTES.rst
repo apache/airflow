@@ -158,7 +158,7 @@ pass a list of 1 or more Datasets:
 
 ..  code-block:: python
 
-    with DAG(dag_id='dataset-consmer', schedule=[dataset]):
+    with DAG(dag_id='dataset-consumer', schedule=[dataset]):
         ...
 
 And to mark a task as producing a dataset pass the dataset(s) to the ``outlets`` attribute:
