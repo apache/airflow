@@ -1825,6 +1825,10 @@ dags:
     # interval between git sync attempts in seconds
     wait: 60
     containerName: git-sync
+    # If you need write permission to dir with dags, you can additionally
+    # specify uid the same as for airflow user
+    readOnly: true
+
     uid: 65533
 
     # When not set, the values defined in the global securityContext will be used

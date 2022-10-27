@@ -5249,6 +5249,11 @@
                                 }
                             ]
                         },
+                        "readOnly": {
+                            "description": "Manage write access to a directory with dags, when gitSync enabled.",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "uid": {
                             "description": "Git sync container run as user parameter.",
                             "type": "integer",
