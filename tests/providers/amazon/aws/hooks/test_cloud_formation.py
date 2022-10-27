@@ -18,19 +18,14 @@
 from __future__ import annotations
 
 import json
-import unittest
+
+from moto import mock_cloudformation
 
 from airflow.providers.amazon.aws.hooks.cloud_formation import CloudFormationHook
 
-try:
-    from moto import mock_cloudformation
-except ImportError:
-    mock_cloudformation = None
 
-
-@unittest.skipIf(mock_cloudformation is None, "moto package not present")
-class TestCloudFormationHook(unittest.TestCase):
-    def setUp(self):
+class TestCloudFormationHook:
+    def setup_method(self):
         self.hook = CloudFormationHook(aws_conn_id="aws_default")
 
     def create_stack(self, stack_name):
