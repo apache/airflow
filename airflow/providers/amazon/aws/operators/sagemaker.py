@@ -747,3 +747,23 @@ class SageMakerDeleteModelOperator(SageMakerBaseOperator):
         sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         sagemaker_hook.delete_model(model_name=self.config["ModelName"])
         self.log.info("Model %s deleted successfully.", self.config["ModelName"])
+
+
+class SageMakerStopPipelineOperator(SageMakerBaseOperator):
+    """
+    Stops a SageMaker pipeline execution.
+
+    :param config: The configuration to stop the pipeline execution.
+        Should contain the targeted PipelineExecutionArn (Amazon Resource Number)
+    :param aws_conn_id: The AWS connection ID to use.
+    """
+
+    def __init__(self, *, config: dict, aws_conn_id: str = DEFAULT_CONN_ID, **kwargs):
+        super().__init__(config=config, **kwargs)
+        self.aws_conn_id = aws_conn_id
+
+    def execute(self, _: Context) -> dict:
+        status = self.hook.stop_pipeline(pipeline_exec_arn=self.config['PipelineExecutionArn'])
+        self.log.info("Stop requested for pipeline execution with ARN %s. Status is now %s",
+                      self.config['PipelineExecutionArn'], status)
+        return {"Status": status}

@@ -710,3 +710,13 @@ class TestSageMakerHook:
         ex = raised_exception.value
         assert ex.operation_name == "DeleteModel"
         assert ex.response["ResponseMetadata"]["HTTPStatusCode"] == 404
+
+    @patch('airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn', new_callable=mock.PropertyMock)
+    def test_stop_pipeline_returns_status(self, mock_conn):
+        mock_conn().describe_pipeline_execution.return_value = {"PipelineExecutionStatus": "Stopped"}
+
+        hook = SageMakerHook(aws_conn_id='aws_default')
+        pipeline_status = hook.stop_pipeline(pipeline_exec_arn='test')
+
+        assert pipeline_status == "Stopped"
+        mock_conn().stop_pipeline_execution.assert_called_once_with(PipelineExecutionArn="test")

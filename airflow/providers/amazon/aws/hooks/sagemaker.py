@@ -993,3 +993,20 @@ class SageMakerHook(AwsBaseHook):
         except Exception as general_error:
             self.log.error("Failed to delete model, error: %s", general_error)
             raise
+
+    def stop_pipeline(self, pipeline_exec_arn: str) -> str:
+        """Stop SageMaker pipeline
+
+        :param pipeline_exec_arn: Amazon Resource Name (ARN) of the pipeline execution.
+            Note that this is different from the ARN of the pipeline itself.
+        :return: status of the pipeline execution after the operation.
+            One of 'Executing'|'Stopping'|'Stopped'|'Failed'|'Succeeded'.
+        """
+        conn = self.conn
+        try:
+            conn.stop_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
+        except conn.exceptions.ResourceNotFound as not_found_error:
+            self.log.error("Can't find pipeline %s: %s", pipeline_exec_arn, not_found_error)
+            raise
+        res = conn.describe_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
+        return res["PipelineExecutionStatus"]
