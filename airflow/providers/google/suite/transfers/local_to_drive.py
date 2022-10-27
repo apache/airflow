@@ -64,7 +64,6 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account
     :return: Remote file ids after upload
-    :rtype: Sequence[str]
     """
 
     template_fields = (

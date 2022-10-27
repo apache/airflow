@@ -432,7 +432,6 @@ class DockerOperator(BaseOperator):
         :param command: Docker command or entrypoint
 
         :return: the command (or commands)
-        :rtype: str | List[str]
         """
         if isinstance(command, str) and command.strip().find("[") == 0:
             return ast.literal_eval(command)

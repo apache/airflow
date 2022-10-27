@@ -125,7 +125,6 @@ class LivyOperator(BaseOperator):
         Get valid hook.
 
         :return: hook
-        :rtype: LivyHook
         """
         if self._livy_hook is None or not isinstance(self._livy_hook, LivyHook):
             self._livy_hook = LivyHook(

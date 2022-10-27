@@ -1038,7 +1038,7 @@ class DAG(LoggingMixin):
                 )
                 break
 
-    def get_run_dates(self, start_date, end_date=None):
+    def get_run_dates(self, start_date, end_date=None) -> list:
         """
         Returns a list of dates between the interval received as parameter using this
         dag's schedule interval. Returned dates can be used for execution dates.
@@ -1046,7 +1046,6 @@ class DAG(LoggingMixin):
         :param start_date: The start date of the interval.
         :param end_date: The end date of the interval. Defaults to ``timezone.utcnow()``.
         :return: A list of dates within the interval following the dag's schedule.
-        :rtype: list
         """
         warnings.warn(
             "`DAG.get_run_dates()` is deprecated. Please use `DAG.iter_dagrun_infos_between()` instead.",
@@ -1231,7 +1230,6 @@ class DAG(LoggingMixin):
         Return list of all owners found in DAG tasks.
 
         :return: Comma separated list of owners in DAG tasks
-        :rtype: str
         """
         return ", ".join({t.owner for t in self.tasks})
 
@@ -2935,7 +2933,7 @@ class DAG(LoggingMixin):
 
     @staticmethod
     @provide_session
-    def get_num_task_instances(dag_id, task_ids=None, states=None, session=NEW_SESSION):
+    def get_num_task_instances(dag_id, task_ids=None, states=None, session=NEW_SESSION) -> int:
         """
         Returns the number of task instances in the given DAG.
 
@@ -2944,7 +2942,6 @@ class DAG(LoggingMixin):
         :param task_ids: A list of valid task IDs for the given DAG
         :param states: A list of states to filter by if supplied
         :return: The number of running tasks
-        :rtype: int
         """
         qry = session.query(func.count(TaskInstance.task_id)).filter(
             TaskInstance.dag_id == dag_id,

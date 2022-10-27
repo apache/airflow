@@ -17,20 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import boto3
 import pytest
 from botocore.exceptions import ClientError
+from moto import mock_glue
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
-
-try:
-    from moto import mock_glue
-except ImportError:
-    mock_glue = None
 
 DB_NAME = "db"
 TABLE_NAME = "table"
@@ -46,29 +41,24 @@ PARTITION_INPUT: dict = {
 }
 
 
-@unittest.skipIf(mock_glue is None, "Skipping test because moto.mock_glue is not available")
-class TestGlueCatalogHook(unittest.TestCase):
-    @mock_glue
-    def setUp(self):
+@mock_glue
+class TestGlueCatalogHook:
+    def setup_method(self, method):
         self.client = boto3.client("glue", region_name="us-east-1")
         self.hook = GlueCatalogHook(region_name="us-east-1")
 
-    @mock_glue
     def test_get_conn_returns_a_boto3_connection(self):
         hook = GlueCatalogHook(region_name="us-east-1")
         assert hook.get_conn() is not None
 
-    @mock_glue
     def test_conn_id(self):
         hook = GlueCatalogHook(aws_conn_id="my_aws_conn_id", region_name="us-east-1")
         assert hook.aws_conn_id == "my_aws_conn_id"
 
-    @mock_glue
     def test_region(self):
         hook = GlueCatalogHook(region_name="us-west-2")
         assert hook.region_name == "us-west-2"
 
-    @mock_glue
     @mock.patch.object(GlueCatalogHook, "get_conn")
     def test_get_partitions_empty(self, mock_get_conn):
         response = set()
@@ -77,7 +67,6 @@ class TestGlueCatalogHook(unittest.TestCase):
 
         assert hook.get_partitions("db", "tbl") == set()
 
-    @mock_glue
     @mock.patch.object(GlueCatalogHook, "get_conn")
     def test_get_partitions(self, mock_get_conn):
         response = [{"Partitions": [{"Values": ["2015-01-01"]}]}]
@@ -98,7 +87,6 @@ class TestGlueCatalogHook(unittest.TestCase):
             PaginationConfig={"PageSize": 2, "MaxItems": 3},
         )
 
-    @mock_glue
     @mock.patch.object(GlueCatalogHook, "get_partitions")
     def test_check_for_partition(self, mock_get_partitions):
         mock_get_partitions.return_value = {("2018-01-01",)}
@@ -107,7 +95,6 @@ class TestGlueCatalogHook(unittest.TestCase):
         assert hook.check_for_partition("db", "tbl", "expr")
         mock_get_partitions.assert_called_once_with("db", "tbl", "expr", max_items=1)
 
-    @mock_glue
     @mock.patch.object(GlueCatalogHook, "get_partitions")
     def test_check_for_partition_false(self, mock_get_partitions):
         mock_get_partitions.return_value = set()
@@ -115,7 +102,6 @@ class TestGlueCatalogHook(unittest.TestCase):
 
         assert not hook.check_for_partition("db", "tbl", "expr")
 
-    @mock_glue
     def test_get_table_exists(self):
         self.client.create_database(DatabaseInput={"Name": DB_NAME})
         self.client.create_table(DatabaseName=DB_NAME, TableInput=TABLE_INPUT)
@@ -125,7 +111,6 @@ class TestGlueCatalogHook(unittest.TestCase):
         assert result["Name"] == TABLE_INPUT["Name"]
         assert result["StorageDescriptor"]["Location"] == TABLE_INPUT["StorageDescriptor"]["Location"]
 
-    @mock_glue
     def test_get_table_not_exists(self):
         self.client.create_database(DatabaseInput={"Name": DB_NAME})
         self.client.create_table(DatabaseName=DB_NAME, TableInput=TABLE_INPUT)
@@ -133,7 +118,6 @@ class TestGlueCatalogHook(unittest.TestCase):
         with pytest.raises(Exception):
             self.hook.get_table(DB_NAME, "dummy_table")
 
-    @mock_glue
     def test_get_table_location(self):
         self.client.create_database(DatabaseInput={"Name": DB_NAME})
         self.client.create_table(DatabaseName=DB_NAME, TableInput=TABLE_INPUT)
@@ -141,7 +125,6 @@ class TestGlueCatalogHook(unittest.TestCase):
         result = self.hook.get_table_location(DB_NAME, TABLE_NAME)
         assert result == TABLE_INPUT["StorageDescriptor"]["Location"]
 
-    @mock_glue
     def test_get_partition(self):
         self.client.create_database(DatabaseInput={"Name": DB_NAME})
         self.client.create_table(DatabaseName=DB_NAME, TableInput=TABLE_INPUT)
@@ -155,7 +138,6 @@ class TestGlueCatalogHook(unittest.TestCase):
         assert result["DatabaseName"] == DB_NAME
         assert result["TableName"] == TABLE_INPUT["Name"]
 
-    @mock_glue
     @mock.patch.object(GlueCatalogHook, "get_conn")
     def test_get_partition_with_client_error(self, mocked_connection):
         mocked_client = mock.Mock()
@@ -169,7 +151,6 @@ class TestGlueCatalogHook(unittest.TestCase):
             DatabaseName=DB_NAME, TableName=TABLE_NAME, PartitionValues=PARTITION_INPUT["Values"]
         )
 
-    @mock_glue
     def test_create_partition(self):
         self.client.create_database(DatabaseInput={"Name": DB_NAME})
         self.client.create_table(DatabaseName=DB_NAME, TableInput=TABLE_INPUT)
@@ -178,7 +159,6 @@ class TestGlueCatalogHook(unittest.TestCase):
 
         assert result
 
-    @mock_glue
     @mock.patch.object(GlueCatalogHook, "get_conn")
     def test_create_partition_with_client_error(self, mocked_connection):
         mocked_client = mock.Mock()

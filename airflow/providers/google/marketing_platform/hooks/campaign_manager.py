@@ -18,7 +18,7 @@
 """This module contains Google Campaign Manager hook."""
 from __future__ import annotations
 
-from typing import Any, Optional, Sequence
+from typing import Any, Sequence
 
 from googleapiclient import http
 from googleapiclient.discovery import Resource, build
@@ -30,7 +30,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 class GoogleCampaignManagerHook(GoogleBaseHook):
     """Hook for Google Campaign Manager."""
 
-    _conn = None  # type: Optional[Resource]
+    _conn: Resource | None = None
 
     def __init__(
         self,

@@ -92,7 +92,7 @@ def md5sum_check_if_build_is_needed(md5sum_cache_dir: Path) -> bool:
     Checks if build is needed based on whether important files were modified.
 
     :param md5sum_cache_dir: directory where cached md5 sums are stored
-    :param verbose: should we print verbose information
+
     :return: True if build is needed.
     """
     build_needed = False

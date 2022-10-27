@@ -92,7 +92,6 @@ class DataSyncHook(AwsBaseHook):
         :param bool case_sensitive: Do a case sensitive search for location URI.
         :param bool ignore_trailing_slash: Ignore / at the end of URI when matching.
         :return: List of LocationArns.
-        :rtype: list(str)
         :raises AirflowBadRequest: if ``location_uri`` is empty
         """
         if not location_uri:
@@ -139,7 +138,6 @@ class DataSyncHook(AwsBaseHook):
         :param str destination_location_arn: Destination LocationArn. Must exist already.
         :param create_task_kwargs: Passed to ``boto.create_task()``. See AWS boto3 datasync documentation.
         :return: TaskArn of the created Task
-        :rtype: str
         """
         task = self.get_conn().create_task(
             SourceLocationArn=source_location_arn,
@@ -190,7 +188,6 @@ class DataSyncHook(AwsBaseHook):
         :param list source_location_arns: List of source LocationArns.
         :param list destination_location_arns: List of destination LocationArns.
         :return: list
-        :rtype: list(TaskArns)
         :raises AirflowBadRequest: if ``source_location_arns`` or ``destination_location_arns`` are empty.
         """
         if not source_location_arns:
@@ -217,7 +214,6 @@ class DataSyncHook(AwsBaseHook):
         :param str task_arn: TaskArn
         :return: TaskExecutionArn
         :param kwargs: kwargs sent to ``boto3.start_task_execution()``
-        :rtype: str
         :raises ClientError: If a TaskExecution is already busy running for this ``task_arn``.
         :raises AirflowBadRequest: If ``task_arn`` is empty.
         """
@@ -243,7 +239,6 @@ class DataSyncHook(AwsBaseHook):
 
         :param str task_arn: TaskArn
         :return: AWS metadata about a task.
-        :rtype: dict
         :raises AirflowBadRequest: If ``task_arn`` is empty.
         """
         if not task_arn:
@@ -256,7 +251,6 @@ class DataSyncHook(AwsBaseHook):
 
         :param str task_execution_arn: TaskExecutionArn
         :return: AWS metadata about a task execution.
-        :rtype: dict
         :raises AirflowBadRequest: If ``task_execution_arn`` is empty.
         """
         return self.get_conn().describe_task_execution(TaskExecutionArn=task_execution_arn)
@@ -267,7 +261,6 @@ class DataSyncHook(AwsBaseHook):
 
         :param str task_arn: TaskArn
         :return: CurrentTaskExecutionArn for this ``task_arn`` or None.
-        :rtype: str
         :raises AirflowBadRequest: if ``task_arn`` is empty.
         """
         if not task_arn:
@@ -285,7 +278,6 @@ class DataSyncHook(AwsBaseHook):
         :param str task_execution_arn: TaskExecutionArn
         :param int max_iterations: Maximum number of iterations before timing out.
         :return: Result of task execution.
-        :rtype: bool
         :raises AirflowTaskTimeout: If maximum iterations is exceeded.
         :raises AirflowBadRequest: If ``task_execution_arn`` is empty.
         """

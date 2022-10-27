@@ -103,13 +103,11 @@ class HiveOperator(BaseOperator):
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
 
-        job_name_template = conf.get(
+        job_name_template = conf.get_mandatory_value(
             "hive",
             "mapred_job_name_template",
             fallback="Airflow HiveOperator task for {hostname}.{dag_id}.{task_id}.{execution_date}",
         )
-        if job_name_template is None:
-            raise ValueError("Job name template should be set !")
         self.mapred_job_name_template: str = job_name_template
 
         # assigned lazily - just for consistency we can create the attribute with a

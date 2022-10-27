@@ -48,14 +48,11 @@ def generate_presto_client_info() -> str:
         )
         for format_map in AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()
     }
-    # try_number isn't available in context for airflow < 2.2.5
-    # https://github.com/apache/airflow/issues/23059
-    try_number = context_var.get("try_number", "")
     task_info = {
         "dag_id": context_var["dag_id"],
         "task_id": context_var["task_id"],
         "execution_date": context_var["execution_date"],
-        "try_number": try_number,
+        "try_number": context_var["try_number"],
         "dag_run_id": context_var["dag_run_id"],
         "dag_owner": context_var["dag_owner"],
     }
