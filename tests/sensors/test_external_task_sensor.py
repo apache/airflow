@@ -442,7 +442,6 @@ exit 0
         except AirflowException as ex:
             assert type(ex) == AirflowException
 
-
     def test_external_task_sensor_delta(self):
         self.add_time_sensor()
         op = ExternalTaskSensor(
