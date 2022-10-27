@@ -213,6 +213,30 @@ or if you need to deserialize a json object from the variable :
 
     {{ var.json.<variable_name> }}
 
+Ensure use variable with template in operator, not get it in top level code.
+
+Bad example:
+
+.. code-block:: python
+
+    from airflow.models import Variable
+
+    foo_var = Variable.get("foo")
+    bash_use_variable_bad = BashOperator(
+        task_id="bash_use_variable_bad", bash_command="echo variable foo=${foo_env}", env={"foo_env": foo_var}
+    )
+
+Good example:
+
+.. code-block:: python
+
+    bash_use_variable_good = BashOperator(
+        task_id="bash_use_variable_good",
+        bash_command="echo variable foo=${foo_env}",
+        env={"foo_env": "{{ var.value.get('foo') }}"},
+    )
+
+
 For security purpose, you're recommended to use the :ref:`Secrets Backend<secrets_backend_configuration>`
 for any variable that contains sensitive data.
 
