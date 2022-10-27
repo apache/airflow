@@ -119,12 +119,6 @@ option_github_token = click.option(
     envvar="GITHUB_TOKEN",
 )
 
-option_verbose = click.option(
-    "--verbose",
-    is_flag=True,
-    help="Print verbose information about performed steps",
-)
-
 option_dry_run = click.option(
     "--dry-run",
     is_flag=True,
@@ -188,11 +182,9 @@ option_start_from = click.option(
 @option_github_token
 @option_max_issues
 @option_start_from
-@option_verbose
 @cli.command()
 def prepare_bulk_issues(
     github_token: str,
-    verbose: bool,
     max_issues: int | None,
     dry_run: bool,
     template_file: str,

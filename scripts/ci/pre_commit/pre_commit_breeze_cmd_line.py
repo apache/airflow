@@ -30,8 +30,6 @@ BREEZE_IMAGES_DIR = AIRFLOW_SOURCES_DIR / "images" / "breeze"
 BREEZE_INSTALL_DIR = AIRFLOW_SOURCES_DIR / "dev" / "breeze"
 BREEZE_SOURCES_DIR = BREEZE_INSTALL_DIR / "src"
 FORCE = os.environ.get("FORCE", "false")[0].lower() == "t"
-VERBOSE = os.environ.get("VERBOSE", "false")[0].lower() == "t"
-DRY_RUN = os.environ.get("DRY_RUN", "false")[0].lower() == "t"
 
 console = Console(width=400, color_system="standard")
 

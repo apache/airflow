@@ -37,6 +37,7 @@ from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
 RunCommandResult = Union[subprocess.CompletedProcess, subprocess.CalledProcessError]
 
@@ -48,13 +49,13 @@ def run_command(
     title: str | None = None,
     *,
     check: bool = True,
-    verbose: bool = False,
-    dry_run: bool = False,
     no_output_dump_on_exception: bool = False,
     env: Mapping[str, str] | None = None,
     cwd: Path | None = None,
     input: str | None = None,
     output: Output | None = None,
+    verbose_override: bool | None = None,
+    dry_run_override: bool | None = None,
     **kwargs,
 ) -> RunCommandResult:
     """
@@ -71,13 +72,13 @@ def run_command(
     :param cmd: command to run
     :param title: optional title for the command (otherwise likely title is automatically determined)
     :param check: whether to check status value and run exception (same as POpem)
-    :param verbose: print commands when running
-    :param dry_run: do not execute "the" command - just print what would happen
     :param no_output_dump_on_exception: whether to suppress printing logs from output when command fails
     :param env: mapping of environment variables to set for the run command
     :param cwd: working directory to set for the command
     :param input: input string to pass to stdin of the process
     :param output: redirects stderr/stdout to Output if set to Output class.
+    :param verbose_override: override verbose parameter with the one specified if not None.
+    :param dry_run_override: override dry_run parameter with the one specified if not None.
     :param kwargs: kwargs passed to POpen
     """
 
@@ -123,7 +124,7 @@ def run_command(
             kwargs["stderr"] = subprocess.STDOUT
     command_to_print = " ".join(shlex.quote(c) for c in cmd)
     env_to_print = get_environments_to_print(env)
-    if not verbose and not dry_run:
+    if not get_verbose(verbose_override) and not get_dry_run(dry_run_override):
         return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
     with ci_group(title=f"Running command: {title}", message_type=None):
         get_console(output=output).print(f"\n[info]Working directory {workdir}\n")
@@ -135,8 +136,8 @@ def run_command(
         get_console(output=output).print(
             f"\n[info]{env_to_print}{escape(command_to_print)}[/]\n", soft_wrap=True
         )
-        if dry_run:
-            return subprocess.CompletedProcess(cmd, returncode=0)
+        if get_dry_run(dry_run_override):
+            return subprocess.CompletedProcess(cmd, returncode=0, stdout="", stderr="")
         try:
             return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
         except subprocess.CalledProcessError as ex:
@@ -180,10 +181,10 @@ def get_environments_to_print(env: Mapping[str, str] | None):
     return env_to_print
 
 
-def assert_pre_commit_installed(verbose: bool):
+def assert_pre_commit_installed():
     """
     Check if pre-commit is installed in the right version.
-    :param verbose: print commands when running
+
     :return: True is the pre-commit is installed in the right version.
     """
     # Local import to make autocomplete work
@@ -196,7 +197,6 @@ def assert_pre_commit_installed(verbose: bool):
     get_console().print(f"[info]Checking pre-commit installed for {python_executable}[/]")
     command_result = run_command(
         [python_executable, "-m", "pre_commit", "--version"],
-        verbose=verbose,
         capture_output=True,
         text=True,
         check=False,
@@ -285,9 +285,9 @@ def change_directory_permission(directory_to_fix: Path):
 
 
 @working_directory(AIRFLOW_SOURCES_ROOT)
-def fix_group_permissions(verbose: bool):
+def fix_group_permissions():
     """Fixes permissions of all the files and directories that have group-write access."""
-    if verbose:
+    if get_verbose():
         get_console().print("[info]Fixing group permissions[/]")
     files_to_fix_result = run_command(["git", "ls-files", "./"], capture_output=True, text=True)
     if files_to_fix_result.returncode == 0:
@@ -319,16 +319,15 @@ def is_repo_rebased(repo: str, branch: str):
     return rebased
 
 
-def check_if_buildx_plugin_installed(verbose: bool) -> bool:
+def check_if_buildx_plugin_installed() -> bool:
     """
     Checks if buildx plugin is locally available.
-    :param verbose: print commands when running
+
     :return True if the buildx plugin is installed.
     """
     check_buildx = ["docker", "buildx", "version"]
     docker_buildx_version_result = run_command(
         check_buildx,
-        verbose=verbose,
         no_output_dump_on_exception=True,
         capture_output=True,
         text=True,
@@ -357,19 +356,17 @@ def filter_out_none(**kwargs) -> dict:
     return kwargs
 
 
-def check_if_image_exists(image: str, verbose: bool, dry_run: bool) -> bool:
+def check_if_image_exists(image: str) -> bool:
     cmd_result = run_command(
         ["docker", "inspect", image],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.STDOUT,
         check=False,
-        verbose=verbose,
-        dry_run=dry_run,
     )
     return cmd_result.returncode == 0
 
 
-def get_ci_image_for_pre_commits(verbose: bool, dry_run: bool) -> str:
+def get_ci_image_for_pre_commits() -> str:
     github_repository = os.environ.get("GITHUB_REPOSITORY", APACHE_AIRFLOW_GITHUB_REPOSITORY)
     python_version = "3.7"
     airflow_image = f"ghcr.io/{github_repository}/{AIRFLOW_BRANCH}/ci/python{python_version}"
@@ -381,8 +378,6 @@ def get_ci_image_for_pre_commits(verbose: bool, dry_run: bool) -> str:
         sys.exit(0)
     if not check_if_image_exists(
         image=airflow_image,
-        verbose=verbose,
-        dry_run=dry_run,
     ):
         get_console().print(f"[red]The image {airflow_image} is not available.[/]\n")
         get_console().print(
@@ -393,12 +388,10 @@ def get_ci_image_for_pre_commits(verbose: bool, dry_run: bool) -> str:
     return airflow_image
 
 
-def _run_compile_internally(command_to_execute: list[str], dry_run: bool, verbose: bool):
+def _run_compile_internally(command_to_execute: list[str]):
     env = os.environ.copy()
     compile_www_assets_result = run_command(
         command_to_execute,
-        verbose=verbose,
-        dry_run=dry_run,
         check=False,
         no_output_dump_on_exception=True,
         text=True,
@@ -410,8 +403,6 @@ def _run_compile_internally(command_to_execute: list[str], dry_run: bool, verbos
 def run_compile_www_assets(
     dev: bool,
     run_in_background: bool,
-    verbose: bool,
-    dry_run: bool,
 ):
     if dev:
         get_console().print("\n[warning] The command below will run forever until you press Ctrl-C[/]\n")
@@ -431,9 +422,7 @@ def run_compile_www_assets(
         "--all-files",
     ]
     if run_in_background:
-        thread = Thread(
-            daemon=True, target=_run_compile_internally, args=(command_to_execute, dry_run, verbose)
-        )
+        thread = Thread(daemon=True, target=_run_compile_internally, args=(command_to_execute,))
         thread.start()
     else:
-        return _run_compile_internally(command_to_execute, dry_run, verbose)
+        return _run_compile_internally(command_to_execute)

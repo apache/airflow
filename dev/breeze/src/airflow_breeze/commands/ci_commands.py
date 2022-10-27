@@ -43,7 +43,6 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_reference,
     option_answer,
     option_dry_run,
-    option_github_repository,
     option_max_age,
     option_python,
     option_timezone,
@@ -73,39 +72,33 @@ def ci_group():
 @option_verbose
 @option_dry_run
 @option_answer
-def free_space(verbose: bool, dry_run: bool, answer: str):
+def free_space():
     if user_confirm("Are you sure to run free-space and perform cleanup?") == Answer.YES:
-        run_command(["sudo", "swapoff", "-a"], verbose=verbose, dry_run=dry_run)
-        run_command(["sudo", "rm", "-f", "/swapfile"], verbose=verbose, dry_run=dry_run)
+        run_command(["sudo", "swapoff", "-a"])
+        run_command(["sudo", "rm", "-f", "/swapfile"])
         for file in Path(tempfile.gettempdir()).iterdir():
             if file.name.startswith("parallel"):
                 run_command(
                     ["sudo", "rm", "-rvf", os.fspath(file)],
-                    verbose=verbose,
-                    dry_run=dry_run,
                     check=False,
                     title=f"rm -rvf {file}",
                 )
-        run_command(["sudo", "apt-get", "clean"], verbose=verbose, dry_run=dry_run, check=False)
-        run_command(
-            ["docker", "system", "prune", "--all", "--force", "--volumes"], verbose=verbose, dry_run=dry_run
-        )
-        run_command(["df", "-h"], verbose=verbose, dry_run=dry_run)
-        run_command(["docker", "logout", "ghcr.io"], verbose=verbose, dry_run=dry_run, check=False)
+        run_command(["sudo", "apt-get", "clean"], check=False)
+        run_command(["docker", "system", "prune", "--all", "--force", "--volumes"])
+        run_command(["df", "-h"])
+        run_command(["docker", "logout", "ghcr.io"], check=False)
         run_command(
             ["sudo", "rm", "-f", os.fspath(Path.home() / MSSQL_TMP_DIR_NAME)],
-            verbose=verbose,
-            dry_run=dry_run,
         )
 
 
 @ci_group.command(name="resource-check", help="Check if available docker resources are enough.")
 @option_verbose
 @option_dry_run
-def resource_check(verbose: bool, dry_run: bool):
-    perform_environment_checks(verbose=verbose)
-    shell_params = ShellParams(verbose=verbose, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
-    check_docker_resources(shell_params.airflow_image_name, verbose=verbose, dry_run=dry_run)
+def resource_check():
+    perform_environment_checks()
+    shell_params = ShellParams(python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
+    check_docker_resources(shell_params.airflow_image_name)
 
 
 HOME_DIR = Path(os.path.expanduser("~")).resolve()
@@ -120,32 +113,30 @@ DIRECTORIES_TO_FIX = [
 ]
 
 
-def fix_ownership_for_file(file: Path, dry_run: bool, verbose: bool):
+def fix_ownership_for_file(file: Path):
     get_console().print(f"[info]Fixing ownership of {file}")
     result = run_command(
         ["sudo", "chown", f"{os.getuid}:{os.getgid()}", str(file.resolve())],
         check=False,
         stderr=subprocess.STDOUT,
-        dry_run=dry_run,
-        verbose=verbose,
     )
     if result.returncode != 0:
         get_console().print(f"[warning]Could not fix ownership for {file}: {result.stdout}")
 
 
-def fix_ownership_for_path(path: Path, dry_run: bool, verbose: bool):
+def fix_ownership_for_path(path: Path):
     if path.is_dir():
         for p in Path(path).rglob("*"):
             if p.owner == "root":
-                fix_ownership_for_file(p, dry_run=dry_run, verbose=verbose)
+                fix_ownership_for_file(p)
     else:
         if path.owner == "root":
-            fix_ownership_for_file(path, dry_run=dry_run, verbose=verbose)
+            fix_ownership_for_file(path)
 
 
-def fix_ownership_without_docker(dry_run: bool, verbose: bool):
+def fix_ownership_without_docker():
     for directory_to_fix in DIRECTORIES_TO_FIX:
-        fix_ownership_for_path(directory_to_fix, dry_run=dry_run, verbose=verbose)
+        fix_ownership_for_path(directory_to_fix)
 
 
 @ci_group.command(name="fix-ownership", help="Fix ownership of source files to be same as host user.")
@@ -155,10 +146,9 @@ def fix_ownership_without_docker(dry_run: bool, verbose: bool):
     help="Use sudo instead of docker image to fix the ownership. You need to be a `sudoer` to run it",
     envvar="USE_SUDO",
 )
-@option_github_repository
 @option_verbose
 @option_dry_run
-def fix_ownership(github_repository: str, use_sudo: bool, verbose: bool, dry_run: bool):
+def fix_ownership(use_sudo: bool):
     system = platform.system().lower()
     if system != "linux":
         get_console().print(
@@ -167,15 +157,15 @@ def fix_ownership(github_repository: str, use_sudo: bool, verbose: bool, dry_run
         sys.exit(0)
     if use_sudo:
         get_console().print("[info]Fixing ownership using sudo.")
-        fix_ownership_without_docker(dry_run=dry_run, verbose=verbose)
+        fix_ownership_without_docker()
         sys.exit(0)
     get_console().print("[info]Fixing ownership using docker.")
-    fix_ownership_using_docker(dry_run=dry_run, verbose=verbose)
+    fix_ownership_using_docker()
     # Always succeed
     sys.exit(0)
 
 
-def get_changed_files(commit_ref: str | None, dry_run: bool, verbose: bool) -> tuple[str, ...]:
+def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
     if commit_ref is None:
         return ()
     cmd = [
@@ -187,7 +177,7 @@ def get_changed_files(commit_ref: str | None, dry_run: bool, verbose: bool) -> t
         commit_ref + "^",
         commit_ref,
     ]
-    result = run_command(cmd, dry_run=dry_run, verbose=verbose, check=False, capture_output=True, text=True)
+    result = run_command(cmd, check=False, capture_output=True, text=True)
     if result.returncode != 0:
         get_console().print(
             f"[warning] Error when running diff-tree command [/]\n{result.stdout}\n{result.stderr}"
@@ -244,14 +234,12 @@ def selective_check(
     default_branch: str,
     default_constraints_branch: str,
     github_event_name: str,
-    verbose: bool,
-    dry_run: bool,
 ):
     from airflow_breeze.utils.selective_checks import SelectiveChecks
 
     github_event = GithubEvents(github_event_name)
     if commit_ref is not None:
-        changed_files = get_changed_files(commit_ref=commit_ref, dry_run=dry_run, verbose=verbose)
+        changed_files = get_changed_files(commit_ref=commit_ref)
     else:
         changed_files = ()
     sc = SelectiveChecks(

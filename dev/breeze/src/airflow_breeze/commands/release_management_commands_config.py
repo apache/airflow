@@ -30,7 +30,15 @@ RELEASE_MANAGEMENT_COMMANDS: dict[str, str | list[str]] = {
 
 RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze release-management prepare-airflow-package": [
-        {"name": "Package flags", "options": ["--package-format", "--version-suffix-for-pypi"]}
+        {
+            "name": "Package flags",
+            "options": [
+                "--package-format",
+                "--version-suffix-for-pypi",
+                "--debug",
+                "--github-repository",
+            ],
+        }
     ],
     "breeze release-management verify-provider-packages": [
         {
@@ -43,6 +51,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--package-format",
                 "--skip-constraints",
                 "--debug",
+                "--github-repository",
             ],
         }
     ],
@@ -54,6 +63,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--version-suffix-for-pypi",
                 "--package-list-file",
                 "--debug",
+                "--github-repository",
             ],
         }
     ],
@@ -62,6 +72,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Provider documentation preparation flags",
             "options": [
                 "--debug",
+                "--github-repository",
             ],
         }
     ],
@@ -73,6 +84,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--airflow-constraints-mode",
                 "--debug",
+                "--github-repository",
             ],
         },
         {

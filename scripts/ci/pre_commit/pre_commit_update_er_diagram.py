@@ -29,9 +29,6 @@ if __name__ not in ("__main__", "__mp_main__"):
 
 AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
 GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY", "apache/airflow")
-# allow "False", "false", "True", "true", "f", "F", "t", "T" and the like
-VERBOSE = os.environ.get("VERBOSE", "false")[0].lower() == "t"
-DRY_RUN = os.environ.get("DRY_RUN", "false")[0].lower() == "t"
 os.environ["SKIP_GROUP_OUTPUT"] = "true"
 
 if __name__ == "__main__":
@@ -47,7 +44,7 @@ if __name__ == "__main__":
     env["DB_RESET"] = "true"
     env["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = "sqlite:////root/airflow/airflow.db"
     update_expected_environment_variables(env)
-    airflow_image = get_ci_image_for_pre_commits(verbose=VERBOSE, dry_run=DRY_RUN)
+    airflow_image = get_ci_image_for_pre_commits()
     cmd_result = run_command(
         [
             "docker",
@@ -64,7 +61,5 @@ if __name__ == "__main__":
         ],
         env=env,
         check=False,
-        verbose=VERBOSE,
-        dry_run=DRY_RUN,
     )
     sys.exit(cmd_result.returncode)

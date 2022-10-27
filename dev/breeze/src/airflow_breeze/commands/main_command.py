@@ -20,6 +20,7 @@ import platform
 import shutil
 import subprocess
 import sys
+from typing import Any
 
 from click import Context
 
@@ -47,6 +48,7 @@ from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
 from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.shared_options import get_dry_run
 
 
 def print_deprecated(deprecated_command: str, command_to_use: str):
@@ -99,13 +101,13 @@ class MainGroupWithAliases(BreezeGroup):
 @option_integration
 @option_forward_credentials
 @option_db_reset
+@option_max_time
+@option_github_repository
 @option_verbose
 @option_dry_run
-@option_github_repository
 @option_answer
-@option_max_time
 @click.pass_context
-def main(ctx: click.Context, **kwargs):
+def main(ctx: click.Context, **kwargs: dict[str, Any]):
     from airflow_breeze.commands.developer_commands import shell
 
     check_for_rosetta_environment()
@@ -200,10 +202,9 @@ def check_for_rosetta_environment():
     help="Also remove currently downloaded Breeze images.",
 )
 @option_verbose
-@option_answer
 @option_dry_run
-@option_github_repository
-def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, answer: str | None):
+@option_answer
+def cleanup(all: bool):
     if all:
         get_console().print(
             "\n[info]Removing cache of parameters, clean up docker cache "
@@ -220,9 +221,7 @@ def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, ans
             "--format",
             "{{.Repository}}:{{.Tag}}",
         ]
-        command_result = run_command(
-            docker_images_command_to_execute, verbose=verbose, text=True, capture_output=True
-        )
+        command_result = run_command(docker_images_command_to_execute, text=True, capture_output=True)
         images = command_result.stdout.splitlines() if command_result and command_result.stdout else []
         if images:
             get_console().print("[info]Removing images:[/]")
@@ -237,7 +236,7 @@ def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, ans
             docker_rmi_command_to_execute.extend(images)
             given_answer = user_confirm("Are you sure with the removal?")
             if given_answer == Answer.YES:
-                run_command(docker_rmi_command_to_execute, verbose=verbose, dry_run=dry_run, check=False)
+                run_command(docker_rmi_command_to_execute, check=False)
             elif given_answer == Answer.QUIT:
                 sys.exit(0)
         else:
@@ -248,8 +247,6 @@ def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, ans
         system_prune_command_to_execute = ["docker", "system", "prune"]
         run_command(
             system_prune_command_to_execute,
-            verbose=verbose,
-            dry_run=dry_run,
             check=False,
         )
     elif given_answer == Answer.QUIT:
@@ -257,7 +254,7 @@ def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, ans
     get_console().print(f"Removing build cache dir ${BUILD_CACHE_DIR}")
     given_answer = user_confirm("Are you sure with the removal?")
     if given_answer == Answer.YES:
-        if not dry_run:
+        if not get_dry_run():
             shutil.rmtree(BUILD_CACHE_DIR, ignore_errors=True)
     elif given_answer == Answer.QUIT:
         sys.exit(0)
