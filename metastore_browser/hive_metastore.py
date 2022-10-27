@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import List
 
 import pandas as pd
 from flask import Blueprint, request
@@ -38,8 +37,8 @@ METASTORE_MYSQL_CONN_ID = "metastore_mysql"
 PRESTO_CONN_ID = "presto_default"
 HIVE_CLI_CONN_ID = "hive_default"
 DEFAULT_DB = "default"
-DB_ALLOW_LIST = []  # type: List[str]
-DB_DENY_LIST = ["tmp"]  # type: List[str]
+DB_ALLOW_LIST: list[str] = []
+DB_DENY_LIST: list[str] = ["tmp"]
 TABLE_SELECTOR_LIMIT = 2000
 
 # Keeping pandas from truncating long strings

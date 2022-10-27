@@ -173,7 +173,6 @@ def git_version(version_: str) -> str:
 
     :param str version_: Semver version
     :return: Found Airflow version in Git repo
-    :rtype: str
     """
     try:
         import git

@@ -18,7 +18,7 @@
 """This module allows you to connect to the Google Discovery API Service and query it."""
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from typing import Sequence
 
 from googleapiclient.discovery import Resource, build
 
@@ -46,7 +46,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         account from the list granting this role to the originating account.
     """
 
-    _conn = None  # type: Optional[Resource]
+    _conn: Resource | None = None
 
     def __init__(
         self,
@@ -69,7 +69,6 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         Creates an authenticated api client for the given api service name and credentials.
 
         :return: the authenticated api service.
-        :rtype: Resource
         """
         self.log.info("Authenticating Google API Client")
 
@@ -97,7 +96,6 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         :param paginate: If set to True, it will collect all pages of data.
         :param num_retries: Define the number of retries for the requests being made if it fails.
         :return: the API response from the passed endpoint.
-        :rtype: dict
         """
         google_api_conn_client = self.get_conn()
 

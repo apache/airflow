@@ -58,7 +58,6 @@ class LevelDBHook(BaseHook):
         :param create_if_missing: whether a new database should be created if needed
         :param kwargs: other options of creation plyvel.DB. See more in the link above.
         :returns: DB
-        :rtype: plyvel.DB
         """
         if self.db is not None:
             return self.db
@@ -87,10 +86,9 @@ class LevelDBHook(BaseHook):
             ``"put"``, ``"get"``, ``"delete"``, ``"write_batch"``.
         :param key: key for command(put,get,delete) execution(, e.g. ``b'key'``, ``b'another-key'``)
         :param value: value for command(put) execution(bytes, e.g. ``b'value'``, ``b'another-value'``)
-        :param keys: keys for command(write_batch) execution(List[bytes], e.g. ``[b'key', b'another-key'])``
+        :param keys: keys for command(write_batch) execution(list[bytes], e.g. ``[b'key', b'another-key'])``
         :param values: values for command(write_batch) execution e.g. ``[b'value'``, ``b'another-value']``
         :returns: value from get or None
-        :rtype: Optional[bytes]
         """
         if command == "put":
             if not value:
@@ -126,7 +124,6 @@ class LevelDBHook(BaseHook):
 
         :param key: key for get execution, e.g. ``b'key'``, ``b'another-key'``
         :returns: value of key from db.get
-        :rtype: bytes
         """
         if not self.db:
             raise Exception(DB_NOT_INITIALIZED_BEFORE)

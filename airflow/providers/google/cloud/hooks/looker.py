@@ -21,7 +21,6 @@ from __future__ import annotations
 import json
 import time
 from enum import Enum
-from typing import Dict
 
 from looker_sdk.rtl import api_settings, auth_session, requests_transport, serialize
 from looker_sdk.sdk.api40 import methods as methods40
@@ -233,7 +232,7 @@ class LookerApiSettings(api_settings.ApiSettings):
         else:
             raise AirflowException(f"No `password` was supplied in connection: {self.conn.id}.")
 
-        extras = self.conn.extra_dejson  # type: Dict
+        extras: dict = self.conn.extra_dejson
 
         if "verify_ssl" in extras:
             config["verify_ssl"] = extras["verify_ssl"]  # optional

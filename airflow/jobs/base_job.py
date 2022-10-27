@@ -127,7 +127,6 @@ class BaseJob(Base, LoggingMixin):
         return jobs of that type.
 
         :param session: Database session
-        :rtype: BaseJob or None
         """
         return session.query(cls).order_by(cls.latest_heartbeat.desc()).limit(1).first()
 
@@ -140,7 +139,6 @@ class BaseJob(Base, LoggingMixin):
 
         :param grace_multiplier: multiplier of heartrate to require heart beat
             within
-        :rtype: boolean
         """
         return (
             self.state == State.RUNNING

@@ -35,7 +35,7 @@ from inspect import signature
 from pathlib import Path
 from subprocess import PIPE, Popen
 from tempfile import gettempdir
-from typing import Any, Dict, Optional, Sequence
+from typing import Any, Sequence
 from urllib.parse import quote_plus
 
 import httpx
@@ -107,7 +107,6 @@ class CloudSQLHook(GoogleBaseHook):
         Retrieves connection to Cloud SQL.
 
         :return: Google Cloud SQL services object.
-        :rtype: dict
         """
         if not self._conn:
             http_authorized = self._authorize()
@@ -123,7 +122,6 @@ class CloudSQLHook(GoogleBaseHook):
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
         :return: A Cloud SQL instance resource.
-        :rtype: dict
         """
         return (
             self.get_conn()
@@ -209,7 +207,6 @@ class CloudSQLHook(GoogleBaseHook):
             to None or missing, the default project_id from the Google Cloud connection is used.
         :return: A Cloud SQL database resource, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases#resource.
-        :rtype: dict
         """
         return (
             self.get_conn()
@@ -603,12 +600,11 @@ class CloudSqlProxyRunner(LoggingMixin):
         Retrieves UNIX socket path used by Cloud SQL Proxy.
 
         :return: The dynamically generated path for the socket created by the proxy.
-        :rtype: str
         """
         return self.cloud_sql_proxy_socket_directory + "/" + self.instance_specification
 
 
-CONNECTION_URIS = {
+CONNECTION_URIS: dict[str, dict[str, dict[str, str]]] = {
     "postgres": {
         "proxy": {
             "tcp": "postgresql://{user}:{password}@127.0.0.1:{proxy_port}/{database}",
@@ -633,7 +629,7 @@ CONNECTION_URIS = {
             "non-ssl": "mysql://{user}:{password}@{public_ip}:{public_port}/{database}",
         },
     },
-}  # type: Dict[str, Dict[str, Dict[str, str]]]
+}
 
 CLOUD_SQL_VALID_DATABASE_TYPES = ["postgres", "mysql"]
 
@@ -690,7 +686,7 @@ class CloudSQLDatabaseHook(BaseHook):
     conn_type = "gcpcloudsqldb"
     hook_name = "Google Cloud SQL Database"
 
-    _conn = None  # type: Optional[Any]
+    _conn = None
 
     def __init__(
         self,
@@ -898,7 +894,6 @@ class CloudSQLDatabaseHook(BaseHook):
         lifecycle per task.
 
         :return: The Cloud SQL Proxy runner.
-        :rtype: CloudSqlProxyRunner
         """
         if not self.use_proxy:
             raise ValueError("Proxy runner can only be retrieved in case of use_proxy = True")
