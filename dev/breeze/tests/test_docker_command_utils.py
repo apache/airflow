@@ -35,15 +35,15 @@ def test_check_docker_version_unknown(
     mock_get_console, mock_run_command, mock_check_docker_permission_denied
 ):
     mock_check_docker_permission_denied.return_value = False
-    check_docker_version(verbose=True)
+    check_docker_version()
     expected_run_command_calls = [
         call(
             ["docker", "version", "--format", "{{.Client.Version}}"],
-            verbose=True,
             no_output_dump_on_exception=True,
             capture_output=True,
             text=True,
             check=False,
+            dry_run_override=False,
         ),
     ]
     mock_run_command.assert_has_calls(expected_run_command_calls)
@@ -64,15 +64,15 @@ def test_check_docker_version_too_low(
     mock_check_docker_permission_denied.return_value = False
     mock_run_command.return_value.returncode = 0
     mock_run_command.return_value.stdout = "0.9"
-    check_docker_version(verbose=True)
-    mock_check_docker_permission_denied.assert_called_with(True)
+    check_docker_version()
+    mock_check_docker_permission_denied.assert_called()
     mock_run_command.assert_called_with(
         ["docker", "version", "--format", "{{.Client.Version}}"],
-        verbose=True,
         no_output_dump_on_exception=True,
         capture_output=True,
         text=True,
         check=False,
+        dry_run_override=False,
     )
     mock_get_console.return_value.print.assert_called_with(
         """
@@ -88,15 +88,15 @@ def test_check_docker_version_ok(mock_get_console, mock_run_command, mock_check_
     mock_check_docker_permission_denied.return_value = False
     mock_run_command.return_value.returncode = 0
     mock_run_command.return_value.stdout = "20.10.0"
-    check_docker_version(verbose=True)
-    mock_check_docker_permission_denied.assert_called_with(True)
+    check_docker_version()
+    mock_check_docker_permission_denied.assert_called()
     mock_run_command.assert_called_with(
         ["docker", "version", "--format", "{{.Client.Version}}"],
-        verbose=True,
         no_output_dump_on_exception=True,
         capture_output=True,
         text=True,
         check=False,
+        dry_run_override=False,
     )
     mock_get_console.return_value.print.assert_called_with("[success]Good version of Docker: 20.10.0.[/]")
 
@@ -108,15 +108,15 @@ def test_check_docker_version_higher(mock_get_console, mock_run_command, mock_ch
     mock_check_docker_permission_denied.return_value = False
     mock_run_command.return_value.returncode = 0
     mock_run_command.return_value.stdout = "21.10.0"
-    check_docker_version(verbose=True)
-    mock_check_docker_permission_denied.assert_called_with(True)
+    check_docker_version()
+    mock_check_docker_permission_denied.assert_called()
     mock_run_command.assert_called_with(
         ["docker", "version", "--format", "{{.Client.Version}}"],
-        verbose=True,
         no_output_dump_on_exception=True,
         capture_output=True,
         text=True,
         check=False,
+        dry_run_override=False,
     )
     mock_get_console.return_value.print.assert_called_with("[success]Good version of Docker: 21.10.0.[/]")
 
@@ -124,14 +124,14 @@ def test_check_docker_version_higher(mock_get_console, mock_run_command, mock_ch
 @mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
 @mock.patch("airflow_breeze.utils.docker_command_utils.get_console")
 def test_check_docker_compose_version_unknown(mock_get_console, mock_run_command):
-    check_docker_compose_version(verbose=True)
+    check_docker_compose_version()
     expected_run_command_calls = [
         call(
             ["docker-compose", "--version"],
-            verbose=True,
             no_output_dump_on_exception=True,
             capture_output=True,
             text=True,
+            dry_run_override=False,
         ),
     ]
     mock_run_command.assert_has_calls(expected_run_command_calls)
@@ -148,13 +148,13 @@ def test_check_docker_compose_version_unknown(mock_get_console, mock_run_command
 def test_check_docker_compose_version_low(mock_get_console, mock_run_command):
     mock_run_command.return_value.returncode = 0
     mock_run_command.return_value.stdout = "1.28.5"
-    check_docker_compose_version(verbose=True)
+    check_docker_compose_version()
     mock_run_command.assert_called_with(
         ["docker-compose", "--version"],
-        verbose=True,
         no_output_dump_on_exception=True,
         capture_output=True,
         text=True,
+        dry_run_override=False,
     )
     expected_print_calls = [
         call(
@@ -177,13 +177,13 @@ Make sure docker-compose you install is first on the PATH variable of yours.
 def test_check_docker_compose_version_ok(mock_get_console, mock_run_command):
     mock_run_command.return_value.returncode = 0
     mock_run_command.return_value.stdout = "1.29.0"
-    check_docker_compose_version(verbose=True)
+    check_docker_compose_version()
     mock_run_command.assert_called_with(
         ["docker-compose", "--version"],
-        verbose=True,
         no_output_dump_on_exception=True,
         capture_output=True,
         text=True,
+        dry_run_override=False,
     )
     mock_get_console.return_value.print.assert_called_with(
         "[success]Good version of docker-compose: 1.29.0[/]"
@@ -195,13 +195,13 @@ def test_check_docker_compose_version_ok(mock_get_console, mock_run_command):
 def test_check_docker_compose_version_higher(mock_get_console, mock_run_command):
     mock_run_command.return_value.returncode = 0
     mock_run_command.return_value.stdout = "1.29.2"
-    check_docker_compose_version(verbose=True)
+    check_docker_compose_version()
     mock_run_command.assert_called_with(
         ["docker-compose", "--version"],
-        verbose=True,
         no_output_dump_on_exception=True,
         capture_output=True,
         text=True,
+        dry_run_override=False,
     )
     mock_get_console.return_value.print.assert_called_with(
         "[success]Good version of docker-compose: 1.29.2[/]"
@@ -213,13 +213,13 @@ def test_check_docker_compose_version_higher(mock_get_console, mock_run_command)
 def test_check_docker_context_default(mock_get_console, mock_run_command):
     mock_run_command.return_value.returncode = 0
     mock_run_command.return_value.stdout = "default"
-    check_docker_context(verbose=True)
+    check_docker_context()
     mock_run_command.assert_called_with(
         ["docker", "info", "--format", "{{json .ClientInfo.Context}}"],
-        verbose=True,
         no_output_dump_on_exception=False,
         text=True,
         capture_output=True,
+        dry_run_override=False,
     )
     mock_get_console.return_value.print.assert_called_with("[success]Good Docker context used: default.[/]")
 
@@ -230,13 +230,13 @@ def test_check_docker_context_other(mock_get_console, mock_run_command):
     mock_run_command.return_value.returncode = 0
     mock_run_command.return_value.stdout = "other"
     with pytest.raises(SystemExit):
-        check_docker_context(verbose=True)
+        check_docker_context()
     mock_run_command.assert_called_with(
         ["docker", "info", "--format", "{{json .ClientInfo.Context}}"],
-        verbose=True,
         no_output_dump_on_exception=False,
         text=True,
         capture_output=True,
+        dry_run_override=False,
     )
     mock_get_console.return_value.print.assert_called_with(
         "[error]Docker is not using the default context, used context is: other[/]\n"
@@ -249,13 +249,13 @@ def test_check_docker_context_other(mock_get_console, mock_run_command):
 @mock.patch("airflow_breeze.utils.docker_command_utils.get_console")
 def test_check_docker_context_command_failed(mock_get_console, mock_run_command):
     mock_run_command.return_value.returncode = 1
-    check_docker_context(verbose=True)
+    check_docker_context()
     mock_run_command.assert_called_with(
         ["docker", "info", "--format", "{{json .ClientInfo.Context}}"],
-        verbose=True,
         no_output_dump_on_exception=False,
         text=True,
         capture_output=True,
+        dry_run_override=False,
     )
     mock_get_console.return_value.print.assert_called_with(
         "[warning]Could not check for Docker context.[/]\n"

@@ -20,6 +20,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -96,6 +97,7 @@ from airflow_breeze.utils.run_utils import (
     is_repo_rebased,
     run_command,
 )
+from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
 
 @click.group(
@@ -105,17 +107,13 @@ def ci_image():
     pass
 
 
-def check_if_image_building_is_needed(
-    ci_image_params: BuildCiParams, output: Output | None, dry_run: bool, verbose: bool
-) -> bool:
+def check_if_image_building_is_needed(ci_image_params: BuildCiParams, output: Output | None) -> bool:
     """Starts building attempt. Returns false if we should not continue"""
     if not ci_image_params.force_build and not ci_image_params.upgrade_to_newer_dependencies:
         if not should_we_run_the_build(build_ci_params=ci_image_params):
             return False
     if ci_image_params.prepare_buildx_cache or ci_image_params.push:
-        login_to_github_docker_registry(
-            image_params=ci_image_params, dry_run=dry_run, output=output, verbose=verbose
-        )
+        login_to_github_docker_registry(image_params=ci_image_params, output=output)
     return True
 
 
@@ -126,10 +124,8 @@ def run_build_in_parallel(
     parallelism: int,
     skip_cleanup: bool,
     debug_resources: bool,
-    dry_run: bool,
-    verbose: bool,
 ) -> None:
-    warm_up_docker_builder(image_params_list[0], verbose=verbose, dry_run=dry_run)
+    warm_up_docker_builder(image_params_list[0])
     with ci_group(f"Building for {python_version_list}"):
         all_params = [f"CI {image_params.python}" for image_params in image_params_list]
         with run_with_pool(
@@ -143,8 +139,6 @@ def run_build_in_parallel(
                     run_build_ci_image,
                     kwds={
                         "ci_image_params": image_params,
-                        "verbose": verbose,
-                        "dry_run": dry_run,
                         "output": outputs[index],
                     },
                 )
@@ -159,16 +153,12 @@ def run_build_in_parallel(
     )
 
 
-def start_building(params: BuildCiParams, dry_run: bool, verbose: bool):
-    check_if_image_building_is_needed(params, output=None, dry_run=dry_run, verbose=verbose)
-    make_sure_builder_configured(params=params, dry_run=dry_run, verbose=verbose)
+def start_building(params: BuildCiParams):
+    check_if_image_building_is_needed(params, output=None)
+    make_sure_builder_configured(params=params)
 
 
 @ci_image.command(name="build")
-@option_github_repository
-@option_verbose
-@option_dry_run
-@option_answer
 @option_python
 @option_run_in_parallel
 @option_parallelism
@@ -201,17 +191,18 @@ def start_building(params: BuildCiParams, dry_run: bool, verbose: bool):
 @option_airflow_constraints_reference_build
 @option_tag_as_latest
 @option_additional_pip_install_flags
+@option_github_repository
+@option_verbose
+@option_dry_run
+@option_answer
 def build(
-    verbose: bool,
-    dry_run: bool,
     run_in_parallel: bool,
     parallelism: int,
     skip_cleanup: bool,
     debug_resources: bool,
     include_success_outputs,
     python_versions: str,
-    answer: str,
-    **kwargs,
+    **kwargs: dict[str, Any],
 ):
     """Build CI image. Include building multiple images for all python versions."""
 
@@ -219,26 +210,23 @@ def build(
         return_code, info = run_build_ci_image(
             ci_image_params=ci_image_params,
             output=None,
-            verbose=verbose,
-            dry_run=dry_run,
         )
         if return_code != 0:
             get_console().print(f"[error]Error when building image! {info}")
             sys.exit(return_code)
 
-    perform_environment_checks(verbose=verbose)
+    perform_environment_checks()
     parameters_passed = filter_out_none(**kwargs)
     parameters_passed["force_build"] = True
-    fix_group_permissions(verbose=verbose)
+    fix_group_permissions()
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
         params_list: list[BuildCiParams] = []
         for python in python_version_list:
             params = BuildCiParams(**parameters_passed)
             params.python = python
-            params.answer = answer
             params_list.append(params)
-        start_building(params=params_list[0], dry_run=dry_run, verbose=verbose)
+        start_building(params=params_list[0])
         run_build_in_parallel(
             image_params_list=params_list,
             python_version_list=python_version_list,
@@ -246,20 +234,15 @@ def build(
             parallelism=parallelism,
             skip_cleanup=skip_cleanup,
             debug_resources=debug_resources,
-            dry_run=dry_run,
-            verbose=verbose,
         )
     else:
         params = BuildCiParams(**parameters_passed)
-        start_building(params=params, dry_run=dry_run, verbose=verbose)
+        start_building(params=params)
         run_build(ci_image_params=params)
 
 
 @ci_image.command(name="pull")
-@option_verbose
-@option_dry_run
 @option_python
-@option_github_repository
 @option_run_in_parallel
 @option_parallelism
 @option_skip_cleanup
@@ -272,12 +255,12 @@ def build(
 @option_image_tag_for_pulling
 @option_include_success_outputs
 @option_tag_as_latest
+@option_github_repository
+@option_verbose
+@option_dry_run
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
 def pull(
-    verbose: bool,
-    dry_run: bool,
     python: str,
-    github_repository: str,
     run_in_parallel: bool,
     python_versions: str,
     github_token: str,
@@ -289,10 +272,11 @@ def pull(
     wait_for_image: bool,
     tag_as_latest: bool,
     verify: bool,
+    github_repository: str,
     extra_pytest_args: tuple,
 ):
     """Pull and optionally verify CI images - possibly in parallel for all Python versions."""
-    perform_environment_checks(verbose=verbose)
+    perform_environment_checks()
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
         ci_image_params_list = [
@@ -305,14 +289,12 @@ def pull(
             for python in python_version_list
         ]
         run_pull_in_parallel(
-            dry_run=dry_run,
             parallelism=parallelism,
             skip_cleanup=skip_cleanup,
             debug_resources=debug_resources,
             include_success_outputs=include_success_outputs,
             image_params_list=ci_image_params_list,
             python_version_list=python_version_list,
-            verbose=verbose,
             verify=verify,
             wait_for_image=wait_for_image,
             tag_as_latest=tag_as_latest,
@@ -325,8 +307,6 @@ def pull(
         return_code, info = run_pull_image(
             image_params=image_params,
             output=None,
-            dry_run=dry_run,
-            verbose=verbose,
             wait_for_image=wait_for_image,
             tag_as_latest=tag_as_latest,
         )
@@ -342,38 +322,34 @@ def pull(
         allow_extra_args=True,
     ),
 )
-@option_verbose
-@option_dry_run
 @option_python
 @option_github_repository
 @option_image_tag_for_verifying
 @option_image_name
 @option_pull
+@option_verbose
+@option_dry_run
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
 def verify(
-    verbose: bool,
-    dry_run: bool,
     python: str,
-    github_repository: str,
     image_name: str,
     image_tag: str | None,
     pull: bool,
+    github_repository: str,
     extra_pytest_args: tuple,
 ):
     """Verify CI image."""
-    perform_environment_checks(verbose=verbose)
+    perform_environment_checks()
     if image_name is None:
         build_params = BuildCiParams(python=python, image_tag=image_tag, github_repository=github_repository)
         image_name = build_params.airflow_image_name_with_tag
     if pull:
         command_to_run = ["docker", "pull", image_name]
-        run_command(command_to_run, verbose=verbose, dry_run=dry_run, check=True)
+        run_command(command_to_run, check=True)
     get_console().print(f"[info]Verifying CI image: {image_name}[/]")
     return_code, info = verify_an_image(
         image_name=image_name,
         output=None,
-        verbose=verbose,
-        dry_run=dry_run,
         image_type="CI",
         slim_image=False,
         extra_pytest_args=extra_pytest_args,
@@ -444,8 +420,6 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
 
 def run_build_ci_image(
     ci_image_params: BuildCiParams,
-    verbose: bool,
-    dry_run: bool,
     output: Output | None,
 ) -> tuple[int, str]:
     """
@@ -461,8 +435,8 @@ def run_build_ci_image(
       * update cached information that the build completed and saves checksums of all files
         for quick future check if the build is needed
 
-    :param verbose: print commands when running
-    :param dry_run: do not execute "write" commands - just print what would happen
+
+
     :param ci_image_params: CI image parameters
     :param output: output redirection
     """
@@ -476,14 +450,15 @@ def run_build_ci_image(
             "preparing buildx cache![/]\n"
         )
         return 1, "Error: building multi-platform image without --push."
-    if verbose or dry_run:
+    if get_verbose() or get_dry_run():
         get_console(output=output).print(
             f"\n[info]Building CI image of airflow from {AIRFLOW_SOURCES_ROOT} "
             f"python version: {ci_image_params.python}[/]\n"
         )
     if ci_image_params.prepare_buildx_cache:
         build_command_result = build_cache(
-            image_params=ci_image_params, output=output, dry_run=dry_run, verbose=verbose
+            image_params=ci_image_params,
+            output=output,
         )
     else:
         if ci_image_params.empty_image:
@@ -495,8 +470,6 @@ def run_build_ci_image(
             build_command_result = run_command(
                 prepare_docker_build_from_input(image_params=ci_image_params),
                 input="FROM scratch\n",
-                verbose=verbose,
-                dry_run=dry_run,
                 cwd=AIRFLOW_SOURCES_ROOT,
                 text=True,
                 env=env,
@@ -522,10 +495,7 @@ def run_build_ci_image(
             build_command_result = run_command(
                 prepare_docker_build_command(
                     image_params=ci_image_params,
-                    verbose=verbose,
                 ),
-                verbose=verbose,
-                dry_run=dry_run,
                 cwd=AIRFLOW_SOURCES_ROOT,
                 text=True,
                 check=False,
@@ -543,10 +513,7 @@ def run_build_ci_image(
                 build_command_result = run_command(
                     prepare_docker_build_command(
                         image_params=ci_image_params,
-                        verbose=verbose,
                     ),
-                    verbose=verbose,
-                    dry_run=dry_run,
                     cwd=AIRFLOW_SOURCES_ROOT,
                     text=True,
                     check=False,
@@ -554,14 +521,9 @@ def run_build_ci_image(
                 )
             if build_command_result.returncode == 0:
                 if ci_image_params.tag_as_latest:
-                    build_command_result = tag_image_as_latest(
-                        image_params=ci_image_params,
-                        output=output,
-                        dry_run=dry_run,
-                        verbose=verbose,
-                    )
+                    build_command_result = tag_image_as_latest(image_params=ci_image_params, output=output)
                 if ci_image_params.preparing_latest_image():
-                    if dry_run:
+                    if get_dry_run():
                         get_console(output=output).print(
                             "[info]Not updating build hash because we are in `dry_run` mode.[/]"
                         )
@@ -570,15 +532,13 @@ def run_build_ci_image(
     return build_command_result.returncode, f"Image build: {ci_image_params.python}"
 
 
-def rebuild_or_pull_ci_image_if_needed(
-    command_params: ShellParams | BuildCiParams, dry_run: bool, verbose: bool
-) -> None:
+def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiParams) -> None:
     """
     Rebuilds CI image if needed and user confirms it.
 
     :param command_params: parameters of the command to execute
-    :param dry_run: whether it's a dry_run
-    :param verbose: should we print verbose messages
+
+
     """
     build_ci_image_check_cache = Path(
         BUILD_CACHE_DIR, command_params.airflow_branch, f".built_{command_params.python}"
@@ -594,8 +554,6 @@ def rebuild_or_pull_ci_image_if_needed(
         return_code, message = run_pull_image(
             image_params=ci_image_params,
             output=None,
-            dry_run=dry_run,
-            verbose=verbose,
             wait_for_image=True,
             tag_as_latest=False,
         )
@@ -604,7 +562,7 @@ def rebuild_or_pull_ci_image_if_needed(
             sys.exit(return_code)
         return
     if build_ci_image_check_cache.exists():
-        if verbose:
+        if get_verbose():
             get_console().print(f"[info]{command_params.image_type} image already built locally.[/]")
     else:
         get_console().print(
@@ -613,6 +571,7 @@ def rebuild_or_pull_ci_image_if_needed(
         )
         ci_image_params.force_build = True
     if check_if_image_building_is_needed(
-        ci_image_params=ci_image_params, output=None, dry_run=dry_run, verbose=verbose
+        ci_image_params=ci_image_params,
+        output=None,
     ):
-        run_build_ci_image(ci_image_params=ci_image_params, output=None, verbose=verbose, dry_run=dry_run)
+        run_build_ci_image(ci_image_params=ci_image_params, output=None)

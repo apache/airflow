@@ -45,7 +45,9 @@ from airflow_breeze.utils.custom_param_types import (
     BetterChoice,
     CacheableChoice,
     CacheableDefault,
+    DryRunOption,
     UseAirflowVersionType,
+    VerboseOption,
 )
 from airflow_breeze.utils.recording import generating_command_images
 
@@ -74,6 +76,9 @@ option_verbose = click.option(
     is_flag=True,
     help="Print verbose information about performed steps.",
     envvar="VERBOSE",
+    metavar="BOOLEAN",
+    expose_value=False,
+    type=VerboseOption(),
     callback=_set_default_from_parent,
 )
 option_dry_run = click.option(
@@ -82,6 +87,9 @@ option_dry_run = click.option(
     is_flag=True,
     help="If dry-run is set, commands are only printed, not executed.",
     envvar="DRY_RUN",
+    metavar="BOOLEAN",
+    expose_value=False,
+    type=DryRunOption(),
     callback=_set_default_from_parent,
 )
 option_answer = click.option(
@@ -90,6 +98,7 @@ option_answer = click.option(
     type=AnswerChoice(["y", "n", "q", "yes", "no", "quit"]),
     help="Force answer to questions.",
     envvar="ANSWER",
+    expose_value=False,
     callback=_set_default_from_parent,
 )
 option_github_repository = click.option(

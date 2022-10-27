@@ -71,6 +71,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-name",
                 "--image-tag",
                 "--python",
+                "--github-repository",
             ],
         }
     ],
