@@ -26,7 +26,9 @@ from airflow.providers.oracle.hooks.oracle import OracleHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
+    
+import oracledb
+from airflow.exceptions import AirflowException
 
 class OracleOperator(SQLExecuteQueryOperator):
     """
@@ -93,4 +95,10 @@ class OracleStoredProcedureOperator(BaseOperator):
     def execute(self, context: Context):
         self.log.info("Executing: %s", self.procedure)
         hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
-        return hook.callproc(self.procedure, autocommit=True, parameters=self.parameters)
+        ti=context.get('task_instance')
+        try:
+            return hook.callproc(self.procedure, autocommit=True, parameters=self.parameters)
+        except oracledb.DatabaseError as e:
+            code, mesg = e.args[0].message[:-1].split(': ', 1)
+            ti.xcom_push(key='ORA', value=str(code.split('-')[1]))
+            raise AirflowException(f"Task failed with exit code: {code}")
