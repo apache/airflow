@@ -45,7 +45,7 @@
   "apache.beam": {
     "deps": [
       "apache-airflow>=2.3.0",
-      "apache-beam>=2.39.0"
+      "apache-beam>=2.33.0"
     ],
     "cross-providers-deps": [
       "google"
