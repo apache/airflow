@@ -213,7 +213,7 @@ or if you need to deserialize a json object from the variable :
 
     {{ var.json.<variable_name> }}
 
-Ensure use variable with template in operator, not get it in top level code.
+Make sure to use variable with template in operator, not in the top level code.
 
 Bad example:
 
