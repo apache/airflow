@@ -261,6 +261,7 @@ def run_tests_in_parallel(
     test_types_list: list[str],
     extra_pytest_args: tuple,
     db_reset: bool,
+    full_tests_needed: bool,
     test_timeout: int,
     include_success_outputs: bool,
     debug_resources: bool,
@@ -270,17 +271,29 @@ def run_tests_in_parallel(
     import psutil
 
     memory_available = psutil.virtual_memory()
+    if (
+        memory_available.available < LOW_MEMORY_CONDITION
+        and not full_tests_needed
+        and "Integration" in test_types_list
+        and exec_shell_params.backend != "sqlite"
+    ):
+        get_console().print(
+            f"[warning]Integration tests are skipped on {exec_shell_params.backend} when "
+            "memory is constrained as we are in non full-test-mode!"
+        )
+        test_types_list.remove("Integration")
     if memory_available.available < LOW_MEMORY_CONDITION and exec_shell_params.backend in ["mssql", "mysql"]:
         # Run heavy tests sequentially
-        heavy_test_types = ["Core", "Integration", "Providers"]
-        if bool(set(heavy_test_types) & set(test_types_list)):
+        heavy_test_types_to_run = {"Core", "Integration", "Providers"} & set(test_types_list)
+        if heavy_test_types_to_run:
             # some of those are requested
             get_console().print(
-                f"[warning]Running {heavy_test_types} tests sequentially for {exec_shell_params.backend}"
+                f"[warning]Running {heavy_test_types_to_run} tests sequentially"
+                f"for {exec_shell_params.backend}"
                 f" backend due to low memory available: {bytes2human(memory_available.available)}"
             )
             tests_to_run_sequentially = []
-            for heavy_test_type in heavy_test_types:
+            for heavy_test_type in heavy_test_types_to_run:
                 for test_type in test_types_list:
                     if test_type.startswith(heavy_test_type):
                         test_types_list.remove(test_type)
@@ -352,6 +365,12 @@ def run_tests_in_parallel(
     show_default=True,
     envvar="TEST_TYPES",
 )
+@click.option(
+    "--full-tests-needed",
+    help="Whether full set of tests is run.",
+    is_flag=True,
+    envvar="FULL_TESTS_NEEDED",
+)
 @option_verbose
 @option_dry_run
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
@@ -372,6 +391,7 @@ def tests(
     debug_resources: bool,
     include_success_outputs: bool,
     test_types: str,
+    full_tests_needed: bool,
     mount_sources: str,
     extra_pytest_args: tuple,
 ):
@@ -395,6 +415,10 @@ def tests(
             test_types_list=test_types.split(" "),
             extra_pytest_args=extra_pytest_args,
             db_reset=db_reset,
+            # Allow to pass information on whether to use full tests in the parallel execution mode
+            # or not - this will allow to skip some heavy tests on more resource-heavy configurations
+            # in case full tests are not required, some of those will be skipped
+            full_tests_needed=full_tests_needed,
             test_timeout=test_timeout,
             include_success_outputs=include_success_outputs,
             parallelism=parallelism,

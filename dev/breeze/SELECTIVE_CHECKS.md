@@ -125,6 +125,7 @@ The selective check outputs available are described below:
 | default-python-version             | Which Python version to use as default                                                                 | 3.7                                                           |
 | docs-build                         | Whether to build documentation ("true"/"false")                                                        | true                                                          |
 | docs-filter                        | What filter to apply to docs building - used in non-main branches to skip provider and chart docs.     | --package-filter apache-airflow --package-filter docker-stack |
+| full-tests-needed                  | Whether this build runs complete set of tests or only subset (for faster PR builds).                   | false                                                         |
 | helm-version                       | Which Helm version to use for tests                                                                    | v3.9.4                                                        |
 | image-build                        | Whether CI image build is needed                                                                       | true                                                          |
 | kind-version                       | Which Kind version to use for tests                                                                    | v0.16.0                                                       |
