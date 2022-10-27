@@ -221,7 +221,7 @@ Bad example:
 
     from airflow.models import Variable
 
-    foo_var = Variable.get("foo")
+    foo_var = Variable.get("foo")  # DON'T DO THAT
     bash_use_variable_bad = BashOperator(
         task_id="bash_use_variable_bad", bash_command="echo variable foo=${foo_env}", env={"foo_env": foo_var}
     )
