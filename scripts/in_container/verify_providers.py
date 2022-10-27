@@ -204,6 +204,11 @@ KNOWN_DEPRECATED_MESSAGES: set[tuple[str, str]] = {
     (
         "'urllib3.contrib.pyopenssl' module is deprecated and will be removed in a future release of "
         "urllib3 2.x. Read more in this issue: https://github.com/urllib3/urllib3/issues/2680",
+        "azure/datalake/store",
+    ),
+    (
+        "'urllib3.contrib.pyopenssl' module is deprecated and will be removed in a future release of "
+        "urllib3 2.x. Read more in this issue: https://github.com/urllib3/urllib3/issues/2680",
         "botocore",
     ),
     (
@@ -264,9 +269,8 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: set[str] = {
 
 def filter_known_warnings(warn: warnings.WarningMessage) -> bool:
     msg_string = str(warn.message).replace("\n", " ")
-    for m in KNOWN_DEPRECATED_MESSAGES:
-        expected_package_string = "/" + m[1] + "/"
-        if msg_string == m[0] and warn.filename.find(expected_package_string) != -1:
+    for message, origin in KNOWN_DEPRECATED_MESSAGES:
+        if msg_string == message and warn.filename.find(f"/{origin}/") != -1:
             return False
     return True
 
