@@ -405,6 +405,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
 
         from airflow.models import DAG
         from airflow.operators.empty import EmptyOperator
+        from airflow.decorators import task
 
         dag = DAG(
             dag_id="branch_without_trigger",
