@@ -341,7 +341,7 @@ class WorkflowInfo(NamedTuple):
         return "false"
 
     def run_coverage(self) -> str:
-        if self.event_name == "push" and self.head_repo == "apache/airflow" and self.ref == "refs/head/main":
+        if self.event_name == "push" and self.head_repo == "apache/airflow" and self.ref == "refs/heads/main":
             return "true"
         return "false"
 
