@@ -169,31 +169,8 @@ class TestSecretsMasker:
         except RuntimeError:
             logger.exception("Err")
 
-        line = lineno() - 8
-
-        assert caplog.text == textwrap.dedent(
-            f"""\
-            ERROR Err
-            Traceback (most recent call last):
-              File ".../test_secrets_masker.py", line {line}, in test_masking_in_implicit_context_exceptions
-                raise RuntimeError(f"Cannot connect to user:{{p}}")
-            RuntimeError: Cannot connect to user:***
-
-            During handling of the above exception, another exception occurred:
-
-            Traceback (most recent call last):
-              File ".../test_secrets_masker.py", line {line+2}, in test_masking_in_implicit_context_exceptions
-                raise RuntimeError(f"Exception: {{ex1}}")
-            RuntimeError: Exception: Cannot connect to user:***
-
-            During handling of the above exception, another exception occurred:
-
-            Traceback (most recent call last):
-              File ".../test_secrets_masker.py", line {line+4}, in test_masking_in_implicit_context_exceptions
-                raise RuntimeError(f"Exception: {{ex2}}")
-            RuntimeError: Exception: Exception: Cannot connect to user:***
-            """
-        )
+        assert "user:password" not in caplog.text
+        assert caplog.text.count("user:***") == 3
 
     def test_masking_in_explicit_context_exceptions(self, logger, caplog):
         """
