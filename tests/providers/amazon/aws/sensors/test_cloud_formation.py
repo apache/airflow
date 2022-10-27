@@ -17,31 +17,23 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import MagicMock, patch
 
 import boto3
 import pytest
+from moto import mock_cloudformation
 
 from airflow.providers.amazon.aws.sensors.cloud_formation import (
     CloudFormationCreateStackSensor,
     CloudFormationDeleteStackSensor,
 )
 
-try:
-    from moto import mock_cloudformation
-except ImportError:
-    mock_cloudformation = None
 
-
-@unittest.skipIf(
-    mock_cloudformation is None, "Skipping test because moto.mock_cloudformation is not available"
-)
-class TestCloudFormationCreateStackSensor(unittest.TestCase):
+class TestCloudFormationCreateStackSensor:
     task_id = "test_cloudformation_cluster_create_sensor"
 
     @mock_cloudformation
-    def setUp(self):
+    def setup_method(self, method):
         self.client = boto3.client("cloudformation", region_name="us-east-1")
 
         self.cloudformation_client_mock = MagicMock()
@@ -78,14 +70,11 @@ class TestCloudFormationCreateStackSensor(unittest.TestCase):
             assert "Stack foo in bad state: bar" == str(ctx.value)
 
 
-@unittest.skipIf(
-    mock_cloudformation is None, "Skipping test because moto.mock_cloudformation is not available"
-)
-class TestCloudFormationDeleteStackSensor(unittest.TestCase):
+class TestCloudFormationDeleteStackSensor:
     task_id = "test_cloudformation_cluster_delete_sensor"
 
     @mock_cloudformation
-    def setUp(self):
+    def setup_method(self, method):
         self.client = boto3.client("cloudformation", region_name="us-east-1")
 
         self.cloudformation_client_mock = MagicMock()

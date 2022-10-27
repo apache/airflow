@@ -16,20 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import boto3
+from moto import mock_redshift
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 
-try:
-    from moto import mock_redshift
-except ImportError:
-    mock_redshift = None
 
-
-class TestRedshiftHook(unittest.TestCase):
+class TestRedshiftHook:
     @staticmethod
     def _create_clusters():
         client = boto3.client("redshift", region_name="us-east-1")
@@ -48,7 +42,6 @@ class TestRedshiftHook(unittest.TestCase):
         if not client.describe_clusters()["Clusters"]:
             raise ValueError("AWS not properly mocked")
 
-    @unittest.skipIf(mock_redshift is None, "mock_redshift package not present")
     @mock_redshift
     def test_get_client_type_returns_a_boto3_client_of_the_requested_type(self):
         self._create_clusters()
@@ -58,7 +51,6 @@ class TestRedshiftHook(unittest.TestCase):
         clusters = client_from_hook.describe_clusters()["Clusters"]
         assert len(clusters) == 2
 
-    @unittest.skipIf(mock_redshift is None, "mock_redshift package not present")
     @mock_redshift
     def test_restore_from_cluster_snapshot_returns_dict_with_cluster_data(self):
         self._create_clusters()
@@ -69,7 +61,6 @@ class TestRedshiftHook(unittest.TestCase):
             == "test_cluster_3"
         )
 
-    @unittest.skipIf(mock_redshift is None, "mock_redshift package not present")
     @mock_redshift
     def test_delete_cluster_returns_a_dict_with_cluster_data(self):
         self._create_clusters()
@@ -78,7 +69,6 @@ class TestRedshiftHook(unittest.TestCase):
         cluster = hook.delete_cluster("test_cluster_2")
         assert cluster is not None
 
-    @unittest.skipIf(mock_redshift is None, "mock_redshift package not present")
     @mock_redshift
     def test_create_cluster_snapshot_returns_snapshot_data(self):
         self._create_clusters()
@@ -87,7 +77,6 @@ class TestRedshiftHook(unittest.TestCase):
         snapshot = hook.create_cluster_snapshot("test_snapshot_2", "test_cluster")
         assert snapshot is not None
 
-    @unittest.skipIf(mock_redshift is None, "mock_redshift package not present")
     @mock_redshift
     def test_cluster_status_returns_cluster_not_found(self):
         self._create_clusters()
@@ -95,7 +84,6 @@ class TestRedshiftHook(unittest.TestCase):
         status = hook.cluster_status("test_cluster_not_here")
         assert status == "cluster_not_found"
 
-    @unittest.skipIf(mock_redshift is None, "mock_redshift package not present")
     @mock_redshift
     def test_cluster_status_returns_available_cluster(self):
         self._create_clusters()

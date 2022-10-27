@@ -22,21 +22,15 @@ from unittest import mock
 
 import boto3
 import pytest
+from moto import mock_glue, mock_iam
 
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 
-try:
-    from moto import mock_glue, mock_iam
-except ImportError:
-    mock_iam = mock_glue = None
-
 
 class TestGlueJobHook:
-    @pytest.fixture(autouse=True)
-    def setup(self):
+    def setup_method(self):
         self.some_aws_region = "us-west-2"
 
-    @pytest.mark.skipif(mock_glue is None, reason="mock_glue package not present")
     @mock_iam
     @pytest.mark.parametrize("role_path", ["/", "/custom-path/"])
     def test_get_iam_execution_role(self, role_path):
@@ -95,7 +89,6 @@ class TestGlueJobHook:
         mock_get_conn.return_value.get_job.assert_called_once_with(JobName=hook.job_name)
         assert result == expected_job_name
 
-    @pytest.mark.skipif(mock_glue is None, reason="mock_glue package not present")
     @mock_glue
     @mock.patch.object(GlueJobHook, "get_iam_execution_role")
     def test_get_or_create_glue_job_create_new_job(self, mock_get_iam_execution_role):

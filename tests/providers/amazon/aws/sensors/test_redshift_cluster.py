@@ -16,19 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import boto3
+from moto import mock_redshift
 
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
 
-try:
-    from moto import mock_redshift
-except ImportError:
-    mock_redshift = None
 
-
-class TestRedshiftClusterSensor(unittest.TestCase):
+class TestRedshiftClusterSensor:
     @staticmethod
     def _create_cluster():
         client = boto3.client("redshift", region_name="us-east-1")
@@ -41,7 +35,6 @@ class TestRedshiftClusterSensor(unittest.TestCase):
         if not client.describe_clusters()["Clusters"]:
             raise ValueError("AWS not properly mocked")
 
-    @unittest.skipIf(mock_redshift is None, "mock_redshift package not present")
     @mock_redshift
     def test_poke(self):
         self._create_cluster()
@@ -55,7 +48,6 @@ class TestRedshiftClusterSensor(unittest.TestCase):
         )
         assert op.poke({})
 
-    @unittest.skipIf(mock_redshift is None, "mock_redshift package not present")
     @mock_redshift
     def test_poke_false(self):
         self._create_cluster()
@@ -70,7 +62,6 @@ class TestRedshiftClusterSensor(unittest.TestCase):
 
         assert not op.poke({})
 
-    @unittest.skipIf(mock_redshift is None, "mock_redshift package not present")
     @mock_redshift
     def test_poke_cluster_not_found(self):
         self._create_cluster()

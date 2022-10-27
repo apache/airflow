@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import pytest
+from moto import mock_rds
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
@@ -29,12 +30,6 @@ from airflow.providers.amazon.aws.sensors.rds import (
 )
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.utils import timezone
-
-try:
-    from moto import mock_rds
-except ImportError:
-    mock_rds = None
-
 
 DEFAULT_DATE = timezone.datetime(2019, 1, 1)
 
@@ -141,7 +136,6 @@ class TestBaseRdsSensor:
         assert not self.base_sensor._check_item(item_type="instance_snapshot", item_name="")
 
 
-@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
 class TestRdsSnapshotExistenceSensor:
     @classmethod
     def setup_class(cls):
@@ -200,7 +194,6 @@ class TestRdsSnapshotExistenceSensor:
         assert not op.poke(None)
 
 
-@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
 class TestRdsExportTaskExistenceSensor:
     @classmethod
     def setup_class(cls):
@@ -236,7 +229,6 @@ class TestRdsExportTaskExistenceSensor:
         assert not op.poke(None)
 
 
-@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
 class TestRdsDbSensor:
     @classmethod
     def setup_class(cls):

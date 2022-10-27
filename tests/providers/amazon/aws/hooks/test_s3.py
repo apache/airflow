@@ -27,16 +27,25 @@ from unittest.mock import Mock
 import boto3
 import pytest
 from botocore.exceptions import ClientError, NoCredentialsError
+from moto import mock_s3
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook, provide_bucket_name, unify_bucket_name_and_key
 from airflow.utils.timezone import datetime
 
-try:
-    from moto import mock_s3
-except ImportError:
-    mock_s3 = None
+
+@pytest.fixture
+def mocked_s3_res():
+    with mock_s3():
+        yield boto3.resource("s3")
+
+
+@pytest.fixture
+def s3_bucket(mocked_s3_res):
+    bucket = "airflow-test-s3-bucket"
+    mocked_s3_res.create_bucket(Bucket=bucket)
+    return bucket
 
 
 # This class needs to be separated out because if there are earlier mocks in the same class
@@ -54,7 +63,6 @@ class TestAwsS3HookNoMock:
             hook.check_for_bucket("test-non-existing-bucket")
 
 
-@pytest.mark.skipif(mock_s3 is None, reason="moto package not present")
 class TestAwsS3Hook:
     @mock_s3
     def test_get_conn(self):

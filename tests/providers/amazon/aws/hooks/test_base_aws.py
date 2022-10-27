@@ -28,13 +28,8 @@ import boto3
 import pytest
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
-
-try:
-    from moto.core import DEFAULT_ACCOUNT_ID
-except ImportError:
-    from moto.core import ACCOUNT_ID as DEFAULT_ACCOUNT_ID
-
 from moto import mock_dynamodb, mock_emr, mock_iam, mock_sts
+from moto.core import DEFAULT_ACCOUNT_ID
 
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.hooks.base_aws import (
@@ -226,7 +221,6 @@ class TestSessionFactory:
         mock_boto3_session.assert_called_once_with(**expected_arguments)
         assert session == MOCK_BOTO3_SESSION
 
-    @pytest.mark.skipif(mock_sts is None, reason="mock_sts package not present")
     @mock_sts
     @pytest.mark.parametrize(
         "conn_id, conn_extra",
@@ -260,7 +254,6 @@ class TestSessionFactory:
 
 
 class TestAwsBaseHook:
-    @unittest.skipIf(mock_emr is None, "mock_emr package not present")
     @mock_emr
     def test_get_client_type_set_in_class_attribute(self):
         client = boto3.client("emr", region_name="us-east-1")
@@ -308,7 +301,6 @@ class TestAwsBaseHook:
 
         assert table.item_count == 0
 
-    @unittest.skipIf(mock_sts is None, "mock_sts package not present")
     @mock.patch.object(AwsBaseHook, "get_connection")
     @mock_sts
     def test_assume_role(self, mock_get_connection):
@@ -439,7 +431,6 @@ class TestAwsBaseHook:
             [mock.call.get_default_id_token_credentials(target_audience="aws-federation.airflow.apache.org")]
         )
 
-    @unittest.skipIf(mock_sts is None, "mock_sts package not present")
     @mock.patch.object(AwsBaseHook, "get_connection")
     @mock_sts
     def test_assume_role_with_saml(self, mock_get_connection):
@@ -531,7 +522,6 @@ class TestAwsBaseHook:
         ]
         mock_boto3.assert_has_calls(calls_assume_role_with_saml)
 
-    @unittest.skipIf(mock_iam is None, "mock_iam package not present")
     @mock_iam
     def test_expand_role(self):
         conn = boto3.client("iam", region_name="us-east-1")
@@ -547,7 +537,6 @@ class TestAwsBaseHook:
             # should cause no exception
             hook.get_client_type("s3")
 
-    @unittest.skipIf(mock_sts is None, "mock_sts package not present")
     @mock.patch.object(AwsBaseHook, "get_connection")
     @mock_sts
     def test_refreshable_credentials(self, mock_get_connection):
@@ -668,7 +657,6 @@ class TestAwsBaseHook:
         with pytest.raises(ValueError, match="Either client_type=.* or resource_type=.* must be provided"):
             hook.get_conn()
 
-    @unittest.skipIf(mock_sts is None, "mock_sts package not present")
     @mock_sts
     def test_hook_connection_test(self):
         hook = AwsBaseHook(client_type="s3")
@@ -849,7 +837,7 @@ def _non_retryable_test(thing):
     return thing()
 
 
-class TestRetryDecorator(unittest.TestCase):  # ptlint: disable=invalid-name
+class TestRetryDecorator:  # ptlint: disable=invalid-name
     def test_do_nothing_on_non_exception(self):
         result = _retryable_test(lambda: 42)
         assert result, 42

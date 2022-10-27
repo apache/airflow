@@ -21,6 +21,8 @@ import contextlib
 import os
 from unittest import mock
 
+import boto3
+import moto
 import pytest
 from botocore.exceptions import ClientError
 
@@ -33,21 +35,13 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
 
-try:
-    import boto3
-    import moto
-    from moto import mock_s3
-except ImportError:
-    mock_s3 = None
-
 
 @pytest.fixture(autouse=True, scope="module")
 def s3mock():
-    with mock_s3():
+    with moto.mock_s3():
         yield
 
 
-@pytest.mark.skipif(mock_s3 is None, reason="Skipping test because moto.mock_s3 is not available")
 class TestS3TaskHandler:
     @conf_vars({("logging", "remote_log_conn_id"): "aws_default"})
     @pytest.fixture(autouse=True)
@@ -58,7 +52,7 @@ class TestS3TaskHandler:
         self.local_log_location = str(tmp_path_factory.mktemp("local-s3-log-location"))
         create_log_template("{try_number}.log")
         self.s3_task_handler = S3TaskHandler(self.local_log_location, self.remote_log_base)
-        # Vivfy the hook now with the config override
+        # Verify the hook now with the config override
         assert self.s3_task_handler.hook is not None
 
         date = datetime(2016, 1, 1)

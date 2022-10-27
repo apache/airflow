@@ -20,26 +20,19 @@ from __future__ import annotations
 import uuid
 
 import boto3
-import pytest
+from moto import mock_firehose, mock_s3
 
 from airflow.providers.amazon.aws.hooks.kinesis import FirehoseHook
 
-try:
-    from moto import mock_firehose, mock_s3
-except ImportError:
-    mock_firehose = None
 
-
-@pytest.mark.skipif(mock_firehose is None, reason="moto package not present")
+@mock_firehose
 class TestFirehoseHook:
-    @mock_firehose
     def test_get_conn_returns_a_boto3_connection(self):
         hook = FirehoseHook(
             aws_conn_id="aws_default", delivery_stream="test_airflow", region_name="us-east-1"
         )
         assert hook.get_conn() is not None
 
-    @mock_firehose
     @mock_s3
     def test_insert_batch_records_kinesis_firehose(self):
         boto3.client("s3").create_bucket(Bucket="kinesis-test")

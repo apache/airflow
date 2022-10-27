@@ -19,25 +19,18 @@ from __future__ import annotations
 
 import base64
 import json
-import unittest
+
+from moto import mock_secretsmanager
 
 from airflow.providers.amazon.aws.hooks.secrets_manager import SecretsManagerHook
 
-try:
-    from moto import mock_secretsmanager
-except ImportError:
-    mock_secretsmanager = None
 
-
-class TestSecretsManagerHook(unittest.TestCase):
-    @unittest.skipIf(mock_secretsmanager is None, "mock_secretsmanager package not present")
-    @mock_secretsmanager
+@mock_secretsmanager
+class TestSecretsManagerHook:
     def test_get_conn_returns_a_boto3_connection(self):
         hook = SecretsManagerHook(aws_conn_id="aws_default")
         assert hook.get_conn() is not None
 
-    @unittest.skipIf(mock_secretsmanager is None, "mock_secretsmanager package not present")
-    @mock_secretsmanager
     def test_get_secret_string(self):
         secret_name = "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
         secret_value = '{"user": "test"}'
@@ -58,8 +51,6 @@ class TestSecretsManagerHook(unittest.TestCase):
         secret = hook.get_secret(secret_name)
         assert secret == secret_value
 
-    @unittest.skipIf(mock_secretsmanager is None, "mock_secretsmanager package not present")
-    @mock_secretsmanager
     def test_get_secret_dict(self):
         secret_name = "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
         secret_value = '{"user": "test"}'
@@ -80,8 +71,6 @@ class TestSecretsManagerHook(unittest.TestCase):
         secret = hook.get_secret_as_dict(secret_name)
         assert secret == json.loads(secret_value)
 
-    @unittest.skipIf(mock_secretsmanager is None, "mock_secretsmanager package not present")
-    @mock_secretsmanager
     def test_get_secret_binary(self):
         secret_name = "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
         secret_value_binary = base64.b64encode(b'{"username": "test"}')

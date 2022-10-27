@@ -29,7 +29,6 @@ DEFAULT_NAMESPACE: str = "default_namespace"
 FROZEN_TIME: str = "2013-11-27T01:42:00Z"
 # Fargate docs say there is a limit of five labels per Selector.
 MAX_FARGATE_LABELS: int = 5
-PACKAGE_NOT_PRESENT_MSG: str = "mock_eks package not present"
 PARTITION: str = "aws"
 NODEGROUP_OWNERSHIP_TAG_KEY = "kubernetes.io/cluster/{cluster_name}"
 NODEGROUP_OWNERSHIP_TAG_DEFAULT_VALUE = "owned"
