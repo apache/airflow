@@ -29,6 +29,20 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from airflow.hooks.base import BaseHook
 
 
+def _get_field(extras: dict, field_name: str):
+    """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
+    backcompat_prefix = "extra__dataprep__"
+    if field_name.startswith("extra__"):
+        raise ValueError(
+            f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
+            "when using this method."
+        )
+    if field_name in extras:
+        return extras[field_name] or None
+    prefixed_name = f"{backcompat_prefix}{field_name}"
+    return extras.get(prefixed_name) or None
+
+
 class GoogleDataprepHook(BaseHook):
     """
     Hook for connection with Dataprep API.
@@ -48,9 +62,9 @@ class GoogleDataprepHook(BaseHook):
         super().__init__()
         self.dataprep_conn_id = dataprep_conn_id
         conn = self.get_connection(self.dataprep_conn_id)
-        extra_dejson = conn.extra_dejson
-        self._token = extra_dejson.get("extra__dataprep__token")
-        self._base_url = extra_dejson.get("extra__dataprep__base_url", "https://api.clouddataprep.com")
+        extras = conn.extra_dejson
+        self._token = _get_field(extras, "token")
+        self._base_url = _get_field(extras, "base_url") or "https://api.clouddataprep.com"
 
     @property
     def _headers(self) -> dict[str, str]:
