@@ -26,19 +26,22 @@ and password (=Storage account key), or login and SAS token in the extra field
 from __future__ import annotations
 
 import json
-import unittest
+import os
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 from azure.storage.file import Directory, File
+from pytest import param
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
 from airflow.utils import db
+from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
 
 
-class TestAzureFileshareHook(unittest.TestCase):
-    def setUp(self):
+class TestAzureFileshareHook:
+    def setup(self):
         db.merge_conn(
             Connection(
                 conn_id="azure_fileshare_test_key",
@@ -54,8 +57,8 @@ class TestAzureFileshareHook(unittest.TestCase):
                 login="login",
                 extra=json.dumps(
                     {
-                        "extra__azure_fileshare__sas_token": "token",
-                        "extra__azure_fileshare__protocol": "http",
+                        "sas_token": "token",
+                        "protocol": "http",
                     }
                 ),
             )
@@ -68,32 +71,6 @@ class TestAzureFileshareHook(unittest.TestCase):
                 login="login",
             )
         )
-        db.merge_conn(
-            Connection(
-                conn_id="azure_fileshare_extras_deprecated",
-                conn_type="azure_fileshare",
-                login="login",
-                extra=json.dumps(
-                    {
-                        "sas_token": "token",
-                    }
-                ),
-            )
-        )
-        db.merge_conn(
-            Connection(
-                conn_id="azure_fileshare_extras_deprecated_empty_wasb_extra",
-                conn_type="azure_fileshare",
-                login="login",
-                password="password",
-                extra=json.dumps(
-                    {
-                        "extra__azure_fileshare__shared_access_key": "",
-                    }
-                ),
-            )
-        )
-
         db.merge_conn(
             Connection(
                 conn_id="azure_fileshare_extras_wrong",
@@ -122,24 +99,6 @@ class TestAzureFileshareHook(unittest.TestCase):
         hook = AzureFileShareHook(azure_fileshare_conn_id="azure_fileshare_extras")
         assert hook.conn_id == "azure_fileshare_extras"
         assert isinstance(hook.get_conn(), FileService)
-
-    def test_deprecated_sas_token(self):
-        from azure.storage.file import FileService
-
-        with pytest.warns(DeprecationWarning):
-            hook = AzureFileShareHook(azure_fileshare_conn_id="azure_fileshare_extras_deprecated")
-            assert hook.conn_id == "azure_fileshare_extras_deprecated"
-            assert isinstance(hook.get_conn(), FileService)
-
-    def test_deprecated_wasb_connection(self):
-        from azure.storage.file import FileService
-
-        with pytest.warns(DeprecationWarning):
-            hook = AzureFileShareHook(
-                azure_fileshare_conn_id="azure_fileshare_extras_deprecated_empty_wasb_extra"
-            )
-            assert hook.conn_id == "azure_fileshare_extras_deprecated_empty_wasb_extra"
-            assert isinstance(hook.get_conn(), FileService)
 
     def test_wrong_extras(self):
         hook = AzureFileShareHook(azure_fileshare_conn_id="azure_fileshare_extras_wrong")
@@ -271,3 +230,87 @@ class TestAzureFileshareHook(unittest.TestCase):
         status, msg = hook.test_connection()
         assert status is False
         assert msg == "Test Connection Failure"
+
+    def test__ensure_prefixes_removal(self):
+        """Ensure that _ensure_prefixes is removed from snowflake when airflow min version >= 2.5.0."""
+        path = "airflow.providers.microsoft.azure.hooks.fileshare._ensure_prefixes"
+        if not object_exists(path):
+            raise Exception(
+                "You must remove this test. It only exists to "
+                "remind us to remove decorator `_ensure_prefixes`."
+            )
+
+        if get_provider_min_airflow_version("apache-airflow-providers-microsoft-azure") >= (2, 5):
+            raise Exception(
+                "You must now remove `_ensure_prefixes` from AzureFileShareHook."
+                " The functionality is now taken care of by providers manager."
+            )
+
+    def test___ensure_prefixes(self):
+        """
+        Check that ensure_prefixes decorator working properly
+
+        Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
+        """
+        assert list(AzureFileShareHook.get_ui_field_behaviour()["placeholders"].keys()) == [
+            "login",
+            "password",
+            "extra__azure_fileshare__sas_token",
+            "extra__azure_fileshare__connection_string",
+            "extra__azure_fileshare__protocol",
+        ]
+
+    @pytest.mark.parametrize(
+        "uri",
+        [
+            param(
+                "a://?extra__azure_fileshare__anything=abc&extra__azure_fileshare__other_thing=abc",
+                id="prefix",
+            ),
+            param("a://?anything=abc&other_thing=abc", id="no-prefix"),
+        ],
+    )
+    @patch("airflow.providers.microsoft.azure.hooks.fileshare.FileService")
+    def test_backcompat_prefix_works(self, mock_service, uri):
+        with patch.dict(os.environ, AIRFLOW_CONN_MY_CONN=uri):
+            hook = AzureFileShareHook("my_conn")
+            hook.get_conn()
+            mock_service.assert_called_with(
+                account_key=None, account_name=None, anything="abc", other_thing="abc"
+            )
+
+    @patch("airflow.providers.microsoft.azure.hooks.fileshare.FileService")
+    def test_backcompat_prefix_both_causes_warning(self, mock_service):
+        with patch.dict(
+            os.environ,
+            AIRFLOW_CONN_MY_CONN="a://?anything=non-prefixed&extra__azure_fileshare__anything=prefixed",
+        ):
+            hook = AzureFileShareHook("my_conn")
+            with pytest.warns(Warning, match="Using value for `anything`"):
+                hook.get_conn()
+            mock_service.assert_called_with(account_key=None, account_name=None, anything="non-prefixed")
+
+    @patch("airflow.providers.microsoft.azure.hooks.fileshare.FileService")
+    def test_empty_string_ignored(self, mock_service):
+        with patch.dict(
+            os.environ,
+            AIRFLOW_CONN_MY_CONN='{"extra": {"anything": "", "other_thing": "a"}}',
+        ):
+            hook = AzureFileShareHook("my_conn")
+            hook.get_conn()
+            mock_service.assert_called_with(account_key=None, account_name=None, other_thing="a")
+
+    @patch("airflow.providers.microsoft.azure.hooks.fileshare.FileService")
+    def test_extra_params_forwarded_to_service_options(self, fs_mock):
+        with patch.dict(os.environ, AIRFLOW_CONN_MY_CONN="a://login@?a=1&b=2&c=3"):
+            hook = AzureFileShareHook("my_conn")
+            hook.get_conn()
+            fs_mock.assert_called_with(account_key=None, account_name="login", a="1", b="2", c="3")
+
+    @patch("airflow.providers.microsoft.azure.hooks.fileshare.FileService")
+    def test_unrecognized_extra_warns(self, fs_mock):
+        with patch.dict(os.environ, AIRFLOW_CONN_MY_CONN="a://login:password@?extra__wasb__hello=hi&foo=bar"):
+            hook = AzureFileShareHook("my_conn")
+            with pytest.warns(Warning, match="Extra param `extra__wasb__hello` not recognized; ignoring."):
+                hook.get_conn()
+            fs_mock.assert_called_with(account_key="password", account_name="login", foo="bar")
