@@ -27,17 +27,17 @@ from airflow.providers.oracle.transfers.oracle_to_oracle import OracleToOracleOp
 class TestOracleToOracleTransfer(unittest.TestCase):
     @staticmethod
     def test_execute():
-        oracle_destination_conn_id = 'oracle_destination_conn_id'
-        destination_table = 'destination_table'
-        oracle_source_conn_id = 'oracle_source_conn_id'
+        oracle_destination_conn_id = "oracle_destination_conn_id"
+        destination_table = "destination_table"
+        oracle_source_conn_id = "oracle_source_conn_id"
         source_sql = "select sysdate from dual where trunc(sysdate) = :p_data"
-        source_sql_params = {':p_data': "2018-01-01"}
+        source_sql_params = {":p_data": "2018-01-01"}
         rows_chunk = 5000
         cursor_description = [
-            ('id', "<class 'oracledb.NUMBER'>", 39, None, 38, 0, 0),
-            ('description', "<class 'oracledb.STRING'>", 60, 240, None, None, 1),
+            ("id", "<class 'oracledb.NUMBER'>", 39, None, 38, 0, 0),
+            ("description", "<class 'oracledb.STRING'>", 60, 240, None, None, 1),
         ]
-        cursor_rows = [[1, 'description 1'], [2, 'description 2']]
+        cursor_rows = [[1, "description 1"], [2, "description 2"]]
 
         mock_dest_hook = MagicMock()
         mock_src_hook = MagicMock()
@@ -47,7 +47,7 @@ class TestOracleToOracleTransfer(unittest.TestCase):
         mock_cursor.fetchmany.side_effect = [cursor_rows, []]
 
         op = OracleToOracleOperator(
-            task_id='copy_data',
+            task_id="copy_data",
             oracle_destination_conn_id=oracle_destination_conn_id,
             destination_table=destination_table,
             oracle_source_conn_id=oracle_source_conn_id,
@@ -68,5 +68,5 @@ class TestOracleToOracleTransfer(unittest.TestCase):
         ]
         mock_cursor.fetchmany.assert_has_calls(calls)
         mock_dest_hook.bulk_insert_rows.assert_called_once_with(
-            destination_table, cursor_rows, commit_every=rows_chunk, target_fields=['id', 'description']
+            destination_table, cursor_rows, commit_every=rows_chunk, target_fields=["id", "description"]
         )

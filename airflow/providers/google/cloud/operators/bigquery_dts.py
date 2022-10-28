@@ -284,7 +284,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         hook = BiqQueryDataTransferServiceHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain, location=self.location
         )
-        self.log.info('Submitting manual transfer for %s', self.transfer_config_id)
+        self.log.info("Submitting manual transfer for %s", self.transfer_config_id)
         response = hook.start_manual_transfer_runs(
             transfer_config_id=self.transfer_config_id,
             requested_time_range=self.requested_time_range,
@@ -305,7 +305,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         )
 
         result = StartManualTransferRunsResponse.to_dict(response)
-        run_id = get_object_id(result['runs'][0])
+        run_id = get_object_id(result["runs"][0])
         self.xcom_push(context, key="run_id", value=run_id)
-        self.log.info('Transfer run %s submitted successfully.', run_id)
+        self.log.info("Transfer run %s submitted successfully.", run_id)
         return result

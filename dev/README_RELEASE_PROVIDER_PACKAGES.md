@@ -151,6 +151,16 @@ are updated, run it in non-interactive mode:
 breeze release-management prepare-provider-documentation --answer yes [packages]
 ```
 
+NOTE!! In case you prepare provider's documentation in a branch different than main, you need to manually
+specify the base branch via `--base-branch` parameter.
+For example if you try to build a `cncf.kubernetes` provider that is build from `provider-cncf-kubernetes/v4-4`
+branch should be prepared like this:
+
+```shell script
+breeze release-management prepare-provider-documentation \
+ --base-branch provider-cncf-kubernetes/v4-4 cncf.kubernetes
+```
+
 ## Build provider packages for SVN apache upload
 
 Those packages might get promoted  to "final" packages by just renaming the files, so internally they

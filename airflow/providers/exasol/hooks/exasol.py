@@ -38,10 +38,10 @@ class ExasolHook(DbApiHook):
     for more details.
     """
 
-    conn_name_attr = 'exasol_conn_id'
-    default_conn_name = 'exasol_default'
-    conn_type = 'exasol'
-    hook_name = 'Exasol'
+    conn_name_attr = "exasol_conn_id"
+    default_conn_name = "exasol_default"
+    conn_type = "exasol"
+    hook_name = "Exasol"
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:
@@ -52,14 +52,14 @@ class ExasolHook(DbApiHook):
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.get_connection(conn_id)
         conn_args = dict(
-            dsn=f'{conn.host}:{conn.port}',
+            dsn=f"{conn.host}:{conn.port}",
             user=conn.login,
             password=conn.password,
             schema=self.schema or conn.schema,
         )
         # check for parameters in conn.extra
         for arg_name, arg_val in conn.extra_dejson.items():
-            if arg_name in ['compression', 'encryption', 'json_lib', 'client_name']:
+            if arg_name in ["compression", "encryption", "json_lib", "client_name"]:
                 conn_args[arg_name] = arg_val
 
         conn = pyexasol.connect(**conn_args)
@@ -216,15 +216,14 @@ class ExasolHook(DbApiHook):
 
         :param conn: Connection to get autocommit setting from.
         :return: connection autocommit setting.
-        :rtype: bool
         """
-        autocommit = conn.attr.get('autocommit')
+        autocommit = conn.attr.get("autocommit")
         if autocommit is None:
             autocommit = super().get_autocommit(conn)
         return autocommit
 
     @staticmethod
-    def _serialize_cell(cell, conn=None) -> object:
+    def _serialize_cell(cell, conn=None) -> Any:
         """
         Exasol will adapt all arguments to the execute() method internally,
         hence we return cell without any conversion.
@@ -232,6 +231,5 @@ class ExasolHook(DbApiHook):
         :param cell: The cell to insert into the table
         :param conn: The database connection
         :return: The cell
-        :rtype: object
         """
         return cell

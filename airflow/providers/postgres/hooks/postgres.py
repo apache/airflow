@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 from contextlib import closing
 from copy import deepcopy
-from typing import Iterable, Union
+from typing import Any, Iterable, Union
 
 import psycopg2
 import psycopg2.extensions
@@ -60,10 +60,10 @@ class PostgresHook(DbApiHook):
         reference to a specific postgres database.
     """
 
-    conn_name_attr = 'postgres_conn_id'
-    default_conn_name = 'postgres_default'
-    conn_type = 'postgres'
-    hook_name = 'Postgres'
+    conn_name_attr = "postgres_conn_id"
+    default_conn_name = "postgres_default"
+    conn_type = "postgres"
+    hook_name = "Postgres"
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:
@@ -74,13 +74,13 @@ class PostgresHook(DbApiHook):
 
     def _get_cursor(self, raw_cursor: str) -> CursorType:
         _cursor = raw_cursor.lower()
-        if _cursor == 'dictcursor':
+        if _cursor == "dictcursor":
             return psycopg2.extras.DictCursor
-        if _cursor == 'realdictcursor':
+        if _cursor == "realdictcursor":
             return psycopg2.extras.RealDictCursor
-        if _cursor == 'namedtuplecursor':
+        if _cursor == "namedtuplecursor":
             return psycopg2.extras.NamedTupleCursor
-        raise ValueError(f'Invalid cursor passed {_cursor}')
+        raise ValueError(f"Invalid cursor passed {_cursor}")
 
     def get_conn(self) -> connection:
         """Establishes a connection to a postgres database."""
@@ -88,7 +88,7 @@ class PostgresHook(DbApiHook):
         conn = deepcopy(self.connection or self.get_connection(conn_id))
 
         # check for authentication via AWS IAM
-        if conn.extra_dejson.get('iam', False):
+        if conn.extra_dejson.get("iam", False):
             conn.login, conn.password, conn.port = self.get_iam_token(conn)
 
         conn_args = dict(
@@ -98,17 +98,17 @@ class PostgresHook(DbApiHook):
             dbname=self.schema or conn.schema,
             port=conn.port,
         )
-        raw_cursor = conn.extra_dejson.get('cursor', False)
+        raw_cursor = conn.extra_dejson.get("cursor", False)
         if raw_cursor:
-            conn_args['cursor_factory'] = self._get_cursor(raw_cursor)
+            conn_args["cursor_factory"] = self._get_cursor(raw_cursor)
 
         for arg_name, arg_val in conn.extra_dejson.items():
             if arg_name not in [
-                'iam',
-                'redshift',
-                'cursor',
-                'cluster-identifier',
-                'aws_conn_id',
+                "iam",
+                "redshift",
+                "cursor",
+                "cluster-identifier",
+                "aws_conn_id",
             ]:
                 conn_args[arg_name] = arg_val
 
@@ -128,10 +128,10 @@ class PostgresHook(DbApiHook):
         """
         self.log.info("Running copy expert: %s, filename: %s", sql, filename)
         if not os.path.isfile(filename):
-            with open(filename, 'w'):
+            with open(filename, "w"):
                 pass
 
-        with open(filename, 'r+') as file:
+        with open(filename, "r+") as file:
             with closing(self.get_conn()) as conn:
                 with closing(conn.cursor()) as cur:
                     cur.copy_expert(sql, file)
@@ -155,7 +155,7 @@ class PostgresHook(DbApiHook):
         self.copy_expert(f"COPY {table} TO STDOUT", tmp_file)
 
     @staticmethod
-    def _serialize_cell(cell: object, conn: connection | None = None) -> object:
+    def _serialize_cell(cell: object, conn: connection | None = None) -> Any:
         """
         Postgresql will adapt all arguments to the execute() method internally,
         hence we return cell without any conversion.
@@ -166,7 +166,6 @@ class PostgresHook(DbApiHook):
         :param cell: The cell to insert into the table
         :param conn: The database connection
         :return: The cell
-        :rtype: object
         """
         return cell
 
@@ -186,13 +185,13 @@ class PostgresHook(DbApiHook):
                 "pip install 'apache-airflow-providers-postgres[amazon]'."
             )
 
-        aws_conn_id = conn.extra_dejson.get('aws_conn_id', 'aws_default')
+        aws_conn_id = conn.extra_dejson.get("aws_conn_id", "aws_default")
         login = conn.login
-        if conn.extra_dejson.get('redshift', False):
+        if conn.extra_dejson.get("redshift", False):
             port = conn.port or 5439
             # Pull the custer-identifier from the beginning of the Redshift URL
             # ex. my-cluster.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns my-cluster
-            cluster_identifier = conn.extra_dejson.get('cluster-identifier', conn.host.split('.')[0])
+            cluster_identifier = conn.extra_dejson.get("cluster-identifier", conn.host.split(".")[0])
             redshift_client = AwsBaseHook(aws_conn_id=aws_conn_id, client_type="redshift").conn
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html#Redshift.Client.get_cluster_credentials
             cluster_creds = redshift_client.get_cluster_credentials(
@@ -201,8 +200,8 @@ class PostgresHook(DbApiHook):
                 ClusterIdentifier=cluster_identifier,
                 AutoCreate=False,
             )
-            token = cluster_creds['DbPassword']
-            login = cluster_creds['DbUser']
+            token = cluster_creds["DbPassword"]
+            login = cluster_creds["DbUser"]
         else:
             port = conn.port or 5432
             rds_client = AwsBaseHook(aws_conn_id=aws_conn_id, client_type="rds").conn
@@ -217,7 +216,6 @@ class PostgresHook(DbApiHook):
         :param table: Name of the target table
         :param schema: Name of the target schema, public by default
         :return: Primary key columns list
-        :rtype: List[str]
         """
         sql = """
             select kcu.column_name
@@ -248,7 +246,6 @@ class PostgresHook(DbApiHook):
         :param replace_index: the column or list of column names to act as
             index for the ON CONFLICT clause
         :return: The generated INSERT or REPLACE SQL statement
-        :rtype: str
         """
         placeholders = [
             "%s",
@@ -259,7 +256,7 @@ class PostgresHook(DbApiHook):
             target_fields_fragment = ", ".join(target_fields)
             target_fields_fragment = f"({target_fields_fragment})"
         else:
-            target_fields_fragment = ''
+            target_fields_fragment = ""
 
         sql = f"INSERT INTO {table} {target_fields_fragment} VALUES ({','.join(placeholders)})"
 

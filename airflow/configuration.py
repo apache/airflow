@@ -227,6 +227,33 @@ class AirflowConfigParser(ConfigParser):
         ('database', 'sql_alchemy_connect_args'): ('core', 'sql_alchemy_connect_args', '2.3.0'),
         ('database', 'load_default_connections'): ('core', 'load_default_connections', '2.3.0'),
         ('database', 'max_db_retries'): ('core', 'max_db_retries', '2.3.0'),
+        **{
+            ('kubernetes_executor', x): ('kubernetes', x, '2.4.2')
+            for x in (
+                'pod_template_file',
+                'worker_container_repository',
+                'worker_container_tag',
+                'namespace',
+                'delete_worker_pods',
+                'delete_worker_pods_on_failure',
+                'worker_pods_creation_batch_size',
+                'multi_namespace_mode',
+                'in_cluster',
+                'cluster_context',
+                'config_file',
+                'kube_client_request_args',
+                'delete_option_kwargs',
+                'enable_tcp_keepalive',
+                'tcp_keep_idle',
+                'tcp_keep_intvl',
+                'tcp_keep_cnt',
+                'verify_ssl',
+                'worker_pods_pending_timeout',
+                'worker_pods_pending_timeout_check_interval',
+                'worker_pods_queued_check_interval',
+                'worker_pods_pending_timeout_batch_size',
+            )
+        },
     }
 
     # A mapping of old default values that we want to change and warn the user
@@ -802,7 +829,6 @@ class AirflowConfigParser(ConfigParser):
         as required.
 
         :param section: section from the config
-        :rtype: dict
         """
         if not self.has_section(section) and not self.airflow_defaults.has_section(section):
             return None
@@ -894,7 +920,6 @@ class AirflowConfigParser(ConfigParser):
         :param include_secret: Should the result of calling any *_secret config be
             set (True, default), or should the _secret options be left as the
             path to get the secret from (False)
-        :rtype: Dict[str, Dict[str, str]]
         :return: Dictionary, where the key is the name of the section and the content is
             the dictionary with the name of the parameter and its value.
         """
@@ -1060,7 +1085,6 @@ class AirflowConfigParser(ConfigParser):
             Source is either 'airflow.cfg', 'default', 'env var', or 'cmd'.
         :param getter_func: A callback function that gets the user configured
             override value for a particular sensitive_config_values config.
-        :rtype: None
         :return: None, the given config_sources is filtered if necessary,
             otherwise untouched.
         """

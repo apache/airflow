@@ -1,4 +1,4 @@
-{#
+/*
  Licensed to the Apache Software Foundation (ASF) under one
  or more contributor license agreements.  See the NOTICE file
  distributed with this work for additional information
@@ -15,21 +15,9 @@
  KIND, either express or implied.  See the License for the
  specific language governing permissions and limitations
  under the License.
-#}
+*/
 
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>Airflow 404</title>
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='pin_32.png') }}">
-  </head>
-  <body>
-    <div style="font-family: verdana; text-align: center; margin-top: 200px;">
-      <img src="{{ url_for('static', filename='pin_100.png') }}" width="50px" alt="pin-logo" />
-      <h1>Airflow 404</h1>
-      <p>Page cannot be found.</p>
-      <a href="/">Return to the main page</a>
-      <p>{{ hostname }}</p>
-    </div>
-  </body>
-</html>
+CREATE TABLE IF NOT EXISTS RANDOM_DATA AS SELECT
+    UNIFORM(1, 10, 1234) AS COL1
+FROM
+    TABLE(GENERATOR(ROWCOUNT => 5));

@@ -37,7 +37,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.2.0
+  - apache-airflow>=2.3.0
   - tableauserverclient
 
 integrations:
@@ -52,12 +52,10 @@ operators:
   - integration-name: Tableau
     python-modules:
       - airflow.providers.tableau.operators.tableau
-      - airflow.providers.tableau.operators.tableau_refresh_workbook
 
 sensors:
   - integration-name: Tableau
     python-modules:
-      - airflow.providers.tableau.sensors.tableau_job_status
       - airflow.providers.tableau.sensors.tableau
 
 hooks:

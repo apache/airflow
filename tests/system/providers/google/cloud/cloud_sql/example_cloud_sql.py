@@ -51,8 +51,8 @@ from airflow.providers.google.cloud.operators.gcs import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get('SYSTEM_TESTS_ENV_ID')
-PROJECT_ID = os.environ.get('SYSTEM_TESTS_GCP_PROJECT')
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 DAG_ID = "cloudsql"
 
 INSTANCE_NAME = f"{DAG_ID}-{ENV_ID}-instance"
@@ -155,14 +155,14 @@ with models.DAG(
 
     # [START howto_operator_cloudsql_create]
     sql_instance_create_task = CloudSQLCreateInstanceOperator(
-        body=body, instance=INSTANCE_NAME, task_id='sql_instance_create_task'
+        body=body, instance=INSTANCE_NAME, task_id="sql_instance_create_task"
     )
     # [END howto_operator_cloudsql_create]
 
     sql_instance_read_replica_create = CloudSQLCreateInstanceOperator(
         body=read_replica_body,
         instance=READ_REPLICA_NAME,
-        task_id='sql_instance_read_replica_create',
+        task_id="sql_instance_read_replica_create",
     )
 
     # ############################################## #
@@ -171,13 +171,13 @@ with models.DAG(
 
     # [START howto_operator_cloudsql_patch]
     sql_instance_patch_task = CloudSQLInstancePatchOperator(
-        body=patch_body, instance=INSTANCE_NAME, task_id='sql_instance_patch_task'
+        body=patch_body, instance=INSTANCE_NAME, task_id="sql_instance_patch_task"
     )
     # [END howto_operator_cloudsql_patch]
 
     # [START howto_operator_cloudsql_db_create]
     sql_db_create_task = CloudSQLCreateInstanceDatabaseOperator(
-        body=db_create_body, instance=INSTANCE_NAME, task_id='sql_db_create_task'
+        body=db_create_body, instance=INSTANCE_NAME, task_id="sql_db_create_task"
     )
     # [END howto_operator_cloudsql_db_create]
 
@@ -186,7 +186,7 @@ with models.DAG(
         body=db_patch_body,
         instance=INSTANCE_NAME,
         database=DB_NAME,
-        task_id='sql_db_patch_task',
+        task_id="sql_db_patch_task",
     )
     # [END howto_operator_cloudsql_db_patch]
 
@@ -197,20 +197,20 @@ with models.DAG(
 
     # For export & import to work we need to add the Cloud SQL instance's Service Account
     # write access to the destination GCS bucket.
-    service_account_email = XComArg(sql_instance_create_task, key='service_account_email')
+    service_account_email = XComArg(sql_instance_create_task, key="service_account_email")
 
     # [START howto_operator_cloudsql_export_gcs_permissions]
     sql_gcp_add_bucket_permission_task = GCSBucketCreateAclEntryOperator(
         entity=f"user-{service_account_email}",
         role="WRITER",
         bucket=file_url_split[1],  # netloc (bucket)
-        task_id='sql_gcp_add_bucket_permission_task',
+        task_id="sql_gcp_add_bucket_permission_task",
     )
     # [END howto_operator_cloudsql_export_gcs_permissions]
 
     # [START howto_operator_cloudsql_export]
     sql_export_task = CloudSQLExportInstanceOperator(
-        body=export_body, instance=INSTANCE_NAME, task_id='sql_export_task'
+        body=export_body, instance=INSTANCE_NAME, task_id="sql_export_task"
     )
     # [END howto_operator_cloudsql_export]
 
@@ -222,13 +222,13 @@ with models.DAG(
         role="READER",
         bucket=file_url_split[1],  # netloc (bucket)
         object_name=file_url_split[2][1:],  # path (strip first '/')
-        task_id='sql_gcp_add_object_permission_task',
+        task_id="sql_gcp_add_object_permission_task",
     )
     # [END howto_operator_cloudsql_import_gcs_permissions]
 
     # [START howto_operator_cloudsql_import]
     sql_import_task = CloudSQLImportInstanceOperator(
-        body=import_body, instance=INSTANCE_NAME, task_id='sql_import_task'
+        body=import_body, instance=INSTANCE_NAME, task_id="sql_import_task"
     )
     # [END howto_operator_cloudsql_import]
 
@@ -238,7 +238,7 @@ with models.DAG(
 
     # [START howto_operator_cloudsql_db_delete]
     sql_db_delete_task = CloudSQLDeleteInstanceDatabaseOperator(
-        instance=INSTANCE_NAME, database=DB_NAME, task_id='sql_db_delete_task'
+        instance=INSTANCE_NAME, database=DB_NAME, task_id="sql_db_delete_task"
     )
     # [END howto_operator_cloudsql_db_delete]
     sql_db_delete_task.trigger_rule = TriggerRule.ALL_DONE
@@ -250,11 +250,11 @@ with models.DAG(
     # [START howto_operator_cloudsql_replicas_delete]
     sql_instance_failover_replica_delete_task = CloudSQLDeleteInstanceOperator(
         instance=FAILOVER_REPLICA_NAME,
-        task_id='sql_instance_failover_replica_delete_task',
+        task_id="sql_instance_failover_replica_delete_task",
     )
 
     sql_instance_read_replica_delete_task = CloudSQLDeleteInstanceOperator(
-        instance=READ_REPLICA_NAME, task_id='sql_instance_read_replica_delete_task'
+        instance=READ_REPLICA_NAME, task_id="sql_instance_read_replica_delete_task"
     )
     # [END howto_operator_cloudsql_replicas_delete]
     sql_instance_failover_replica_delete_task.trigger_rule = TriggerRule.ALL_DONE
@@ -262,7 +262,7 @@ with models.DAG(
 
     # [START howto_operator_cloudsql_delete]
     sql_instance_delete_task = CloudSQLDeleteInstanceOperator(
-        instance=INSTANCE_NAME, task_id='sql_instance_delete_task'
+        instance=INSTANCE_NAME, task_id="sql_instance_delete_task"
     )
     # [END howto_operator_cloudsql_delete]
     sql_instance_delete_task.trigger_rule = TriggerRule.ALL_DONE

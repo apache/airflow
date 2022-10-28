@@ -24,22 +24,22 @@ from requests import Response
 from airflow.compat.functools import cached_property
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-DEFAULT_KUBERNETES_JWT_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/token'
+DEFAULT_KUBERNETES_JWT_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 DEFAULT_KV_ENGINE_VERSION = 2
 
 
 VALID_KV_VERSIONS: list[int] = [1, 2]
 VALID_AUTH_TYPES: list[str] = [
-    'approle',
-    'aws_iam',
-    'azure',
-    'github',
-    'gcp',
-    'kubernetes',
-    'ldap',
-    'radius',
-    'token',
-    'userpass',
+    "approle",
+    "aws_iam",
+    "azure",
+    "github",
+    "gcp",
+    "kubernetes",
+    "ldap",
+    "radius",
+    "token",
+    "userpass",
 ]
 
 
@@ -87,7 +87,7 @@ class _VaultClient(LoggingMixin):
     def __init__(
         self,
         url: str | None = None,
-        auth_type: str = 'token',
+        auth_type: str = "token",
         auth_mount_point: str | None = None,
         mount_point: str = "secret",
         kv_engine_version: int | None = None,
@@ -99,7 +99,7 @@ class _VaultClient(LoggingMixin):
         secret_id: str | None = None,
         role_id: str | None = None,
         kubernetes_role: str | None = None,
-        kubernetes_jwt_path: str | None = '/var/run/secrets/kubernetes.io/serviceaccount/token',
+        kubernetes_jwt_path: str | None = "/var/run/secrets/kubernetes.io/serviceaccount/token",
         gcp_key_path: str | None = None,
         gcp_keyfile_dict: dict | None = None,
         gcp_scopes: str | None = None,
@@ -173,14 +173,13 @@ class _VaultClient(LoggingMixin):
         it is still authenticated to Vault, and invalidates the cache if this
         is not the case.
 
-        :rtype: hvac.Client
         :return: Vault Client
 
         """
         if not self._client.is_authenticated():
             # Invalidate the cache:
             # https://github.com/pydanny/cached-property#invalidating-the-cache
-            self.__dict__.pop('_client', None)
+            self.__dict__.pop("_client", None)
         return self._client
 
     @cached_property
@@ -188,16 +187,15 @@ class _VaultClient(LoggingMixin):
         """
         Return an authenticated Hashicorp Vault client.
 
-        :rtype: hvac.Client
         :return: Vault Client
 
         """
         _client = hvac.Client(url=self.url, **self.kwargs)
         if self.auth_type == "approle":
             self._auth_approle(_client)
-        elif self.auth_type == 'aws_iam':
+        elif self.auth_type == "aws_iam":
             self._auth_aws_iam(_client)
-        elif self.auth_type == 'azure':
+        elif self.auth_type == "azure":
             self._auth_azure(_client)
         elif self.auth_type == "gcp":
             self._auth_gcp(_client)
@@ -362,7 +360,6 @@ class _VaultClient(LoggingMixin):
         Reads secret metadata (including versions) from the engine. It is only valid for KV version 2.
 
         :param secret_path: The path of the secret.
-        :rtype: dict
         :return: secret metadata. This is a Dict containing metadata for the secret.
 
                  See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
@@ -389,7 +386,6 @@ class _VaultClient(LoggingMixin):
         :param secret_path: The path of the secret.
         :param secret_version: Specifies the version of Secret to return. If not set, the latest
             version is returned. (Can only be used in case of version 2 of KV).
-        :rtype: dict
         :return: The key info. This is a Dict with "data" mapping keeping secret
                  and "metadata" mapping keeping metadata of the secret.
         """
@@ -423,7 +419,6 @@ class _VaultClient(LoggingMixin):
             allowed. If set to 0 a write will only be allowed if the key doesn't exist.
             If the index is non-zero the write will only be allowed if the key's current version
             matches the version specified in the cas parameter. Only valid for KV engine version 2.
-        :rtype: requests.Response
         :return: The response of the create_or_update_secret request.
 
                  See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v1.html

@@ -44,7 +44,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 class CloudComposerHook(GoogleBaseHook):
     """Hook for Google Cloud Composer APIs."""
 
-    client_options = ClientOptions(api_endpoint='composer.googleapis.com:443')
+    client_options = ClientOptions(api_endpoint="composer.googleapis.com:443")
 
     def get_environment_client(self) -> EnvironmentsClient:
         """Retrieves client library object that allow access Environments service."""
@@ -76,10 +76,10 @@ class CloudComposerHook(GoogleBaseHook):
         return self.get_environment_client().transport.operations_client.get_operation(name=operation_name)
 
     def get_environment_name(self, project_id, region, environment_id):
-        return f'projects/{project_id}/locations/{region}/environments/{environment_id}'
+        return f"projects/{project_id}/locations/{region}/environments/{environment_id}"
 
     def get_parent(self, project_id, region):
-        return f'projects/{project_id}/locations/{region}'
+        return f"projects/{project_id}/locations/{region}"
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_environment(
@@ -104,7 +104,7 @@ class CloudComposerHook(GoogleBaseHook):
         """
         client = self.get_environment_client()
         result = client.create_environment(
-            request={'parent': self.get_parent(project_id, region), 'environment': environment},
+            request={"parent": self.get_parent(project_id, region), "environment": environment},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -159,7 +159,7 @@ class CloudComposerHook(GoogleBaseHook):
         """
         client = self.get_environment_client()
         result = client.get_environment(
-            request={'name': self.get_environment_name(project_id, region, environment_id)},
+            request={"name": self.get_environment_name(project_id, region, environment_id)},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -271,7 +271,7 @@ class CloudComposerHook(GoogleBaseHook):
         client = self.get_image_versions_client()
         result = client.list_image_versions(
             request={
-                'parent': self.get_parent(project_id, region),
+                "parent": self.get_parent(project_id, region),
                 "page_size": page_size,
                 "page_token": page_token,
                 "include_past_releases": include_past_releases,
@@ -286,7 +286,7 @@ class CloudComposerHook(GoogleBaseHook):
 class CloudComposerAsyncHook(GoogleBaseHook):
     """Hook for Google Cloud Composer async APIs."""
 
-    client_options = ClientOptions(api_endpoint='composer.googleapis.com:443')
+    client_options = ClientOptions(api_endpoint="composer.googleapis.com:443")
 
     def get_environment_client(self) -> EnvironmentsAsyncClient:
         """Retrieves client library object that allow access Environments service."""
@@ -297,10 +297,10 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         )
 
     def get_environment_name(self, project_id, region, environment_id):
-        return f'projects/{project_id}/locations/{region}/environments/{environment_id}'
+        return f"projects/{project_id}/locations/{region}/environments/{environment_id}"
 
     def get_parent(self, project_id, region):
-        return f'projects/{project_id}/locations/{region}'
+        return f"projects/{project_id}/locations/{region}"
 
     async def get_operation(self, operation_name):
         return await self.get_environment_client().transport.operations_client.get_operation(
@@ -330,7 +330,7 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         """
         client = self.get_environment_client()
         return await client.create_environment(
-            request={'parent': self.get_parent(project_id, region), 'environment': environment},
+            request={"parent": self.get_parent(project_id, region), "environment": environment},
             retry=retry,
             timeout=timeout,
             metadata=metadata,

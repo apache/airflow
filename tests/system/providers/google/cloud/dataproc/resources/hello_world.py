@@ -20,6 +20,6 @@ from __future__ import annotations
 import pyspark
 
 sc = pyspark.SparkContext()
-rdd = sc.parallelize(['Hello,', 'world!'])
+rdd = sc.parallelize(["Hello,", "world!"])
 words = sorted(rdd.collect())
 print(words)
