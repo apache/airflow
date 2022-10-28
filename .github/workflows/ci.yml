@@ -630,6 +630,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           fetch-depth: 2
           persist-credentials: false
+    if: needs.build-info.outputs.runs-on != 'self-hosted'
 
   wait-for-ci-images:
     timeout-minutes: 120
