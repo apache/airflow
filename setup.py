@@ -173,7 +173,6 @@ def git_version(version_: str) -> str:
 
     :param str version_: Semver version
     :return: Found Airflow version in Git repo
-    :rtype: str
     """
     try:
         import git
@@ -376,7 +375,7 @@ devel_only = [
     "jira",
     "jsondiff",
     "mongomock",
-    "moto[cloudformation, glue]>=3.1.12",
+    "moto[cloudformation, glue]>=4.0",
     "parameterized",
     "paramiko",
     "pipdeptree",

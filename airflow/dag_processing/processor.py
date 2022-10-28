@@ -129,7 +129,6 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         :param thread_name: the name to use for the process that is launched
         :param callback_requests: failure callback to execute
         :return: the process that was launched
-        :rtype: multiprocessing.Process
         """
         # This helper runs in the newly created process
         log: logging.Logger = logging.getLogger("airflow.processor")
@@ -259,10 +258,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
 
     @property
     def pid(self) -> int:
-        """
-        :return: the PID of the process launched to process the given file
-        :rtype: int
-        """
+        """PID of the process launched to process the given file."""
         if self._process is None or self._process.pid is None:
             raise AirflowException("Tried to get PID before starting!")
         return self._process.pid
@@ -273,7 +269,6 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         After the process is finished, this can be called to get the return code
 
         :return: the exit code of the process
-        :rtype: int
         """
         if self._process is None:
             raise AirflowException("Tried to get exit code before starting!")
@@ -287,7 +282,6 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         Check if the process launched to process this file is done.
 
         :return: whether the process is finished running
-        :rtype: bool
         """
         if self._process is None or self._parent_channel is None:
             raise AirflowException("Tried to see if it's done before starting!")
@@ -326,20 +320,14 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
 
     @property
     def result(self) -> tuple[int, int] | None:
-        """
-        :return: result of running DagFileProcessor.process_file()
-        :rtype: tuple[int, int] or None
-        """
+        """Result of running ``DagFileProcessor.process_file()``."""
         if not self.done:
             raise AirflowException("Tried to get the result before it's done!")
         return self._result
 
     @property
     def start_time(self) -> datetime.datetime:
-        """
-        :return: when this started to process the file
-        :rtype: datetime
-        """
+        """Time when this started to process the file."""
         if self._start_time is None:
             raise AirflowException("Tried to get start time before it started!")
         return self._start_time
@@ -751,7 +739,6 @@ class DagFileProcessor(LoggingMixin):
             save them to the db
         :param session: Sqlalchemy ORM Session
         :return: number of dags found, count of import errors
-        :rtype: Tuple[int, int]
         """
         self.log.info("Processing file %s for tasks to queue", file_path)
 

@@ -51,16 +51,14 @@ Check SQL Table Columns
 
 Use the :class:`~airflow.providers.common.sql.operators.sql.SQLColumnCheckOperator` to run data quality
 checks against columns of a given table. As well as a connection ID and table, a column_mapping
-describing the relationship between columns and tests to run must be supplied. An example column
-mapping is a set of three nested dictionaries and looks like:
+describing the relationship between columns and tests to run must be supplied. An example column mapping
+is a set of three nested dictionaries and looks like:
 
 .. code-block:: python
 
         column_mapping = {
             "col_name": {
-                "null_check": {
-                    "equal_to": 0,
-                },
+                "null_check": {"equal_to": 0, "partition_clause": "other_col LIKE 'this'"},
                 "min": {
                     "greater_than": 5,
                     "leq_to": 10,
@@ -79,8 +77,8 @@ The valid checks are:
 - min: checks the minimum value in the column
 - max: checks the maximum value in the column
 
-Each entry in the check's dictionary is either a condition for success of the check or the tolerance. The
-conditions for success are:
+Each entry in the check's dictionary is either a condition for success of the check, the tolerance,
+or a partition clause. The conditions for success are:
 
 - greater_than
 - geq_to
@@ -92,7 +90,14 @@ When specifying conditions, equal_to is not compatible with other conditions. Bo
 bound condition may be specified in the same check. The tolerance is a percentage that the result may
 be out of bounds but still considered successful.
 
+The partition clauses may be given at the operator level as a parameter where it partitions all checks,
+at the column level in the column mapping where it partitions all checks for that column, or at the
+check level for a column where it partitions just that check.
 
+A database may also be specified if not using the database from the supplied connection.
+
+The accept_none argument, true by default, will convert None values returned by the query to 0s, allowing
+empty tables to return valid integers.
 
 The below example demonstrates how to instantiate the SQLColumnCheckOperator task.
 
@@ -119,14 +124,20 @@ checks argument is a set of two nested dictionaries and looks like:
                 "row_count_check": {
                     "check_statement": "COUNT(*) = 1000",
                 },
-                "column_sum_check": {"check_statement": "col_a + col_b < col_c"},
+                "column_sum_check": {
+                    "check_statement": "col_a + col_b < col_c",
+                    "partition_clause": "col_a IS NOT NULL",
+                },
             },
         )
 
 The first set of keys are the check names, which are referenced in the templated query the operator builds.
-The dictionary key under the check name must be check_statement, with the value a SQL statement that
+A dictionary key under the check name must include check_statement and the value a SQL statement that
 resolves to a boolean (this can be any string or int that resolves to a boolean in
-airflow.operators.sql.parse_boolean).
+airflow.operators.sql.parse_boolean). The other possible key to supply is partition_clause, which is a
+check level statement that will partition the data in the table using a WHERE clause for that check.
+This statement is compatible with the parameter partition_clause, where the latter filters across all
+checks.
 
 The below example demonstrates how to instantiate the SQLTableCheckOperator task.
 

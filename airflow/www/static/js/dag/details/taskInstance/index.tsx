@@ -124,7 +124,7 @@ const TaskInstance = ({
           operator={operator}
         />
       )}
-      <Tabs size="lg" index={selectedTabIndex} onChange={handleTabsChange}>
+      <Tabs size="lg" index={selectedTabIndex} onChange={handleTabsChange} isLazy>
         <TabList>
           <Tab>
             <Text as="strong">Details</Text>
@@ -183,6 +183,7 @@ const TaskInstance = ({
                 mapIndex={mapIndex}
                 executionDate={executionDate}
                 tryNumber={instance?.tryNumber}
+                state={instance?.state}
               />
             </TabPanel>
           )}

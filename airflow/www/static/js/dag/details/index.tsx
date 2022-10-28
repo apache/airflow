@@ -34,10 +34,10 @@ import DagContent from './Dag';
 const Details = () => {
   const { selected: { runId, taskId, mapIndex }, onSelect } = useSelection();
   return (
-    <Flex flexDirection="column" pl={3} mr={3} flexGrow={1} maxWidth="750px">
+    <Flex flexDirection="column" pl={3} mr={3} height="100%">
       <Header />
       <Divider my={2} />
-      <Box minWidth="750px">
+      <Box overflowY="scroll">
         {!runId && !taskId && <DagContent />}
         {runId && !taskId && (
           <DagRunContent runId={runId} />

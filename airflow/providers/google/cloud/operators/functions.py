@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from googleapiclient.errors import HttpError
 
@@ -50,7 +50,7 @@ def _validate_max_instances(value):
         raise GcpFieldValidationException("The max instances parameter has to be greater than 0")
 
 
-CLOUD_FUNCTION_VALIDATION = [
+CLOUD_FUNCTION_VALIDATION: list[dict[str, Any]] = [
     dict(name="name", regexp="^.+$"),
     dict(name="description", regexp="^.+$", optional=True),
     dict(name="entryPoint", regexp=r"^.+$", optional=True),
@@ -99,7 +99,7 @@ CLOUD_FUNCTION_VALIDATION = [
             ),
         ],
     ),
-]  # type: List[Dict[str, Any]]
+]
 
 
 class CloudFunctionDeployFunctionOperator(BaseOperator):
@@ -170,7 +170,7 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
         self.api_version = api_version
         self.zip_path = zip_path
         self.zip_path_preprocessor = ZipPathPreprocessor(body, zip_path)
-        self._field_validator = None  # type: Optional[GcpBodyFieldValidator]
+        self._field_validator: GcpBodyFieldValidator | None = None
         self.impersonation_chain = impersonation_chain
         if validate_body:
             self._field_validator = GcpBodyFieldValidator(CLOUD_FUNCTION_VALIDATION, api_version=api_version)
@@ -269,7 +269,7 @@ class ZipPathPreprocessor:
 
     """
 
-    upload_function = None  # type: Optional[bool]
+    upload_function: bool | None = None
 
     def __init__(self, body: dict, zip_path: str | None = None) -> None:
         self.body = body
@@ -306,11 +306,7 @@ class ZipPathPreprocessor:
             )
 
     def should_upload_function(self) -> bool:
-        """
-        Checks if function source should be uploaded.
-
-        :rtype: bool
-        """
+        """Checks if function source should be uploaded."""
         if self.upload_function is None:
             raise AirflowException("validate() method has to be invoked before should_upload_function")
         return self.upload_function
