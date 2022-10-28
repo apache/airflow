@@ -1147,6 +1147,14 @@ class DataflowStopJobOperator(BaseOperator):
 
     Parameter ``job_name_prefix`` and ``job_id`` are mutually exclusive.
 
+    .. seealso::
+        For more details on stopping a pipeline see:
+        https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowStopJobOperator`
+
     :param job_name_prefix: Name prefix specifying which jobs are to be stopped.
     :param job_id: Job ID specifying which jobs are to be stopped.
     :param project_id: Optional, the Google Cloud project ID in which to start a job.
