@@ -50,13 +50,20 @@ class CallbackRequest:
     def __repr__(self):
         return str(self.__dict__)
 
+    def to_dict(self) -> dict:
+        return self.__dict__
+
     def to_json(self) -> str:
         return json.dumps(self.__dict__)
 
     @classmethod
+    def from_dict(cls, dict_obj: str):
+        return cls(**dict_obj)
+
+    @classmethod
     def from_json(cls, json_str: str):
         json_object = json.loads(json_str)
-        return cls(**json_object)
+        return cls.from_dict(**json_object)
 
 
 class TaskCallbackRequest(CallbackRequest):
@@ -83,18 +90,27 @@ class TaskCallbackRequest(CallbackRequest):
         self.simple_task_instance = simple_task_instance
         self.is_failure_callback = is_failure_callback
 
-    def to_json(self) -> str:
+    def to_dict(self) -> dict:
         dict_obj = self.__dict__.copy()
         dict_obj["simple_task_instance"] = self.simple_task_instance.as_dict()
-        return json.dumps(dict_obj)
+        return dict_obj
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict())
 
     @classmethod
     def from_json(cls, json_str: str):
         from airflow.models.taskinstance import SimpleTaskInstance
 
         kwargs = json.loads(json_str)
-        simple_ti = SimpleTaskInstance.from_dict(obj_dict=kwargs.pop("simple_task_instance"))
-        return cls(simple_task_instance=simple_ti, **kwargs)
+        return cls.from_dict(kwargs)
+
+    @classmethod
+    def from_dict(cls, dict_obj: str):
+        from airflow.models.taskinstance import SimpleTaskInstance
+
+        simple_ti = SimpleTaskInstance.from_dict(obj_dict=dict_obj.pop("simple_task_instance"))
+        return cls(simple_task_instance=simple_ti, **dict_obj)
 
 
 class DagCallbackRequest(CallbackRequest):
@@ -142,3 +158,13 @@ class SlaCallbackRequest(CallbackRequest):
     ):
         super().__init__(full_filepath, processor_subdir=processor_subdir, msg=msg)
         self.dag_id = dag_id
+
+
+def callback_from_dict(dict_obj: dict, type_name: str) -> CallbackRequest:
+    if type_name == "TaskCallbackRequest":
+        return TaskCallbackRequest.from_dict(dict_obj=dict_obj)
+    if type_name == "DagCallbackRequest":
+        return DagCallbackRequest.from_dict(dict_obj=dict_obj)
+    if type_name == "SlaCallbackRequest":
+        return SlaCallbackRequest.from_dict(dict_obj=dict_obj)
+    return CallbackRequest.from_dict(dict_obj=dict_obj)
