@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 
 import pytest
 
-from airflow.providers.google.cloud.example_dags.example_mlengine import (
+from tests.system.providers.google.cloud.ml_engine.example_mlengine import (
     JOB_DIR,
     PREDICTION_OUTPUT,
     SAVED_MODEL_PATH,

@@ -48,7 +48,7 @@ PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "default")
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 
 DAG_ID = "example_gcp_mlengine"
-PREDICT_FILE_NAME = 'predict.json'
+PREDICT_FILE_NAME = "predict.json"
 MODEL_NAME = f"example_mlengine_model_{ENV_ID}"
 BUCKET_NAME = f"example_mlengine_bucket_{ENV_ID}"
 BUCKET_PATH = f"gs://{BUCKET_NAME}"
@@ -74,7 +74,7 @@ with models.DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example', 'ml_engine'],
+    tags=["example", "ml_engine"],
     params={"model_name": MODEL_NAME},
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
@@ -85,7 +85,7 @@ with models.DAG(
     @task(task_id="write-predict-data-file")
     def write_predict_file(path_to_file: str):
         predict_data = generate_model_predict_input_data()
-        with open(path_to_file, 'w') as file:
+        with open(path_to_file, "w") as file:
             for predict_value in predict_data:
                 file.write(f'{{"input_layer": [{predict_value}]}}\n')
 
@@ -252,7 +252,7 @@ with models.DAG(
         """
 
         def normalize_value(inst: dict):
-            val = float(inst['output_layer'][0])
+            val = float(inst["output_layer"][0])
             return tuple([val])  # returns a tuple.
 
         return normalize_value, ["val"]  # key order must match.
@@ -264,13 +264,13 @@ with models.DAG(
         """
         Validate summary result
         """
-        summary = summary.get('val', 0)
+        summary = summary.get("val", 0)
         initial_values = generate_model_predict_input_data()
         initial_summary = sum(initial_values) / len(initial_values)
 
         multiplier = ceil(summary / initial_summary)
         if multiplier != 2:
-            raise ValueError(f'Multiplier is not equal 2; multiplier: {multiplier}')
+            raise ValueError(f"Multiplier is not equal 2; multiplier: {multiplier}")
         return summary
 
     # [END howto_operator_gcp_mlengine_validate_error]
