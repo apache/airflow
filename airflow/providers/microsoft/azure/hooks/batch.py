@@ -385,6 +385,32 @@ class AzureBatchHook(BaseHook):
             time.sleep(15)
         raise TimeoutError("Timed out waiting for tasks to complete")
 
+    def wait_for_single_job_task_to_complete(self, job_id: str, task_id: str,
+                                             timeout: int) -> batch_models.CloudTask | None:
+        """
+        Wait for a single task in a particular job to complete
+
+        :param job_id: A string that identifies the job
+        :param task_id: A string that identifies the task
+        :param timeout: The amount of time to wait before timing out in minutes
+        """
+        timeout_time = timezone.utcnow() + timedelta(minutes=timeout)
+        while timezone.utcnow() < timeout_time:
+            task = self.connection.task.get(job_id, task_id)
+
+            if task.state == batch_models.TaskState.completed:
+                # detect if task in job has failed
+                self.log.info("Task %s completed with result %s and exit code %s", task.id,
+                              task.execution_info.result,
+                              str(task.execution_info.exit_code))
+                if (task.execution_info.result == batch_models.TaskExecutionResult.failure) or (
+                    task.execution_info.exit_code != 0):
+                    return task
+                return None
+            self.log.info("Waiting for %s to complete, currently on %s state", task.id, task.state)
+            time.sleep(15)
+        raise TimeoutError(f"Timed out waiting for task {task_id} to complete")
+
     def test_connection(self):
         """Test a configured Azure Batch connection."""
         try:
