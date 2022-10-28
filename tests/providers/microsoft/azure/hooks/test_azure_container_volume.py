@@ -23,6 +23,7 @@ import unittest
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.container_volume import AzureContainerVolumeHook
 from airflow.utils import db
+from tests.test_utils.providers import get_provider_min_airflow_version
 
 
 class TestAzureContainerVolumeHook(unittest.TestCase):
@@ -65,3 +66,20 @@ class TestAzureContainerVolumeHook(unittest.TestCase):
         assert volume.azure_file.storage_account_key == "1"
         assert volume.azure_file.storage_account_name == "storage"
         assert volume.azure_file.read_only is True
+
+    def test_get_ui_field_behaviour_placeholders(self):
+        """
+        Check that ensure_prefixes decorator working properly
+
+        Note: remove this test and the _ensure_prefixes decorator after min airflow version >= 2.5.0
+        """
+        assert list(AzureContainerVolumeHook.get_ui_field_behaviour()["placeholders"].keys()) == [
+            "login",
+            "password",
+            "extra__azure_container_volume__connection_string",
+        ]
+        if get_provider_min_airflow_version("apache-airflow-providers-microsoft-azure") >= (2, 5):
+            raise Exception(
+                "You must now remove `_ensure_prefixes` from azure utils."
+                " The functionality is now taken care of by providers manager."
+            )

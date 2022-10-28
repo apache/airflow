@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import warnings
 from functools import wraps
 
 
@@ -46,3 +47,28 @@ def _ensure_prefixes(conn_type):
         return inner
 
     return dec
+
+
+def get_field(*, conn_id: str, conn_type: str, extras: dict, field_name: str):
+    """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
+    backcompat_prefix = f"extra__{conn_type}__"
+    backcompat_key = f"{backcompat_prefix}{field_name}"
+    ret = None
+    if field_name.startswith("extra__"):
+        raise ValueError(
+            f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
+            "when using this method."
+        )
+    if field_name in extras:
+        if backcompat_key in extras:
+            warnings.warn(
+                f"Conflicting params `{field_name}` and `{backcompat_key}` found in extras for conn "
+                f"{conn_id}. Using value for `{field_name}`.  Please ensure this is the correct "
+                f"value and remove the backcompat key `{backcompat_key}`."
+            )
+        ret = extras[field_name]
+    elif backcompat_key in extras:
+        ret = extras.get(backcompat_key)
+    if ret == "":
+        return None
+    return ret

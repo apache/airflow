@@ -34,6 +34,7 @@ from azure.cosmos.exceptions import CosmosHttpResponseError
 
 from airflow.exceptions import AirflowBadRequest
 from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import _ensure_prefixes, get_field
 
 
 class AzureCosmosDBHook(BaseHook):
@@ -61,15 +62,16 @@ class AzureCosmosDBHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "extra__azure_cosmos__database_name": StringField(
+            "database_name": StringField(
                 lazy_gettext("Cosmos Database Name (optional)"), widget=BS3TextFieldWidget()
             ),
-            "extra__azure_cosmos__collection_name": StringField(
+            "collection_name": StringField(
                 lazy_gettext("Cosmos Collection Name (optional)"), widget=BS3TextFieldWidget()
             ),
         }
 
     @staticmethod
+    @_ensure_prefixes(conn_type="azure_cosmos")  # todo: remove when min airflow version >= 2.5
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
@@ -81,8 +83,8 @@ class AzureCosmosDBHook(BaseHook):
             "placeholders": {
                 "login": "endpoint uri",
                 "password": "master key",
-                "extra__azure_cosmos__database_name": "database name",
-                "extra__azure_cosmos__collection_name": "collection name",
+                "database_name": "database name",
+                "collection_name": "collection name",
             },
         }
 
@@ -94,6 +96,14 @@ class AzureCosmosDBHook(BaseHook):
         self.default_database_name = None
         self.default_collection_name = None
 
+    def _get_field(self, extras, name):
+        return get_field(
+            conn_id=self.conn_id,
+            conn_type=self.conn_type,
+            extras=extras,
+            field_name=name,
+        )
+
     def get_conn(self) -> CosmosClient:
         """Return a cosmos db client."""
         if not self._conn:
@@ -102,12 +112,8 @@ class AzureCosmosDBHook(BaseHook):
             endpoint_uri = conn.login
             master_key = conn.password
 
-            self.default_database_name = extras.get("database_name") or extras.get(
-                "extra__azure_cosmos__database_name"
-            )
-            self.default_collection_name = extras.get("collection_name") or extras.get(
-                "extra__azure_cosmos__collection_name"
-            )
+            self.default_database_name = self._get_field(extras, "database_name")
+            self.default_collection_name = self._get_field(extras, "collection_name")
 
             # Initialize the Python Azure Cosmos DB client
             self._conn = CosmosClient(endpoint_uri, {"masterKey": master_key})
