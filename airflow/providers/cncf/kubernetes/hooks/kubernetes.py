@@ -283,9 +283,9 @@ class KubernetesHook(BaseHook):
                 plural=plural,
                 name=body_dict["metadata"]["name"],
             )
-            self.log.warning("Deleted SparkApplication with the same name.")
+            self.log.warning("Deleted custom resource with the same name.")
         except client.rest.ApiException:
-            self.log.info("SparkApp %s not found.", body_dict["metadata"]["name"])
+            self.log.info("Custom resource %s not found.", body_dict["metadata"]["name"])
 
         try:
             response = api.create_namespaced_custom_object(
