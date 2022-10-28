@@ -120,7 +120,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                         "command": ["bash", "-cx"],
                         "env": [],
                         "envFrom": [],
-                        "resources": {},
                         "name": "base",
                         "ports": [],
                         "volumeMounts": [],
