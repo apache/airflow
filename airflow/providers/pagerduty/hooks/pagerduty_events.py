@@ -112,7 +112,6 @@ class PagerdutyEventsHook(BaseHook):
             `text`: [Optional] Plain text that describes the purpose of the link, and can be used as the
             link's text.
         :return: PagerDuty Events API v2 response.
-        :rtype: dict
         """
         payload = {
             "summary": summary,

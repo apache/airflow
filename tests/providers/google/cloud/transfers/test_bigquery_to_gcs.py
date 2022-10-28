@@ -25,40 +25,40 @@ from google.cloud.bigquery.retry import DEFAULT_RETRY
 
 from airflow.providers.google.cloud.transfers.bigquery_to_gcs import BigQueryToGCSOperator
 
-TASK_ID = 'test-bq-create-table-operator'
-TEST_DATASET = 'test-dataset'
-TEST_TABLE_ID = 'test-table-id'
-PROJECT_ID = 'test-project-id'
+TASK_ID = "test-bq-create-table-operator"
+TEST_DATASET = "test-dataset"
+TEST_TABLE_ID = "test-table-id"
+PROJECT_ID = "test-project-id"
 
 
 class TestBigQueryToGCSOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryHook')
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryHook")
     def test_execute(self, mock_hook):
-        source_project_dataset_table = f'{PROJECT_ID}:{TEST_DATASET}.{TEST_TABLE_ID}'
-        destination_cloud_storage_uris = ['gs://some-bucket/some-file.txt']
-        compression = 'NONE'
-        export_format = 'CSV'
-        field_delimiter = ','
+        source_project_dataset_table = f"{PROJECT_ID}:{TEST_DATASET}.{TEST_TABLE_ID}"
+        destination_cloud_storage_uris = ["gs://some-bucket/some-file.txt"]
+        compression = "NONE"
+        export_format = "CSV"
+        field_delimiter = ","
         print_header = True
-        labels = {'k1': 'v1'}
+        labels = {"k1": "v1"}
         job_id = "123456"
         hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"
 
         expected_configuration = {
-            'extract': {
-                'sourceTable': {
-                    'projectId': 'test-project-id',
-                    'datasetId': 'test-dataset',
-                    'tableId': 'test-table-id',
+            "extract": {
+                "sourceTable": {
+                    "projectId": "test-project-id",
+                    "datasetId": "test-dataset",
+                    "tableId": "test-table-id",
                 },
-                'compression': 'NONE',
-                'destinationUris': ['gs://some-bucket/some-file.txt'],
-                'destinationFormat': 'CSV',
-                'fieldDelimiter': ',',
-                'printHeader': True,
+                "compression": "NONE",
+                "destinationUris": ["gs://some-bucket/some-file.txt"],
+                "destinationFormat": "CSV",
+                "fieldDelimiter": ",",
+                "printHeader": True,
             },
-            'labels': {'k1': 'v1'},
+            "labels": {"k1": "v1"},
         }
 
         mock_hook.return_value.split_tablename.return_value = (PROJECT_ID, TEST_DATASET, TEST_TABLE_ID)
@@ -78,7 +78,7 @@ class TestBigQueryToGCSOperator(unittest.TestCase):
         operator.execute(context=mock.MagicMock())
 
         mock_hook.return_value.insert_job.assert_called_once_with(
-            job_id='123456_hash',
+            job_id="123456_hash",
             configuration=expected_configuration,
             project_id=None,
             location=None,

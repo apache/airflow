@@ -35,7 +35,7 @@ class TestCleanupPods:
             "spec.jobTemplate.spec.template.spec.containers[0].name", docs[0]
         )
         assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].image", docs[0]).startswith(
-            'apache/airflow'
+            "apache/airflow"
         )
         assert {"name": "config", "configMap": {"name": "release-name-airflow-config"}} in jmespath.search(
             "spec.jobTemplate.spec.template.spec.volumes", docs[0]
@@ -51,7 +51,7 @@ class TestCleanupPods:
         render_chart(
             values={"cleanup": {"enabled": True}},
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
-            kubernetes_version='1.16.0',
+            kubernetes_version="1.16.0",
         )  # checks that no validation exception is raised
 
     def test_should_change_image_when_set_airflow_image(self):
@@ -133,7 +133,7 @@ class TestCleanupPods:
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
         )
 
-        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+        assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.jobTemplate.spec.template.spec.containers[0].env", docs[0]
         )
 

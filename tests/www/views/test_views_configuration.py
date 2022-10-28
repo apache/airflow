@@ -23,9 +23,9 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
 
-@conf_vars({("webserver", "expose_config"): 'False'})
+@conf_vars({("webserver", "expose_config"): "False"})
 def test_user_cant_view_configuration(admin_client):
-    resp = admin_client.get('configuration', follow_redirects=True)
+    resp = admin_client.get("configuration", follow_redirects=True)
     check_content_in_response(
         "Your Airflow administrator chose not to expose the configuration, "
         "most likely for security reasons.",
@@ -33,44 +33,44 @@ def test_user_cant_view_configuration(admin_client):
     )
 
 
-@conf_vars({("webserver", "expose_config"): 'True'})
+@conf_vars({("webserver", "expose_config"): "True"})
 def test_user_can_view_configuration(admin_client):
-    resp = admin_client.get('configuration', follow_redirects=True)
+    resp = admin_client.get("configuration", follow_redirects=True)
     for section, key in SENSITIVE_CONFIG_VALUES:
-        value = conf.get(section, key, fallback='')
+        value = conf.get(section, key, fallback="")
         if not value:
             continue
         check_content_in_response(html.escape(value), resp)
 
 
-@conf_vars({("webserver", "expose_config"): 'non-sensitive-only'})
+@conf_vars({("webserver", "expose_config"): "non-sensitive-only"})
 def test_configuration_redacted(admin_client):
-    resp = admin_client.get('configuration', follow_redirects=True)
+    resp = admin_client.get("configuration", follow_redirects=True)
     for section, key in SENSITIVE_CONFIG_VALUES:
-        value = conf.get(section, key, fallback='')
-        if not value or value == 'airflow':
+        value = conf.get(section, key, fallback="")
+        if not value or value == "airflow":
             continue
-        if value.startswith('db+postgresql'):  # this is in configuration comment
+        if value.startswith("db+postgresql"):  # this is in configuration comment
             continue
         check_content_not_in_response(value, resp)
 
 
-@conf_vars({("webserver", "expose_config"): 'non-sensitive-only'})
+@conf_vars({("webserver", "expose_config"): "non-sensitive-only"})
 def test_configuration_redacted_in_running_configuration(admin_client):
-    resp = admin_client.get('configuration', follow_redirects=True)
+    resp = admin_client.get("configuration", follow_redirects=True)
     for section, key in SENSITIVE_CONFIG_VALUES:
-        value = conf.get(section, key, fallback='')
-        if not value or value == 'airflow':
+        value = conf.get(section, key, fallback="")
+        if not value or value == "airflow":
             continue
-        check_content_not_in_response("<td class='code'>" + html.escape(value) + '</td', resp)
+        check_content_not_in_response("<td class='code'>" + html.escape(value) + "</td", resp)
 
 
-@conf_vars({("webserver", "expose_config"): 'non-sensitive-only'})
-@conf_vars({("database", "# sql_alchemy_conn"): 'testconn'})
-@conf_vars({("core", "  # secret_key"): 'core_secret'})
-@conf_vars({("core", "fernet_key"): 'secret_fernet_key'})
+@conf_vars({("webserver", "expose_config"): "non-sensitive-only"})
+@conf_vars({("database", "# sql_alchemy_conn"): "testconn"})
+@conf_vars({("core", "  # secret_key"): "core_secret"})
+@conf_vars({("core", "fernet_key"): "secret_fernet_key"})
 def test_commented_out_config(admin_client):
-    resp = admin_client.get('configuration', follow_redirects=True)
+    resp = admin_client.get("configuration", follow_redirects=True)
     check_content_in_response("testconn", resp)
     check_content_in_response("core_secret", resp)
     check_content_not_in_response("secret_fernet_key", resp)

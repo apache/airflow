@@ -233,7 +233,6 @@ class WasbHook(BaseHook):
         :param blob_name: Name of the blob.
         :param kwargs: Optional keyword arguments for ``BlobClient.get_blob_properties`` takes.
         :return: True if the blob exists, False otherwise.
-        :rtype: bool
         """
         try:
             self._get_blob_client(container_name, blob_name).get_blob_properties(**kwargs)
@@ -241,7 +240,7 @@ class WasbHook(BaseHook):
             return False
         return True
 
-    def check_for_prefix(self, container_name: str, prefix: str, **kwargs):
+    def check_for_prefix(self, container_name: str, prefix: str, **kwargs) -> bool:
         """
         Check if a prefix exists on Azure Blob storage.
 
@@ -249,7 +248,6 @@ class WasbHook(BaseHook):
         :param prefix: Prefix of the blob.
         :param kwargs: Optional keyword arguments that ``ContainerClient.walk_blobs`` takes
         :return: True if blobs matching the prefix exist, False otherwise.
-        :rtype: bool
         """
         blobs = self.get_blobs_list(container_name=container_name, prefix=prefix, **kwargs)
         return len(blobs) > 0

@@ -211,10 +211,10 @@ class TestRenderedTaskInstanceFields:
         for a given task_id and dag_id with mapped tasks.
         """
         with dag_maker("test_delete_old_records", session=session) as dag:
-            mapped = BashOperator.partial(task_id="mapped").expand(bash_command=['a', 'b'])
+            mapped = BashOperator.partial(task_id="mapped").expand(bash_command=["a", "b"])
         for num in range(num_runs):
             dr = dag_maker.create_dagrun(
-                run_id=f'run_{num}', execution_date=dag.start_date + timedelta(days=num)
+                run_id=f"run_{num}", execution_date=dag.start_date + timedelta(days=num)
             )
 
             mapped.expand_mapped_task(dr.run_id, session=dag_maker.session)
@@ -273,7 +273,7 @@ class TestRenderedTaskInstanceFields:
             )
             .first()
         )
-        assert ('test_write', 'test', {'bash_command': 'echo test_val', 'env': None}) == result
+        assert ("test_write", "test", {"bash_command": "echo test_val", "env": None}) == result
 
         # Test that overwrite saves new values to the DB
         Variable.delete("test_key")
@@ -297,13 +297,13 @@ class TestRenderedTaskInstanceFields:
             .first()
         )
         assert (
-            'test_write',
-            'test',
-            {'bash_command': 'echo test_val_updated', 'env': None},
+            "test_write",
+            "test",
+            {"bash_command": "echo test_val_updated", "env": None},
         ) == result_updated
 
     @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
-    @mock.patch('airflow.utils.log.secrets_masker.redact', autospec=True, side_effect=lambda d, _=None: d)
+    @mock.patch("airflow.utils.log.secrets_masker.redact", autospec=True, side_effect=lambda d, _=None: d)
     def test_get_k8s_pod_yaml(self, redact, dag_maker):
         """
         Test that k8s_pod_yaml is rendered correctly, stored in the Database,
@@ -312,13 +312,13 @@ class TestRenderedTaskInstanceFields:
         with dag_maker("test_get_k8s_pod_yaml") as dag:
             task = BashOperator(task_id="test", bash_command="echo hi")
         dr = dag_maker.create_dagrun()
-        dag.fileloc = TEST_DAGS_FOLDER + '/test_get_k8s_pod_yaml.py'
+        dag.fileloc = TEST_DAGS_FOLDER + "/test_get_k8s_pod_yaml.py"
 
         ti = dr.task_instances[0]
         ti.task = task
 
         render_k8s_pod_yaml = mock.patch.object(
-            ti, 'render_k8s_pod_yaml', return_value={"I'm a": "pod"}
+            ti, "render_k8s_pod_yaml", return_value={"I'm a": "pod"}
         ).start()
 
         rtif = RTIF(ti=ti)
@@ -348,24 +348,24 @@ class TestRenderedTaskInstanceFields:
             assert RTIF.get_k8s_pod_yaml(ti=ti, session=session) is None
 
     @mock.patch.dict(os.environ, {"AIRFLOW_VAR_API_KEY": "secret"})
-    @mock.patch('airflow.utils.log.secrets_masker.redact', autospec=True)
+    @mock.patch("airflow.utils.log.secrets_masker.redact", autospec=True)
     def test_redact(self, redact, dag_maker):
         with dag_maker("test_ritf_redact"):
             task = BashOperator(
                 task_id="test",
                 bash_command="echo {{ var.value.api_key }}",
-                env={'foo': 'secret', 'other_api_key': 'masked based on key name'},
+                env={"foo": "secret", "other_api_key": "masked based on key name"},
             )
         dr = dag_maker.create_dagrun()
         redact.side_effect = [
-            'val 1',
-            'val 2',
+            "val 1",
+            "val 2",
         ]
 
         ti = dr.task_instances[0]
         ti.task = task
         rtif = RTIF(ti=ti)
         assert rtif.rendered_fields == {
-            'bash_command': 'val 1',
-            'env': 'val 2',
+            "bash_command": "val 1",
+            "env": "val 2",
         }

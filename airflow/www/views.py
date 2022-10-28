@@ -3880,7 +3880,7 @@ def action_has_dag_edit_access(action_func: Callable) -> Callable:
         else:
             raise ValueError(
                 "Was expecting the first argument of the action to be of type "
-                "Optional[Union[List[TaskInstance], List[DagRun], TaskInstance, DagRun]]."
+                "list[TaskInstance] | list[DagRun] | TaskInstance | DagRun | None."
                 f"Was of type: {type(items)}"
             )
 

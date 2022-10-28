@@ -28,12 +28,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.psrp.hooks.psrp import PsrpHook
 from airflow.settings import json
-
-
-# TODO: Replace with airflow.utils.helpers.exactly_one in Airflow 2.3.
-def exactly_one(*args):
-    return len(set(filter(None, args))) == 1
-
+from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

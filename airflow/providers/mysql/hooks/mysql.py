@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Union
 
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -69,7 +69,6 @@ class MySqlHook(DbApiHook):
 
         :param conn: connection to set autocommit setting
         :param autocommit: autocommit setting
-        :rtype: None
         """
         if hasattr(conn.__class__, "autocommit") and isinstance(conn.__class__.autocommit, property):
             conn.autocommit = autocommit
@@ -85,7 +84,6 @@ class MySqlHook(DbApiHook):
 
         :param conn: connection to get autocommit setting from.
         :return: connection autocommit setting
-        :rtype: bool
         """
         if hasattr(conn.__class__, "autocommit") and isinstance(conn.__class__.autocommit, property):
             return conn.autocommit
@@ -207,7 +205,7 @@ class MySqlHook(DbApiHook):
         conn.close()
 
     @staticmethod
-    def _serialize_cell(cell: object, conn: Connection | None = None) -> object:
+    def _serialize_cell(cell: object, conn: Connection | None = None) -> Any:
         """
         Convert argument to a literal.
 
@@ -217,7 +215,6 @@ class MySqlHook(DbApiHook):
         :param cell: The cell to insert into the table
         :param conn: The database connection
         :return: The same cell
-        :rtype: object
         """
         return cell
 
