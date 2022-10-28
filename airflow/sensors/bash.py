@@ -39,6 +39,11 @@ class BashSensor(BaseSensorOperator):
         of inheriting the current process environment, which is the default
         behavior. (templated)
     :param output_encoding: output encoding of bash command.
+
+    .. seealso::
+        For more information on how to use this sensor,take a look at the guide:
+        :ref:`howto/operator:BashSensor`
+
     """
 
     template_fields: Sequence[str] = ('bash_command', 'env')
