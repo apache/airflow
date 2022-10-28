@@ -39,7 +39,6 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_image_pull_secrets,
     convert_pod_runtime_info_env,
     convert_port,
-    convert_resources,
     convert_toleration,
     convert_volume,
     convert_volume_mount,
@@ -213,21 +212,17 @@ class KubernetesPodOperator(BaseOperator):
         pod_runtime_info_envs: list[k8s.V1EnvVar] | None = None,
         termination_grace_period: int | None = None,
         configmaps: list[str] | None = None,
-        resources: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
-
-        if isinstance(resources, k8s.V1ResourceRequirements):
-            warnings.warn(
+        # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
+        # container_resources parameter.
+        if isinstance(kwargs.get("resources"), k8s.V1ResourceRequirements):
+            raise AirflowException(
                 "Specifying resources for the launched pod with 'resources' is deprecated. "
-                "Use 'container_resources' instead.",
-                category=DeprecationWarning,
-                stacklevel=2,
+                "Use 'container_resources' instead."
             )
-            container_resources = resources
-            resources = None
 
-        super().__init__(resources=resources, **kwargs)
+        super().__init__(**kwargs)
         self.kubernetes_conn_id = kubernetes_conn_id
         self.do_xcom_push = do_xcom_push
         self.image = image
@@ -263,7 +258,7 @@ class KubernetesPodOperator(BaseOperator):
             self.node_selector = {}
         self.annotations = annotations or {}
         self.affinity = convert_affinity(affinity) if affinity else {}
-        self.k8s_resources = convert_resources(container_resources) if container_resources else {}
+        self.container_resources = container_resources
         self.config_file = config_file
         self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.service_account_name = service_account_name
@@ -553,7 +548,7 @@ class KubernetesPodOperator(BaseOperator):
                         command=self.cmds,
                         ports=self.ports,
                         image_pull_policy=self.image_pull_policy,
-                        resources=self.k8s_resources,
+                        resources=self.container_resources,
                         volume_mounts=self.volume_mounts,
                         args=self.arguments,
                         env=self.env_vars,

@@ -107,7 +107,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                         "command": ["bash", "-cx"],
                         "env": [],
                         "envFrom": [],
-                        "resources": {},
                         "name": "base",
                         "ports": [],
                         "volumeMounts": [],
@@ -192,36 +191,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         k.execute(context)
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         self.expected_pod["spec"]["nodeSelector"] = node_selectors
-        assert self.expected_pod == actual_pod
-
-    def test_pod_resources(self):
-        resources = {
-            "limit_cpu": 0.25,
-            "limit_memory": "64Mi",
-            "limit_ephemeral_storage": "2Gi",
-            "request_cpu": "250m",
-            "request_memory": "64Mi",
-            "request_ephemeral_storage": "1Gi",
-        }
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="test",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-            container_resources=resources,
-        )
-        context = create_context(k)
-        k.execute(context)
-        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        self.expected_pod["spec"]["containers"][0]["resources"] = {
-            "requests": {"memory": "64Mi", "cpu": "250m", "ephemeral-storage": "1Gi"},
-            "limits": {"memory": "64Mi", "cpu": 0.25, "ephemeral-storage": "2Gi"},
-        }
         assert self.expected_pod == actual_pod
 
     def test_pod_affinity(self):

@@ -62,20 +62,6 @@ def convert_volume_mount(volume_mount) -> k8s.V1VolumeMount:
     return _convert_kube_model_object(volume_mount, k8s.V1VolumeMount)
 
 
-def convert_resources(resources) -> k8s.V1ResourceRequirements:
-    """
-    Converts an airflow Resources object into a k8s.V1ResourceRequirements
-
-    :param resources:
-    :return: k8s.V1ResourceRequirements
-    """
-    if isinstance(resources, dict):
-        from airflow.providers.cncf.kubernetes.backcompat.pod import Resources
-
-        resources = Resources(**resources)
-    return _convert_kube_model_object(resources, k8s.V1ResourceRequirements)
-
-
 def convert_port(port) -> k8s.V1ContainerPort:
     """
     Converts an airflow Port object into a k8s.V1ContainerPort

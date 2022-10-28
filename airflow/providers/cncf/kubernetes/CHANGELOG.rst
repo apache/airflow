@@ -32,6 +32,8 @@ Breaking changes
 
 Previously KubernetesPodOperator considered some settings from the Airflow config's ``kubernetes`` section.  Such consideration was deprecated in 4.1.0 and is now removed.  If you previously relied on the Airflow config, and you want client generation to have non-default configuration, you will need to define your configuration in an Airflow connection and set KPO to use the connection.  See kubernetes provider documentation on defining a kubernetes Airflow connection for details.
 
+Drop support for providing ``resource`` as dict in ``KubernetesPodOperator``. You should use ``container_resources`` with ``V1ResourceRequirements``.
+
 Features
 ~~~~~~~~
 
@@ -97,6 +99,10 @@ Bug Fixes
 * ``Revert "Fix await_container_completion condition (#23883)" (#24474)``
 * ``Update providers to use functools compat for ''cached_property'' (#24582)``
 
+Misc
+~~~~
+* ``Rename 'resources' arg in Kub op to k8s_resources (#24673)``
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Only assert stuff for mypy when type checking (#24937)``
@@ -105,7 +111,6 @@ Bug Fixes
    * ``Move provider dependencies to inside provider folders (#24672)``
    * ``Use our yaml util in all providers (#24720)``
    * ``Remove 'hook-class-names' from provider.yaml (#24702)``
-   * ``Rename 'resources' arg in Kub op to k8s_resources (#24673)``
 
 4.1.0
 .....
