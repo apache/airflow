@@ -201,7 +201,7 @@ def write_version(filename: str = str(AIRFLOW_SOURCES_ROOT / "airflow" / "git_ve
     """
     Write the Semver version + git hash to file, e.g. ".dev0+2f635dc265e78db6708f59f68e8009abb92c1e65".
 
-    :param str filename: Destination file to write
+    :param str filename: Destination file to write.
     """
     text = f"{git_version(version)}"
     with open(filename, "w") as file:
