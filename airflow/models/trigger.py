@@ -116,23 +116,25 @@ class Trigger(Base):
         session.query(Trigger).filter(Trigger.id.in_(ids)).delete(synchronize_session=False)
 
     @classmethod
-    @retry_db_transaction
+    @provide_session
     def submit_event(cls, trigger_id, event, session=None):
         """
         Takes an event from an instance of itself, and triggers all dependent
         tasks to resume.
         """
-        for task_instance in session.query(TaskInstance).filter(
-            TaskInstance.trigger_id == trigger_id, TaskInstance.state == State.DEFERRED
-        ):
-            # Add the event's payload into the kwargs for the task
-            next_kwargs = task_instance.next_kwargs or {}
-            next_kwargs["event"] = event.payload
-            task_instance.next_kwargs = next_kwargs
-            # Remove ourselves as its trigger
-            task_instance.trigger_id = None
-            # Finally, mark it as scheduled so it gets re-queued
-            task_instance.state = State.SCHEDULED
+        for attempt in run_with_db_retries():
+            with attempt:
+                for task_instance in session.query(TaskInstance).filter(
+                        TaskInstance.trigger_id == trigger_id, TaskInstance.state == State.DEFERRED
+                ):
+                    # Add the event's payload into the kwargs for the task
+                    next_kwargs = task_instance.next_kwargs or {}
+                    next_kwargs["event"] = event.payload
+                    task_instance.next_kwargs = next_kwargs
+                    # Remove ourselves as its trigger
+                    task_instance.trigger_id = None
+                    # Finally, mark it as scheduled so it gets re-queued
+                    task_instance.state = State.SCHEDULED
 
     @classmethod
     @provide_session
@@ -153,7 +155,7 @@ class Trigger(Base):
         in-process, but we can't do that right now.
         """
         for task_instance in session.query(TaskInstance).filter(
-            TaskInstance.trigger_id == trigger_id, TaskInstance.state == State.DEFERRED
+                TaskInstance.trigger_id == trigger_id, TaskInstance.state == State.DEFERRED
         ):
             # Add the error and set the next_method to the fail state
             traceback = format_exception(type(exc), exc, exc.__traceback__) if exc else None
