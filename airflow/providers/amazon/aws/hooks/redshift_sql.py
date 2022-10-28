@@ -104,7 +104,7 @@ class RedshiftSQLHook(DbApiHook):
         """
         Helper method that returns the table primary key
         :param table: Name of the target table
-        :param table: Name of the target schema, public by default
+        :param schema: Name of the target schema, public by default
         :return: Primary key columns list
         """
         sql = """
