@@ -5101,15 +5101,22 @@
                     "type": "boolean",
                     "default": true
                 },
-                "postgresqlPassword": {
-                    "description": "PostgreSQL password.",
-                    "type": "string",
-                    "default": "postgres"
-                },
-                "postgresqlUsername": {
-                    "description": "PostgreSQL username.",
-                    "type": "string",
-                    "default": "postgres"
+                "auth": {
+                    "description": "PostgreSQL authentication values.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "username": {
+                            "description": "PostgreSQL username.",
+                            "type": "string",
+                            "default": "postgres"
+                        },
+                        "password": {
+                            "description": "PostgreSQL password.",
+                            "type": "string",
+                            "default": "postgres"
+                        }
+                    }
                 }
             }
         },
