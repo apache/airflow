@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import boto3
+
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.emr import (
@@ -49,7 +51,8 @@ with DAG(
     env_id = test_context[ENV_ID_KEY]
     role_arn = test_context[ROLE_ARN_KEY]
     bucket_name = f"{env_id}-emr-serverless-bucket"
-    entryPoint = "s3://us-east-1.elasticmapreduce/emr-containers/samples/wordcount/scripts/wordcount.py"
+    region = boto3.session.Session().region_name
+    entryPoint = f"s3://{region}.elasticmapreduce/emr-containers/samples/wordcount/scripts/wordcount.py"
     create_s3_bucket = S3CreateBucketOperator(task_id="create_s3_bucket", bucket_name=bucket_name)
 
     SPARK_JOB_DRIVER = {
