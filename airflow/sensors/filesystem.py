@@ -40,6 +40,12 @@ class FileSensor(BaseSensorOperator):
         the base path set within the connection), can be a glob.
     :param recursive: when set to ``True``, enables recursive directory matching behavior of
         ``**`` in glob filepath parameter. Defaults to ``False``.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/operator:FileSensor`
+
+
     """
 
     template_fields: Sequence[str] = ('filepath',)

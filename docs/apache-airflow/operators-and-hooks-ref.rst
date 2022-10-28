@@ -36,9 +36,6 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - :mod:`airflow.hooks.base`
      -
 
-   * - :mod:`airflow.hooks.dbapi`
-     -
-
    * - :mod:`airflow.models.baseoperator`
      -
 
@@ -60,9 +57,9 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
      -
 
    * - :mod:`airflow.operators.datetime`
-     -
+     - :doc:`How to use <howto/operator/datetime>`
 
-   * - :mod:`airflow.operators.dummy`
+   * - :mod:`airflow.operators.empty`
      -
 
    * - :mod:`airflow.operators.email`
@@ -92,28 +89,28 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
      - Guides
 
    * - :mod:`airflow.sensors.bash`
-     -
+     - :ref:`How to use <howto/operator:BashSensor>`
 
    * - :mod:`airflow.sensors.date_time`
-     -
+     - :doc:`How to use <howto/operator/datetime>`
 
    * - :mod:`airflow.sensors.external_task`
      - :doc:`How to use <howto/operator/external_task_sensor>`
 
    * - :mod:`airflow.sensors.filesystem`
-     -
+     - :ref:`How to use <howto/operator:FileSensor>`
 
    * - :mod:`airflow.sensors.python`
-     -
+     - :ref:`How to use <howto/operator:PythonSensor>`
 
    * - :mod:`airflow.sensors.time_delta`
-     -
+     - :ref:`How to use <howto/operator:TimeDeltaSensor>`
 
    * - :mod:`airflow.sensors.time_sensor`
-     -
+     - :ref:`How to use <howto/operator:TimeSensor>`
 
    * - :mod:`airflow.sensors.weekday`
-     -
+     - :ref:`How to use <howto/operator:BashSensor>`
 
 
 **Hooks:**

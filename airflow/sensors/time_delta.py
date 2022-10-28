@@ -28,6 +28,12 @@ class TimeDeltaSensor(BaseSensorOperator):
     Waits for a timedelta after the run's data interval.
 
     :param delta: time length to wait after the data interval before succeeding.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/operator:TimeDeltaSensor`
+
+
     """
 
     def __init__(self, *, delta, **kwargs):
@@ -47,6 +53,11 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
     taking up a worker slot while it is waiting.
 
     :param delta: time length to wait after the data interval before succeeding.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/operator:TimeDeltaSensorAsync`
+
     """
 
     def execute(self, context: Context):

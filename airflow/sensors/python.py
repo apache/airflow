@@ -42,6 +42,10 @@ class PythonSensor(BaseSensorOperator):
         will get templated by the Airflow engine sometime between
         ``__init__`` and ``execute`` takes place and are made available
         in your callable's context after the template has been applied.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/operator:PythonSensor`
     """
 
     template_fields: Sequence[str] = ('templates_dict', 'op_args', 'op_kwargs')
