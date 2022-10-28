@@ -23,8 +23,10 @@ from unittest import mock
 
 import pytest
 
+from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
+from airflow.models.xcom_arg import PlainXComArg
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.operators.sftp import SFTPOperation, SFTPOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
@@ -406,6 +408,32 @@ class TestSFTPOperator:
                 pytest.fail("Exception not raised for unequal paths")
         else:
             pytest.fail("Exception not raised for unequal paths")
+
+    @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.retrieve_file")
+    def test_local_remote_file_paths_compatible_with_taskflow(self, mock_get):
+        @task_decorator
+        def get_path():
+            return self.test_local_filepath
+
+        with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
+            path = get_path()
+            assert isinstance(path, PlainXComArg)
+            try:
+                result = SFTPOperator(
+                    task_id="test_sftp_taskflow_compatibility",
+                    sftp_hook=self.sftp_hook,
+                    local_filepath=path,
+                    remote_filepath=path,
+                    operation=SFTPOperation.GET,
+                )
+                result.execute(None)
+            except AirflowException as e:
+                if "object of type 'PlainXComArg' has no" in str(e):
+                    pytest.fail("AirflowException raised for 'PlainXComArg'")
+
+                raise
+
+            assert mock_get.call_count == 1
 
     def test_str_filepaths_converted_to_lists(self):
         local_filepath = "/tmp/test"
