@@ -390,13 +390,22 @@ class TestSFTPOperator:
             pass
         assert task_6.sftp_hook.remote_host == "remotehost"
 
-    def test_unequal_local_remote_file_paths(self):
-        with pytest.raises(ValueError):
-            SFTPOperator(
+    @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.retrieve_file")
+    def test_unequal_local_remote_file_paths(self, mock_get):
+        try:
+            result = SFTPOperator(
+                sftp_hook=self.sftp_hook,
                 task_id="test_sftp_unequal_paths",
                 local_filepath="/tmp/test",
                 remote_filepath=["/tmp/test1", "/tmp/test2"],
+                operation=SFTPOperation.GET,
             )
+            result.execute(None)
+        except AirflowException as e:
+            if not "paths in local_filepath" in str(e) or not "paths in remote_filepath" in str(e):
+                pytest.fail("Exception not raised for unequal paths")
+        else:
+            pytest.fail("Exception not raised for unequal paths")
 
     def test_str_filepaths_converted_to_lists(self):
         local_filepath = "/tmp/test"

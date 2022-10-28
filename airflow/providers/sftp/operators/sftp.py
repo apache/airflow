@@ -102,22 +102,16 @@ class SFTPOperator(BaseOperator):
         self.create_intermediate_dirs = create_intermediate_dirs
 
         self.local_filepath_was_str = False
-        if isinstance(local_filepath, str):
+        if not isinstance(local_filepath, list):
             self.local_filepath = [local_filepath]
             self.local_filepath_was_str = True
         else:
             self.local_filepath = local_filepath
 
-        if isinstance(remote_filepath, str):
+        if not isinstance(remote_filepath, list):
             self.remote_filepath = [remote_filepath]
         else:
             self.remote_filepath = remote_filepath
-
-        if len(self.local_filepath) != len(self.remote_filepath):
-            raise ValueError(
-                f"{len(self.local_filepath)} paths in local_filepath "
-                f"!= {len(self.remote_filepath)} paths in remote_filepath"
-            )
 
         if not (self.operation.lower() == SFTPOperation.GET or self.operation.lower() == SFTPOperation.PUT):
             raise TypeError(
@@ -159,6 +153,12 @@ class SFTPOperator(BaseOperator):
 
             if not self.sftp_hook:
                 raise AirflowException("Cannot operate without sftp_hook or ssh_conn_id.")
+
+            if len(self.local_filepath) != len(self.remote_filepath):
+                raise ValueError(
+                    f"{len(self.local_filepath)} paths in local_filepath "
+                    f"!= {len(self.remote_filepath)} paths in remote_filepath"
+                )
 
             if self.remote_host is not None:
                 self.log.info(
