@@ -1178,8 +1178,7 @@ DAGS_COMMANDS = (
         name='test',
         help="Execute one single DagRun",
         description=(
-            "Execute one single DagRun for a given DAG and execution date, "
-            "using the DebugExecutor.\n"
+            "Execute one single DagRun for a given DAG and execution date.\n"
             "\n"
             "The --imgcat-dagrun option only works in iTerm.\n"
             "\n"
