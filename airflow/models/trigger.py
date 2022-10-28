@@ -27,7 +27,7 @@ from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
-from airflow.utils.retries import run_with_db_retries, retry_db_transaction
+from airflow.utils.retries import retry_db_transaction, run_with_db_retries
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 from airflow.utils.state import State
