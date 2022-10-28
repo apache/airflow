@@ -94,7 +94,6 @@ class AzureDataLakeHook(BaseHook):
             conn_type=self.conn_type,
             extras=extras,
             field_name=name,
-            strict=False,
         )
 
     def get_conn(self) -> core.AzureDLFileSystem:

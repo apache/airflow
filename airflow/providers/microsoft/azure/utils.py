@@ -49,10 +49,11 @@ def _ensure_prefixes(conn_type):
     return dec
 
 
-def get_field(*, conn_id: str, conn_type: str, extras: dict, field_name: str, strict=False):
+def get_field(*, conn_id: str, conn_type: str, extras: dict, field_name: str):
     """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
     backcompat_prefix = f"extra__{conn_type}__"
     backcompat_key = f"{backcompat_prefix}{field_name}"
+    ret = None
     if field_name.startswith("extra__"):
         raise ValueError(
             f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
@@ -65,8 +66,9 @@ def get_field(*, conn_id: str, conn_type: str, extras: dict, field_name: str, st
                 f"{conn_id}. Using value for `{field_name}`.  Please ensure this is the correct "
                 f"value and remove the backcompat key `{backcompat_key}`."
             )
-        return extras[field_name] or None
-    if backcompat_key in extras:
-        return extras.get(backcompat_key) or None
-    if strict:
-        raise KeyError(f"Field {field_name} not found in extras")
+        ret = extras[field_name]
+    elif backcompat_key in extras:
+        ret = extras.get(backcompat_key)
+    if ret == "":
+        return None
+    return ret

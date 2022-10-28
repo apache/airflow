@@ -40,7 +40,7 @@ def test__ensure_prefixes_removal():
 
 
 def test_get_field_warns_on_dupe():
-    with pytest.warns(UserWarning, match=" Using value for `this_param`"):
+    with pytest.warns(UserWarning, match="Using value for `this_param`"):
         value = get_field(
             conn_id="my_conn",
             conn_type="this_type",
@@ -48,3 +48,28 @@ def test_get_field_warns_on_dupe():
             field_name="this_param",
         )
     assert value == "non-prefixed"
+
+
+@pytest.mark.parametrize(
+    "input, expected",
+    [
+        (dict(this_param="non-prefixed"), "non-prefixed"),
+        (dict(this_param=None), None),
+        (dict(extra__this_type__this_param="prefixed"), "prefixed"),
+        (dict(extra__this_type__this_param=""), None),
+        (dict(extra__this_type__this_param=None), None),
+        (dict(extra__this_type__this_param="prefixed", this_param="non-prefixed"), "non-prefixed"),
+        (dict(extra__this_type__this_param="prefixed", this_param=""), None),
+        (dict(extra__this_type__this_param="prefixed", this_param=0), 0),
+        (dict(extra__this_type__this_param="prefixed", this_param=False), False),
+        (dict(extra__this_type__this_param="prefixed", this_param=" "), " "),
+    ],
+)
+def test_get_field_non_prefixed(input, expected):
+    value = get_field(
+        conn_id="my_conn",
+        conn_type="this_type",
+        extras=input,
+        field_name="this_param",
+    )
+    assert value == expected

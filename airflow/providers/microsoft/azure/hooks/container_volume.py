@@ -49,7 +49,6 @@ class AzureContainerVolumeHook(BaseHook):
             conn_type=self.conn_type,
             extras=extras,
             field_name=name,
-            strict=False,
         )
 
     @staticmethod

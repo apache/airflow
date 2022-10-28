@@ -86,13 +86,13 @@ class AzureSynapseHook(BaseHook):
         self.spark_pool = spark_pool
         super().__init__()
 
-    def _get_field(self, extras, name, strict=False):
+    def _get_field(self, extras, name):
         return get_field(
             conn_id=self.conn_id,
             conn_type=self.conn_type,
             extras=extras,
             field_name=name,
-            strict=strict,
+            strict=False,
         )
 
     def get_conn(self) -> SparkClient:
@@ -105,9 +105,8 @@ class AzureSynapseHook(BaseHook):
         spark_pool = self.spark_pool
         livy_api_version = "2022-02-22-preview"
 
-        try:
-            subscription_id = self._get_field(extras, "subscriptionId", strict=True)
-        except KeyError:
+        subscription_id = self._get_field(extras, "subscriptionId")
+        if not subscription_id:
             raise ValueError("A Subscription ID is required to connect to Azure Synapse.")
 
         credential: Credentials
