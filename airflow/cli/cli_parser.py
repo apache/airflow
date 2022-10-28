@@ -956,6 +956,29 @@ ARG_INCLUDE_DAGS = Arg(
     ("--include-dags",), help="If passed, DAG specific permissions will also be synced.", action="store_true"
 )
 
+# internal API client
+ARG_NUM_REPEATS = Arg(
+    ("--num-repeats",),
+    type=positive_int(allow_zero=False),
+    default=1,
+    help="The number of times to repeat the operation.",
+)
+ARG_USE_GRPC = Arg(
+    ("--use-grpc",),
+    default=False,
+    action='store_true',
+    help="Whether to use GRPC for tests",
+)
+ARG_NUM_CALLBACKS = Arg(
+    ("--num-callbacks",),
+    type=positive_int(allow_zero=False),
+    default=1,
+    help="The multiplier for number of callbacks.",
+)
+ARG_TEST = Arg(
+    ('--test',), help='Choose test.', type=str, choices=['file_processor'], default="file_processor"
+)
+
 # triggerer
 ARG_CAPACITY = Arg(
     ("--capacity",),
@@ -1517,6 +1540,33 @@ DB_COMMANDS = (
         ),
     ),
 )
+
+INTERNAL_API_COMMANDS = (
+    ActionCommand(
+        name='server',
+        help="Start an internal API server instance",
+        func=lazy_load_command('airflow.cli.commands.internal_api_server_command.internal_api_server'),
+        args=(
+            ARG_PID,
+            ARG_DAEMON,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_LOG_FILE,
+        ),
+    ),
+    ActionCommand(
+        name='test-client',
+        help="Test client for internal API",
+        func=lazy_load_command('airflow.cli.commands.internal_api_client_command.internal_api_client'),
+        args=(
+            ARG_NUM_REPEATS,
+            ARG_NUM_CALLBACKS,
+            ARG_USE_GRPC,
+            ARG_TEST,
+        ),
+    ),
+)
+
 CONNECTIONS_COMMANDS = (
     ActionCommand(
         name="get",
@@ -1899,6 +1949,11 @@ airflow_commands: list[CLICommand] = [
         name="db",
         help="Database operations",
         subcommands=DB_COMMANDS,
+    ),
+    GroupCommand(
+        name='internal-api',
+        help='Internal API commands',
+        subcommands=INTERNAL_API_COMMANDS,
     ),
     ActionCommand(
         name="kerberos",

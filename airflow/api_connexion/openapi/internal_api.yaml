@@ -1,0 +1,97 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+x-send-defaults: true
+openapi: 3.0.0
+x-api-id: json-rpc-example
+info:
+  title: JSON-RPC OpenAPI
+  version: 1.0.0
+  description: Example of how to describe a JSON-RPC 2 API in OpenAPI
+servers:
+  - url: /internal/v1
+    description: Apache Airflow Internal API.
+paths:
+  "/rpcapi":
+    post:
+      operationId: rpcapi
+      deprecated: false
+      summary: Example of JSON-RPC2 Post
+      x-openapi-router-controller: airflow.api_internal.rpc_api
+      operationId: json_rpc
+      description: Example post using JSON-RPC params.
+      tags:
+      - JSONRPC
+      parameters: []
+      responses:
+        '200':
+          description: Successful response
+      requestBody:
+        x-body-name: body
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - method
+              - jsonrpc
+              - params
+              properties:
+                jsonrpc:
+                  type: string
+                  default: '2.0'
+                  description: JSON-RPC Version (2.0)
+                method:
+                  type: string
+                  default: example
+                  description: Method name
+                params:
+                  title: Parameters
+                  type: string
+x-headers: []
+x-explorer-enabled: true
+x-proxy-enabled: true
+x-samples-enabled: true
+components:
+  schemas:
+    JsonRpcRequired:
+      type: object
+      required:
+      - method
+      - jsonrpc
+      properties:
+        method:
+          type: string
+          default: examplePost
+          description: Method name
+        jsonrpc:
+          type: string
+          default: '2.0'
+          description: JSON-RPC Version (2.0)
+      discriminator:
+        propertyName: method_name
+    examplePost:
+      allOf:
+      - "$ref": "#/components/schemas/JsonRpcRequired"
+      - type: object
+        properties:
+          params:
+            title: Parameters
+            type: string
+tags: []

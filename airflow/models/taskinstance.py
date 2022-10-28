@@ -2636,6 +2636,11 @@ class SimpleTaskInstance:
                 if not val or isinstance(val, str):
                     continue
                 new_dict.update({key: val.isoformat()})
+            if key == 'executor_config':
+                val = new_dict[key]
+                if 'pod_override' in val:
+                    new_dict[key]['pod_override'] = val['pod_override'].to_dict()
+
         return new_dict
 
     @classmethod

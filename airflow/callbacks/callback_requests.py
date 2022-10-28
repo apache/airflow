@@ -50,13 +50,20 @@ class CallbackRequest:
     def __repr__(self):
         return str(self.__dict__)
 
+    def to_dict(self) -> dict:
+        return self.__dict__
+
     def to_json(self) -> str:
         return json.dumps(self.__dict__)
 
     @classmethod
+    def from_dict(cls, dict_obj: str):
+        return cls(**dict_obj)
+
+    @classmethod
     def from_json(cls, json_str: str):
         json_object = json.loads(json_str)
-        return cls(**json_object)
+        return cls.from_dict(**json_object)
 
 
 class TaskCallbackRequest(CallbackRequest):
@@ -144,3 +151,13 @@ class SlaCallbackRequest(CallbackRequest):
     ):
         super().__init__(full_filepath, processor_subdir=processor_subdir, msg=msg)
         self.dag_id = dag_id
+
+
+def callback_from_dict(dict_obj: dict, type_name: str) -> CallbackRequest:
+    if type_name == "TaskCallbackRequest":
+        return TaskCallbackRequest.from_dict(dict_obj=dict_obj)
+    if type_name == "DagCallbackRequest":
+        return DagCallbackRequest.from_dict(dict_obj=dict_obj)
+    if type_name == "SlaCallbackRequest":
+        return SlaCallbackRequest.from_dict(dict_obj=dict_obj)
+    return CallbackRequest.from_dict(dict_obj=dict_obj)
