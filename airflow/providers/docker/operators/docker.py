@@ -19,10 +19,10 @@
 from __future__ import annotations
 
 import ast
-import io
 import pickle
 import tarfile
 import warnings
+from io import BytesIO, StringIO
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Iterable, Sequence
 
@@ -30,6 +30,7 @@ from docker import APIClient, tls  # type: ignore[attr-defined]
 from docker.constants import DEFAULT_TIMEOUT_SECONDS  # type: ignore[attr-defined]
 from docker.errors import APIError  # type: ignore[attr-defined]
 from docker.types import DeviceRequest, LogConfig, Mount  # type: ignore[attr-defined]
+from dotenv import dotenv_values
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -87,6 +88,8 @@ class DockerOperator(BaseOperator):
     :param environment: Environment variables to set in the container. (templated)
     :param private_environment: Private environment variables to set in the container.
         These are not templated, and hidden from the website.
+    :param env_file: Relative path to the .env file with environment variables to set in the container.
+        Overridden by variables in the environment parameter. (templated)
     :param force_pull: Pull the docker image on every run. Default is False.
     :param mem_limit: Maximum amount of memory the container can use.
         Either a float value, which represents the limit in bytes,
@@ -148,10 +151,12 @@ class DockerOperator(BaseOperator):
         Only effective when max-size is also set. A positive integer. Defaults to 1.
     """
 
-    template_fields: Sequence[str] = ("image", "command", "environment", "container_name")
+    template_fields: Sequence[str] = ("image", "command", "environment", "env_file", "container_name")
+    template_fields_renderers = {"env_file": "yaml"}
     template_ext: Sequence[str] = (
         ".sh",
         ".bash",
+        ".env",
     )
 
     def __init__(
@@ -165,6 +170,7 @@ class DockerOperator(BaseOperator):
         docker_url: str = "unix://var/run/docker.sock",
         environment: dict | None = None,
         private_environment: dict | None = None,
+        env_file: str | None = None,
         force_pull: bool = False,
         mem_limit: float | str | None = None,
         host_tmp_dir: str | None = None,
@@ -222,6 +228,7 @@ class DockerOperator(BaseOperator):
         self.docker_url = docker_url
         self.environment = environment or {}
         self._private_environment = private_environment or {}
+        self.env_file = env_file
         self.force_pull = force_pull
         self.image = image
         self.mem_limit = mem_limit
@@ -304,10 +311,13 @@ class DockerOperator(BaseOperator):
             docker_log_config["max-size"] = self.log_opts_max_size
         if self.log_opts_max_file is not None:
             docker_log_config["max-file"] = self.log_opts_max_file
+        env_file_vars = {}
+        if self.env_file is not None:
+            env_file_vars = self.unpack_environment_variables(self.env_file)
         self.container = self.cli.create_container(
             command=self.format_command(self.command),
             name=self.container_name,
-            environment={**self.environment, **self._private_environment},
+            environment={**env_file_vars, **self.environment, **self._private_environment},
             host_config=self.cli.create_host_config(
                 auto_remove=False,
                 mounts=target_mounts,
@@ -378,7 +388,7 @@ class DockerOperator(BaseOperator):
                 # 0 byte file, it can't be anything else than None
                 return None
             # no need to port to a file since we intend to deserialize
-            file_standin = io.BytesIO(b"".join(archived_result))
+            file_standin = BytesIO(b"".join(archived_result))
             tar = tarfile.open(fileobj=file_standin)
             file = tar.extractfile(stat["name"])
             lib = getattr(self, "pickling_library", pickle)
@@ -459,3 +469,14 @@ class DockerOperator(BaseOperator):
             )
             self.docker_url = self.docker_url.replace("tcp://", "https://")
         return tls_config
+
+    @staticmethod
+    def unpack_environment_variables(env_str: str) -> dict:
+        r"""
+        Parse environment variables from the string
+
+        :param env_str: environment variables in key=value format separated by '\n'
+
+        :return: dictionary containing parsed environment variables
+        """
+        return dotenv_values(stream=StringIO(env_str))
