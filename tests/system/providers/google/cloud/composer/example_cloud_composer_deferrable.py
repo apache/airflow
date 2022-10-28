@@ -27,6 +27,7 @@ from airflow.providers.google.cloud.operators.cloud_composer import (
     CloudComposerDeleteEnvironmentOperator,
     CloudComposerUpdateEnvironmentOperator,
 )
+from airflow.providers.google.cloud.sensors.cloud_composer import CloudComposerEnvironmentSensor
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -73,6 +74,15 @@ with models.DAG(
     )
     # [END howto_operator_create_composer_environment_deferrable_mode]
 
+    operation_name = defer_create_env.output["operation_id"]
+
+    wait_for_execution = CloudComposerEnvironmentSensor(
+        task_id="wait_for_execution",
+        operation_name=operation_name,
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+
     # [START howto_operator_update_composer_environment_deferrable_mode]
     defer_update_env = CloudComposerUpdateEnvironmentOperator(
         task_id="defer_update_env",
@@ -92,12 +102,13 @@ with models.DAG(
         region=REGION,
         environment_id=ENVIRONMENT_ID,
         deferrable=True,
-        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_delete_composer_environment_deferrable_mode]
+    defer_delete_env.trigger_rule = TriggerRule.ALL_DONE
 
     chain(
         defer_create_env,
+        wait_for_execution,
         defer_update_env,
         defer_delete_env,
     )

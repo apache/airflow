@@ -59,7 +59,7 @@ class CloudComposerEnvironmentSensor(BaseSensorOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        pooling_period_seconds: int,
+        pooling_period_seconds: int = 30,
         **kwargs,
     ):
         super().__init__(**kwargs)

@@ -43,11 +43,9 @@ class CloudComposerExecutionTrigger(BaseTrigger):
         self.project_id = project_id
         self.region = region
         self.operation_name = operation_name
-
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.delegate_to = delegate_to
-
         self.pooling_period_seconds = pooling_period_seconds
 
         self.gcp_hook = CloudComposerAsyncHook(
@@ -75,9 +73,6 @@ class CloudComposerExecutionTrigger(BaseTrigger):
             operation = await self.gcp_hook.get_operation(operation_name=self.operation_name)
             if operation.done:
                 break
-            elif operation.state == "CREATING":
-                self.log.info("Environment is in CREATING state.")
-                self.log.info("Sleeping for %s seconds.", self.pooling_period_seconds)
             elif operation.error.message:
                 raise AirflowException(f"Cloud Composer Environment error: {operation.error.message}")
             await asyncio.sleep(self.pooling_period_seconds)

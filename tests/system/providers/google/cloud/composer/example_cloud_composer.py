@@ -30,6 +30,7 @@ from airflow.providers.google.cloud.operators.cloud_composer import (
     CloudComposerListImageVersionsOperator,
     CloudComposerUpdateEnvironmentOperator,
 )
+from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
@@ -118,6 +119,7 @@ with models.DAG(
         environment_id=ENVIRONMENT_ID,
     )
     # [END howto_operator_delete_composer_environment]
+    delete_env.trigger_rule = TriggerRule.ALL_DONE
 
     chain(image_versions, create_env, list_envs, get_env, update_env, delete_env)
 
