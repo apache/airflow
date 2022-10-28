@@ -565,7 +565,7 @@ class TestDataflowSqlOperator(unittest.TestCase):
 
 
 class TestDataflowStopJobOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
+    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
     def test_exec_job_id(self, dataflow_mock):
         self.dataflow = DataflowStopJobOperator(
             task_id=TASK_ID,
@@ -587,7 +587,7 @@ class TestDataflowStopJobOperator(unittest.TestCase):
             job_id=JOB_ID,
         )
 
-    @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
+    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
     def test_exec_job_name_prefix(self, dataflow_mock):
         self.dataflow = DataflowStopJobOperator(
             task_id=TASK_ID,

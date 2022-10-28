@@ -252,14 +252,14 @@ with models.DAG(
     default_args=default_args,
     start_date=START_DATE,
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag_template:
     # [START howto_operator_start_template_job]
     start_template_job = DataflowTemplatedJobStartOperator(
         task_id="start-template-job",
-        template='gs://dataflow-templates/latest/Word_Count',
-        parameters={'inputFile': "gs://dataflow-samples/shakespeare/kinglear.txt", 'output': GCS_OUTPUT},
-        location='europe-west3',
+        template="gs://dataflow-templates/latest/Word_Count",
+        parameters={"inputFile": "gs://dataflow-samples/shakespeare/kinglear.txt", "output": GCS_OUTPUT},
+        location="europe-west3",
     )
     # [END howto_operator_start_template_job]
 
@@ -268,20 +268,20 @@ with models.DAG(
     default_args=default_args,
     start_date=START_DATE,
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag_template:
     # [START howto_operator_stop_dataflow_job]
     stop_dataflow_job = DataflowStopJobOperator(
         task_id="stop-dataflow-job",
-        location='europe-west3',
+        location="europe-west3",
         job_name_prefix="start-template-job",
     )
     # [END howto_operator_stop_dataflow_job]
     start_template_job = DataflowTemplatedJobStartOperator(
         task_id="start-template-job",
-        template='gs://dataflow-templates/latest/Word_Count',
-        parameters={'inputFile': "gs://dataflow-samples/shakespeare/kinglear.txt", 'output': GCS_OUTPUT},
-        location='europe-west3',
+        template="gs://dataflow-templates/latest/Word_Count",
+        parameters={"inputFile": "gs://dataflow-samples/shakespeare/kinglear.txt", "output": GCS_OUTPUT},
+        location="europe-west3",
         append_job_name=False,
     )
 

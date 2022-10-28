@@ -240,7 +240,7 @@ class _DataflowJobsController(LoggingMixin):
         if not self._multiple_jobs and self._job_id:
             return [self.fetch_job_by_id(self._job_id)]
         elif self._jobs:
-            return [self.fetch_job_by_id(job['id']) for job in self._jobs]
+            return [self.fetch_job_by_id(job["id"]) for job in self._jobs]
         elif self._job_name:
             jobs = self._fetch_jobs_by_prefix_name(self._job_name.lower())
             if len(jobs) == 1:
@@ -460,7 +460,7 @@ class _DataflowJobsController(LoggingMixin):
             unexpected_failed_end_states = DataflowJobStatus.FAILED_END_STATES - expected_states
             if unexpected_failed_end_states.intersection(job_states):
                 unexpected_failed_jobs = [
-                    job for job in self._jobs if job['currentState'] in unexpected_failed_end_states
+                    job for job in self._jobs if job["currentState"] in unexpected_failed_end_states
                 ]
                 raise AirflowException(
                     "Jobs failed: "
@@ -476,7 +476,7 @@ class _DataflowJobsController(LoggingMixin):
         self._jobs = [
             job for job in self.get_jobs() if job["currentState"] not in DataflowJobStatus.TERMINAL_STATES
         ]
-        job_ids = [job['id'] for job in self._jobs]
+        job_ids = [job["id"] for job in self._jobs]
         if job_ids:
             self.log.info("Canceling jobs: %s", ", ".join(job_ids))
             for job in self._jobs:
