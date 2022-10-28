@@ -32,7 +32,7 @@ NEW_SPREADSHEET_ID = os.environ.get("NEW_SPREADSHEET_ID", "123")
 with models.DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
-    schedule='@once',  # Override to match your needs
+    schedule="@once",  # Override to match your needs
     catchup=False,
     tags=["example", "sql"],
 ) as dag:

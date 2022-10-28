@@ -18,7 +18,7 @@
 """This module contains Google Vertex AI operators."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -75,7 +75,7 @@ class AutoMLTrainingJobBaseOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = None  # type: Optional[AutoMLHook]
+        self.hook: AutoMLHook | None = None
 
     def on_kill(self) -> None:
         """
@@ -90,8 +90,8 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     """Create AutoML Forecasting Training job"""
 
     template_fields = [
-        'region',
-        'impersonation_chain',
+        "region",
+        "impersonation_chain",
     ]
     operator_extra_links = (VertexAIModelLink(),)
 
@@ -209,8 +209,8 @@ class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     """Create Auto ML Image Training job"""
 
     template_fields = [
-        'region',
-        'impersonation_chain',
+        "region",
+        "impersonation_chain",
     ]
     operator_extra_links = (VertexAIModelLink(),)
 
@@ -284,8 +284,8 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     """Create Auto ML Tabular Training job"""
 
     template_fields = [
-        'region',
-        'impersonation_chain',
+        "region",
+        "impersonation_chain",
     ]
     operator_extra_links = (VertexAIModelLink(),)
 
@@ -385,8 +385,8 @@ class CreateAutoMLTextTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     """Create Auto ML Text Training job"""
 
     template_fields = [
-        'region',
-        'impersonation_chain',
+        "region",
+        "impersonation_chain",
     ]
     operator_extra_links = (VertexAIModelLink(),)
 
@@ -451,8 +451,8 @@ class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     """Create Auto ML Video Training job"""
 
     template_fields = [
-        'region',
-        'impersonation_chain',
+        "region",
+        "impersonation_chain",
     ]
     operator_extra_links = (VertexAIModelLink(),)
 

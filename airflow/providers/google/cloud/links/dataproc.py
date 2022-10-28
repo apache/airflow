@@ -18,13 +18,13 @@
 """This module contains Google Dataproc links."""
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperatorLink, XCom
 from airflow.providers.google.cloud.links.base import BASE_LINK
 
 if TYPE_CHECKING:
+    from airflow.models import BaseOperator
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
@@ -67,17 +67,11 @@ class DataprocLink(BaseOperatorLink):
 
     def get_link(
         self,
-        operator,
-        dttm: datetime | None = None,
-        ti_key: TaskInstanceKey | None = None,
+        operator: BaseOperator,
+        *,
+        ti_key: TaskInstanceKey,
     ) -> str:
-        if ti_key is not None:
-            conf = XCom.get_value(key=self.key, ti_key=ti_key)
-        else:
-            assert dttm
-            conf = XCom.get_one(
-                key=self.key, dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-            )
+        conf = XCom.get_value(key=self.key, ti_key=ti_key)
         return (
             conf["url"].format(
                 region=conf["region"], project_id=conf["project_id"], resource=conf["resource"]
@@ -110,20 +104,11 @@ class DataprocListLink(BaseOperatorLink):
 
     def get_link(
         self,
-        operator,
-        dttm: datetime | None = None,
-        ti_key: TaskInstanceKey | None = None,
+        operator: BaseOperator,
+        *,
+        ti_key: TaskInstanceKey,
     ) -> str:
-        if ti_key is not None:
-            list_conf = XCom.get_value(key=self.key, ti_key=ti_key)
-        else:
-            assert dttm
-            list_conf = XCom.get_one(
-                key=self.key,
-                dag_id=operator.dag.dag_id,
-                task_id=operator.task_id,
-                execution_date=dttm,
-            )
+        list_conf = XCom.get_value(key=self.key, ti_key=ti_key)
         return (
             list_conf["url"].format(
                 project_id=list_conf["project_id"],

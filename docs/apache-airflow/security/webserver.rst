@@ -183,7 +183,7 @@ webserver_config.py itself if you wish.
 
     from airflow.www.security import AirflowSecurityManager
     import logging
-    from typing import Dict, Any, List, Union
+    from typing import Any, List, Union
     import os
 
     log = logging.getLogger(__name__)
@@ -196,12 +196,12 @@ webserver_config.py itself if you wish.
     TEAM_ID_B_FROM_GITHUB = 456  # Replace these with real team IDs for your org
 
 
-    def team_parser(team_payload: Dict[str, Any]) -> List[int]:
+    def team_parser(team_payload: dict[str, Any]) -> list[int]:
         # Parse the team payload from GitHub however you want here.
         return [team["id"] for team in team_payload]
 
 
-    def map_roles(team_list: List[int]) -> List[str]:
+    def map_roles(team_list: list[int]) -> list[str]:
         # Associate the team IDs with Roles here.
         # The expected output is a list of roles that FAB will use to Authorize the user.
 
@@ -217,7 +217,7 @@ webserver_config.py itself if you wish.
         # In this example, the oauth provider == 'github'.
         # If you ever want to support other providers, see how it is done here:
         # https://github.com/dpgaspar/Flask-AppBuilder/blob/master/flask_appbuilder/security/manager.py#L550
-        def get_oauth_user_info(self, provider: str, resp: Any) -> Dict[str, Union[str, List[str]]]:
+        def get_oauth_user_info(self, provider: str, resp: Any) -> dict[str, Union[str, list[str]]]:
 
             # Creates the user info payload from Github.
             # The user previously allowed your app to act on their behalf,

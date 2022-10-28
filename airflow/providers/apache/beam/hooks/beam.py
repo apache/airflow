@@ -62,7 +62,6 @@ def beam_options_to_args(options: dict) -> list[str]:
 
     :param options: Dictionary with options
     :return: List of arguments
-    :rtype: List[str]
     """
     if not options:
         return []

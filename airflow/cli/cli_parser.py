@@ -547,6 +547,14 @@ ARG_MIGRATION_TIMEOUT = Arg(
     type=int,
     default=60,
 )
+ARG_DB_RESERIALIZE_DAGS = Arg(
+    ("--no-reserialize-dags",),
+    # Not intended for user, so dont show in help
+    help=argparse.SUPPRESS,
+    action="store_false",
+    default=True,
+    dest="reserialize_dags",
+)
 ARG_DB_VERSION__UPGRADE = Arg(
     ("-n", "--to-version"),
     help=(
@@ -889,7 +897,7 @@ ARG_OPTION = Arg(
 # kubernetes cleanup-pods
 ARG_NAMESPACE = Arg(
     ("--namespace",),
-    default=conf.get('kubernetes', 'namespace'),
+    default=conf.get('kubernetes_executor', 'namespace'),
     help="Kubernetes Namespace. Default value is `[kubernetes] namespace` in configuration.",
 )
 
@@ -1170,8 +1178,7 @@ DAGS_COMMANDS = (
         name='test',
         help="Execute one single DagRun",
         description=(
-            "Execute one single DagRun for a given DAG and execution date, "
-            "using the DebugExecutor.\n"
+            "Execute one single DagRun for a given DAG and execution date.\n"
             "\n"
             "The --imgcat-dagrun option only works in iTerm.\n"
             "\n"
@@ -1445,6 +1452,7 @@ DB_COMMANDS = (
             ARG_DB_SQL_ONLY,
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
+            ARG_DB_RESERIALIZE_DAGS,
         ),
     ),
     ActionCommand(

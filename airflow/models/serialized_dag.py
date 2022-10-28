@@ -22,7 +22,6 @@ import hashlib
 import logging
 import zlib
 from datetime import datetime, timedelta
-from typing import Any
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, or_
@@ -220,7 +219,7 @@ class SerializedDagModel(Base):
         SerializedDAG._load_operator_extra_links = self.load_op_links
 
         if isinstance(self.data, dict):
-            dag = SerializedDAG.from_dict(self.data)  # type: Any
+            dag = SerializedDAG.from_dict(self.data)
         else:
             dag = SerializedDAG.from_json(self.data)
         return dag
@@ -353,7 +352,6 @@ class SerializedDagModel(Base):
         :param dag_id: DAG ID
         :param session: ORM Session
         :return: DAG Hash, or None if the DAG is not found
-        :rtype: str | None
         """
         return session.query(cls.dag_hash).filter(cls.dag_id == dag_id).scalar()
 

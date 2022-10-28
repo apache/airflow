@@ -57,13 +57,13 @@ class EmptyMockConnectionCursor(BaseMockConnectionCursor):
 class TestHiveEnvironment(unittest.TestCase):
     def setUp(self):
         self.next_day = (DEFAULT_DATE + datetime.timedelta(days=1)).isoformat()[:10]
-        self.database = 'airflow'
-        self.partition_by = 'ds'
-        self.table = 'static_babynames_partitioned'
+        self.database = "airflow"
+        self.partition_by = "ds"
+        self.table = "static_babynames_partitioned"
         with mock.patch(
-            'airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_metastore_client'
+            "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_metastore_client"
         ) as get_metastore_mock, mock.patch(
-            'airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection'
+            "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection"
         ):
             get_metastore_mock.return_value = mock.MagicMock()
 
@@ -71,24 +71,24 @@ class TestHiveEnvironment(unittest.TestCase):
 
 
 class TestHiveCliHook(unittest.TestCase):
-    @mock.patch('tempfile.tempdir', '/tmp/')
-    @mock.patch('tempfile._RandomNameSequence.__next__')
-    @mock.patch('subprocess.Popen')
+    @mock.patch("tempfile.tempdir", "/tmp/")
+    @mock.patch("tempfile._RandomNameSequence.__next__")
+    @mock.patch("subprocess.Popen")
     def test_run_cli(self, mock_popen, mock_temp_dir):
         mock_subprocess = MockSubProcess()
         mock_popen.return_value = mock_subprocess
         mock_temp_dir.return_value = "test_run_cli"
 
         with mock.patch.dict(
-            'os.environ',
+            "os.environ",
             {
-                'AIRFLOW_CTX_DAG_ID': 'test_dag_id',
-                'AIRFLOW_CTX_TASK_ID': 'test_task_id',
-                'AIRFLOW_CTX_EXECUTION_DATE': '2015-01-01T00:00:00+00:00',
-                'AIRFLOW_CTX_TRY_NUMBER': '1',
-                'AIRFLOW_CTX_DAG_RUN_ID': '55',
-                'AIRFLOW_CTX_DAG_OWNER': 'airflow',
-                'AIRFLOW_CTX_DAG_EMAIL': 'test@airflow.com',
+                "AIRFLOW_CTX_DAG_ID": "test_dag_id",
+                "AIRFLOW_CTX_TASK_ID": "test_task_id",
+                "AIRFLOW_CTX_EXECUTION_DATE": "2015-01-01T00:00:00+00:00",
+                "AIRFLOW_CTX_TRY_NUMBER": "1",
+                "AIRFLOW_CTX_DAG_RUN_ID": "55",
+                "AIRFLOW_CTX_DAG_OWNER": "airflow",
+                "AIRFLOW_CTX_DAG_EMAIL": "test@airflow.com",
             },
         ):
 
@@ -96,31 +96,31 @@ class TestHiveCliHook(unittest.TestCase):
             hook.run_cli("SHOW DATABASES")
 
         hive_cmd = [
-            'beeline',
-            '-u',
+            "beeline",
+            "-u",
             '"jdbc:hive2://localhost:10000/default"',
-            '-hiveconf',
-            'airflow.ctx.dag_id=test_dag_id',
-            '-hiveconf',
-            'airflow.ctx.task_id=test_task_id',
-            '-hiveconf',
-            'airflow.ctx.execution_date=2015-01-01T00:00:00+00:00',
-            '-hiveconf',
-            'airflow.ctx.try_number=1',
-            '-hiveconf',
-            'airflow.ctx.dag_run_id=55',
-            '-hiveconf',
-            'airflow.ctx.dag_owner=airflow',
-            '-hiveconf',
-            'airflow.ctx.dag_email=test@airflow.com',
-            '-hiveconf',
-            'mapreduce.job.queuename=airflow',
-            '-hiveconf',
-            'mapred.job.queue.name=airflow',
-            '-hiveconf',
-            'tez.queue.name=airflow',
-            '-f',
-            '/tmp/airflow_hiveop_test_run_cli/tmptest_run_cli',
+            "-hiveconf",
+            "airflow.ctx.dag_id=test_dag_id",
+            "-hiveconf",
+            "airflow.ctx.task_id=test_task_id",
+            "-hiveconf",
+            "airflow.ctx.execution_date=2015-01-01T00:00:00+00:00",
+            "-hiveconf",
+            "airflow.ctx.try_number=1",
+            "-hiveconf",
+            "airflow.ctx.dag_run_id=55",
+            "-hiveconf",
+            "airflow.ctx.dag_owner=airflow",
+            "-hiveconf",
+            "airflow.ctx.dag_email=test@airflow.com",
+            "-hiveconf",
+            "mapreduce.job.queuename=airflow",
+            "-hiveconf",
+            "mapred.job.queue.name=airflow",
+            "-hiveconf",
+            "tez.queue.name=airflow",
+            "-f",
+            "/tmp/airflow_hiveop_test_run_cli/tmptest_run_cli",
         ]
 
         mock_popen.assert_called_with(
@@ -131,7 +131,7 @@ class TestHiveCliHook(unittest.TestCase):
             close_fds=True,
         )
 
-    @mock.patch('subprocess.Popen')
+    @mock.patch("subprocess.Popen")
     def test_run_cli_with_hive_conf(self, mock_popen):
         hql = (
             "set key;\n"
@@ -139,95 +139,95 @@ class TestHiveCliHook(unittest.TestCase):
             "set airflow.ctx.task_id;\nset airflow.ctx.execution_date;\n"
         )
 
-        dag_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_ID']['env_var_format']
-        task_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_TASK_ID']['env_var_format']
-        execution_date_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_EXECUTION_DATE'][
-            'env_var_format'
+        dag_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_DAG_ID"]["env_var_format"]
+        task_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_TASK_ID"]["env_var_format"]
+        execution_date_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_EXECUTION_DATE"][
+            "env_var_format"
         ]
-        dag_run_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_RUN_ID'][
-            'env_var_format'
+        dag_run_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_DAG_RUN_ID"][
+            "env_var_format"
         ]
 
         mock_output = [
-            'Connecting to jdbc:hive2://localhost:10000/default',
-            'log4j:WARN No appenders could be found for logger (org.apache.hive.jdbc.Utils).',
-            'log4j:WARN Please initialize the log4j system properly.',
-            'log4j:WARN See http://logging.apache.org/log4j/1.2/faq.html#noconfig for more info.',
-            'Connected to: Apache Hive (version 1.2.1.2.3.2.0-2950)',
-            'Driver: Hive JDBC (version 1.2.1.spark2)',
-            'Transaction isolation: TRANSACTION_REPEATABLE_READ',
-            '0: jdbc:hive2://localhost:10000/default> USE default;',
-            'No rows affected (0.37 seconds)',
-            '0: jdbc:hive2://localhost:10000/default> set key;',
-            '+------------+--+',
-            '|    set     |',
-            '+------------+--+',
-            '| key=value  |',
-            '+------------+--+',
-            '1 row selected (0.133 seconds)',
-            '0: jdbc:hive2://localhost:10000/default> set airflow.ctx.dag_id;',
-            '+---------------------------------+--+',
-            '|               set               |',
-            '+---------------------------------+--+',
-            '| airflow.ctx.dag_id=test_dag_id  |',
-            '+---------------------------------+--+',
-            '1 row selected (0.008 seconds)',
-            '0: jdbc:hive2://localhost:10000/default> set airflow.ctx.dag_run_id;',
-            '+-----------------------------------------+--+',
-            '|                   set                   |',
-            '+-----------------------------------------+--+',
-            '| airflow.ctx.dag_run_id=test_dag_run_id  |',
-            '+-----------------------------------------+--+',
-            '1 row selected (0.007 seconds)',
-            '0: jdbc:hive2://localhost:10000/default> set airflow.ctx.task_id;',
-            '+-----------------------------------+--+',
-            '|                set                |',
-            '+-----------------------------------+--+',
-            '| airflow.ctx.task_id=test_task_id  |',
-            '+-----------------------------------+--+',
-            '1 row selected (0.009 seconds)',
-            '0: jdbc:hive2://localhost:10000/default> set airflow.ctx.execution_date;',
-            '+-------------------------------------------------+--+',
-            '|                       set                       |',
-            '+-------------------------------------------------+--+',
-            '| airflow.ctx.execution_date=test_execution_date  |',
-            '+-------------------------------------------------+--+',
-            '1 row selected (0.006 seconds)',
-            '0: jdbc:hive2://localhost:10000/default> ',
-            '0: jdbc:hive2://localhost:10000/default> ',
-            'Closing: 0: jdbc:hive2://localhost:10000/default',
-            '',
+            "Connecting to jdbc:hive2://localhost:10000/default",
+            "log4j:WARN No appenders could be found for logger (org.apache.hive.jdbc.Utils).",
+            "log4j:WARN Please initialize the log4j system properly.",
+            "log4j:WARN See http://logging.apache.org/log4j/1.2/faq.html#noconfig for more info.",
+            "Connected to: Apache Hive (version 1.2.1.2.3.2.0-2950)",
+            "Driver: Hive JDBC (version 1.2.1.spark2)",
+            "Transaction isolation: TRANSACTION_REPEATABLE_READ",
+            "0: jdbc:hive2://localhost:10000/default> USE default;",
+            "No rows affected (0.37 seconds)",
+            "0: jdbc:hive2://localhost:10000/default> set key;",
+            "+------------+--+",
+            "|    set     |",
+            "+------------+--+",
+            "| key=value  |",
+            "+------------+--+",
+            "1 row selected (0.133 seconds)",
+            "0: jdbc:hive2://localhost:10000/default> set airflow.ctx.dag_id;",
+            "+---------------------------------+--+",
+            "|               set               |",
+            "+---------------------------------+--+",
+            "| airflow.ctx.dag_id=test_dag_id  |",
+            "+---------------------------------+--+",
+            "1 row selected (0.008 seconds)",
+            "0: jdbc:hive2://localhost:10000/default> set airflow.ctx.dag_run_id;",
+            "+-----------------------------------------+--+",
+            "|                   set                   |",
+            "+-----------------------------------------+--+",
+            "| airflow.ctx.dag_run_id=test_dag_run_id  |",
+            "+-----------------------------------------+--+",
+            "1 row selected (0.007 seconds)",
+            "0: jdbc:hive2://localhost:10000/default> set airflow.ctx.task_id;",
+            "+-----------------------------------+--+",
+            "|                set                |",
+            "+-----------------------------------+--+",
+            "| airflow.ctx.task_id=test_task_id  |",
+            "+-----------------------------------+--+",
+            "1 row selected (0.009 seconds)",
+            "0: jdbc:hive2://localhost:10000/default> set airflow.ctx.execution_date;",
+            "+-------------------------------------------------+--+",
+            "|                       set                       |",
+            "+-------------------------------------------------+--+",
+            "| airflow.ctx.execution_date=test_execution_date  |",
+            "+-------------------------------------------------+--+",
+            "1 row selected (0.006 seconds)",
+            "0: jdbc:hive2://localhost:10000/default> ",
+            "0: jdbc:hive2://localhost:10000/default> ",
+            "Closing: 0: jdbc:hive2://localhost:10000/default",
+            "",
         ]
 
         with mock.patch.dict(
-            'os.environ',
+            "os.environ",
             {
-                dag_id_ctx_var_name: 'test_dag_id',
-                task_id_ctx_var_name: 'test_task_id',
-                execution_date_ctx_var_name: 'test_execution_date',
-                dag_run_id_ctx_var_name: 'test_dag_run_id',
+                dag_id_ctx_var_name: "test_dag_id",
+                task_id_ctx_var_name: "test_task_id",
+                execution_date_ctx_var_name: "test_execution_date",
+                dag_run_id_ctx_var_name: "test_dag_run_id",
             },
         ):
 
             hook = MockHiveCliHook()
             mock_popen.return_value = MockSubProcess(output=mock_output)
 
-            output = hook.run_cli(hql=hql, hive_conf={'key': 'value'})
+            output = hook.run_cli(hql=hql, hive_conf={"key": "value"})
             process_inputs = " ".join(mock_popen.call_args_list[0][0][0])
 
-            assert 'value' in process_inputs
-            assert 'test_dag_id' in process_inputs
-            assert 'test_task_id' in process_inputs
-            assert 'test_execution_date' in process_inputs
-            assert 'test_dag_run_id' in process_inputs
+            assert "value" in process_inputs
+            assert "test_dag_id" in process_inputs
+            assert "test_task_id" in process_inputs
+            assert "test_execution_date" in process_inputs
+            assert "test_dag_run_id" in process_inputs
 
-            assert 'value' in output
-            assert 'test_dag_id' in output
-            assert 'test_task_id' in output
-            assert 'test_execution_date' in output
-            assert 'test_dag_run_id' in output
+            assert "value" in output
+            assert "test_dag_id" in output
+            assert "test_task_id" in output
+            assert "test_execution_date" in output
+            assert "test_dag_run_id" in output
 
-    @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveCliHook.run_cli')
+    @mock.patch("airflow.providers.apache.hive.hooks.hive.HiveCliHook.run_cli")
     def test_load_file_without_create_table(self, mock_run_cli):
         filepath = "/path/to/input/file"
         table = "output_table"
@@ -239,7 +239,7 @@ class TestHiveCliHook(unittest.TestCase):
         calls = [mock.call(query)]
         mock_run_cli.assert_has_calls(calls, any_order=True)
 
-    @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveCliHook.run_cli')
+    @mock.patch("airflow.providers.apache.hive.hooks.hive.HiveCliHook.run_cli")
     def test_load_file_create_table(self, mock_run_cli):
         filepath = "/path/to/input/file"
         table = "output_table"
@@ -261,8 +261,8 @@ class TestHiveCliHook(unittest.TestCase):
         calls = [mock.call(create_table), mock.call(load_data)]
         mock_run_cli.assert_has_calls(calls, any_order=True)
 
-    @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveCliHook.load_file')
-    @mock.patch('pandas.DataFrame.to_csv')
+    @mock.patch("airflow.providers.apache.hive.hooks.hive.HiveCliHook.load_file")
+    @mock.patch("pandas.DataFrame.to_csv")
     def test_load_df(self, mock_to_csv, mock_load_file):
         df = pd.DataFrame({"c": ["foo", "bar", "baz"]})
         table = "t"
@@ -285,8 +285,8 @@ class TestHiveCliHook(unittest.TestCase):
         assert isinstance(kwargs["field_dict"], OrderedDict)
         assert kwargs["table"] == table
 
-    @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveCliHook.load_file')
-    @mock.patch('pandas.DataFrame.to_csv')
+    @mock.patch("airflow.providers.apache.hive.hooks.hive.HiveCliHook.load_file")
+    @mock.patch("pandas.DataFrame.to_csv")
     def test_load_df_with_optional_parameters(self, mock_to_csv, mock_load_file):
         hook = MockHiveCliHook()
         bools = (True, False)
@@ -299,23 +299,23 @@ class TestHiveCliHook(unittest.TestCase):
             assert kwargs["create"] == create
             assert kwargs["recreate"] == recreate
 
-    @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveCliHook.run_cli')
+    @mock.patch("airflow.providers.apache.hive.hooks.hive.HiveCliHook.run_cli")
     def test_load_df_with_data_types(self, mock_run_cli):
         ord_dict = OrderedDict()
-        ord_dict['b'] = [True]
-        ord_dict['i'] = [-1]
-        ord_dict['t'] = [1]
-        ord_dict['f'] = [0.0]
-        ord_dict['c'] = ['c']
-        ord_dict['M'] = [datetime.datetime(2018, 1, 1)]
-        ord_dict['O'] = [object()]
-        ord_dict['S'] = [b'STRING']
-        ord_dict['U'] = ['STRING']
-        ord_dict['V'] = [None]
+        ord_dict["b"] = [True]
+        ord_dict["i"] = [-1]
+        ord_dict["t"] = [1]
+        ord_dict["f"] = [0.0]
+        ord_dict["c"] = ["c"]
+        ord_dict["M"] = [datetime.datetime(2018, 1, 1)]
+        ord_dict["O"] = [object()]
+        ord_dict["S"] = [b"STRING"]
+        ord_dict["U"] = ["STRING"]
+        ord_dict["V"] = [None]
         df = pd.DataFrame(ord_dict)
 
         hook = MockHiveCliHook()
-        hook.load_df(df, 't')
+        hook.load_df(df, "t")
 
         query = """
             CREATE TABLE IF NOT EXISTS t (
@@ -338,11 +338,11 @@ class TestHiveCliHook(unittest.TestCase):
 
 
 class TestHiveMetastoreHook(TestHiveEnvironment):
-    VALID_FILTER_MAP = {'key2': 'value2'}
+    VALID_FILTER_MAP = {"key2": "value2"}
 
     def test_get_max_partition_from_empty_part_specs(self):
         max_partition = HiveMetastoreHook._get_max_partition_from_part_specs(
-            [], 'key1', self.VALID_FILTER_MAP
+            [], "key1", self.VALID_FILTER_MAP
         )
         assert max_partition is None
 
@@ -350,47 +350,47 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
     def test_get_max_partition_from_valid_part_specs_and_invalid_filter_map(self):
         with pytest.raises(AirflowException):
             HiveMetastoreHook._get_max_partition_from_part_specs(
-                [{'key1': 'value1', 'key2': 'value2'}, {'key1': 'value3', 'key2': 'value4'}],
-                'key1',
-                {'key3': 'value5'},
+                [{"key1": "value1", "key2": "value2"}, {"key1": "value3", "key2": "value4"}],
+                "key1",
+                {"key3": "value5"},
             )
 
     def test_get_max_partition_from_valid_part_specs_and_invalid_partition_key(self):
         with pytest.raises(AirflowException):
             HiveMetastoreHook._get_max_partition_from_part_specs(
-                [{'key1': 'value1', 'key2': 'value2'}, {'key1': 'value3', 'key2': 'value4'}],
-                'key3',
+                [{"key1": "value1", "key2": "value2"}, {"key1": "value3", "key2": "value4"}],
+                "key3",
                 self.VALID_FILTER_MAP,
             )
 
     def test_get_max_partition_from_valid_part_specs_and_none_partition_key(self):
         with pytest.raises(AirflowException):
             HiveMetastoreHook._get_max_partition_from_part_specs(
-                [{'key1': 'value1', 'key2': 'value2'}, {'key1': 'value3', 'key2': 'value4'}],
+                [{"key1": "value1", "key2": "value2"}, {"key1": "value3", "key2": "value4"}],
                 None,
                 self.VALID_FILTER_MAP,
             )
 
     def test_get_max_partition_from_valid_part_specs_and_none_filter_map(self):
         max_partition = HiveMetastoreHook._get_max_partition_from_part_specs(
-            [{'key1': 'value1', 'key2': 'value2'}, {'key1': 'value3', 'key2': 'value4'}], 'key1', None
+            [{"key1": "value1", "key2": "value2"}, {"key1": "value3", "key2": "value4"}], "key1", None
         )
 
         # No partition will be filtered out.
-        assert max_partition == 'value3'
+        assert max_partition == "value3"
 
     def test_get_max_partition_from_valid_part_specs(self):
         max_partition = HiveMetastoreHook._get_max_partition_from_part_specs(
-            [{'key1': 'value1', 'key2': 'value2'}, {'key1': 'value3', 'key2': 'value4'}],
-            'key1',
+            [{"key1": "value1", "key2": "value2"}, {"key1": "value3", "key2": "value4"}],
+            "key1",
             self.VALID_FILTER_MAP,
         )
-        assert max_partition == 'value1'
+        assert max_partition == "value1"
 
     def test_get_max_partition_from_valid_part_specs_return_type(self):
         max_partition = HiveMetastoreHook._get_max_partition_from_part_specs(
-            [{'key1': 'value1', 'key2': 'value2'}, {'key1': 'value3', 'key2': 'value4'}],
-            'key1',
+            [{"key1": "value1", "key2": "value2"}, {"key1": "value3", "key2": "value4"}],
+            "key1",
             self.VALID_FILTER_MAP,
         )
         assert isinstance(max_partition, str)
@@ -417,9 +417,9 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
 
     def test_get_conn(self):
         with mock.patch(
-            'airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook._find_valid_host'
+            "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook._find_valid_host"
         ) as find_valid_host, mock.patch(
-            'airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection'
+            "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection"
         ) as get_connection:
             find_valid_host.return_value = mock.MagicMock(return_value="")
             get_connection.return_value = mock.MagicMock(return_value="")
@@ -429,8 +429,8 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
 
     def test_check_for_partition(self):
         # Check for existent partition.
-        FakePartition = namedtuple('FakePartition', ['values'])
-        fake_partition = FakePartition(['2015-01-01'])
+        FakePartition = namedtuple("FakePartition", ["values"])
+        fake_partition = FakePartition(["2015-01-01"])
 
         metastore = self.hook.metastore.__enter__()
 
@@ -488,32 +488,32 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
 
     def test_get_tables(self):  # static_babynames_partitioned
         self.hook.metastore.__enter__().get_tables = mock.MagicMock(
-            return_value=['static_babynames_partitioned']
+            return_value=["static_babynames_partitioned"]
         )
 
         self.hook.get_tables(db=self.database, pattern=self.table + "*")
         self.hook.metastore.__enter__().get_tables.assert_called_with(
-            db_name='airflow', pattern='static_babynames_partitioned*'
+            db_name="airflow", pattern="static_babynames_partitioned*"
         )
 
         self.hook.metastore.__enter__().get_table_objects_by_name.assert_called_with(
-            'airflow', ['static_babynames_partitioned']
+            "airflow", ["static_babynames_partitioned"]
         )
 
     def test_get_databases(self):
         metastore = self.hook.metastore.__enter__()
         metastore.get_databases = mock.MagicMock()
 
-        self.hook.get_databases(pattern='*')
-        metastore.get_databases.assert_called_with('*')
+        self.hook.get_databases(pattern="*")
+        metastore.get_databases.assert_called_with("*")
 
     def test_get_partitions(self):
-        FakeFieldSchema = namedtuple('FakeFieldSchema', ['name'])
-        fake_schema = FakeFieldSchema('ds')
-        FakeTable = namedtuple('FakeTable', ['partitionKeys'])
+        FakeFieldSchema = namedtuple("FakeFieldSchema", ["name"])
+        fake_schema = FakeFieldSchema("ds")
+        FakeTable = namedtuple("FakeTable", ["partitionKeys"])
         fake_table = FakeTable([fake_schema])
-        FakePartition = namedtuple('FakePartition', ['values'])
-        fake_partition = FakePartition(['2015-01-01'])
+        FakePartition = namedtuple("FakePartition", ["values"])
+        fake_partition = FakePartition(["2015-01-01"])
 
         metastore = self.hook.metastore.__enter__()
         metastore.get_table = mock.MagicMock(return_value=fake_table)
@@ -530,16 +530,16 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         )
 
     def test_max_partition(self):
-        FakeFieldSchema = namedtuple('FakeFieldSchema', ['name'])
-        fake_schema = FakeFieldSchema('ds')
-        FakeTable = namedtuple('FakeTable', ['partitionKeys'])
+        FakeFieldSchema = namedtuple("FakeFieldSchema", ["name"])
+        fake_schema = FakeFieldSchema("ds")
+        FakeTable = namedtuple("FakeTable", ["partitionKeys"])
         fake_table = FakeTable([fake_schema])
 
         metastore = self.hook.metastore.__enter__()
         metastore.get_table = mock.MagicMock(return_value=fake_table)
 
-        metastore.get_partition_names = mock.MagicMock(return_value=['ds=2015-01-01'])
-        metastore.partition_name_to_spec = mock.MagicMock(return_value={'ds': '2015-01-01'})
+        metastore.get_partition_names = mock.MagicMock(return_value=["ds=2015-01-01"])
+        metastore.partition_name_to_spec = mock.MagicMock(return_value={"ds": "2015-01-01"})
 
         filter_map = {self.partition_by: DEFAULT_DATE_DS}
         partition = self.hook.max_partition(
@@ -551,7 +551,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         metastore.get_partition_names.assert_called_with(
             self.database, self.table, max_parts=HiveMetastoreHook.MAX_PART_COUNT
         )
-        metastore.partition_name_to_spec.assert_called_with('ds=2015-01-01')
+        metastore.partition_name_to_spec.assert_called_with("ds=2015-01-01")
 
     def test_table_exists(self):
         # Test with existent table.
@@ -559,7 +559,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
 
         assert self.hook.table_exists(self.table, db=self.database)
         self.hook.metastore.__enter__().get_table.assert_called_with(
-            dbname='airflow', tbl_name='static_babynames_partitioned'
+            dbname="airflow", tbl_name="static_babynames_partitioned"
         )
 
         # Test with non-existent table.
@@ -567,11 +567,11 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
 
         assert not self.hook.table_exists("does-not-exist")
         self.hook.metastore.__enter__().get_table.assert_called_with(
-            dbname='default', tbl_name='does-not-exist'
+            dbname="default", tbl_name="does-not-exist"
         )
 
-    @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.table_exists')
-    @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_metastore_client')
+    @mock.patch("airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.table_exists")
+    @mock.patch("airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_metastore_client")
     def test_drop_partition(self, get_metastore_client_mock, table_exist_mock):
         metastore_mock = get_metastore_client_mock.return_value
         table_exist_mock.return_value = True
@@ -582,16 +582,16 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
 
 class TestHiveServer2Hook(unittest.TestCase):
     def _upload_dataframe(self):
-        df = pd.DataFrame({'a': [1, 2], 'b': [1, 2]})
-        self.local_path = '/tmp/TestHiveServer2Hook.csv'
+        df = pd.DataFrame({"a": [1, 2], "b": [1, 2]})
+        self.local_path = "/tmp/TestHiveServer2Hook.csv"
         df.to_csv(self.local_path, header=False, index=False)
 
     def setUp(self):
         self._upload_dataframe()
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        self.dag = DAG('test_dag_id', default_args=args)
-        self.database = 'airflow'
-        self.table = 'hive_server_hook'
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        self.dag = DAG("test_dag_id", default_args=args)
+        self.database = "airflow"
+        self.table = "hive_server_hook"
 
         self.hql = """
         CREATE DATABASE IF NOT EXISTS {{ params.database }};
@@ -605,10 +605,10 @@ class TestHiveServer2Hook(unittest.TestCase):
         LOAD DATA LOCAL INPATH '{{ params.csv_path }}'
         OVERWRITE INTO TABLE {{ params.table }};
         """
-        self.columns = [f'{self.table}.a', f'{self.table}.b']
+        self.columns = [f"{self.table}.a", f"{self.table}.b"]
 
         with mock.patch(
-            'airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_metastore_client'
+            "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_metastore_client"
         ) as get_metastore_mock:
             get_metastore_mock.return_value = mock.MagicMock()
 
@@ -618,24 +618,24 @@ class TestHiveServer2Hook(unittest.TestCase):
         hook = MockHiveServer2Hook()
         hook.get_conn()
 
-    @mock.patch('pyhive.hive.connect')
+    @mock.patch("pyhive.hive.connect")
     def test_get_conn_with_password(self, mock_connect):
         conn_id = "conn_with_password"
         conn_env = CONN_ENV_PREFIX + conn_id.upper()
 
         with mock.patch.dict(
-            'os.environ',
+            "os.environ",
             {conn_env: "jdbc+hive2://conn_id:conn_pass@localhost:10000/default?auth_mechanism=LDAP"},
         ):
             HiveServer2Hook(hiveserver2_conn_id=conn_id).get_conn()
             mock_connect.assert_called_once_with(
-                host='localhost',
+                host="localhost",
                 port=10000,
-                auth='LDAP',
+                auth="LDAP",
                 kerberos_service_name=None,
-                username='conn_id',
-                password='conn_pass',
-                database='default',
+                username="conn_id",
+                password="conn_pass",
+                database="default",
             )
 
     def test_get_records(self):
@@ -643,14 +643,14 @@ class TestHiveServer2Hook(unittest.TestCase):
         query = f"SELECT * FROM {self.table}"
 
         with mock.patch.dict(
-            'os.environ',
+            "os.environ",
             {
-                'AIRFLOW_CTX_DAG_ID': 'test_dag_id',
-                'AIRFLOW_CTX_TASK_ID': 'HiveHook_3835',
-                'AIRFLOW_CTX_EXECUTION_DATE': '2015-01-01T00:00:00+00:00',
-                'AIRFLOW_CTX_DAG_RUN_ID': '55',
-                'AIRFLOW_CTX_DAG_OWNER': 'airflow',
-                'AIRFLOW_CTX_DAG_EMAIL': 'test@airflow.com',
+                "AIRFLOW_CTX_DAG_ID": "test_dag_id",
+                "AIRFLOW_CTX_TASK_ID": "HiveHook_3835",
+                "AIRFLOW_CTX_EXECUTION_DATE": "2015-01-01T00:00:00+00:00",
+                "AIRFLOW_CTX_DAG_RUN_ID": "55",
+                "AIRFLOW_CTX_DAG_OWNER": "airflow",
+                "AIRFLOW_CTX_DAG_EMAIL": "test@airflow.com",
             },
         ):
             results = hook.get_records(query, schema=self.database)
@@ -658,26 +658,26 @@ class TestHiveServer2Hook(unittest.TestCase):
         assert results == [(1, 1), (2, 2)]
 
         hook.get_conn.assert_called_with(self.database)
-        hook.mock_cursor.execute.assert_any_call('set airflow.ctx.dag_id=test_dag_id')
-        hook.mock_cursor.execute.assert_any_call('set airflow.ctx.task_id=HiveHook_3835')
-        hook.mock_cursor.execute.assert_any_call('set airflow.ctx.execution_date=2015-01-01T00:00:00+00:00')
-        hook.mock_cursor.execute.assert_any_call('set airflow.ctx.dag_run_id=55')
-        hook.mock_cursor.execute.assert_any_call('set airflow.ctx.dag_owner=airflow')
-        hook.mock_cursor.execute.assert_any_call('set airflow.ctx.dag_email=test@airflow.com')
+        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_id=test_dag_id")
+        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.task_id=HiveHook_3835")
+        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.execution_date=2015-01-01T00:00:00+00:00")
+        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_run_id=55")
+        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_owner=airflow")
+        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_email=test@airflow.com")
 
     def test_get_pandas_df(self):
         hook = MockHiveServer2Hook()
         query = f"SELECT * FROM {self.table}"
 
         with mock.patch.dict(
-            'os.environ',
+            "os.environ",
             {
-                'AIRFLOW_CTX_DAG_ID': 'test_dag_id',
-                'AIRFLOW_CTX_TASK_ID': 'HiveHook_3835',
-                'AIRFLOW_CTX_EXECUTION_DATE': '2015-01-01T00:00:00+00:00',
-                'AIRFLOW_CTX_DAG_RUN_ID': '55',
-                'AIRFLOW_CTX_DAG_OWNER': 'airflow',
-                'AIRFLOW_CTX_DAG_EMAIL': 'test@airflow.com',
+                "AIRFLOW_CTX_DAG_ID": "test_dag_id",
+                "AIRFLOW_CTX_TASK_ID": "HiveHook_3835",
+                "AIRFLOW_CTX_EXECUTION_DATE": "2015-01-01T00:00:00+00:00",
+                "AIRFLOW_CTX_DAG_RUN_ID": "55",
+                "AIRFLOW_CTX_DAG_OWNER": "airflow",
+                "AIRFLOW_CTX_DAG_EMAIL": "test@airflow.com",
             },
         ):
             df = hook.get_pandas_df(query, schema=self.database)
@@ -686,12 +686,12 @@ class TestHiveServer2Hook(unittest.TestCase):
         assert df["hive_server_hook.a"].values.tolist() == [1, 2]
 
         hook.get_conn.assert_called_with(self.database)
-        hook.mock_cursor.execute.assert_any_call('set airflow.ctx.dag_id=test_dag_id')
-        hook.mock_cursor.execute.assert_any_call('set airflow.ctx.task_id=HiveHook_3835')
-        hook.mock_cursor.execute.assert_any_call('set airflow.ctx.execution_date=2015-01-01T00:00:00+00:00')
-        hook.mock_cursor.execute.assert_any_call('set airflow.ctx.dag_run_id=55')
-        hook.mock_cursor.execute.assert_any_call('set airflow.ctx.dag_owner=airflow')
-        hook.mock_cursor.execute.assert_any_call('set airflow.ctx.dag_email=test@airflow.com')
+        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_id=test_dag_id")
+        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.task_id=HiveHook_3835")
+        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.execution_date=2015-01-01T00:00:00+00:00")
+        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_run_id=55")
+        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_owner=airflow")
+        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_email=test@airflow.com")
 
         hook = MockHiveServer2Hook(connection_cursor=EmptyMockConnectionCursor())
         query = f"SELECT * FROM {self.table}"
@@ -706,7 +706,7 @@ class TestHiveServer2Hook(unittest.TestCase):
         query = f"SELECT * FROM {self.table}"
         results = hook.get_results(query, schema=self.database)
 
-        assert [col[0] for col in results['header']] == self.columns
+        assert [col[0] for col in results["header"]] == self.columns
 
     def test_get_results_data(self):
         hook = MockHiveServer2Hook()
@@ -714,7 +714,7 @@ class TestHiveServer2Hook(unittest.TestCase):
         query = f"SELECT * FROM {self.table}"
         results = hook.get_results(query, schema=self.database)
 
-        assert results['data'] == [(1, 1), (2, 2)]
+        assert results["data"] == [(1, 1), (2, 2)]
 
     def test_to_csv(self):
         hook = MockHiveServer2Hook()
@@ -722,8 +722,8 @@ class TestHiveServer2Hook(unittest.TestCase):
             return_value=iter(
                 [
                     [
-                        ('hive_server_hook.a', 'INT_TYPE', None, None, None, None, True),
-                        ('hive_server_hook.b', 'INT_TYPE', None, None, None, None, True),
+                        ("hive_server_hook.a", "INT_TYPE", None, None, None, None, True),
+                        ("hive_server_hook.b", "INT_TYPE", None, None, None, None, True),
                     ],
                     (1, 1),
                     (2, 2),
@@ -731,17 +731,17 @@ class TestHiveServer2Hook(unittest.TestCase):
             )
         )
         query = f"SELECT * FROM {self.table}"
-        csv_filepath = 'query_results.csv'
+        csv_filepath = "query_results.csv"
         hook.to_csv(
             query,
             csv_filepath,
             schema=self.database,
-            delimiter=',',
-            lineterminator='\n',
+            delimiter=",",
+            lineterminator="\n",
             output_header=True,
             fetch_size=2,
         )
-        df = pd.read_csv(csv_filepath, sep=',')
+        df = pd.read_csv(csv_filepath, sep=",")
         assert df.columns.tolist() == self.columns
         assert df[self.columns[0]].values.tolist() == [1, 2]
         assert len(df) == 2
@@ -756,14 +756,14 @@ class TestHiveServer2Hook(unittest.TestCase):
         hook = MockHiveServer2Hook()
 
         with mock.patch.dict(
-            'os.environ',
+            "os.environ",
             {
-                'AIRFLOW_CTX_DAG_ID': 'test_dag_id',
-                'AIRFLOW_CTX_TASK_ID': 'HiveHook_3835',
-                'AIRFLOW_CTX_EXECUTION_DATE': '2015-01-01T00:00:00+00:00',
-                'AIRFLOW_CTX_DAG_RUN_ID': '55',
-                'AIRFLOW_CTX_DAG_OWNER': 'airflow',
-                'AIRFLOW_CTX_DAG_EMAIL': 'test@airflow.com',
+                "AIRFLOW_CTX_DAG_ID": "test_dag_id",
+                "AIRFLOW_CTX_TASK_ID": "HiveHook_3835",
+                "AIRFLOW_CTX_EXECUTION_DATE": "2015-01-01T00:00:00+00:00",
+                "AIRFLOW_CTX_DAG_RUN_ID": "55",
+                "AIRFLOW_CTX_DAG_OWNER": "airflow",
+                "AIRFLOW_CTX_DAG_EMAIL": "test@airflow.com",
             },
         ):
             # df = hook.get_pandas_df(query, schema=self.database)
@@ -774,15 +774,15 @@ class TestHiveServer2Hook(unittest.TestCase):
         # self.assertListEqual(df["hive_server_hook.a"].values.tolist(), [1, 2])
 
         hook.get_conn.assert_called_with(self.database)
-        hook.mock_cursor.execute.assert_any_call('CREATE TABLE IF NOT EXISTS test_multi_statements (i INT)')
-        hook.mock_cursor.execute.assert_any_call(f'SELECT * FROM {self.table}')
-        hook.mock_cursor.execute.assert_any_call('DROP TABLE test_multi_statements')
-        hook.mock_cursor.execute.assert_any_call('set airflow.ctx.dag_id=test_dag_id')
-        hook.mock_cursor.execute.assert_any_call('set airflow.ctx.task_id=HiveHook_3835')
-        hook.mock_cursor.execute.assert_any_call('set airflow.ctx.execution_date=2015-01-01T00:00:00+00:00')
-        hook.mock_cursor.execute.assert_any_call('set airflow.ctx.dag_run_id=55')
-        hook.mock_cursor.execute.assert_any_call('set airflow.ctx.dag_owner=airflow')
-        hook.mock_cursor.execute.assert_any_call('set airflow.ctx.dag_email=test@airflow.com')
+        hook.mock_cursor.execute.assert_any_call("CREATE TABLE IF NOT EXISTS test_multi_statements (i INT)")
+        hook.mock_cursor.execute.assert_any_call(f"SELECT * FROM {self.table}")
+        hook.mock_cursor.execute.assert_any_call("DROP TABLE test_multi_statements")
+        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_id=test_dag_id")
+        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.task_id=HiveHook_3835")
+        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.execution_date=2015-01-01T00:00:00+00:00")
+        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_run_id=55")
+        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_owner=airflow")
+        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_email=test@airflow.com")
 
     def test_get_results_with_hive_conf(self):
         hql = [
@@ -793,22 +793,22 @@ class TestHiveServer2Hook(unittest.TestCase):
             "set airflow.ctx.execution_date",
         ]
 
-        dag_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_ID']['env_var_format']
-        task_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_TASK_ID']['env_var_format']
-        execution_date_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_EXECUTION_DATE'][
-            'env_var_format'
+        dag_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_DAG_ID"]["env_var_format"]
+        task_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_TASK_ID"]["env_var_format"]
+        execution_date_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_EXECUTION_DATE"][
+            "env_var_format"
         ]
-        dag_run_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_RUN_ID'][
-            'env_var_format'
+        dag_run_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_DAG_RUN_ID"][
+            "env_var_format"
         ]
 
         with mock.patch.dict(
-            'os.environ',
+            "os.environ",
             {
-                dag_id_ctx_var_name: 'test_dag_id',
-                task_id_ctx_var_name: 'test_task_id',
-                execution_date_ctx_var_name: 'test_execution_date',
-                dag_run_id_ctx_var_name: 'test_dag_run_id',
+                dag_id_ctx_var_name: "test_dag_id",
+                task_id_ctx_var_name: "test_task_id",
+                execution_date_ctx_var_name: "test_execution_date",
+                dag_run_id_ctx_var_name: "test_dag_run_id",
             },
         ):
             hook = MockHiveServer2Hook()
@@ -825,14 +825,14 @@ class TestHiveServer2Hook(unittest.TestCase):
                 )
             )
 
-            output = '\n'.join(
-                res_tuple[0] for res_tuple in hook.get_results(hql, hive_conf={'key': 'value'})['data']
+            output = "\n".join(
+                res_tuple[0] for res_tuple in hook.get_results(hql, hive_conf={"key": "value"})["data"]
             )
-        assert 'value' in output
-        assert 'test_dag_id' in output
-        assert 'test_task_id' in output
-        assert 'test_execution_date' in output
-        assert 'test_dag_run_id' in output
+        assert "value" in output
+        assert "test_dag_id" in output
+        assert "test_task_id" in output
+        assert "test_execution_date" in output
+        assert "test_dag_run_id" in output
 
 
 class TestHiveCli(unittest.TestCase):
@@ -846,7 +846,7 @@ class TestHiveCli(unittest.TestCase):
     def test_get_proxy_user_value(self):
         hook = MockHiveCliHook()
         returner = mock.MagicMock()
-        returner.extra_dejson = {'proxy_user': 'a_user_proxy'}
+        returner.extra_dejson = {"proxy_user": "a_user_proxy"}
         hook.use_beeline = True
         hook.conn = returner
 
@@ -854,4 +854,4 @@ class TestHiveCli(unittest.TestCase):
         result = hook._prepare_cli_cmd()
 
         # Verify
-        assert 'hive.server2.proxy.user=a_user_proxy' in result[2]
+        assert "hive.server2.proxy.user=a_user_proxy" in result[2]

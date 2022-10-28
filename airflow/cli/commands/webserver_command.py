@@ -414,6 +414,12 @@ def webserver(args):
 
         run_args += ["airflow.www.app:cached_app()"]
 
+        # To prevent different workers creating the web app and
+        # all writing to the database at the same time, we use the --preload option.
+        # With the preload option, the app is loaded before the workers are forked, and each worker will
+        # then have a copy of the app
+        run_args += ['--preload']
+
         gunicorn_master_proc = None
 
         def kill_proc(signum, _):

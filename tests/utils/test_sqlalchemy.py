@@ -55,7 +55,7 @@ class TestSqlAlchemyUtils:
         Test whether what we are storing is what we are retrieving
         for datetimes
         """
-        dag_id = 'test_utc_transformations'
+        dag_id = "test_utc_transformations"
         start_date = utcnow()
         iso_date = start_date.isoformat()
         execution_date = start_date + datetime.timedelta(hours=1, days=1)
@@ -89,7 +89,7 @@ class TestSqlAlchemyUtils:
         """
         Check if naive datetimes are prevented from saving to the db
         """
-        dag_id = 'test_process_bind_param_naive'
+        dag_id = "test_process_bind_param_naive"
 
         # naive
         start_date = datetime.datetime.now()
@@ -112,7 +112,7 @@ class TestSqlAlchemyUtils:
             (
                 "postgresql",
                 True,
-                {'skip_locked': True},
+                {"skip_locked": True},
             ),
             (
                 "mysql",
@@ -122,12 +122,12 @@ class TestSqlAlchemyUtils:
             (
                 "mysql",
                 True,
-                {'skip_locked': True},
+                {"skip_locked": True},
             ),
             (
                 "sqlite",
                 False,
-                {'skip_locked': True},
+                {"skip_locked": True},
             ),
         ],
     )
@@ -143,7 +143,7 @@ class TestSqlAlchemyUtils:
             (
                 "postgresql",
                 True,
-                {'nowait': True},
+                {"nowait": True},
             ),
             (
                 "mysql",
@@ -153,13 +153,13 @@ class TestSqlAlchemyUtils:
             (
                 "mysql",
                 True,
-                {'nowait': True},
+                {"nowait": True},
             ),
             (
                 "sqlite",
                 False,
                 {
-                    'nowait': True,
+                    "nowait": True,
                 },
             ),
         ],
@@ -200,17 +200,17 @@ class TestSqlAlchemyUtils:
 
     def test_prohibit_commit(self):
         with prohibit_commit(self.session) as guard:
-            self.session.execute('SELECT 1')
+            self.session.execute("SELECT 1")
             with pytest.raises(RuntimeError):
                 self.session.commit()
             self.session.rollback()
 
-            self.session.execute('SELECT 1')
+            self.session.execute("SELECT 1")
             guard.commit()
 
             # Check the expected_commit is reset
             with pytest.raises(RuntimeError):
-                self.session.execute('SELECT 1')
+                self.session.execute("SELECT 1")
                 self.session.commit()
 
     def test_prohibit_commit_specific_session_only(self):
@@ -225,12 +225,12 @@ class TestSqlAlchemyUtils:
         assert other_session is not self.session
 
         with prohibit_commit(self.session):
-            self.session.execute('SELECT 1')
+            self.session.execute("SELECT 1")
             with pytest.raises(RuntimeError):
                 self.session.commit()
             self.session.rollback()
 
-            other_session.execute('SELECT 1')
+            other_session.execute("SELECT 1")
             other_session.commit()
 
     def teardown_method(self):
@@ -240,11 +240,11 @@ class TestSqlAlchemyUtils:
 
 class TestExecutorConfigType:
     @pytest.mark.parametrize(
-        'input, expected',
+        "input, expected",
         [
-            ('anything', 'anything'),
+            ("anything", "anything"),
             (
-                {'pod_override': TEST_POD},
+                {"pod_override": TEST_POD},
                 {
                     "pod_override": {
                         "__var": {"spec": {"containers": [{"name": "base"}]}},
@@ -267,23 +267,23 @@ class TestExecutorConfigType:
         assert pickle.loads(process(input)) == expected, "should should not mutate variable"
 
     @pytest.mark.parametrize(
-        'input',
+        "input",
         [
             param(
-                pickle.dumps('anything'),
-                id='anything',
+                pickle.dumps("anything"),
+                id="anything",
             ),
             param(
-                pickle.dumps({'pod_override': BaseSerialization.serialize(TEST_POD)}),
-                id='serialized_pod',
+                pickle.dumps({"pod_override": BaseSerialization.serialize(TEST_POD)}),
+                id="serialized_pod",
             ),
             param(
-                pickle.dumps({'pod_override': TEST_POD}),
-                id='old_pickled_raw_pod',
+                pickle.dumps({"pod_override": TEST_POD}),
+                id="old_pickled_raw_pod",
             ),
             param(
-                pickle.dumps({'pod_override': {"name": "hi"}}),
-                id='arbitrary_dict',
+                pickle.dumps({"pod_override": {"name": "hi"}}),
+                id="arbitrary_dict",
             ),
         ],
     )
@@ -298,11 +298,11 @@ class TestExecutorConfigType:
         process = config_type.result_processor(mock_dialect, None)
         result = process(input)
         expected = pickle.loads(input)
-        pod_override = isinstance(expected, dict) and expected.get('pod_override')
+        pod_override = isinstance(expected, dict) and expected.get("pod_override")
         if pod_override and isinstance(pod_override, dict) and pod_override.get(Encoding.TYPE):
             # We should only deserialize a pod_override with BaseSerialization if
             # it was serialized with BaseSerialization (which is the behavior added in #24356
-            expected['pod_override'] = BaseSerialization.deserialize(expected['pod_override'])
+            expected["pod_override"] = BaseSerialization.deserialize(expected["pod_override"])
         assert result == expected
 
     def test_compare_values(self):
@@ -314,7 +314,7 @@ class TestExecutorConfigType:
 
         class MockAttrError:
             def __eq__(self, other):
-                raise AttributeError('hello')
+                raise AttributeError("hello")
 
         a = MockAttrError()
         with pytest.raises(AttributeError):
@@ -323,4 +323,4 @@ class TestExecutorConfigType:
 
         instance = ExecutorConfigType()
         assert instance.compare_values(a, a) is False
-        assert instance.compare_values('a', 'a') is True
+        assert instance.compare_values("a", "a") is True

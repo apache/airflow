@@ -40,16 +40,16 @@ def dag():
     return DAG(
         "testdag",
         start_date=DEFAULT_DATE,
-        user_defined_filters={"hello": lambda name: f'Hello {name}'},
-        user_defined_macros={"fullname": lambda fname, lname: f'{fname} {lname}'},
+        user_defined_filters={"hello": lambda name: f"Hello {name}"},
+        user_defined_macros={"fullname": lambda fname, lname: f"{fname} {lname}"},
     )
 
 
 @pytest.fixture()
 def task1(dag):
     return BashOperator(
-        task_id='task1',
-        bash_command='{{ task_instance_key_str }}',
+        task_id="task1",
+        bash_command="{{ task_instance_key_str }}",
         dag=dag,
     )
 
@@ -57,7 +57,7 @@ def task1(dag):
 @pytest.fixture()
 def task2(dag):
     return BashOperator(
-        task_id='task2',
+        task_id="task2",
         bash_command='echo {{ fullname("Apache", "Airflow") | hello }}',
         dag=dag,
     )
@@ -66,8 +66,8 @@ def task2(dag):
 @pytest.fixture()
 def task_secret(dag):
     return BashOperator(
-        task_id='task_secret',
-        bash_command='echo {{ var.value.my_secret }} && echo {{ var.value.spam }}',
+        task_id="task_secret",
+        bash_command="echo {{ var.value.my_secret }} && echo {{ var.value.spam }}",
         dag=dag,
     )
 
@@ -125,7 +125,7 @@ def test_rendered_template_view(admin_client, create_dag_run, task1):
     """
     Test that the Rendered View contains the values from RenderedTaskInstanceFields
     """
-    assert task1.bash_command == '{{ task_instance_key_str }}'
+    assert task1.bash_command == "{{ task_instance_key_str }}"
 
     with create_session() as session:
         dag_run = create_dag_run(execution_date=DEFAULT_DATE, session=session)
@@ -134,7 +134,7 @@ def test_rendered_template_view(admin_client, create_dag_run, task1):
         ti.refresh_from_task(task1)
         session.add(RenderedTaskInstanceFields(ti))
 
-    url = f'rendered-templates?task_id=task1&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}'
+    url = f"rendered-templates?task_id=task1&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}"
 
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response("testdag__task1__20200301", resp)
@@ -146,12 +146,12 @@ def test_rendered_template_view_for_unexecuted_tis(admin_client, create_dag_run,
     Test that the Rendered View is able to show rendered values
     even for TIs that have not yet executed
     """
-    assert task1.bash_command == '{{ task_instance_key_str }}'
+    assert task1.bash_command == "{{ task_instance_key_str }}"
 
     with create_session() as session:
         create_dag_run(execution_date=DEFAULT_DATE, session=session)
 
-    url = f'rendered-templates?task_id=task1&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}'
+    url = f"rendered-templates?task_id=task1&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}"
 
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response("testdag__task1__20200301", resp)
@@ -164,7 +164,7 @@ def test_user_defined_filter_and_macros_raise_error(admin_client, create_dag_run
     with create_session() as session:
         create_dag_run(execution_date=DEFAULT_DATE, session=session)
 
-    url = f'rendered-templates?task_id=task2&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}'
+    url = f"rendered-templates?task_id=task2&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}"
 
     resp = admin_client.get(url, follow_redirects=True)
     assert resp.status_code == 200
@@ -189,7 +189,7 @@ def test_rendered_template_secret(admin_client, create_dag_run, task_secret):
     Variable.set("my_secret", "foo")
     Variable.set("spam", "egg")
 
-    assert task_secret.bash_command == 'echo {{ var.value.my_secret }} && echo {{ var.value.spam }}'
+    assert task_secret.bash_command == "echo {{ var.value.my_secret }} && echo {{ var.value.spam }}"
 
     with create_session() as session:
         dag_run = create_dag_run(execution_date=DEFAULT_DATE, session=session)
@@ -199,7 +199,7 @@ def test_rendered_template_secret(admin_client, create_dag_run, task_secret):
         assert ti.state == TaskInstanceState.QUEUED
 
     date = quote_plus(str(DEFAULT_DATE))
-    url = f'rendered-templates?task_id=task_secret&dag_id=testdag&execution_date={date}'
+    url = f"rendered-templates?task_id=task_secret&dag_id=testdag&execution_date={date}"
 
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response(

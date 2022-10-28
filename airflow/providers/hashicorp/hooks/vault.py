@@ -97,10 +97,10 @@ class VaultHook(BaseHook):
 
     """
 
-    conn_name_attr = 'vault_conn_id'
-    default_conn_name = 'vault_default'
-    conn_type = 'vault'
-    hook_name = 'Hashicorp Vault'
+    conn_name_attr = "vault_conn_id"
+    default_conn_name = "vault_default"
+    conn_type = "vault"
+    hook_name = "Hashicorp Vault"
 
     def __init__(
         self,
@@ -123,10 +123,10 @@ class VaultHook(BaseHook):
         self.connection = self.get_connection(vault_conn_id)
 
         if not auth_type:
-            auth_type = self.connection.extra_dejson.get('auth_type') or "token"
+            auth_type = self.connection.extra_dejson.get("auth_type") or "token"
 
         if not auth_mount_point:
-            auth_mount_point = self.connection.extra_dejson.get('auth_mount_point')
+            auth_mount_point = self.connection.extra_dejson.get("auth_mount_point")
 
         if not kv_engine_version:
             conn_version = self.connection.extra_dejson.get("kv_engine_version")
@@ -143,8 +143,8 @@ class VaultHook(BaseHook):
                     DeprecationWarning,
                     stacklevel=2,
                 )
-            elif self.connection.extra_dejson.get('role_id'):
-                role_id = self.connection.extra_dejson.get('role_id')
+            elif self.connection.extra_dejson.get("role_id"):
+                role_id = self.connection.extra_dejson.get("role_id")
                 warnings.warn(
                     """The usage of role_id in connection extra for AppRole authentication has been
                     deprecated. Please use connection login.""",
@@ -156,37 +156,37 @@ class VaultHook(BaseHook):
 
         if auth_type == "aws_iam":
             if not role_id:
-                role_id = self.connection.extra_dejson.get('role_id')
+                role_id = self.connection.extra_dejson.get("role_id")
 
         azure_resource, azure_tenant_id = (
             self._get_azure_parameters_from_connection(azure_resource, azure_tenant_id)
-            if auth_type == 'azure'
+            if auth_type == "azure"
             else (None, None)
         )
         gcp_key_path, gcp_keyfile_dict, gcp_scopes = (
             self._get_gcp_parameters_from_connection(gcp_key_path, gcp_scopes)
-            if auth_type == 'gcp'
+            if auth_type == "gcp"
             else (None, None, None)
         )
         kubernetes_jwt_path, kubernetes_role = (
             self._get_kubernetes_parameters_from_connection(kubernetes_jwt_path, kubernetes_role)
-            if auth_type == 'kubernetes'
+            if auth_type == "kubernetes"
             else (None, None)
         )
         radius_host, radius_port = (
             self._get_radius_parameters_from_connection(radius_host, radius_port)
-            if auth_type == 'radius'
+            if auth_type == "radius"
             else (None, None)
         )
 
-        if self.connection.conn_type == 'vault':
-            conn_protocol = 'http'
-        elif self.connection.conn_type == 'vaults':
-            conn_protocol = 'https'
-        elif self.connection.conn_type == 'http':
-            conn_protocol = 'http'
-        elif self.connection.conn_type == 'https':
-            conn_protocol = 'https'
+        if self.connection.conn_type == "vault":
+            conn_protocol = "http"
+        elif self.connection.conn_type == "vaults":
+            conn_protocol = "https"
+        elif self.connection.conn_type == "http":
+            conn_protocol = "http"
+        elif self.connection.conn_type == "https":
+            conn_protocol = "https"
         else:
             raise VaultError("The url schema must be one of ['http', 'https', 'vault', 'vaults' ]")
 
@@ -195,7 +195,7 @@ class VaultHook(BaseHook):
             url += f":{self.connection.port}"
 
         # Schema is really path in the Connection definition. This is pretty confusing because of URL schema
-        mount_point = self.connection.schema if self.connection.schema else 'secret'
+        mount_point = self.connection.schema if self.connection.schema else "secret"
 
         self.vault_client = _VaultClient(
             url=url,
@@ -273,7 +273,6 @@ class VaultHook(BaseHook):
         """
         Retrieves connection to Vault.
 
-        :rtype: hvac.Client
         :return: connection used.
         """
         return self.vault_client.client
@@ -289,7 +288,6 @@ class VaultHook(BaseHook):
         and https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
 
         :param secret_path: Path of the secret
-        :rtype: dict
         :return: secret stored in the vault as a dictionary
         """
         return self.vault_client.get_secret(secret_path=secret_path, secret_version=secret_version)
@@ -299,7 +297,6 @@ class VaultHook(BaseHook):
         Reads secret metadata (including versions) from the engine. It is only valid for KV version 2.
 
         :param secret_path: Path to read from
-        :rtype: dict
         :return: secret metadata. This is a Dict containing metadata for the secret.
 
         See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
@@ -317,7 +314,6 @@ class VaultHook(BaseHook):
 
         :param secret_path: Path of the secret
         :param secret_version: Optional version of key to read - can only be used in case of version 2 of KV
-        :rtype: dict
         :return: key info. This is a Dict with "data" mapping keeping secret
             and "metadata" mapping keeping metadata of the secret.
 
@@ -341,7 +337,6 @@ class VaultHook(BaseHook):
             allowed. If set to 0 a write will only be allowed if the key doesn't exist.
             If the index is non-zero the write will only be allowed if the key's current version
             matches the version specified in the cas parameter. Only valid for KV engine version 2.
-        :rtype: requests.Response
         :return: The response of the create_or_update_secret request.
 
         See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v1.html

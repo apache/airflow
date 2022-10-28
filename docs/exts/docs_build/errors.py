@@ -48,8 +48,8 @@ class DocBuildError(NamedTuple):
         return not self == other
 
     def __lt__(self, right):
-        file_path_a = self.file_path or ''
-        file_path_b = right.file_path or ''
+        file_path_a = self.file_path or ""
+        file_path_b = right.file_path or ""
         line_no_a = self.line_no or 0
         line_no_b = right.line_no or 0
         left = (file_path_a, line_no_a, self.message)

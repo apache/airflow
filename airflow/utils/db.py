@@ -73,6 +73,7 @@ REVISION_HEADS_MAP = {
     "2.3.4": "f5fcbda3e651",
     "2.4.0": "ecb43d2a1842",
     "2.4.1": "ecb43d2a1842",
+    "2.4.2": "b0d31815b5a6",
 }
 
 
@@ -825,14 +826,13 @@ def check_and_run_migrations():
         sys.exit(1)
 
 
-@provide_session
-def reserialize_dags(*, session: Session = NEW_SESSION) -> None:
+def _reserialize_dags(*, session: Session) -> None:
     from airflow.models.dagbag import DagBag
     from airflow.models.serialized_dag import SerializedDagModel
 
     session.query(SerializedDagModel).delete(synchronize_session=False)
-    dagbag = DagBag()
-    dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+    dagbag = DagBag(collect_dags=False)
+    dagbag.collect_dags(only_if_updated=False)
     dagbag.sync_to_db(session=session)
 
 
@@ -911,7 +911,6 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
     Check unique conn_id in connection table
 
     :param session:  session of the sqlalchemy
-    :rtype: str
     """
     from airflow.models.connection import Connection
 
@@ -974,15 +973,14 @@ def check_table_for_duplicates(
                 return
             yield from check_table_for_duplicates(
                 table_name=task_fail.name,
-                uniqueness=['dag_id', 'task_id', 'execution_date'],
+                uniqueness=["dag_id", "task_id", "execution_date"],
                 session=session,
-                version='2.3',
+                version="2.3",
             )
 
     :param table_name: table name to check
     :param uniqueness: uniqueness constraint to evaluate against
     :param session:  session of the sqlalchemy
-    :rtype: str
     """
     minimal_table_obj = table(table_name, *[column(x) for x in uniqueness])
     try:
@@ -1024,7 +1022,6 @@ def check_conn_type_null(session: Session) -> Iterable[str]:
     Check nullable conn_type column in Connection table
 
     :param session:  session of the sqlalchemy
-    :rtype: str
     """
     from airflow.models.connection import Connection
 
@@ -1395,10 +1392,7 @@ def check_bad_references(session: Session) -> Iterable[str]:
 
 @provide_session
 def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
-    """
-    :session: session of the sqlalchemy
-    :rtype: list[str]
-    """
+    """:session: session of the sqlalchemy"""
     check_functions: tuple[Callable[..., Iterable[str]], ...] = (
         check_conn_id_duplicates,
         check_conn_type_null,
@@ -1444,14 +1438,13 @@ def _revision_greater(config, this_rev, base_rev):
         return False
 
 
-def _revisions_above_min_for_offline(config, revisions):
+def _revisions_above_min_for_offline(config, revisions) -> None:
     """
     Checks that all supplied revision ids are above the minimum revision for the dialect.
 
     :param config: Alembic config
     :param revisions: list of Alembic revision ids
     :return: None
-    :rtype: None
     """
     dbname = settings.engine.dialect.name
     if dbname == 'sqlite':
@@ -1476,6 +1469,7 @@ def upgradedb(
     to_revision: str | None = None,
     from_revision: str | None = None,
     show_sql_only: bool = False,
+    reserialize_dags: bool = True,
     session: Session = NEW_SESSION,
 ):
     """
@@ -1487,7 +1481,6 @@ def upgradedb(
     :param show_sql_only: if True, migration statements will be printed but not executed.
     :param session: sqlalchemy session with connection to Airflow metadata database
     :return: None
-    :rtype: None
     """
     if from_revision and not show_sql_only:
         raise AirflowException("`from_revision` only supported with `sql_only=True`.")
@@ -1556,7 +1549,8 @@ def upgradedb(
                 os.environ['AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE'] = val
             settings.reconfigure_orm()
 
-    reserialize_dags(session=session)
+    if reserialize_dags:
+        _reserialize_dags(session=session)
     add_default_pool_if_not_exists(session=session)
     synchronize_log_template(session=session)
 

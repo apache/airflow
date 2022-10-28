@@ -31,7 +31,7 @@ def copy_docker_compose(app, exception):
         with open(path) as file:
             with open(os.path.join(app.outdir, os.path.basename(path)), "w") as output_file:
                 for line in file:
-                    output_file.write(line.replace('|version|', app.config.version))
+                    output_file.write(line.replace("|version|", app.config.version))
 
     # Replace `|version|` in the installation files that requires manual substitutions (in links)
     for path in app.config.manual_substitutions_in_generated_html:
@@ -41,16 +41,16 @@ def copy_docker_compose(app, exception):
             os.path.join(app.outdir, os.path.dirname(path), os.path.basename(path)), "wt"
         ) as output_file:
             for line in content:
-                output_file.write(line.replace('|version|', app.config.version))
+                output_file.write(line.replace("|version|", app.config.version))
 
 
 def setup(app):
     """Setup plugin"""
     app.connect("build-finished", copy_docker_compose)
 
-    app.add_config_value("html_extra_with_substitutions", [], '[str]')
-    app.add_config_value("manual_substitutions_in_generated_html", [], '[str]')
+    app.add_config_value("html_extra_with_substitutions", [], "[str]")
+    app.add_config_value("manual_substitutions_in_generated_html", [], "[str]")
 
     return {
-        'parallel_write_safe': True,
+        "parallel_write_safe": True,
     }

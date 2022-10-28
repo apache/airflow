@@ -176,7 +176,6 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -243,7 +242,7 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
         result = MessageToDict(template)
 
         project_id = self.project_id or hook.project_id
-        template_id = self.template_id or result['name'].split("/")[-1] if result['name'] else None
+        template_id = self.template_id or result["name"].split("/")[-1] if result["name"] else None
         if project_id and template_id:
             CloudDLPDeidentifyTemplateDetailsLink.persist(
                 context=context,
@@ -287,7 +286,6 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.DlpJob
     """
 
     template_fields: Sequence[str] = (
@@ -362,7 +360,7 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
                 context=context,
                 task_instance=self,
                 project_id=project_id,
-                job_name=result['name'].split("/")[-1] if result['name'] else None,
+                job_name=result["name"].split("/")[-1] if result["name"] else None,
             )
 
         return result
@@ -400,7 +398,6 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -467,7 +464,7 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
 
         result = MessageToDict(template)
 
-        template_id = self.template_id or result['name'].split("/")[-1] if result['name'] else None
+        template_id = self.template_id or result["name"].split("/")[-1] if result["name"] else None
         project_id = self.project_id or hook.project_id
         if project_id and template_id:
             CloudDLPInspectTemplateDetailsLink.persist(
@@ -510,7 +507,6 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.JobTrigger
     """
 
     template_fields: Sequence[str] = (
@@ -575,7 +571,7 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
         result = MessageToDict(trigger)
 
         project_id = self.project_id or hook.project_id
-        trigger_name = result['name'].split("/")[-1] if result['name'] else None
+        trigger_name = result["name"].split("/")[-1] if result["name"] else None
         if project_id:
             CloudDLPJobTriggerDetailsLink.persist(
                 context=context,
@@ -618,7 +614,6 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.StoredInfoType
     """
 
     template_fields: Sequence[str] = (
@@ -689,7 +684,7 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
 
         project_id = self.project_id or hook.project_id
         stored_info_type_id = (
-            self.stored_info_type_id or result['name'].split("/")[-1] if result['name'] else None
+            self.stored_info_type_id or result["name"].split("/")[-1] if result["name"] else None
         )
         if project_id and stored_info_type_id:
             CloudDLPInfoTypeDetailsLink.persist(
@@ -741,7 +736,6 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.DeidentifyContentResponse
     """
 
     template_fields: Sequence[str] = (
@@ -1269,7 +1263,6 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -1355,7 +1348,6 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.DlpJob
     """
 
     template_fields: Sequence[str] = (
@@ -1442,7 +1434,6 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -1531,7 +1522,6 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.JobTrigger
     """
 
     template_fields: Sequence[str] = (
@@ -1618,7 +1608,6 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.StoredInfoType
     """
 
     template_fields: Sequence[str] = (
@@ -1712,7 +1701,6 @@ class CloudDLPInspectContentOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.tasks_v2.types.InspectContentResponse
     """
 
     template_fields: Sequence[str] = (
@@ -1799,7 +1787,6 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.dlp_v2.types.DeidentifyTemplate]
     """
 
     template_fields: Sequence[str] = (
@@ -1895,7 +1882,6 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.dlp_v2.types.DlpJob]
     """
 
     template_fields: Sequence[str] = (
@@ -1988,7 +1974,6 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: ListInfoTypesResponse
     """
 
     template_fields: Sequence[str] = (
@@ -2078,7 +2063,6 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.dlp_v2.types.InspectTemplate]
     """
 
     template_fields: Sequence[str] = (
@@ -2172,7 +2156,6 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.dlp_v2.types.JobTrigger]
     """
 
     template_fields: Sequence[str] = (
@@ -2266,7 +2249,6 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.dlp_v2.types.StoredInfoType]
     """
 
     template_fields: Sequence[str] = (
@@ -2363,7 +2345,6 @@ class CloudDLPRedactImageOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.RedactImageResponse
     """
 
     template_fields: Sequence[str] = (
@@ -2457,7 +2438,6 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.ReidentifyContentResponse
     """
 
     template_fields: Sequence[str] = (
@@ -2551,7 +2531,6 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -2652,7 +2631,6 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -2751,7 +2729,6 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -2849,7 +2826,6 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.StoredInfoType
     """
 
     template_fields: Sequence[str] = (

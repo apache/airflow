@@ -65,9 +65,9 @@ def write_to_cache_file(param_name: str, param_value: str, check_allowed_values:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(param_value)
     else:
-        get_console().print(f'[cyan]You have sent the {param_value} for {param_name}')
-        get_console().print(f'[cyan]Allowed value for the {param_name} are {allowed_values}')
-        get_console().print('[cyan]Provide one of the supported params. Write to cache dir failed')
+        get_console().print(f"[cyan]You have sent the {param_value} for {param_name}")
+        get_console().print(f"[cyan]Allowed value for the {param_name} are {allowed_values}")
+        get_console().print("[cyan]Provide one of the supported params. Write to cache dir failed")
         sys.exit(1)
 
 
@@ -102,7 +102,7 @@ def read_and_validate_value_from_cache(param_name: str, default_param_value: str
 def check_if_values_allowed(param_name: str, param_value: str) -> tuple[bool, list[Any]]:
     """Checks if parameter value is allowed by looking at global constants."""
     allowed = False
-    allowed_values = getattr(global_constants, f'ALLOWED_{param_name.upper()}S')
+    allowed_values = getattr(global_constants, f"ALLOWED_{param_name.upper()}S")
     if param_value in allowed_values:
         allowed = True
     return allowed, allowed_values

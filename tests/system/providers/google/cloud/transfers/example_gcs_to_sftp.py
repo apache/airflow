@@ -49,10 +49,10 @@ UPLOAD_IN_DIR_DST = f"dir-2/{FILE_NAME}"
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example', 'gcs'],
+    tags=["example", "gcs"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
