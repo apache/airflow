@@ -96,6 +96,7 @@ def run_with_debug(
     command: list[str],
     debug: bool,
     enable_input: bool = False,
+    output_outside_the_group: bool = False,
     **kwargs,
 ) -> RunCommandResult:
     env_variables = get_env_variables_for_docker_commands(params)
@@ -130,6 +131,7 @@ echo -e '\\e[34mRun this command to debug:
         return run_command(
             base_command,
             env=env_variables,
+            output_outside_the_group=output_outside_the_group,
             **kwargs,
         )
     else:
@@ -138,6 +140,7 @@ echo -e '\\e[34mRun this command to debug:
             base_command,
             env=env_variables,
             check=False,
+            output_outside_the_group=output_outside_the_group,
             **kwargs,
         )
 
@@ -184,6 +187,7 @@ def prepare_airflow_packages(
         params=shell_params,
         command=["/opt/airflow/scripts/in_container/run_prepare_airflow_packages.sh"],
         debug=debug,
+        output_outside_the_group=True,
     )
     sys.exit(result_command.returncode)
 
@@ -491,6 +495,7 @@ def verify_provider_packages(
         params=shell_params,
         command=cmd_to_run,
         debug=debug,
+        output_outside_the_group=True,
     )
     sys.exit(result_command.returncode)
 

@@ -45,3 +45,6 @@ runs:
         echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
         >> ${GITHUB_OUTPUT}
       id: host-python-version
+    - name: "Disable cheatsheet"
+      shell: bash
+      run: breeze setup config --no-cheatsheet --no-asciiart
