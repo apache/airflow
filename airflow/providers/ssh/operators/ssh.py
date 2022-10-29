@@ -151,16 +151,18 @@ class SSHOperator(BaseOperator):
             ssh_client, command, timeout=self.timeout, environment=self.environment, get_pty=self.get_pty
         )
 
-    def raise_for_status(self, exit_status: int, stderr: bytes) -> None:
+    def raise_for_status(self, exit_status: int, stderr: bytes, **kwargs) -> None:
+        ti=kwargs['context'].get('task_instance')
+        ti.xcom_push(key='ssh_exit', value=exit_status)
         if exit_status != 0:
             raise AirflowException(f"SSH operator error: exit status = {exit_status}")
 
-    def run_ssh_client_command(self, ssh_client: SSHClient, command: str) -> bytes:
+    def run_ssh_client_command(self, ssh_client: SSHClient, command: str, **kwargs) -> bytes:
         assert self.ssh_hook
         exit_status, agg_stdout, agg_stderr = self.ssh_hook.exec_ssh_client_command(
             ssh_client, command, timeout=self.timeout, environment=self.environment, get_pty=self.get_pty
         )
-        self.raise_for_status(exit_status, agg_stderr)
+        self.raise_for_status(exit_status, agg_stderr, context=kwargs['context'])
         return agg_stdout
 
     def execute(self, context=None) -> bytes | str:
@@ -172,7 +174,7 @@ class SSHOperator(BaseOperator):
         self.get_pty = self.command.startswith("sudo") or self.get_pty
 
         with self.get_ssh_client() as ssh_client:
-            result = self.run_ssh_client_command(ssh_client, self.command)
+            result = self.run_ssh_client_command(ssh_client, self.command, context=context)
         enable_pickling = conf.getboolean("core", "enable_xcom_pickling")
         if not enable_pickling:
             result = b64encode(result).decode("utf-8")
