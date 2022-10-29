@@ -39,8 +39,7 @@ Set values for these fields:
 .. code-block::
 
   Connection Id: "your_conn_id"
-  Extra: {"extra__dataprep__token": "TOKEN",
-          "extra__dataprep__base_url": "https://api.clouddataprep.com"}
+  Extra: {"token": "TOKEN", "base_url": "https://api.clouddataprep.com"}
 
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^

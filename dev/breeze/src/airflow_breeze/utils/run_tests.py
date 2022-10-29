@@ -29,15 +29,11 @@ def verify_an_image(
     image_name: str,
     image_type: str,
     output: Output | None,
-    dry_run: bool,
-    verbose: bool,
     slim_image: bool,
     extra_pytest_args: tuple,
 ) -> tuple[int, str]:
     command_result = run_command(
         ["docker", "inspect", image_name],
-        dry_run=dry_run,
-        verbose=verbose,
         check=False,
         output=output,
     )
@@ -57,8 +53,6 @@ def verify_an_image(
         env["TEST_SLIM_IMAGE"] = "true"
     command_result = run_command(
         [sys.executable, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
-        dry_run=dry_run,
-        verbose=verbose,
         env=env,
         output=output,
         check=False,
@@ -66,12 +60,8 @@ def verify_an_image(
     return command_result.returncode, f"Testing {image_type} python {image_name}"
 
 
-def run_docker_compose_tests(
-    image_name: str, dry_run: bool, verbose: bool, extra_pytest_args: tuple
-) -> tuple[int, str]:
-    command_result = run_command(
-        ["docker", "inspect", image_name], dry_run=dry_run, verbose=verbose, check=False, stdout=DEVNULL
-    )
+def run_docker_compose_tests(image_name: str, extra_pytest_args: tuple) -> tuple[int, str]:
+    command_result = run_command(["docker", "inspect", image_name], check=False, stdout=DEVNULL)
     if command_result.returncode != 0:
         get_console().print(f"[error]Error when inspecting PROD image: {command_result.returncode}[/]")
         return command_result.returncode, f"Testing docker-compose python with {image_name}"
@@ -81,8 +71,6 @@ def run_docker_compose_tests(
     env["DOCKER_IMAGE"] = image_name
     command_result = run_command(
         [sys.executable, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
-        dry_run=dry_run,
-        verbose=verbose,
         env=env,
         check=False,
     )

@@ -26,6 +26,7 @@ import sys
 from unittest.mock import ANY, patch
 
 import pytest
+from moto import mock_ssm
 
 from tests.system.providers.amazon.aws import utils
 from tests.system.providers.amazon.aws.utils import (
@@ -38,11 +39,6 @@ from tests.system.providers.amazon.aws.utils import (
     _validate_env_id,
     set_env_id,
 )
-
-try:
-    from moto import mock_ssm
-except ImportError:
-    mock_ssm = None
 
 TEST_NAME: str = "example_test"
 ANY_STR: str = "any"
@@ -58,7 +54,6 @@ def provide_test_name():
         yield name
 
 
-@pytest.mark.skipif(mock_ssm is None, reason="mock_ssm package not present")
 @mock_ssm
 class TestAmazonSystemTestHelpers:
     FETCH_VARIABLE_TEST_CASES = [

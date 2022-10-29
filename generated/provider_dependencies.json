@@ -251,7 +251,8 @@
   "docker": {
     "deps": [
       "apache-airflow>=2.4.0",
-      "docker>=5.0.3"
+      "docker>=5.0.3",
+      "python-dotenv>=0.21.0"
     ],
     "cross-providers-deps": []
   },
