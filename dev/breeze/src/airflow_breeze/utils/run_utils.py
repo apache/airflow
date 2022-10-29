@@ -54,6 +54,7 @@ def run_command(
     cwd: Path | None = None,
     input: str | None = None,
     output: Output | None = None,
+    output_outside_the_group: bool = False,
     verbose_override: bool | None = None,
     dry_run_override: bool | None = None,
     **kwargs,
@@ -77,6 +78,8 @@ def run_command(
     :param cwd: working directory to set for the command
     :param input: input string to pass to stdin of the process
     :param output: redirects stderr/stdout to Output if set to Output class.
+    :param output_outside_the_group: if this is set to True, then output of the command will be done
+        outside the "CI folded group" in CI - so that it is immediately visible without unfolding.
     :param verbose_override: override verbose parameter with the one specified if not None.
     :param dry_run_override: override dry_run parameter with the one specified if not None.
     :param kwargs: kwargs passed to POpen
@@ -139,6 +142,8 @@ def run_command(
         if get_dry_run(dry_run_override):
             return subprocess.CompletedProcess(cmd, returncode=0, stdout="", stderr="")
         try:
+            if output_outside_the_group:
+                get_console().print("::endgroup::")
             return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
         except subprocess.CalledProcessError as ex:
             if no_output_dump_on_exception:
