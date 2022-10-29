@@ -183,12 +183,11 @@ class PythonOperator(BaseOperator):
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
         return KeywordParameters.determine(self.python_callable, self.op_args, context).unpacking()
 
-    def execute_callable(self):
+    def execute_callable(self) -> Any:
         """
         Calls the python callable with the given arguments.
 
         :return: the return value of the call.
-        :rtype: any
         """
         return self.python_callable(*self.op_args, **self.op_kwargs)
 

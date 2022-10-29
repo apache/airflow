@@ -132,13 +132,15 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | ID                                                     | Description                                                      | Image   |
 +========================================================+==================================================================+=========+
-| black                                                  | Run Black (the uncompromising Python code formatter)             |         |
+| black                                                  | * Run black (python formatter) on core                           |         |
+|                                                        | * Run black (python formatter) on providers                      |         |
+|                                                        | * Run black (python formatter) on other                          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | blacken-docs                                           | Run black on python code blocks in documentation files           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| check-airflow-2-2-compatibility                        | Check that providers are 2.2 compatible.                         |         |
-+--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-airflow-config-yaml-consistent                   | Checks for consistency between config.yml and default_config.cfg |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-airflow-provider-compatibility                   | Check compatibility of Providers with Airflow                    |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-apache-license-rat                               | Check if licenses are OK for Apache                              |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+

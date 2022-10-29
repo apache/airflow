@@ -34,7 +34,7 @@ class JiraHook(BaseHook):
     :param jira_conn_id: reference to a pre-defined Jira Connection
     """
 
-    default_conn_name = 'jira_default'
+    default_conn_name = "jira_default"
     conn_type = "jira"
     conn_name_attr = "jira_conn_id"
     hook_name = "JIRA"
@@ -48,13 +48,13 @@ class JiraHook(BaseHook):
 
     def get_conn(self) -> JIRA:
         if not self.client:
-            self.log.debug('Creating Jira client for conn_id: %s', self.jira_conn_id)
+            self.log.debug("Creating Jira client for conn_id: %s", self.jira_conn_id)
 
             get_server_info = True
             validate = True
             extra_options = {}
             if not self.jira_conn_id:
-                raise AirflowException('Failed to create jira client. no jira_conn_id provided')
+                raise AirflowException("Failed to create jira client. no jira_conn_id provided")
 
             conn = self.get_connection(self.jira_conn_id)
             if conn.extra is not None:
@@ -63,14 +63,14 @@ class JiraHook(BaseHook):
                 # more can be added ex: async, logging, max_retries
 
                 # verify
-                if 'verify' in extra_options and extra_options['verify'].lower() == 'false':
-                    extra_options['verify'] = False
+                if "verify" in extra_options and extra_options["verify"].lower() == "false":
+                    extra_options["verify"] = False
 
                 # validate
-                if 'validate' in extra_options and extra_options['validate'].lower() == 'false':
+                if "validate" in extra_options and extra_options["validate"].lower() == "false":
                     validate = False
 
-                if 'get_server_info' in extra_options and extra_options['get_server_info'].lower() == 'false':
+                if "get_server_info" in extra_options and extra_options["get_server_info"].lower() == "false":
                     get_server_info = False
 
             try:
@@ -83,8 +83,8 @@ class JiraHook(BaseHook):
                     proxies=self.proxies,
                 )
             except JIRAError as jira_error:
-                raise AirflowException(f'Failed to create jira client, jira error: {str(jira_error)}')
+                raise AirflowException(f"Failed to create jira client, jira error: {str(jira_error)}")
             except Exception as e:
-                raise AirflowException(f'Failed to create jira client, error: {str(e)}')
+                raise AirflowException(f"Failed to create jira client, error: {str(e)}")
 
         return self.client

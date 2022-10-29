@@ -36,9 +36,9 @@ from docs.exts.docs_build.third_party_inventories import THIRD_PARTY_INDEXES
 
 CURRENT_DIR = os.path.dirname(__file__)
 ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir, os.pardir))
-DOCS_DIR = os.path.join(ROOT_DIR, 'docs')
-CACHE_DIR = os.path.join(DOCS_DIR, '_inventory_cache')
-EXPIRATION_DATE_PATH = os.path.join(DOCS_DIR, '_inventory_cache', "expiration-date")
+DOCS_DIR = os.path.join(ROOT_DIR, "docs")
+CACHE_DIR = os.path.join(DOCS_DIR, "_inventory_cache")
+EXPIRATION_DATE_PATH = os.path.join(DOCS_DIR, "_inventory_cache", "expiration-date")
 
 S3_DOC_URL = "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com"
 S3_DOC_URL_VERSIONED = S3_DOC_URL + "/docs/{package_name}/latest/objects.inv"
@@ -62,7 +62,7 @@ def _fetch_file(session: requests.Session, package_name: str, url: str, path: st
         return package_name, False
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'wb') as f:
+    with open(path, "wb") as f:
         response.raw.decode_content = True
         shutil.copyfileobj(response.raw, f)
     print(f"Fetched inventory: {url}")
@@ -86,30 +86,30 @@ def fetch_inventories():
             (
                 pkg_name,
                 S3_DOC_URL_VERSIONED.format(package_name=pkg_name),
-                f'{CACHE_DIR}/{pkg_name}/objects.inv',
+                f"{CACHE_DIR}/{pkg_name}/objects.inv",
             )
         )
-    for pkg_name in ['apache-airflow', 'helm-chart']:
+    for pkg_name in ["apache-airflow", "helm-chart"]:
         to_download.append(
             (
                 pkg_name,
                 S3_DOC_URL_VERSIONED.format(package_name=pkg_name),
-                f'{CACHE_DIR}/{pkg_name}/objects.inv',
+                f"{CACHE_DIR}/{pkg_name}/objects.inv",
             )
         )
-    for pkg_name in ['apache-airflow-providers', 'docker-stack']:
+    for pkg_name in ["apache-airflow-providers", "docker-stack"]:
         to_download.append(
             (
                 pkg_name,
                 S3_DOC_URL_NON_VERSIONED.format(package_name=pkg_name),
-                f'{CACHE_DIR}/{pkg_name}/objects.inv',
+                f"{CACHE_DIR}/{pkg_name}/objects.inv",
             )
         )
     to_download.extend(
         (
             pkg_name,
             f"{doc_url}/objects.inv",
-            f'{CACHE_DIR}/{pkg_name}/objects.inv',
+            f"{CACHE_DIR}/{pkg_name}/objects.inv",
         )
         for pkg_name, doc_url in THIRD_PARTY_INDEXES.items()
     )

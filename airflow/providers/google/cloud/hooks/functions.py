@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Optional, Sequence
+from typing import Sequence
 
 import requests
 from googleapiclient.discovery import build
@@ -39,7 +39,7 @@ class CloudFunctionsHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
-    _conn = None  # type: Optional[Any]
+    _conn = None
 
     def __init__(
         self,
@@ -65,19 +65,18 @@ class CloudFunctionsHook(GoogleBaseHook):
         :param location: The location where the function is created.
         :return:
         """
-        return f'projects/{project_id}/locations/{location}'
+        return f"projects/{project_id}/locations/{location}"
 
     def get_conn(self) -> build:
         """
         Retrieves the connection to Cloud Functions.
 
         :return: Google Cloud Function services object.
-        :rtype: dict
         """
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build(
-                'cloudfunctions', self.api_version, http=http_authorized, cache_discovery=False
+                "cloudfunctions", self.api_version, http=http_authorized, cache_discovery=False
             )
         return self._conn
 
@@ -87,7 +86,6 @@ class CloudFunctionsHook(GoogleBaseHook):
 
         :param name: Name of the function.
         :return: A Cloud Functions object representing the function.
-        :rtype: dict
         """
         # fmt: off
         return self.get_conn().projects().locations().functions().get(
@@ -143,7 +141,6 @@ class CloudFunctionsHook(GoogleBaseHook):
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
         :return: The upload URL that was returned by generateUploadUrl method.
-        :rtype: str
         """
         # fmt: off
 
@@ -153,8 +150,8 @@ class CloudFunctionsHook(GoogleBaseHook):
             ).execute(num_retries=self.num_retries)
         # fmt: on
 
-        upload_url = response.get('uploadUrl')
-        with open(zip_path, 'rb') as file:
+        upload_url = response.get("uploadUrl")
+        with open(zip_path, "rb") as file:
             requests.put(
                 url=upload_url,
                 data=file,
@@ -162,8 +159,8 @@ class CloudFunctionsHook(GoogleBaseHook):
                 # https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/generateUploadUrl
                 # nopep8
                 headers={
-                    'Content-type': 'application/zip',
-                    'x-goog-content-length-range': '0,104857600',
+                    "Content-type": "application/zip",
+                    "x-goog-content-length-range": "0,104857600",
                 },
             )
         return upload_url
@@ -208,8 +205,8 @@ class CloudFunctionsHook(GoogleBaseHook):
             body=input_data
         ).execute(num_retries=self.num_retries)
         # fmt: on
-        if 'error' in response:
-            raise AirflowException(response['error'])
+        if "error" in response:
+            raise AirflowException(response["error"])
         return response
 
     def _wait_for_operation_to_complete(self, operation_name: str) -> dict:
@@ -219,7 +216,6 @@ class CloudFunctionsHook(GoogleBaseHook):
 
         :param operation_name: The name of the operation.
         :return: The response returned by the operation.
-        :rtype: dict
         :exception: AirflowException in case error is returned.
         """
         service = self.get_conn()

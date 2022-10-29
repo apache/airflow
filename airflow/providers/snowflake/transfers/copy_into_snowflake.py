@@ -83,7 +83,7 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         warehouse: str | None = None,
         database: str | None = None,
         autocommit: bool = True,
-        snowflake_conn_id: str = 'snowflake_default',
+        snowflake_conn_id: str = "snowflake_default",
         role: str | None = None,
         authenticator: str | None = None,
         session_parameters: dict | None = None,
@@ -138,6 +138,6 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         {self.copy_options or ""}
         {self.validation_mode or ""}
         """
-        self.log.info('Executing COPY command...')
+        self.log.info("Executing COPY command...")
         snowflake_hook.run(sql=sql, autocommit=self.autocommit)
         self.log.info("COPY command completed")

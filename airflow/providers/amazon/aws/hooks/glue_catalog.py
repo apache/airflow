@@ -36,13 +36,13 @@ class GlueCatalogHook(AwsBaseHook):
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(client_type='glue', *args, **kwargs)
+        super().__init__(client_type="glue", *args, **kwargs)
 
     def get_partitions(
         self,
         database_name: str,
         table_name: str,
-        expression: str = '',
+        expression: str = "",
         page_size: int | None = None,
         max_items: int | None = None,
     ) -> set[tuple]:
@@ -61,19 +61,19 @@ class GlueCatalogHook(AwsBaseHook):
             ``{('2018-01-01','1'), ('2018-01-01','2')}``
         """
         config = {
-            'PageSize': page_size,
-            'MaxItems': max_items,
+            "PageSize": page_size,
+            "MaxItems": max_items,
         }
 
-        paginator = self.get_conn().get_paginator('get_partitions')
+        paginator = self.get_conn().get_paginator("get_partitions")
         response = paginator.paginate(
             DatabaseName=database_name, TableName=table_name, Expression=expression, PaginationConfig=config
         )
 
         partitions = set()
         for page in response:
-            for partition in page['Partitions']:
-                partitions.add(tuple(partition['Values']))
+            for partition in page["Partitions"]:
+                partitions.add(tuple(partition["Values"]))
 
         return partitions
 
@@ -85,7 +85,6 @@ class GlueCatalogHook(AwsBaseHook):
         :param table_name: Name of hive table @partition belongs to
         :expression: Expression that matches the partitions to check for
             (eg `a = 'b' AND c = 'd'`)
-        :rtype: bool
 
         >>> hook = GlueCatalogHook()
         >>> t = 'static_babynames_partitioned'
@@ -102,7 +101,6 @@ class GlueCatalogHook(AwsBaseHook):
 
         :param database_name: Name of hive database (schema) @table belongs to
         :param table_name: Name of hive table
-        :rtype: dict
 
         >>> hook = GlueCatalogHook()
         >>> r = hook.get_table('db', 'table_foo')
@@ -110,7 +108,7 @@ class GlueCatalogHook(AwsBaseHook):
         """
         result = self.get_conn().get_table(DatabaseName=database_name, Name=table_name)
 
-        return result['Table']
+        return result["Table"]
 
     def get_table_location(self, database_name: str, table_name: str) -> str:
         """
@@ -122,7 +120,7 @@ class GlueCatalogHook(AwsBaseHook):
         """
         table = self.get_table(database_name, table_name)
 
-        return table['StorageDescriptor']['Location']
+        return table["StorageDescriptor"]["Location"]
 
     def get_partition(self, database_name: str, table_name: str, partition_values: list[str]) -> dict:
         """
@@ -134,7 +132,6 @@ class GlueCatalogHook(AwsBaseHook):
             Please see official AWS documentation for further information.
             https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api-catalog-partitions.html#aws-glue-api-catalog-partitions-GetPartition
 
-        :rtype: dict
 
         :raises: AirflowException
 
@@ -161,7 +158,6 @@ class GlueCatalogHook(AwsBaseHook):
             Please see official AWS documentation for further information.
             https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api-catalog-partitions.html#aws-glue-api-catalog-partitions-CreatePartition
 
-        :rtype: dict
 
         :raises: AirflowException
 

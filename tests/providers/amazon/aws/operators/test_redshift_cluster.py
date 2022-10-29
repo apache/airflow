@@ -67,7 +67,7 @@ class TestRedshiftCreateClusterOperator:
             "Port": 5439,
         }
         mock_get_conn.return_value.create_cluster.assert_called_once_with(
-            ClusterIdentifier='test-cluster',
+            ClusterIdentifier="test-cluster",
             NodeType="dc2.large",
             MasterUsername="adminuser",
             MasterUserPassword="Test123$",
@@ -97,7 +97,7 @@ class TestRedshiftCreateClusterOperator:
             "Port": 5439,
         }
         mock_get_conn.return_value.create_cluster.assert_called_once_with(
-            ClusterIdentifier='test-cluster',
+            ClusterIdentifier="test-cluster",
             NodeType="dc2.large",
             MasterUsername="adminuser",
             MasterUserPassword="Test123$",
@@ -120,7 +120,7 @@ class TestRedshiftCreateClusterSnapshotOperator:
         )
         create_snapshot.execute(None)
         mock_get_conn.return_value.create_cluster_snapshot.assert_called_once_with(
-            ClusterIdentifier='test_cluster',
+            ClusterIdentifier="test_cluster",
             SnapshotIdentifier="test_snapshot",
             ManualSnapshotRetentionPeriod=1,
         )
@@ -167,7 +167,7 @@ class TestRedshiftDeleteClusterSnapshotOperator:
         )
         delete_snapshot.execute(None)
         mock_get_conn.return_value.delete_cluster_snapshot.assert_called_once_with(
-            SnapshotClusterIdentifier='test_cluster',
+            SnapshotClusterIdentifier="test_cluster",
             SnapshotIdentifier="test_snapshot",
         )
 
@@ -189,7 +189,7 @@ class TestRedshiftDeleteClusterSnapshotOperator:
         )
         delete_snapshot.execute(None)
         mock_get_conn.return_value.delete_cluster_snapshot.assert_called_once_with(
-            SnapshotClusterIdentifier='test_cluster',
+            SnapshotClusterIdentifier="test_cluster",
             SnapshotIdentifier="test_snapshot",
         )
 
@@ -208,17 +208,17 @@ class TestResumeClusterOperator:
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
     def test_resume_cluster_is_called_when_cluster_is_paused(self, mock_get_conn, mock_cluster_status):
-        mock_cluster_status.return_value = 'paused'
+        mock_cluster_status.return_value = "paused"
         redshift_operator = RedshiftResumeClusterOperator(
             task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
         )
         redshift_operator.execute(None)
-        mock_get_conn.return_value.resume_cluster.assert_called_once_with(ClusterIdentifier='test_cluster')
+        mock_get_conn.return_value.resume_cluster.assert_called_once_with(ClusterIdentifier="test_cluster")
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
     def test_resume_cluster_not_called_when_cluster_is_not_paused(self, mock_get_conn, mock_cluster_status):
-        mock_cluster_status.return_value = 'available'
+        mock_cluster_status.return_value = "available"
         redshift_operator = RedshiftResumeClusterOperator(
             task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
         )
@@ -239,17 +239,17 @@ class TestPauseClusterOperator:
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
     def test_pause_cluster_is_called_when_cluster_is_available(self, mock_get_conn, mock_cluster_status):
-        mock_cluster_status.return_value = 'available'
+        mock_cluster_status.return_value = "available"
         redshift_operator = RedshiftPauseClusterOperator(
             task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
         )
         redshift_operator.execute(None)
-        mock_get_conn.return_value.pause_cluster.assert_called_once_with(ClusterIdentifier='test_cluster')
+        mock_get_conn.return_value.pause_cluster.assert_called_once_with(ClusterIdentifier="test_cluster")
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
     def test_pause_cluster_not_called_when_cluster_is_not_available(self, mock_get_conn, mock_cluster_status):
-        mock_cluster_status.return_value = 'paused'
+        mock_cluster_status.return_value = "paused"
         redshift_operator = RedshiftPauseClusterOperator(
             task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
         )
@@ -262,15 +262,15 @@ class TestDeleteClusterOperator:
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
     def test_delete_cluster_with_wait_for_completion(self, mock_get_conn, mock_cluster_status):
-        mock_cluster_status.return_value = 'cluster_not_found'
+        mock_cluster_status.return_value = "cluster_not_found"
         redshift_operator = RedshiftDeleteClusterOperator(
             task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
         )
         redshift_operator.execute(None)
         mock_get_conn.return_value.delete_cluster.assert_called_once_with(
-            ClusterIdentifier='test_cluster',
+            ClusterIdentifier="test_cluster",
             SkipFinalClusterSnapshot=True,
-            FinalClusterSnapshotIdentifier='',
+            FinalClusterSnapshotIdentifier="",
         )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
@@ -283,9 +283,9 @@ class TestDeleteClusterOperator:
         )
         redshift_operator.execute(None)
         mock_get_conn.return_value.delete_cluster.assert_called_once_with(
-            ClusterIdentifier='test_cluster',
+            ClusterIdentifier="test_cluster",
             SkipFinalClusterSnapshot=True,
-            FinalClusterSnapshotIdentifier='',
+            FinalClusterSnapshotIdentifier="",
         )
 
         mock_get_conn.return_value.cluster_status.assert_not_called()
