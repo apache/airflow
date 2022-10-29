@@ -1581,7 +1581,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             json=payload,
         )
         assert response.status_code == 400
-        assert response.json['detail'] == expected
+        assert response.json["detail"] == expected
 
 
 class TestPatchTaskInstance(TestTaskInstanceEndpoint):
@@ -1589,7 +1589,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
     )
 
-    @mock.patch('airflow.models.dag.DAG.set_task_instance_state')
+    @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
     def test_should_call_mocked_api(self, mock_set_task_instance_state, session):
         self.create_task_instances(session)
 
@@ -1604,7 +1604,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         )
         response = self.client.patch(
             self.ENDPOINT_URL,
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
             json={
                 "dry_run": False,
                 "new_state": NEW_STATE,
@@ -1612,10 +1612,10 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200
         assert response.json == {
-            'dag_id': 'example_python_operator',
-            'dag_run_id': 'TEST_DAG_RUN_ID',
-            'execution_date': '2020-01-01T00:00:00+00:00',
-            'task_id': 'print_the_context',
+            "dag_id": "example_python_operator",
+            "dag_run_id": "TEST_DAG_RUN_ID",
+            "execution_date": "2020-01-01T00:00:00+00:00",
+            "task_id": "print_the_context",
         }
 
         mock_set_task_instance_state.assert_called_once_with(
@@ -1627,7 +1627,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             session=session,
         )
 
-    @mock.patch('airflow.models.dag.DAG.set_task_instance_state')
+    @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
     def test_should_not_call_mocked_api_for_dry_run(self, mock_set_task_instance_state, session):
         self.create_task_instances(session)
 
@@ -1642,7 +1642,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         )
         response = self.client.patch(
             self.ENDPOINT_URL,
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
             json={
                 "dry_run": True,
                 "new_state": NEW_STATE,
@@ -1651,10 +1651,10 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         print(response.status_code)
         assert response.json == {
-            'dag_id': 'example_python_operator',
-            'dag_run_id': 'TEST_DAG_RUN_ID',
-            'execution_date': '2020-01-01T00:00:00+00:00',
-            'task_id': 'print_the_context',
+            "dag_id": "example_python_operator",
+            "dag_run_id": "TEST_DAG_RUN_ID",
+            "execution_date": "2020-01-01T00:00:00+00:00",
+            "task_id": "print_the_context",
         }
 
         mock_set_task_instance_state.assert_not_called()
@@ -1666,7 +1666,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
 
         self.client.patch(
             self.ENDPOINT_URL,
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
             json={
                 "dry_run": False,
                 "new_state": NEW_STATE,
@@ -1675,7 +1675,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
 
         response2 = self.client.get(
             self.ENDPOINT_URL,
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
             json={},
         )
         assert response2.status_code == 200
@@ -1695,7 +1695,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
 
         self.client.patch(
             f"{self.ENDPOINT_URL}/{map_index}",
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
             json={
                 "dry_run": False,
                 "new_state": NEW_STATE,
@@ -1704,7 +1704,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
 
         response2 = self.client.get(
             f"{self.ENDPOINT_URL}/{map_index}",
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
             json={},
         )
         assert response2.status_code == 200
@@ -1726,11 +1726,11 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
     def test_should_handle_errors(self, error, code, payload, session):
         response = self.client.patch(
             self.ENDPOINT_URL,
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
             json=payload,
         )
         assert response.status_code == code
-        assert response.json['detail'] == error
+        assert response.json["detail"] == error
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.patch(
@@ -1746,7 +1746,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
     def test_should_raise_403_forbidden(self, username):
         response = self.client.patch(
             self.ENDPOINT_URL,
-            environ_overrides={'REMOTE_USER': username},
+            environ_overrides={"REMOTE_USER": username},
             json={
                 "dry_run": True,
                 "new_state": "failed",
@@ -1757,7 +1757,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
     def test_should_raise_404_not_found_dag(self):
         response = self.client.patch(
             self.ENDPOINT_URL,
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
             json={
                 "dry_run": True,
                 "new_state": "failed",
@@ -1768,7 +1768,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
     def test_should_raise_404_not_found_task(self):
         response = self.client.patch(
             self.ENDPOINT_URL,
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
             json={
                 "dry_run": True,
                 "new_state": "failed",
@@ -1800,8 +1800,8 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
         response = self.client.patch(
             self.ENDPOINT_URL,
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
             json=payload,
         )
         assert response.status_code == 400
-        assert response.json['detail'] == expected
+        assert response.json["detail"] == expected
