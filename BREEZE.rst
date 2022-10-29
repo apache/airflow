@@ -66,6 +66,21 @@ Here is an example configuration with more than 200GB disk space for Docker:
              alt="Disk space MacOS">
     </div>
 
+
+- **Docker is not running** - even if it is running with Docker Desktop. The version of
+  Docker Desktop released late October 2022 (4.13.0) has ``/var/run/docker.sock`` removed.
+  If you install 4.13.0 for the first time you will miss ``/var/run/docker.sock`` and you will get
+  "docker is not running" error. This was done too hastily and they are likely to
+  `remove it <https://github.com/docker/for-mac/issues/6529#issuecomment-1292135881i>`_ in the
+  next patchlevel, but if you happen to see "docker is not running" when it is, you should not have
+  ``/var/run/docker.sock`` created. In order to fix it, check that you have
+  ``${HOME}/.docker/run/docker.sock`` and run the following command to fix it:
+
+.. code-block:: bash
+
+     sudo ln -sf "${HOME}/.docker/run/docker.sock" /var/run/docker.sock
+
+
 Docker Compose
 --------------
 
