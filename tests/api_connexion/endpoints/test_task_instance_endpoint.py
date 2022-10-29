@@ -1682,27 +1682,28 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response2.json["state"] == NEW_STATE
 
     def test_should_update_mapped_task_instance_state(self, session):
+
+        NEW_STATE = "failed"
+        map_index = 1
+
         tis = self.create_task_instances(session)
         ti = tis[0]
-        ti.map_index = 1
+        ti.map_index = map_index
         rendered_fields = RTIF(ti, render_templates=False)
         session.add(rendered_fields)
         session.commit()
 
-        NEW_STATE = "failed"
-
         self.client.patch(
-            self.ENDPOINT_URL,
+            f"{self.ENDPOINT_URL}/{map_index}",
             environ_overrides={'REMOTE_USER': "test"},
             json={
                 "dry_run": False,
-                "map_index": 1,
                 "new_state": NEW_STATE,
             },
         )
 
         response2 = self.client.get(
-            f"{self.ENDPOINT_URL}/1",
+            f"{self.ENDPOINT_URL}/{map_index}",
             environ_overrides={'REMOTE_USER': "test"},
             json={},
         )

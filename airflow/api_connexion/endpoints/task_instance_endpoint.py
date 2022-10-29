@@ -558,7 +558,7 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
 )
 @provide_session
 def patch_task_instance(
-    *, dag_id: str, dag_run_id: str, task_id: str, session: Session = NEW_SESSION
+    *, dag_id: str, dag_run_id: str, task_id: str, map_index: int = -1, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Update the state of a task instance."""
     body = get_json_request_dict()
@@ -566,8 +566,6 @@ def patch_task_instance(
         data = set_single_task_instance_state_form.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
-
-    map_index = data['map_index']
 
     dag = get_airflow_app().dag_bag.get_dag(dag_id)
     if not dag:
@@ -595,3 +593,20 @@ def patch_task_instance(
         )
 
     return task_instance_reference_schema.dump(ti)
+
+
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+    ],
+)
+@provide_session
+def patch_mapped_task_instance(
+    *, dag_id: str, dag_run_id: str, task_id: str, map_index: int, session: Session = NEW_SESSION
+) -> APIResponse:
+    """Update the state of a mapped task instance."""
+    return patch_task_instance(
+        dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index, session=session
+    )
