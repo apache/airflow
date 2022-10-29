@@ -464,5 +464,5 @@ def helm_tests(
     perform_environment_checks()
     cmd = [*DOCKER_COMPOSE_COMMAND, "run", "--service-ports", "--rm", "airflow"]
     cmd.extend(list(extra_pytest_args))
-    result = run_command(cmd, env=env_variables, check=False)
+    result = run_command(cmd, env=env_variables, check=False, output_outside_the_group=True)
     sys.exit(result.returncode)
