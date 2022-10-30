@@ -122,9 +122,7 @@ class TestLivyOperator(unittest.TestCase):
         mock_get.assert_called_once_with(BATCH_ID, retry_args=None)
         mock_dump_logs.assert_called_once_with(BATCH_ID)
         mock_get_batch.assert_called_once_with(BATCH_ID)
-        self.mock_context["ti"].xcom_push.assert_called_once_with(
-            key="app_id", value=APP_ID
-        )
+        self.mock_context["ti"].xcom_push.assert_called_once_with(key="app_id", value=APP_ID)
 
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.post_batch")
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.get_batch", return_value=GET_BATCH)
