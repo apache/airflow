@@ -1332,7 +1332,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     timeout-minutes: 50
     name: >
       Build CI ARM images
-      ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
+      ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs:
       - build-info
