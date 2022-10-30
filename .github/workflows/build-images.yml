@@ -38,7 +38,7 @@ env:
         secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # This token is WRITE one - pull_request_target type of events always have the WRITE token
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  IMAGE_TAG_FOR_THE_BUILD: "${{ github.event.pull_request.head.sha || github.sha }}"
+  IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
   USE_SUDO: "true"
   INCLUDE_SUCCESS_OUTPUTS: "true"
 
@@ -216,13 +216,12 @@ jobs:
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: >-
-          Build & Push AMD64 CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          Build & Push AMD64 CI images ${{ env.IMAGE_TAG }}
           ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
         run: breeze ci-image build --push --tag-as-latest --run-in-parallel --upgrade-on-failure
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
-          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
       - name: "Show dependencies to be upgraded"
         run: >
@@ -231,11 +230,9 @@ jobs:
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
         if: needs.build-info.outputs.upgrade-to-newer-dependencies != 'false'
-      - name: Push empty CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: Push empty CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG }}
         if: failure() || cancelled()
         run: breeze ci-image build --push --empty-image --run-in-parallel
-        env:
-          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Candidates for pip resolver backtrack triggers"
         if: failure() || cancelled()
         run: >
@@ -298,12 +295,11 @@ jobs:
           python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
       - name: >
           Pull CI image for PROD build:
-          ${{ needs.build-info.outputs.default-python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          ${{ needs.build-info.outputs.default-python-version }}:${{ env.IMAGE_TAG }}
         run: breeze ci-image pull --tag-as-latest
         env:
           # Always use default Python version of CI image for preparing packages
           PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.default-python-version }}
-          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Cleanup dist and context file"
         run: rm -fv ./dist/*  ./docker-context-files/*
       - name: "Prepare providers packages"
@@ -320,25 +316,18 @@ jobs:
       - name: "Move dist packages to docker-context files"
         run: mv -v ./dist/*.whl ./docker-context-files
       - name: >-
-          Build & Push PROD images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          Build & Push PROD images ${{ env.IMAGE_TAG }}
           ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
         run: >
-          breeze prod-image build
-          --run-in-parallel
-          --tag-as-latest
-          --push
-          --install-packages-from-context
-          --upgrade-on-failure
+          breeze prod-image build --run-in-parallel --tag-as-latest --push
+          --install-packages-from-context --upgrade-on-failure
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
-          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
-      - name: Push empty PROD images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: Push empty PROD images ${{ env.IMAGE_TAG }}
         if: failure() || cancelled()
         run: breeze prod-image build --cleanup-context --push --empty-image --run-in-parallel
-        env:
-          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
@@ -394,14 +383,13 @@ jobs:
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: >
-          Build ARM CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          Build ARM CI images ${{ env.IMAGE_TAG }}
           ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
         run: >
           breeze ci-image build --run-in-parallel --builder airflow_cache --platform "linux/arm64"
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
-          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
