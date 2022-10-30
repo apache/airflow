@@ -181,13 +181,8 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 2
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          # We do not have output from selective checks yet, so we need to hardcode python
-          python-version: 3.7
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: "Retrieve defaults from branch_defaults.py"
         id: defaults
         # We could retrieve it differently here - by just importing the variables and
@@ -216,7 +211,6 @@ jobs:
           # Stdout is redirected to GITHUB_ENV but we also print it to stderr to see it in ci log
           print(output, file=sys.stderr)
           EOF
-      - run: ./scripts/ci/install_breeze.sh
       - name: "Get information about the Workflow"
         id: source-run-info
         run: breeze ci get-workflow-info 2>> ${GITHUB_OUTPUT}
@@ -264,17 +258,8 @@ jobs:
         with:
           persist-credentials: false
         if: needs.build-info.outputs.canary-run == 'true'
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-        if: needs.build-info.outputs.canary-run == 'true'
-      - run: ./scripts/ci/install_breeze.sh
-        if: needs.build-info.outputs.canary-run == 'true'
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
         if: needs.build-info.outputs.canary-run == 'true'
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
@@ -331,17 +316,8 @@ jobs:
         with:
           persist-credentials: false
         if: needs.build-info.outputs.canary-run == 'true'
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-        if: needs.build-info.outputs.canary-run == 'true'
-      - run: ./scripts/ci/install_breeze.sh
-        if: needs.build-info.outputs.canary-run == 'true'
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
         if: needs.build-info.outputs.canary-run == 'true'
       - name: "Check that image builds quickly"
         run: breeze shell --max-time 120
@@ -373,28 +349,13 @@ jobs:
           persist-credentials: false
           submodules: recursive
         if: needs.build-info.outputs.in-workflow-build == 'true'
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-        if: needs.build-info.outputs.in-workflow-build == 'true'
-      - run: ./scripts/ci/install_breeze.sh
-        if: needs.build-info.outputs.in-workflow-build == 'true'
-      - name: "Free space"
-        run: breeze ci free-space
-        if: needs.build-info.outputs.in-workflow-build == 'true'
-      - name: Cache pre-commit envs
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pre-commit
-          key: "pre-commit-${{steps.host-python-version.outputs.host-python-version}}-\
-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: pre-commit-${{steps.host-python-version.outputs.host-python-version}}
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
         if: needs.build-info.outputs.in-workflow-build == 'true'
       - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
-        run: >
-          breeze static-checks --type update-providers-dependencies --all-files
-          --show-diff-on-failure --color always || true
+        run: |
+          pip install rich>=12.4.4 pyyaml
+          python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
         if: >
           needs.build-info.outputs.in-workflow-build == 'true' &&
           needs.build-info.outputs.default-branch == 'main'
@@ -454,30 +415,13 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           persist-credentials: false
           submodules: recursive
         if: needs.build-info.outputs.in-workflow-build == 'true'
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
         if: needs.build-info.outputs.in-workflow-build == 'true'
-      - run: ./scripts/ci/install_breeze.sh
-        if: needs.build-info.outputs.in-workflow-build == 'true'
-      - name: "Free space"
-        run: breeze ci free-space
-        if: needs.build-info.outputs.in-workflow-build == 'true'
-      - name: Cache pre-commit envs
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pre-commit
-          key: "pre-commit-${{steps.host-python-version.outputs.host-python-version}}-\
-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: pre-commit-${{steps.host-python-version.outputs.host-python-version}}
-        if: >
-          needs.build-info.outputs.in-workflow-build == 'true' &&
-          needs.build-info.outputs.default-branch == 'main'
       - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
-        run: >
-          breeze static-checks --type update-providers-dependencies --all-files
-          --show-diff-on-failure --color always || true
+        run: |
+          pip install rich>=12.4.4 pyyaml
+          python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
         if: >
           needs.build-info.outputs.in-workflow-build == 'true' &&
           needs.build-info.outputs.default-branch == 'main'
@@ -648,15 +592,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Wait for CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         id: wait-for-images
         run: breeze ci-image pull --run-in-parallel --verify --wait-for-image --tag-as-latest
@@ -684,32 +621,13 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - name: Cache pre-commit envs
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pre-commit
-          key: "pre-commit-${{steps.host-python-version.outputs.host-python-version}}-\
-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: pre-commit-${{steps.host-python-version.outputs.host-python-version}}
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: >
           Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --tag-as-latest
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-      - name: "Get Python version"
-        run: >
-         echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
-         >> ${GITHUB_OUTPUT}
-        id: host-python-version
       - name: "Static checks"
         run: breeze static-checks --all-files --show-diff-on-failure --color always
         env:
@@ -735,6 +653,14 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Setup python"
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ needs.build-info.outputs.default-python-version }}
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/setup*
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Cache pre-commit envs
         uses: actions/cache@v3
         with:
@@ -748,20 +674,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           ref: ${{ github.sha }}
           fetch-depth: 2
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
-      - name: "Get Python version"
-        run: >
-          echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
-          >> ${GITHUB_OUTPUT}
-        id: host-python-version
       - name: "Static checks: basic checks only"
         run: >
           breeze static-checks --all-files --show-diff-on-failure --color always
@@ -792,14 +704,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           persist-credentials: false
           submodules: recursive
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{needs.build-info.outputs.default-python-version}}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --tag-as-latest
         env:
@@ -849,15 +755,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           persist-credentials: false
         if: needs.build-info.outputs.default-branch == 'main'
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: >
           Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --tag-as-latest
@@ -924,16 +823,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-        if: needs.build-info.outputs.default-branch == 'main'
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: >
           Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --tag-as-latest
@@ -987,15 +878,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: >
           Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --tag-as-latest
@@ -1051,15 +935,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --tag-as-latest
         env:
@@ -1144,15 +1021,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --tag-as-latest
         env:
@@ -1231,15 +1101,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --tag-as-latest
         env:
@@ -1316,15 +1179,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --tag-as-latest
         env:
@@ -1395,12 +1251,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: "Set issue id for main"
         if: github.ref == 'refs/heads/main'
         run: |
@@ -1413,9 +1265,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: github.ref == 'refs/heads/v1-10-test'
         run: |
           echo "ISSUE_ID=10128" >> ${GITHUB_ENV}
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --tag-as-latest
         env:
@@ -1511,15 +1360,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Wait for PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         # We wait for the images to be available either from "build-images.yml' run as pull_request_target
         # or from build-prod-images above.
@@ -1550,15 +1392,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           fetch-depth: 2
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Pull PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze prod-image pull --tag-as-latest
         env:
@@ -1592,15 +1427,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Pull PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze prod-image pull --run-in-parallel --tag-as-latest
         env:
@@ -1669,15 +1497,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           persist-credentials: false
           submodules: recursive
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Pull CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --run-in-parallel --tag-as-latest
         env:
@@ -1746,15 +1567,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: >
           Pull CI image ${{ needs.build-info.outputs.default-python-version }} for PROD build
           ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
@@ -1851,13 +1665,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
           submodules: recursive
-      - name: "Setup python"
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
       - name: >
