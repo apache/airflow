@@ -108,10 +108,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v4
         with:
-          # We do not have output from selective checks yet, so we need to hardcode python
           python-version: 3.7
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
       - name: "Retrieve defaults from branch_defaults.py"
         # We cannot "execute" the branch_defaults.py python code here because that would be
         # a security problem (we cannot run any code that comes from the sources coming from the PR.
@@ -147,7 +144,8 @@ jobs:
           ref: "main"
           persist-credentials: false
           submodules: recursive
-      - run: ./scripts/ci/install_breeze.sh
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Selective checks
         id: selective-checks
         env:
@@ -208,19 +206,13 @@ jobs:
           rm -rfv "dev"
           mv -v "main-airflow/scripts/ci" "scripts"
           mv -v "main-airflow/dev" "."
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
       - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
         run: |
           pip install rich>=12.4.4 pyyaml
           python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
         if: needs.build-info.outputs.default-branch == 'main'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: >-
           Build & Push AMD64 CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
@@ -274,10 +266,6 @@ jobs:
           ref: ${{ needs.build-info.outputs.target-commit-sha }}
           persist-credentials: false
           submodules: recursive
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
       - name: >
           Checkout "main" branch to 'main-airflow' folder
           to use ci/scripts from there.
@@ -298,19 +286,8 @@ jobs:
           rm -rfv "dev"
           mv -v "main-airflow/scripts/ci" "scripts"
           mv -v "main-airflow/dev" "."
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
-      - name: "Get Python version"
-        run: >
-          echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
-          >> ${GITHUB_OUTPUT}
-        id: host-python-version
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
         run: |
           pip install rich>=12.4.4 pyyaml
@@ -406,13 +383,7 @@ jobs:
           rm -rfv "dev"
           mv -v "main-airflow/scripts/ci" "scripts"
           mv -v "main-airflow/dev" "."
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
       - name: >
