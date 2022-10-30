@@ -383,18 +383,10 @@ jobs:
       - name: "Free space"
         run: breeze ci free-space
         if: needs.build-info.outputs.in-workflow-build == 'true'
-      - name: Cache pre-commit envs
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pre-commit
-          key: "pre-commit-${{steps.host-python-version.outputs.host-python-version}}-\
-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: pre-commit-${{steps.host-python-version.outputs.host-python-version}}
-        if: needs.build-info.outputs.in-workflow-build == 'true'
       - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
-        run: >
-          breeze static-checks --type update-providers-dependencies --all-files
-          --show-diff-on-failure --color always || true
+        run: |
+          pip install rich>=12.4.4 pyyaml
+          python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
         if: >
           needs.build-info.outputs.in-workflow-build == 'true' &&
           needs.build-info.outputs.default-branch == 'main'
@@ -464,20 +456,15 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Free space"
         run: breeze ci free-space
         if: needs.build-info.outputs.in-workflow-build == 'true'
-      - name: Cache pre-commit envs
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pre-commit
-          key: "pre-commit-${{steps.host-python-version.outputs.host-python-version}}-\
-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: pre-commit-${{steps.host-python-version.outputs.host-python-version}}
-        if: >
-          needs.build-info.outputs.in-workflow-build == 'true' &&
-          needs.build-info.outputs.default-branch == 'main'
-      - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
+      - name: "Get Python version"
         run: >
-          breeze static-checks --type update-providers-dependencies --all-files
-          --show-diff-on-failure --color always || true
+          echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
+          >> ${GITHUB_OUTPUT}
+        id: host-python-version
+      - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
+        run: |
+          pip install rich>=12.4.4 pyyaml
+          python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
         if: >
           needs.build-info.outputs.in-workflow-build == 'true' &&
           needs.build-info.outputs.default-branch == 'main'
@@ -690,6 +677,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ needs.build-info.outputs.default-python-version }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
+      - name: "Get Python version"
+        run: >
+          echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
+          >> ${GITHUB_OUTPUT}
+        id: host-python-version
       - name: Cache pre-commit envs
         uses: actions/cache@v3
         with:
@@ -705,11 +697,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: breeze ci-image pull --tag-as-latest
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-      - name: "Get Python version"
-        run: >
-         echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
-         >> ${GITHUB_OUTPUT}
-        id: host-python-version
       - name: "Static checks"
         run: breeze static-checks --all-files --show-diff-on-failure --color always
         env:
@@ -735,6 +722,17 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Setup python"
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ needs.build-info.outputs.default-python-version }}
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/setup*
+      - name: "Get Python version"
+        run: >
+          echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
+          >> ${GITHUB_OUTPUT}
+        id: host-python-version
       - name: Cache pre-commit envs
         uses: actions/cache@v3
         with:
@@ -748,20 +746,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           ref: ${{ github.sha }}
           fetch-depth: 2
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: breeze ci free-space
-      - name: "Get Python version"
-        run: >
-          echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
-          >> ${GITHUB_OUTPUT}
-        id: host-python-version
       - name: "Static checks: basic checks only"
         run: >
           breeze static-checks --all-files --show-diff-on-failure --color always

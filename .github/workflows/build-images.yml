@@ -216,17 +216,10 @@ jobs:
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: breeze ci free-space
-      - name: Cache pre-commit envs
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pre-commit
-          key: "pre-commit-${{steps.host-python-version.outputs.host-python-version}}-\
-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: pre-commit-${{steps.host-python-version.outputs.host-python-version}}
       - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
-        run: >
-          breeze static-checks --type update-providers-dependencies --all-files
-          --show-diff-on-failure --color always || true
+        run: |
+          pip install rich>=12.4.4 pyyaml
+          python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
         if: needs.build-info.outputs.default-branch == 'main'
       - name: >-
           Build & Push AMD64 CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
@@ -313,17 +306,15 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: breeze ci free-space
-      - name: Cache pre-commit envs
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pre-commit
-          key: "pre-commit-${{steps.host-python-version.outputs.host-python-version}}-\
-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: pre-commit-${{steps.host-python-version.outputs.host-python-version}}
-      - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
+      - name: "Get Python version"
         run: >
-          breeze static-checks --type update-providers-dependencies --all-files
-          --show-diff-on-failure --color always || true
+          echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
+          >> ${GITHUB_OUTPUT}
+        id: host-python-version
+      - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
+        run: |
+          pip install rich>=12.4.4 pyyaml
+          python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
       - name: >
           Pull CI image for PROD build:
           ${{ needs.build-info.outputs.default-python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
@@ -416,7 +407,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           mv -v "main-airflow/scripts/ci" "scripts"
           mv -v "main-airflow/dev" "."
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.default-python-version }}
       - run: ./scripts/ci/install_breeze.sh

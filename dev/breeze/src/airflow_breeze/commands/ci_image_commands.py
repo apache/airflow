@@ -484,7 +484,7 @@ def run_build_ci_image(
                         / "scripts"
                         / "ci"
                         / "pre_commit"
-                        / "pre_commit_build_providers_dependencies.py"
+                        / "pre_commit_update_providers_dependencies.py"
                     ),
                 ],
                 check=False,

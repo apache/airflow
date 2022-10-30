@@ -374,7 +374,7 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
       - id: update-providers-dependencies
         name: Update cross-dependencies for providers packages
-        entry: ./scripts/ci/pre_commit/pre_commit_build_providers_dependencies.py
+        entry: ./scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
         language: python
         files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$|^airflow/providers/.*/provider.yaml$
         pass_filenames: false
