@@ -292,6 +292,7 @@ def run_generate_constraints(
         command=cmd_to_run,
         debug=debug,
         output=output,
+        output_outside_the_group=True,
     )
     return (
         generate_constraints_result.returncode,
