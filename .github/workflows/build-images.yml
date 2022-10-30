@@ -278,16 +278,18 @@ jobs:
           persist-credentials: false
           submodules: recursive
       - name: >
-          Override "scripts/ci" with the "main" branch
+          Override "scripts/ci", "dev" and "./github/actions" with the "main" branch
           so that the PR does not override it
         # We should not override those scripts which become part of the image as they will not be
         # changed in the image built - we should only override those that are executed to build
         # the image.
         run: |
           rm -rfv "scripts/ci"
-          rm -rfv "dev"
           mv -v "main-airflow/scripts/ci" "scripts"
+          rm -rfv "dev"
           mv -v "main-airflow/dev" "."
+          rm -rfv "./github/actions"
+          mv -v "main-airflow/.github/actions" "actions"
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
@@ -375,19 +377,22 @@ jobs:
           persist-credentials: false
           submodules: recursive
       - name: >
-          Override "scripts/ci" with the "main" branch
+          Override "scripts/ci", "dev" and "./github/actions" with the "main" branch
           so that the PR does not override it
         # We should not override those scripts which become part of the image as they will not be
         # changed in the image built - we should only override those that are executed to build
         # the image.
         run: |
           rm -rfv "scripts/ci"
-          rm -rfv "dev"
           mv -v "main-airflow/scripts/ci" "scripts"
+          rm -rfv "dev"
           mv -v "main-airflow/dev" "."
-
+          rm -rfv "./github/actions"
+          mv -v "main-airflow/.github/actions" "actions"
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: >
           Build ARM CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
