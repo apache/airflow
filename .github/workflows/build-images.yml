@@ -81,6 +81,7 @@ jobs:
       # The labels in the event aren't updated when re-triggering the job, So lets hit the API to get
       # up-to-date values
       - name: Get latest PR labels
+      - name: Get latest PR labels
         id: get-latest-pr-labels
         run: |
           echo -n "pull-request-labels=" >> ${GITHUB_OUTPUT}
@@ -196,16 +197,18 @@ jobs:
           persist-credentials: false
           submodules: recursive
       - name: >
-          Override "scripts/ci" with the "main" branch
+          Override "scripts/ci", "dev" and "./github/actions" with the "main" branch
           so that the PR does not override it
         # We should not override those scripts which become part of the image as they will not be
         # changed in the image built - we should only override those that are executed to build
         # the image.
         run: |
           rm -rfv "scripts/ci"
-          rm -rfv "dev"
           mv -v "main-airflow/scripts/ci" "scripts"
+          rm -rfv "dev"
           mv -v "main-airflow/dev" "."
+          rm -rfv "./github/actions"
+          mv -v "main-airflow/.github/actions" "actions"
       - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
         run: |
           pip install rich>=12.4.4 pyyaml
