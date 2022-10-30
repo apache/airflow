@@ -163,7 +163,7 @@ jobs:
       packages: write
     timeout-minutes: 80
     name: >
-      Build CI images ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
+      Build CI images ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info]
     if: |
@@ -219,7 +219,7 @@ jobs:
     timeout-minutes: 80
     name: >
       Build PROD images
-      ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
+      ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, build-ci-images]
     if: |
