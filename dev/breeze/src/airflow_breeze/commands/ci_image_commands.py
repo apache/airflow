@@ -545,6 +545,7 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
     )
     ci_image_params = BuildCiParams(
         python=command_params.python,
+        github_repository=command_params.github_repository,
         upgrade_to_newer_dependencies=False,
         image_tag=command_params.image_tag,
         platform=command_params.platform,
