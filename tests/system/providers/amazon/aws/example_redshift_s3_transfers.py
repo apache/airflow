@@ -20,11 +20,9 @@ from datetime import datetime
 
 import boto3
 
-from airflow import DAG, settings
+from airflow import DAG
 from airflow.decorators import task
-from airflow.models import Connection
 from airflow.models.baseoperator import chain
-from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
     RedshiftDeleteClusterOperator,
@@ -40,7 +38,9 @@ from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor
 from airflow.providers.amazon.aws.transfers.redshift_to_s3 import RedshiftToS3Operator
 from airflow.providers.amazon.aws.transfers.s3_to_redshift import S3ToRedshiftOperator
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.amazon.aws.example_dms import delete_security_group
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from tests.system.providers.amazon.aws.utils.redshift import create_connection
 
 DAG_ID = "example_redshift_to_s3"
 
@@ -77,24 +77,6 @@ sys_test_context_task = SystemTestContextBuilder().build()
 
 
 @task
-def create_connection(conn_id_name: str, cluster_id: str):
-    redshift_hook = RedshiftHook()
-    cluster_endpoint = redshift_hook.get_conn().describe_clusters(ClusterIdentifier=cluster_id)["Clusters"][0]
-    conn = Connection(
-        conn_id=conn_id_name,
-        conn_type="redshift",
-        host=cluster_endpoint["Endpoint"]["Address"],
-        login=DB_LOGIN,
-        password=DB_PASS,
-        port=cluster_endpoint["Endpoint"]["Port"],
-        schema=cluster_endpoint["DBName"],
-    )
-    session = settings.Session()
-    session.add(conn)
-    session.commit()
-
-
-@task
 def setup_security_group(sec_group_name: str, ip_permissions: list[dict]):
     client = boto3.client("ec2")
     vpc_id = client.describe_vpcs()["Vpcs"][0]["VpcId"]
@@ -110,11 +92,6 @@ def setup_security_group(sec_group_name: str, ip_permissions: list[dict]):
         GroupId=security_group["GroupId"], GroupName=sec_group_name, IpPermissions=ip_permissions
     )
     return security_group["GroupId"]
-
-
-@task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_security_group(sec_group_id: str, sec_group_name: str):
-    boto3.client("ec2").delete_security_group(GroupId=sec_group_id, GroupName=sec_group_name)
 
 
 with DAG(
@@ -157,7 +134,9 @@ with DAG(
         timeout=60 * 15,
     )
 
-    set_up_connection = create_connection(conn_id_name, cluster_id=redshift_cluster_identifier)
+    set_up_connection = create_connection(
+        conn_id_name, cluster_id=redshift_cluster_identifier, db_login=DB_LOGIN, db_pass=DB_PASS
+    )
 
     create_object = S3CreateObjectOperator(
         task_id="create_object",
@@ -235,12 +214,13 @@ with DAG(
         # TEST SETUP
         test_context,
         set_up_sg,
+        # SETUP REDSHIFT CLUSTER
         create_bucket,
         create_cluster,
         wait_cluster_available,
+        # SETUP DATA AND CONNECTIONS
         set_up_connection,
-        create_object,
-        create_table_redshift_data,
+        [create_object, create_table_redshift_data],
         insert_data,
         # TEST BODY
         transfer_redshift_to_s3,
@@ -248,9 +228,8 @@ with DAG(
         transfer_s3_to_redshift,
         # TEST TEARDOWN
         drop_table,
-        delete_cluster,
+        [delete_cluster, delete_bucket],
         delete_sg,
-        delete_bucket,
     )
 
     from tests.system.utils.watcher import watcher
