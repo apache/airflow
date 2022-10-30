@@ -22,12 +22,10 @@ from datetime import datetime
 
 import boto3
 
-from airflow import DAG, settings
+from airflow import DAG
 from airflow.decorators import task
-from airflow.models import Connection
 from airflow.models.baseoperator import chain
 from airflow.operators.python import get_current_context
-from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
     RedshiftCreateClusterSnapshotOperator,
@@ -41,6 +39,8 @@ from airflow.providers.amazon.aws.operators.redshift_sql import RedshiftSQLOpera
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from tests.system.providers.amazon.aws.utils.redshift import create_connection
+from tests.system.providers.amazon.aws.utils.security_group import create_security_group
 
 DAG_ID = 'example_redshift'
 DB_LOGIN = 'adminuser'
@@ -58,38 +58,9 @@ sys_test_context_task = SystemTestContextBuilder().build()
 
 
 @task
-def create_connection(conn_id_name: str, cluster_id: str):
-    redshift_hook = RedshiftHook()
-    cluster_endpoint = redshift_hook.get_conn().describe_clusters(ClusterIdentifier=cluster_id)['Clusters'][0]
-    conn = Connection(
-        conn_id=conn_id_name,
-        conn_type='redshift',
-        host=cluster_endpoint['Endpoint']['Address'],
-        login=DB_LOGIN,
-        password=DB_PASS,
-        port=cluster_endpoint['Endpoint']['Port'],
-        schema=cluster_endpoint['DBName'],
-    )
-    session = settings.Session()
-    session.add(conn)
-    session.commit()
-
-
-@task
 def setup_security_group(sec_group_name: str, ip_permissions: list[dict]):
-    client = boto3.client('ec2')
-    vpc_id = client.describe_vpcs()['Vpcs'][0]['VpcId']
-    security_group = client.create_security_group(
-        Description='Redshift-system-test', GroupName=sec_group_name, VpcId=vpc_id
-    )
-    client.get_waiter('security_group_exists').wait(
-        GroupIds=[security_group['GroupId']],
-        GroupNames=[sec_group_name],
-        WaiterConfig={'Delay': 15, 'MaxAttempts': 4},
-    )
-    client.authorize_security_group_ingress(
-        GroupId=security_group['GroupId'], GroupName=sec_group_name, IpPermissions=ip_permissions
-    )
+    security_group = create_security_group(sec_group_name, ip_permissions)
+
     ti = get_current_context()['ti']
     ti.xcom_push(key='security_group_id', value=security_group['GroupId'])
 
