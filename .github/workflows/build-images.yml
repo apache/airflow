@@ -162,7 +162,8 @@ jobs:
     permissions:
       packages: write
     timeout-minutes: 80
-    name: "Build CI images ${{ needs.build-info.outputs.all-python-versions-list-as-string }}"
+    name: >
+      Build CI images ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
     runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info]
     if: |
@@ -173,7 +174,6 @@ jobs:
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
       RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: sqlite
-      outputs: ${{toJSON(needs.build-info.outputs) }}
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -182,10 +182,6 @@ jobs:
           ref: ${{ needs.build-info.outputs.target-commit-sha }}
           persist-credentials: false
           submodules: recursive
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
       - name: >
           Checkout "main branch to 'main-airflow' folder
           to use ci/scripts from there.
@@ -208,45 +204,22 @@ jobs:
           mv -v "main-airflow/dev" "."
           rm -rfv "./github/actions"
           mv -v "main-airflow/.github/actions" "actions"
-      - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
-        run: |
-          pip install rich>=12.4.4 pyyaml
-          python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
-        if: needs.build-info.outputs.default-branch == 'main'
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-      - name: >-
-          Build & Push AMD64 CI images ${{ env.IMAGE_TAG }}
-          ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
-        run: breeze ci-image build --push --tag-as-latest --run-in-parallel --upgrade-on-failure
+      - name: >
+          Build CI Images ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/build-ci-images
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
-      - name: "Show dependencies to be upgraded"
-        run: >
-          breeze release-management generate-constraints --run-in-parallel
-          --airflow-constraints-mode constraints-source-providers
-        env:
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
-        if: needs.build-info.outputs.upgrade-to-newer-dependencies != 'false'
-      - name: Push empty CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG }}
-        if: failure() || cancelled()
-        run: breeze ci-image build --push --empty-image --run-in-parallel
-      - name: "Candidates for pip resolver backtrack triggers"
-        if: failure() || cancelled()
-        run: >
-          breeze ci find-newer-dependencies --max-age 1
-          --python "${{ needs.build-info.outputs.default-python-version }}"
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
+          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
 
   build-prod-images:
     permissions:
       packages: write
     timeout-minutes: 80
-    name: "Build PROD images ${{ needs.build-info.outputs.all-python-versions-list-as-string }}"
+    name: >
+      Build PROD images
+      ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
     runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, build-ci-images]
     if: |
@@ -287,55 +260,22 @@ jobs:
           mv -v "main-airflow/dev" "."
           rm -rfv "./github/actions"
           mv -v "main-airflow/.github/actions" "actions"
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-      - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
-        run: |
-          pip install rich>=12.4.4 pyyaml
-          python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
       - name: >
-          Pull CI image for PROD build:
-          ${{ needs.build-info.outputs.default-python-version }}:${{ env.IMAGE_TAG }}
-        run: breeze ci-image pull --tag-as-latest
-        env:
-          # Always use default Python version of CI image for preparing packages
-          PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.default-python-version }}
-      - name: "Cleanup dist and context file"
-        run: rm -fv ./dist/*  ./docker-context-files/*
-      - name: "Prepare providers packages"
-        run: >
-          breeze release-management prepare-provider-packages
-          --package-list-file ./scripts/ci/installed_providers.txt
-          --package-format wheel
-          --version-suffix-for-pypi dev0
-        if: needs.build-info.outputs.default-branch == 'main'
-      - name: "Prepare airflow package"
-        run: >
-          breeze release-management prepare-airflow-package
-          --package-format wheel --version-suffix-for-pypi dev0
-      - name: "Move dist packages to docker-context files"
-        run: mv -v ./dist/*.whl ./docker-context-files
-      - name: >-
-          Build & Push PROD images ${{ env.IMAGE_TAG }}
-          ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
-        run: >
-          breeze prod-image build --run-in-parallel --tag-as-latest --push
-          --install-packages-from-context --upgrade-on-failure
+          Build PROD Images
+          ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/build-prod-images
+        if: needs.build-info.outputs.in-workflow-build == 'true'
+        with:
+          build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
-      - name: Push empty PROD images ${{ env.IMAGE_TAG }}
-        if: failure() || cancelled()
-        run: breeze prod-image build --cleanup-context --push --empty-image --run-in-parallel
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
-
+          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
 
   build-ci-images-arm:
     timeout-minutes: 50
-    name: "Build ARM CI images ${{ needs.build-info.outputs.all-python-versions-list-as-string }}"
+    name: "Build ARM CI images ${{needs.build-info.outputs.all-python-versions-list-as-string}}"
     runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, build-prod-images]
     if: |
@@ -384,13 +324,13 @@ jobs:
         uses: ./.github/actions/breeze
       - name: >
           Build ARM CI images ${{ env.IMAGE_TAG }}
-          ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
+          ${{needs.build-info.outputs.all-python-versions-list-as-string}}
         run: >
           breeze ci-image build --run-in-parallel --builder airflow_cache --platform "linux/arm64"
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
+          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
         if: always()
