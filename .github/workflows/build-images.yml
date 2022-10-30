@@ -81,7 +81,6 @@ jobs:
       # The labels in the event aren't updated when re-triggering the job, So lets hit the API to get
       # up-to-date values
       - name: Get latest PR labels
-      - name: Get latest PR labels
         id: get-latest-pr-labels
         run: |
           echo -n "pull-request-labels=" >> ${GITHUB_OUTPUT}
