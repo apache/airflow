@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import sqlite3
 
@@ -24,11 +25,11 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 class SqliteHook(DbApiHook):
     """Interact with SQLite."""
 
-    conn_name_attr = 'sqlite_conn_id'
-    default_conn_name = 'sqlite_default'
-    conn_type = 'sqlite'
-    hook_name = 'Sqlite'
-    placeholder = '?'
+    conn_name_attr = "sqlite_conn_id"
+    default_conn_name = "sqlite_default"
+    conn_type = "sqlite"
+    hook_name = "Sqlite"
+    placeholder = "?"
 
     def get_conn(self) -> sqlite3.dbapi2.Connection:
         """Returns a sqlite connection object"""

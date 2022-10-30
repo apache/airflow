@@ -29,10 +29,7 @@ permissions:
   contents: read
   packages: read
 env:
-  MOUNT_SELECTED_LOCAL_SOURCES: "false"
   ANSWER: "yes"
-  CHECK_IMAGE_FOR_REBUILD: "true"
-  SKIP_CHECK_REMOTE_IMAGE: "true"
   DB_RESET: "true"
   VERBOSE: "true"
   GITHUB_REPOSITORY: ${{ github.repository }}
@@ -62,13 +59,11 @@ jobs:
     # is checked again by the runner using it's own list, so a PR author cannot
     # change this and get access to our self-hosted runners
     #
-    # When changing this list, ensure that it is kept in sync with the
-    # /runners/apache/airflow/configOverlay
-    # parameter in AWS SSM ParameterStore (which is what the runner uses)
-    # and restart the self-hosted runners.
-    #
-    # This list of committers can be generated with:
-    #   https://github.com/apache/airflow-ci-infra/blob/main/scripts/list_committers
+    # This list is kept up-to-date from the list of authors found in the
+    # 'airflow-ci-infra' by the 'sync_authors' Github workflow. It uses a regexp
+    # to find the list of authors and replace them, so any changes to the
+    # formatting of the contains(fromJSON()) structure below will need to be
+    # reflected in that workflow too.
     runs-on: >-
       ${{ (
         (
@@ -107,6 +102,7 @@ jobs:
             "milton0825",
             "mistercrunch",
             "msumit",
+            "pierrejeambrun",
             "pingzh",
             "potiuk",
             "r39132",
@@ -144,13 +140,13 @@ jobs:
       default-mysql-version: ${{ steps.selective-checks.outputs.default-mysql-version }}
       default-helm-version: ${{ steps.selective-checks.outputs.default-helm-version }}
       default-kind-version: ${{ steps.selective-checks.outputs.default-kind-version }}
+      full-tests-needed: ${{ steps.selective-checks.outputs.full-tests-needed }}
       test-types: ${{ steps.selective-checks.outputs.test-types }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mssql-exclude: ${{ steps.selective-checks.outputs.mssql-exclude }}
       sqlite-exclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
-      run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
       run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
@@ -163,12 +159,13 @@ jobs:
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
       docs-filter: ${{ steps.selective-checks.outputs.docs-filter }}
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
+      debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       in-workflow-build: ${{ steps.source-run-info.outputs.in-workflow-build }}
       build-job-description: ${{ steps.source-run-info.outputs.build-job-description }}
       runs-on: ${{ steps.source-run-info.outputs.runs-on }}
-      merge-run: ${{ steps.source-run-info.outputs.merge-run }}
+      canary-run: ${{ steps.source-run-info.outputs.canary-run }}
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
     steps:
       - name: Cleanup repo
@@ -184,13 +181,8 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 2
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          # We do not have output from selective checks yet, so we need to hardcode python
-          python-version: 3.7
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: "Retrieve defaults from branch_defaults.py"
         id: defaults
         # We could retrieve it differently here - by just importing the variables and
@@ -198,7 +190,7 @@ jobs:
         # the build-images.yml (there we cannot import python code coming from the PR - we need to
         # treat the python code as text and extract the variables from there.
         run: |
-          python - <<EOF >>$GITHUB_ENV
+          python - <<EOF >> ${GITHUB_ENV}
           from pathlib import Path
           import re
           import sys
@@ -219,16 +211,15 @@ jobs:
           # Stdout is redirected to GITHUB_ENV but we also print it to stderr to see it in ci log
           print(output, file=sys.stderr)
           EOF
-      - run: ./scripts/ci/install_breeze.sh
       - name: "Get information about the Workflow"
         id: source-run-info
-        run: breeze ci get-workflow-info
+        run: breeze ci get-workflow-info 2>> ${GITHUB_OUTPUT}
       - name: Selective checks
         id: selective-checks
         env:
           PR_LABELS: "${{ steps.source-run-info.outputs.pr-labels }}"
           COMMIT_REF: "${{ github.sha }}"
-        run: breeze ci selective-check
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
       - name: env
         run: printenv
         env:
@@ -261,27 +252,18 @@ jobs:
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: needs.build-info.outputs.merge-run == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-        if: needs.build-info.outputs.merge-run == 'true'
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-        if: needs.build-info.outputs.merge-run == 'true'
-      - run: ./scripts/ci/install_breeze.sh
-        if: needs.build-info.outputs.merge-run == 'true'
-      - name: "Free space"
-        run: breeze ci free-space
-        if: needs.build-info.outputs.merge-run == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
-        if: matrix.platform == 'linux/arm64' && needs.build-info.outputs.merge-run == 'true'
+        if: matrix.platform == 'linux/arm64' && needs.build-info.outputs.canary-run == 'true'
       - name: "Push CI cache ${{ matrix.platform }}"
         run: >
           breeze ci-image build
@@ -290,18 +272,59 @@ jobs:
           --run-in-parallel
           --force-build
           --platform ${{ matrix.platform }}
-        if: needs.build-info.outputs.merge-run == 'true'
+        env:
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Push CI latest image ${{ matrix.platform }}"
         run: >
           breeze ci-image build
           --tag-as-latest --push --run-in-parallel --platform ${{ matrix.platform }}
-        if: matrix.platform == 'linux/amd64' && needs.build-info.outputs.merge-run == 'true'
+        env:
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
+        # We only push "amd" image as it is really only needed for any kind of automated builds in CI
+        # and currently there is not an easy way to make multi-platform image from two separate builds
+        if: matrix.platform == 'linux/amd64' && needs.build-info.outputs.canary-run == 'true'
+
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always() && matrix.platform == 'linux/arm64' && needs.build-info.outputs.merge-run == 'true'
+        if: always() && matrix.platform == 'linux/arm64' && needs.build-info.outputs.canary-run == 'true'
+      - name: "Clean docker cache for ${{ matrix.platform }}"
+        run: docker system prune --all --force
+        if: matrix.platform == 'linux/amd64' && needs.build-info.outputs.canary-run == 'true'
       - name: "Fix ownership"
         run: breeze ci fix-ownership
-        if: always() && needs.build-info.outputs.merge-run == 'true'
+        if: always() && needs.build-info.outputs.canary-run == 'true'
+
+  # Check that after earlier cache push, breeze command will build quickly
+  chcek-that-image-builds-quicklly:
+    timeout-minutes: 5
+    name: "Check that image builds quickly"
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
+    needs:
+      - build-info
+      - push-early-buildx-cache-to-github-registry
+    env:
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
+      UPGRADE_TO_NEWER_DEPENDENCIES: false
+      PLATFORM: "linux/amd64"
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: needs.build-info.outputs.canary-run == 'true'
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+        if: needs.build-info.outputs.canary-run == 'true'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        if: needs.build-info.outputs.canary-run == 'true'
+      - name: "Check that image builds quickly"
+        run: breeze shell --max-time 120
+        if: needs.build-info.outputs.canary-run == 'true'
+      - name: "Fix ownership"
+        run: breeze ci fix-ownership
+        if: always() && needs.build-info.outputs.canary-run == 'true'
 
   build-ci-images:
     permissions:
@@ -326,34 +349,16 @@ jobs:
           persist-credentials: false
           submodules: recursive
         if: needs.build-info.outputs.in-workflow-build == 'true'
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-        if: needs.build-info.outputs.in-workflow-build == 'true'
-      - run: ./scripts/ci/install_breeze.sh
-        if: needs.build-info.outputs.in-workflow-build == 'true'
-      - name: "Free space"
-        run: breeze ci free-space
-        if: needs.build-info.outputs.in-workflow-build == 'true'
-      - name: Cache pre-commit envs
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pre-commit
-          key: "pre-commit-${{steps.host-python-version.outputs.host-python-version}}-\
-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: pre-commit-${{steps.host-python-version.outputs.host-python-version}}
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
         if: needs.build-info.outputs.in-workflow-build == 'true'
       - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
-        run: >
-          breeze static-checks --type update-providers-dependencies --all-files
-          --show-diff-on-failure --color always || true
+        run: |
+          pip install rich>=12.4.4 pyyaml
+          python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
         if: >
           needs.build-info.outputs.in-workflow-build == 'true' &&
           needs.build-info.outputs.default-branch == 'main'
-      - name: Compile www assets
-        run: breeze compile-www-assets
-        if: needs.build-info.outputs.in-workflow-build == 'true'
       - name: >
           Build & Push CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
@@ -363,7 +368,17 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
         if: needs.build-info.outputs.in-workflow-build == 'true'
+      - name: "Show dependencies to be upgraded"
+        run: >
+          breeze release-management generate-constraints --run-in-parallel
+          --airflow-constraints-mode constraints-source-providers
+        env:
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+        if: >
+          needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' &&
+          needs.build-info.outputs.in-workflow-build == 'true'
       - name: "Candidates for pip resolver backtrack triggers"
         if: failure() || cancelled()
         run: >
@@ -389,6 +404,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       BACKEND: sqlite
       DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
       VERSION_SUFFIX_FOR_PYPI: "dev0"
+      DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -399,30 +415,13 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           persist-credentials: false
           submodules: recursive
         if: needs.build-info.outputs.in-workflow-build == 'true'
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
         if: needs.build-info.outputs.in-workflow-build == 'true'
-      - run: ./scripts/ci/install_breeze.sh
-        if: needs.build-info.outputs.in-workflow-build == 'true'
-      - name: "Free space"
-        run: breeze ci free-space
-        if: needs.build-info.outputs.in-workflow-build == 'true'
-      - name: Cache pre-commit envs
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pre-commit
-          key: "pre-commit-${{steps.host-python-version.outputs.host-python-version}}-\
-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: pre-commit-${{steps.host-python-version.outputs.host-python-version}}
-        if: >
-          needs.build-info.outputs.in-workflow-build == 'true' &&
-          needs.build-info.outputs.default-branch == 'main'
       - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
-        run: >
-          breeze static-checks --type update-providers-dependencies --all-files
-          --show-diff-on-failure --color always || true
+        run: |
+          pip install rich>=12.4.4 pyyaml
+          python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
         if: >
           needs.build-info.outputs.in-workflow-build == 'true' &&
           needs.build-info.outputs.default-branch == 'main'
@@ -549,7 +548,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -563,6 +562,19 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: >
           python -m pip install -r ./docker_tests/requirements.txt &&
           python -m pytest docker_tests/test_examples_of_prod_image_building.py -n auto --color=yes
+
+  test-git-clone-on-windows:
+    timeout-minutes: 5
+    name: "Test git clone on Windows"
+    runs-on: windows-latest
+    needs: [build-info]
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+    if: needs.build-info.outputs.runs-on != 'self-hosted'
 
   wait-for-ci-images:
     timeout-minutes: 120
@@ -580,21 +592,15 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Wait for CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         id: wait-for-images
         run: breeze ci-image pull --run-in-parallel --verify --wait-for-image --tag-as-latest
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
@@ -615,31 +621,13 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - name: Cache pre-commit envs
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pre-commit
-          key: "pre-commit-${{steps.host-python-version.outputs.host-python-version}}-\
-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: pre-commit-${{steps.host-python-version.outputs.host-python-version}}
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: >
           Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --tag-as-latest
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-      - name: "Get Python version"
-        run: "echo \"::set-output name=host-python-version::$(python -c
- 'import platform; print(platform.python_version())')\""
-        id: host-python-version
       - name: "Static checks"
         run: breeze static-checks --all-files --show-diff-on-failure --color always
         env:
@@ -665,6 +653,14 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Setup python"
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ needs.build-info.outputs.default-python-version }}
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/setup*
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Cache pre-commit envs
         uses: actions/cache@v3
         with:
@@ -678,19 +674,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           ref: ${{ github.sha }}
           fetch-depth: 2
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
-      - name: "Get Python version"
-        run: "echo \"::set-output name=host-python-version::$(python -c
- 'import platform; print(platform.python_version())')\""
-        id: host-python-version
       - name: "Static checks: basic checks only"
         run: >
           breeze static-checks --all-files --show-diff-on-failure --color always
@@ -721,14 +704,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           persist-credentials: false
           submodules: recursive
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{needs.build-info.outputs.default-python-version}}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --tag-as-latest
         env:
@@ -778,15 +755,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           persist-credentials: false
         if: needs.build-info.outputs.default-branch == 'main'
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: >
           Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --tag-as-latest
@@ -810,32 +780,26 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           --use-airflow-version wheel --use-packages-from-dist --package-format wheel
         env:
           SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
-      - name: "Remove airflow package and replace providers with 2.2-compliant versions"
+      - name: "Verify packages with twine"
+        run: |
+          pipx install twine
+          twine check dist/*.whl
+      - name: "Remove airflow package and replace providers with 2.3-compliant versions"
         run: |
           rm -vf dist/apache_airflow-*.whl \
-             dist/apache_airflow_providers_cncf_kubernetes*.whl \
-             dist/apache_airflow_providers_celery*.whl
+             dist/apache_airflow_providers_docker*.whl
           pip download --no-deps --dest dist \
-              apache-airflow-providers-cncf-kubernetes==3.0.0 \
-              apache-airflow-providers-celery==2.1.3
-      - name: "Install and test provider packages and airflow on Airflow 2.2 files"
+              apache-airflow-providers-docker==3.1.0
+      - name: "Get all provider extras as AIRFLOW_EXTRAS evn variable"
         run: >
-          breeze release-management verify-provider-packages --use-airflow-version 2.2.0
-          --use-packages-from-dist --package-format wheel --airflow-constraints-reference constraints-2.2.0
-        env:
-          # The extras below are all extras that should be installed with Airflow 2.2.0
-          AIRFLOW_EXTRAS: "airbyte,alibaba,amazon,apache.atlas,apache.beam,apache.cassandra,apache.drill,\
-            apache.druid,apache.hdfs,apache.hive,apache.kylin,apache.livy,apache.pig,apache.pinot,\
-            apache.spark,apache.sqoop,apache.webhdfs,asana,async,\
-            celery,cgroups,cloudant,cncf.kubernetes,dask,databricks,datadog,\
-            deprecated_api,dingding,discord,docker,\
-            elasticsearch,exasol,facebook,ftp,github_enterprise,google,google_auth,\
-            grpc,hashicorp,http,imap,influxdb,jdbc,jenkins,jira,kerberos,ldap,\
-            leveldb,microsoft.azure,microsoft.mssql,microsoft.psrp,microsoft.winrm,mongo,mysql,\
-            neo4j,odbc,openfaas,opsgenie,oracle,pagerduty,pandas,papermill,password,plexus,\
-            postgres,presto,qubole,rabbitmq,redis,salesforce,samba,segment,sendgrid,sentry,\
-            sftp,singularity,slack,snowflake,sqlite,ssh,statsd,tableau,telegram,trino,vertica,\
-            virtualenv,yandex,zendesk"
+          python -c 'from pathlib import Path; import json;
+          providers = json.loads(Path("generated/provider_dependencies.json").read_text());
+          provider_keys = ",".join(providers.keys());
+          print("AIRFLOW_EXTRAS={}".format(provider_keys))' >> $GITHUB_ENV
+      - name: "Install and test provider packages and airflow on Airflow 2.3 files"
+        run: >
+          breeze release-management verify-provider-packages --use-airflow-version 2.3.0
+          --use-packages-from-dist --package-format wheel --airflow-constraints-reference constraints-2.3.0
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
@@ -848,7 +812,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     env:
       RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.default-python-version }}
-    if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
+    if: >
+      needs.build-info.outputs.image-build == 'true' &&
+      needs.build-info.outputs.default-branch == 'main' &&
+      needs.build-info.outputs.canary-run == 'true'
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -856,16 +823,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-        if: needs.build-info.outputs.default-branch == 'main'
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: >
           Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --tag-as-latest
@@ -882,7 +841,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           breeze release-management prepare-airflow-package
           --package-format sdist --version-suffix-for-pypi dev0
       - name: "Upload provider distribution artifacts"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: airflow-provider-packages
           path: "./dist/apache-airflow-providers-*.tar.gz"
@@ -904,7 +863,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
-      MOUNT_SELECTED_LOCAL_SOURCES: "true"
       TEST_TYPES: "Helm"
       BACKEND: ""
       DB_RESET: "false"
@@ -920,15 +878,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: >
           Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --tag-as-latest
@@ -975,6 +926,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
       TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo
@@ -983,28 +935,40 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --tag-as-latest
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-      - name: "Test downgrade"
-        run: ./scripts/ci/testing/run_downgrade_test.sh
-      - name: "Test Offline SQL generation"
-        run: ./scripts/ci/testing/run_offline_sql_test.sh
+      - name: "Test downgrade migration file ${{ env.BACKEND }}"
+        run: >
+          breeze shell "airflow db reset --skip-init -y &&
+          airflow db upgrade --to-revision heads --no-reserialize-dags &&
+          airflow db downgrade -r e959f08ac86c -y &&
+          airflow db upgrade --no-reserialize-dags"
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: "Test downgrade ORM ${{ env.BACKEND }}"
+        run: >
+          breeze shell "airflow db reset -y &&
+          airflow db upgrade --no-reserialize-dags &&
+          airflow db downgrade -r e959f08ac86c -y &&
+          airflow db upgrade --no-reserialize-dags"
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: "Test Offline SQL generation ${{ env.BACKEND }}"
+        run: >
+          breeze shell "airflow db upgrade --from-version 2.0.0 -r heads --show-sql-only &&
+          airflow db downgrade --to-version 2.0.0 --show-sql-only -y"
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Tests: ${{needs.build-info.outputs.test-types}}"
-        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+        run: breeze testing tests --run-in-parallel
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pull-request-labels }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v3
         if: failure()
@@ -1047,6 +1011,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       BACKEND: mysql
       MYSQL_VERSION: ${{ matrix.mysql-version }}
       TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
+      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1056,26 +1021,34 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --tag-as-latest
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-      - name: "Test downgrade"
-        run: ./scripts/ci/testing/run_downgrade_test.sh
+      - name: "Test downgrade migration file ${{ env.BACKEND }}"
+        run: >
+          breeze shell "airflow db reset --skip-init -y &&
+          airflow db upgrade --to-revision heads --no-reserialize-dags &&
+          airflow db downgrade -r e959f08ac86c -y &&
+          airflow db upgrade --no-reserialize-dags"
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: "Test downgrade ORM ${{ env.BACKEND }}"
+        run: >
+          breeze shell "airflow db reset -y &&
+          airflow db upgrade --no-reserialize-dags &&
+          airflow db downgrade -r e959f08ac86c -y &&
+          airflow db upgrade --no-reserialize-dags"
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Tests: ${{needs.build-info.outputs.test-types}}"
-        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+        run: breeze testing tests --run-in-parallel
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pull-request-labels }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v3
         if: failure()
@@ -1118,6 +1091,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       BACKEND: mssql
       MSSQL_VERSION: ${{ matrix.mssql-version }}
       TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
+      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1127,26 +1101,34 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --tag-as-latest
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-      - name: "Test downgrade"
-        run: ./scripts/ci/testing/run_downgrade_test.sh
+      - name: "Test downgrade migration file ${{ env.BACKEND }}"
+        run: >
+          breeze shell "airflow db reset --skip-init -y &&
+          airflow db upgrade --to-revision heads &&
+          airflow db downgrade -r e959f08ac86c -y &&
+          airflow db upgrade"
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: "Test downgrade ORM ${{ env.BACKEND }}"
+        run: >
+          breeze shell "airflow db reset -y &&
+          airflow db upgrade &&
+          airflow db downgrade -r e959f08ac86c -y &&
+          airflow db upgrade"
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Tests: ${{needs.build-info.outputs.test-types}}"
-        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+        run: breeze testing tests --run-in-parallel
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pull-request-labels }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v3
         if: failure()
@@ -1187,6 +1169,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: sqlite
       TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
+      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1196,26 +1179,34 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --tag-as-latest
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-      - name: "Test downgrade"
-        run: ./scripts/ci/testing/run_downgrade_test.sh
+      - name: "Test downgrade migration file ${{ env.BACKEND }}"
+        run: >
+          breeze shell "airflow db reset --skip-init -y &&
+          airflow db upgrade --to-revision heads &&
+          airflow db downgrade -r e959f08ac86c -y &&
+          airflow db upgrade"
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: "Test downgrade ORM ${{ env.BACKEND }}"
+        run: >
+          breeze shell "airflow db reset -y &&
+          airflow db upgrade &&
+          airflow db downgrade -r e959f08ac86c -y &&
+          airflow db upgrade"
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Tests: ${{needs.build-info.outputs.test-types}}"
-        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+        run: breeze testing tests --run-in-parallel
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pull-request-labels }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v3
         if: failure()
@@ -1251,7 +1242,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       MYSQL_VERSION: ${{needs.build-info.outputs.default-mysql-version}}
       POSTGRES_VERSION: ${{needs.build-info.outputs.default-postgres-version}}
-      TEST_TYPES: "Quarantined"
       PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.default-python-version }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1261,35 +1251,31 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: "Set issue id for main"
         if: github.ref == 'refs/heads/main'
         run: |
-          echo "ISSUE_ID=10118" >> $GITHUB_ENV
+          echo "ISSUE_ID=10118" >> ${GITHUB_ENV}
       - name: "Set issue id for v1-10-stable"
         if: github.ref == 'refs/heads/v1-10-stable'
         run: |
-          echo "ISSUE_ID=10127" >> $GITHUB_ENV
+          echo "ISSUE_ID=10127" >> ${GITHUB_ENV}
       - name: "Set issue id for v1-10-test"
         if: github.ref == 'refs/heads/v1-10-test'
         run: |
-          echo "ISSUE_ID=10128" >> $GITHUB_ENV
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+          echo "ISSUE_ID=10128" >> ${GITHUB_ENV}
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --tag-as-latest
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Tests: Quarantined"
-        run: ./scripts/ci/testing/ci_run_quarantined_tests.sh
+        run: breeze testing tests --run-in-parallel || true
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pull-request-labels }}"
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          TEST_TYPES: "Quarantined"
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
       - name: "Upload Quarantine test results"
         uses: actions/upload-artifact@v3
         if: always()
@@ -1374,20 +1360,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
-      - name: "Cache virtualenv environment"
-        uses: actions/cache@v3
-        with:
-          path: '.build/.docker_venv'
-          key: ${{ runner.os }}-docker-venv-${{ hashFiles('scripts/ci/images/ci_run_docker_tests.py') }}
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Wait for PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         # We wait for the images to be available either from "build-images.yml' run as pull_request_target
         # or from build-prod-images above.
@@ -1397,6 +1371,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
@@ -1417,15 +1392,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           fetch-depth: 2
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Pull PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze prod-image pull --tag-as-latest
         env:
@@ -1447,6 +1415,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       fail-fast: false
     env:
       RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
+      DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
     if: >
       ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
       needs.build-info.outputs.needs-helm-tests == 'true' ) &&
@@ -1458,15 +1427,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Pull PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze prod-image pull --run-in-parallel --tag-as-latest
         env:
@@ -1477,59 +1439,29 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           path: ".build/.k8s-env"
           key: "k8s-env"
-      - name: K8s Setup env
-        run: breeze k8s setup-env
-      - name: >
-          K8S Build images Python: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-        run: breeze k8s build-k8s-image --run-in-parallel
+      - name: Run complete K8S tests ${{needs.build-info.outputs.kubernetes-combos}}
+        run: breeze k8s run-complete-tests --run-in-parallel --upgrade
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+          KUBERNETES_VERSIONS: ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
+          EXECUTOR: ${{matrix.executor}}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-      - name: K8S Create clusters ${{needs.build-info.outputs.kubernetes-combos}}
-        run: breeze k8s create-cluster --run-in-parallel
-        env:
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-          KUBERNETES_VERSIONS: ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
-      - name: K8S Upload images ${{needs.build-info.outputs.kubernetes-combos}}
-        run: breeze k8s upload-k8s-image --run-in-parallel
-        env:
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-          KUBERNETES_VERSIONS: ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
-          EXECUTOR: ${{matrix.executor}}
-      - name: K8S Configure clusters ${{needs.build-info.outputs.kubernetes-combos}}
-        run: breeze k8s configure-cluster --run-in-parallel
-        env:
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-          KUBERNETES_VERSIONS: ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
-      - name: K8S Deploy Airflow ${{matrix.executor}} ${{needs.build-info.outputs.kubernetes-combos}}
-        run: breeze k8s deploy-airflow --run-in-parallel
-        env:
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-          KUBERNETES_VERSIONS: ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
-          EXECUTOR: ${{matrix.executor}}
-      - name: K8S Tests ${{matrix.executor}} ${{needs.build-info.outputs.kubernetes-combos}}
-        run: breeze k8s tests --run-in-parallel
-        env:
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-          KUBERNETES_VERSIONS: ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
-          EXECUTOR: ${{matrix.executor}}
-      - name: K8S Upgrade ${{matrix.executor}} ${{needs.build-info.outputs.kubernetes-combos}}
-        run: breeze k8s deploy-airflow --run-in-parallel --upgrade --set config.logging.logging_level=INFO
-        env:
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-          KUBERNETES_VERSIONS: ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
-          EXECUTOR: ${{matrix.executor}}
-      - name: K8S Logs ${{needs.build-info.outputs.kubernetes-combos}}
-        run: breeze k8s logs --all
-        if: failure() || cancelled()
-      - name: Upload KinD logs ${{needs.build-info.outputs.kubernetes-combos}}
+          VERBOSE: false
+      - name: Upload KinD logs on failure ${{needs.build-info.outputs.kubernetes-combos}}
         uses: actions/upload-artifact@v3
         if: failure() || cancelled()
         with:
           name: kind-logs-${{matrix.executor}}
           path: /tmp/kind_logs_*
           retention-days: 7
-      - name: "Delete clusters"
+      - name: Upload test resource logs on failure ${{needs.build-info.outputs.kubernetes-combos}}
+        uses: actions/upload-artifact@v3
+        if: failure() || cancelled()
+        with:
+          name: k8s-test-resources-${{matrix.executor}}
+          path: /tmp/k8s_test_resources_*
+          retention-days: 7
+      - name: "Delete clusters just in case they are left"
         run: breeze k8s delete-cluster --all
         if: always()
       - name: "Fix ownership"
@@ -1555,6 +1487,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - push-early-buildx-cache-to-github-registry
     env:
       RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
+      DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
     if: needs.build-info.outputs.upgrade-to-newer-dependencies != 'false'
     steps:
       - name: Cleanup repo
@@ -1564,15 +1497,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           persist-credentials: false
           submodules: recursive
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Pull CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze ci-image pull --run-in-parallel --tag-as-latest
         env:
@@ -1590,21 +1516,21 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       - name: "Set constraints branch name"
         id: constraints-branch
-        run: ./scripts/ci/constraints/ci_branch_constraints.sh
-        if: needs.build-info.outputs.merge-run == 'true'
+        run: ./scripts/ci/constraints/ci_branch_constraints.sh >> ${GITHUB_OUTPUT}
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: Checkout ${{ steps.constraints-branch.outputs.branch }}
         uses: actions/checkout@v3
-        if: needs.build-info.outputs.merge-run == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
         with:
           path: "repo"
           ref: ${{ steps.constraints-branch.outputs.branch }}
           persist-credentials: false
       - name: "Commit changed constraint files for ${{needs.build-info.outputs.python-versions}}"
         run: ./scripts/ci/constraints/ci_commit_constraints.sh
-        if: needs.build-info.outputs.merge-run == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Push changes"
         uses: ./.github/actions/github-push-action
-        if: needs.build-info.outputs.merge-run == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ steps.constraints-branch.outputs.branch }}
@@ -1627,7 +1553,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - build-info
       - constraints
       - docs
-    if: needs.build-info.outputs.merge-run == 'true'
+    if: needs.build-info.outputs.canary-run == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -1641,15 +1567,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: >
           Pull CI image ${{ needs.build-info.outputs.default-python-version }} for PROD build
           ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
@@ -1683,10 +1602,14 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           --run-in-parallel
           --force-build
           --platform ${{ matrix.platform }}
+        env:
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
       - name: "Push CI latest image ${{ matrix.platform }}"
         run: >
           breeze ci-image build
           --tag-as-latest --push --run-in-parallel --platform ${{ matrix.platform }}
+        env:
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
         if: matrix.platform == 'linux/amd64'
       - name: "Move dist packages to docker-context files"
         run: mv -v ./dist/*.whl ./docker-context-files
@@ -1697,11 +1620,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           --install-packages-from-context
           --prepare-buildx-cache
           --platform ${{ matrix.platform }}
-        if: needs.build-info.outputs.default-branch == 'main'
       - name: "Push PROD latest image ${{ matrix.platform }}"
         run: >
           breeze prod-image build --tag-as-latest --install-packages-from-context
           --push --run-in-parallel --platform ${{ matrix.platform }}
+        env:
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
         if: matrix.platform == 'linux/amd64'
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
@@ -1732,22 +1656,17 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     if: >
       needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' &&
       needs.build-info.outputs.in-workflow-build == 'true' &&
-      needs.build-info.outputs.merge-run != 'true'
+      needs.build-info.outputs.canary-run != 'true'
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
           submodules: recursive
-      - name: "Setup python"
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
       - name: >
@@ -1763,6 +1682,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
         if: always()

@@ -326,7 +326,7 @@ its data interval.
 
 .. code-block:: bash
 
-    # command layout: command subcommand dag_id task_id date
+    # command layout: command subcommand [dag_id] [task_id] [(optional) date]
 
     # testing print_date
     airflow tasks test tutorial print_date 2015-06-01
@@ -350,7 +350,7 @@ their log to stdout (on screen), does not bother with dependencies, and
 does not communicate state (running, success, failed, ...) to the database.
 It simply allows testing a single task instance.
 
-The same applies to ``airflow dags test [dag_id] [logical_date]``, but on a DAG
+The same applies to ``airflow dags test``, but on a DAG
 level. It performs a single DAG run of the given DAG id. While it does take task
 dependencies into account, no state is registered in the database. It is
 convenient for locally testing a full run of your DAG, given that e.g. if one of

@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.sensors.base import BaseSensorOperator
@@ -46,20 +48,20 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = (
-        'database_name',
-        'table_name',
-        'expression',
+        "database_name",
+        "table_name",
+        "expression",
     )
-    ui_color = '#C5CAE9'
+    ui_color = "#C5CAE9"
 
     def __init__(
         self,
         *,
         table_name: str,
         expression: str = "ds='{{ ds }}'",
-        aws_conn_id: str = 'aws_default',
-        region_name: Optional[str] = None,
-        database_name: str = 'default',
+        aws_conn_id: str = "aws_default",
+        region_name: str | None = None,
+        database_name: str = "default",
         poke_interval: int = 60 * 3,
         **kwargs,
     ):
@@ -69,14 +71,14 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
         self.table_name = table_name
         self.expression = expression
         self.database_name = database_name
-        self.hook: Optional[GlueCatalogHook] = None
+        self.hook: GlueCatalogHook | None = None
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         """Checks for existence of the partition in the AWS Glue Catalog table"""
-        if '.' in self.table_name:
-            self.database_name, self.table_name = self.table_name.split('.')
+        if "." in self.table_name:
+            self.database_name, self.table_name = self.table_name.split(".")
         self.log.info(
-            'Poking for table %s. %s, expression %s', self.database_name, self.table_name, self.expression
+            "Poking for table %s. %s, expression %s", self.database_name, self.table_name, self.expression
         )
 
         return self.get_hook().check_for_partition(self.database_name, self.table_name, self.expression)

@@ -17,9 +17,10 @@
 """
 Returns information about Host that should be passed to the docker-compose.
 """
+from __future__ import annotations
+
 import platform
 from enum import Enum
-from typing import Dict, Optional, Tuple
 
 
 class Architecture(Enum):
@@ -32,20 +33,20 @@ class Architecture(Enum):
 def get_host_user_id() -> str:
     from airflow_breeze.utils.run_utils import run_command
 
-    host_user_id = ''
+    host_user_id = ""
     os = get_host_os()
-    if os == 'linux' or os == 'darwin':
-        host_user_id = run_command(cmd=['id', '-ur'], capture_output=True, text=True).stdout.strip()
+    if os == "linux" or os == "darwin":
+        host_user_id = run_command(cmd=["id", "-ur"], capture_output=True, text=True).stdout.strip()
     return host_user_id
 
 
 def get_host_group_id() -> str:
     from airflow_breeze.utils.run_utils import run_command
 
-    host_group_id = ''
+    host_group_id = ""
     os = get_host_os()
-    if os == 'linux' or os == 'darwin':
-        host_group_id = run_command(cmd=['id', '-gr'], capture_output=True, text=True).stdout.strip()
+    if os == "linux" or os == "darwin":
+        host_group_id = run_command(cmd=["id", "-gr"], capture_output=True, text=True).stdout.strip()
     return host_group_id
 
 
@@ -53,7 +54,7 @@ def get_host_os() -> str:
     return platform.system().lower()
 
 
-_MACHINE_TO_ARCHITECTURE: Dict[str, Architecture] = {
+_MACHINE_TO_ARCHITECTURE: dict[str, Architecture] = {
     "amd64": Architecture.X86_64,
     "x86_64": Architecture.X86_64,
     "i686-64": Architecture.X86_64,
@@ -73,7 +74,7 @@ _MACHINE_TO_ARCHITECTURE: Dict[str, Architecture] = {
 }
 
 
-def get_host_architecture() -> Tuple[Optional[Architecture], str]:
+def get_host_architecture() -> tuple[Architecture | None, str]:
     """Get architecture in the form of Tuple: standardized architecture, original platform"""
     machine = platform.machine()
     return _MACHINE_TO_ARCHITECTURE.get(machine.lower()), machine

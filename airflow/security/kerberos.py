@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 # Licensed to Cloudera, Inc. under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -37,17 +38,16 @@ import shlex
 import subprocess
 import sys
 import time
-from typing import List, Optional
 
 from airflow.configuration import conf
 from airflow.utils.net import get_hostname
 
-NEED_KRB181_WORKAROUND = None  # type: Optional[bool]
+NEED_KRB181_WORKAROUND: bool | None = None
 
 log = logging.getLogger(__name__)
 
 
-def renew_from_kt(principal: Optional[str], keytab: str, exit_on_fail: bool = True):
+def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True):
     """
     Renew kerberos token from keytab
 
@@ -73,7 +73,7 @@ def renew_from_kt(principal: Optional[str], keytab: str, exit_on_fail: bool = Tr
     else:
         include_ip = '-A'
 
-    cmdv: List[str] = [
+    cmdv: list[str] = [
         conf.get_mandatory_value('kerberos', 'kinit_path'),
         forwardable,
         include_ip,
@@ -131,7 +131,7 @@ def perform_krb181_workaround(principal: str):
     :param principal: principal name
     :return: None
     """
-    cmdv: List[str] = [
+    cmdv: list[str] = [
         conf.get_mandatory_value('kerberos', 'kinit_path'),
         "-c",
         conf.get_mandatory_value('kerberos', 'ccache'),
@@ -171,7 +171,7 @@ def detect_conf_var() -> bool:
         return b'X-CACHECONF:' in file.read()
 
 
-def run(principal: Optional[str], keytab: str):
+def run(principal: str | None, keytab: str):
     """
     Run the kerbros renewer.
 

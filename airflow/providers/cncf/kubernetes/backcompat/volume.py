@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module is deprecated. Please use :mod:`kubernetes.client.models.V1Volume`."""
+from __future__ import annotations
 
 import warnings
 
@@ -59,4 +60,4 @@ class Volume:
     # source: https://www.geeksforgeeks.org/python-program-to-convert-camel-case-string-to-snake-case/
     @staticmethod
     def _convert_to_snake_case(input_string):
-        return ''.join('_' + i.lower() if i.isupper() else i for i in input_string).lstrip('_')
+        return "".join("_" + i.lower() if i.isupper() else i for i in input_string).lstrip("_")

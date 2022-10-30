@@ -132,13 +132,15 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | ID                                                     | Description                                                      | Image   |
 +========================================================+==================================================================+=========+
-| black                                                  | Run Black (the uncompromising Python code formatter)             |         |
+| black                                                  | * Run black (python formatter) on core                           |         |
+|                                                        | * Run black (python formatter) on providers                      |         |
+|                                                        | * Run black (python formatter) on other                          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | blacken-docs                                           | Run black on python code blocks in documentation files           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| check-airflow-2-2-compatibility                        | Check that providers are 2.2 compatible.                         |         |
-+--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-airflow-config-yaml-consistent                   | Checks for consistency between config.yml and default_config.cfg |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-airflow-provider-compatibility                   | Check compatibility of Providers with Airflow                    |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-apache-license-rat                               | Check if licenses are OK for Apache                              |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -156,8 +158,6 @@ require Breeze Docker image to be build locally.
 | check-changelog-has-no-duplicates                      | Check changelogs for duplicate entries                           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-core-deprecation-classes                         | Verify using of dedicated Airflow deprecation classes in core    |         |
-+--------------------------------------------------------+------------------------------------------------------------------+---------+
-| check-dag-init-decorator-arguments                     | Check DAG and @dag arguments                                     |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-daysago-import-from-utils                        | Make sure days_ago is imported from airflow.utils.dates          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -178,6 +178,8 @@ require Breeze Docker image to be build locally.
 | check-hooks-apply                                      | Check if all hooks apply to the repository                       |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-incorrect-use-of-LoggingMixin                    | Make sure LoggingMixin is not used alone                         |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-init-decorator-arguments                         | Check model __init__ and decorator arguments are in sync         |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-lazy-logging                                     | Check that all logging methods are lazy                          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -301,9 +303,11 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | ts-compile-and-lint-javascript                         | TS types generation and ESLint against current UI files          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| update-breeze-cmd-output                               | Update output of breeze commands in BREEZE.rst                   | *       |
+| update-breeze-cmd-output                               | Update output of breeze commands in BREEZE.rst                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-breeze-readme-config-hash                       | Update Breeze README.md with config files hash                   |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-er-diagram                                      | Update ER diagram                                                | *       |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-extras                                          | Update extras in documentation                                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -316,8 +320,6 @@ require Breeze Docker image to be build locally.
 | update-migration-references                            | Update migration ref doc                                         | *       |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-providers-dependencies                          | Update cross-dependencies for providers packages                 |         |
-+--------------------------------------------------------+------------------------------------------------------------------+---------+
-| update-setup-cfg-file                                  | Update setup.cfg file with all licenses                          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-spelling-wordlist-to-be-sorted                  | Sort alphabetically and uniquify spelling_wordlist.txt           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+

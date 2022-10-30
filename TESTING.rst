@@ -202,15 +202,6 @@ You can also limit the set of providers you would like to run tests of
     breeze testing tests --test-type "Providers[airbyte,http]"
 
 
-You can also write tests in "limited progress" mode (useful in the future to run CI). In this mode each
-test just prints "percentage" summary of the run as single line and only dumps full output of the test
-after it completes.
-
-.. code-block:: bash
-
-    breeze testing tests --test-type Core --limit-progress-output
-
-
 Running Tests of a specified type from the Host
 -----------------------------------------------
 
@@ -264,7 +255,7 @@ add them in ``tests/charts``.
 
 .. code-block:: python
 
-    class TestBaseChartTest(unittest.TestCase):
+    class TestBaseChartTest:
         ...
 
 To render the chart create a YAML string with the nested dictionary of options you wish to test. You can then
@@ -286,7 +277,7 @@ Example test here:
     """
 
 
-    class TestGitSyncScheduler(unittest.TestCase):
+    class TestGitSyncScheduler:
         def test_basic(self):
             helm_settings = yaml.safe_load(git_sync_basic)
             res = render_chart(
@@ -554,12 +545,13 @@ test in parallel. This way we can decrease the time of running all tests in self
 Running full Airflow test suite in parallel
 ===========================================
 
-If you run ``./scripts/ci/testing/ci_run_airflow_testing.sh`` tests run in parallel
+If you run ``breeze testing tests --run-in-parallel`` tests run in parallel
 on your development machine - maxing out the number of parallel runs at the number of cores you
 have available in your Docker engine.
 
-In case you do not have enough memory available to your Docker (~32 GB), the ``Integration`` test type
-is always run sequentially - after all tests are completed (docker cleanup is performed in-between).
+In case you do not have enough memory available to your Docker (8 GB), the ``Integration``. ``Provider``
+and ``Core`` test type are executed sequentially with cleaning the docker setup in-between. This
+allows to print
 
 This allows for massive speedup in full test execution. On 8 CPU machine with 16 cores and 64 GB memory
 and fast SSD disk, the whole suite of tests completes in about 5 minutes (!). Same suite of tests takes
@@ -1265,6 +1257,19 @@ Kind has also useful commands to inspect your running cluster:
     Deleting KinD cluster airflow-python-3.7-v1.24.2!
     Deleting cluster "airflow-python-3.7-v1.24.2" ...
     KinD cluster airflow-python-3.7-v1.24.2 deleted!
+
+
+Running complete k8s tests
+--------------------------
+
+You can also run complete k8s tests with
+
+.. code-block:: bash
+
+    breeze k8s run-complete-tests
+
+This will create cluster, build images, deploy airflow run tests and finally delete clusters as single
+command. It is the way it is run in our CI, you can also run such complete tests in parallel.
 
 
 Airflow System Tests

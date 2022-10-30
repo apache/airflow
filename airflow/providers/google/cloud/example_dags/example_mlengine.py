@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG for Google ML Engine service.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -61,42 +62,42 @@ with models.DAG(
     "example_gcp_mlengine",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
     params={"model_name": MODEL_NAME},
 ) as dag:
-    hyperparams: Dict[str, Any] = {
-        'goal': 'MAXIMIZE',
-        'hyperparameterMetricTag': 'metric1',
-        'maxTrials': 30,
-        'maxParallelTrials': 1,
-        'enableTrialEarlyStopping': True,
-        'params': [],
+    hyperparams: dict[str, Any] = {
+        "goal": "MAXIMIZE",
+        "hyperparameterMetricTag": "metric1",
+        "maxTrials": 30,
+        "maxParallelTrials": 1,
+        "enableTrialEarlyStopping": True,
+        "params": [],
     }
 
-    hyperparams['params'].append(
+    hyperparams["params"].append(
         {
-            'parameterName': 'hidden1',
-            'type': 'INTEGER',
-            'minValue': 40,
-            'maxValue': 400,
-            'scaleType': 'UNIT_LINEAR_SCALE',
+            "parameterName": "hidden1",
+            "type": "INTEGER",
+            "minValue": 40,
+            "maxValue": 400,
+            "scaleType": "UNIT_LINEAR_SCALE",
         }
     )
 
-    hyperparams['params'].append(
-        {'parameterName': 'numRnnCells', 'type': 'DISCRETE', 'discreteValues': [1, 2, 3, 4]}
+    hyperparams["params"].append(
+        {"parameterName": "numRnnCells", "type": "DISCRETE", "discreteValues": [1, 2, 3, 4]}
     )
 
-    hyperparams['params'].append(
+    hyperparams["params"].append(
         {
-            'parameterName': 'rnnCellType',
-            'type': 'CATEGORICAL',
-            'categoricalValues': [
-                'BasicLSTMCell',
-                'BasicRNNCell',
-                'GRUCell',
-                'LSTMCell',
-                'LayerNormBasicLSTMCell',
+            "parameterName": "rnnCellType",
+            "type": "CATEGORICAL",
+            "categoricalValues": [
+                "BasicLSTMCell",
+                "BasicRNNCell",
+                "GRUCell",
+                "LSTMCell",
+                "LayerNormBasicLSTMCell",
             ],
         }
     )
@@ -150,7 +151,7 @@ with models.DAG(
         version={
             "name": "v1",
             "description": "First-version",
-            "deployment_uri": f'{JOB_DIR}/keras_export/',
+            "deployment_uri": f"{JOB_DIR}/keras_export/",
             "runtime_version": "1.15",
             "machineType": "mls1-c1-m2",
             "framework": "TENSORFLOW",
@@ -244,25 +245,25 @@ with models.DAG(
         Gets metric function and keys used to generate summary
         """
 
-        def normalize_value(inst: Dict):
-            val = float(inst['dense_4'][0])
+        def normalize_value(inst: dict):
+            val = float(inst["dense_4"][0])
             return tuple([val])  # returns a tuple.
 
-        return normalize_value, ['val']  # key order must match.
+        return normalize_value, ["val"]  # key order must match.
 
     # [END howto_operator_gcp_mlengine_get_metric]
 
     # [START howto_operator_gcp_mlengine_validate_error]
-    def validate_err_and_count(summary: Dict) -> Dict:
+    def validate_err_and_count(summary: dict) -> dict:
         """
         Validate summary result
         """
-        if summary['val'] > 1:
-            raise ValueError(f'Too high val>1; summary={summary}')
-        if summary['val'] < 0:
-            raise ValueError(f'Too low val<0; summary={summary}')
-        if summary['count'] != 20:
-            raise ValueError(f'Invalid value val != 20; summary={summary}')
+        if summary["val"] > 1:
+            raise ValueError(f"Too high val>1; summary={summary}")
+        if summary["val"] < 0:
+            raise ValueError(f"Too low val<0; summary={summary}")
+        if summary["count"] != 20:
+            raise ValueError(f"Invalid value val != 20; summary={summary}")
         return summary
 
     # [END howto_operator_gcp_mlengine_validate_error]
@@ -279,9 +280,9 @@ with models.DAG(
         project_id=PROJECT_ID,
         region="us-central1",
         dataflow_options={
-            'project': PROJECT_ID,
-            'tempLocation': SUMMARY_TMP,
-            'stagingLocation': SUMMARY_STAGING,
+            "project": PROJECT_ID,
+            "tempLocation": SUMMARY_TMP,
+            "stagingLocation": SUMMARY_STAGING,
         },
         model_name=MODEL_NAME,
         version_name="v1",

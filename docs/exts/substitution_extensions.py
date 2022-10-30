@@ -14,11 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# from __future__ import annotations
+from __future__ import annotations
 
 import logging
-from typing import Any, List, Tuple, Union
+from typing import Any
 
 from docutils import nodes
 from docutils.nodes import Node, system_message
@@ -32,9 +31,9 @@ from sphinx.transforms.post_transforms.code import HighlightLanguageTransform
 
 LOGGER = logging.getLogger(__name__)
 
-OriginalCodeBlock: Directive = directives._directives['code-block']
+OriginalCodeBlock: Directive = directives._directives["code-block"]
 
-_SUBSTITUTION_OPTION_NAME = 'substitutions'
+_SUBSTITUTION_OPTION_NAME = "substitutions"
 
 
 class SubstitutionCodeBlock(OriginalCodeBlock):  # type: ignore
@@ -48,7 +47,7 @@ class SubstitutionCodeBlock(OriginalCodeBlock):  # type: ignore
         [node] = super().run()
 
         if _SUBSTITUTION_OPTION_NAME in self.options:
-            node.attributes['substitutions'] = True
+            node.attributes["substitutions"] = True
         return [node]
 
 
@@ -62,7 +61,7 @@ class SubstitutionCodeBlockTransform(SphinxTransform):
         def condition(node):
             return isinstance(node, (nodes.literal_block, nodes.literal))
 
-        for node in self.document.traverse(condition):  # type: Union[nodes.literal_block, nodes.literal]
+        for node in self.document.traverse(condition):
             if _SUBSTITUTION_OPTION_NAME not in node:
                 continue
 
@@ -78,14 +77,14 @@ class SubstitutionCodeBlockTransform(SphinxTransform):
                 old_child = child
                 for name, value in substitution_defs.items():
                     replacement = value.astext()
-                    child = nodes.Text(child.replace(f'|{name}|', replacement))
+                    child = nodes.Text(child.replace(f"|{name}|", replacement))
                 node.replace(old_child, child)
 
             # The highlighter checks this -- without this, it will refuse to apply highlighting
             node.rawsource = node.astext()
 
 
-def substitution_code_role(*args, **kwargs) -> Tuple[List[Node], List[system_message]]:
+def substitution_code_role(*args, **kwargs) -> tuple[list[Node], list[system_message]]:
     """Decorate an inline code so that SubstitutionCodeBlockTransform will notice it"""
     [node], system_messages = code_role(*args, **kwargs)
     node[_SUBSTITUTION_OPTION_NAME] = True
@@ -94,8 +93,8 @@ def substitution_code_role(*args, **kwargs) -> Tuple[List[Node], List[system_mes
 
 
 substitution_code_role.options = {  # type: ignore
-    'class': directives.class_option,
-    'language': directives.unchanged,
+    "class": directives.class_option,
+    "language": directives.unchanged,
 }
 
 
@@ -113,17 +112,17 @@ class AddSpacepadSubstReference(SphinxTransform):
 
     def apply(self, **kwargs: Any) -> None:
         substitution_defs = self.document.substitution_defs
-        version = substitution_defs['version'].astext()
+        version = substitution_defs["version"].astext()
         pad = " " * len(version)
-        substitution_defs['version-spacepad'] = nodes.substitution_definition(version, pad)
+        substitution_defs["version-spacepad"] = nodes.substitution_definition(version, pad)
         ...
 
 
 def setup(app: Sphinx) -> dict:
     """Setup plugin"""
-    app.add_config_value('substitutions', [], 'html')
-    directives.register_directive('code-block', SubstitutionCodeBlock)
-    app.add_role('subst-code', substitution_code_role)
+    app.add_config_value("substitutions", [], "html")
+    directives.register_directive("code-block", SubstitutionCodeBlock)
+    app.add_role("subst-code", substitution_code_role)
     app.add_post_transform(SubstitutionCodeBlockTransform)
     app.add_post_transform(AddSpacepadSubstReference)
-    return {'parallel_write_safe': True}
+    return {"parallel_write_safe": True}

@@ -44,11 +44,11 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="2.3.4"
+ARG AIRFLOW_VERSION="2.4.2"
 
 ARG PYTHON_BASE_IMAGE="python:3.7-slim-bullseye"
 
-ARG AIRFLOW_PIP_VERSION=22.2.2
+ARG AIRFLOW_PIP_VERSION=22.3
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
@@ -92,7 +92,7 @@ fi
 function get_dev_apt_deps() {
     if [[ "${DEV_APT_DEPS=}" == "" ]]; then
         DEV_APT_DEPS="apt-transport-https apt-utils build-essential ca-certificates dirmngr \
-freetds-bin freetds-dev git gosu krb5-user ldap-utils libffi-dev \
+freetds-bin freetds-dev git gosu graphviz graphviz-dev krb5-user ldap-utils libffi-dev \
 libkrb5-dev libldap2-dev libsasl2-2 libsasl2-dev libsasl2-modules \
 libssl-dev locales lsb-release openssh-client sasl2-bin \
 software-properties-common sqlite3 sudo unixodbc unixodbc-dev"
@@ -405,7 +405,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="22.2.2"
+            export AIRFLOW_PIP_VERSION="22.3"
         fi
     fi
 }
@@ -1211,7 +1211,11 @@ ARG ADDITIONAL_PYTHON_DEPS=""
 # * dill<0.3.3 required by apache-beam
 # * pyarrow>=6.0.0 is because pip resolver decides for Python 3.10 to downgrade pyarrow to 5 even if it is OK
 #   for python 3.10 and other dependencies adding the limit helps resolver to make better decisions
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3 pyarrow>=6.0.0"
+# We need to limit the protobuf library to < 4.21.0 because not all google libraries we use
+# are compatible with the new protobuf version. All the google python client libraries need
+# to be upgraded to >=2.0.0 in order to able to lift that limitation
+# https://developers.google.com/protocol-buffers/docs/news/2022-05-06#python-updates
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3 pyarrow>=6.0.0 protobuf<4.21.0"
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     INSTALL_PACKAGES_FROM_CONTEXT=${INSTALL_PACKAGES_FROM_CONTEXT} \

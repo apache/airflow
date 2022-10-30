@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 import sys
@@ -35,6 +36,7 @@ KNOWN_INVALID_TYPES = {
     "$['properties']['ingress']['properties']['web']['properties']['succeedingPaths']",
     # The value of this parameter is passed to statsd_exporter, which does not have a strict type definition.
     "$['properties']['statsd']['properties']['extraMappings']",
+    "$['properties']['statsd']['properties']['overrideMappings']",
 }
 VENDORED_PATHS = {
     # We don't want to check the upstream k8s definitions
@@ -51,7 +53,7 @@ def display_definitions_list(definitions_list):
         print(json.dumps(schema_type, indent=2))
 
 
-def walk(value, path='$'):
+def walk(value, path="$"):
     yield value, path
     if isinstance(value, dict):
         for k, v in value.items():
@@ -69,13 +71,13 @@ def is_vendored_path(path: str) -> bool:
 
 
 def validate_object_types():
-    all_object_types = ((d, p) for d, p in walk(SCHEMA) if type(d) == dict and d.get('type') == 'object')
+    all_object_types = ((d, p) for d, p in walk(SCHEMA) if type(d) == dict and d.get("type") == "object")
     all_object_types_with_a_loose_definition = [
         (d, p)
         for d, p in all_object_types
-        if 'properties' not in d
+        if "properties" not in d
         and "$ref" not in d
-        and type(d.get('additionalProperties')) != dict
+        and type(d.get("additionalProperties")) != dict
         and p not in KNOWN_INVALID_TYPES
         and not is_vendored_path(p)
     ]
@@ -95,9 +97,9 @@ def validate_object_types():
 
 
 def validate_array_types():
-    all_array_types = ((d, p) for d, p in walk(SCHEMA) if type(d) == dict and d.get('type') == 'array')
+    all_array_types = ((d, p) for d, p in walk(SCHEMA) if type(d) == dict and d.get("type") == "array")
     all_array_types_with_a_loose_definition = [
-        (d, p) for (d, p) in all_array_types if type(d.get('items')) != dict
+        (d, p) for (d, p) in all_array_types if type(d.get("items")) != dict
     ]
     to_display_invalid_types = [
         (d, p) for d, p in all_array_types_with_a_loose_definition if p not in KNOWN_INVALID_TYPES

@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from contextlib import closing
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Union
+from typing import Any, Callable, Iterable, Mapping
 
 import pandas as pd
 import pyexasol
@@ -37,10 +38,10 @@ class ExasolHook(DbApiHook):
     for more details.
     """
 
-    conn_name_attr = 'exasol_conn_id'
-    default_conn_name = 'exasol_default'
-    conn_type = 'exasol'
-    hook_name = 'Exasol'
+    conn_name_attr = "exasol_conn_id"
+    default_conn_name = "exasol_default"
+    conn_type = "exasol"
+    hook_name = "Exasol"
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:
@@ -51,20 +52,20 @@ class ExasolHook(DbApiHook):
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.get_connection(conn_id)
         conn_args = dict(
-            dsn=f'{conn.host}:{conn.port}',
+            dsn=f"{conn.host}:{conn.port}",
             user=conn.login,
             password=conn.password,
             schema=self.schema or conn.schema,
         )
         # check for parameters in conn.extra
         for arg_name, arg_val in conn.extra_dejson.items():
-            if arg_name in ['compression', 'encryption', 'json_lib', 'client_name']:
+            if arg_name in ["compression", "encryption", "json_lib", "client_name"]:
                 conn_args[arg_name] = arg_val
 
         conn = pyexasol.connect(**conn_args)
         return conn
 
-    def get_pandas_df(self, sql: str, parameters: Optional[dict] = None, **kwargs) -> pd.DataFrame:
+    def get_pandas_df(self, sql: str, parameters: dict | None = None, **kwargs) -> pd.DataFrame:
         """
         Executes the sql and returns a pandas dataframe
 
@@ -79,10 +80,10 @@ class ExasolHook(DbApiHook):
 
     def get_records(
         self,
-        sql: Union[str, List[str]],
-        parameters: Optional[Union[Iterable, Mapping]] = None,
+        sql: str | list[str],
+        parameters: Iterable | Mapping | None = None,
         **kwargs: dict,
-    ) -> List[Union[dict, Tuple[Any, ...]]]:
+    ) -> list[dict | tuple[Any, ...]]:
         """
         Executes the sql and returns a set of records.
 
@@ -94,7 +95,7 @@ class ExasolHook(DbApiHook):
             with closing(conn.execute(sql, parameters)) as cur:
                 return cur.fetchall()
 
-    def get_first(self, sql: Union[str, List[str]], parameters: Optional[dict] = None) -> Optional[Any]:
+    def get_first(self, sql: str | list[str], parameters: dict | None = None) -> Any | None:
         """
         Executes the sql and returns the first resulting row.
 
@@ -110,8 +111,8 @@ class ExasolHook(DbApiHook):
         self,
         filename: str,
         query_or_table: str,
-        query_params: Optional[Dict] = None,
-        export_params: Optional[Dict] = None,
+        query_params: dict | None = None,
+        export_params: dict | None = None,
     ) -> None:
         """
         Exports data to a file.
@@ -135,13 +136,13 @@ class ExasolHook(DbApiHook):
 
     def run(
         self,
-        sql: Union[str, Iterable[str]],
+        sql: str | Iterable[str],
         autocommit: bool = False,
-        parameters: Optional[Union[Iterable, Mapping]] = None,
-        handler: Optional[Callable] = None,
+        parameters: Iterable | Mapping | None = None,
+        handler: Callable | None = None,
         split_statements: bool = False,
         return_last: bool = True,
-    ) -> Optional[Union[Any, List[Any]]]:
+    ) -> Any | list[Any] | None:
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
@@ -215,15 +216,14 @@ class ExasolHook(DbApiHook):
 
         :param conn: Connection to get autocommit setting from.
         :return: connection autocommit setting.
-        :rtype: bool
         """
-        autocommit = conn.attr.get('autocommit')
+        autocommit = conn.attr.get("autocommit")
         if autocommit is None:
             autocommit = super().get_autocommit(conn)
         return autocommit
 
     @staticmethod
-    def _serialize_cell(cell, conn=None) -> object:
+    def _serialize_cell(cell, conn=None) -> Any:
         """
         Exasol will adapt all arguments to the execute() method internally,
         hence we return cell without any conversion.
@@ -231,6 +231,5 @@ class ExasolHook(DbApiHook):
         :param cell: The cell to insert into the table
         :param conn: The database connection
         :return: The cell
-        :rtype: object
         """
         return cell

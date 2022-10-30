@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 from datetime import datetime as dt
@@ -179,6 +180,7 @@ class ConnectionForm(DynamicForm):
     conn_id = StringField(
         lazy_gettext('Connection Id'), validators=[InputRequired()], widget=BS3TextFieldWidget()
     )
+    # conn_type is added later via lazy_add_provider_discovered_options_to_connection_form
     description = StringField(lazy_gettext('Description'), widget=BS3TextAreaFieldWidget())
     host = StringField(lazy_gettext('Host'), widget=BS3TextFieldWidget())
     schema = StringField(lazy_gettext('Schema'), widget=BS3TextFieldWidget())

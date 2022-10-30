@@ -20,12 +20,13 @@
 # necessarily exist at run time. See "Creating Custom @task Decorators"
 # documentation for more details.
 
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union, overload
+from typing import Any, Callable, Iterable, Mapping, Union, overload
 
 from kubernetes.client import models as k8s
 
 from airflow.decorators.base import FParams, FReturn, Task, TaskDecorator
 from airflow.decorators.branch_python import branch_task
+from airflow.decorators.external_python import external_python_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
 from airflow.decorators.task_group import task_group
@@ -41,7 +42,9 @@ __all__ = [
     "task_group",
     "python_task",
     "virtualenv_task",
+    "external_python_task",
     "branch_task",
+    "short_circuit_task",
 ]
 
 class TaskDecoratorCollection:
@@ -49,10 +52,10 @@ class TaskDecoratorCollection:
     def python(
         self,
         *,
-        multiple_outputs: Optional[bool] = None,
+        multiple_outputs: bool | None = None,
         # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
         # _PythonDecoratedOperator.
-        templates_dict: Optional[Mapping[str, Any]] = None,
+        templates_dict: Mapping[str, Any] | None = None,
         show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> TaskDecorator:
@@ -77,8 +80,8 @@ class TaskDecoratorCollection:
     def __call__(
         self,
         *,
-        multiple_outputs: Optional[bool] = None,
-        templates_dict: Optional[Mapping[str, Any]] = None,
+        multiple_outputs: bool | None = None,
+        templates_dict: Mapping[str, Any] | None = None,
         show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> TaskDecorator:
@@ -90,14 +93,14 @@ class TaskDecoratorCollection:
     def virtualenv(
         self,
         *,
-        multiple_outputs: Optional[bool] = None,
+        multiple_outputs: bool | None = None,
         # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
         # _PythonVirtualenvDecoratedOperator.
         requirements: Union[None, Iterable[str], str] = None,
         python_version: Union[None, str, int, float] = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
-        templates_dict: Optional[Mapping[str, Any]] = None,
+        templates_dict: Mapping[str, Any] | None = None,
         show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> TaskDecorator:
@@ -126,8 +129,39 @@ class TaskDecoratorCollection:
         """
     @overload
     def virtualenv(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    def external_python(
+        self,
+        *,
+        python: str,
+        multiple_outputs: bool | None = None,
+        # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
+        # _PythonVirtualenvDecoratedOperator.
+        use_dill: bool = False,
+        templates_dict: Mapping[str, Any] | None = None,
+        show_return_value_in_logs: bool = True,
+        **kwargs,
+    ) -> TaskDecorator:
+        """Create a decorator to convert the decorated callable to a virtual environment task.
+
+        :param python: Full path string (file-system specific) that points to a Python binary inside
+            a virtualenv that should be used (in ``VENV/bin`` folder). Should be absolute path
+            (so usually start with "/" or "X:/" depending on the filesystem/os used).
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
+        :param use_dill: Whether to use dill to serialize
+            the args and result (pickle is default). This allow more complex types
+            but requires you to include dill in your requirements.
+        :param templates_dict: a dictionary where the values are templates that
+            will get templated by the Airflow engine sometime between
+            ``__init__`` and ``execute`` takes place and are made available
+            in your callable's context after the template has been applied.
+        :param show_return_value_in_logs: a bool value whether to show return_value
+            logs. Defaults to True, which allows return value log output.
+            It can be set to False to prevent log output of return value when you return huge data
+            such as transmission a large amount of XCom to TaskAPI.
+        """
     @overload
-    def branch(self, *, multiple_outputs: Optional[bool] = None, **kwargs) -> TaskDecorator:
+    def branch(self, *, multiple_outputs: bool | None = None, **kwargs) -> TaskDecorator:
         """Create a decorator to wrap the decorated callable into a BranchPythonOperator.
 
         For more information on how to use this decorator, see :ref:`howto/operator:BranchPythonOperator`.
@@ -138,45 +172,64 @@ class TaskDecoratorCollection:
         """
     @overload
     def branch(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def short_circuit(
+        self,
+        *,
+        multiple_outputs: bool | None = None,
+        ignore_downstream_trigger_rules: bool = True,
+        **kwargs,
+    ) -> TaskDecorator:
+        """Create a decorator to wrap the decorated callable into a ShortCircuitOperator.
+
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
+        :param ignore_downstream_trigger_rules: If set to True, all downstream tasks from this operator task
+            will be skipped. This is the default behavior. If set to False, the direct, downstream task(s)
+            will be skipped but the ``trigger_rule`` defined for a other downstream tasks will be respected.
+            Defaults to True.
+        """
+    @overload
+    def short_circuit(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
     # [START decorator_signature]
     def docker(
         self,
         *,
-        multiple_outputs: Optional[bool] = None,
+        multiple_outputs: bool | None = None,
         use_dill: bool = False,  # Added by _DockerDecoratedOperator.
         python_command: str = "python3",
         # 'command', 'retrieve_output', and 'retrieve_output_path' are filled by
         # _DockerDecoratedOperator.
         image: str,
-        api_version: Optional[str] = None,
-        container_name: Optional[str] = None,
+        api_version: str | None = None,
+        container_name: str | None = None,
         cpus: float = 1.0,
         docker_url: str = "unix://var/run/docker.sock",
-        environment: Optional[Dict[str, str]] = None,
-        private_environment: Optional[Dict[str, str]] = None,
+        environment: dict[str, str] | None = None,
+        private_environment: dict[str, str] | None = None,
         force_pull: bool = False,
-        mem_limit: Optional[Union[float, str]] = None,
-        host_tmp_dir: Optional[str] = None,
-        network_mode: Optional[str] = None,
-        tls_ca_cert: Optional[str] = None,
-        tls_client_cert: Optional[str] = None,
-        tls_client_key: Optional[str] = None,
-        tls_hostname: Optional[Union[str, bool]] = None,
-        tls_ssl_version: Optional[str] = None,
+        mem_limit: float | str | None = None,
+        host_tmp_dir: str | None = None,
+        network_mode: str | None = None,
+        tls_ca_cert: str | None = None,
+        tls_client_cert: str | None = None,
+        tls_client_key: str | None = None,
+        tls_hostname: str | bool | None = None,
+        tls_ssl_version: str | None = None,
         tmp_dir: str = "/tmp/airflow",
-        user: Optional[Union[str, int]] = None,
-        mounts: Optional[List[str]] = None,
-        working_dir: Optional[str] = None,
+        user: str | int | None = None,
+        mounts: list[str] | None = None,
+        working_dir: str | None = None,
         xcom_all: bool = False,
-        docker_conn_id: Optional[str] = None,
-        dns: Optional[List[str]] = None,
-        dns_search: Optional[List[str]] = None,
+        docker_conn_id: str | None = None,
+        dns: list[str] | None = None,
+        dns_search: list[str] | None = None,
         auto_remove: bool = False,
-        shm_size: Optional[int] = None,
+        shm_size: int | None = None,
         tty: bool = False,
         privileged: bool = False,
-        cap_add: Optional[Iterable[str]] = None,
-        extra_hosts: Optional[Dict[str, str]] = None,
+        cap_add: str | None | None = None,
+        extra_hosts: dict[str, str] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a Docker task.
@@ -250,40 +303,40 @@ class TaskDecoratorCollection:
         namespace: str = "default",
         name: str = ...,
         random_name_suffix: bool = True,
-        ports: Optional[List[k8s.V1ContainerPort]] = None,
-        volume_mounts: Optional[List[k8s.V1VolumeMount]] = None,
-        volumes: Optional[List[k8s.V1Volume]] = None,
-        env_vars: Optional[List[k8s.V1EnvVar]] = None,
-        env_from: Optional[List[k8s.V1EnvFromSource]] = None,
-        secrets: Optional[List[Secret]] = None,
-        in_cluster: Optional[bool] = None,
-        cluster_context: Optional[str] = None,
-        labels: Optional[Dict] = None,
+        ports: list[k8s.V1ContainerPort] | None = None,
+        volume_mounts: list[k8s.V1VolumeMount] | None = None,
+        volumes: list[k8s.V1Volume] | None = None,
+        env_vars: list[k8s.V1EnvVar] | None = None,
+        env_from: list[k8s.V1EnvFromSource] | None = None,
+        secrets: list[Secret] | None = None,
+        in_cluster: bool | None = None,
+        cluster_context: str | None = None,
+        labels: dict | None = None,
         reattach_on_restart: bool = True,
         startup_timeout_seconds: int = 120,
         get_logs: bool = True,
-        image_pull_policy: Optional[str] = None,
-        annotations: Optional[Dict] = None,
-        container_resources: Optional[k8s.V1ResourceRequirements] = None,
-        affinity: Optional[k8s.V1Affinity] = None,
+        image_pull_policy: str | None = None,
+        annotations: dict | None = None,
+        container_resources: k8s.V1ResourceRequirements | None = None,
+        affinity: k8s.V1Affinity | None = None,
         config_file: str = ...,
-        node_selector: Optional[dict] = None,
-        image_pull_secrets: Optional[List[k8s.V1LocalObjectReference]] = None,
-        service_account_name: Optional[str] = None,
+        node_selector: dict | None = None,
+        image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
+        service_account_name: str | None = None,
         is_delete_operator_pod: bool = True,
         hostnetwork: bool = False,
-        tolerations: Optional[List[k8s.V1Toleration]] = None,
-        security_context: Optional[Dict] = None,
-        dnspolicy: Optional[str] = None,
-        schedulername: Optional[str] = None,
-        init_containers: Optional[List[k8s.V1Container]] = None,
+        tolerations: list[k8s.V1Toleration] | None = None,
+        security_context: dict | None = None,
+        dnspolicy: str | None = None,
+        schedulername: str | None = None,
+        init_containers: list[k8s.V1Container] | None = None,
         log_events_on_failure: bool = False,
         do_xcom_push: bool = False,
-        pod_template_file: Optional[str] = None,
-        priority_class_name: Optional[str] = None,
-        pod_runtime_info_envs: Optional[List[k8s.V1EnvVar]] = None,
-        termination_grace_period: Optional[int] = None,
-        configmaps: Optional[List[str]] = None,
+        pod_template_file: str | None = None,
+        priority_class_name: str | None = None,
+        pod_runtime_info_envs: list[k8s.V1EnvVar] | None = None,
+        termination_grace_period: int | None = None,
+        configmaps: list[str] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert a callable to a Kubernetes Pod task.

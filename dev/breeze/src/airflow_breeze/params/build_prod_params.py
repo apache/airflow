@@ -14,14 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 import re
 import sys
 from dataclasses import dataclass
-from typing import List
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     AIRFLOW_SOURCES_FROM,
     AIRFLOW_SOURCES_TO,
@@ -42,7 +42,7 @@ class BuildProdParams(CommonBuildParams):
     additional_runtime_apt_deps: str = ""
     additional_runtime_apt_env: str = ""
     airflow_constraints_mode: str = "constraints"
-    airflow_constraints_reference: str = ""
+    airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     cleanup_context: bool = False
     airflow_extras: str = get_airflow_extras()
     disable_airflow_repo_cache: bool = False
@@ -65,10 +65,10 @@ class BuildProdParams(CommonBuildParams):
 
     @property
     def image_type(self) -> str:
-        return 'PROD'
+        return "PROD"
 
     @property
-    def args_for_remote_install(self) -> List:
+    def args_for_remote_install(self) -> list:
         build_args = []
         build_args.extend(
             [
@@ -78,7 +78,7 @@ class BuildProdParams(CommonBuildParams):
                 "AIRFLOW_SOURCES_TO=/empty",
             ]
         )
-        if re.match('v?2.*', self.airflow_version):
+        if re.match("v?2.*", self.airflow_version):
             build_args.extend(
                 ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE=constraints-{self.airflow_version}"]
             )
@@ -91,26 +91,26 @@ class BuildProdParams(CommonBuildParams):
             build_args.extend(
                 ["--build-arg", f"AIRFLOW_CONSTRAINTS_LOCATION={self.airflow_constraints_location}"]
             )
-        if self.airflow_version == 'v2-0-test':
+        if self.airflow_version == "v2-0-test":
             self.airflow_branch_for_pypi_preloading = "v2-0-test"
-        elif self.airflow_version == 'v2-1-test':
+        elif self.airflow_version == "v2-1-test":
             self.airflow_branch_for_pypi_preloading = "v2-1-test"
-        elif self.airflow_version == 'v2-2-test':
+        elif self.airflow_version == "v2-2-test":
             self.airflow_branch_for_pypi_preloading = "v2-2-test"
-        elif re.match(r'^2\.0.*$', self.airflow_version):
+        elif re.match(r"^2\.0.*$", self.airflow_version):
             self.airflow_branch_for_pypi_preloading = "v2-0-stable"
-        elif re.match(r'^2\.1.*$', self.airflow_version):
+        elif re.match(r"^2\.1.*$", self.airflow_version):
             self.airflow_branch_for_pypi_preloading = "v2-1-stable"
-        elif re.match(r'^2\.2.*$', self.airflow_version):
+        elif re.match(r"^2\.2.*$", self.airflow_version):
             self.airflow_branch_for_pypi_preloading = "v2-2-stable"
-        elif re.match(r'^2\.3.*$', self.airflow_version):
+        elif re.match(r"^2\.3.*$", self.airflow_version):
             self.airflow_branch_for_pypi_preloading = "v2-3-stable"
         else:
             self.airflow_branch_for_pypi_preloading = AIRFLOW_BRANCH
         return build_args
 
     @property
-    def extra_docker_build_flags(self) -> List[str]:
+    def extra_docker_build_flags(self) -> list[str]:
         extra_build_flags = []
         if len(self.install_airflow_reference) > 0:
             AIRFLOW_INSTALLATION_METHOD = (
@@ -126,11 +126,11 @@ class BuildProdParams(CommonBuildParams):
             )
             extra_build_flags.extend(self.args_for_remote_install)
         elif len(self.install_airflow_version) > 0:
-            if not re.match(r'^[0-9\.]+((a|b|rc|alpha|beta|pre)[0-9]+)?$', self.install_airflow_version):
+            if not re.match(r"^[0-9\.]+((a|b|rc|alpha|beta|pre)[0-9]+)?$", self.install_airflow_version):
                 get_console().print(
-                    f'\n[error]ERROR: Bad value for install-airflow-version:{self.install_airflow_version}'
+                    f"\n[error]ERROR: Bad value for install-airflow-version:{self.install_airflow_version}"
                 )
-                get_console().print('[error]Only numerical versions allowed for PROD image here !')
+                get_console().print("[error]Only numerical versions allowed for PROD image here !")
                 sys.exit()
             extra_build_flags.extend(["--build-arg", "AIRFLOW_INSTALLATION_METHOD=apache-airflow"])
             extra_build_flags.extend(
@@ -179,19 +179,19 @@ class BuildProdParams(CommonBuildParams):
 
     @property
     def airflow_pre_cached_pip_packages(self) -> str:
-        return 'false' if self.disable_airflow_repo_cache else 'true'
+        return "false" if self.disable_airflow_repo_cache else "true"
 
     @property
     def install_mssql_client(self) -> str:
-        return 'false' if self.disable_mssql_client_installation else 'true'
+        return "false" if self.disable_mssql_client_installation else "true"
 
     @property
     def install_mysql_client(self) -> str:
-        return 'false' if self.disable_mysql_client_installation else 'true'
+        return "false" if self.disable_mysql_client_installation else "true"
 
     @property
     def install_postgres_client(self) -> str:
-        return 'false' if self.disable_postgres_client_installation else 'true'
+        return "false" if self.disable_postgres_client_installation else "true"
 
     @property
     def docker_context_files(self) -> str:
@@ -202,7 +202,7 @@ class BuildProdParams(CommonBuildParams):
         return f"{self.airflow_image_name}-kubernetes"
 
     @property
-    def required_image_args(self) -> List[str]:
+    def required_image_args(self) -> list[str]:
         return [
             "airflow_branch",
             "airflow_constraints_mode",
@@ -225,7 +225,7 @@ class BuildProdParams(CommonBuildParams):
         ]
 
     @property
-    def optional_image_args(self) -> List[str]:
+    def optional_image_args(self) -> list[str]:
         return [
             "additional_airflow_extras",
             "additional_dev_apt_command",

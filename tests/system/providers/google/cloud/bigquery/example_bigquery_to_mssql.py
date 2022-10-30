@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG for Google BigQuery service.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -48,7 +49,7 @@ with models.DAG(
 ) as dag:
     bigquery_to_mssql = BigQueryToMsSqlOperator(
         task_id="bigquery_to_mssql",
-        source_project_dataset_table=f'{PROJECT_ID}.{DATASET_NAME}.{TABLE}',
+        source_project_dataset_table=f"{PROJECT_ID}.{DATASET_NAME}.{TABLE}",
         mssql_table=destination_table,
         replace=False,
     )

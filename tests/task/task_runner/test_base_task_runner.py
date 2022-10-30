@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from unittest import mock
 
 import pytest
@@ -25,8 +27,8 @@ from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 
 
 @pytest.mark.parametrize(["impersonation"], (("nobody",), (None,)))
-@mock.patch('subprocess.check_call')
-@mock.patch('airflow.task.task_runner.base_task_runner.tmp_configuration_copy')
+@mock.patch("subprocess.check_call")
+@mock.patch("airflow.task.task_runner.base_task_runner.tmp_configuration_copy")
 def test_config_copy_mode(tmp_configuration_copy, subprocess_call, dag_maker, impersonation):
     tmp_configuration_copy.return_value = "/tmp/some-string"
 
@@ -47,7 +49,7 @@ def test_config_copy_mode(tmp_configuration_copy, subprocess_call, dag_maker, im
 
     if impersonation:
         subprocess_call.assert_called_with(
-            ['sudo', 'chown', impersonation, "/tmp/some-string"], close_fds=True
+            ["sudo", "chown", impersonation, "/tmp/some-string"], close_fds=True
         )
     else:
         subprocess_call.not_assert_called()

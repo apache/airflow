@@ -45,14 +45,14 @@ securityContext: {}
 # Used for mount paths
 airflowHome: /opt/airflow
 
-# Default airflow repository -- overrides all the specific images below
+# Default airflow repository -- overridden by all the specific images below
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.3.4"
+defaultAirflowTag: "2.4.2"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.3.4"
+airflowVersion: "2.4.2"
 
 # Images
 images:
@@ -76,8 +76,8 @@ images:
     tag: ~
     pullPolicy: IfNotPresent
   statsd:
-    repository: apache/airflow
-    tag: airflow-statsd-exporter-2021.04.28-v0.17.0
+    repository: quay.io/prometheus/statsd-exporter
+    tag: v0.22.8
     pullPolicy: IfNotPresent
   redis:
     repository: redis
@@ -1366,7 +1366,16 @@ statsd:
   priorityClassName: ~
 
   # Additional mappings for StatsD exporter.
+  # If set, will merge default mapping and extra mappings, default mapping has higher priority.
+  # So, if you want to change some default mapping, please use `overrideMappings`
   extraMappings: []
+
+  # Override mappings for StatsD exporter.
+  # If set, will ignore setting item in default and `extraMappings`.
+  # So, If you use it, ensure all mapping item contains in it.
+  overrideMappings: []
+
+  podAnnotations: {}
 
 # PgBouncer settings
 pgbouncer:
@@ -1640,6 +1649,11 @@ cleanup:
   #  runAsGroup: 0
   env: []
 
+  # Specify history limit
+  # When set, overwrite the default k8s number of successful and failed CronJob executions that are saved.
+  failedJobsHistoryLimit: ~
+  successfulJobsHistoryLimit: ~
+
 # Configuration for postgresql subchart
 # Not recommended for production
 postgresql:
@@ -1679,6 +1693,7 @@ config:
     # For Airflow 1.10
     rbac: 'True'
   celery:
+    flower_url_prefix: '{{ .Values.ingress.flower.path }}'
     worker_concurrency: 16
   scheduler:
     standalone_dag_processor: '{{ ternary "True" "False" .Values.dagProcessor.enabled }}'

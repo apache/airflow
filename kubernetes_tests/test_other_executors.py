@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import time
 
@@ -25,10 +26,10 @@ from kubernetes_tests.test_base import EXECUTOR, TestBase
 # These tests are here because only KubernetesExecutor can run the tests in
 # test_kubernetes_executor.py
 # Also, the skipping is necessary as there's no gain in running these tests in KubernetesExecutor
-@pytest.mark.skipif(EXECUTOR == 'KubernetesExecutor', reason="Does not run on KubernetesExecutor")
+@pytest.mark.skipif(EXECUTOR == "KubernetesExecutor", reason="Does not run on KubernetesExecutor")
 class TestCeleryAndLocalExecutor(TestBase):
     def test_integration_run_dag(self):
-        dag_id = 'example_bash_operator'
+        dag_id = "example_bash_operator"
         dag_run_id, execution_date = self.start_job_in_kubernetes(dag_id, self.host)
         print(f"Found the job with execution_date {execution_date}")
 
@@ -37,21 +38,21 @@ class TestCeleryAndLocalExecutor(TestBase):
             host=self.host,
             dag_run_id=dag_run_id,
             dag_id=dag_id,
-            task_id='run_after_loop',
-            expected_final_state='success',
-            timeout=40,
+            task_id="run_after_loop",
+            expected_final_state="success",
+            timeout=300,
         )
 
         self.ensure_dag_expected_state(
             host=self.host,
             execution_date=execution_date,
             dag_id=dag_id,
-            expected_final_state='success',
-            timeout=60,
+            expected_final_state="success",
+            timeout=300,
         )
 
     def test_integration_run_dag_with_scheduler_failure(self):
-        dag_id = 'example_xcom'
+        dag_id = "example_xcom"
 
         dag_run_id, execution_date = self.start_job_in_kubernetes(dag_id, self.host)
 
@@ -64,8 +65,8 @@ class TestCeleryAndLocalExecutor(TestBase):
             host=self.host,
             dag_run_id=dag_run_id,
             dag_id=dag_id,
-            task_id='push',
-            expected_final_state='success',
+            task_id="push",
+            expected_final_state="success",
             timeout=40,  # This should fail fast if failing
         )
 
@@ -73,8 +74,8 @@ class TestCeleryAndLocalExecutor(TestBase):
             host=self.host,
             dag_run_id=dag_run_id,
             dag_id=dag_id,
-            task_id='puller',
-            expected_final_state='success',
+            task_id="puller",
+            expected_final_state="success",
             timeout=40,
         )
 
@@ -82,8 +83,8 @@ class TestCeleryAndLocalExecutor(TestBase):
             host=self.host,
             execution_date=execution_date,
             dag_id=dag_id,
-            expected_final_state='success',
+            expected_final_state="success",
             timeout=60,
         )
 
-        assert self._num_pods_in_namespace('test-namespace') == 0, "failed to delete pods in other namespace"
+        assert self._num_pods_in_namespace("test-namespace") == 0, "failed to delete pods in other namespace"

@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import io
 import json
 import zipfile
 from datetime import datetime
-from typing import List, Optional, Tuple
 
 import boto3
 
@@ -29,10 +30,10 @@ from airflow.providers.amazon.aws.operators.lambda_function import AwsLambdaInvo
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, purge_logs
 
-DAG_ID = 'example_lambda'
+DAG_ID = "example_lambda"
 
 # Externally fetched variables:
-ROLE_ARN_KEY = 'ROLE_ARN'
+ROLE_ARN_KEY = "ROLE_ARN"
 
 sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
 
@@ -55,29 +56,29 @@ def create_zip(content: str):
 
 @task
 def create_lambda(function_name: str, role_arn: str):
-    client = boto3.client('lambda')
+    client = boto3.client("lambda")
     client.create_function(
         FunctionName=function_name,
-        Runtime='python3.9',
+        Runtime="python3.9",
         Role=role_arn,
-        Handler='lambda_function.test',
+        Handler="lambda_function.test",
         Code={
-            'ZipFile': create_zip(CODE_CONTENT),
+            "ZipFile": create_zip(CODE_CONTENT),
         },
-        Description='Function used for system tests',
+        Description="Function used for system tests",
     )
 
 
 @task
 def await_lambda(function_name: str):
-    client = boto3.client('lambda')
-    waiter = client.get_waiter('function_active_v2')
+    client = boto3.client("lambda")
+    waiter = client.get_waiter("function_active_v2")
     waiter.wait(FunctionName=function_name)
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_lambda(function_name: str):
-    client = boto3.client('lambda')
+    client = boto3.client("lambda")
     client.delete_function(
         FunctionName=function_name,
     )
@@ -85,8 +86,8 @@ def delete_lambda(function_name: str):
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_logs(function_name: str) -> None:
-    generated_log_groups: List[Tuple[str, Optional[str]]] = [
-        (f'/aws/lambda/{function_name}', None),
+    generated_log_groups: list[tuple[str, str | None]] = [
+        (f"/aws/lambda/{function_name}", None),
     ]
 
     purge_logs(test_logs=generated_log_groups, force_delete=True, retry=True)
@@ -94,18 +95,18 @@ def delete_logs(function_name: str) -> None:
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
 
-    lambda_function_name: str = f'{test_context[ENV_ID_KEY]}-function'
+    lambda_function_name: str = f"{test_context[ENV_ID_KEY]}-function"
 
     # [START howto_operator_lambda]
     invoke_lambda_function = AwsLambdaInvokeFunctionOperator(
-        task_id='invoke_lambda_function',
+        task_id="invoke_lambda_function",
         function_name=lambda_function_name,
         payload=json.dumps({"SampleEvent": {"SampleData": {"Name": "XYZ", "DoB": "1993-01-01"}}}),
     )

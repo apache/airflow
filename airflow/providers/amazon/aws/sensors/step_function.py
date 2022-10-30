@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
@@ -43,45 +44,45 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
     """
 
-    INTERMEDIATE_STATES = ('RUNNING',)
+    INTERMEDIATE_STATES = ("RUNNING",)
     FAILURE_STATES = (
-        'FAILED',
-        'TIMED_OUT',
-        'ABORTED',
+        "FAILED",
+        "TIMED_OUT",
+        "ABORTED",
     )
-    SUCCESS_STATES = ('SUCCEEDED',)
+    SUCCESS_STATES = ("SUCCEEDED",)
 
-    template_fields: Sequence[str] = ('execution_arn',)
+    template_fields: Sequence[str] = ("execution_arn",)
     template_ext: Sequence[str] = ()
-    ui_color = '#66c3ff'
+    ui_color = "#66c3ff"
 
     def __init__(
         self,
         *,
         execution_arn: str,
-        aws_conn_id: str = 'aws_default',
-        region_name: Optional[str] = None,
+        aws_conn_id: str = "aws_default",
+        region_name: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.execution_arn = execution_arn
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
-        self.hook: Optional[StepFunctionHook] = None
+        self.hook: StepFunctionHook | None = None
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         execution_status = self.get_hook().describe_execution(self.execution_arn)
-        state = execution_status['status']
-        output = json.loads(execution_status['output']) if 'output' in execution_status else None
+        state = execution_status["status"]
+        output = json.loads(execution_status["output"]) if "output" in execution_status else None
 
         if state in self.FAILURE_STATES:
-            raise AirflowException(f'Step Function sensor failed. State Machine Output: {output}')
+            raise AirflowException(f"Step Function sensor failed. State Machine Output: {output}")
 
         if state in self.INTERMEDIATE_STATES:
             return False
 
-        self.log.info('Doing xcom_push of output')
-        self.xcom_push(context, 'output', output)
+        self.log.info("Doing xcom_push of output")
+        self.xcom_push(context, "output", output)
         return True
 
     def get_hook(self) -> StepFunctionHook:

@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from unittest import TestCase, mock
 
@@ -59,7 +60,7 @@ class TestDataplexHook(TestCase):
             validate_only=None,
         )
 
-        parent = f'projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}'
+        parent = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}"
         mock_client.return_value.create_task.assert_called_once_with(
             request=dict(
                 parent=parent,
@@ -77,7 +78,7 @@ class TestDataplexHook(TestCase):
             project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, dataplex_task_id=DATAPLEX_TASK_ID
         )
 
-        name = f'projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/tasks/{DATAPLEX_TASK_ID}'
+        name = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/tasks/{DATAPLEX_TASK_ID}"
         mock_client.return_value.delete_task.assert_called_once_with(
             request=dict(
                 name=name,
@@ -91,7 +92,7 @@ class TestDataplexHook(TestCase):
     def test_list_tasks(self, mock_client):
         self.hook.list_tasks(project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID)
 
-        parent = f'projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}'
+        parent = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}"
         mock_client.return_value.list_tasks.assert_called_once_with(
             request=dict(
                 parent=parent,
@@ -111,7 +112,7 @@ class TestDataplexHook(TestCase):
             project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, dataplex_task_id=DATAPLEX_TASK_ID
         )
 
-        name = f'projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/tasks/{DATAPLEX_TASK_ID}'
+        name = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/tasks/{DATAPLEX_TASK_ID}"
         mock_client.return_value.get_task.assert_called_once_with(
             request=dict(
                 name=name,

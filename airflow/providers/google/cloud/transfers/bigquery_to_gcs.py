@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery to Google Cloud Storage operator."""
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Set, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import Conflict
 from google.api_core.retry import Retry
@@ -80,35 +82,35 @@ class BigQueryToGCSOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'source_project_dataset_table',
-        'destination_cloud_storage_uris',
-        'labels',
-        'impersonation_chain',
+        "source_project_dataset_table",
+        "destination_cloud_storage_uris",
+        "labels",
+        "impersonation_chain",
     )
     template_ext: Sequence[str] = ()
-    ui_color = '#e4e6f0'
+    ui_color = "#e4e6f0"
     operator_extra_links = (BigQueryTableLink(),)
 
     def __init__(
         self,
         *,
         source_project_dataset_table: str,
-        destination_cloud_storage_uris: List[str],
-        project_id: Optional[str] = None,
-        compression: str = 'NONE',
-        export_format: str = 'CSV',
-        field_delimiter: str = ',',
+        destination_cloud_storage_uris: list[str],
+        project_id: str | None = None,
+        compression: str = "NONE",
+        export_format: str = "CSV",
+        field_delimiter: str = ",",
         print_header: bool = True,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        labels: Optional[Dict] = None,
-        location: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        labels: dict | None = None,
+        location: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         result_retry: Retry = DEFAULT_RETRY,
-        result_timeout: Optional[float] = None,
-        job_id: Optional[str] = None,
+        result_timeout: float | None = None,
+        job_id: str | None = None,
         force_rerun: bool = False,
-        reattach_states: Optional[Set[str]] = None,
+        reattach_states: set[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -128,8 +130,8 @@ class BigQueryToGCSOperator(BaseOperator):
         self.result_timeout = result_timeout
         self.job_id = job_id
         self.force_rerun = force_rerun
-        self.reattach_states: Set[str] = reattach_states or set()
-        self.hook: Optional[BigQueryHook] = None
+        self.reattach_states: set[str] = reattach_states or set()
+        self.hook: BigQueryHook | None = None
 
     @staticmethod
     def _handle_job_error(job: ExtractJob) -> None:
@@ -140,36 +142,36 @@ class BigQueryToGCSOperator(BaseOperator):
         source_project, source_dataset, source_table = self.hook.split_tablename(
             table_input=self.source_project_dataset_table,
             default_project_id=self.project_id or self.hook.project_id,
-            var_name='source_project_dataset_table',
+            var_name="source_project_dataset_table",
         )
 
-        configuration: Dict[str, Any] = {
-            'extract': {
-                'sourceTable': {
-                    'projectId': source_project,
-                    'datasetId': source_dataset,
-                    'tableId': source_table,
+        configuration: dict[str, Any] = {
+            "extract": {
+                "sourceTable": {
+                    "projectId": source_project,
+                    "datasetId": source_dataset,
+                    "tableId": source_table,
                 },
-                'compression': self.compression,
-                'destinationUris': self.destination_cloud_storage_uris,
-                'destinationFormat': self.export_format,
+                "compression": self.compression,
+                "destinationUris": self.destination_cloud_storage_uris,
+                "destinationFormat": self.export_format,
             }
         }
 
         if self.labels:
-            configuration['labels'] = self.labels
+            configuration["labels"] = self.labels
 
-        if self.export_format == 'CSV':
+        if self.export_format == "CSV":
             # Only set fieldDelimiter and printHeader fields if using CSV.
             # Google does not like it if you set these fields for other export
             # formats.
-            configuration['extract']['fieldDelimiter'] = self.field_delimiter
-            configuration['extract']['printHeader'] = self.print_header
+            configuration["extract"]["fieldDelimiter"] = self.field_delimiter
+            configuration["extract"]["printHeader"] = self.print_header
         return configuration
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info(
-            'Executing extract of %s into: %s',
+            "Executing extract of %s into: %s",
             self.source_project_dataset_table,
             self.destination_cloud_storage_uris,
         )

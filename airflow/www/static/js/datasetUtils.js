@@ -33,12 +33,12 @@ export function openDatasetModal(dagId, summary = '', nextDatasets = [], error =
 
     const uriCell = document.createElement('td');
     const datasetLink = document.createElement('a');
-    datasetLink.href = `${datasetsUrl}?dataset_uri=${encodeURIComponent(d.id)}`;
+    datasetLink.href = `${datasetsUrl}?uri=${encodeURIComponent(d.uri)}`;
     datasetLink.innerText = d.uri;
     uriCell.append(datasetLink);
 
     const timeCell = document.createElement('td');
-    if (d.created_at) timeCell.append(isoDateToTimeEl(d.created_at));
+    if (d.lastUpdate) timeCell.append(isoDateToTimeEl(d.lastUpdate));
 
     row.append(uriCell);
     row.append(timeCell);

@@ -20,6 +20,7 @@ Classes for interacting with Kubernetes API.
 This module is deprecated. Please use :mod:`kubernetes.client.models.V1ResourceRequirements`
 and :mod:`kubernetes.client.models.V1ContainerPort`.
 """
+from __future__ import annotations
 
 import warnings
 
@@ -39,13 +40,13 @@ class Resources:
     """backwards compat for Resources."""
 
     __slots__ = (
-        'request_memory',
-        'request_cpu',
-        'limit_memory',
-        'limit_cpu',
-        'limit_gpu',
-        'request_ephemeral_storage',
-        'limit_ephemeral_storage',
+        "request_memory",
+        "request_cpu",
+        "limit_memory",
+        "limit_cpu",
+        "limit_gpu",
+        "request_ephemeral_storage",
+        "limit_ephemeral_storage",
     )
 
     """
@@ -83,15 +84,15 @@ class Resources:
         @rtype: object
         """
         limits_raw = {
-            'cpu': self.limit_cpu,
-            'memory': self.limit_memory,
-            'nvidia.com/gpu': self.limit_gpu,
-            'ephemeral-storage': self.limit_ephemeral_storage,
+            "cpu": self.limit_cpu,
+            "memory": self.limit_memory,
+            "nvidia.com/gpu": self.limit_gpu,
+            "ephemeral-storage": self.limit_ephemeral_storage,
         }
         requests_raw = {
-            'cpu': self.request_cpu,
-            'memory': self.request_memory,
-            'ephemeral-storage': self.request_ephemeral_storage,
+            "cpu": self.request_cpu,
+            "memory": self.request_memory,
+            "ephemeral-storage": self.request_ephemeral_storage,
         }
 
         limits = {k: v for k, v in limits_raw.items() if v}
@@ -103,7 +104,7 @@ class Resources:
 class Port:
     """POD port"""
 
-    __slots__ = ('name', 'container_port')
+    __slots__ = ("name", "container_port")
 
     def __init__(self, name=None, container_port=None):
         """Creates port"""
@@ -111,9 +112,5 @@ class Port:
         self.container_port = container_port
 
     def to_k8s_client_obj(self):
-        """
-        Converts to k8s object.
-
-        :rtype: object
-        """
+        """Converts to k8s object."""
         return k8s.V1ContainerPort(name=self.name, container_port=self.container_port)

@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
@@ -46,7 +47,7 @@ class S3ToFTPOperator(BaseOperator):
         establishing a connection to the FTP server.
     """
 
-    template_fields: Sequence[str] = ('s3_bucket', 's3_key', 'ftp_path')
+    template_fields: Sequence[str] = ("s3_bucket", "s3_key", "ftp_path")
 
     def __init__(
         self,
@@ -54,8 +55,8 @@ class S3ToFTPOperator(BaseOperator):
         s3_bucket,
         s3_key,
         ftp_path,
-        aws_conn_id='aws_default',
-        ftp_conn_id='ftp_default',
+        aws_conn_id="aws_default",
+        ftp_conn_id="ftp_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -65,15 +66,15 @@ class S3ToFTPOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.ftp_conn_id = ftp_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         s3_hook = S3Hook(self.aws_conn_id)
         ftp_hook = FTPHook(ftp_conn_id=self.ftp_conn_id)
 
         s3_obj = s3_hook.get_key(self.s3_key, self.s3_bucket)
 
         with NamedTemporaryFile() as local_tmp_file:
-            self.log.info('Downloading file from %s', self.s3_key)
+            self.log.info("Downloading file from %s", self.s3_key)
             s3_obj.download_fileobj(local_tmp_file)
             local_tmp_file.seek(0)
             ftp_hook.store_file(self.ftp_path, local_tmp_file.name)
-            self.log.info('File stored in %s', {self.ftp_path})
+            self.log.info("File stored in %s", {self.ftp_path})

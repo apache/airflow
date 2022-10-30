@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 import os
@@ -44,7 +45,7 @@ def provide_sftp_default_connection(key_file_path: str):
         host=creds.get("host", None),
         login=creds.get("login", None),
         password=creds.get("password", None),
-        extra=json.dumps(creds.get('extra', None)),
+        extra=json.dumps(creds.get("extra", None)),
     )
     with patch_environ({f"AIRFLOW_CONN_{conn.conn_id.upper()}": conn.get_uri()}):
         yield

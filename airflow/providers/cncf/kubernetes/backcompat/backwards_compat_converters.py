@@ -15,8 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Executes task in a Kubernetes POD"""
-
-from typing import List
+from __future__ import annotations
 
 from kubernetes.client import ApiClient, models as k8s
 
@@ -63,20 +62,6 @@ def convert_volume_mount(volume_mount) -> k8s.V1VolumeMount:
     return _convert_kube_model_object(volume_mount, k8s.V1VolumeMount)
 
 
-def convert_resources(resources) -> k8s.V1ResourceRequirements:
-    """
-    Converts an airflow Resources object into a k8s.V1ResourceRequirements
-
-    :param resources:
-    :return: k8s.V1ResourceRequirements
-    """
-    if isinstance(resources, dict):
-        from airflow.providers.cncf.kubernetes.backcompat.pod import Resources
-
-        resources = Resources(**resources)
-    return _convert_kube_model_object(resources, k8s.V1ResourceRequirements)
-
-
 def convert_port(port) -> k8s.V1ContainerPort:
     """
     Converts an airflow Port object into a k8s.V1ContainerPort
@@ -87,7 +72,7 @@ def convert_port(port) -> k8s.V1ContainerPort:
     return _convert_kube_model_object(port, k8s.V1ContainerPort)
 
 
-def convert_env_vars(env_vars) -> List[k8s.V1EnvVar]:
+def convert_env_vars(env_vars) -> list[k8s.V1EnvVar]:
     """
     Converts a dictionary into a list of env_vars
 
@@ -115,7 +100,7 @@ def convert_pod_runtime_info_env(pod_runtime_info_envs) -> k8s.V1EnvVar:
     return _convert_kube_model_object(pod_runtime_info_envs, k8s.V1EnvVar)
 
 
-def convert_image_pull_secrets(image_pull_secrets) -> List[k8s.V1LocalObjectReference]:
+def convert_image_pull_secrets(image_pull_secrets) -> list[k8s.V1LocalObjectReference]:
     """
     Converts a PodRuntimeInfoEnv into an k8s.V1EnvVar
 

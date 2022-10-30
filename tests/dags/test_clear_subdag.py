@@ -14,8 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-#
+from __future__ import annotations
 
 import datetime
 import warnings
@@ -24,11 +23,13 @@ from airflow.models import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.subdag import SubDagOperator
 
+#
+
 
 def create_subdag_opt(main_dag):
     subdag_name = "daily_job"
     subdag = DAG(
-        dag_id='.'.join([dag_name, subdag_name]),
+        dag_id=".".join([dag_name, subdag_name]),
         start_date=start_date,
         schedule=None,
         max_active_tasks=2,

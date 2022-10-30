@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -74,18 +76,18 @@ class HttpSensor(BaseSensorOperator):
         ``socket.TCP_KEEPINTVL``)
     """
 
-    template_fields: Sequence[str] = ('endpoint', 'request_params', 'headers')
+    template_fields: Sequence[str] = ("endpoint", "request_params", "headers")
 
     def __init__(
         self,
         *,
         endpoint: str,
-        http_conn_id: str = 'http_default',
-        method: str = 'GET',
-        request_params: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, Any]] = None,
-        response_check: Optional[Callable[..., bool]] = None,
-        extra_options: Optional[Dict[str, Any]] = None,
+        http_conn_id: str = "http_default",
+        method: str = "GET",
+        request_params: dict[str, Any] | None = None,
+        headers: dict[str, Any] | None = None,
+        response_check: Callable[..., bool] | None = None,
+        extra_options: dict[str, Any] | None = None,
         tcp_keep_alive: bool = True,
         tcp_keep_alive_idle: int = 120,
         tcp_keep_alive_count: int = 20,
@@ -105,7 +107,7 @@ class HttpSensor(BaseSensorOperator):
         self.tcp_keep_alive_count = tcp_keep_alive_count
         self.tcp_keep_alive_interval = tcp_keep_alive_interval
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         from airflow.utils.operator_helpers import determine_kwargs
 
         hook = HttpHook(
@@ -117,7 +119,7 @@ class HttpSensor(BaseSensorOperator):
             tcp_keep_alive_interval=self.tcp_keep_alive_interval,
         )
 
-        self.log.info('Poking: %s', self.endpoint)
+        self.log.info("Poking: %s", self.endpoint)
         try:
             response = hook.run(
                 self.endpoint,

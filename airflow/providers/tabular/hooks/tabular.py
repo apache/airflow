@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Any, Dict, Tuple
+from typing import Any
 
 import requests
 from requests import HTTPError
@@ -36,13 +37,13 @@ class TabularHook(BaseHook):
         which refers to the information to connect to the Tabular OAuth service.
     """
 
-    conn_name_attr = 'tabular_conn_id'
+    conn_name_attr = "tabular_conn_id"
     default_conn_name = "tabular_default"
     conn_type = "tabular"
     hook_name = "Tabular"
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ["schema", "port"],
@@ -62,7 +63,7 @@ class TabularHook(BaseHook):
         super().__init__()
         self.conn_id = tabular_conn_id
 
-    def test_connection(self) -> Tuple[bool, str]:
+    def test_connection(self) -> tuple[bool, str]:
         """Test the Tabular connection."""
         try:
             self.get_conn()
@@ -76,7 +77,7 @@ class TabularHook(BaseHook):
         """Obtain a short-lived access token via a client_id and client_secret."""
         conn = self.get_connection(self.conn_id)
         base_url = conn.host if conn.host else DEFAULT_TABULAR_URL
-        base_url = base_url.rstrip('/')
+        base_url = base_url.rstrip("/")
         client_id = conn.login
         client_secret = conn.password
         data = {"client_id": client_id, "client_secret": client_secret, "grant_type": "client_credentials"}
@@ -87,4 +88,4 @@ class TabularHook(BaseHook):
         return response.json()["access_token"]
 
     def get_token_macro(self):
-        return f'{{{{ conn.{self.conn_id}.get_hook().get_conn() }}}}'
+        return f"{{{{ conn.{self.conn_id}.get_hook().get_conn() }}}}"

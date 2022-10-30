@@ -15,31 +15,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import os
 import shutil
 import tempfile
-import unittest
 from unittest.mock import patch
 
 from airflow import settings
 from airflow.utils.file import find_path_from_directory
 
 
-class TestIgnorePluginFile(unittest.TestCase):
+class TestIgnorePluginFile:
     """
     Test that the .airflowignore work and whether the file is properly ignored.
     """
 
-    def setUp(self):
+    def setup_method(self):
         """
         Make tmp folder and files that should be ignored. And set base path.
         """
         # Temp dir name includes an ignored token "not", but it shouldn't matter since it's in the base path.
         self.test_dir = tempfile.mkdtemp(prefix="onotole")
-        self.test_file = os.path.join(self.test_dir, 'test_file.txt')
-        self.plugin_folder_path = os.path.join(self.test_dir, 'test_ignore')
+        self.test_file = os.path.join(self.test_dir, "test_file.txt")
+        self.plugin_folder_path = os.path.join(self.test_dir, "test_ignore")
         os.mkdir(self.plugin_folder_path)
         os.mkdir(os.path.join(self.plugin_folder_path, "subdir1"))
         os.mkdir(os.path.join(self.plugin_folder_path, "subdir2"))
@@ -61,10 +60,10 @@ class TestIgnorePluginFile(unittest.TestCase):
             with open(os.path.join(self.plugin_folder_path, file_path), "w") as f:
                 f.write(content)
         self.mock_plugins_folder = patch.object(
-            settings, 'PLUGINS_FOLDER', return_value=self.plugin_folder_path
+            settings, "PLUGINS_FOLDER", return_value=self.plugin_folder_path
         )
 
-    def tearDown(self):
+    def teardown_method(self):
         """
         Delete tmp folder
         """
@@ -77,22 +76,22 @@ class TestIgnorePluginFile(unittest.TestCase):
 
         detected_files = set()
         should_ignore_files = {
-            'test_notload.py',
-            'test_notload_sub.py',
-            'test_noneload_sub1.py',
-            'test_shouldignore.py',
-            '.airflowignore_glob',
+            "test_notload.py",
+            "test_notload_sub.py",
+            "test_noneload_sub1.py",
+            "test_shouldignore.py",
+            ".airflowignore_glob",
         }
         should_not_ignore_files = {
-            'test_load.py',
-            'test_load_sub1.py',
+            "test_load.py",
+            "test_load_sub1.py",
         }
         ignore_list_file = ".airflowignore"
         for file_path in find_path_from_directory(self.plugin_folder_path, ignore_list_file):
             if not os.path.isfile(file_path):
                 continue
             _, file_ext = os.path.splitext(os.path.split(file_path)[-1])
-            if file_ext != '.py':
+            if file_ext != ".py":
                 continue
             detected_files.add(os.path.basename(file_path))
         assert detected_files == should_not_ignore_files
@@ -105,21 +104,21 @@ class TestIgnorePluginFile(unittest.TestCase):
 
         detected_files = set()
         should_ignore_files = {
-            'test_notload.py',
-            'test_notload_sub.py',
-            'test_noneload_sub1.py',
-            'test_shouldignore.py',
+            "test_notload.py",
+            "test_notload_sub.py",
+            "test_noneload_sub1.py",
+            "test_shouldignore.py",
         }
         should_not_ignore_files = {
-            'test_load.py',
-            'test_load_sub1.py',
+            "test_load.py",
+            "test_load_sub1.py",
         }
         ignore_list_file = ".airflowignore_glob"
         for file_path in find_path_from_directory(self.plugin_folder_path, ignore_list_file, "glob"):
             if not os.path.isfile(file_path):
                 continue
             _, file_ext = os.path.splitext(os.path.split(file_path)[-1])
-            if file_ext != '.py':
+            if file_ext != ".py":
                 continue
             detected_files.add(os.path.basename(file_path))
         assert detected_files == should_not_ignore_files

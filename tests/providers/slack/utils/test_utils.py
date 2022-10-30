@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import pytest
 
@@ -56,7 +57,30 @@ class TestConnectionExtra:
             conn_id="test-conn-id",
             extra={"arg1": "foo", f"extra__{conn_type}__arg1": "bar"},
         )
-        assert extra_config.get("arg1") == "bar"
+        assert extra_config.get("arg1") == "foo"
+
+    @pytest.mark.parametrize("conn_type", ["slack", "slack_incoming_webhook"])
+    @pytest.mark.parametrize("empty_value", [None, ""])
+    def test_prefixed_extra_created_in_ui_connections(self, conn_type, empty_value):
+        """Test that empty strings or None values in UI ignored."""
+        extra_config = ConnectionExtraConfig(
+            conn_type=conn_type,
+            conn_id="test-conn-id",
+            extra={
+                f"extra__{conn_type}__arg_missing": empty_value,
+                "arg_extra": "bar",
+                f"extra__{conn_type}__arg_extra": empty_value,
+            },
+        )
+        error_message = (
+            r"Couldn't find '.*' or '.*' in Connection \('.*'\) Extra and no default value specified\."
+        )
+        with pytest.raises(KeyError, match=error_message):
+            # No fallback should raise an error
+            extra_config.get("arg_missing")
+
+        assert extra_config.get("arg_missing", default="foo") == "foo"
+        assert extra_config.get("arg_extra") == "bar"
 
     def test_get_parse_int(self):
         extra_config = ConnectionExtraConfig(
@@ -68,16 +92,3 @@ class TestConnectionExtra:
         )
         assert extra_config.getint("int_arg_1") == 42
         assert extra_config.getint("int_arg_2") == 9000
-
-    def test_get_parse_imports(self):
-        extra_config = ConnectionExtraConfig(
-            conn_type="slack",
-            extra={
-                "imports_arg_1": "builtins.str",
-                "imports_arg_2": "builtins.str,builtins.dict",
-                "imports_arg_3": " builtins.str , builtins.dict ",
-            },
-        )
-        assert extra_config.getimports("imports_arg_1") == ['']
-        assert extra_config.getimports("imports_arg_2") == ['', {}]
-        assert extra_config.getimports("imports_arg_3") == ['', {}]

@@ -15,12 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import fnmatch
 import os
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Set, Union
+from typing import TYPE_CHECKING, Callable, Sequence
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -70,17 +71,17 @@ class S3KeySensor(BaseSensorOperator):
                  CA cert bundle than the one used by botocore.
     """
 
-    template_fields: Sequence[str] = ('bucket_key', 'bucket_name')
+    template_fields: Sequence[str] = ("bucket_key", "bucket_name")
 
     def __init__(
         self,
         *,
-        bucket_key: Union[str, List[str]],
-        bucket_name: Optional[str] = None,
+        bucket_key: str | list[str],
+        bucket_name: str | None = None,
         wildcard_match: bool = False,
-        check_fn: Optional[Callable[..., bool]] = None,
-        aws_conn_id: str = 'aws_default',
-        verify: Optional[Union[str, bool]] = None,
+        check_fn: Callable[..., bool] | None = None,
+        aws_conn_id: str = "aws_default",
+        verify: str | bool | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -90,11 +91,11 @@ class S3KeySensor(BaseSensorOperator):
         self.check_fn = check_fn
         self.aws_conn_id = aws_conn_id
         self.verify = verify
-        self.hook: Optional[S3Hook] = None
+        self.hook: S3Hook | None = None
 
     def _check_key(self, key):
-        bucket_name, key = S3Hook.get_s3_bucket_key(self.bucket_name, key, 'bucket_name', 'bucket_key')
-        self.log.info('Poking for key : s3://%s/%s', bucket_name, key)
+        bucket_name, key = S3Hook.get_s3_bucket_key(self.bucket_name, key, "bucket_name", "bucket_key")
+        self.log.info("Poking for key : s3://%s/%s", bucket_name, key)
 
         """
         Set variable `files` which contains a list of dict which contains only the size
@@ -104,26 +105,26 @@ class S3KeySensor(BaseSensorOperator):
         }]
         """
         if self.wildcard_match:
-            prefix = re.split(r'[\[\*\?]', key, 1)[0]
+            prefix = re.split(r"[\[\*\?]", key, 1)[0]
             keys = self.get_hook().get_file_metadata(prefix, bucket_name)
-            key_matches = [k for k in keys if fnmatch.fnmatch(k['Key'], key)]
+            key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
             if len(key_matches) == 0:
                 return False
 
             # Reduce the set of metadata to size only
-            files = list(map(lambda f: {'Size': f['Size']}, key_matches))
+            files = list(map(lambda f: {"Size": f["Size"]}, key_matches))
         else:
             obj = self.get_hook().head_object(key, bucket_name)
             if obj is None:
                 return False
-            files = [{'Size': obj['ContentLength']}]
+            files = [{"Size": obj["ContentLength"]}]
 
         if self.check_fn is not None:
             return self.check_fn(files)
 
         return True
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         return all(self._check_key(key) for key in self.bucket_key)
 
     def get_hook(self) -> S3Hook:
@@ -173,18 +174,18 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         when this happens. If false an error will be raised.
     """
 
-    template_fields: Sequence[str] = ('bucket_name', 'prefix')
+    template_fields: Sequence[str] = ("bucket_name", "prefix")
 
     def __init__(
         self,
         *,
         bucket_name: str,
         prefix: str,
-        aws_conn_id: str = 'aws_default',
-        verify: Optional[Union[bool, str]] = None,
+        aws_conn_id: str = "aws_default",
+        verify: bool | str | None = None,
         inactivity_period: float = 60 * 60,
         min_objects: int = 1,
-        previous_objects: Optional[Set[str]] = None,
+        previous_objects: set[str] | None = None,
         allow_delete: bool = True,
         **kwargs,
     ) -> None:
@@ -202,14 +203,14 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         self.allow_delete = allow_delete
         self.aws_conn_id = aws_conn_id
         self.verify = verify
-        self.last_activity_time: Optional[datetime] = None
+        self.last_activity_time: datetime | None = None
 
     @cached_property
     def hook(self):
         """Returns S3Hook."""
         return S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
-    def is_keys_unchanged(self, current_objects: Set[str]) -> bool:
+    def is_keys_unchanged(self, current_objects: set[str]) -> bool:
         """
         Checks whether new objects have been uploaded and the inactivity_period
         has passed and updates the state of the sensor accordingly.
@@ -273,5 +274,5 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
             return False
         return False
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         return self.is_keys_unchanged(set(self.hook.list_keys(self.bucket_name, prefix=self.prefix)))

@@ -14,8 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import datetime
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.asb import AdminClientHook, MessageHook
@@ -55,7 +57,7 @@ class AzureServiceBusCreateQueueOperator(BaseOperator):
         max_delivery_count: int = 10,
         dead_lettering_on_message_expiration: bool = True,
         enable_batched_operations: bool = True,
-        azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -65,7 +67,7 @@ class AzureServiceBusCreateQueueOperator(BaseOperator):
         self.enable_batched_operations = enable_batched_operations
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         """Creates Queue in Azure Service Bus namespace, by connecting to Service Bus Admin client in hook"""
         hook = AdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
 
@@ -102,9 +104,9 @@ class AzureServiceBusSendMessageOperator(BaseOperator):
         self,
         *,
         queue_name: str,
-        message: Union[str, List[str]],
+        message: str | list[str],
         batch: bool = False,
-        azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -113,7 +115,7 @@ class AzureServiceBusSendMessageOperator(BaseOperator):
         self.message = message
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         """
         Sends Message to the specific queue in Service Bus namespace, by
         connecting to Service Bus  client
@@ -147,7 +149,7 @@ class AzureServiceBusReceiveMessageOperator(BaseOperator):
         self,
         *,
         queue_name: str,
-        azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
         max_message_count: int = 10,
         max_wait_time: float = 5,
         **kwargs,
@@ -158,7 +160,7 @@ class AzureServiceBusReceiveMessageOperator(BaseOperator):
         self.max_message_count = max_message_count
         self.max_wait_time = max_wait_time
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         """
         Receive Message in specific queue in Service Bus namespace,
         by connecting to Service Bus client
@@ -192,14 +194,14 @@ class AzureServiceBusDeleteQueueOperator(BaseOperator):
         self,
         *,
         queue_name: str,
-        azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.queue_name = queue_name
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         """Delete Queue in Service Bus namespace, by connecting to Service Bus Admin client"""
         # Create the hook
         hook = AdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
@@ -258,21 +260,21 @@ class AzureServiceBusTopicCreateOperator(BaseOperator):
         self,
         *,
         topic_name: str,
-        azure_service_bus_conn_id: str = 'azure_service_bus_default',
-        default_message_time_to_live: Optional[Union[datetime.timedelta, str]] = None,
-        max_size_in_megabytes: Optional[int] = None,
-        requires_duplicate_detection: Optional[bool] = None,
-        duplicate_detection_history_time_window: Optional[Union[datetime.timedelta, str]] = None,
-        enable_batched_operations: Optional[bool] = None,
-        size_in_bytes: Optional[int] = None,
-        filtering_messages_before_publishing: Optional[bool] = None,
-        authorization_rules: Optional[List["AuthorizationRule"]] = None,
-        support_ordering: Optional[bool] = None,
-        auto_delete_on_idle: Optional[Union[datetime.timedelta, str]] = None,
-        enable_partitioning: Optional[bool] = None,
-        enable_express: Optional[bool] = None,
-        user_metadata: Optional[str] = None,
-        max_message_size_in_kilobytes: Optional[int] = None,
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
+        default_message_time_to_live: datetime.timedelta | str | None = None,
+        max_size_in_megabytes: int | None = None,
+        requires_duplicate_detection: bool | None = None,
+        duplicate_detection_history_time_window: datetime.timedelta | str | None = None,
+        enable_batched_operations: bool | None = None,
+        size_in_bytes: int | None = None,
+        filtering_messages_before_publishing: bool | None = None,
+        authorization_rules: list[AuthorizationRule] | None = None,
+        support_ordering: bool | None = None,
+        auto_delete_on_idle: datetime.timedelta | str | None = None,
+        enable_partitioning: bool | None = None,
+        enable_express: bool | None = None,
+        user_metadata: str | None = None,
+        max_message_size_in_kilobytes: int | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -293,7 +295,7 @@ class AzureServiceBusTopicCreateOperator(BaseOperator):
         self.user_metadata = user_metadata
         self.max_message_size_in_kilobytes = max_message_size_in_kilobytes
 
-    def execute(self, context: "Context") -> str:
+    def execute(self, context: Context) -> str:
         """Creates Topic in Service Bus namespace, by connecting to Service Bus Admin client"""
         if self.topic_name is None:
             raise TypeError("Topic name cannot be None.")
@@ -376,18 +378,18 @@ class AzureServiceBusSubscriptionCreateOperator(BaseOperator):
         *,
         topic_name: str,
         subscription_name: str,
-        azure_service_bus_conn_id: str = 'azure_service_bus_default',
-        lock_duration: Optional[Union[datetime.timedelta, str]] = None,
-        requires_session: Optional[bool] = None,
-        default_message_time_to_live: Optional[Union[datetime.timedelta, str]] = None,
-        dead_lettering_on_message_expiration: Optional[bool] = True,
-        dead_lettering_on_filter_evaluation_exceptions: Optional[bool] = None,
-        max_delivery_count: Optional[int] = 10,
-        enable_batched_operations: Optional[bool] = True,
-        forward_to: Optional[str] = None,
-        user_metadata: Optional[str] = None,
-        forward_dead_lettered_messages_to: Optional[str] = None,
-        auto_delete_on_idle: Optional[Union[datetime.timedelta, str]] = None,
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
+        lock_duration: datetime.timedelta | str | None = None,
+        requires_session: bool | None = None,
+        default_message_time_to_live: datetime.timedelta | str | None = None,
+        dead_lettering_on_message_expiration: bool | None = True,
+        dead_lettering_on_filter_evaluation_exceptions: bool | None = None,
+        max_delivery_count: int | None = 10,
+        enable_batched_operations: bool | None = True,
+        forward_to: str | None = None,
+        user_metadata: str | None = None,
+        forward_dead_lettered_messages_to: str | None = None,
+        auto_delete_on_idle: datetime.timedelta | str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -406,7 +408,7 @@ class AzureServiceBusSubscriptionCreateOperator(BaseOperator):
         self.auto_delete_on_idle = auto_delete_on_idle
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         """Creates Subscription in Service Bus namespace, by connecting to Service Bus Admin client"""
         if self.subscription_name is None:
             raise TypeError("Subscription name cannot be None.")
@@ -464,10 +466,10 @@ class AzureServiceBusUpdateSubscriptionOperator(BaseOperator):
         *,
         topic_name: str,
         subscription_name: str,
-        max_delivery_count: Optional[int] = None,
-        dead_lettering_on_message_expiration: Optional[bool] = None,
-        enable_batched_operations: Optional[bool] = None,
-        azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        max_delivery_count: int | None = None,
+        dead_lettering_on_message_expiration: bool | None = None,
+        enable_batched_operations: bool | None = None,
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -478,7 +480,7 @@ class AzureServiceBusUpdateSubscriptionOperator(BaseOperator):
         self.enable_batched_operations = enable_batched_operations
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         """Updates Subscription properties, by connecting to Service Bus Admin client"""
         hook = AdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
 
@@ -525,9 +527,9 @@ class ASBReceiveSubscriptionMessageOperator(BaseOperator):
         *,
         topic_name: str,
         subscription_name: str,
-        max_message_count: Optional[int] = 1,
-        max_wait_time: Optional[float] = 5,
-        azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        max_message_count: int | None = 1,
+        max_wait_time: float | None = 5,
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -537,7 +539,7 @@ class ASBReceiveSubscriptionMessageOperator(BaseOperator):
         self.max_wait_time = max_wait_time
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         """
         Receive Message in specific queue in Service Bus namespace,
         by connecting to Service Bus client
@@ -573,7 +575,7 @@ class AzureServiceBusSubscriptionDeleteOperator(BaseOperator):
         *,
         topic_name: str,
         subscription_name: str,
-        azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -581,7 +583,7 @@ class AzureServiceBusSubscriptionDeleteOperator(BaseOperator):
         self.subscription_name = subscription_name
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         """Delete topic subscription in Service Bus namespace, by connecting to Service Bus Admin client"""
         # Create the hook
         hook = AdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
@@ -610,14 +612,14 @@ class AzureServiceBusTopicDeleteOperator(BaseOperator):
         self,
         *,
         topic_name: str,
-        azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.topic_name = topic_name
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         """Delete topic in Service Bus namespace, by connecting to Service Bus Admin client"""
         if self.topic_name is None:
             raise TypeError("Topic name cannot be None.")

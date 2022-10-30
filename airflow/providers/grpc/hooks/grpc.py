@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """GRPC Hook"""
-from typing import Any, Callable, Dict, Generator, List, Optional
+from __future__ import annotations
+
+from typing import Any, Callable, Generator
 
 import grpc
 from google import auth as google_auth
@@ -45,35 +46,31 @@ class GrpcHook(BaseHook):
         A callable that accepts the connection as its only arg.
     """
 
-    conn_name_attr = 'grpc_conn_id'
-    default_conn_name = 'grpc_default'
-    conn_type = 'grpc'
-    hook_name = 'GRPC Connection'
+    conn_name_attr = "grpc_conn_id"
+    default_conn_name = "grpc_default"
+    conn_type = "grpc"
+    hook_name = "GRPC Connection"
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
 
         return {
-            "extra__grpc__auth_type": StringField(
-                lazy_gettext('Grpc Auth Type'), widget=BS3TextFieldWidget()
+            "auth_type": StringField(lazy_gettext("Grpc Auth Type"), widget=BS3TextFieldWidget()),
+            "credential_pem_file": StringField(
+                lazy_gettext("Credential Keyfile Path"), widget=BS3TextFieldWidget()
             ),
-            "extra__grpc__credential_pem_file": StringField(
-                lazy_gettext('Credential Keyfile Path'), widget=BS3TextFieldWidget()
-            ),
-            "extra__grpc__scopes": StringField(
-                lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget()
-            ),
+            "scopes": StringField(lazy_gettext("Scopes (comma separated)"), widget=BS3TextFieldWidget()),
         }
 
     def __init__(
         self,
         grpc_conn_id: str = default_conn_name,
-        interceptors: Optional[List[Callable]] = None,
-        custom_connection_func: Optional[Callable] = None,
+        interceptors: list[Callable] | None = None,
+        custom_connection_func: Callable | None = None,
     ) -> None:
         super().__init__()
         self.grpc_conn_id = grpc_conn_id
@@ -125,7 +122,7 @@ class GrpcHook(BaseHook):
         return channel
 
     def run(
-        self, stub_class: Callable, call_func: str, streaming: bool = False, data: Optional[dict] = None
+        self, stub_class: Callable, call_func: str, streaming: bool = False, data: dict | None = None
     ) -> Generator:
         """Call gRPC function and yield response to caller"""
         if data is None:
@@ -150,12 +147,17 @@ class GrpcHook(BaseHook):
                 )
                 raise ex
 
-    def _get_field(self, field_name: str) -> str:
-        """
-        Fetches a field from extras, and returns it. This is some Airflow
-        magic. The grpc hook type adds custom UI elements
-        to the hook page, which allow admins to specify scopes, credential pem files, etc.
-        They get formatted as shown below.
-        """
-        full_field_name = f'extra__grpc__{field_name}'
-        return self.extras[full_field_name]
+    def _get_field(self, field_name: str):
+        """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
+        backcompat_prefix = "extra__grpc__"
+        if field_name.startswith("extra_"):
+            raise ValueError(
+                f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
+                "when using this method."
+            )
+        if field_name in self.extras:
+            return self.extras[field_name]
+        prefixed_name = f"{backcompat_prefix}{field_name}"
+        if prefixed_name in self.extras:
+            return self.extras[prefixed_name]
+        raise KeyError(f"Param {field_name} not found in extra dict")

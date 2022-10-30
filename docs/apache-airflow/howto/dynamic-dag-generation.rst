@@ -74,10 +74,10 @@ Then you can import and use the ``ALL_TASKS`` constant in all your DAGs like tha
         schedule=None,
         start_date=datetime(2021, 1, 1),
         catchup=False,
-    ) as dag:
+    ):
         for task in ALL_TASKS:
             # create your operators and relations here
-            pass
+            ...
 
 Don't forget that in this case you need to add empty ``__init__.py`` file in the ``my_company_utils`` folder
 and you should add the ``my_company_utils/.*`` line to ``.airflowignore`` file (if using the regexp ignore
@@ -107,10 +107,11 @@ the meta-data file in your DAG easily. The location of the file to read can be f
     # Configuration dict is available here
 
 
-Dynamic DAGs with ``globals()``
-...............................
-You can dynamically generate DAGs by working with ``globals()``.
-As long as a ``DAG`` object in ``globals()`` is created, Airflow will load it.
+Registering dynamic DAGs
+........................
+
+You can dynamically generate DAGs when using the ``@dag`` decorator or the ``with DAG(..)`` context manager
+and Airflow will automatically register them.
 
 .. code-block:: python
 
@@ -133,13 +134,18 @@ As long as a ``DAG`` object in ``globals()`` is created, Airflow will load it.
 
             print_message(config["message"])
 
-        globals()[dag_id] = dynamic_generated_dag()
+        dynamic_generated_dag()
 
 The code below will generate a DAG for each config: ``dynamic_generated_dag_config1`` and ``dynamic_generated_dag_config2``.
-Each of them can run separately with related configuration
+Each of them can run separately with related configuration.
 
-.. warning::
-  Using this practice, pay attention to "late binding" behaviour in Python loops. See `that GitHub discussion <https://github.com/apache/airflow/discussions/21278#discussioncomment-2103559>`_ for more details
+If you do not wish to have DAGs auto-registered, you can disable the behavior by setting ``auto_register=False`` on your DAG.
+
+.. versionchanged:: 2.4
+
+    As of version 2.4 DAGs that are created by calling a ``@dag`` decorated function (or that are used in the
+    ``with DAG(...)`` context manager are automatically registered, and no longer need to be stored in a
+    global variable.
 
 
 Optimizing DAG parsing delays during execution
@@ -199,5 +205,5 @@ of the context are set to ``None``.
       if current_dag_id is not None and current_dag_id != dag_id:
           continue  # skip generation of non-selected DAG
 
-      dag = DAG(dag_id=dag_id, ...)
-      globals()[dag_id] = dag
+      with DAG(dag_id=dag_id, ...):
+          ...

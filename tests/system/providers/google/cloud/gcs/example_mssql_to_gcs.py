@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -28,16 +30,16 @@ DAG_ID = "example_mssql_to_gcs"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
-FILENAME = 'test_file'
+FILENAME = "test_file"
 
 SQL_QUERY = "USE airflow SELECT * FROM Country;"
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example', 'mssql'],
+    tags=["example", "mssql"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
@@ -45,12 +47,12 @@ with models.DAG(
 
     # [START howto_operator_mssql_to_gcs]
     upload_mssql_to_gcs = MSSQLToGCSOperator(
-        task_id='mssql_to_gcs',
-        mssql_conn_id='airflow_mssql',
+        task_id="mssql_to_gcs",
+        mssql_conn_id="airflow_mssql",
         sql=SQL_QUERY,
         bucket=BUCKET_NAME,
         filename=FILENAME,
-        export_format='csv',
+        export_format="csv",
     )
     # [END howto_operator_mssql_to_gcs]
 

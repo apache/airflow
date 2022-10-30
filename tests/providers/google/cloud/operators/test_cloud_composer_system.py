@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """System tests for Google Cloud Composer operators"""
+from __future__ import annotations
+
 import pytest
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_CLOUD_COMPOSER
@@ -37,7 +39,7 @@ class CloudComposerSystemTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_CLOUD_COMPOSER)
     def test_run_example_dag_composer(self):
-        self.run_dag('composer_dag1', CLOUD_DAG_FOLDER)
+        self.run_dag("composer_dag1", CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_CLOUD_COMPOSER)
     def tearDown(self):

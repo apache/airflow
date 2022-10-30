@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that displays interactions with Google Cloud Build.
 
@@ -25,13 +24,13 @@ This DAG relies on the following OS environment variables:
 * GCP_CLOUD_BUILD_ARCHIVE_URL - Path to the zipped source in Google Cloud Storage.
     This object must be a gzipped archive file (.tar.gz) containing source to build.
 * GCP_CLOUD_BUILD_REPOSITORY_NAME - Name of the Cloud Source Repository.
-
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, cast
+from typing import Any, cast
 
 import yaml
 from future.backports.urllib.parse import urlparse
@@ -59,7 +58,7 @@ DAG_ID = "example_gcp_cloud_build"
 BUCKET_NAME_SRC = f"bucket-src-{DAG_ID}-{ENV_ID}"
 
 GCP_SOURCE_ARCHIVE_URL = os.environ.get("GCP_CLOUD_BUILD_ARCHIVE_URL", f"gs://{BUCKET_NAME_SRC}/file.tar.gz")
-GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repository"
+GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repo"
 
 GCP_SOURCE_ARCHIVE_URL_PARTS = urlparse(GCP_SOURCE_ARCHIVE_URL)
 GCP_SOURCE_BUCKET_NAME = GCP_SOURCE_ARCHIVE_URL_PARTS.netloc
@@ -70,21 +69,21 @@ FILE_LOCAL_PATH = str(Path(CURRENT_FOLDER) / "resources" / "file.tar.gz")
 # [START howto_operator_gcp_create_build_from_storage_body]
 create_build_from_storage_body = {
     "source": {"storage_source": GCP_SOURCE_ARCHIVE_URL},
-    "steps": [{"name": "ubuntu", "args": ['echo', 'Hello world']}],
+    "steps": [{"name": "ubuntu", "args": ["echo", "Hello world"]}],
 }
 # [END howto_operator_gcp_create_build_from_storage_body]
 
 # [START howto_operator_create_build_from_repo_body]
-create_build_from_repo_body: Dict[str, Any] = {
+create_build_from_repo_body: dict[str, Any] = {
     "source": {"repo_source": {"repo_name": GCP_SOURCE_REPOSITORY_NAME, "branch_name": "master"}},
-    "steps": [{"name": "ubuntu", "args": ['echo', 'Hello world']}],
+    "steps": [{"name": "ubuntu", "args": ["echo", "Hello world"]}],
 }
 # [END howto_operator_create_build_from_repo_body]
 
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],
@@ -143,7 +142,7 @@ with models.DAG(
     # [START howto_operator_cancel_build]
     cancel_build = CloudBuildCancelBuildOperator(
         task_id="cancel_build",
-        id_=cast(str, XComArg(create_build_without_wait, key='id')),
+        id_=cast(str, XComArg(create_build_without_wait, key="id")),
         project_id=PROJECT_ID,
     )
     # [END howto_operator_cancel_build]
@@ -151,7 +150,7 @@ with models.DAG(
     # [START howto_operator_retry_build]
     retry_build = CloudBuildRetryBuildOperator(
         task_id="retry_build",
-        id_=cast(str, XComArg(cancel_build, key='id')),
+        id_=cast(str, XComArg(cancel_build, key="id")),
         project_id=PROJECT_ID,
     )
     # [END howto_operator_retry_build]
@@ -159,7 +158,7 @@ with models.DAG(
     # [START howto_operator_get_build]
     get_build = CloudBuildGetBuildOperator(
         task_id="get_build",
-        id_=cast(str, XComArg(retry_build, key='id')),
+        id_=cast(str, XComArg(retry_build, key="id")),
         project_id=PROJECT_ID,
     )
     # [END howto_operator_get_build]
@@ -168,8 +167,8 @@ with models.DAG(
     create_build_from_file = CloudBuildCreateBuildOperator(
         task_id="create_build_from_file",
         project_id=PROJECT_ID,
-        build=yaml.safe_load((Path(CURRENT_FOLDER) / 'resources' / 'example_cloud_build.yaml').read_text()),
-        params={'name': 'Airflow'},
+        build=yaml.safe_load((Path(CURRENT_FOLDER) / "resources" / "example_cloud_build.yaml").read_text()),
+        params={"name": "Airflow"},
     )
     # [END howto_operator_gcp_create_build_from_yaml_body]
 

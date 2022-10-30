@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Translate Speech operator."""
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
 from google.protobuf.json_format import MessageToDict
@@ -102,13 +104,13 @@ class CloudTranslateSpeechOperator(BaseOperator):
 
     # [START translate_speech_template_fields]
     template_fields: Sequence[str] = (
-        'target_language',
-        'format_',
-        'source_language',
-        'model',
-        'project_id',
-        'gcp_conn_id',
-        'impersonation_chain',
+        "target_language",
+        "format_",
+        "source_language",
+        "model",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
     )
     operator_extra_links = (FileDetailsLink(),)
     # [END translate_speech_template_fields]
@@ -120,11 +122,11 @@ class CloudTranslateSpeechOperator(BaseOperator):
         config: RecognitionConfig,
         target_language: str,
         format_: str,
-        source_language: Optional[str],
+        source_language: str | None,
         model: str,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -138,7 +140,7 @@ class CloudTranslateSpeechOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         speech_to_text_hook = CloudSpeechToTextHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -153,13 +155,13 @@ class CloudTranslateSpeechOperator(BaseOperator):
 
         self.log.info("Recognition operation finished")
 
-        if not recognize_dict['results']:
+        if not recognize_dict["results"]:
             self.log.info("No recognition results")
             return {}
         self.log.debug("Recognition result: %s", recognize_dict)
 
         try:
-            transcript = recognize_dict['results'][0]['alternatives'][0]['transcript']
+            transcript = recognize_dict["results"][0]["alternatives"][0]["transcript"]
         except KeyError as key:
             raise AirflowException(
                 f"Wrong response '{recognize_dict}' returned - it should contain {key} field"
@@ -173,7 +175,7 @@ class CloudTranslateSpeechOperator(BaseOperator):
                 source_language=self.source_language,
                 model=self.model,
             )
-            self.log.info('Translated output: %s', translation)
+            self.log.info("Translated output: %s", translation)
             FileDetailsLink.persist(
                 context=context,
                 task_instance=self,
@@ -182,6 +184,6 @@ class CloudTranslateSpeechOperator(BaseOperator):
             )
             return translation
         except ValueError as e:
-            self.log.error('An error has been thrown from translate speech method:')
+            self.log.error("An error has been thrown from translate speech method:")
             self.log.error(e)
             raise AirflowException(e)

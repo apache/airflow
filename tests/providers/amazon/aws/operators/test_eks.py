@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import unittest
-from typing import Any, Dict, List
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -62,7 +64,7 @@ CREATE_NODEGROUP_KWARGS = {
 class ClusterParams(TypedDict):
     cluster_name: str
     cluster_role_arn: str
-    resources_vpc_config: Dict[Any, Any]
+    resources_vpc_config: dict[Any, Any]
 
 
 class NodeGroupParams(TypedDict):
@@ -73,20 +75,20 @@ class NodeGroupParams(TypedDict):
 class BaseFargateProfileParams(TypedDict):
     fargate_profile_name: str
     fargate_pod_execution_role_arn: str
-    fargate_selectors: List[Any]
+    fargate_selectors: list[Any]
 
 
 class CreateFargateProfileParams(TypedDict):
     cluster_name: str
     pod_execution_role_arn: str
-    selectors: List[Any]
+    selectors: list[Any]
     fargate_profile_name: str
 
 
 class CreateNodegroupParams(TypedDict):
     cluster_name: str
     nodegroup_name: str
-    nodegroup_subnets: List[str]
+    nodegroup_subnets: list[str]
     nodegroup_role_arn: str
 
 
@@ -155,7 +157,7 @@ class TestEksCreateClusterOperator(unittest.TestCase):
             task_id=TASK_ID,
             **self.create_cluster_params,
             **self.base_fargate_profile_params,
-            compute='fargate',
+            compute="fargate",
         )
 
     @mock.patch.object(EksHook, "create_cluster")
@@ -208,7 +210,7 @@ class TestEksCreateClusterOperator(unittest.TestCase):
         invalid_compute = EksCreateClusterOperator(
             task_id=TASK_ID,
             **self.create_cluster_params,
-            compute='infinite',
+            compute="infinite",
         )
 
         with pytest.raises(ValueError, match="Provided compute type is not supported."):
@@ -218,7 +220,7 @@ class TestEksCreateClusterOperator(unittest.TestCase):
         missing_nodegroup_role_arn = EksCreateClusterOperator(
             task_id=TASK_ID,
             **self.create_cluster_params,
-            compute='nodegroup',
+            compute="nodegroup",
         )
 
         with pytest.raises(
@@ -231,7 +233,7 @@ class TestEksCreateClusterOperator(unittest.TestCase):
         missing_fargate_pod_execution_role_arn = EksCreateClusterOperator(
             task_id=TASK_ID,
             **self.create_cluster_params,
-            compute='fargate',
+            compute="fargate",
         )
 
         with pytest.raises(
@@ -369,9 +371,9 @@ class TestEksDeleteFargateProfileOperator(unittest.TestCase):
 
 
 class TestEksPodOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute')
-    @mock.patch('airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file')
-    @mock.patch('airflow.providers.amazon.aws.hooks.eks.EksHook.__init__', return_value=None)
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute")
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file")
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.__init__", return_value=None)
     def test_existing_nodegroup(
         self, mock_eks_hook, mock_generate_config_file, mock_k8s_pod_operator_execute
     ):
@@ -390,9 +392,9 @@ class TestEksPodOperator(unittest.TestCase):
         )
         op_return_value = op.execute(ti_context)
         mock_k8s_pod_operator_execute.assert_called_once_with(ti_context)
-        mock_eks_hook.assert_called_once_with(aws_conn_id='aws_default', region_name=None)
+        mock_eks_hook.assert_called_once_with(aws_conn_id="aws_default", region_name=None)
         mock_generate_config_file.assert_called_once_with(
-            eks_cluster_name=CLUSTER_NAME, pod_namespace='default'
+            eks_cluster_name=CLUSTER_NAME, pod_namespace="default"
         )
         self.assertEqual(mock_k8s_pod_operator_execute.return_value, op_return_value)
         self.assertEqual(mock_generate_config_file.return_value.__enter__.return_value, op.config_file)

@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from typing import TYPE_CHECKING, Optional, Sequence, Set
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 import boto3
 
@@ -32,22 +33,20 @@ from airflow.sensors.base import BaseSensorOperator
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-DEFAULT_CONN_ID: str = 'aws_default'
+DEFAULT_CONN_ID: str = "aws_default"
 
 
 def _check_failed(current_state, target_state, failure_states):
     if (current_state != target_state) and (current_state in failure_states):
         raise AirflowException(
-            f'Terminal state reached. Current state: {current_state}, Expected state: {target_state}'
+            f"Terminal state reached. Current state: {current_state}, Expected state: {target_state}"
         )
 
 
 class EcsBaseSensor(BaseSensorOperator):
     """Contains general sensor behavior for Elastic Container Service."""
 
-    def __init__(
-        self, *, aws_conn_id: Optional[str] = DEFAULT_CONN_ID, region: Optional[str] = None, **kwargs
-    ):
+    def __init__(self, *, aws_conn_id: str | None = DEFAULT_CONN_ID, region: str | None = None, **kwargs):
         self.aws_conn_id = aws_conn_id
         self.region = region
         super().__init__(**kwargs)
@@ -78,14 +77,14 @@ class EcsClusterStateSensor(EcsBaseSensor):
          Success State. (Default: "FAILED" or "INACTIVE")
     """
 
-    template_fields: Sequence[str] = ('cluster_name', 'target_state', 'failure_states')
+    template_fields: Sequence[str] = ("cluster_name", "target_state", "failure_states")
 
     def __init__(
         self,
         *,
         cluster_name: str,
-        target_state: Optional[EcsClusterStates] = EcsClusterStates.ACTIVE,
-        failure_states: Optional[Set[EcsClusterStates]] = None,
+        target_state: EcsClusterStates | None = EcsClusterStates.ACTIVE,
+        failure_states: set[EcsClusterStates] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -93,7 +92,7 @@ class EcsClusterStateSensor(EcsBaseSensor):
         self.target_state = target_state
         self.failure_states = failure_states or {EcsClusterStates.FAILED, EcsClusterStates.INACTIVE}
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         cluster_state = EcsClusterStates(self.hook.get_cluster_state(cluster_name=self.cluster_name))
 
         self.log.info("Cluster state: %s, waiting for: %s", cluster_state, self.target_state)
@@ -117,13 +116,13 @@ class EcsTaskDefinitionStateSensor(EcsBaseSensor):
     :param target_state: Success state to watch for. (Default: "ACTIVE")
     """
 
-    template_fields: Sequence[str] = ('task_definition', 'target_state', 'failure_states')
+    template_fields: Sequence[str] = ("task_definition", "target_state", "failure_states")
 
     def __init__(
         self,
         *,
         task_definition: str,
-        target_state: Optional[EcsTaskDefinitionStates] = EcsTaskDefinitionStates.ACTIVE,
+        target_state: EcsTaskDefinitionStates | None = EcsTaskDefinitionStates.ACTIVE,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -138,7 +137,7 @@ class EcsTaskDefinitionStateSensor(EcsBaseSensor):
             )
         }
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         task_definition_state = EcsTaskDefinitionStates(
             self.hook.get_task_definition_state(task_definition=self.task_definition)
         )
@@ -164,15 +163,15 @@ class EcsTaskStateSensor(EcsBaseSensor):
          the Success State. (Default: "STOPPED")
     """
 
-    template_fields: Sequence[str] = ('cluster', 'task', 'target_state', 'failure_states')
+    template_fields: Sequence[str] = ("cluster", "task", "target_state", "failure_states")
 
     def __init__(
         self,
         *,
         cluster: str,
         task: str,
-        target_state: Optional[EcsTaskStates] = EcsTaskStates.RUNNING,
-        failure_states: Optional[Set[EcsTaskStates]] = None,
+        target_state: EcsTaskStates | None = EcsTaskStates.RUNNING,
+        failure_states: set[EcsTaskStates] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -181,7 +180,7 @@ class EcsTaskStateSensor(EcsBaseSensor):
         self.target_state = target_state
         self.failure_states = failure_states or {EcsTaskStates.STOPPED}
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         task_state = EcsTaskStates(self.hook.get_task_state(cluster=self.cluster, task=self.task))
 
         self.log.info("Task state: %s, waiting for: %s", task_state, self.target_state)

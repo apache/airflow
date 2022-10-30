@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import pytest
 
 from airflow.providers.google.cloud.example_dags.example_bigquery_dts import (
@@ -77,4 +79,4 @@ class GcpBigqueryDtsSystemTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     def test_run_example_dag_function(self):
-        self.run_dag('example_gcp_bigquery_dts', CLOUD_DAG_FOLDER)
+        self.run_dag("example_gcp_bigquery_dts", CLOUD_DAG_FOLDER)

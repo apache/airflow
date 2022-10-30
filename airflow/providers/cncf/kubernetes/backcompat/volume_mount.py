@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Classes for interacting with Kubernetes API"""
+from __future__ import annotations
 
 import warnings
 
@@ -30,7 +31,7 @@ warnings.warn(
 class VolumeMount:
     """Backward compatible VolumeMount"""
 
-    __slots__ = ('name', 'mount_path', 'sub_path', 'read_only')
+    __slots__ = ("name", "mount_path", "sub_path", "read_only")
 
     def __init__(self, name, mount_path, sub_path, read_only):
         """

@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import sys
 
 if sys.version_info < (3, 7):
@@ -33,7 +35,7 @@ if sys.version_info < (3, 7):
         if logging.getLogger(logger.name) is not logger:
             import pickle
 
-            raise pickle.PicklingError('logger cannot be pickled')
+            raise pickle.PicklingError("logger cannot be pickled")
         return logging.getLogger, (logger.name,)
 
     def _reduce_RootLogger(logger):

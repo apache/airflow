@@ -124,7 +124,7 @@ const TaskInstance = ({
           operator={operator}
         />
       )}
-      <Tabs size="lg" index={selectedTabIndex} onChange={handleTabsChange}>
+      <Tabs size="lg" index={selectedTabIndex} onChange={handleTabsChange} isLazy>
         <TabList>
           <Tab>
             <Text as="strong">Details</Text>
@@ -161,7 +161,7 @@ const TaskInstance = ({
                   mapIndexes={actionsMapIndexes}
                 />
               )}
-              <Details instance={instance} group={group} />
+              <Details instance={instance} group={group} dagId={dagId} />
               {!isMapped && (
                 <ExtraLinks
                   taskId={taskId}
@@ -183,6 +183,7 @@ const TaskInstance = ({
                 mapIndex={mapIndex}
                 executionDate={executionDate}
                 tryNumber={instance?.tryNumber}
+                state={instance?.state}
               />
             </TabPanel>
           )}
@@ -190,14 +191,14 @@ const TaskInstance = ({
           {/* Mapped Task Instances Tab */}
           {
             isMappedTaskSummary && (
-            <TabPanel>
-              <MappedInstances
-                dagId={dagId}
-                runId={runId}
-                taskId={taskId}
-                onRowClicked={(row) => onSelect({ runId, taskId, mapIndex: row.values.mapIndex })}
-              />
-            </TabPanel>
+              <TabPanel>
+                <MappedInstances
+                  dagId={dagId}
+                  runId={runId}
+                  taskId={taskId}
+                  onRowClicked={(row) => onSelect({ runId, taskId, mapIndex: row.values.mapIndex })}
+                />
+              </TabPanel>
             )
           }
         </TabPanels>

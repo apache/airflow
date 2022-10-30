@@ -16,7 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
 import ast
@@ -35,7 +34,7 @@ SELF_LOG_MATCHER = re.compile(r'^self\.log\.[a-z]*\(f.*["\']')
 
 class LogFinder(astor.TreeWalk):
     module_printed: bool = False
-    name: str = ''
+    name: str = ""
     error_count = 0
 
     def pre_Call(self):
@@ -46,7 +45,7 @@ class LogFinder(astor.TreeWalk):
                 or self.cur_node.func.value.id == "logging"
                 or self.cur_node.func.value.id == "log"
             )
-            or (self.cur_node.func.attr in ['log', 'debug', 'warning', 'info', "error", "critical"])
+            or (self.cur_node.func.attr in ["log", "debug", "warning", "info", "error", "critical"])
         ):
             line = astor.to_source(self.cur_node, add_line_information=True)
             if LOGGIN_MATCHER.match(line) or SELF_LOG_MATCHER.match(line):

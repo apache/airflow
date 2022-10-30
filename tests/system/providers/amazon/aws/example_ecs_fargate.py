@@ -14,57 +14,132 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
+from __future__ import annotations
+
 from datetime import datetime
 
-from airflow import DAG
-from airflow.providers.amazon.aws.operators.ecs import EcsOperator
-from tests.system.providers.amazon.aws.utils import set_env_id
+import boto3
 
-ENV_ID = set_env_id()
-DAG_ID = 'example_ecs_fargate'
+from airflow import DAG
+from airflow.decorators import task
+from airflow.models.baseoperator import chain
+from airflow.providers.amazon.aws.operators.ecs import EcsOperator
+from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+
+DAG_ID = "example_ecs_fargate"
+
+# Externally fetched variables:
+SUBNETS_KEY = "SUBNETS"  # At least one public subnet is required.
+SECURITY_GROUPS_KEY = "SECURITY_GROUPS"
+
+sys_test_context_task = (
+    SystemTestContextBuilder()
+    .add_variable(SUBNETS_KEY, split_string=True)
+    .add_variable(SECURITY_GROUPS_KEY, split_string=True)
+    .build()
+)
+
+
+@task
+def create_cluster(cluster_name: str) -> None:
+    """Creates an ECS cluster."""
+    boto3.client("ecs").create_cluster(clusterName=cluster_name)
+
+
+@task
+def register_task_definition(task_name: str, container_name: str) -> str:
+    """Creates a Task Definition."""
+    response = boto3.client("ecs").register_task_definition(
+        family=task_name,
+        # CPU and Memory are required for Fargate and are set to the lowest currently allowed values.
+        cpu="256",
+        memory="512",
+        containerDefinitions=[
+            {
+                "name": container_name,
+                "image": "ubuntu",
+                "workingDirectory": "/usr/bin",
+                "entryPoint": ["sh", "-c"],
+                "command": ["ls"],
+            }
+        ],
+        requiresCompatibilities=["FARGATE"],
+        networkMode="awsvpc",
+    )
+
+    return response["taskDefinition"]["taskDefinitionArn"]
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_task_definition(task_definition_arn: str) -> None:
+    """Deletes the Task Definition."""
+    boto3.client("ecs").deregister_task_definition(taskDefinition=task_definition_arn)
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_cluster(cluster_name: str) -> None:
+    """Deletes the ECS cluster."""
+    boto3.client("ecs").delete_cluster(cluster=cluster_name)
+
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval=None,
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
+    test_context = sys_test_context_task()
+    env_id = test_context[ENV_ID_KEY]
+
+    cluster_name = f"{env_id}-test-cluster"
+    container_name = f"{env_id}-test-container"
+    task_definition_name = f"{env_id}-test-definition"
+
+    create_task_definition = register_task_definition(task_definition_name, container_name)
 
     # [START howto_operator_ecs]
     hello_world = EcsOperator(
         task_id="hello_world",
-        cluster=os.environ.get("CLUSTER_NAME", "existing_cluster_name"),
-        task_definition=os.environ.get("TASK_DEFINITION", "existing_task_definition_name"),
+        cluster=cluster_name,
+        task_definition=task_definition_name,
         launch_type="FARGATE",
-        aws_conn_id="aws_ecs",
         overrides={
             "containerOverrides": [
                 {
-                    "name": "hello-world-container",
+                    "name": container_name,
                     "command": ["echo", "hello", "world"],
                 },
             ],
         },
         network_configuration={
             "awsvpcConfiguration": {
-                "securityGroups": [os.environ.get("SECURITY_GROUP_ID", "sg-123abc")],
-                "subnets": [os.environ.get("SUBNET_ID", "subnet-123456ab")],
+                "subnets": test_context[SUBNETS_KEY],
+                "securityGroups": test_context[SECURITY_GROUPS_KEY],
+                "assignPublicIp": "ENABLED",
             },
         },
-        tags={
-            "Customer": "X",
-            "Project": "Y",
-            "Application": "Z",
-            "Version": "0.0.1",
-            "Environment": "Development",
-        },
-        awslogs_group="/ecs/hello-world",
-        awslogs_stream_prefix="prefix_b/hello-world-container",
     )
     # [END howto_operator_ecs]
 
+    chain(
+        # TEST SETUP
+        test_context,
+        create_cluster(cluster_name),
+        create_task_definition,
+        # TEST BODY
+        hello_world,
+        # TEST TEARDOWN
+        delete_task_definition(create_task_definition),
+        delete_cluster(cluster_name),
+    )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
 from tests.system.utils import get_test_run  # noqa: E402
 

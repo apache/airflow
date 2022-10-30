@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Improve MSSQL compatibility
 
 Revision ID: 83f031fd9f1c
@@ -23,6 +22,7 @@ Revises: ccde3e26fe78
 Create Date: 2021-04-06 12:22:02.197726
 
 """
+from __future__ import annotations
 
 from collections import defaultdict
 
@@ -51,7 +51,7 @@ def is_table_empty(conn, table_name):
     return conn.execute(f'select TOP 1 * from {table_name}').first() is None
 
 
-def get_table_constraints(conn, table_name):
+def get_table_constraints(conn, table_name) -> dict[tuple[str, str], list[str]]:
     """
     This function return primary and unique constraint
     along with column name. some tables like task_instance
@@ -62,7 +62,6 @@ def get_table_constraints(conn, table_name):
     :param conn: sql connection object
     :param table_name: table name
     :return: a dictionary of ((constraint name, constraint type), column name) of table
-    :rtype: defaultdict(list)
     """
     query = f"""SELECT tc.CONSTRAINT_NAME , tc.CONSTRAINT_TYPE, ccu.COLUMN_NAME
      FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc

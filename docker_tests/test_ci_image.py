@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import subprocess
 
@@ -25,7 +26,7 @@ class TestPythonPackages:
     def test_pip_dependencies_conflict(self):
         try:
             run_command(
-                ["docker", "run", "--rm", "--entrypoint", "/bin/bash", docker_image, "-c", 'pip check']
+                ["docker", "run", "--rm", "--entrypoint", "/bin/bash", docker_image, "-c", "pip check"]
             )
         except subprocess.CalledProcessError as ex:
             display_dependency_conflict_message()

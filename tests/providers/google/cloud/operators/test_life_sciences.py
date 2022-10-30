@@ -16,22 +16,23 @@
 # specific language governing permissions and limitations
 # under the License.
 """Tests for Google Life Sciences Run Pipeline operator """
+from __future__ import annotations
 
 import unittest
 from unittest import mock
 
 from airflow.providers.google.cloud.operators.life_sciences import LifeSciencesRunPipelineOperator
 
-TEST_BODY = {"pipeline": {"actions": [{}], "resources": {}, "environment": {}, "timeout": '3.5s'}}
+TEST_BODY = {"pipeline": {"actions": [{}], "resources": {}, "environment": {}, "timeout": "3.5s"}}
 
 TEST_OPERATION = {
-    "name": 'operation-name',
-    "metadata": {"@type": 'anytype'},
+    "name": "operation-name",
+    "metadata": {"@type": "anytype"},
     "done": True,
     "response": "response",
 }
 TEST_PROJECT_ID = "life-science-project-id"
-TEST_LOCATION = 'test-location'
+TEST_LOCATION = "test-location"
 
 
 class TestLifeSciencesRunPipelineOperator(unittest.TestCase):
@@ -40,9 +41,11 @@ class TestLifeSciencesRunPipelineOperator(unittest.TestCase):
         mock_instance = mock_hook.return_value
         mock_instance.run_pipeline.return_value = TEST_OPERATION
         operator = LifeSciencesRunPipelineOperator(
-            task_id='task-id', body=TEST_BODY, location=TEST_LOCATION, project_id=TEST_PROJECT_ID
+            task_id="task-id", body=TEST_BODY, location=TEST_LOCATION, project_id=TEST_PROJECT_ID
         )
-        result = operator.execute(None)
+        context = mock.MagicMock()
+        result = operator.execute(context=context)
+
         assert result == TEST_OPERATION
 
     @mock.patch("airflow.providers.google.cloud.operators.life_sciences.LifeSciencesHook")
@@ -50,9 +53,10 @@ class TestLifeSciencesRunPipelineOperator(unittest.TestCase):
         mock_instance = mock_hook.return_value
         mock_instance.run_pipeline.return_value = TEST_OPERATION
         operator = LifeSciencesRunPipelineOperator(
-            task_id='task-id',
+            task_id="task-id",
             body=TEST_BODY,
             location=TEST_LOCATION,
         )
-        result = operator.execute(None)
+        context = mock.MagicMock()
+        result = operator.execute(context=context)
         assert result == TEST_OPERATION

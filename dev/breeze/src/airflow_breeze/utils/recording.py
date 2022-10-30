@@ -14,26 +14,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import atexit
 import os
 import sys
-from typing import Optional
 
 import rich
 from rich.console import Console
 
 from airflow_breeze.utils.path_utils import in_autocomplete
 
-help_console: Optional[Console] = None
+help_console: Console | None = None
 
 DEFAULT_COLUMNS = 129
 
 
 def generating_command_images() -> bool:
-    return "regenerate-command-images" in sys.argv
+    return "RECORD_BREEZE_TITLE" in os.environ or "regenerate-command-images" in sys.argv
 
 
-def enable_recording_of_help_output(path: str, title: Optional[str], width: Optional[str]):
+def enable_recording_of_help_output(path: str, title: str | None, width: str | None):
     import rich_click as click
 
     if not title:
@@ -63,14 +64,14 @@ def enable_recording_of_help_output(path: str, title: Optional[str], width: Opti
     click.rich_click.Console = RecordingConsole  # type: ignore[misc]
 
 
-output_file = os.environ.get('RECORD_BREEZE_OUTPUT_FILE')
+output_file = os.environ.get("RECORD_BREEZE_OUTPUT_FILE")
 
 
 if output_file and not in_autocomplete():
     enable_recording_of_help_output(
         path=output_file,
-        title=os.environ.get('RECORD_BREEZE_TITLE'),
-        width=os.environ.get('RECORD_BREEZE_WIDTH'),
+        title=os.environ.get("RECORD_BREEZE_TITLE"),
+        width=os.environ.get("RECORD_BREEZE_WIDTH"),
     )
 else:
     try:

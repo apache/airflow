@@ -15,26 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import datetime
 import inspect
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    ClassVar,
-    Collection,
-    Dict,
-    FrozenSet,
-    Iterable,
-    Iterator,
-    List,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
@@ -43,6 +28,7 @@ from airflow.models.taskmixin import DAGNode
 from airflow.utils.context import Context
 from airflow.utils.helpers import render_template_as_native, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
@@ -74,7 +60,7 @@ DEFAULT_WEIGHT_RULE: WeightRule = WeightRule(
     conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
 )
 DEFAULT_TRIGGER_RULE: TriggerRule = TriggerRule.ALL_SUCCESS
-DEFAULT_TASK_EXECUTION_TIMEOUT: Optional[datetime.timedelta] = conf.gettimedelta(
+DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta | None = conf.gettimedelta(
     "core", "default_task_execution_timeout"
 )
 
@@ -92,13 +78,13 @@ class AbstractOperator(LoggingMixin, DAGNode):
     :meta private:
     """
 
-    operator_class: Union[Type["BaseOperator"], Dict[str, Any]]
+    operator_class: type[BaseOperator] | dict[str, Any]
 
     weight_rule: str
     priority_weight: int
 
     # Defines the operator level extra links.
-    operator_extra_links: Collection["BaseOperatorLink"]
+    operator_extra_links: Collection[BaseOperatorLink]
     # For derived classes to define which fields will get jinjaified.
     template_fields: Collection[str]
     # Defines which files extensions to look for in the templated fields.
@@ -110,7 +96,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
     outlets: list
     inlets: list
 
-    HIDE_ATTRS_FROM_UI: ClassVar[FrozenSet[str]] = frozenset(
+    HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = frozenset(
         (
             'log',
             'dag',  # We show dag_id, don't need to show this too
@@ -129,7 +115,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
         )
     )
 
-    def get_dag(self) -> "Optional[DAG]":
+    def get_dag(self) -> DAG | None:
         raise NotImplementedError()
 
     @property
@@ -156,7 +142,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
     def node_id(self) -> str:
         return self.task_id
 
-    def get_template_env(self) -> "jinja2.Environment":
+    def get_template_env(self) -> jinja2.Environment:
         """Fetch a Jinja template environment from the DAG or instantiate empty environment if no DAG."""
         # This is imported locally since Jinja2 is heavy and we don't need it
         # for most of the functionalities. It is imported by get_template_env()
@@ -198,7 +184,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
                                 self.log.exception("Failed to get source %s", item)
         self.prepare_template()
 
-    def get_direct_relative_ids(self, upstream: bool = False) -> Set[str]:
+    def get_direct_relative_ids(self, upstream: bool = False) -> set[str]:
         """Get direct relative IDs to the current task, upstream or downstream."""
         if upstream:
             return self.upstream_task_ids
@@ -207,8 +193,8 @@ class AbstractOperator(LoggingMixin, DAGNode):
     def get_flat_relative_ids(
         self,
         upstream: bool = False,
-        found_descendants: Optional[Set[str]] = None,
-    ) -> Set[str]:
+        found_descendants: set[str] | None = None,
+    ) -> set[str]:
         """Get a flat set of relative IDs, upstream or downstream."""
         dag = self.get_dag()
         if not dag:
@@ -219,7 +205,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
 
         task_ids_to_trace = self.get_direct_relative_ids(upstream)
         while task_ids_to_trace:
-            task_ids_to_trace_next: Set[str] = set()
+            task_ids_to_trace_next: set[str] = set()
             for task_id in task_ids_to_trace:
                 if task_id in found_descendants:
                     continue
@@ -229,14 +215,14 @@ class AbstractOperator(LoggingMixin, DAGNode):
 
         return found_descendants
 
-    def get_flat_relatives(self, upstream: bool = False) -> Collection["Operator"]:
+    def get_flat_relatives(self, upstream: bool = False) -> Collection[Operator]:
         """Get a flat list of relatives, either upstream or downstream."""
         dag = self.get_dag()
         if not dag:
             return set()
         return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream)]
 
-    def _iter_all_mapped_downstreams(self) -> Iterator["MappedOperator"]:
+    def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator]:
         """Return mapped nodes that are direct dependencies of the current task.
 
         For now, this walks the entire DAG to find mapped nodes that has this
@@ -254,7 +240,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
         from airflow.models.mappedoperator import MappedOperator
         from airflow.utils.task_group import TaskGroup
 
-        def _walk_group(group: TaskGroup) -> Iterable[Tuple[str, DAGNode]]:
+        def _walk_group(group: TaskGroup) -> Iterable[tuple[str, DAGNode]]:
             """Recursively walk children in a task group.
 
             This yields all direct children (including both tasks and task
@@ -276,7 +262,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
             if self.node_id in child.upstream_task_ids:
                 yield child
 
-    def iter_mapped_dependants(self) -> Iterator["MappedOperator"]:
+    def iter_mapped_dependants(self) -> Iterator[MappedOperator]:
         """Return mapped nodes that depend on the current task the expansion.
 
         For now, this walks the entire DAG to find mapped nodes that has this
@@ -290,7 +276,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
             if any(p.node_id == self.node_id for p in downstream.iter_mapped_dependencies())
         )
 
-    def unmap(self, resolve: Union[None, Dict[str, Any], Tuple[Context, "Session"]]) -> "BaseOperator":
+    def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
         """Get the "normal" operator from current abstract operator.
 
         MappedOperator uses this to unmap itself based on the map index. A non-
@@ -328,9 +314,9 @@ class AbstractOperator(LoggingMixin, DAGNode):
         )
 
     @cached_property
-    def operator_extra_link_dict(self) -> Dict[str, Any]:
+    def operator_extra_link_dict(self) -> dict[str, Any]:
         """Returns dictionary of all extra links for the operator"""
-        op_extra_links_from_plugin: Dict[str, Any] = {}
+        op_extra_links_from_plugin: dict[str, Any] = {}
         from airflow import plugins_manager
 
         plugins_manager.initialize_extra_operators_links_plugins()
@@ -347,7 +333,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
         return operator_extra_links_all
 
     @cached_property
-    def global_operator_extra_link_dict(self) -> Dict[str, Any]:
+    def global_operator_extra_link_dict(self) -> dict[str, Any]:
         """Returns dictionary of all global extra links"""
         from airflow import plugins_manager
 
@@ -357,10 +343,10 @@ class AbstractOperator(LoggingMixin, DAGNode):
         return {link.name: link for link in plugins_manager.global_operator_extra_links}
 
     @cached_property
-    def extra_links(self) -> List[str]:
+    def extra_links(self) -> list[str]:
         return list(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
 
-    def get_extra_links(self, ti: "TaskInstance", link_name: str) -> Optional[str]:
+    def get_extra_links(self, ti: TaskInstance, link_name: str) -> str | None:
         """For an operator, gets the URLs that the ``extra_links`` entry points to.
 
         :meta private:
@@ -371,7 +357,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
         :param link_name: The name of the link we're looking for the URL for. Should be
             one of the options specified in ``extra_links``.
         """
-        link: Optional["BaseOperatorLink"] = self.operator_extra_link_dict.get(link_name)
+        link: BaseOperatorLink | None = self.operator_extra_link_dict.get(link_name)
         if not link:
             link = self.global_operator_extra_link_dict.get(link_name)
             if not link:
@@ -387,16 +373,16 @@ class AbstractOperator(LoggingMixin, DAGNode):
     def render_template_fields(
         self,
         context: Context,
-        jinja_env: Optional["jinja2.Environment"] = None,
-    ) -> Optional["BaseOperator"]:
-        """Template all attributes listed in template_fields.
+        jinja_env: jinja2.Environment | None = None,
+    ) -> None:
+        """Template all attributes listed in *self.template_fields*.
 
         If the operator is mapped, this should return the unmapped, fully
         rendered, and map-expanded operator. The mapped operator should not be
-        modified.
+        modified. However, *context* may be modified in-place to reference the
+        unmapped operator for template rendering.
 
-        If the operator is not mapped, this should modify the operator in-place
-        and return either *None* (for backwards compatibility) or *self*.
+        If the operator is not mapped, this should modify the operator in-place.
         """
         raise NotImplementedError()
 
@@ -406,10 +392,10 @@ class AbstractOperator(LoggingMixin, DAGNode):
         parent: Any,
         template_fields: Iterable[str],
         context: Context,
-        jinja_env: "jinja2.Environment",
-        seen_oids: Set[int],
+        jinja_env: jinja2.Environment,
+        seen_oids: set[int],
         *,
-        session: "Session" = NEW_SESSION,
+        session: Session = NEW_SESSION,
     ) -> None:
         for attr_name in template_fields:
             try:
@@ -443,8 +429,8 @@ class AbstractOperator(LoggingMixin, DAGNode):
         self,
         content: Any,
         context: Context,
-        jinja_env: Optional["jinja2.Environment"] = None,
-        seen_oids: Optional[Set[int]] = None,
+        jinja_env: jinja2.Environment | None = None,
+        seen_oids: set[int] | None = None,
     ) -> Any:
         """Render a templated string.
 
@@ -475,9 +461,6 @@ class AbstractOperator(LoggingMixin, DAGNode):
         if not jinja_env:
             jinja_env = self.get_template_env()
 
-        from airflow.models.param import DagParam
-        from airflow.models.xcom_arg import XComArg
-
         if isinstance(value, str):
             if any(value.endswith(ext) for ext in self.template_ext):  # A filepath.
                 template = jinja_env.get_template(value)
@@ -488,7 +471,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
                 return render_template_as_native(template, context)
             return render_template_to_string(template, context)
 
-        if isinstance(value, (DagParam, XComArg)):
+        if isinstance(value, ResolveMixin):
             return value.resolve(context)
 
         # Fast path for common built-in collections.
@@ -511,8 +494,8 @@ class AbstractOperator(LoggingMixin, DAGNode):
         self,
         value: Any,
         context: Context,
-        jinja_env: "jinja2.Environment",
-        seen_oids: Set[int],
+        jinja_env: jinja2.Environment,
+        seen_oids: set[int],
     ) -> None:
         if id(value) in seen_oids:
             return

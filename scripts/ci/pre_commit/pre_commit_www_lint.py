@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import subprocess
 from pathlib import Path
 
@@ -24,8 +26,8 @@ if __name__ not in ("__main__", "__mp_main__"):
         f"To run this script, run the ./{__file__} command"
     )
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     dir = Path("airflow") / "www"
-    subprocess.check_call(['yarn', '--frozen-lockfile', '--non-interactive'], cwd=dir)
-    subprocess.check_call(['yarn', 'run', 'generate-api-types'], cwd=dir)
-    subprocess.check_call(['yarn', 'run', 'lint:fix'], cwd=dir)
+    subprocess.check_call(["yarn", "--frozen-lockfile", "--non-interactive"], cwd=dir)
+    subprocess.check_call(["yarn", "run", "generate-api-types"], cwd=dir)
+    subprocess.check_call(["yarn", "run", "lint:fix"], cwd=dir)

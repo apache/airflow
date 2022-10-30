@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, List, Union
+from __future__ import annotations
 
-DEVELOPER_COMMANDS: Dict[str, Union[str, List[str]]] = {
+DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
     "name": "Basic developer commands",
     "commands": [
         "start-airflow",
@@ -29,7 +29,7 @@ DEVELOPER_COMMANDS: Dict[str, Union[str, List[str]]] = {
         "cleanup",
     ],
 }
-DEVELOPER_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
+DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze": [
         {
             "name": "Basic flags",
@@ -42,6 +42,8 @@ DEVELOPER_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
                 "--integration",
                 "--forward-credentials",
                 "--db-reset",
+                "--max-time",
+                "--github-repository",
             ],
         },
     ],
@@ -57,6 +59,7 @@ DEVELOPER_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
                 "--integration",
                 "--forward-credentials",
                 "--db-reset",
+                "--github-repository",
             ],
         },
         {
@@ -72,6 +75,7 @@ DEVELOPER_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
                 "--image-tag",
                 "--mount-sources",
                 "--include-mypy-volume",
+                "--max-time",
             ],
         },
     ],
@@ -98,6 +102,14 @@ DEVELOPER_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
                 "--integration",
                 "--forward-credentials",
                 "--db-reset",
+                "--github-repository",
+            ],
+        },
+        {
+            "name": "Asset compilation options",
+            "options": [
+                "--skip-asset-compilation",
+                "--dev-mode",
             ],
         },
         {
@@ -134,6 +146,7 @@ DEVELOPER_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
                 "--clean-build",
                 "--for-production",
                 "--package-filter",
+                "--github-repository",
             ],
         },
     ],
@@ -147,6 +160,7 @@ DEVELOPER_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
                 "--show-diff-on-failure",
                 "--last-commit",
                 "--commit-ref",
+                "--github-repository",
             ],
         },
     ],

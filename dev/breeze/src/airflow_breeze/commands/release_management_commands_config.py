@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, List, Union
+from __future__ import annotations
 
-RELEASE_MANAGEMENT_COMMANDS: Dict[str, Union[str, List[str]]] = {
+RELEASE_MANAGEMENT_COMMANDS: dict[str, str | list[str]] = {
     "name": "Release management",
     "commands": [
         "verify-provider-packages",
@@ -28,9 +28,17 @@ RELEASE_MANAGEMENT_COMMANDS: Dict[str, Union[str, List[str]]] = {
     ],
 }
 
-RELEASE_MANAGEMENT_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
+RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze release-management prepare-airflow-package": [
-        {"name": "Package flags", "options": ["--package-format", "--version-suffix-for-pypi"]}
+        {
+            "name": "Package flags",
+            "options": [
+                "--package-format",
+                "--version-suffix-for-pypi",
+                "--debug",
+                "--github-repository",
+            ],
+        }
     ],
     "breeze release-management verify-provider-packages": [
         {
@@ -43,6 +51,7 @@ RELEASE_MANAGEMENT_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]]
                 "--package-format",
                 "--skip-constraints",
                 "--debug",
+                "--github-repository",
             ],
         }
     ],
@@ -54,6 +63,7 @@ RELEASE_MANAGEMENT_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]]
                 "--version-suffix-for-pypi",
                 "--package-list-file",
                 "--debug",
+                "--github-repository",
             ],
         }
     ],
@@ -62,6 +72,7 @@ RELEASE_MANAGEMENT_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]]
             "name": "Provider documentation preparation flags",
             "options": [
                 "--debug",
+                "--github-repository",
             ],
         }
     ],
@@ -73,6 +84,7 @@ RELEASE_MANAGEMENT_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]]
                 "--python",
                 "--airflow-constraints-mode",
                 "--debug",
+                "--github-repository",
             ],
         },
         {
@@ -80,8 +92,10 @@ RELEASE_MANAGEMENT_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]]
             "options": [
                 "--run-in-parallel",
                 "--parallelism",
-                "--skip-cleanup",
                 "--python-versions",
+                "--skip-cleanup",
+                "--debug-resources",
+                "--include-success-outputs",
             ],
         },
     ],

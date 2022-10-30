@@ -15,16 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that displays interactions with Google Cloud Build.
 This DAG relies on the following OS environment variables:
 * PROJECT_ID - Google Cloud Project to use for the Cloud Function.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
-from typing import Any, Dict, cast
+from typing import Any, cast
 
 from airflow import models
 from airflow.models.baseoperator import chain
@@ -43,11 +43,11 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 DAG_ID = "example_gcp_cloud_build_trigger"
 
-GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repository"
+GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repo"
 
 # [START howto_operator_gcp_create_build_trigger_body]
 create_build_trigger_body = {
-    "name": "test-cloud-build-trigger",
+    "name": f"test-cloud-build-trigger-{ENV_ID}",
     "trigger_template": {
         "project_id": PROJECT_ID,
         "repo_name": GCP_SOURCE_REPOSITORY_NAME,
@@ -59,7 +59,7 @@ create_build_trigger_body = {
 
 # [START howto_operator_gcp_update_build_trigger_body]
 update_build_trigger_body = {
-    "name": "test-cloud-build-trigger",
+    "name": f"test-cloud-build-trigger-{ENV_ID}",
     "trigger_template": {
         "project_id": PROJECT_ID,
         "repo_name": GCP_SOURCE_REPOSITORY_NAME,
@@ -70,16 +70,16 @@ update_build_trigger_body = {
 # [END START howto_operator_gcp_update_build_trigger_body]
 
 # [START howto_operator_create_build_from_repo_body]
-create_build_from_repo_body: Dict[str, Any] = {
+create_build_from_repo_body: dict[str, Any] = {
     "source": {"repo_source": {"repo_name": GCP_SOURCE_REPOSITORY_NAME, "branch_name": "master"}},
-    "steps": [{"name": "ubuntu", "args": ['echo', 'Hello world']}],
+    "steps": [{"name": "ubuntu", "args": ["echo", "Hello world"]}],
 }
 # [END howto_operator_create_build_from_repo_body]
 
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],
@@ -98,7 +98,7 @@ with models.DAG(
         task_id="run_build_trigger",
         project_id=PROJECT_ID,
         trigger_id=build_trigger_id,
-        source=create_build_from_repo_body['source']['repo_source'],
+        source=create_build_from_repo_body["source"]["repo_source"],
     )
     # [END howto_operator_run_build_trigger]
 

@@ -14,13 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
+from __future__ import annotations
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class PgbouncerPdbTest(unittest.TestCase):
+class TestPgbouncerPdb:
     def test_should_pass_validation_with_just_pdb_enabled_v1(self):
         render_chart(
             values={"pgbouncer": {"enabled": True, "podDisruptionBudget": {"enabled": True}}},
@@ -31,5 +30,5 @@ class PgbouncerPdbTest(unittest.TestCase):
         render_chart(
             values={"pgbouncer": {"enabled": True, "podDisruptionBudget": {"enabled": True}}},
             show_only=["templates/pgbouncer/pgbouncer-poddisruptionbudget.yaml"],
-            kubernetes_version='1.16.0',
+            kubernetes_version="1.16.0",
         )  # checks that no validation exception is raised

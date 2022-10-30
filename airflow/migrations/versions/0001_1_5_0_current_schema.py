@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """current schema
 
 Revision ID: e3a246e0dc1
@@ -23,12 +22,12 @@ Revises:
 Create Date: 2015-08-18 16:35:00.883495
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import func
+from sqlalchemy import func, inspect
 
-from airflow.compat.sqlalchemy import inspect
 from airflow.migrations.db_types import StringID
 
 # revision identifiers, used by Alembic.

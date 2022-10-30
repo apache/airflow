@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
@@ -33,9 +33,9 @@ class TestGithubHook:
         db.merge_conn(
             Connection(
                 conn_id="github_default",
-                conn_type='github',
-                password='my-access-token',
-                host='https://mygithub.com/api/v3',
+                conn_type="github",
+                password="my-access-token",
+                host="https://mygithub.com/api/v3",
             )
         )
 

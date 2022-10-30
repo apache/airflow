@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Dataplex links."""
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
@@ -24,7 +25,7 @@ from airflow.providers.google.cloud.links.base import BaseGoogleLink
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-DATAPLEX_BASE_LINK = "https://console.cloud.google.com/dataplex/process/tasks"
+DATAPLEX_BASE_LINK = "/dataplex/process/tasks"
 DATAPLEX_TASK_LINK = DATAPLEX_BASE_LINK + "/{lake_id}.{task_id};location={region}/jobs?project={project_id}"
 DATAPLEX_TASKS_LINK = DATAPLEX_BASE_LINK + "?project={project_id}&qLake={lake_id}.{region}"
 
@@ -38,7 +39,7 @@ class DataplexTaskLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
     ):
         task_instance.xcom_push(
@@ -62,7 +63,7 @@ class DataplexTasksLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
     ):
         task_instance.xcom_push(

@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import logging
 import sys
@@ -23,7 +24,7 @@ from collections import defaultdict
 from datetime import datetime
 from operator import attrgetter
 from time import time
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Tuple
 from urllib.parse import quote
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
@@ -40,7 +41,7 @@ from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.session import create_session
 
-LOG_LINE_DEFAULTS = {'exc_text': '', 'stack_info': ''}
+LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 # Elasticsearch hosted log type
 EsLogMsgType = List[Tuple[str, str]]
 
@@ -69,7 +70,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     PAGE = 0
     MAX_LINE_PER_PAGE = 1000
-    LOG_NAME = 'Elasticsearch'
+    LOG_NAME = "Elasticsearch"
 
     def __init__(
         self,
@@ -82,10 +83,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         offset_field: str = "offset",
         host: str = "localhost:9200",
         frontend: str = "localhost:5601",
-        es_kwargs: Optional[dict] = conf.getsection("elasticsearch_configs"),
+        es_kwargs: dict | None = conf.getsection("elasticsearch_configs"),
         *,
-        filename_template: Optional[str] = None,
-        log_id_template: Optional[str] = None,
+        filename_template: str | None = None,
+        log_id_template: str | None = None,
     ):
         """
         :param base_log_folder: base folder to store logs locally
@@ -96,7 +97,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         super().__init__(base_log_folder, filename_template)
         self.closed = False
 
-        self.client = elasticsearch.Elasticsearch(host.split(';'), **es_kwargs)  # type: ignore[attr-defined]
+        self.client = elasticsearch.Elasticsearch(host.split(";"), **es_kwargs)  # type: ignore[attr-defined]
 
         if USE_PER_RUN_LOG_ID and log_id_template is not None:
             warnings.warn(
@@ -116,7 +117,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.context_set = False
 
         self.formatter: logging.Formatter
-        self.handler: Union[logging.FileHandler, logging.StreamHandler]  # type: ignore[assignment]
+        self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
         with create_session() as session:
@@ -162,7 +163,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         )
 
     @staticmethod
-    def _clean_date(value: Optional[datetime]) -> str:
+    def _clean_date(value: datetime | None) -> str:
         """
         Clean up a date value so that it is safe to query in elasticsearch
         by removing reserved characters.
@@ -176,7 +177,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     def _group_logs_by_host(self, logs):
         grouped_logs = defaultdict(list)
         for log in logs:
-            key = getattr(log, self.host_field, 'default_host')
+            key = getattr(log, self.host_field, "default_host")
             grouped_logs[key].append(log)
 
         return grouped_logs
@@ -185,8 +186,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         return True
 
     def _read(
-        self, ti: TaskInstance, try_number: int, metadata: Optional[dict] = None
-    ) -> Tuple[EsLogMsgType, dict]:
+        self, ti: TaskInstance, try_number: int, metadata: dict | None = None
+    ) -> tuple[EsLogMsgType, dict]:
         """
         Endpoint for streaming log.
 
@@ -197,11 +198,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :return: a list of tuple with host and log documents, metadata.
         """
         if not metadata:
-            metadata = {'offset': 0}
-        if 'offset' not in metadata:
-            metadata['offset'] = 0
+            metadata = {"offset": 0}
+        if "offset" not in metadata:
+            metadata["offset"] = 0
 
-        offset = metadata['offset']
+        offset = metadata["offset"]
         log_id = self._render_log_id(ti, try_number)
 
         logs = self.es_read(log_id, offset, metadata)
@@ -212,45 +213,45 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # Ensure a string here. Large offset numbers will get JSON.parsed incorrectly
         # on the client. Sending as a string prevents this issue.
         # https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
-        metadata['offset'] = str(next_offset)
+        metadata["offset"] = str(next_offset)
 
         # end_of_log_mark may contain characters like '\n' which is needed to
         # have the log uploaded but will not be stored in elasticsearch.
-        metadata['end_of_log'] = False
+        metadata["end_of_log"] = False
         for logs in logs_by_host.values():
             if logs[-1].message == self.end_of_log_mark:
-                metadata['end_of_log'] = True
+                metadata["end_of_log"] = True
 
         cur_ts = pendulum.now()
-        if 'last_log_timestamp' in metadata:
-            last_log_ts = timezone.parse(metadata['last_log_timestamp'])
+        if "last_log_timestamp" in metadata:
+            last_log_ts = timezone.parse(metadata["last_log_timestamp"])
 
             # if we are not getting any logs at all after more than N seconds of trying,
             # assume logs do not exist
             if int(next_offset) == 0 and cur_ts.diff(last_log_ts).in_seconds() > 5:
-                metadata['end_of_log'] = True
+                metadata["end_of_log"] = True
                 missing_log_message = (
                     f"*** Log {log_id} not found in Elasticsearch. "
                     "If your task started recently, please wait a moment and reload this page. "
                     "Otherwise, the logs for this task instance may have been removed."
                 )
-                return [('', missing_log_message)], metadata
+                return [("", missing_log_message)], metadata
             if (
                 # Assume end of log after not receiving new log for N min,
                 cur_ts.diff(last_log_ts).in_minutes() >= 5
                 # if max_offset specified, respect it
-                or ('max_offset' in metadata and int(offset) >= int(metadata['max_offset']))
+                or ("max_offset" in metadata and int(offset) >= int(metadata["max_offset"]))
             ):
-                metadata['end_of_log'] = True
+                metadata["end_of_log"] = True
 
-        if int(offset) != int(next_offset) or 'last_log_timestamp' not in metadata:
-            metadata['last_log_timestamp'] = str(cur_ts)
+        if int(offset) != int(next_offset) or "last_log_timestamp" not in metadata:
+            metadata["last_log_timestamp"] = str(cur_ts)
 
         # If we hit the end of the log, remove the actual end_of_log message
         # to prevent it from showing in the UI.
         def concat_logs(lines):
             log_range = (len(lines) - 1) if lines[-1].message == self.end_of_log_mark else len(lines)
-            return '\n'.join(self._format_msg(lines[i]) for i in range(log_range))
+            return "\n".join(self._format_msg(lines[i]) for i in range(log_range))
 
         message = [(host, concat_logs(hosted_log)) for host, hosted_log in logs_by_host.items()]
 
@@ -281,20 +282,20 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :param metadata: log metadata, used for steaming log download.
         """
         # Offset is the unique key for sorting logs given log_id.
-        search = Search(using=self.client).query('match_phrase', log_id=log_id).sort(self.offset_field)
+        search = Search(using=self.client).query("match_phrase", log_id=log_id).sort(self.offset_field)
 
-        search = search.filter('range', **{self.offset_field: {'gt': int(offset)}})
+        search = search.filter("range", **{self.offset_field: {"gt": int(offset)}})
         max_log_line = search.count()
-        if 'download_logs' in metadata and metadata['download_logs'] and 'max_offset' not in metadata:
+        if "download_logs" in metadata and metadata["download_logs"] and "max_offset" not in metadata:
             try:
                 if max_log_line > 0:
-                    metadata['max_offset'] = attrgetter(self.offset_field)(
+                    metadata["max_offset"] = attrgetter(self.offset_field)(
                         search[max_log_line - 1].execute()[-1]
                     )
                 else:
-                    metadata['max_offset'] = 0
+                    metadata["max_offset"] = 0
             except Exception:
-                self.log.exception('Could not get current log size with log_id: %s', log_id)
+                self.log.exception("Could not get current log size with log_id: %s", log_id)
 
         logs = []
         if max_log_line != 0:
@@ -302,7 +303,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
                 logs = search[self.MAX_LINE_PER_PAGE * self.PAGE : self.MAX_LINE_PER_PAGE].execute()
             except Exception:
-                self.log.exception('Could not read log with log_id: %s', log_id)
+                self.log.exception("Could not read log with log_id: %s", log_id)
 
         return logs
 
@@ -324,11 +325,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 fmt=self.formatter._fmt,
                 json_fields=self.json_fields + [self.offset_field],
                 extras={
-                    'dag_id': str(ti.dag_id),
-                    'task_id': str(ti.task_id),
-                    'execution_date': self._clean_date(ti.execution_date),
-                    'try_number': str(ti.try_number),
-                    'log_id': self._render_log_id(ti, ti.try_number),
+                    "dag_id": str(ti.dag_id),
+                    "task_id": str(ti.task_id),
+                    "execution_date": self._clean_date(ti.execution_date),
+                    "try_number": str(ti.try_number),
+                    "log_id": self._render_log_id(ti, ti.try_number),
                 },
             )
 
@@ -369,7 +370,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         # Mark the end of file using end of log mark,
         # so we know where to stop while auto-tailing.
-        self.emit(logging.makeLogRecord({'msg': self.end_of_log_mark}))
+        self.emit(logging.makeLogRecord({"msg": self.end_of_log_mark}))
 
         if self.write_stdout:
             self.handler.close()
@@ -391,10 +392,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :param task_instance: task instance object
         :param try_number: task instance try_number to read logs from.
         :return: URL to the external log collection service
-        :rtype: str
         """
         log_id = self._render_log_id(task_instance, try_number)
-        scheme = '' if '://' in self.frontend else 'https://'
+        scheme = "" if "://" in self.frontend else "https://"
         return scheme + self.frontend.format(log_id=quote(log_id))
 
     @property

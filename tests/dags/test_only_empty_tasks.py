@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Sequence
 
@@ -28,7 +30,7 @@ default_args = {
     "start_date": DEFAULT_DATE,
 }
 
-dag = DAG(dag_id="test_only_empty_tasks", default_args=default_args, schedule='@once')
+dag = DAG(dag_id="test_only_empty_tasks", default_args=default_args, schedule="@once")
 
 
 class MyEmptyOperator(EmptyOperator):

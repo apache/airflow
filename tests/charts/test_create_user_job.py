@@ -14,16 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
+from __future__ import annotations
 
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class CreateUserJobTest(unittest.TestCase):
+class TestCreateUserJob:
     def test_should_run_by_default(self):
         docs = render_chart(show_only=["templates/jobs/create-user-job.yaml"])
         assert "Job" == docs[0]["kind"]
@@ -192,11 +191,12 @@ class CreateUserJobTest(unittest.TestCase):
             show_only=["templates/jobs/create-user-job.yaml"],
         )
 
-        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+        assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.template.spec.containers[0].env", docs[0]
         )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "airflow_version, expected_arg",
         [
             ("1.10.14", "airflow create_user"),
             ("2.0.2", "airflow users create"),
@@ -214,7 +214,7 @@ class CreateUserJobTest(unittest.TestCase):
         assert [
             "bash",
             "-c",
-            f"exec \\\n{expected_arg} \"$@\"",
+            f'exec \\\n{expected_arg} "$@"',
             "--",
             "-r",
             "Admin",
@@ -230,14 +230,8 @@ class CreateUserJobTest(unittest.TestCase):
             "admin",
         ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
-    @parameterized.expand(
-        [
-            (None, None),
-            (None, ["custom", "args"]),
-            (["custom", "command"], None),
-            (["custom", "command"], ["custom", "args"]),
-        ]
-    )
+    @pytest.mark.parametrize("command", [None, ["custom", "command"]])
+    @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_command_and_args_overrides(self, command, args):
         docs = render_chart(
             values={"createUserJob": {"command": command, "args": args}},
@@ -279,7 +273,7 @@ class CreateUserJobTest(unittest.TestCase):
         assert [
             "bash",
             "-c",
-            "exec \\\nairflow users create \"$@\"",
+            'exec \\\nairflow users create "$@"',
             "--",
             "-r",
             "SomeRole",
@@ -296,7 +290,7 @@ class CreateUserJobTest(unittest.TestCase):
         ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
 
-class CreateUserJobServiceAccountTest(unittest.TestCase):
+class TestCreateUserJobServiceAccount:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={

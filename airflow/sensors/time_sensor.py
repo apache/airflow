@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import datetime
 
 from airflow.sensors.base import BaseSensorOperator
@@ -28,6 +30,11 @@ class TimeSensor(BaseSensorOperator):
     Waits until the specified time of the day.
 
     :param target_time: time after which the job succeeds
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/operator:TimeSensor`
+
     """
 
     def __init__(self, *, target_time, **kwargs):
@@ -45,6 +52,10 @@ class TimeSensorAsync(BaseSensorOperator):
     it is waiting.
 
     :param target_time: time after which the job succeeds
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/operator:TimeSensorAsync`
     """
 
     def __init__(self, *, target_time, **kwargs):

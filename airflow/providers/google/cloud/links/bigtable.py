@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
@@ -22,8 +23,7 @@ from airflow.providers.google.cloud.links.base import BaseGoogleLink
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-BASE_LINK = "https://console.cloud.google.com"
-BIGTABLE_BASE_LINK = BASE_LINK + "/bigtable"
+BIGTABLE_BASE_LINK = "/bigtable"
 BIGTABLE_INSTANCE_LINK = BIGTABLE_BASE_LINK + "/instances/{instance_id}/overview?project={project_id}"
 BIGTABLE_CLUSTER_LINK = (
     BIGTABLE_BASE_LINK + "/instances/{instance_id}/clusters/{cluster_id}?project={project_id}"
@@ -40,7 +40,7 @@ class BigtableInstanceLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
     ):
         task_instance.xcom_push(
@@ -62,7 +62,7 @@ class BigtableClusterLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
     ):
         task_instance.xcom_push(
@@ -85,7 +85,7 @@ class BigtableTablesLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
     ):
         task_instance.xcom_push(

@@ -15,23 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import asyncio
-import logging
-from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Sequence
 
 from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerAsyncHook
-
-try:
-    from airflow.triggers.base import BaseTrigger, TriggerEvent
-except ImportError:
-    logging.getLogger(__name__).warning(
-        'Deferrable Operators only work starting Airflow 2.2',
-        exc_info=True,
-    )
-    BaseTrigger = object  # type: ignore
-    TriggerEvent = None  # type: ignore
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class CloudComposerExecutionTrigger(BaseTrigger):
@@ -43,8 +34,8 @@ class CloudComposerExecutionTrigger(BaseTrigger):
         region: str,
         operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        delegate_to: Optional[str] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         pooling_period_seconds: int = 30,
     ):
         super().__init__()
@@ -64,9 +55,9 @@ class CloudComposerExecutionTrigger(BaseTrigger):
             delegate_to=self.delegate_to,
         )
 
-    def serialize(self) -> Tuple[str, Dict[str, Any]]:
+    def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
-            'airflow.providers.google.cloud.triggers.cloud_composer.CloudComposerExecutionTrigger',
+            "airflow.providers.google.cloud.triggers.cloud_composer.CloudComposerExecutionTrigger",
             {
                 "project_id": self.project_id,
                 "region": self.region,

@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Microsoft SQLServer hook module"""
+from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 import pymssql
 
@@ -28,17 +28,17 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 class MsSqlHook(DbApiHook):
     """Interact with Microsoft SQL Server."""
 
-    conn_name_attr = 'mssql_conn_id'
-    default_conn_name = 'mssql_default'
-    conn_type = 'mssql'
-    hook_name = 'Microsoft SQL Server'
+    conn_name_attr = "mssql_conn_id"
+    default_conn_name = "mssql_default"
+    conn_type = "mssql"
+    hook_name = "Microsoft SQL Server"
     supports_autocommit = True
-    DEFAULT_SQLALCHEMY_SCHEME = 'mssql+pymssql'
+    DEFAULT_SQLALCHEMY_SCHEME = "mssql+pymssql"
 
     def __init__(
         self,
         *args,
-        sqlalchemy_scheme: Optional[str] = None,
+        sqlalchemy_scheme: str | None = None,
         **kwargs,
     ) -> None:
         """
@@ -65,7 +65,7 @@ class MsSqlHook(DbApiHook):
         """Sqlalchemy scheme either from constructor, connection extras or default."""
         return (
             self._sqlalchemy_scheme
-            or self.connection_extra_lower.get('sqlalchemy_scheme')
+            or self.connection_extra_lower.get("sqlalchemy_scheme")
             or self.DEFAULT_SQLALCHEMY_SCHEME
         )
 
@@ -78,13 +78,13 @@ class MsSqlHook(DbApiHook):
         # remove query string 'sqlalchemy_scheme' like parameters:
         qs = parse_qs(r[3], keep_blank_values=True)
         for k in list(qs.keys()):
-            if k.lower() == 'sqlalchemy_scheme':
+            if k.lower() == "sqlalchemy_scheme":
                 qs.pop(k, None)
         r[3] = urlencode(qs, doseq=True)
         return urlunsplit(r)
 
     def get_sqlalchemy_connection(
-        self, connect_kwargs: Optional[dict] = None, engine_kwargs: Optional[dict] = None
+        self, connect_kwargs: dict | None = None, engine_kwargs: dict | None = None
     ) -> Any:
         """Sqlalchemy connection object"""
         engine = self.get_sqlalchemy_engine(engine_kwargs=engine_kwargs)

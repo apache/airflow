@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import unittest
 from unittest import mock
 
@@ -31,7 +32,7 @@ OUTPUT_URI = "gs://bucket-name/output-file"
 
 FEATURES = [enums.Feature.LABEL_DETECTION]
 
-ANNOTATE_VIDEO_RESPONSE = {'test': 'test'}
+ANNOTATE_VIDEO_RESPONSE = {"test": "test"}
 
 
 class TestCloudVideoIntelligenceHook(unittest.TestCase):

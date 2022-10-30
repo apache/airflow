@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from unittest import mock
 
@@ -30,7 +31,7 @@ STATEMENT_ID = "statement_id"
 class TestRedshiftDataOperator:
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     def test_execute_without_waiting(self, mock_conn):
-        mock_conn.execute_statement.return_value = {'Id': STATEMENT_ID}
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
         operator = RedshiftDataOperator(
             aws_conn_id=CONN_ID,
             task_id=TASK_ID,
@@ -53,7 +54,7 @@ class TestRedshiftDataOperator:
         secret_arn = "secret_arn"
         statement_name = "statement_name"
         parameters = [{"name": "id", "value": "1"}]
-        mock_conn.execute_statement.return_value = {'Id': STATEMENT_ID}
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
         mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
 
         operator = RedshiftDataOperator(
@@ -84,7 +85,7 @@ class TestRedshiftDataOperator:
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     def test_on_kill_without_query(self, mock_conn):
-        mock_conn.execute_statement.return_value = {'Id': STATEMENT_ID}
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
         operator = RedshiftDataOperator(
             aws_conn_id=CONN_ID,
             task_id=TASK_ID,
@@ -97,7 +98,7 @@ class TestRedshiftDataOperator:
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     def test_on_kill_with_query(self, mock_conn):
-        mock_conn.execute_statement.return_value = {'Id': STATEMENT_ID}
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
         operator = RedshiftDataOperator(
             aws_conn_id=CONN_ID,
             task_id=TASK_ID,
@@ -113,7 +114,7 @@ class TestRedshiftDataOperator:
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     def test_batch_execute(self, mock_conn):
-        mock_conn.execute_statement.return_value = {'Id': STATEMENT_ID}
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
         mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
         cluster_identifier = "cluster_identifier"
         db_user = "db_user"

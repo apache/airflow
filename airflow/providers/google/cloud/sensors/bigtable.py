@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Bigtable sensor."""
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 import google.api_core.exceptions
 from google.cloud.bigtable.table import ClusterState
@@ -56,12 +58,12 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         account from the list granting this role to the originating account (templated).
     """
 
-    REQUIRED_ATTRIBUTES = ('instance_id', 'table_id')
+    REQUIRED_ATTRIBUTES = ("instance_id", "table_id")
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance_id',
-        'table_id',
-        'impersonation_chain',
+        "project_id",
+        "instance_id",
+        "table_id",
+        "impersonation_chain",
     )
     operator_extra_links = (BigtableTablesLink(),)
 
@@ -70,9 +72,9 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         *,
         instance_id: str,
         table_id: str,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.project_id = project_id
@@ -83,7 +85,7 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

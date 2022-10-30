@@ -15,10 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """This file contains Google Drive operators"""
+from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowFailException
 from airflow.models import BaseOperator
@@ -63,25 +64,24 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account
     :return: Remote file ids after upload
-    :rtype: Sequence[str]
     """
 
     template_fields = (
-        'local_paths',
-        'drive_folder',
+        "local_paths",
+        "drive_folder",
     )
 
     def __init__(
         self,
-        local_paths: Union[Sequence[Path], Sequence[str]],
-        drive_folder: Union[Path, str],
+        local_paths: Sequence[Path] | Sequence[str],
+        drive_folder: Path | str,
         gcp_conn_id: str = "google_cloud_default",
         delete: bool = False,
         ignore_if_missing: bool = False,
         chunk_size: int = 100 * 1024 * 1024,
         resumable: bool = False,
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -95,7 +95,7 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: "Context") -> List[str]:
+    def execute(self, context: Context) -> list[str]:
         hook = GoogleDriveHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

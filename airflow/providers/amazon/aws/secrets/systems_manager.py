@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing connections from AWS SSM Parameter Store"""
+from __future__ import annotations
 
 import warnings
-from typing import Optional
 
 from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.utils import get_airflow_version, trim_none_values
@@ -66,9 +66,9 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
     def __init__(
         self,
-        connections_prefix: str = '/airflow/connections',
-        variables_prefix: str = '/airflow/variables',
-        config_prefix: str = '/airflow/config',
+        connections_prefix: str = "/airflow/connections",
+        variables_prefix: str = "/airflow/variables",
+        config_prefix: str = "/airflow/config",
         **kwargs,
     ):
         super().__init__()
@@ -77,11 +77,11 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         else:
             self.connections_prefix = connections_prefix
         if variables_prefix is not None:
-            self.variables_prefix = variables_prefix.rstrip('/')
+            self.variables_prefix = variables_prefix.rstrip("/")
         else:
             self.variables_prefix = variables_prefix
         if config_prefix is not None:
-            self.config_prefix = config_prefix.rstrip('/')
+            self.config_prefix = config_prefix.rstrip("/")
         else:
             self.config_prefix = config_prefix
 
@@ -113,7 +113,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         session = SessionFactory(conn=conn_config).create_session()
         return session.client(service_name="ssm", **client_kwargs)
 
-    def get_conn_value(self, conn_id: str) -> Optional[str]:
+    def get_conn_value(self, conn_id: str) -> str | None:
         """
         Get param value
 
@@ -124,7 +124,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.connections_prefix, conn_id)
 
-    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+    def get_conn_uri(self, conn_id: str) -> str | None:
         """
         Return URI representation of Connection conn_id.
 
@@ -142,7 +142,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
             )
         return self.get_conn_value(conn_id)
 
-    def get_variable(self, key: str) -> Optional[str]:
+    def get_variable(self, key: str) -> str | None:
         """
         Get Airflow Variable from Environment Variable
 
@@ -154,7 +154,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.variables_prefix, key)
 
-    def get_config(self, key: str) -> Optional[str]:
+    def get_config(self, key: str) -> str | None:
         """
         Get Airflow Configuration
 
@@ -166,7 +166,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.config_prefix, key)
 
-    def _get_secret(self, path_prefix: str, secret_id: str) -> Optional[str]:
+    def _get_secret(self, path_prefix: str, secret_id: str) -> str | None:
         """
         Get secret value from Parameter Store.
 

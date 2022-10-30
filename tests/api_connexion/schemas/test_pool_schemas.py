@@ -14,8 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
+from __future__ import annotations
 
 from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
 from airflow.models.pool import Pool
@@ -23,11 +22,11 @@ from airflow.utils.session import provide_session
 from tests.test_utils.db import clear_db_pools
 
 
-class TestPoolSchema(unittest.TestCase):
-    def setUp(self) -> None:
+class TestPoolSchema:
+    def setup_method(self) -> None:
         clear_db_pools()
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         clear_db_pools()
 
     @provide_session
@@ -55,11 +54,11 @@ class TestPoolSchema(unittest.TestCase):
         assert not isinstance(deserialized_pool, Pool)  # Checks if load_instance is set to True
 
 
-class TestPoolCollectionSchema(unittest.TestCase):
-    def setUp(self) -> None:
+class TestPoolCollectionSchema:
+    def setup_method(self) -> None:
         clear_db_pools()
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         clear_db_pools()
 
     def test_serialize(self):

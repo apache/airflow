@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from functools import lru_cache
-from typing import Iterable, Optional, Set
+from typing import Iterable
 
 import jinja2
 import rich_click as click
@@ -33,7 +34,7 @@ from sphinx.util.docutils import switch_source_input
 
 CMD_OPERATORS_AND_HOOKS = "operators-and-hooks"
 
-CMD_TRANSFERS = 'transfers'
+CMD_TRANSFERS = "transfers"
 
 """
 Directives for rendering tables with operators.
@@ -46,7 +47,7 @@ DEFAULT_HEADER_SEPARATOR = "="
 
 CURRENT_DIR = os.path.dirname(__file__)
 ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
-DOCS_DIR = os.path.join(ROOT_DIR, 'docs')
+DOCS_DIR = os.path.join(ROOT_DIR, "docs")
 
 
 @lru_cache(maxsize=None)
@@ -71,7 +72,7 @@ def _docs_path(filepath: str):
         _, _, provider, rest = filepath.split("/", maxsplit=3)
         filepath = f"{provider}:{rest}"
     else:
-        filepath = os.path.join(ROOT_DIR, filepath.lstrip('/'))
+        filepath = os.path.join(ROOT_DIR, filepath.lstrip("/"))
         filepath = os.path.relpath(filepath, DOCS_DIR)
 
     len_rst = len(".rst")
@@ -81,13 +82,13 @@ def _docs_path(filepath: str):
 
 def _prepare_resource_index(package_data, resource_type):
     return {
-        integration["integration-name"]: {**integration, 'package-name': provider['package-name']}
+        integration["integration-name"]: {**integration, "package-name": provider["package-name"]}
         for provider in package_data
         for integration in provider.get(resource_type, [])
     }
 
 
-def _prepare_operators_data(tags: Optional[Set[str]]):
+def _prepare_operators_data(tags: set[str] | None):
     package_data = load_package_data()
     all_integrations = _prepare_resource_index(package_data, "integrations")
     if tags is None:
@@ -106,25 +107,25 @@ def _prepare_operators_data(tags: Optional[Set[str]]):
         item = {
             "integration": integration,
         }
-        operators = all_operators_by_integration.get(integration['integration-name'])
-        sensors = all_sensors_by_integration.get(integration['integration-name'])
-        hooks = all_hooks_by_integration.get(integration['integration-name'])
+        operators = all_operators_by_integration.get(integration["integration-name"])
+        sensors = all_sensors_by_integration.get(integration["integration-name"])
+        hooks = all_hooks_by_integration.get(integration["integration-name"])
 
-        if 'how-to-guide' in item['integration']:
-            item['integration']['how-to-guide'] = [_docs_path(d) for d in item['integration']['how-to-guide']]
+        if "how-to-guide" in item["integration"]:
+            item["integration"]["how-to-guide"] = [_docs_path(d) for d in item["integration"]["how-to-guide"]]
         if operators:
-            item['operators'] = operators
+            item["operators"] = operators
         if sensors:
-            item['hooks'] = sensors
+            item["hooks"] = sensors
         if hooks:
-            item['hooks'] = hooks
+            item["hooks"] = hooks
         if operators or sensors or hooks:
             results.append(item)
 
     return sorted(results, key=lambda d: d["integration"]["integration-name"].lower())
 
 
-def _render_operator_content(*, tags: Optional[Set[str]], header_separator: str):
+def _render_operator_content(*, tags: set[str] | None, header_separator: str):
     tabular_data = _prepare_operators_data(tags)
 
     return _render_template(
@@ -132,7 +133,7 @@ def _render_operator_content(*, tags: Optional[Set[str]], header_separator: str)
     )
 
 
-def _prepare_transfer_data(tags: Optional[Set[str]]):
+def _prepare_transfer_data(tags: set[str] | None):
     package_data = load_package_data()
     all_operators_by_integration = _prepare_resource_index(package_data, "integrations")
     # Add edge case
@@ -141,9 +142,9 @@ def _prepare_transfer_data(tags: Optional[Set[str]]):
     all_transfers = [
         {
             **transfer,
-            'package-name': provider['package-name'],
-            'source-integration': all_operators_by_integration[transfer['source-integration-name']],
-            'target-integration': all_operators_by_integration[transfer['target-integration-name']],
+            "package-name": provider["package-name"],
+            "source-integration": all_operators_by_integration[transfer["source-integration-name"]],
+            "target-integration": all_operators_by_integration[transfer["target-integration-name"]],
         }
         for provider in package_data
         for transfer in provider.get("transfers", [])
@@ -154,18 +155,18 @@ def _prepare_transfer_data(tags: Optional[Set[str]]):
         to_display_transfers = [
             transfer
             for transfer in all_transfers
-            if tags.intersection(transfer['source-integration'].get('tags', set()))
-            or tags.intersection(transfer['target-integration'].get('tags', set()))
+            if tags.intersection(transfer["source-integration"].get("tags", set()))
+            or tags.intersection(transfer["target-integration"].get("tags", set()))
         ]
 
     for transfer in to_display_transfers:
-        if 'how-to-guide' not in transfer:
+        if "how-to-guide" not in transfer:
             continue
-        transfer['how-to-guide'] = _docs_path(transfer['how-to-guide'])
+        transfer["how-to-guide"] = _docs_path(transfer["how-to-guide"])
     return to_display_transfers
 
 
-def _render_transfer_content(*, tags: Optional[Set[str]], header_separator: str):
+def _render_transfer_content(*, tags: set[str] | None, header_separator: str):
     tabular_data = _prepare_transfer_data(tags)
 
     return _render_template(
@@ -179,8 +180,8 @@ def _prepare_logging_data():
     for provider in package_data:
         logging_handlers = provider.get("logging")
         if logging_handlers:
-            package_name = provider['package-name']
-            all_logging[package_name] = {'name': provider['name'], 'handlers': logging_handlers}
+            package_name = provider["package-name"]
+            all_logging[package_name] = {"name": provider["name"], "handlers": logging_handlers}
     return all_logging
 
 
@@ -196,8 +197,8 @@ def _prepare_auth_backend_data():
     for provider in package_data:
         auth_backends_list = provider.get("auth-backends")
         if auth_backends_list:
-            package_name = provider['package-name']
-            all_auth_backends[package_name] = {'name': provider['name'], 'auth_backends': auth_backends_list}
+            package_name = provider["package-name"]
+            all_auth_backends[package_name] = {"name": provider["name"], "auth_backends": auth_backends_list}
     return all_auth_backends
 
 
@@ -213,10 +214,10 @@ def _prepare_secrets_backend_data():
     for provider in package_data:
         secret_backends_list = provider.get("secrets-backends")
         if secret_backends_list:
-            package_name = provider['package-name']
+            package_name = provider["package-name"]
             all_secret_backends[package_name] = {
-                'name': provider['name'],
-                'secrets_backends': secret_backends_list,
+                "name": provider["name"],
+                "secrets_backends": secret_backends_list,
             }
     return all_secret_backends
 
@@ -235,10 +236,10 @@ def _prepare_connections_data():
     for provider in package_data:
         connections_list = provider.get("connection-types")
         if connections_list:
-            package_name = provider['package-name']
+            package_name = provider["package-name"]
             all_connections[package_name] = {
-                'name': provider['name'],
-                'connection_types': connections_list,
+                "name": provider["name"],
+                "connection_types": connections_list,
             }
     return all_connections
 
@@ -255,10 +256,10 @@ def _prepare_extra_links_data():
     for provider in package_data:
         extra_link_list = provider.get("extra-links")
         if extra_link_list:
-            package_name = provider['package-name']
+            package_name = provider["package-name"]
             all_extra_links[package_name] = {
-                'name': provider['name'],
-                'extra_links': extra_link_list,
+                "name": provider["name"],
+                "extra_links": extra_link_list,
             }
     return all_extra_links
 
@@ -273,18 +274,18 @@ class BaseJinjaReferenceDirective(Directive):
     """The base directive for OperatorsHooksReferenceDirective and TransfersReferenceDirective"""
 
     optional_arguments = 1
-    option_spec = {"tags": directives.unchanged, 'header-separator': directives.unchanged_required}
+    option_spec = {"tags": directives.unchanged, "header-separator": directives.unchanged_required}
 
     def run(self):
         tags_arg = self.options.get("tags")
         tags = {t.strip() for t in tags_arg.split(",")} if tags_arg else None
 
-        header_separator = self.options.get('header-separator')
+        header_separator = self.options.get("header-separator")
         new_content = self.render_content(tags=tags, header_separator=header_separator)
 
         with switch_source_input(self.state, self.content):
-            new_content = StringList(new_content.splitlines(), source='')
-            node = nodes.section()  # type: Element
+            new_content = StringList(new_content.splitlines(), source="")
+            node: Element = nodes.section()
             # necessary so that the child nodes get the right source/line set
             node.document = self.state.document
             nested_parse_with_titles(self.state, new_content, node)
@@ -296,7 +297,7 @@ class BaseJinjaReferenceDirective(Directive):
 
         return node.children
 
-    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         """Return content in RST format"""
         raise NotImplementedError("Tou need to override render_content method.")
 
@@ -304,7 +305,7 @@ class BaseJinjaReferenceDirective(Directive):
 class OperatorsHooksReferenceDirective(BaseJinjaReferenceDirective):
     """Generates a list of operators, sensors, hooks"""
 
-    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         return _render_operator_content(
             tags=tags,
             header_separator=header_separator,
@@ -314,7 +315,7 @@ class OperatorsHooksReferenceDirective(BaseJinjaReferenceDirective):
 class TransfersReferenceDirective(BaseJinjaReferenceDirective):
     """Generate a list of transfer operators"""
 
-    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         return _render_transfer_content(
             tags=tags,
             header_separator=header_separator,
@@ -324,7 +325,7 @@ class TransfersReferenceDirective(BaseJinjaReferenceDirective):
 class LoggingDirective(BaseJinjaReferenceDirective):
     """Generate list of logging handlers"""
 
-    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         return _render_logging_content(
             header_separator=header_separator,
         )
@@ -333,7 +334,7 @@ class LoggingDirective(BaseJinjaReferenceDirective):
 class AuthBackendDirective(BaseJinjaReferenceDirective):
     """Generate list of auth backend handlers"""
 
-    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         return _render_auth_backend_content(
             header_separator=header_separator,
         )
@@ -342,7 +343,7 @@ class AuthBackendDirective(BaseJinjaReferenceDirective):
 class SecretsBackendDirective(BaseJinjaReferenceDirective):
     """Generate list of secret backend handlers"""
 
-    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         return _render_secrets_backend_content(
             header_separator=header_separator,
         )
@@ -351,7 +352,7 @@ class SecretsBackendDirective(BaseJinjaReferenceDirective):
 class ConnectionsDirective(BaseJinjaReferenceDirective):
     """Generate list of connections"""
 
-    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         return _render_connections_content(
             header_separator=header_separator,
         )
@@ -360,7 +361,7 @@ class ConnectionsDirective(BaseJinjaReferenceDirective):
 class ExtraLinksDirective(BaseJinjaReferenceDirective):
     """Generate list of extra links"""
 
-    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         return _render_extra_links_content(
             header_separator=header_separator,
         )
@@ -368,29 +369,29 @@ class ExtraLinksDirective(BaseJinjaReferenceDirective):
 
 def setup(app):
     """Setup plugin"""
-    app.add_directive('operators-hooks-ref', OperatorsHooksReferenceDirective)
-    app.add_directive('transfers-ref', TransfersReferenceDirective)
-    app.add_directive('airflow-logging', LoggingDirective)
-    app.add_directive('airflow-auth-backends', AuthBackendDirective)
-    app.add_directive('airflow-secrets-backends', SecretsBackendDirective)
-    app.add_directive('airflow-connections', ConnectionsDirective)
-    app.add_directive('airflow-extra-links', ExtraLinksDirective)
+    app.add_directive("operators-hooks-ref", OperatorsHooksReferenceDirective)
+    app.add_directive("transfers-ref", TransfersReferenceDirective)
+    app.add_directive("airflow-logging", LoggingDirective)
+    app.add_directive("airflow-auth-backends", AuthBackendDirective)
+    app.add_directive("airflow-secrets-backends", SecretsBackendDirective)
+    app.add_directive("airflow-connections", ConnectionsDirective)
+    app.add_directive("airflow-extra-links", ExtraLinksDirective)
 
-    return {'parallel_read_safe': True, 'parallel_write_safe': True}
+    return {"parallel_read_safe": True, "parallel_write_safe": True}
 
 
 option_tag = click.option(
-    '--tag',
+    "--tag",
     multiple=True,
     help="If passed, displays integrations that have a matching tag",
 )
 
 option_header_separator = click.option(
-    '--header-separator', default=DEFAULT_HEADER_SEPARATOR, show_default=True
+    "--header-separator", default=DEFAULT_HEADER_SEPARATOR, show_default=True
 )
 
 
-@click.group(context_settings={'help_option_names': ['-h', '--help'], 'max_content_width': 500})
+@click.group(context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 500})
 def cli():
     """Render tables with integrations"""
 

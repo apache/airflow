@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.tableau.hooks.tableau import (
     TableauHook,
@@ -39,14 +41,14 @@ class TableauJobStatusSensor(BaseSensorOperator):
         containing the credentials to authenticate to the Tableau Server.
     """
 
-    template_fields: Sequence[str] = ('job_id',)
+    template_fields: Sequence[str] = ("job_id",)
 
     def __init__(
         self,
         *,
         job_id: str,
-        site_id: Optional[str] = None,
-        tableau_conn_id: str = 'tableau_default',
+        site_id: str | None = None,
+        tableau_conn_id: str = "tableau_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -54,19 +56,18 @@ class TableauJobStatusSensor(BaseSensorOperator):
         self.job_id = job_id
         self.site_id = site_id
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         """
         Pokes until the job has successfully finished.
 
         :param context: The task context during execution.
         :return: True if it succeeded and False if not.
-        :rtype: bool
         """
         with TableauHook(self.site_id, self.tableau_conn_id) as tableau_hook:
             finish_code = tableau_hook.get_job_status(job_id=self.job_id)
-            self.log.info('Current finishCode is %s (%s)', finish_code.name, finish_code.value)
+            self.log.info("Current finishCode is %s (%s)", finish_code.name, finish_code.value)
 
             if finish_code in (TableauJobFinishCode.ERROR, TableauJobFinishCode.CANCELED):
-                raise TableauJobFailedException('The Tableau Refresh Workbook Job failed!')
+                raise TableauJobFailedException("The Tableau Refresh Workbook Job failed!")
 
             return finish_code == TableauJobFinishCode.SUCCESS

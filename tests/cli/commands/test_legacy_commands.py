@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import contextlib
 import io
-import unittest
 from argparse import ArgumentError
 from unittest.mock import MagicMock
 
@@ -57,14 +58,14 @@ LEGACY_COMMANDS = [
 ]
 
 
-class TestCliDeprecatedCommandsValue(unittest.TestCase):
+class TestCliDeprecatedCommandsValue:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
     def test_should_display_value(self):
         with pytest.raises(SystemExit) as ctx, contextlib.redirect_stderr(io.StringIO()) as temp_stderr:
-            config_command.get_value(self.parser.parse_args(['worker']))
+            config_command.get_value(self.parser.parse_args(["worker"]))
 
         assert 2 == ctx.value.code
         assert (
@@ -79,7 +80,7 @@ class TestCliDeprecatedCommandsValue(unittest.TestCase):
     def test_check_legacy_command(self):
         action = MagicMock()
         with pytest.raises(ArgumentError) as ctx:
-            check_legacy_command(action, 'list_users')
+            check_legacy_command(action, "list_users")
         assert (
             str(ctx.value)
             == "argument : `airflow list_users` command, has been removed, please use `airflow users list`"

@@ -20,6 +20,7 @@
 Check things about newsfragments:
   - Only a single line, except for `significant` changes which can have a blank line, then the body
 """
+from __future__ import annotations
 
 import sys
 from pathlib import Path
@@ -34,7 +35,7 @@ for filename in files:
         lines = [line.strip() for line in f.readlines()]
     num_lines = len(lines)
 
-    name_parts = Path(filename).name.split('.')
+    name_parts = Path(filename).name.split(".")
     if len(name_parts) != 3:
         print(f"Newsfragment {filename} has an unexpected filename. Should be {{pr_number}}.{{type}}.rst.")
         failed = True

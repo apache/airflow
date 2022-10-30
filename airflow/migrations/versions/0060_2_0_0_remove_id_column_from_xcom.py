@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Remove id column from xcom
 
 Revision ID: bbf4a7ad0465
@@ -23,13 +22,12 @@ Revises: cf5dc11e79ad
 Create Date: 2019-10-29 13:53:09.445943
 
 """
+from __future__ import annotations
 
 from collections import defaultdict
 
 from alembic import op
-from sqlalchemy import Column, Integer
-
-from airflow.compat.sqlalchemy import inspect
+from sqlalchemy import Column, Integer, inspect
 
 # revision identifiers, used by Alembic.
 revision = 'bbf4a7ad0465'
@@ -39,7 +37,7 @@ depends_on = None
 airflow_version = '2.0.0'
 
 
-def get_table_constraints(conn, table_name):
+def get_table_constraints(conn, table_name) -> dict[tuple[str, str], list[str]]:
     """
     This function return primary and unique constraint
     along with column name. Some tables like `task_instance`
@@ -50,7 +48,6 @@ def get_table_constraints(conn, table_name):
     :param conn: sql connection object
     :param table_name: table name
     :return: a dictionary of ((constraint name, constraint type), column name) of table
-    :rtype: defaultdict(list)
     """
     query = f"""SELECT tc.CONSTRAINT_NAME , tc.CONSTRAINT_TYPE, ccu.COLUMN_NAME
      FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc

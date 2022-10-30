@@ -14,12 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 
 from docker_tests.command_utils import run_command
 
-docker_image = os.environ.get('DOCKER_IMAGE')
+docker_image = os.environ.get("DOCKER_IMAGE")
 
 if not docker_image:
     raise Exception("The DOCKER_IMAGE environment variable is required")

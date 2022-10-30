@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -57,7 +58,7 @@ with models.DAG(
     "composer_dag1",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [START howto_operator_composer_image_list]
     image_versions = CloudComposerListImageVersionsOperator(
@@ -119,7 +120,7 @@ with models.DAG(
     "composer_dag_deferrable1",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as defer_dag:
     # [START howto_operator_create_composer_environment_deferrable_mode]
     defer_create_env = CloudComposerCreateEnvironmentOperator(

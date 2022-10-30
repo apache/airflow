@@ -15,19 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Module for all tests airflow.utils.log.json_formatter.JSONFormatter
 """
+from __future__ import annotations
+
 import json
 import sys
-import unittest
 from logging import makeLogRecord
 
 from airflow.utils.log.json_formatter import JSONFormatter
 
 
-class TestJSONFormatter(unittest.TestCase):
+class TestJSONFormatter:
     """
     TestJSONFormatter class combine all tests for JSONFormatter
     """
@@ -61,7 +61,7 @@ class TestJSONFormatter(unittest.TestCase):
         Test format with extras method from JSONFormatter
         """
         log_record = makeLogRecord({"label": "value"})
-        json_fmt = JSONFormatter(json_fields=["label"], extras={'pod_extra': 'useful_message'})
+        json_fmt = JSONFormatter(json_fields=["label"], extras={"pod_extra": "useful_message"})
         # compare as a dicts to not fail on sorting errors
         assert json.loads(json_fmt.format(log_record)) == {"label": "value", "pod_extra": "useful_message"}
 

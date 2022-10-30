@@ -16,11 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing secrets from AWS Secrets Manager"""
+from __future__ import annotations
 
 import ast
 import json
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote, urlencode
 
 from airflow.compat.functools import cached_property
@@ -110,13 +111,13 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     def __init__(
         self,
-        connections_prefix: str = 'airflow/connections',
-        variables_prefix: str = 'airflow/variables',
-        config_prefix: str = 'airflow/config',
+        connections_prefix: str = "airflow/connections",
+        variables_prefix: str = "airflow/variables",
+        config_prefix: str = "airflow/config",
         sep: str = "/",
         full_url_mode: bool = True,
-        are_secret_values_urlencoded: Optional[bool] = None,
-        extra_conn_words: Optional[Dict[str, List[str]]] = None,
+        are_secret_values_urlencoded: bool | None = None,
+        extra_conn_words: dict[str, list[str]] | None = None,
         **kwargs,
     ):
         super().__init__()
@@ -187,7 +188,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     @staticmethod
     def _format_uri_with_extra(secret, conn_string: str) -> str:
         try:
-            extra_dict = secret['extra']
+            extra_dict = secret["extra"]
         except KeyError:
             return conn_string
 
@@ -196,7 +197,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return conn_string
 
-    def get_connection(self, conn_id: str) -> Optional["Connection"]:
+    def get_connection(self, conn_id: str) -> Connection | None:
         if not self.full_url_mode:
             # Avoid circular import problems when instantiating the backend during configuration.
             from airflow.models.connection import Connection
@@ -207,48 +208,48 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             if not secret_dict:
                 return None
 
-            if 'extra' in secret_dict and isinstance(secret_dict['extra'], str):
-                secret_dict['extra'] = self._deserialize_json_string(secret_dict['extra'])
+            if "extra" in secret_dict and isinstance(secret_dict["extra"], str):
+                secret_dict["extra"] = self._deserialize_json_string(secret_dict["extra"])
 
             data = self._standardize_secret_keys(secret_dict)
 
             if self.are_secret_values_urlencoded:
                 data = self._remove_escaping_in_secret_dict(secret=data, conn_id=conn_id)
 
-            port: Optional[int] = None
+            port: int | None = None
 
-            if data['port'] is not None:
-                port = int(data['port'])
+            if data["port"] is not None:
+                port = int(data["port"])
 
             return Connection(
                 conn_id=conn_id,
-                login=data['user'],
-                password=data['password'],
-                host=data['host'],
+                login=data["user"],
+                password=data["password"],
+                host=data["host"],
                 port=port,
-                schema=data['schema'],
-                conn_type=data['conn_type'],
-                extra=data['extra'],
+                schema=data["schema"],
+                conn_type=data["conn_type"],
+                extra=data["extra"],
             )
 
         return super().get_connection(conn_id=conn_id)
 
-    def _standardize_secret_keys(self, secret: Dict[str, Any]) -> Dict[str, Any]:
+    def _standardize_secret_keys(self, secret: dict[str, Any]) -> dict[str, Any]:
         """Standardize the names of the keys in the dict. These keys align with"""
         possible_words_for_conn_fields = {
-            'user': ['user', 'username', 'login', 'user_name'],
-            'password': ['password', 'pass', 'key'],
-            'host': ['host', 'remote_host', 'server'],
-            'port': ['port'],
-            'schema': ['database', 'schema'],
-            'conn_type': ['conn_type', 'conn_id', 'connection_type', 'engine'],
-            'extra': ['extra'],
+            "user": ["user", "username", "login", "user_name"],
+            "password": ["password", "pass", "key"],
+            "host": ["host", "remote_host", "server"],
+            "port": ["port"],
+            "schema": ["database", "schema"],
+            "conn_type": ["conn_type", "conn_id", "connection_type", "engine"],
+            "extra": ["extra"],
         }
 
         for conn_field, extra_words in self.extra_conn_words.items():
             possible_words_for_conn_fields[conn_field].extend(extra_words)
 
-        conn_d: Dict[str, Any] = {}
+        conn_d: dict[str, Any] = {}
         for conn_field, possible_words in possible_words_for_conn_fields.items():
             try:
                 conn_d[conn_field] = [v for k, v in secret.items() if k in possible_words][0]
@@ -257,32 +258,32 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return conn_d
 
-    def get_uri_from_secret(self, secret: Dict[str, str]) -> str:
-        conn_d: Dict[str, str] = {k: v if v else '' for k, v in self._standardize_secret_keys(secret).items()}
+    def get_uri_from_secret(self, secret: dict[str, str]) -> str:
+        conn_d: dict[str, str] = {k: v if v else "" for k, v in self._standardize_secret_keys(secret).items()}
         conn_string = "{conn_type}://{user}:{password}@{host}:{port}/{schema}".format(**conn_d)
         return self._format_uri_with_extra(secret, conn_string)
 
-    def _deserialize_json_string(self, value: Optional[str]) -> Optional[Dict[Any, Any]]:
+    def _deserialize_json_string(self, value: str | None) -> dict[Any, Any] | None:
         if not value:
             return None
         try:
             # Use ast.literal_eval for backwards compatibility.
             # Previous version of this code had a comment saying that using json.loads caused errors.
             # This likely means people were using dict reprs instead of valid JSONs.
-            res: Dict[str, Any] = json.loads(value)
+            res: dict[str, Any] = json.loads(value)
         except json.JSONDecodeError:
             try:
                 res = ast.literal_eval(value) if value else None
                 warnings.warn(
-                    f'In future versions, `{type(self).__name__}` will only support valid JSONs, not dict'
-                    ' reprs. Please make sure your secret is a valid JSON.'
+                    f"In future versions, `{type(self).__name__}` will only support valid JSONs, not dict"
+                    " reprs. Please make sure your secret is a valid JSON."
                 )
             except ValueError:  # 'malformed node or string: ' error, for empty conns
                 return None
 
         return res
 
-    def _remove_escaping_in_secret_dict(self, secret: Dict[str, Any], conn_id: str) -> Dict[str, Any]:
+    def _remove_escaping_in_secret_dict(self, secret: dict[str, Any], conn_id: str) -> dict[str, Any]:
         # When ``unquote(v) == v``, then removing unquote won't affect the user, regardless of
         # whether or not ``v`` is URL-encoded. For example, "foo bar" is not URL-encoded. But
         # because decoding it doesn't affect the value, then it will migrate safely when
@@ -329,19 +330,19 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         if warn_user:
             msg = (
-                "When ``full_url_mode=True``, URL-encoding secret values is deprecated. In future versions, "
-                f" this value will not be un-escaped. For the conn_id {conn_id!r}, please remove the"
-                " URL-encoding."
-                "\n\nThis warning was raised because the SecretsManagerBackend detected that this connection"
-                " was URL-encoded."
+                "When full_url_mode=False, URL-encoding secret values is deprecated. In future versions, "
+                f"this value will not be un-escaped. For the conn_id {conn_id!r}, please remove the "
+                "URL-encoding.\n\n"
+                "This warning was raised because the SecretsManagerBackend detected that this "
+                "connection was URL-encoded."
             )
             if idempotent:
                 msg = f" Once the values for conn_id {conn_id!r} are decoded, this warning will go away."
             if not idempotent:
                 msg += (
                     " In addition to decoding the values for your connection, you must also set"
-                    " ``secret_values_are_urlencoded=False`` for your config variable"
-                    " ``secrets.backend_kwargs`` because this connection's URL encoding is not idempotent."
+                    " secret_values_are_urlencoded=False for your config variable"
+                    " secrets.backend_kwargs because this connection's URL encoding is not idempotent."
                     " For more information, see:"
                     " https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/secrets-backends"
                     "/aws-secrets-manager.html#url-encoding-of-secrets-when-full-url-mode-is-false"
@@ -350,7 +351,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return secret
 
-    def get_conn_value(self, conn_id: str) -> Optional[str]:
+    def get_conn_value(self, conn_id: str) -> str | None:
         """
         Get serialized representation of Connection
 
@@ -363,8 +364,8 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             return self._get_secret(self.connections_prefix, conn_id)
         else:
             warnings.warn(
-                f'In future versions, `{type(self).__name__}.get_conn_value` will return a JSON string when'
-                ' full_url_mode is False, not a URI.',
+                f"In future versions, `{type(self).__name__}.get_conn_value` will return a JSON string when"
+                " full_url_mode is False, not a URI.",
                 DeprecationWarning,
             )
 
@@ -392,7 +393,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return connection
 
-    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+    def get_conn_uri(self, conn_id: str) -> str | None:
         """
         Return URI representation of Connection conn_id.
 
@@ -410,7 +411,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             )
         return self.get_conn_value(conn_id)
 
-    def get_variable(self, key: str) -> Optional[str]:
+    def get_variable(self, key: str) -> str | None:
         """
         Get Airflow Variable from Environment Variable
         :param key: Variable Key
@@ -421,7 +422,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.variables_prefix, key)
 
-    def get_config(self, key: str) -> Optional[str]:
+    def get_config(self, key: str) -> str | None:
         """
         Get Airflow Configuration
         :param key: Configuration Option Key
@@ -432,7 +433,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.config_prefix, key)
 
-    def _get_secret(self, path_prefix, secret_id: str) -> Optional[str]:
+    def _get_secret(self, path_prefix, secret_id: str) -> str | None:
         """
         Get secret value from Secrets Manager
         :param path_prefix: Prefix for the Path to get Secret
@@ -448,7 +449,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             response = self.client.get_secret_value(
                 SecretId=secrets_path,
             )
-            return response.get('SecretString')
+            return response.get("SecretString")
         except self.client.exceptions.ResourceNotFoundException:
             self.log.debug(
                 "ResourceNotFoundException: %s. Secret %s not found.",

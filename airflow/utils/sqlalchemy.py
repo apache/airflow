@@ -15,15 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
+import copy
 import datetime
 import json
 import logging
-from typing import Any, Dict, Iterable, Tuple
+from typing import Any, Iterable
 
 import pendulum
 from dateutil import relativedelta
-from sqlalchemy import TIMESTAMP, PickleType, and_, event, false, nullsfirst, or_, tuple_
+from sqlalchemy import TIMESTAMP, PickleType, and_, event, false, nullsfirst, or_, true, tuple_
 from sqlalchemy.dialects import mssql, mysql
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import Session
@@ -118,7 +120,7 @@ class ExtendedJSON(TypeDecorator):
         """Checks if the database supports JSON (i.e. is NOT MSSQL)"""
         return not conf.get("database", "sql_alchemy_conn").startswith("mssql")
 
-    def load_dialect_impl(self, dialect) -> "TypeEngine":
+    def load_dialect_impl(self, dialect) -> TypeEngine:
         if self.db_supports_json():
             return dialect.type_descriptor(JSON)
         return dialect.type_descriptor(UnicodeText)
@@ -130,7 +132,7 @@ class ExtendedJSON(TypeDecorator):
             return None
 
         # First, encode it into our custom JSON-targeted dict format
-        value = BaseSerialization._serialize(value)
+        value = BaseSerialization.serialize(value)
 
         # Then, if the database does not have native JSON support, encode it again as a string
         if not self.db_supports_json():
@@ -148,7 +150,7 @@ class ExtendedJSON(TypeDecorator):
         if not self.db_supports_json():
             value = json.loads(value)
 
-        return BaseSerialization._deserialize(value)
+        return BaseSerialization.deserialize(value)
 
 
 class ExecutorConfigType(PickleType):
@@ -159,6 +161,8 @@ class ExecutorConfigType(PickleType):
     Airflow's serializer before pickling.
     """
 
+    cache_ok = True
+
     def bind_processor(self, dialect):
 
         from airflow.serialization.serialized_objects import BaseSerialization
@@ -166,9 +170,10 @@ class ExecutorConfigType(PickleType):
         super_process = super().bind_processor(dialect)
 
         def process(value):
-            if isinstance(value, dict) and 'pod_override' in value:
-                value['pod_override'] = BaseSerialization()._serialize(value['pod_override'])
-            return super_process(value)
+            val_copy = copy.copy(value)
+            if isinstance(val_copy, dict) and 'pod_override' in val_copy:
+                val_copy['pod_override'] = BaseSerialization.serialize(val_copy['pod_override'])
+            return super_process(val_copy)
 
         return process
 
@@ -185,7 +190,7 @@ class ExecutorConfigType(PickleType):
 
                 # If pod_override was serialized with Airflow's BaseSerialization, deserialize it
                 if isinstance(pod_override, dict) and pod_override.get(Encoding.TYPE):
-                    value['pod_override'] = BaseSerialization()._deserialize(pod_override)
+                    value['pod_override'] = BaseSerialization.deserialize(pod_override)
             return value
 
         return process
@@ -255,7 +260,7 @@ class Interval(TypeDecorator):
         return data
 
 
-def skip_locked(session: Session) -> Dict[str, Any]:
+def skip_locked(session: Session) -> dict[str, Any]:
     """
     Return kargs for passing to `with_for_update()` suitable for the current DB engine version.
 
@@ -275,7 +280,7 @@ def skip_locked(session: Session) -> Dict[str, Any]:
         return {}
 
 
-def nowait(session: Session) -> Dict[str, Any]:
+def nowait(session: Session) -> dict[str, Any]:
     """
     Return kwargs for passing to `with_for_update()` suitable for the current DB engine version.
 
@@ -295,7 +300,7 @@ def nowait(session: Session) -> Dict[str, Any]:
         return {}
 
 
-def nulls_first(col, session: Session) -> Dict[str, Any]:
+def nulls_first(col, session: Session) -> dict[str, Any]:
     """
     Adds a nullsfirst construct to the column ordering. Currently only Postgres supports it.
     In MySQL & Sqlite NULL values are considered lower than any non-NULL value, therefore, NULL values
@@ -400,7 +405,7 @@ def is_lock_not_available_error(error: OperationalError):
 
 
 def tuple_in_condition(
-    columns: Tuple[ColumnElement, ...],
+    columns: tuple[ColumnElement, ...],
     collection: Iterable[Any],
 ) -> ColumnOperators:
     """Generates a tuple-in-collection operator to use in ``.filter()``.
@@ -417,3 +422,21 @@ def tuple_in_condition(
     if not clauses:
         return false()
     return or_(*clauses)
+
+
+def tuple_not_in_condition(
+    columns: tuple[ColumnElement, ...],
+    collection: Iterable[Any],
+) -> ColumnOperators:
+    """Generates a tuple-not-in-collection operator to use in ``.filter()``.
+
+    This is similar to ``tuple_in_condition`` except generating ``NOT IN``.
+
+    :meta private:
+    """
+    if settings.engine.dialect.name != "mssql":
+        return tuple_(*columns).not_in(collection)
+    clauses = [or_(*(c != v for c, v in zip(columns, values))) for values in collection]
+    if not clauses:
+        return true()
+    return and_(*clauses)

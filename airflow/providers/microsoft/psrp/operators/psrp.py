@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from logging import DEBUG
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from jinja2.nativetypes import NativeEnvironment
 from pypsrp.powershell import Command
@@ -27,12 +28,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.psrp.hooks.psrp import PsrpHook
 from airflow.settings import json
-
-
-# TODO: Replace with airflow.utils.helpers.exactly_one in Airflow 2.3.
-def exactly_one(*args):
-    return len(set(filter(None, args))) == 1
-
+from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -93,14 +89,14 @@ class PsrpOperator(BaseOperator):
         self,
         *,
         psrp_conn_id: str,
-        command: Optional[str] = None,
-        powershell: Optional[str] = None,
-        cmdlet: Optional[str] = None,
-        parameters: Optional[Dict[str, str]] = None,
+        command: str | None = None,
+        powershell: str | None = None,
+        cmdlet: str | None = None,
+        parameters: dict[str, str] | None = None,
         logging_level: int = DEBUG,
-        runspace_options: Optional[Dict[str, Any]] = None,
-        wsman_options: Optional[Dict[str, Any]] = None,
-        psrp_session_init: Optional[Command] = None,
+        runspace_options: dict[str, Any] | None = None,
+        wsman_options: dict[str, Any] | None = None,
+        psrp_session_init: Command | None = None,
         **kwargs,
     ) -> None:
         args = {command, powershell, cmdlet}
@@ -109,7 +105,7 @@ class PsrpOperator(BaseOperator):
         if parameters and not cmdlet:
             raise ValueError("Parameters only allowed with 'cmdlet'")
         if cmdlet:
-            kwargs.setdefault('task_id', cmdlet)
+            kwargs.setdefault("task_id", cmdlet)
         super().__init__(**kwargs)
         self.conn_id = psrp_conn_id
         self.command = command
@@ -121,7 +117,7 @@ class PsrpOperator(BaseOperator):
         self.wsman_options = wsman_options
         self.psrp_session_init = psrp_session_init
 
-    def execute(self, context: "Context") -> Optional[List[Any]]:
+    def execute(self, context: Context) -> list[Any] | None:
         with PsrpHook(
             self.conn_id,
             logging_level=self.logging_level,

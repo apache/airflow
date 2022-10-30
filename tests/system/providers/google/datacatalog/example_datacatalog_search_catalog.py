@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -56,7 +57,7 @@ FIELD_NAME_1 = "first"
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
@@ -111,7 +112,7 @@ with models.DAG(
     )
     # [END howto_operator_gcp_datacatalog_create_tag]
 
-    tag_id = cast(str, XComArg(create_tag, key='tag_id'))
+    tag_id = cast(str, XComArg(create_tag, key="tag_id"))
 
     # [START howto_operator_gcp_datacatalog_create_tag_result]
     create_tag_result = BashOperator(

@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -43,7 +44,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 class CloudComposerHook(GoogleBaseHook):
     """Hook for Google Cloud Composer APIs."""
 
-    client_options = ClientOptions(api_endpoint='composer.googleapis.com:443')
+    client_options = ClientOptions(api_endpoint="composer.googleapis.com:443")
 
     def get_environment_client(self) -> EnvironmentsClient:
         """Retrieves client library object that allow access Environments service."""
@@ -63,7 +64,7 @@ class CloudComposerHook(GoogleBaseHook):
             client_options=self.client_options,
         )
 
-    def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):
+    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
         """Waits for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
@@ -75,20 +76,20 @@ class CloudComposerHook(GoogleBaseHook):
         return self.get_environment_client().transport.operations_client.get_operation(name=operation_name)
 
     def get_environment_name(self, project_id, region, environment_id):
-        return f'projects/{project_id}/locations/{region}/environments/{environment_id}'
+        return f"projects/{project_id}/locations/{region}/environments/{environment_id}"
 
     def get_parent(self, project_id, region):
-        return f'projects/{project_id}/locations/{region}'
+        return f"projects/{project_id}/locations/{region}"
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_environment(
         self,
         project_id: str,
         region: str,
-        environment: Union[Environment, Dict],
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        environment: Environment | dict,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
         Create a new environment.
@@ -103,7 +104,7 @@ class CloudComposerHook(GoogleBaseHook):
         """
         client = self.get_environment_client()
         result = client.create_environment(
-            request={'parent': self.get_parent(project_id, region), 'environment': environment},
+            request={"parent": self.get_parent(project_id, region), "environment": environment},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -116,9 +117,9 @@ class CloudComposerHook(GoogleBaseHook):
         project_id: str,
         region: str,
         environment_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
         Delete an environment.
@@ -143,9 +144,9 @@ class CloudComposerHook(GoogleBaseHook):
         project_id: str,
         region: str,
         environment_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Environment:
         """
         Get an existing environment.
@@ -158,7 +159,7 @@ class CloudComposerHook(GoogleBaseHook):
         """
         client = self.get_environment_client()
         result = client.get_environment(
-            request={'name': self.get_environment_name(project_id, region, environment_id)},
+            request={"name": self.get_environment_name(project_id, region, environment_id)},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -170,11 +171,11 @@ class CloudComposerHook(GoogleBaseHook):
         self,
         project_id: str,
         region: str,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        page_size: int | None = None,
+        page_token: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> ListEnvironmentsPager:
         """
         List environments.
@@ -207,11 +208,11 @@ class CloudComposerHook(GoogleBaseHook):
         project_id: str,
         region: str,
         environment_id: str,
-        environment: Union[Environment, Dict],
-        update_mask: Union[Dict, FieldMask],
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        environment: Environment | dict,
+        update_mask: dict | FieldMask,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         r"""
         Update an environment.
@@ -247,12 +248,12 @@ class CloudComposerHook(GoogleBaseHook):
         self,
         project_id: str,
         region: str,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
+        page_size: int | None = None,
+        page_token: str | None = None,
         include_past_releases: bool = False,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> ListImageVersionsPager:
         """
         List ImageVersions for provided location.
@@ -270,7 +271,7 @@ class CloudComposerHook(GoogleBaseHook):
         client = self.get_image_versions_client()
         result = client.list_image_versions(
             request={
-                'parent': self.get_parent(project_id, region),
+                "parent": self.get_parent(project_id, region),
                 "page_size": page_size,
                 "page_token": page_token,
                 "include_past_releases": include_past_releases,
@@ -285,7 +286,7 @@ class CloudComposerHook(GoogleBaseHook):
 class CloudComposerAsyncHook(GoogleBaseHook):
     """Hook for Google Cloud Composer async APIs."""
 
-    client_options = ClientOptions(api_endpoint='composer.googleapis.com:443')
+    client_options = ClientOptions(api_endpoint="composer.googleapis.com:443")
 
     def get_environment_client(self) -> EnvironmentsAsyncClient:
         """Retrieves client library object that allow access Environments service."""
@@ -296,10 +297,10 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         )
 
     def get_environment_name(self, project_id, region, environment_id):
-        return f'projects/{project_id}/locations/{region}/environments/{environment_id}'
+        return f"projects/{project_id}/locations/{region}/environments/{environment_id}"
 
     def get_parent(self, project_id, region):
-        return f'projects/{project_id}/locations/{region}'
+        return f"projects/{project_id}/locations/{region}"
 
     async def get_operation(self, operation_name):
         return await self.get_environment_client().transport.operations_client.get_operation(
@@ -311,10 +312,10 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         self,
         project_id: str,
         region: str,
-        environment: Union[Environment, Dict],
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        environment: Environment | dict,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
         """
         Create a new environment.
@@ -329,7 +330,7 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         """
         client = self.get_environment_client()
         return await client.create_environment(
-            request={'parent': self.get_parent(project_id, region), 'environment': environment},
+            request={"parent": self.get_parent(project_id, region), "environment": environment},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -341,9 +342,9 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         project_id: str,
         region: str,
         environment_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
         """
         Delete an environment.
@@ -367,11 +368,11 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         project_id: str,
         region: str,
         environment_id: str,
-        environment: Union[Environment, Dict],
-        update_mask: Union[Dict, FieldMask],
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        environment: Environment | dict,
+        update_mask: dict | FieldMask,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
         r"""
         Update an environment.

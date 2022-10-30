@@ -1,0 +1,47 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: 'Setup Breeze'
+description: 'Sets up Python and Breeze'
+runs:
+  using: "composite"
+  steps:
+    - name: "Setup python"
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.7
+        cache: 'pip'
+        cache-dependency-path: ./dev/breeze/setup*
+    - name: Cache breeze
+      uses: actions/cache@v3
+      with:
+        path: ~/.local/pipx
+        key: "breeze-${{ hashFiles('dev/breeze/README.md') }}"  # README has the latest breeze's hash
+        restore-keys: breeze-
+    - name: "Install Breeze"
+      shell: bash
+      run: ./scripts/ci/install_breeze.sh
+    - name: "Free space"
+      shell: bash
+      run: breeze ci free-space
+    - name: "Get Python version"
+      shell: bash
+      run: >
+        echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
+        >> ${GITHUB_OUTPUT}
+      id: host-python-version

@@ -14,9 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Dict, Iterable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.yandex.hooks.yandexcloud_dataproc import DataprocHook
@@ -98,41 +100,41 @@ class DataprocCreateClusterOperator(BaseOperator):
     def __init__(
         self,
         *,
-        folder_id: Optional[str] = None,
-        cluster_name: Optional[str] = None,
-        cluster_description: Optional[str] = '',
-        cluster_image_version: Optional[str] = None,
-        ssh_public_keys: Optional[Union[str, Iterable[str]]] = None,
-        subnet_id: Optional[str] = None,
-        services: Iterable[str] = ('HDFS', 'YARN', 'MAPREDUCE', 'HIVE', 'SPARK'),
-        s3_bucket: Optional[str] = None,
-        zone: str = 'ru-central1-b',
-        service_account_id: Optional[str] = None,
-        masternode_resource_preset: Optional[str] = None,
-        masternode_disk_size: Optional[int] = None,
-        masternode_disk_type: Optional[str] = None,
-        datanode_resource_preset: Optional[str] = None,
-        datanode_disk_size: Optional[int] = None,
-        datanode_disk_type: Optional[str] = None,
+        folder_id: str | None = None,
+        cluster_name: str | None = None,
+        cluster_description: str | None = "",
+        cluster_image_version: str | None = None,
+        ssh_public_keys: str | Iterable[str] | None = None,
+        subnet_id: str | None = None,
+        services: Iterable[str] = ("HDFS", "YARN", "MAPREDUCE", "HIVE", "SPARK"),
+        s3_bucket: str | None = None,
+        zone: str = "ru-central1-b",
+        service_account_id: str | None = None,
+        masternode_resource_preset: str | None = None,
+        masternode_disk_size: int | None = None,
+        masternode_disk_type: str | None = None,
+        datanode_resource_preset: str | None = None,
+        datanode_disk_size: int | None = None,
+        datanode_disk_type: str | None = None,
         datanode_count: int = 1,
-        computenode_resource_preset: Optional[str] = None,
-        computenode_disk_size: Optional[int] = None,
-        computenode_disk_type: Optional[str] = None,
+        computenode_resource_preset: str | None = None,
+        computenode_disk_size: int | None = None,
+        computenode_disk_type: str | None = None,
         computenode_count: int = 0,
-        computenode_max_hosts_count: Optional[int] = None,
-        computenode_measurement_duration: Optional[int] = None,
-        computenode_warmup_duration: Optional[int] = None,
-        computenode_stabilization_duration: Optional[int] = None,
+        computenode_max_hosts_count: int | None = None,
+        computenode_measurement_duration: int | None = None,
+        computenode_warmup_duration: int | None = None,
+        computenode_stabilization_duration: int | None = None,
         computenode_preemptible: bool = False,
-        computenode_cpu_utilization_target: Optional[int] = None,
-        computenode_decommission_timeout: Optional[int] = None,
-        connection_id: Optional[str] = None,
-        properties: Optional[Dict[str, str]] = None,
+        computenode_cpu_utilization_target: int | None = None,
+        computenode_decommission_timeout: int | None = None,
+        connection_id: str | None = None,
+        properties: dict[str, str] | None = None,
         enable_ui_proxy: bool = False,
-        host_group_ids: Optional[Iterable[str]] = None,
-        security_group_ids: Optional[Iterable[str]] = None,
-        log_group_id: Optional[str] = None,
-        initialization_actions: Optional[Iterable[InitializationAction]] = None,
+        host_group_ids: Iterable[str] | None = None,
+        security_group_ids: Iterable[str] | None = None,
+        log_group_id: str | None = None,
+        initialization_actions: Iterable[InitializationAction] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -172,9 +174,9 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.log_group_id = log_group_id
         self.initialization_actions = initialization_actions
 
-        self.hook: Optional[DataprocHook] = None
+        self.hook: DataprocHook | None = None
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         self.hook = DataprocHook(
             yandex_conn_id=self.yandex_conn_id,
         )
@@ -224,9 +226,9 @@ class DataprocCreateClusterOperator(BaseOperator):
         )
         cluster_id = operation_result.response.id
 
-        context['task_instance'].xcom_push(key='cluster_id', value=cluster_id)
+        context["task_instance"].xcom_push(key="cluster_id", value=cluster_id)
         # Deprecated
-        context['task_instance'].xcom_push(key='yandexcloud_connection_id', value=self.yandex_conn_id)
+        context["task_instance"].xcom_push(key="yandexcloud_connection_id", value=self.yandex_conn_id)
         return cluster_id
 
     @property
@@ -241,27 +243,25 @@ class DataprocBaseOperator(BaseOperator):
     :param cluster_id: ID of the cluster to remove. (templated)
     """
 
-    template_fields: Sequence[str] = ('cluster_id',)
+    template_fields: Sequence[str] = ("cluster_id",)
 
-    def __init__(
-        self, *, yandex_conn_id: Optional[str] = None, cluster_id: Optional[str] = None, **kwargs
-    ) -> None:
+    def __init__(self, *, yandex_conn_id: str | None = None, cluster_id: str | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
         self.cluster_id = cluster_id
         self.yandex_conn_id = yandex_conn_id
 
-    def _setup(self, context: 'Context') -> DataprocHook:
+    def _setup(self, context: Context) -> DataprocHook:
         if self.cluster_id is None:
-            self.cluster_id = context['task_instance'].xcom_pull(key='cluster_id')
+            self.cluster_id = context["task_instance"].xcom_pull(key="cluster_id")
         if self.yandex_conn_id is None:
-            xcom_yandex_conn_id = context['task_instance'].xcom_pull(key='yandexcloud_connection_id')
+            xcom_yandex_conn_id = context["task_instance"].xcom_pull(key="yandexcloud_connection_id")
             if xcom_yandex_conn_id:
-                warnings.warn('Implicit pass of `yandex_conn_id` is deprecated, please pass it explicitly')
+                warnings.warn("Implicit pass of `yandex_conn_id` is deprecated, please pass it explicitly")
                 self.yandex_conn_id = xcom_yandex_conn_id
 
         return DataprocHook(yandex_conn_id=self.yandex_conn_id)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         raise NotImplementedError()
 
 
@@ -272,12 +272,10 @@ class DataprocDeleteClusterOperator(DataprocBaseOperator):
     :param cluster_id: ID of the cluster to remove. (templated)
     """
 
-    def __init__(
-        self, *, connection_id: Optional[str] = None, cluster_id: Optional[str] = None, **kwargs
-    ) -> None:
+    def __init__(self, *, connection_id: str | None = None, cluster_id: str | None = None, **kwargs) -> None:
         super().__init__(yandex_conn_id=connection_id, cluster_id=cluster_id, **kwargs)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = self._setup(context)
         hook.client.delete_cluster(self.cluster_id)
 
@@ -299,14 +297,14 @@ class DataprocCreateHiveJobOperator(DataprocBaseOperator):
     def __init__(
         self,
         *,
-        query: Optional[str] = None,
-        query_file_uri: Optional[str] = None,
-        script_variables: Optional[Dict[str, str]] = None,
+        query: str | None = None,
+        query_file_uri: str | None = None,
+        script_variables: dict[str, str] | None = None,
         continue_on_failure: bool = False,
-        properties: Optional[Dict[str, str]] = None,
-        name: str = 'Hive job',
-        cluster_id: Optional[str] = None,
-        connection_id: Optional[str] = None,
+        properties: dict[str, str] | None = None,
+        name: str = "Hive job",
+        cluster_id: str | None = None,
+        connection_id: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(yandex_conn_id=connection_id, cluster_id=cluster_id, **kwargs)
@@ -317,7 +315,7 @@ class DataprocCreateHiveJobOperator(DataprocBaseOperator):
         self.properties = properties
         self.name = name
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = self._setup(context)
         hook.client.create_hive_job(
             query=self.query,
@@ -350,16 +348,16 @@ class DataprocCreateMapReduceJobOperator(DataprocBaseOperator):
     def __init__(
         self,
         *,
-        main_class: Optional[str] = None,
-        main_jar_file_uri: Optional[str] = None,
-        jar_file_uris: Optional[Iterable[str]] = None,
-        archive_uris: Optional[Iterable[str]] = None,
-        file_uris: Optional[Iterable[str]] = None,
-        args: Optional[Iterable[str]] = None,
-        properties: Optional[Dict[str, str]] = None,
-        name: str = 'Mapreduce job',
-        cluster_id: Optional[str] = None,
-        connection_id: Optional[str] = None,
+        main_class: str | None = None,
+        main_jar_file_uri: str | None = None,
+        jar_file_uris: Iterable[str] | None = None,
+        archive_uris: Iterable[str] | None = None,
+        file_uris: Iterable[str] | None = None,
+        args: Iterable[str] | None = None,
+        properties: dict[str, str] | None = None,
+        name: str = "Mapreduce job",
+        cluster_id: str | None = None,
+        connection_id: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(yandex_conn_id=connection_id, cluster_id=cluster_id, **kwargs)
@@ -372,7 +370,7 @@ class DataprocCreateMapReduceJobOperator(DataprocBaseOperator):
         self.properties = properties
         self.name = name
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = self._setup(context)
         hook.client.create_mapreduce_job(
             main_class=self.main_class,
@@ -411,19 +409,19 @@ class DataprocCreateSparkJobOperator(DataprocBaseOperator):
     def __init__(
         self,
         *,
-        main_class: Optional[str] = None,
-        main_jar_file_uri: Optional[str] = None,
-        jar_file_uris: Optional[Iterable[str]] = None,
-        archive_uris: Optional[Iterable[str]] = None,
-        file_uris: Optional[Iterable[str]] = None,
-        args: Optional[Iterable[str]] = None,
-        properties: Optional[Dict[str, str]] = None,
-        name: str = 'Spark job',
-        cluster_id: Optional[str] = None,
-        connection_id: Optional[str] = None,
-        packages: Optional[Iterable[str]] = None,
-        repositories: Optional[Iterable[str]] = None,
-        exclude_packages: Optional[Iterable[str]] = None,
+        main_class: str | None = None,
+        main_jar_file_uri: str | None = None,
+        jar_file_uris: Iterable[str] | None = None,
+        archive_uris: Iterable[str] | None = None,
+        file_uris: Iterable[str] | None = None,
+        args: Iterable[str] | None = None,
+        properties: dict[str, str] | None = None,
+        name: str = "Spark job",
+        cluster_id: str | None = None,
+        connection_id: str | None = None,
+        packages: Iterable[str] | None = None,
+        repositories: Iterable[str] | None = None,
+        exclude_packages: Iterable[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(yandex_conn_id=connection_id, cluster_id=cluster_id, **kwargs)
@@ -439,7 +437,7 @@ class DataprocCreateSparkJobOperator(DataprocBaseOperator):
         self.repositories = repositories
         self.exclude_packages = exclude_packages
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = self._setup(context)
         hook.client.create_spark_job(
             main_class=self.main_class,
@@ -481,19 +479,19 @@ class DataprocCreatePysparkJobOperator(DataprocBaseOperator):
     def __init__(
         self,
         *,
-        main_python_file_uri: Optional[str] = None,
-        python_file_uris: Optional[Iterable[str]] = None,
-        jar_file_uris: Optional[Iterable[str]] = None,
-        archive_uris: Optional[Iterable[str]] = None,
-        file_uris: Optional[Iterable[str]] = None,
-        args: Optional[Iterable[str]] = None,
-        properties: Optional[Dict[str, str]] = None,
-        name: str = 'Pyspark job',
-        cluster_id: Optional[str] = None,
-        connection_id: Optional[str] = None,
-        packages: Optional[Iterable[str]] = None,
-        repositories: Optional[Iterable[str]] = None,
-        exclude_packages: Optional[Iterable[str]] = None,
+        main_python_file_uri: str | None = None,
+        python_file_uris: Iterable[str] | None = None,
+        jar_file_uris: Iterable[str] | None = None,
+        archive_uris: Iterable[str] | None = None,
+        file_uris: Iterable[str] | None = None,
+        args: Iterable[str] | None = None,
+        properties: dict[str, str] | None = None,
+        name: str = "Pyspark job",
+        cluster_id: str | None = None,
+        connection_id: str | None = None,
+        packages: Iterable[str] | None = None,
+        repositories: Iterable[str] | None = None,
+        exclude_packages: Iterable[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(yandex_conn_id=connection_id, cluster_id=cluster_id, **kwargs)
@@ -509,7 +507,7 @@ class DataprocCreatePysparkJobOperator(DataprocBaseOperator):
         self.repositories = repositories
         self.exclude_packages = exclude_packages
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = self._setup(context)
         hook.client.create_pyspark_job(
             main_python_file_uri=self.main_python_file_uri,

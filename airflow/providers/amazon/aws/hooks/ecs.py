@@ -15,13 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import time
 from collections import deque
 from datetime import datetime, timedelta
 from enum import Enum
 from logging import Logger
 from threading import Event, Thread
-from typing import Dict, Generator, Optional
+from typing import Generator
 
 from botocore.exceptions import ClientError, ConnectionClosedError
 from botocore.waiter import Waiter
@@ -36,8 +38,8 @@ def should_retry(exception: Exception):
     """Check if exception is related to ECS resource quota (CPU, MEM)."""
     if isinstance(exception, EcsOperatorError):
         return any(
-            quota_reason in failure['reason']
-            for quota_reason in ['RESOURCE:MEMORY', 'RESOURCE:CPU']
+            quota_reason in failure["reason"]
+            for quota_reason in ["RESOURCE:MEMORY", "RESOURCE:CPU"]
             for failure in exception.failures
         )
     return False
@@ -48,7 +50,7 @@ def should_retry_eni(exception: Exception):
     if isinstance(exception, EcsTaskFailToStart):
         return any(
             eni_reason in exception.message
-            for eni_reason in ['network interface provisioning', 'ResourceInitializationError']
+            for eni_reason in ["network interface provisioning", "ResourceInitializationError"]
         )
     return False
 
@@ -56,32 +58,32 @@ def should_retry_eni(exception: Exception):
 class EcsClusterStates(Enum):
     """Contains the possible State values of an ECS Cluster."""
 
-    ACTIVE = 'ACTIVE'
-    PROVISIONING = 'PROVISIONING'
-    DEPROVISIONING = 'DEPROVISIONING'
-    FAILED = 'FAILED'
-    INACTIVE = 'INACTIVE'
+    ACTIVE = "ACTIVE"
+    PROVISIONING = "PROVISIONING"
+    DEPROVISIONING = "DEPROVISIONING"
+    FAILED = "FAILED"
+    INACTIVE = "INACTIVE"
 
 
 class EcsTaskDefinitionStates(Enum):
     """Contains the possible State values of an ECS Task Definition."""
 
-    ACTIVE = 'ACTIVE'
-    INACTIVE = 'INACTIVE'
+    ACTIVE = "ACTIVE"
+    INACTIVE = "INACTIVE"
 
 
 class EcsTaskStates(Enum):
     """Contains the possible State values of an ECS Task."""
 
-    PROVISIONING = 'PROVISIONING'
-    PENDING = 'PENDING'
-    ACTIVATING = 'ACTIVATING'
-    RUNNING = 'RUNNING'
-    DEACTIVATING = 'DEACTIVATING'
-    STOPPING = 'STOPPING'
-    DEPROVISIONING = 'DEPROVISIONING'
-    STOPPED = 'STOPPED'
-    NONE = 'NONE'
+    PROVISIONING = "PROVISIONING"
+    PENDING = "PENDING"
+    ACTIVATING = "ACTIVATING"
+    RUNNING = "RUNNING"
+    DEACTIVATING = "DEACTIVATING"
+    STOPPING = "STOPPING"
+    DEPROVISIONING = "DEPROVISIONING"
+    STOPPED = "STOPPED"
+    NONE = "NONE"
 
 
 class EcsHook(AwsGenericHook):
@@ -103,17 +105,17 @@ class EcsHook(AwsGenericHook):
     """
 
     def __init__(self, *args, **kwargs) -> None:
-        kwargs['client_type'] = 'ecs'
+        kwargs["client_type"] = "ecs"
         super().__init__(*args, **kwargs)
 
     def get_cluster_state(self, cluster_name: str) -> str:
-        return self.conn.describe_clusters(clusters=[cluster_name])['clusters'][0]['status']
+        return self.conn.describe_clusters(clusters=[cluster_name])["clusters"][0]["status"]
 
     def get_task_definition_state(self, task_definition: str) -> str:
-        return self.conn.describe_task_definition(taskDefinition=task_definition)['taskDefinition']['status']
+        return self.conn.describe_task_definition(taskDefinition=task_definition)["taskDefinition"]["status"]
 
     def get_task_state(self, cluster, task) -> str:
-        return self.conn.describe_tasks(cluster=cluster, tasks=[task])['tasks'][0]['lastStatus']
+        return self.conn.describe_tasks(cluster=cluster, tasks=[task])["tasks"][0]["lastStatus"]
 
 
 class EcsTaskLogFetcher(Thread):
@@ -129,8 +131,8 @@ class EcsTaskLogFetcher(Thread):
         log_stream_name: str,
         fetch_interval: timedelta,
         logger: Logger,
-        aws_conn_id: Optional[str] = 'aws_default',
-        region_name: Optional[str] = None,
+        aws_conn_id: str | None = "aws_default",
+        region_name: str | None = None,
     ):
         super().__init__()
         self._event = Event()
@@ -156,24 +158,24 @@ class EcsTaskLogFetcher(Thread):
         try:
             yield from self.hook.get_log_events(self.log_group, self.log_stream_name, skip=skip)
         except ClientError as error:
-            if error.response['Error']['Code'] != 'ResourceNotFoundException':
-                self.logger.warning('Error on retrieving Cloudwatch log events', error)
+            if error.response["Error"]["Code"] != "ResourceNotFoundException":
+                self.logger.warning("Error on retrieving Cloudwatch log events", error)
 
             yield from ()
         except ConnectionClosedError as error:
-            self.logger.warning('ConnectionClosedError on retrieving Cloudwatch log events', error)
+            self.logger.warning("ConnectionClosedError on retrieving Cloudwatch log events", error)
             yield from ()
 
     def _event_to_str(self, event: dict) -> str:
-        event_dt = datetime.utcfromtimestamp(event['timestamp'] / 1000.0)
-        formatted_event_dt = event_dt.strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]
-        message = event['message']
-        return f'[{formatted_event_dt}] {message}'
+        event_dt = datetime.utcfromtimestamp(event["timestamp"] / 1000.0)
+        formatted_event_dt = event_dt.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
+        message = event["message"]
+        return f"[{formatted_event_dt}] {message}"
 
     def get_last_log_messages(self, number_messages) -> list:
-        return [log['message'] for log in deque(self._get_log_events(), maxlen=number_messages)]
+        return [log["message"] for log in deque(self._get_log_events(), maxlen=number_messages)]
 
-    def get_last_log_message(self) -> Optional[str]:
+    def get_last_log_message(self) -> str | None:
         try:
             return self.get_last_log_messages(1)[0]
         except IndexError:
@@ -198,7 +200,7 @@ class EcsProtocol(Protocol):
         - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html
     """
 
-    def run_task(self, **kwargs) -> Dict:
+    def run_task(self, **kwargs) -> dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task"""  # noqa: E501
         ...
 
@@ -206,18 +208,18 @@ class EcsProtocol(Protocol):
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.get_waiter"""  # noqa: E501
         ...
 
-    def describe_tasks(self, cluster: str, tasks) -> Dict:
+    def describe_tasks(self, cluster: str, tasks) -> dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_tasks"""  # noqa: E501
         ...
 
-    def stop_task(self, cluster, task, reason: str) -> Dict:
+    def stop_task(self, cluster, task, reason: str) -> dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.stop_task"""  # noqa: E501
         ...
 
-    def describe_task_definition(self, taskDefinition: str) -> Dict:
+    def describe_task_definition(self, taskDefinition: str) -> dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_task_definition"""  # noqa: E501
         ...
 
-    def list_tasks(self, cluster: str, launchType: str, desiredStatus: str, family: str) -> Dict:
+    def list_tasks(self, cluster: str, launchType: str, desiredStatus: str, family: str) -> dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.list_tasks"""  # noqa: E501
         ...
