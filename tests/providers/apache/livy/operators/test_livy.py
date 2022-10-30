@@ -45,6 +45,7 @@ class TestLivyOperator(unittest.TestCase):
                 conn_id="livyunittest", conn_type="livy", host="localhost:8998", port="8998", schema="http"
             )
         )
+        self.mock_context = dict(ti=MagicMock())
 
     @patch(
         "airflow.providers.apache.livy.operators.livy.LivyHook.dump_batch_logs",
@@ -115,7 +116,7 @@ class TestLivyOperator(unittest.TestCase):
             dag=self.dag,
             task_id="livy_example",
         )
-        task.execute(context={})
+        task.execute(context=self.mock_context)
 
         call_args = {k: v for k, v in mock_post.call_args[1].items() if v}
         assert call_args == {"file": "sparkapp"}
@@ -129,7 +130,7 @@ class TestLivyOperator(unittest.TestCase):
             file="sparkapp", dag=self.dag, task_id="livy_example", extra_options=extra_options
         )
 
-        task.execute(context={})
+        task.execute(context=self.mock_context)
 
         assert task.get_hook().extra_options == extra_options
 
@@ -139,7 +140,7 @@ class TestLivyOperator(unittest.TestCase):
         task = LivyOperator(
             livy_conn_id="livyunittest", file="sparkapp", dag=self.dag, task_id="livy_example"
         )
-        task.execute(context={})
+        task.execute(context=self.mock_context)
         task.kill()
 
         mock_delete.assert_called_once_with(BATCH_ID)
@@ -167,7 +168,7 @@ class TestLivyOperator(unittest.TestCase):
             polling_interval=1,
         )
         with self.assertLogs(task.get_hook().log, level=logging.INFO) as cm:
-            task.execute(context={})
+            task.execute(context=self.mock_context)
             assert "INFO:airflow.providers.apache.livy.hooks.livy.LivyHook:first_line" in cm.output
             assert "INFO:airflow.providers.apache.livy.hooks.livy.LivyHook:second_line" in cm.output
             assert "INFO:airflow.providers.apache.livy.hooks.livy.LivyHook:third_line" in cm.output
