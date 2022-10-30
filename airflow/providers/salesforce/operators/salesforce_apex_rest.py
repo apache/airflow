@@ -59,7 +59,6 @@ class SalesforceApexRestOperator(BaseOperator):
         Makes an HTTP request to an APEX REST endpoint and pushes results to xcom.
         :param context: The task context during execution.
         :return: Apex response
-        :rtype: dict
         """
         result: dict = {}
         sf_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)

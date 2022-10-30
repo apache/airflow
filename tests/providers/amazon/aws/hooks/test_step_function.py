@@ -17,24 +17,17 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
+from moto import mock_stepfunctions
 
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 
-try:
-    from moto import mock_stepfunctions
-except ImportError:
-    mock_stepfunctions = None
 
-
-@unittest.skipIf(mock_stepfunctions is None, "moto package not present")
-class TestStepFunctionHook(unittest.TestCase):
-    @mock_stepfunctions
+@mock_stepfunctions
+class TestStepFunctionHook:
     def test_get_conn_returns_a_boto3_connection(self):
         hook = StepFunctionHook(aws_conn_id="aws_default")
         assert "stepfunctions" == hook.get_conn().meta.service_model.service_name
 
-    @mock_stepfunctions
     def test_start_execution(self):
         hook = StepFunctionHook(aws_conn_id="aws_default", region_name="us-east-1")
         state_machine = hook.get_conn().create_state_machine(
@@ -49,7 +42,6 @@ class TestStepFunctionHook(unittest.TestCase):
 
         assert execution_arn is not None
 
-    @mock_stepfunctions
     def test_describe_execution(self):
         hook = StepFunctionHook(aws_conn_id="aws_default", region_name="us-east-1")
         state_machine = hook.get_conn().create_state_machine(

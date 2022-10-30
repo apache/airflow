@@ -18,11 +18,40 @@
 from __future__ import annotations
 
 import warnings
+from functools import wraps
 from typing import IO, Any
 
 from azure.storage.file import File, FileService
 
 from airflow.hooks.base import BaseHook
+
+
+def _ensure_prefixes(conn_type):
+    """
+    Remove when provider min airflow version >= 2.5.0 since this is handled by
+    provider manager from that version.
+    """
+
+    def dec(func):
+        @wraps(func)
+        def inner():
+            field_behaviors = func()
+            conn_attrs = {"host", "schema", "login", "password", "port", "extra"}
+
+            def _ensure_prefix(field):
+                if field not in conn_attrs and not field.startswith("extra__"):
+                    return f"extra__{conn_type}__{field}"
+                else:
+                    return field
+
+            if "placeholders" in field_behaviors:
+                placeholders = field_behaviors["placeholders"]
+                field_behaviors["placeholders"] = {_ensure_prefix(k): v for k, v in placeholders.items()}
+            return field_behaviors
+
+        return inner
+
+    return dec
 
 
 class AzureFileShareHook(BaseHook):
@@ -53,18 +82,17 @@ class AzureFileShareHook(BaseHook):
         from wtforms import PasswordField, StringField
 
         return {
-            "extra__azure_fileshare__sas_token": PasswordField(
-                lazy_gettext("SAS Token (optional)"), widget=BS3PasswordFieldWidget()
-            ),
-            "extra__azure_fileshare__connection_string": StringField(
+            "sas_token": PasswordField(lazy_gettext("SAS Token (optional)"), widget=BS3PasswordFieldWidget()),
+            "connection_string": StringField(
                 lazy_gettext("Connection String (optional)"), widget=BS3TextFieldWidget()
             ),
-            "extra__azure_fileshare__protocol": StringField(
+            "protocol": StringField(
                 lazy_gettext("Account URL or token (optional)"), widget=BS3TextFieldWidget()
             ),
         }
 
     @staticmethod
+    @_ensure_prefixes(conn_type="azure_fileshare")
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
@@ -76,41 +104,42 @@ class AzureFileShareHook(BaseHook):
             "placeholders": {
                 "login": "account name",
                 "password": "secret",
-                "extra__azure_fileshare__sas_token": "account url or token (optional)",
-                "extra__azure_fileshare__connection_string": "account url or token (optional)",
-                "extra__azure_fileshare__protocol": "account url or token (optional)",
+                "sas_token": "account url or token (optional)",
+                "connection_string": "account url or token (optional)",
+                "protocol": "account url or token (optional)",
             },
         }
 
     def get_conn(self) -> FileService:
         """Return the FileService object."""
-        prefix = "extra__azure_fileshare__"
+
+        def check_for_conflict(key):
+            backcompat_key = f"{backcompat_prefix}{key}"
+            if backcompat_key in extras:
+                warnings.warn(
+                    f"Conflicting params `{key}` and `{backcompat_key}` found in extras for conn "
+                    f"{self.conn_id}. Using value for `{key}`.  Please ensure this is the correct value "
+                    f"and remove the backcompat key `{backcompat_key}`."
+                )
+
+        backcompat_prefix = "extra__azure_fileshare__"
         if self._conn:
             return self._conn
         conn = self.get_connection(self.conn_id)
-        service_options_with_prefix = conn.extra_dejson
+        extras = conn.extra_dejson
         service_options = {}
-        for key, value in service_options_with_prefix.items():
-            # in case dedicated FileShareHook is used, the connection will use the extras from UI.
-            # in case deprecated wasb hook is used, the old extras will work as well
-            if key.startswith(prefix):
-                if value != "":
-                    service_options[key[len(prefix) :]] = value
-                else:
-                    # warn if the deprecated wasb_connection is used
-                    warnings.warn(
-                        "You are using deprecated connection for AzureFileShareHook."
-                        " Please change it to `Azure FileShare`.",
-                        DeprecationWarning,
-                    )
-            else:
+        for key, value in extras.items():
+            if value == "":
+                continue
+            if not key.startswith("extra__"):
                 service_options[key] = value
-                # warn if the old non-prefixed value is used
-                warnings.warn(
-                    "You are using deprecated connection for AzureFileShareHook."
-                    " Please change it to `Azure FileShare`.",
-                    DeprecationWarning,
-                )
+                check_for_conflict(key)
+            elif key.startswith(backcompat_prefix):
+                short_name = key[len(backcompat_prefix) :]
+                if short_name not in service_options:  # prefer values provided with short name
+                    service_options[short_name] = value
+            else:
+                warnings.warn(f"Extra param `{key}` not recognized; ignoring.")
         self._conn = FileService(account_name=conn.login, account_key=conn.password, **service_options)
         return self._conn
 
@@ -123,7 +152,6 @@ class AzureFileShareHook(BaseHook):
         :param kwargs: Optional keyword arguments that
             `FileService.exists()` takes.
         :return: True if the file exists, False otherwise.
-        :rtype: bool
         """
         return self.get_conn().exists(share_name, directory_name, **kwargs)
 
@@ -137,7 +165,6 @@ class AzureFileShareHook(BaseHook):
         :param kwargs: Optional keyword arguments that
             `FileService.exists()` takes.
         :return: True if the file exists, False otherwise.
-        :rtype: bool
         """
         return self.get_conn().exists(share_name, directory_name, file_name, **kwargs)
 
@@ -152,7 +179,6 @@ class AzureFileShareHook(BaseHook):
         :param kwargs: Optional keyword arguments that
             `FileService.list_directories_and_files()` takes.
         :return: A list of files and directories
-        :rtype: list
         """
         return self.get_conn().list_directories_and_files(share_name, directory_name, **kwargs)
 
@@ -165,7 +191,6 @@ class AzureFileShareHook(BaseHook):
         :param kwargs: Optional keyword arguments that
             `FileService.list_directories_and_files()` takes.
         :return: A list of files
-        :rtype: list
         """
         return [
             obj.name
@@ -181,7 +206,6 @@ class AzureFileShareHook(BaseHook):
         :param kwargs: Optional keyword arguments that
             `FileService.create_share()` takes.
         :return: True if share is created, False if share already exists.
-        :rtype: bool
         """
         return self.get_conn().create_share(share_name, **kwargs)
 
@@ -193,7 +217,6 @@ class AzureFileShareHook(BaseHook):
         :param kwargs: Optional keyword arguments that
             `FileService.delete_share()` takes.
         :return: True if share is deleted, False if share does not exist.
-        :rtype: bool
         """
         return self.get_conn().delete_share(share_name, **kwargs)
 
@@ -206,7 +229,6 @@ class AzureFileShareHook(BaseHook):
         :param kwargs: Optional keyword arguments that
             `FileService.create_directory()` takes.
         :return: A list of files and directories
-        :rtype: list
         """
         return self.get_conn().create_directory(share_name, directory_name, **kwargs)
 

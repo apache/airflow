@@ -17,23 +17,13 @@
 """Hook for Level DB"""
 from __future__ import annotations
 
+from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.hooks.base import BaseHook
+
 try:
     import plyvel
     from plyvel import DB
-
-    from airflow.exceptions import AirflowException
-    from airflow.hooks.base import BaseHook
-
 except ImportError as e:
-    # Plyvel is an optional feature and if imports are missing, it should be silently ignored
-    # As of Airflow 2.3  and above the operator can throw OptionalProviderFeatureException
-    try:
-        from airflow.exceptions import AirflowOptionalProviderFeatureException
-    except ImportError:
-        # However, in order to keep backwards-compatibility with Airflow 2.1 and 2.2, if the
-        # 2.3 exception cannot be imported, the original ImportError should be raised.
-        # This try/except can be removed when the provider depends on Airflow >= 2.3.0
-        raise e from None
     raise AirflowOptionalProviderFeatureException(e)
 
 DB_NOT_INITIALIZED_BEFORE = "The `get_conn` method should be called before!"
@@ -68,7 +58,6 @@ class LevelDBHook(BaseHook):
         :param create_if_missing: whether a new database should be created if needed
         :param kwargs: other options of creation plyvel.DB. See more in the link above.
         :returns: DB
-        :rtype: plyvel.DB
         """
         if self.db is not None:
             return self.db
@@ -97,10 +86,9 @@ class LevelDBHook(BaseHook):
             ``"put"``, ``"get"``, ``"delete"``, ``"write_batch"``.
         :param key: key for command(put,get,delete) execution(, e.g. ``b'key'``, ``b'another-key'``)
         :param value: value for command(put) execution(bytes, e.g. ``b'value'``, ``b'another-value'``)
-        :param keys: keys for command(write_batch) execution(List[bytes], e.g. ``[b'key', b'another-key'])``
+        :param keys: keys for command(write_batch) execution(list[bytes], e.g. ``[b'key', b'another-key'])``
         :param values: values for command(write_batch) execution e.g. ``[b'value'``, ``b'another-value']``
         :returns: value from get or None
-        :rtype: Optional[bytes]
         """
         if command == "put":
             if not value:
@@ -136,7 +124,6 @@ class LevelDBHook(BaseHook):
 
         :param key: key for get execution, e.g. ``b'key'``, ``b'another-key'``
         :returns: value of key from db.get
-        :rtype: bytes
         """
         if not self.db:
             raise Exception(DB_NOT_INITIALIZED_BEFORE)

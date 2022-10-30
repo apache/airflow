@@ -125,6 +125,7 @@ The selective check outputs available are described below:
 | default-python-version             | Which Python version to use as default                                                                 | 3.7                                                           |
 | docs-build                         | Whether to build documentation ("true"/"false")                                                        | true                                                          |
 | docs-filter                        | What filter to apply to docs building - used in non-main branches to skip provider and chart docs.     | --package-filter apache-airflow --package-filter docker-stack |
+| full-tests-needed                  | Whether this build runs complete set of tests or only subset (for faster PR builds).                   | false                                                         |
 | helm-version                       | Which Helm version to use for tests                                                                    | v3.9.4                                                        |
 | image-build                        | Whether CI image build is needed                                                                       | true                                                          |
 | kind-version                       | Which Kind version to use for tests                                                                    | v0.16.0                                                       |
@@ -146,7 +147,6 @@ The selective check outputs available are described below:
 | python-versions-list-as-string     | Which versions of MySQL to use for tests as space-separated string                                     | 3.7                                                           |
 | run-kubernetes-tests               | Whether Kubernetes tests should be run ("true"/"false")                                                | true                                                          |
 | run-tests                          | Whether unit tests should be run ("true"/"false")                                                      | true                                                          |
-| run-ui-tests                       | Whether UI tests should be run ("true"/"false")                                                        | true                                                          |
 | run-www-tests                      | Whether WWW tests should be run ("true"/"false")                                                       | true                                                          |
 | skip-pre-commits                   | Which pre-commits should be skipped during the static-checks run                                       | identity                                                      |
 | sqlite-exclude                     | Which versions of Sqlite to exclude for tests as JSON array                                            | []                                                            |

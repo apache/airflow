@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.hooks.base import BaseHook
@@ -33,6 +32,7 @@ from airflow.providers.qubole.hooks.qubole import (
 )
 
 if TYPE_CHECKING:
+
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
@@ -45,15 +45,13 @@ class QDSLink(BaseOperatorLink):
     def get_link(
         self,
         operator: BaseOperator,
-        dttm: datetime | None = None,
         *,
-        ti_key: TaskInstanceKey | None = None,
+        ti_key: TaskInstanceKey,
     ) -> str:
         """
         Get link to qubole command result page.
 
         :param operator: operator
-        :param dttm: datetime
         :return: url link
         """
         conn = BaseHook.get_connection(
@@ -64,13 +62,7 @@ class QDSLink(BaseOperatorLink):
             host = re.sub(r"api$", "v2/analyze?command_id=", conn.host)
         else:
             host = "https://api.qubole.com/v2/analyze?command_id="
-        if ti_key is not None:
-            qds_command_id = XCom.get_value(key="qbol_cmd_id", ti_key=ti_key)
-        else:
-            assert dttm
-            qds_command_id = XCom.get_one(
-                key="qbol_cmd_id", dag_id=operator.dag_id, task_id=operator.task_id, execution_date=dttm
-            )
+        qds_command_id = XCom.get_value(key="qbol_cmd_id", ti_key=ti_key)
         url = host + str(qds_command_id) if qds_command_id else ""
         return url
 

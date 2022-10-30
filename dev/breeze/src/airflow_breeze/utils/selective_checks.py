@@ -68,7 +68,6 @@ class FileGroupForCi(Enum):
     HELM_FILES = "helm_files"
     SETUP_FILES = "setup_files"
     DOC_FILES = "doc_files"
-    UI_FILES = "ui_files"
     WWW_FILES = "www_files"
     KUBERNETES_FILES = "kubernetes_files"
     ALL_PYTHON_FILES = "all_python_files"
@@ -134,11 +133,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/RELEASE_NOTES\.txt",
             r"^chart/values\.schema\.json",
             r"^chart/values\.json",
-        ],
-        FileGroupForCi.UI_FILES: [
-            r"^airflow/www/.*\.[tj]sx?$",
-            r"^airflow/www/[^/]+\.json$",
-            r"^airflow/www/.*\.lock$",
         ],
         FileGroupForCi.WWW_FILES: [
             r"^airflow/www/.*\.js[x]?$",
@@ -296,7 +290,7 @@ class SelectiveChecks:
         return self._default_constraints_branch
 
     @cached_property
-    def _full_tests_needed(self) -> bool:
+    def full_tests_needed(self) -> bool:
         if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
             get_console().print(f"[warning]Full tests needed because event is {self._github_event}[/]")
             return True
@@ -312,7 +306,7 @@ class SelectiveChecks:
     def python_versions(self) -> list[str]:
         return (
             CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
-            if self._full_tests_needed
+            if self.full_tests_needed
             else [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
         )
 
@@ -324,7 +318,7 @@ class SelectiveChecks:
     def all_python_versions(self) -> list[str]:
         return (
             ALL_PYTHON_MAJOR_MINOR_VERSIONS
-            if self._run_everything or self._full_tests_needed
+            if self._run_everything or self.full_tests_needed
             else [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
         )
 
@@ -334,15 +328,15 @@ class SelectiveChecks:
 
     @cached_property
     def postgres_versions(self) -> list[str]:
-        return CURRENT_POSTGRES_VERSIONS if self._full_tests_needed else [DEFAULT_POSTGRES_VERSION]
+        return CURRENT_POSTGRES_VERSIONS if self.full_tests_needed else [DEFAULT_POSTGRES_VERSION]
 
     @cached_property
     def mysql_versions(self) -> list[str]:
-        return CURRENT_MYSQL_VERSIONS if self._full_tests_needed else [DEFAULT_MYSQL_VERSION]
+        return CURRENT_MYSQL_VERSIONS if self.full_tests_needed else [DEFAULT_MYSQL_VERSION]
 
     @cached_property
     def mssql_versions(self) -> list[str]:
-        return CURRENT_MSSQL_VERSIONS if self._full_tests_needed else [DEFAULT_MSSQL_VERSION]
+        return CURRENT_MSSQL_VERSIONS if self.full_tests_needed else [DEFAULT_MSSQL_VERSION]
 
     @cached_property
     def kind_version(self) -> str:
@@ -354,23 +348,23 @@ class SelectiveChecks:
 
     @cached_property
     def postgres_exclude(self) -> list[dict[str, str]]:
-        return [{"python-version": "3.7"}] if self._full_tests_needed else []
+        return [{"python-version": "3.7"}] if self.full_tests_needed else []
 
     @cached_property
     def mssql_exclude(self) -> list[dict[str, str]]:
-        return [{"python-version": "3.8"}] if self._full_tests_needed else []
+        return [{"python-version": "3.8"}] if self.full_tests_needed else []
 
     @cached_property
     def mysql_exclude(self) -> list[dict[str, str]]:
-        return [{"python-version": "3.10"}] if self._full_tests_needed else []
+        return [{"python-version": "3.10"}] if self.full_tests_needed else []
 
     @cached_property
     def sqlite_exclude(self) -> list[dict[str, str]]:
-        return [{"python-version": "3.9"}] if self._full_tests_needed else []
+        return [{"python-version": "3.9"}] if self.full_tests_needed else []
 
     @cached_property
     def kubernetes_versions(self) -> list[str]:
-        return CURRENT_KUBERNETES_VERSIONS if self._full_tests_needed else [DEFAULT_KUBERNETES_VERSION]
+        return CURRENT_KUBERNETES_VERSIONS if self.full_tests_needed else [DEFAULT_KUBERNETES_VERSION]
 
     @cached_property
     def kubernetes_versions_list_as_string(self) -> str:
@@ -410,7 +404,7 @@ class SelectiveChecks:
         if not self._commit_ref:
             get_console().print("[warning]Running everything as commit is missing[/]")
             return True
-        if self._full_tests_needed:
+        if self.full_tests_needed:
             get_console().print("[warning]Running everything as full tests are needed[/]")
             return True
         if len(self._matching_files(FileGroupForCi.ENVIRONMENT_FILES, CI_FILE_GROUP_MATCHES)) > 0:
@@ -449,10 +443,6 @@ class SelectiveChecks:
     @cached_property
     def needs_api_codegen(self) -> bool:
         return self._should_be_run(FileGroupForCi.API_CODEGEN_FILES)
-
-    @cached_property
-    def run_ui_tests(self) -> bool:
-        return self._should_be_run(FileGroupForCi.UI_FILES)
 
     @cached_property
     def run_www_tests(self) -> bool:

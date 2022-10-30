@@ -147,7 +147,7 @@ class TestCliUtil:
 
         assert metrics.get("start_datetime") <= datetime.utcnow()
 
-        command = json.loads(log.extra).get("full_command")  # type: str
+        command: str = json.loads(log.extra).get("full_command")
         # Replace single quotes to double quotes to avoid json decode error
         command = ast.literal_eval(command)
         assert command == expected_command

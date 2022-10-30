@@ -72,6 +72,8 @@ class KubernetesHook(BaseHook):
     conn_type = "kubernetes"
     hook_name = "Kubernetes Cluster Connection"
 
+    DEFAULT_NAMESPACE = "default"
+
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
@@ -272,8 +274,7 @@ class KubernetesHook(BaseHook):
         :param namespace: kubernetes namespace
         """
         api: client.CustomObjectsApi = self.custom_object_client
-        if namespace is None:
-            namespace = self.get_namespace()
+        namespace = namespace or self._get_namespace() or self.DEFAULT_NAMESPACE
         if isinstance(body, str):
             body_dict = _load_body_to_dict(body)
         else:
@@ -287,9 +288,9 @@ class KubernetesHook(BaseHook):
                 plural=plural,
                 name=app_name,
             )
-            self.log.warning("Deleted CustomApplication with the same name: %s", app_name)
+            self.log.warning("Deleted  custom resource with the same name: %s", app_name)
         except client.rest.ApiException:
-            self.log.info("K8s CustomApp %s not found.", app_name)
+            self.log.info("Custom resource %s not found.", body_dict["metadata"]["name"])
 
         try:
             response = api.create_namespaced_custom_object(
@@ -313,8 +314,7 @@ class KubernetesHook(BaseHook):
         :param namespace: kubernetes namespace
         """
         api = client.CustomObjectsApi(self.api_client)
-        if namespace is None:
-            namespace = self.get_namespace()
+        namespace = namespace or self._get_namespace() or self.DEFAULT_NAMESPACE
         try:
             response = api.get_namespaced_custom_object(
                 group=group, version=version, namespace=namespace, plural=plural, name=name
@@ -324,9 +324,32 @@ class KubernetesHook(BaseHook):
             raise AirflowException(f"Exception when calling -> get_custom_object: {e}\n")
 
     def get_namespace(self) -> str | None:
-        """Returns the namespace that defined in the connection"""
+        """
+        Returns the namespace defined in the connection or 'default'.
+
+        TODO: in provider version 6.0, return None when namespace not defined in connection
+        """
+        namespace = self._get_namespace()
+        if self.conn_id and not namespace:
+            warnings.warn(
+                "Airflow connection defined but namespace is not set; returning 'default'.  In "
+                "cncf.kubernetes provider version 6.0 we will return None when namespace is "
+                "not defined in the connection so that it's clear whether user intends 'default' or "
+                "whether namespace is unset (which is required in order to apply precedence logic in "
+                "KubernetesPodOperator).",
+                DeprecationWarning,
+            )
+            return "default"
+        return namespace
+
+    def _get_namespace(self) -> str | None:
+        """
+        Returns the namespace that defined in the connection
+
+        TODO: in provider version 6.0, get rid of this method and make it the behavior of get_namespace.
+        """
         if self.conn_id:
-            return self._get_field("namespace") or "default"
+            return self._get_field("namespace")
         return None
 
     def get_pod_log_stream(
@@ -349,7 +372,7 @@ class KubernetesHook(BaseHook):
                 self.core_v1_client.read_namespaced_pod_log,
                 name=pod_name,
                 container=container,
-                namespace=namespace if namespace else self.get_namespace(),
+                namespace=namespace or self._get_namespace() or self.DEFAULT_NAMESPACE,
             ),
         )
 
@@ -370,7 +393,7 @@ class KubernetesHook(BaseHook):
             name=pod_name,
             container=container,
             _preload_content=False,
-            namespace=namespace if namespace else self.get_namespace(),
+            namespace=namespace or self._get_namespace() or self.DEFAULT_NAMESPACE,
         )
 
     def get_namespaced_pod_list(
@@ -387,7 +410,7 @@ class KubernetesHook(BaseHook):
         :param watch: Watch for changes to the described resources and return them as a stream
         """
         return self.core_v1_client.list_namespaced_pod(
-            namespace=namespace if namespace else self.get_namespace(),
+            namespace=namespace or self._get_namespace() or self.DEFAULT_NAMESPACE,
             watch=watch,
             label_selector=label_selector,
             _preload_content=False,

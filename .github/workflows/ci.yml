@@ -140,13 +140,13 @@ jobs:
       default-mysql-version: ${{ steps.selective-checks.outputs.default-mysql-version }}
       default-helm-version: ${{ steps.selective-checks.outputs.default-helm-version }}
       default-kind-version: ${{ steps.selective-checks.outputs.default-kind-version }}
+      full-tests-needed: ${{ steps.selective-checks.outputs.full-tests-needed }}
       test-types: ${{ steps.selective-checks.outputs.test-types }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mssql-exclude: ${{ steps.selective-checks.outputs.mssql-exclude }}
       sqlite-exclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
-      run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
       run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
@@ -383,18 +383,10 @@ jobs:
       - name: "Free space"
         run: breeze ci free-space
         if: needs.build-info.outputs.in-workflow-build == 'true'
-      - name: Cache pre-commit envs
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pre-commit
-          key: "pre-commit-${{steps.host-python-version.outputs.host-python-version}}-\
-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: pre-commit-${{steps.host-python-version.outputs.host-python-version}}
-        if: needs.build-info.outputs.in-workflow-build == 'true'
       - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
-        run: >
-          breeze static-checks --type update-providers-dependencies --all-files
-          --show-diff-on-failure --color always || true
+        run: |
+          pip install rich>=12.4.4 pyyaml
+          python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
         if: >
           needs.build-info.outputs.in-workflow-build == 'true' &&
           needs.build-info.outputs.default-branch == 'main'
@@ -464,20 +456,15 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Free space"
         run: breeze ci free-space
         if: needs.build-info.outputs.in-workflow-build == 'true'
-      - name: Cache pre-commit envs
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pre-commit
-          key: "pre-commit-${{steps.host-python-version.outputs.host-python-version}}-\
-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: pre-commit-${{steps.host-python-version.outputs.host-python-version}}
-        if: >
-          needs.build-info.outputs.in-workflow-build == 'true' &&
-          needs.build-info.outputs.default-branch == 'main'
-      - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
+      - name: "Get Python version"
         run: >
-          breeze static-checks --type update-providers-dependencies --all-files
-          --show-diff-on-failure --color always || true
+          echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
+          >> ${GITHUB_OUTPUT}
+        id: host-python-version
+      - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
+        run: |
+          pip install rich>=12.4.4 pyyaml
+          python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
         if: >
           needs.build-info.outputs.in-workflow-build == 'true' &&
           needs.build-info.outputs.default-branch == 'main'
@@ -604,7 +591,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -626,10 +613,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs: [build-info]
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 2
           persist-credentials: false
+    if: needs.build-info.outputs.runs-on != 'self-hosted'
 
   wait-for-ci-images:
     timeout-minutes: 120
@@ -689,6 +677,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ needs.build-info.outputs.default-python-version }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
+      - name: "Get Python version"
+        run: >
+          echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
+          >> ${GITHUB_OUTPUT}
+        id: host-python-version
       - name: Cache pre-commit envs
         uses: actions/cache@v3
         with:
@@ -704,11 +697,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: breeze ci-image pull --tag-as-latest
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-      - name: "Get Python version"
-        run: >
-         echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
-         >> ${GITHUB_OUTPUT}
-        id: host-python-version
       - name: "Static checks"
         run: breeze static-checks --all-files --show-diff-on-failure --color always
         env:
@@ -734,6 +722,17 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Setup python"
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ needs.build-info.outputs.default-python-version }}
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/setup*
+      - name: "Get Python version"
+        run: >
+          echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
+          >> ${GITHUB_OUTPUT}
+        id: host-python-version
       - name: Cache pre-commit envs
         uses: actions/cache@v3
         with:
@@ -747,20 +746,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           ref: ${{ github.sha }}
           fetch-depth: 2
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: breeze ci free-space
-      - name: "Get Python version"
-        run: >
-          echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
-          >> ${GITHUB_OUTPUT}
-        id: host-python-version
       - name: "Static checks: basic checks only"
         run: >
           breeze static-checks --all-files --show-diff-on-failure --color always
@@ -884,32 +872,22 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: |
           pipx install twine
           twine check dist/*.whl
-      - name: "Remove airflow package and replace providers with 2.2-compliant versions"
+      - name: "Remove airflow package and replace providers with 2.3-compliant versions"
         run: |
           rm -vf dist/apache_airflow-*.whl \
-             dist/apache_airflow_providers_cncf_kubernetes*.whl \
-             dist/apache_airflow_providers_celery*.whl
+             dist/apache_airflow_providers_docker*.whl
           pip download --no-deps --dest dist \
-              apache-airflow-providers-cncf-kubernetes==3.0.0 \
-              apache-airflow-providers-celery==2.1.3
-      - name: "Install and test provider packages and airflow on Airflow 2.2 files"
+              apache-airflow-providers-docker==3.1.0
+      - name: "Get all provider extras as AIRFLOW_EXTRAS evn variable"
         run: >
-          breeze release-management verify-provider-packages --use-airflow-version 2.2.0
-          --use-packages-from-dist --package-format wheel --airflow-constraints-reference constraints-2.2.0
-        env:
-          # The extras below are all extras that should be installed with Airflow 2.2.0
-          AIRFLOW_EXTRAS: "airbyte,alibaba,amazon,apache.atlas,apache.beam,apache.cassandra,apache.drill,\
-            apache.druid,apache.hdfs,apache.hive,apache.kylin,apache.livy,apache.pig,apache.pinot,\
-            apache.spark,apache.sqoop,apache.webhdfs,asana,async,\
-            celery,cgroups,cloudant,cncf.kubernetes,dask,databricks,datadog,\
-            deprecated_api,dingding,discord,docker,\
-            elasticsearch,exasol,facebook,ftp,github_enterprise,google,google_auth,\
-            grpc,hashicorp,http,imap,influxdb,jdbc,jenkins,jira,kerberos,ldap,\
-            leveldb,microsoft.azure,microsoft.mssql,microsoft.psrp,microsoft.winrm,mongo,mysql,\
-            neo4j,odbc,openfaas,opsgenie,oracle,pagerduty,pandas,papermill,password,plexus,\
-            postgres,presto,qubole,rabbitmq,redis,salesforce,samba,segment,sendgrid,sentry,\
-            sftp,singularity,slack,snowflake,sqlite,ssh,statsd,tableau,telegram,trino,vertica,\
-            virtualenv,yandex,zendesk"
+          python -c 'from pathlib import Path; import json;
+          providers = json.loads(Path("generated/provider_dependencies.json").read_text());
+          provider_keys = ",".join(providers.keys());
+          print("AIRFLOW_EXTRAS={}".format(provider_keys))' >> $GITHUB_ENV
+      - name: "Install and test provider packages and airflow on Airflow 2.3 files"
+        run: >
+          breeze release-management verify-provider-packages --use-airflow-version 2.3.0
+          --use-packages-from-dist --package-format wheel --airflow-constraints-reference constraints-2.3.0
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
@@ -959,7 +937,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           breeze release-management prepare-airflow-package
           --package-format sdist --version-suffix-for-pypi dev0
       - name: "Upload provider distribution artifacts"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: airflow-provider-packages
           path: "./dist/apache-airflow-providers-*.tar.gz"
@@ -1051,6 +1029,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
       TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo
@@ -1142,6 +1121,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       BACKEND: mysql
       MYSQL_VERSION: ${{ matrix.mysql-version }}
       TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
+      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1228,6 +1208,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       BACKEND: mssql
       MSSQL_VERSION: ${{ matrix.mssql-version }}
       TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
+      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1312,6 +1293,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: sqlite
       TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
+      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1851,7 +1833,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
