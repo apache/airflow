@@ -1838,7 +1838,7 @@ class TestBackfillJob:
             assert State.NONE in states
 
     @pytest.mark.parametrize(
-        ['disable_retry', 'try_number', 'exception'],
+        ["disable_retry", "try_number", "exception"],
         (
             (True, 1, BackfillUnfinished),
             (False, 2, AirflowException),
@@ -1846,11 +1846,11 @@ class TestBackfillJob:
     )
     def test_backfill_disable_retry(self, dag_maker, disable_retry, try_number, exception):
         with dag_maker(
-            dag_id='test_disable_retry',
+            dag_id="test_disable_retry",
             schedule_interval="@daily",
             default_args={
-                'retries': 2,
-                'retry_delay': datetime.timedelta(seconds=3),
+                "retries": 2,
+                "retry_delay": datetime.timedelta(seconds=3),
             },
         ) as dag:
             task1 = EmptyOperator(task_id="task1")
