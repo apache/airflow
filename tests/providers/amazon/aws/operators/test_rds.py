@@ -196,7 +196,6 @@ class TestRdsCreateDbSnapshotOperator:
             db_snapshot_identifier=DB_INSTANCE_SNAPSHOT,
             db_identifier=DB_INSTANCE_NAME,
             aws_conn_id=AWS_CONN,
-
             dag=self.dag,
             wait_for_completion=False,
         )
