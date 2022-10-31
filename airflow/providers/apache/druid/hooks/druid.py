@@ -89,13 +89,7 @@ class DruidHook(BaseHook):
         self.log.info("Druid ingestion spec: %s", json_index_spec)
         req_index = requests.post(url, data=json_index_spec, headers=self.header, auth=self.get_auth())
         if req_index.status_code != 200:
-<<<<<<< HEAD
             raise AirflowException("Failed when submitting the Druid job to {}. Status code: {}, response: {}".format(url,req_index.status_code,req_index.content))
-
-=======
-            raise AirflowException(f'Failed when submitting the Druid job to {url}. Status code: {req_index.status_code}, response: {req_index.content}')
-            
->>>>>>> e82341ae30cb1c5366b870d7aa68b7b199c1fe9b
 
         req_json = req_index.json()
         # Wait until the job is completed
