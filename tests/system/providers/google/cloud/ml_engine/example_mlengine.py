@@ -21,11 +21,14 @@ Example Airflow DAG for Google ML Engine service.
 from __future__ import annotations
 
 import os
+import pathlib
 from datetime import datetime
-from typing import Any
+from math import ceil
 
 from airflow import models
+from airflow.decorators import task
 from airflow.operators.bash import BashOperator
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.mlengine import (
     MLEngineCreateModelOperator,
     MLEngineCreateVersionOperator,
@@ -37,70 +40,64 @@ from airflow.providers.google.cloud.operators.mlengine import (
     MLEngineStartBatchPredictionJobOperator,
     MLEngineStartTrainingJobOperator,
 )
+from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.providers.google.cloud.utils import mlengine_operator_utils
+from airflow.utils.trigger_rule import TriggerRule
 
-PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
+PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "default")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 
-MODEL_NAME = os.environ.get("GCP_MLENGINE_MODEL_NAME", "model_name")
+DAG_ID = "example_gcp_mlengine"
+PREDICT_FILE_NAME = "predict.json"
+MODEL_NAME = f"example_mlengine_model_{ENV_ID}"
+BUCKET_NAME = f"example_mlengine_bucket_{ENV_ID}"
+BUCKET_PATH = f"gs://{BUCKET_NAME}"
+JOB_DIR = f"{BUCKET_PATH}/job-dir"
+SAVED_MODEL_PATH = f"{JOB_DIR}/"
+PREDICTION_INPUT = f"{BUCKET_PATH}/{PREDICT_FILE_NAME}"
+PREDICTION_OUTPUT = f"{BUCKET_PATH}/prediction_output/"
+TRAINER_URI = "gs://system-tests-resources/example_gcp_mlengine/trainer-0.1.tar.gz"
+TRAINER_PY_MODULE = "trainer.task"
+SUMMARY_TMP = f"{BUCKET_PATH}/tmp/"
+SUMMARY_STAGING = f"{BUCKET_PATH}/staging/"
 
-SAVED_MODEL_PATH = os.environ.get("GCP_MLENGINE_SAVED_MODEL_PATH", "gs://INVALID BUCKET NAME/saved-model/")
-JOB_DIR = os.environ.get("GCP_MLENGINE_JOB_DIR", "gs://INVALID BUCKET NAME/keras-job-dir")
-PREDICTION_INPUT = os.environ.get(
-    "GCP_MLENGINE_PREDICTION_INPUT", "gs://INVALID BUCKET NAME/prediction_input.json"
-)
-PREDICTION_OUTPUT = os.environ.get(
-    "GCP_MLENGINE_PREDICTION_OUTPUT", "gs://INVALID BUCKET NAME/prediction_output"
-)
-TRAINER_URI = os.environ.get("GCP_MLENGINE_TRAINER_URI", "gs://INVALID BUCKET NAME/trainer.tar.gz")
-TRAINER_PY_MODULE = os.environ.get("GCP_MLENGINE_TRAINER_TRAINER_PY_MODULE", "trainer.task")
+BASE_DIR = pathlib.Path(__file__).parent.resolve()
+PATH_TO_PREDICT_FILE = BASE_DIR / PREDICT_FILE_NAME
 
-SUMMARY_TMP = os.environ.get("GCP_MLENGINE_DATAFLOW_TMP", "gs://INVALID BUCKET NAME/tmp/")
-SUMMARY_STAGING = os.environ.get("GCP_MLENGINE_DATAFLOW_STAGING", "gs://INVALID BUCKET NAME/staging/")
+
+def generate_model_predict_input_data() -> list[int]:
+    return [i for i in range(0, 201, 10)]
 
 
 with models.DAG(
-    "example_gcp_mlengine",
+    dag_id=DAG_ID,
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "ml_engine"],
     params={"model_name": MODEL_NAME},
 ) as dag:
-    hyperparams: dict[str, Any] = {
-        "goal": "MAXIMIZE",
-        "hyperparameterMetricTag": "metric1",
-        "maxTrials": 30,
-        "maxParallelTrials": 1,
-        "enableTrialEarlyStopping": True,
-        "params": [],
-    }
-
-    hyperparams["params"].append(
-        {
-            "parameterName": "hidden1",
-            "type": "INTEGER",
-            "minValue": 40,
-            "maxValue": 400,
-            "scaleType": "UNIT_LINEAR_SCALE",
-        }
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create-bucket",
+        bucket_name=BUCKET_NAME,
     )
 
-    hyperparams["params"].append(
-        {"parameterName": "numRnnCells", "type": "DISCRETE", "discreteValues": [1, 2, 3, 4]}
+    @task(task_id="write-predict-data-file")
+    def write_predict_file(path_to_file: str):
+        predict_data = generate_model_predict_input_data()
+        with open(path_to_file, "w") as file:
+            for predict_value in predict_data:
+                file.write(f'{{"input_layer": [{predict_value}]}}\n')
+
+    write_data = write_predict_file(path_to_file=PATH_TO_PREDICT_FILE)
+
+    upload_file = LocalFilesystemToGCSOperator(
+        task_id="upload-predict-file",
+        src=[PATH_TO_PREDICT_FILE],
+        dst=PREDICT_FILE_NAME,
+        bucket=BUCKET_NAME,
     )
 
-    hyperparams["params"].append(
-        {
-            "parameterName": "rnnCellType",
-            "type": "CATEGORICAL",
-            "categoricalValues": [
-                "BasicLSTMCell",
-                "BasicRNNCell",
-                "GRUCell",
-                "LSTMCell",
-                "LayerNormBasicLSTMCell",
-            ],
-        }
-    )
     # [START howto_operator_gcp_mlengine_training]
     training = MLEngineStartTrainingJobOperator(
         task_id="training",
@@ -114,7 +111,6 @@ with models.DAG(
         training_python_module=TRAINER_PY_MODULE,
         training_args=[],
         labels={"job_type": "training"},
-        hyperparameters=hyperparams,
     )
     # [END howto_operator_gcp_mlengine_training]
 
@@ -144,14 +140,14 @@ with models.DAG(
     # [END howto_operator_gcp_mlengine_print_model]
 
     # [START howto_operator_gcp_mlengine_create_version1]
-    create_version = MLEngineCreateVersionOperator(
-        task_id="create-version",
+    create_version_v1 = MLEngineCreateVersionOperator(
+        task_id="create-version-v1",
         project_id=PROJECT_ID,
         model_name=MODEL_NAME,
         version={
             "name": "v1",
             "description": "First-version",
-            "deployment_uri": f"{JOB_DIR}/keras_export/",
+            "deployment_uri": JOB_DIR,
             "runtime_version": "1.15",
             "machineType": "mls1-c1-m2",
             "framework": "TENSORFLOW",
@@ -161,14 +157,14 @@ with models.DAG(
     # [END howto_operator_gcp_mlengine_create_version1]
 
     # [START howto_operator_gcp_mlengine_create_version2]
-    create_version_2 = MLEngineCreateVersionOperator(
-        task_id="create-version-2",
+    create_version_v2 = MLEngineCreateVersionOperator(
+        task_id="create-version-v2",
         project_id=PROJECT_ID,
         model_name=MODEL_NAME,
         version={
             "name": "v2",
             "description": "Second version",
-            "deployment_uri": SAVED_MODEL_PATH,
+            "deployment_uri": JOB_DIR,
             "runtime_version": "1.15",
             "machineType": "mls1-c1-m2",
             "framework": "TENSORFLOW",
@@ -216,28 +212,38 @@ with models.DAG(
     # [END howto_operator_gcp_mlengine_get_prediction]
 
     # [START howto_operator_gcp_mlengine_delete_version]
-    delete_version = MLEngineDeleteVersionOperator(
-        task_id="delete-version", project_id=PROJECT_ID, model_name=MODEL_NAME, version_name="v1"
+    delete_version_v1 = MLEngineDeleteVersionOperator(
+        task_id="delete-version-v1",
+        project_id=PROJECT_ID,
+        model_name=MODEL_NAME,
+        version_name="v1",
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_gcp_mlengine_delete_version]
 
+    delete_version_v2 = MLEngineDeleteVersionOperator(
+        task_id="delete-version-v2",
+        project_id=PROJECT_ID,
+        model_name=MODEL_NAME,
+        version_name="v2",
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
     # [START howto_operator_gcp_mlengine_delete_model]
     delete_model = MLEngineDeleteModelOperator(
-        task_id="delete-model", project_id=PROJECT_ID, model_name=MODEL_NAME, delete_contents=True
+        task_id="delete-model",
+        project_id=PROJECT_ID,
+        model_name=MODEL_NAME,
+        delete_contents=True,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_gcp_mlengine_delete_model]
 
-    training >> create_version
-    training >> create_version_2
-    create_model >> get_model >> [get_model_result, delete_model]
-    create_model >> get_model >> delete_model
-    create_model >> create_version >> create_version_2 >> set_defaults_version >> list_version
-    create_version >> prediction
-    create_version_2 >> prediction
-    prediction >> delete_version
-    list_version >> list_version_result
-    list_version >> delete_version
-    delete_version >> delete_model
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete-bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
 
     # [START howto_operator_gcp_mlengine_get_metric]
     def get_metric_fn_and_keys():
@@ -246,7 +252,7 @@ with models.DAG(
         """
 
         def normalize_value(inst: dict):
-            val = float(inst["dense_4"][0])
+            val = float(inst["output_layer"][0])
             return tuple([val])  # returns a tuple.
 
         return normalize_value, ["val"]  # key order must match.
@@ -258,12 +264,13 @@ with models.DAG(
         """
         Validate summary result
         """
-        if summary["val"] > 1:
-            raise ValueError(f"Too high val>1; summary={summary}")
-        if summary["val"] < 0:
-            raise ValueError(f"Too low val<0; summary={summary}")
-        if summary["count"] != 20:
-            raise ValueError(f"Invalid value val != 20; summary={summary}")
+        summary = summary.get("val", 0)
+        initial_values = generate_model_predict_input_data()
+        initial_summary = sum(initial_values) / len(initial_values)
+
+        multiplier = ceil(summary / initial_summary)
+        if multiplier != 2:
+            raise ValueError(f"Multiplier is not equal 2; multiplier: {multiplier}")
         return summary
 
     # [END howto_operator_gcp_mlengine_validate_error]
@@ -290,5 +297,32 @@ with models.DAG(
     )
     # [END howto_operator_gcp_mlengine_evaluate]
 
-    create_model >> create_version >> evaluate_prediction
-    evaluate_validation >> delete_version
+    # TEST SETUP
+    create_bucket >> write_data >> upload_file
+    upload_file >> [prediction, evaluate_prediction]
+    create_bucket >> training >> create_version_v1
+
+    # TEST BODY
+    create_model >> get_model >> [get_model_result, delete_model]
+    create_model >> create_version_v1 >> create_version_v2 >> set_defaults_version >> list_version
+
+    create_version_v1 >> prediction
+    create_version_v1 >> evaluate_prediction
+    create_version_v2 >> prediction
+
+    list_version >> [list_version_result, delete_version_v1]
+    prediction >> delete_version_v1
+
+    # TEST TEARDOWN
+    evaluate_validation >> delete_version_v1 >> delete_version_v2 >> delete_model >> delete_bucket
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
