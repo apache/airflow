@@ -30,16 +30,22 @@ from airflow.providers.google.cloud.operators.cloud_composer import (
     CloudComposerListImageVersionsOperator,
     CloudComposerUpdateEnvironmentOperator,
 )
+from airflow.utils.trigger_rule import TriggerRule
 
-PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "<PROJECT_ID>")
-REGION = os.environ.get("GCP_REGION", "<REGION>")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+
+DAG_ID = "example_composer"
+
+REGION = "us-central1"
 
 # [START howto_operator_composer_simple_environment]
-ENVIRONMENT_ID = os.environ.get("ENVIRONMENT_ID", "ENVIRONMENT_ID>")
+
+ENVIRONMENT_ID = f"test-{DAG_ID}-{ENV_ID}"
+
 ENVIRONMENT = {
     "config": {
-        "node_count": 3,
-        "software_config": {"image_version": "composer-1.17.7-airflow-2.1.4"},
+        "software_config": {"image_version": "composer-2.0.28-airflow-2.2.5"},
     }
 }
 # [END howto_operator_composer_simple_environment]
@@ -55,10 +61,11 @@ UPDATE_MASK = {"paths": ["labels.label1"]}
 
 
 with models.DAG(
-    "composer_dag1",
+    DAG_ID,
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "composer"],
 ) as dag:
     # [START howto_operator_composer_image_list]
     image_versions = CloudComposerListImageVersionsOperator(
@@ -112,51 +119,18 @@ with models.DAG(
         environment_id=ENVIRONMENT_ID,
     )
     # [END howto_operator_delete_composer_environment]
+    delete_env.trigger_rule = TriggerRule.ALL_DONE
 
     chain(image_versions, create_env, list_envs, get_env, update_env, delete_env)
 
+    from tests.system.utils.watcher import watcher
 
-with models.DAG(
-    "composer_dag_deferrable1",
-    start_date=datetime(2021, 1, 1),
-    catchup=False,
-    tags=["example"],
-) as defer_dag:
-    # [START howto_operator_create_composer_environment_deferrable_mode]
-    defer_create_env = CloudComposerCreateEnvironmentOperator(
-        task_id="defer_create_env",
-        project_id=PROJECT_ID,
-        region=REGION,
-        environment_id=ENVIRONMENT_ID,
-        environment=ENVIRONMENT,
-        deferrable=True,
-    )
-    # [END howto_operator_create_composer_environment_deferrable_mode]
+    # This test needs watcher in order to properly mark success/failure
+    # when "teardown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
-    # [START howto_operator_update_composer_environment_deferrable_mode]
-    defer_update_env = CloudComposerUpdateEnvironmentOperator(
-        task_id="defer_update_env",
-        project_id=PROJECT_ID,
-        region=REGION,
-        environment_id=ENVIRONMENT_ID,
-        update_mask=UPDATE_MASK,
-        environment=UPDATED_ENVIRONMENT,
-        deferrable=True,
-    )
-    # [END howto_operator_update_composer_environment_deferrable_mode]
 
-    # [START howto_operator_delete_composer_environment_deferrable_mode]
-    defer_delete_env = CloudComposerDeleteEnvironmentOperator(
-        task_id="defer_delete_env",
-        project_id=PROJECT_ID,
-        region=REGION,
-        environment_id=ENVIRONMENT_ID,
-        deferrable=True,
-    )
-    # [END howto_operator_delete_composer_environment_deferrable_mode]
+from tests.system.utils import get_test_run  # noqa: E402
 
-    chain(
-        defer_create_env,
-        defer_update_env,
-        defer_delete_env,
-    )
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

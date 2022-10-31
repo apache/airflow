@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 import asyncio
@@ -42,11 +43,9 @@ class CloudComposerExecutionTrigger(BaseTrigger):
         self.project_id = project_id
         self.region = region
         self.operation_name = operation_name
-
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.delegate_to = delegate_to
-
         self.pooling_period_seconds = pooling_period_seconds
 
         self.gcp_hook = CloudComposerAsyncHook(
