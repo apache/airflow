@@ -82,7 +82,6 @@ class ExasolHook(DbApiHook):
         self,
         sql: str | list[str],
         parameters: Iterable | Mapping | None = None,
-        **kwargs: dict,
     ) -> list[dict | tuple[Any, ...]]:
         """
         Executes the sql and returns a set of records.
@@ -95,7 +94,7 @@ class ExasolHook(DbApiHook):
             with closing(conn.execute(sql, parameters)) as cur:
                 return cur.fetchall()
 
-    def get_first(self, sql: str | list[str], parameters: dict | None = None) -> Any | None:
+    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping | None = None) -> Any:
         """
         Executes the sql and returns the first resulting row.
 

@@ -158,8 +158,7 @@ class TrinoHook(DbApiHook):
         self,
         sql: str | list[str] = "",
         parameters: Iterable | Mapping | None = None,
-        **kwargs: dict,
-    ):
+    ) -> Any:
         if not isinstance(sql, str):
             raise ValueError(f"The sql in Trino Hook must be a string and is {sql}!")
         try:

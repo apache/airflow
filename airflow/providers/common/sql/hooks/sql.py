@@ -38,6 +38,14 @@ def fetch_all_handler(cursor) -> list[tuple] | None:
         return None
 
 
+def fetch_one_handler(cursor) -> list[tuple] | None:
+    """Handler for DbApiHook.run() to return results"""
+    if cursor.description is not None:
+        return cursor.fetchone()
+    else:
+        return None
+
+
 class ConnectorProtocol(Protocol):
     """A protocol where you can connect to a database."""
 
@@ -178,38 +186,23 @@ class DbApiHook(BaseForDbApiHook):
         self,
         sql: str | list[str],
         parameters: Iterable | Mapping | None = None,
-        **kwargs: dict,
-    ):
+    ) -> Any:
         """
         Executes the sql and returns a set of records.
 
-        :param sql: the sql statement to be executed (str) or a list of
-            sql statements to execute
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn:
-            with closing(conn.cursor()) as cur:
-                if parameters is not None:
-                    cur.execute(sql, parameters)
-                else:
-                    cur.execute(sql)
-                return cur.fetchall()
+        return self.run(sql=sql, parameters=parameters, handler=fetch_all_handler)
 
-    def get_first(self, sql: str | list[str], parameters=None):
+    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping | None = None) -> Any:
         """
         Executes the sql and returns the first resulting row.
 
-        :param sql: the sql statement to be executed (str) or a list of
-            sql statements to execute
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn:
-            with closing(conn.cursor()) as cur:
-                if parameters is not None:
-                    cur.execute(sql, parameters)
-                else:
-                    cur.execute(sql)
-                return cur.fetchone()
+        return self.run(sql=sql, parameters=parameters, handler=fetch_one_handler)
 
     @staticmethod
     def strip_sql_string(sql: str) -> str:
