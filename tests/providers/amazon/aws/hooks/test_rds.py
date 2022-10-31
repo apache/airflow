@@ -19,12 +19,12 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-import boto3
 import pytest
 from moto import mock_rds, mock_s3, mock_sns
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.hooks.sns import SnsHook
 
 
@@ -64,7 +64,11 @@ def db_cluster_id(rds_hook: RdsHook) -> str:
 
 
 @pytest.fixture
-def db_snapshot(rds_hook: RdsHook, db_instance_id: str):
+def db_snapshot(rds_hook: RdsHook, db_instance_id: str) -> dict:
+    """
+    Creates a mock DB instance snapshot and returns the DBSnapshot dict from the boto response object.
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.create_db_snapshot
+    """
     response = rds_hook.conn.create_db_snapshot(
         DBSnapshotIdentifier="testrdshook-db-instance-snapshot", DBInstanceIdentifier=db_instance_id
     )
@@ -83,6 +87,10 @@ def db_snapshot_arn(db_snapshot: dict) -> str:
 
 @pytest.fixture
 def db_cluster_snapshot(rds_hook: RdsHook, db_cluster_id: str):
+    """
+    Creates a mock DB cluster snapshot and returns the DBClusterSnapshot dict from the boto response object.
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.create_db_cluster_snapshot
+    """
     response = rds_hook.conn.create_db_cluster_snapshot(
         DBClusterSnapshotIdentifier="testrdshook-db-cluster-snapshot", DBClusterIdentifier=db_cluster_id
     )
@@ -95,26 +103,26 @@ def db_cluster_snapshot_id(db_cluster_snapshot) -> str:
 
 
 @pytest.fixture
-def s3_bucket_name():
-    s3 = boto3.resource("s3")
-    bucket = "testrdshook-s3-bucket"
-    s3.create_bucket(Bucket=bucket)
-    return bucket
+def s3_hook() -> S3Hook:
+    with mock_s3():
+        return S3Hook(aws_conn_id="aws_default")
 
 
 @pytest.fixture
-def export_task(rds_hook: RdsHook, db_snapshot_arn: str, s3_bucket_name: str) -> str:
+def s3_bucket_name(s3_hook: S3Hook) -> str:
+    bucket_name = "testrdshook-s3-bucket"
+    s3_hook.create_bucket(bucket_name)
+    return bucket_name
+
+
+@pytest.fixture
+def export_task_id(rds_hook: RdsHook, db_snapshot_arn: str, s3_bucket_name: str) -> str:
     response = rds_hook.conn.start_export_task(
         ExportTaskIdentifier="testrdshook-export-task",
         SourceArn=db_snapshot_arn,
         S3BucketName=s3_bucket_name,
-        # The ARN of the IAM role to use for writing to the Amazon S3 bucket when exporting a snapshot.
-        IamRoleArn="string",
-        # The ID of the Amazon Web Services KMS key to use to encrypt the snapshot exported to Amazon S3.
-        # The Amazon Web Services KMS key identifier is the key ARN, key ID, alias ARN, or alias name for the KMS key.
-        # The caller of this operation must be authorized to execute the following operations.
-        # These can be set in the Amazon Web Services KMS key policy:
-        KmsKeyId="string",
+        IamRoleArn="test",
+        KmsKeyId="test",
     )
     return response["ExportTaskIdentifier"]
 
@@ -122,7 +130,7 @@ def export_task(rds_hook: RdsHook, db_snapshot_arn: str, s3_bucket_name: str) ->
 @pytest.fixture
 def sns_hook() -> SnsHook:
     with mock_sns():
-        yield SnsHook(aws_conn_id="aws_default")
+        return SnsHook(aws_conn_id="aws_default")
 
 
 @pytest.fixture
@@ -133,6 +141,7 @@ def sns_topic_arn(sns_hook: SnsHook) -> str:
 
 @pytest.fixture
 def event_subscription_name(rds_hook: RdsHook, sns_topic_arn: str, db_instance_id: str) -> str:
+    """Creates an mock RDS event subscription and returns its name"""
     response = rds_hook.conn.create_event_subscription(
         SubscriptionName="testrdshook-event-subscription",
         SnsTopicArn=sns_topic_arn,
@@ -163,7 +172,7 @@ class TestRdsHook:
         The db instance waiter uses AWS provided boto waiters where possible, and falls back to a
         custom waiter implementation.
 
-        it should call wait_on_state otherwise, which should also call get_db_snapshot_state (from poke closure)
+        it should call wait_for_state otherwise, which should also call get_db_snapshot_state (from poke closure)
         """
         common_kwargs = {"check_interval": 0, "max_attempts": 1}
 
@@ -175,7 +184,7 @@ class TestRdsHook:
             rds_hook.wait_for_db_instance_state(db_instance_id, target_state="deleted", **common_kwargs)
             mock.assert_called_once_with("db_instance_deleted")
 
-        with patch.object(rds_hook, "_wait_on_state") as mock:
+        with patch.object(rds_hook, "_wait_for_state") as mock:
             rds_hook.wait_for_db_instance_state(db_instance_id, target_state="stopped", **common_kwargs)
             mock.assert_called_once()
 
@@ -203,7 +212,7 @@ class TestRdsHook:
             rds_hook.wait_for_db_cluster_state(db_cluster_id, target_state="deleted", **common_kwargs)
             mock.assert_called_once_with("db_cluster_deleted")
 
-        with patch.object(rds_hook, "_wait_on_state") as mock:
+        with patch.object(rds_hook, "_wait_for_state") as mock:
             rds_hook.wait_for_db_cluster_state(db_cluster_id, target_state="stopped", **common_kwargs)
             mock.assert_called_once()
 
@@ -236,7 +245,7 @@ class TestRdsHook:
             rds_hook.wait_for_db_snapshot_state(db_snapshot_id, target_state="completed", **common_kwargs)
             mock.assert_called_once_with("db_snapshot_completed")
 
-        with patch.object(rds_hook, "_wait_on_state") as mock:
+        with patch.object(rds_hook, "_wait_for_state") as mock:
             rds_hook.wait_for_db_snapshot_state(db_snapshot_id, target_state="canceled", **common_kwargs)
             mock.assert_called_once()
 
@@ -270,7 +279,7 @@ class TestRdsHook:
             )
             mock.assert_called_once_with("db_cluster_snapshot_deleted")
 
-        with patch.object(rds_hook, "_wait_on_state") as mock:
+        with patch.object(rds_hook, "_wait_for_state") as mock:
             rds_hook.wait_for_db_cluster_snapshot_state(
                 db_cluster_snapshot_id, target_state="canceled", **common_kwargs
             )
@@ -282,11 +291,25 @@ class TestRdsHook:
             )
             mock.assert_called_once_with(db_cluster_snapshot_id)
 
-    # def test_get_export_task_state(self, rds_hook: RdsHook, export_task_id: str):
-    #     response = rds_hook.conn.describe_export_tasks(ExportTaskIdentifier=export_task_id)
-    #     state_expected = response["ExportTasks"][0]["Status"]
-    #     state_actual = rds_hook.get_export_task_state(export_task_id)
-    #     assert state_actual == state_expected
+    def test_get_export_task_state(self, rds_hook: RdsHook, export_task_id: str):
+        response = rds_hook.conn.describe_export_tasks(ExportTaskIdentifier=export_task_id)
+        state_expected = response["ExportTasks"][0]["Status"]
+        state_actual = rds_hook.get_export_task_state(export_task_id)
+        assert state_actual == state_expected
+
+    def test_wait_for_export_task_state(self, rds_hook: RdsHook, export_task_id: str):
+        """
+        xxx
+        """
+        common_kwargs = {"check_interval": 0, "max_attempts": 1}
+
+        with patch.object(rds_hook, "_wait_for_state") as mock:
+            rds_hook.wait_for_export_task_state(export_task_id, target_state="complete", **common_kwargs)
+            mock.assert_called_once()
+
+        with patch.object(rds_hook, "get_export_task_state", return_value="complete") as mock:
+            rds_hook.wait_for_export_task_state(export_task_id, target_state="complete", **common_kwargs)
+            mock.assert_called_once_with(export_task_id)
 
     def test_get_event_subscription_state(self, rds_hook: RdsHook, event_subscription_name: str):
         response = rds_hook.conn.describe_event_subscriptions(SubscriptionName=event_subscription_name)
@@ -300,7 +323,7 @@ class TestRdsHook:
         """
         common_kwargs = {"check_interval": 0, "max_attempts": 1}
 
-        with patch.object(rds_hook, "_wait_on_state") as mock:
+        with patch.object(rds_hook, "_wait_for_state") as mock:
             rds_hook.wait_for_event_subscription_state(
                 event_subscription_name, target_state="active", **common_kwargs
             )
@@ -312,13 +335,13 @@ class TestRdsHook:
             )
             mock.assert_called_once_with(event_subscription_name)
 
-    def test_wait_on_state(self, rds_hook: RdsHook):
+    def test_wait_for_state(self, rds_hook: RdsHook):
         def poke():
             return "foo"
 
         # todo: target "Exceeded max attempts" message
         with pytest.raises(AirflowException, match="Max attempts exceeded"):
             with patch("airflow.providers.amazon.aws.hooks.rds.time.sleep") as mock:
-                rds_hook._wait_on_state(poke, target_state="bar", check_interval=0, max_attempts=2)
+                rds_hook._wait_for_state(poke, target_state="bar", check_interval=0, max_attempts=2)
         # must run this outside of the pytest.raises context otherwise exits before executed
         mock.assert_called_once_with(0)

@@ -90,7 +90,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
                 WaiterConfig={"Delay": check_interval, "MaxAttempts": max_attempts},
             )
         else:
-            self._wait_on_state(poke, target_state, check_interval, max_attempts)
+            self._wait_for_state(poke, target_state, check_interval, max_attempts)
             self.log.info("DB snapshot '%s' reached the '%s' state" % (snapshot_id, target_state))
 
     def get_db_cluster_snapshot_state(self, snapshot_id: str) -> str:
@@ -136,7 +136,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
                 WaiterConfig={"Delay": check_interval, "MaxAttempts": max_attempts},
             )
         else:
-            self._wait_on_state(poke, target_state, check_interval, max_attempts)
+            self._wait_for_state(poke, target_state, check_interval, max_attempts)
             self.log.info("DB cluster snapshot '%s' reached the '%s' state" % (snapshot_id, target_state))
 
     def get_export_task_state(self, export_task_id: str) -> str:
@@ -180,7 +180,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
             return self.get_export_task_state(export_task_id)
 
         target_state = target_state.lower()
-        self._wait_on_state(poke, target_state, check_interval, max_attempts)
+        self._wait_for_state(poke, target_state, check_interval, max_attempts)
         self.log.info("export task '%s' reached the '%s' state" % (export_task_id, target_state))
 
     def get_event_subscription_state(self, subscription_name: str) -> str:
@@ -219,7 +219,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
             return self.get_event_subscription_state(subscription_name)
 
         target_state = target_state.lower()
-        self._wait_on_state(poke, target_state, check_interval, max_attempts)
+        self._wait_for_state(poke, target_state, check_interval, max_attempts)
         self.log.info("event subscription '%s' reached the '%s' state" % (subscription_name, target_state))
 
     def get_db_instance_state(self, db_instance_id: str) -> str:
@@ -265,7 +265,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
                 WaiterConfig={"Delay": check_interval, "MaxAttempts": max_attempts},
             )
         else:
-            self._wait_on_state(poke, target_state, check_interval, max_attempts)
+            self._wait_for_state(poke, target_state, check_interval, max_attempts)
             self.log.info("DB cluster snapshot '%s' reached the '%s' state" % (db_instance_id, target_state))
 
     def get_db_cluster_state(self, db_cluster_id: str) -> str:
@@ -311,10 +311,10 @@ class RdsHook(AwsGenericHook["RDSClient"]):
                 WaiterConfig={"Delay": check_interval, "MaxAttempts": max_attempts},
             )
         else:
-            self._wait_on_state(poke, target_state, check_interval, max_attempts)
+            self._wait_for_state(poke, target_state, check_interval, max_attempts)
             self.log.info("DB cluster snapshot '%s' reached the '%s' state" % (db_cluster_id, target_state))
 
-    def _wait_on_state(
+    def _wait_for_state(
         self,
         poke: Callable[..., str],
         target_state: str,
