@@ -216,6 +216,9 @@ spec:
               subPath: airflow_local_settings.py
               readOnly: true
             {{- end }}
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigmapName }}
+            {{ include "airflow_webserver_config_mount" | indent 12 }}
+{{- end }}
 {{- if and $localOrDagProcessorDisabled (or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled) }}
 {{- include "airflow_dags_mount" . | nindent 12 }}
 {{- end }}

@@ -228,6 +228,9 @@ spec:
             {{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
             {{- include "airflow_dags_mount" . | nindent 12 }}
             {{- end }}
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigmapName }}
+            {{ include "airflow_webserver_config_mount" | indent 12 }}
+{{- end }}
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
@@ -266,6 +269,9 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigmapName }}
+            {{ include "airflow_webserver_config_mount" | indent 12 }}
+{{- end }}
 {{- end }}
         {{- if .Values.workers.kerberosSidecar.enabled }}
         - name: worker-kerberos
@@ -298,6 +304,9 @@ spec:
             - name: kerberos-ccache
               mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
               readOnly: false
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigmapName }}
+            {{ include "airflow_webserver_config_mount" | indent 12 }}
+{{- end }}
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
