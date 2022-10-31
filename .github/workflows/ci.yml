@@ -555,8 +555,8 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/pre-commit-full
-          key: "pre-commit-${{steps.host-python-version.outputs.host-python-version}}-\
-${{ hashFiles('.pre-commit-config.yaml') }}"
+          # yamllint disable-line rule:line-length
+          key: "pre-commit-${{steps.host-python-version.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: |
             pre-commit-full-${{steps.host-python-version.outputs.host-python-version}}
             pre-commit-full
@@ -597,8 +597,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/cache@v3
         with:
           path: ~/.cache/pre-commit
-          key: "pre-commit-basic-${{steps.host-python-version.outputs.host-python-version}}-\
-${{ hashFiles('.pre-commit-config.yaml') }}"
+          # yamllint disable-line rule:line-length
+          key: "pre-commit-basic-${{steps.host-python-version.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: |
             pre-commit-basic-${{steps.host-python-version.outputs.host-python-version}}
             pre-commit-basic-
