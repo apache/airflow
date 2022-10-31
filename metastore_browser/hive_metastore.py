@@ -72,6 +72,7 @@ class MetastoreBrowserView(BaseView):
         )
         return self.render_template("metastore_browser/dbs.html", table=Markup(table))
 
+    # [START howto_customview_table]
     @expose("/table/")
     def table(self):
         """Create table view"""
@@ -82,6 +83,9 @@ class MetastoreBrowserView(BaseView):
             "metastore_browser/table.html", table=table, table_name=table_name, datetime=datetime, int=int
         )
 
+    # [END howto_customview_table]
+
+    # [START howto_customview_show_database_table]
     @expose("/db/")
     def db(self):
         """Show tables in database"""
@@ -90,6 +94,9 @@ class MetastoreBrowserView(BaseView):
         tables = sorted(metastore.get_tables(db=db), key=lambda x: x.tableName)
         return self.render_template("metastore_browser/db.html", tables=tables, db=db)
 
+    # [END howto_customview_show_database_table]
+
+    # [START howto_customview_partitions_info]
     @gzipped
     @expose("/partitions/")
     def partitions(self):
@@ -119,6 +126,8 @@ class MetastoreBrowserView(BaseView):
             index=False,
             na_rep="",
         )
+
+    # [END howto_customview_partitions_info]
 
     @gzipped
     @expose("/objects/")
