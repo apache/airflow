@@ -24,7 +24,7 @@ import sys
 import warnings
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlsplit, urlunsplit
 
 from sqlalchemy.orm import exc
 
@@ -133,7 +133,7 @@ def _is_stdout(fileio: io.TextIOWrapper) -> bool:
 
 def _valid_uri(uri: str) -> bool:
     """Check if a URI is valid, by checking if both scheme and netloc are available"""
-    uri_parts = urlparse(uri)
+    uri_parts = urlsplit(uri)
     return uri_parts.scheme != "" and uri_parts.netloc != ""
 
 
@@ -269,7 +269,7 @@ def connections_add(args):
             msg = msg.format(
                 conn_id=new_conn.conn_id,
                 uri=args.conn_uri
-                or urlunparse(
+                or urlunsplit(
                     (
                         new_conn.conn_type,
                         f"{new_conn.login or ''}:{'******' if new_conn.password else ''}"
