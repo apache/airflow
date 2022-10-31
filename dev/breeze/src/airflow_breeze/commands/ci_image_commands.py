@@ -484,7 +484,7 @@ def run_build_ci_image(
                         / "scripts"
                         / "ci"
                         / "pre_commit"
-                        / "pre_commit_build_providers_dependencies.py"
+                        / "pre_commit_update_providers_dependencies.py"
                     ),
                 ],
                 check=False,
@@ -545,6 +545,7 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
     )
     ci_image_params = BuildCiParams(
         python=command_params.python,
+        github_repository=command_params.github_repository,
         upgrade_to_newer_dependencies=False,
         image_tag=command_params.image_tag,
         platform=command_params.platform,

@@ -19,7 +19,15 @@ from __future__ import annotations
 
 import os
 
-__verbose_value: bool = os.environ.get("VERBOSE", "false")[0].lower() == "t"
+from airflow_breeze.utils.coertions import coerce_bool_value
+
+
+def __get_default_bool_value(env_var: str) -> bool:
+    string_val = os.environ.get(env_var, "")
+    return coerce_bool_value(string_val)
+
+
+__verbose_value: bool = __get_default_bool_value("VERBOSE")
 
 
 def set_verbose(verbose: bool):
@@ -33,7 +41,7 @@ def get_verbose(verbose_override: bool | None = None) -> bool:
     return verbose_override
 
 
-__dry_run_value: bool = os.environ.get("DRY_RUN", "false")[0].lower() == "t"
+__dry_run_value: bool = __get_default_bool_value("DRY_RUN")
 
 
 def set_dry_run(dry_run: bool):

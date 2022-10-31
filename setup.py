@@ -201,7 +201,7 @@ def write_version(filename: str = str(AIRFLOW_SOURCES_ROOT / "airflow" / "git_ve
     """
     Write the Semver version + git hash to file, e.g. ".dev0+2f635dc265e78db6708f59f68e8009abb92c1e65".
 
-    :param str filename: Destination file to write
+    :param str filename: Destination file to write.
     """
     text = f"{git_version(version)}"
     with open(filename, "w") as file:
@@ -243,7 +243,9 @@ dask = [
     # Dask support is limited, we need Dask team to upgrade support for dask if we were to continue
     # Supporting it in the future
     "cloudpickle>=1.4.1",
-    "dask>=2.9.0",
+    # Dask in version 2022.10.1 removed `bokeh` support and dask integration needs to be upgraded
+    # by someone from Dask team who can test it
+    "dask>=2.9.0,<2022.10.1",
     "distributed>=2.11.1",
 ]
 deprecated_api = [
@@ -375,7 +377,7 @@ devel_only = [
     "jira",
     "jsondiff",
     "mongomock",
-    "moto[cloudformation, glue]>=3.1.12",
+    "moto[cloudformation, glue]>=4.0",
     "parameterized",
     "paramiko",
     "pipdeptree",

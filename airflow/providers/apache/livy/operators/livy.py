@@ -60,6 +60,7 @@ class LivyOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("spark_params",)
+    template_fields_renderers = {"spark_params": "json"}
 
     def __init__(
         self,
@@ -140,6 +141,8 @@ class LivyOperator(BaseOperator):
 
         if self._polling_interval > 0:
             self.poll_for_termination(self._batch_id)
+
+        context["ti"].xcom_push(key="app_id", value=self.get_hook().get_batch(self._batch_id)["appId"])
 
         return self._batch_id
 
