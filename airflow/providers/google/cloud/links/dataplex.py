@@ -29,6 +29,10 @@ DATAPLEX_BASE_LINK = "/dataplex/process/tasks"
 DATAPLEX_TASK_LINK = DATAPLEX_BASE_LINK + "/{lake_id}.{task_id};location={region}/jobs?project={project_id}"
 DATAPLEX_TASKS_LINK = DATAPLEX_BASE_LINK + "?project={project_id}&qLake={lake_id}.{region}"
 
+DATAPLEX_LAKE_LINK = (
+    "https://console.cloud.google.com/dataplex/lakes/{lake_id};location={region}?project={project_id}"
+)
+
 
 class DataplexTaskLink(BaseGoogleLink):
     """Helper class for constructing Dataplex Task link"""
@@ -73,5 +77,28 @@ class DataplexTasksLink(BaseGoogleLink):
                 "project_id": task_instance.project_id,
                 "lake_id": task_instance.lake_id,
                 "region": task_instance.region,
+            },
+        )
+
+
+class DataplexLakeLink(BaseGoogleLink):
+    """Helper class for constructing Dataplex Lake link"""
+
+    name = "Dataplex Lake"
+    key = "dataplex_lake_key"
+    format_str = DATAPLEX_LAKE_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=DataplexLakeLink.key,
+            value={
+                "lake_id": task_instance.lake_id,
+                "region": task_instance.region,
+                "project_id": task_instance.project_id,
             },
         )

@@ -595,6 +595,9 @@ sensors:
   - integration-name: Google Bigtable
     python-modules:
       - airflow.providers.google.cloud.sensors.bigtable
+  - integration-name: Google Cloud Composer
+    python-modules:
+      - airflow.providers.google.cloud.sensors.cloud_composer
   - integration-name: Google Cloud Storage Transfer Service
     python-modules:
       - airflow.providers.google.cloud.sensors.cloud_storage_transfer_service
@@ -964,6 +967,7 @@ extra-links:
   - airflow.providers.google.cloud.links.cloud_sql.CloudSQLInstanceDatabaseLink
   - airflow.providers.google.cloud.links.dataplex.DataplexTaskLink
   - airflow.providers.google.cloud.links.dataplex.DataplexTasksLink
+  - airflow.providers.google.cloud.links.dataplex.DataplexLakeLink
   - airflow.providers.google.cloud.links.bigquery.BigQueryDatasetLink
   - airflow.providers.google.cloud.links.bigquery.BigQueryTableLink
   - airflow.providers.google.cloud.links.bigquery_dts.BigQueryDataTransferConfigLink

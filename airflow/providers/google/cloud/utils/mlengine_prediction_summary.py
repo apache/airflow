@@ -116,9 +116,10 @@ import os
 
 import apache_beam as beam
 import dill
+from apache_beam.coders.coders import Coder
 
 
-class JsonCoder:
+class JsonCoder(Coder):
     """JSON encoder/decoder."""
 
     @staticmethod

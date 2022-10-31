@@ -170,7 +170,6 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
                 r"\['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'\]"
             ),
         ):
-
             self.hook.run_load(
                 "test.test",
                 "test_schema.json",
@@ -185,7 +184,6 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             match="schema_update_options is only allowed if"
             " write_disposition is 'WRITE_APPEND' or 'WRITE_TRUNCATE'.",
         ):
-
             self.hook.run_load(
                 "test.test",
                 "test_schema.json",
@@ -2277,3 +2275,31 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
             dataset=DATASET_ID, project_id=PROJECT_ID, table_id=TABLE_ID, session=mock_session
         )
         assert isinstance(result, Table_async)
+
+    def test_get_records_return_type(self):
+        query_result = {
+            "kind": "bigquery#getQueryResultsResponse",
+            "etag": "test_etag",
+            "schema": {
+                "fields": [
+                    {"name": "f0_", "type": "INTEGER", "mode": "NULLABLE"},
+                    {"name": "f1_", "type": "FLOAT", "mode": "NULLABLE"},
+                    {"name": "f2_", "type": "STRING", "mode": "NULLABLE"},
+                ]
+            },
+            "jobReference": {
+                "projectId": "test_airflow-providers",
+                "jobId": "test_jobid",
+                "location": "US",
+            },
+            "totalRows": "1",
+            "rows": [{"f": [{"v": "22"}, {"v": "3.14"}, {"v": "PI"}]}],
+            "totalBytesProcessed": "0",
+            "jobComplete": True,
+            "cacheHit": False,
+        }
+        hook = BigQueryAsyncHook()
+        result = hook.get_records(query_result)
+        assert isinstance(result[0][0], int)
+        assert isinstance(result[0][1], float)
+        assert isinstance(result[0][2], str)
