@@ -705,7 +705,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: pipx install twine && twine check dist/*.whl
         if: matrix.package-format == 'wheel'
       - name: "Verify sdist packages with twine"
-        run: pipx install twine && twine check dist/*.tgz
+        run: pipx install twine && twine check dist/*.tar.gz
         if: matrix.package-format == 'sdist'
       - name: "Install and test provider packages and airflow via ${{matrix.package-format}} files"
         run: breeze release-management verify-provider-packages --use-packages-from-dist
