@@ -421,7 +421,7 @@ class CloudVisionHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-    ) -> dict:
+    ) -> None:
         """
         For the documentation see:
         :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDeleteReferenceImageOperator`
@@ -432,7 +432,7 @@ class CloudVisionHook(GoogleBaseHook):
             project=project_id, location=location, product=product_id, reference_image=reference_image_id
         )
 
-        response = client.delete_reference_image(
+        client.delete_reference_image(
             name=name,
             retry=retry,
             timeout=timeout,
@@ -440,7 +440,6 @@ class CloudVisionHook(GoogleBaseHook):
         )
 
         self.log.info("ReferenceImage with the name [%s] deleted.", name)
-        return MessageToDict(response)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def add_product_to_product_set(
