@@ -1144,6 +1144,37 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+    patch:
+      summary: Updates the state of a task instance
+      description: >
+        Updates the state for single task instance.
+
+        *New in version 2.5.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: patch_task_instance
+      tags: [TaskInstance]
+      requestBody:
+        description: Parameters of action
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskInstance'
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceReference'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}:
     parameters:
       - $ref: '#/components/parameters/DAGID'
@@ -1173,6 +1204,36 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/NotFound'
+
+    patch:
+        summary: Updates the state of a mapped task instance
+        description: >
+            Updates the state for single mapped task instance.
+
+            *New in version 2.5.0*
+        x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+        operationId: patch_mapped_task_instance
+        tags: [TaskInstance]
+        requestBody:
+          description: Parameters of action
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateTaskInstance'
+        responses:
+          '200':
+            description: Success.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/TaskInstanceReference'
+          '401':
+            $ref: '#/components/responses/Unauthenticated'
+          '403':
+            $ref: '#/components/responses/PermissionDenied'
+          '404':
+            $ref: '#/components/responses/NotFound'
+
 
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped:
     parameters:
@@ -3950,6 +4011,23 @@ components:
         include_past:
           description: If set to True, also tasks from past DAG Runs are affected.
           type: boolean
+
+        new_state:
+          description: Expected new state.
+          type: string
+          enum:
+            - success
+            - failed
+
+    UpdateTaskInstance:
+      type: object
+      properties:
+        dry_run:
+          description: |
+            If set, don't actually run this operation. The response will contain the task instance
+            planned to be affected, but won't be modified in any way.
+          type: boolean
+          default: false
 
         new_state:
           description: Expected new state.

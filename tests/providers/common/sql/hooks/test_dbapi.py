@@ -25,11 +25,11 @@ import pytest
 
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
+from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, fetch_one_handler
 
 
 class DbApiHookInProvider(DbApiHook):
-    conn_name_attr = 'test_conn_id'
+    conn_name_attr = "test_conn_id"
 
 
 class NonDbApiHook(BaseHook):
@@ -41,14 +41,14 @@ class TestDbApiHook(unittest.TestCase):
         super().setUp()
 
         self.cur = mock.MagicMock(
-            rowcount=0, spec=["description", "rowcount", "execute", "fetchall", "close"]
+            rowcount=0, spec=["description", "rowcount", "execute", "fetchall", "fetchone", "close"]
         )
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
         conn = self.conn
 
         class UnitTestDbApiHook(DbApiHook):
-            conn_name_attr = 'test_conn_id'
+            conn_name_attr = "test_conn_id"
             log = mock.MagicMock()
 
             def get_conn(self):
@@ -56,7 +56,7 @@ class TestDbApiHook(unittest.TestCase):
 
         self.db_hook = UnitTestDbApiHook()
         self.db_hook_no_log_sql = UnitTestDbApiHook(log_sql=False)
-        self.db_hook_schema_override = UnitTestDbApiHook(schema='schema-override')
+        self.db_hook_schema_override = UnitTestDbApiHook(schema="schema-override")
 
     def test_get_records(self):
         statement = "SQL"
@@ -85,7 +85,7 @@ class TestDbApiHook(unittest.TestCase):
 
     def test_get_records_exception(self):
         statement = "SQL"
-        self.cur.fetchall.side_effect = RuntimeError('Great Problems')
+        self.cur.fetchall.side_effect = RuntimeError("Great Problems")
 
         with pytest.raises(RuntimeError):
             self.db_hook.get_records(statement)
@@ -253,9 +253,9 @@ class TestDbApiHook(unittest.TestCase):
             return_value=Connection(
                 conn_type="conn-type",
                 host="host",
-                login='login',
-                password='password',
-                extra=json.dumps({'charset': 'utf-8'}),
+                login="login",
+                password="password",
+                extra=json.dumps({"charset": "utf-8"}),
             )
         )
         assert self.db_hook.get_uri() == "conn-type://login:password@host/?charset=utf-8"
@@ -265,10 +265,10 @@ class TestDbApiHook(unittest.TestCase):
             return_value=Connection(
                 conn_type="conn-type",
                 host="host",
-                login='login',
-                password='password',
+                login="login",
+                password="password",
                 schema="schema",
-                extra=json.dumps({'charset': 'utf-8'}),
+                extra=json.dumps({"charset": "utf-8"}),
             )
         )
         assert self.db_hook.get_uri() == "conn-type://login:password@host/schema?charset=utf-8"
@@ -278,10 +278,10 @@ class TestDbApiHook(unittest.TestCase):
             return_value=Connection(
                 conn_type="conn-type",
                 host="host",
-                login='login',
-                password='password',
+                login="login",
+                password="password",
                 port=3306,
-                extra=json.dumps({'charset': 'utf-8'}),
+                extra=json.dumps({"charset": "utf-8"}),
             )
         )
         assert self.db_hook.get_uri() == "conn-type://login:password@host:3306/?charset=utf-8"
@@ -290,10 +290,10 @@ class TestDbApiHook(unittest.TestCase):
         self.db_hook.get_connection = mock.MagicMock(
             return_value=Connection(
                 conn_type="conn-type",
-                login='login',
-                password='password',
+                login="login",
+                password="password",
                 port=3306,
-                extra=json.dumps({'charset': 'utf-8'}),
+                extra=json.dumps({"charset": "utf-8"}),
             )
         )
         assert self.db_hook.get_uri() == "conn-type://login:password@:3306/?charset=utf-8"
@@ -303,11 +303,11 @@ class TestDbApiHook(unittest.TestCase):
             return_value=Connection(
                 conn_type="conn-type",
                 host="host",
-                login='login',
-                password='password',
+                login="login",
+                password="password",
                 schema="schema",
                 port=3306,
-                extra=json.dumps({'charset': 'utf-8'}),
+                extra=json.dumps({"charset": "utf-8"}),
             )
         )
         assert self.db_hook.get_uri() == "conn-type://login:password@host:3306/schema?charset=utf-8"
@@ -317,11 +317,11 @@ class TestDbApiHook(unittest.TestCase):
             return_value=Connection(
                 conn_type="conn-type",
                 host="host",
-                login='login',
+                login="login",
                 password=None,
                 schema="schema",
                 port=3306,
-                extra=json.dumps({'charset': 'utf-8'}),
+                extra=json.dumps({"charset": "utf-8"}),
             )
         )
         assert self.db_hook.get_uri() == "conn-type://login@host:3306/schema?charset=utf-8"
@@ -335,7 +335,7 @@ class TestDbApiHook(unittest.TestCase):
                 password=None,
                 schema="schema",
                 port=3306,
-                extra=json.dumps({'charset': 'utf-8'}),
+                extra=json.dumps({"charset": "utf-8"}),
             )
         )
         assert self.db_hook.get_uri() == "conn-type://host:3306/schema?charset=utf-8"
@@ -348,24 +348,24 @@ class TestDbApiHook(unittest.TestCase):
                 password=None,
                 schema="schema",
                 port=3306,
-                extra=json.dumps({'charset': 'utf-8'}),
+                extra=json.dumps({"charset": "utf-8"}),
             )
         )
         assert self.db_hook.get_uri() == "conn-type://@:3306/schema?charset=utf-8"
 
     def test_run_log(self):
-        statement = 'SQL'
+        statement = "SQL"
         self.db_hook.run(statement)
         assert self.db_hook.log.info.call_count == 2
 
     def test_run_no_log(self):
-        statement = 'SQL'
+        statement = "SQL"
         self.db_hook_no_log_sql.run(statement)
         assert self.db_hook_no_log_sql.log.info.call_count == 1
 
     def test_run_with_handler(self):
-        sql = 'SQL'
-        param = ('p1', 'p2')
+        sql = "SQL"
+        param = ("p1", "p2")
         called = 0
         obj = object()
 
@@ -381,8 +381,8 @@ class TestDbApiHook(unittest.TestCase):
         assert result == obj
 
     def test_run_with_handler_multiple(self):
-        sql = ['SQL', 'SQL']
-        param = ('p1', 'p2')
+        sql = ["SQL", "SQL"]
+        param = ("p1", "p2")
         called = 0
         obj = object()
 
@@ -430,3 +430,21 @@ class TestDbApiHook(unittest.TestCase):
 
         self.cur.fetchall.side_effect = Exception("Should not get called !")
         assert rows == self.db_hook.run(sql=query, handler=fetch_all_handler)
+
+    def test_run_fetch_one_handler_select_1(self):
+        self.cur.rowcount = -1  # can be -1 according to pep249
+        self.cur.description = (tuple([None] * 7),)
+        query = "SELECT 1"
+        rows = [[1]]
+
+        self.cur.fetchone.return_value = rows
+        assert rows == self.db_hook.run(sql=query, handler=fetch_one_handler)
+
+    def test_run_fetch_one_handler_print(self):
+        self.cur.rowcount = -1
+        self.cur.description = None
+        query = "PRINT('Hello World !')"
+        rows = None
+
+        self.cur.fetchone.side_effect = Exception("Should not get called !")
+        assert rows == self.db_hook.run(sql=query, handler=fetch_one_handler)

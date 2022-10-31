@@ -27,21 +27,21 @@ from airflow.utils.strings import to_boolean
 class JenkinsHook(BaseHook):
     """Hook to manage connection to jenkins server"""
 
-    conn_name_attr = 'conn_id'
-    default_conn_name = 'jenkins_default'
-    conn_type = 'jenkins'
-    hook_name = 'Jenkins'
+    conn_name_attr = "conn_id"
+    default_conn_name = "jenkins_default"
+    conn_type = "jenkins"
+    hook_name = "Jenkins"
 
     def __init__(self, conn_id: str = default_conn_name) -> None:
         super().__init__()
         connection = self.get_connection(conn_id)
         self.connection = connection
-        connection_prefix = 'http'
+        connection_prefix = "http"
         # connection.extra contains info about using https (true) or http (false)
         if to_boolean(connection.extra):
-            connection_prefix = 'https'
-        url = f'{connection_prefix}://{connection.host}:{connection.port}'
-        self.log.info('Trying to connect to %s', url)
+            connection_prefix = "https"
+        url = f"{connection_prefix}://{connection.host}:{connection.port}"
+        self.log.info("Trying to connect to %s", url)
         self.jenkins_server = jenkins.Jenkins(url, connection.login, connection.password)
 
     def get_jenkins_server(self) -> jenkins.Jenkins:
@@ -54,13 +54,13 @@ class JenkinsHook(BaseHook):
             if not build_number:
                 self.log.info("Build number not specified, getting latest build info from Jenkins")
                 job_info = self.jenkins_server.get_job_info(job_name)
-                build_number_to_check = job_info['lastBuild']['number']
+                build_number_to_check = job_info["lastBuild"]["number"]
             else:
                 build_number_to_check = build_number
 
             self.log.info("Getting build info for %s build number: #%s", job_name, build_number_to_check)
             build_info = self.jenkins_server.get_build_info(job_name, build_number_to_check)
-            building = build_info['building']
+            building = build_info["building"]
             return building
         except jenkins.JenkinsException as err:
-            raise AirflowException(f'Jenkins call failed with error : {err}')
+            raise AirflowException(f"Jenkins call failed with error : {err}")

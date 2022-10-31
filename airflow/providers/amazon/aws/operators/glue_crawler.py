@@ -43,13 +43,13 @@ class GlueCrawlerOperator(BaseOperator):
     :param wait_for_completion: Whether or not wait for crawl execution completion. (default: True)
     """
 
-    template_fields: Sequence[str] = ('config',)
-    ui_color = '#ededed'
+    template_fields: Sequence[str] = ("config",)
+    ui_color = "#ededed"
 
     def __init__(
         self,
         config,
-        aws_conn_id='aws_default',
+        aws_conn_id="aws_default",
         poll_interval: int = 5,
         wait_for_completion: bool = True,
         **kwargs,
@@ -71,7 +71,7 @@ class GlueCrawlerOperator(BaseOperator):
 
         :return: the name of the current glue crawler.
         """
-        crawler_name = self.config['Name']
+        crawler_name = self.config["Name"]
         if self.hook.has_crawler(crawler_name):
             self.hook.update_crawler(**self.config)
         else:

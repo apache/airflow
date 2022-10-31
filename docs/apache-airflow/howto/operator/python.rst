@@ -181,7 +181,6 @@ tasks have completed running regardless of status (i.e. the ``TriggerRule.ALL_DO
     :end-before: [END howto_operator_short_circuit_trigger_rules]
 
 
-
 Passing in arguments
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -192,3 +191,17 @@ Templating
 ^^^^^^^^^^
 
 Jinja templating can be used in same way as described for the PythonOperator.
+
+.. _howto/operator:PythonSensor:
+
+PythonSensor
+============
+
+Use the :class:`~airflow.sensors.python.PythonSensor` to use arbitrary callable for sensing. The callable
+should return True when it succeeds, False otherwise.
+
+.. exampleinclude:: /../../airflow/example_dags/example_sensors.py
+    :language: python
+    :dedent: 4
+    :start-after: [START example_python_sensors]
+    :end-before: [END example_python_sensors]

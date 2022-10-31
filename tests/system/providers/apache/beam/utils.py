@@ -26,33 +26,33 @@ from urllib.parse import urlparse
 
 from airflow.utils.trigger_rule import TriggerRule
 
-GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
-GCS_INPUT = os.environ.get('APACHE_BEAM_PYTHON', 'gs://INVALID BUCKET NAME/shakespeare/kinglear.txt')
-GCS_TMP = os.environ.get('APACHE_BEAM_GCS_TMP', 'gs://INVALID BUCKET NAME/temp/')
-GCS_STAGING = os.environ.get('APACHE_BEAM_GCS_STAGING', 'gs://INVALID BUCKET NAME/staging/')
-GCS_OUTPUT = os.environ.get('APACHE_BEAM_GCS_OUTPUT', 'gs://INVALID BUCKET NAME/output')
-GCS_PYTHON = os.environ.get('APACHE_BEAM_PYTHON', 'gs://INVALID BUCKET NAME/wordcount_debugging.py')
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
+GCS_INPUT = os.environ.get("APACHE_BEAM_PYTHON", "gs://INVALID BUCKET NAME/shakespeare/kinglear.txt")
+GCS_TMP = os.environ.get("APACHE_BEAM_GCS_TMP", "gs://INVALID BUCKET NAME/temp/")
+GCS_STAGING = os.environ.get("APACHE_BEAM_GCS_STAGING", "gs://INVALID BUCKET NAME/staging/")
+GCS_OUTPUT = os.environ.get("APACHE_BEAM_GCS_OUTPUT", "gs://INVALID BUCKET NAME/output")
+GCS_PYTHON = os.environ.get("APACHE_BEAM_PYTHON", "gs://INVALID BUCKET NAME/wordcount_debugging.py")
 GCS_PYTHON_DATAFLOW_ASYNC = os.environ.get(
-    'APACHE_BEAM_PYTHON_DATAFLOW_ASYNC', 'gs://INVALID BUCKET NAME/wordcount_debugging.py'
+    "APACHE_BEAM_PYTHON_DATAFLOW_ASYNC", "gs://INVALID BUCKET NAME/wordcount_debugging.py"
 )
-GCS_GO = os.environ.get('APACHE_BEAM_GO', 'gs://INVALID BUCKET NAME/wordcount_debugging.go')
+GCS_GO = os.environ.get("APACHE_BEAM_GO", "gs://INVALID BUCKET NAME/wordcount_debugging.go")
 GCS_GO_DATAFLOW_ASYNC = os.environ.get(
-    'APACHE_BEAM_GO_DATAFLOW_ASYNC', 'gs://INVALID BUCKET NAME/wordcount_debugging.go'
+    "APACHE_BEAM_GO_DATAFLOW_ASYNC", "gs://INVALID BUCKET NAME/wordcount_debugging.go"
 )
 GCS_JAR_DIRECT_RUNNER = os.environ.get(
-    'APACHE_BEAM_DIRECT_RUNNER_JAR',
-    'gs://INVALID BUCKET NAME/tests/dataflow-templates-bundled-java=11-beam-v2.25.0-DirectRunner.jar',
+    "APACHE_BEAM_DIRECT_RUNNER_JAR",
+    "gs://INVALID BUCKET NAME/tests/dataflow-templates-bundled-java=11-beam-v2.25.0-DirectRunner.jar",
 )
 GCS_JAR_DATAFLOW_RUNNER = os.environ.get(
-    'APACHE_BEAM_DATAFLOW_RUNNER_JAR', 'gs://INVALID BUCKET NAME/word-count-beam-bundled-0.1.jar'
+    "APACHE_BEAM_DATAFLOW_RUNNER_JAR", "gs://INVALID BUCKET NAME/word-count-beam-bundled-0.1.jar"
 )
 GCS_JAR_SPARK_RUNNER = os.environ.get(
-    'APACHE_BEAM_SPARK_RUNNER_JAR',
-    'gs://INVALID BUCKET NAME/tests/dataflow-templates-bundled-java=11-beam-v2.25.0-SparkRunner.jar',
+    "APACHE_BEAM_SPARK_RUNNER_JAR",
+    "gs://INVALID BUCKET NAME/tests/dataflow-templates-bundled-java=11-beam-v2.25.0-SparkRunner.jar",
 )
 GCS_JAR_FLINK_RUNNER = os.environ.get(
-    'APACHE_BEAM_FLINK_RUNNER_JAR',
-    'gs://INVALID BUCKET NAME/tests/dataflow-templates-bundled-java=11-beam-v2.25.0-FlinkRunner.jar',
+    "APACHE_BEAM_FLINK_RUNNER_JAR",
+    "gs://INVALID BUCKET NAME/tests/dataflow-templates-bundled-java=11-beam-v2.25.0-FlinkRunner.jar",
 )
 
 GCS_JAR_DIRECT_RUNNER_PARTS = urlparse(GCS_JAR_DIRECT_RUNNER)
@@ -70,7 +70,7 @@ GCS_JAR_FLINK_RUNNER_OBJECT_NAME = GCS_JAR_FLINK_RUNNER_PARTS.path[1:]
 
 
 DEFAULT_ARGS = {
-    'default_pipeline_options': {'output': '/tmp/example_beam'},
-    'trigger_rule': TriggerRule.ALL_DONE,
+    "default_pipeline_options": {"output": "/tmp/example_beam"},
+    "trigger_rule": TriggerRule.ALL_DONE,
 }
 START_DATE = datetime(2021, 1, 1)

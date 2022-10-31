@@ -260,7 +260,6 @@ class CeleryExecutor(BaseExecutor):
         How many Celery tasks should each worker process send.
 
         :return: Number of tasks that should be sent per process
-        :rtype: int
         """
         return max(1, int(math.ceil(1.0 * to_send_count / self._sync_parallelism)))
 
@@ -562,7 +561,6 @@ def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | Excep
         to fetch the task's state
     :return: a tuple of the Celery task key and the Celery state and the celery info
         of the task
-    :rtype: tuple[str, str, str]
     """
     try:
         with timeout(seconds=OPERATION_TIMEOUT):

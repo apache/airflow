@@ -48,68 +48,68 @@ class TestBaseChartTest:
             self._get_values_with_version(
                 values={
                     "chart": {
-                        'metadata': 'AA',
+                        "metadata": "AA",
                     },
-                    'labels': {"test-label": "TEST-VALUE"},
+                    "labels": {"test-label": "TEST-VALUE"},
                     "fullnameOverride": "test-basic",
                 },
                 version=version,
             ),
         )
         list_of_kind_names_tuples = {
-            (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
+            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         }
         if version == "2.3.2":
-            assert ('Secret', 'test-basic-airflow-result-backend') in list_of_kind_names_tuples
-            list_of_kind_names_tuples.remove(('Secret', 'test-basic-airflow-result-backend'))
+            assert ("Secret", "test-basic-airflow-result-backend") in list_of_kind_names_tuples
+            list_of_kind_names_tuples.remove(("Secret", "test-basic-airflow-result-backend"))
         assert list_of_kind_names_tuples == {
-            ('ServiceAccount', 'test-basic-create-user-job'),
-            ('ServiceAccount', 'test-basic-migrate-database-job'),
-            ('ServiceAccount', 'test-basic-redis'),
-            ('ServiceAccount', 'test-basic-scheduler'),
-            ('ServiceAccount', 'test-basic-statsd'),
-            ('ServiceAccount', 'test-basic-triggerer'),
-            ('ServiceAccount', 'test-basic-webserver'),
-            ('ServiceAccount', 'test-basic-worker'),
-            ('Secret', 'test-basic-airflow-metadata'),
-            ('Secret', 'test-basic-broker-url'),
-            ('Secret', 'test-basic-fernet-key'),
-            ('Secret', 'test-basic-webserver-secret-key'),
-            ('Secret', 'test-basic-postgresql'),
-            ('Secret', 'test-basic-redis-password'),
-            ('ConfigMap', 'test-basic-airflow-config'),
-            ('ConfigMap', 'test-basic-statsd'),
-            ('Role', 'test-basic-pod-launcher-role'),
-            ('Role', 'test-basic-pod-log-reader-role'),
-            ('RoleBinding', 'test-basic-pod-launcher-rolebinding'),
-            ('RoleBinding', 'test-basic-pod-log-reader-rolebinding'),
-            ('Service', 'test-basic-postgresql-headless'),
-            ('Service', 'test-basic-postgresql'),
-            ('Service', 'test-basic-redis'),
-            ('Service', 'test-basic-statsd'),
-            ('Service', 'test-basic-webserver'),
-            ('Service', 'test-basic-worker'),
-            ('Deployment', 'test-basic-scheduler'),
-            ('Deployment', 'test-basic-statsd'),
-            ('Deployment', 'test-basic-triggerer'),
-            ('Deployment', 'test-basic-webserver'),
-            ('StatefulSet', 'test-basic-postgresql'),
-            ('StatefulSet', 'test-basic-redis'),
-            ('StatefulSet', 'test-basic-worker'),
-            ('Job', 'test-basic-create-user'),
-            ('Job', 'test-basic-run-airflow-migrations'),
+            ("ServiceAccount", "test-basic-create-user-job"),
+            ("ServiceAccount", "test-basic-migrate-database-job"),
+            ("ServiceAccount", "test-basic-redis"),
+            ("ServiceAccount", "test-basic-scheduler"),
+            ("ServiceAccount", "test-basic-statsd"),
+            ("ServiceAccount", "test-basic-triggerer"),
+            ("ServiceAccount", "test-basic-webserver"),
+            ("ServiceAccount", "test-basic-worker"),
+            ("Secret", "test-basic-airflow-metadata"),
+            ("Secret", "test-basic-broker-url"),
+            ("Secret", "test-basic-fernet-key"),
+            ("Secret", "test-basic-webserver-secret-key"),
+            ("Secret", "test-basic-postgresql"),
+            ("Secret", "test-basic-redis-password"),
+            ("ConfigMap", "test-basic-airflow-config"),
+            ("ConfigMap", "test-basic-statsd"),
+            ("Role", "test-basic-pod-launcher-role"),
+            ("Role", "test-basic-pod-log-reader-role"),
+            ("RoleBinding", "test-basic-pod-launcher-rolebinding"),
+            ("RoleBinding", "test-basic-pod-log-reader-rolebinding"),
+            ("Service", "test-basic-postgresql-headless"),
+            ("Service", "test-basic-postgresql"),
+            ("Service", "test-basic-redis"),
+            ("Service", "test-basic-statsd"),
+            ("Service", "test-basic-webserver"),
+            ("Service", "test-basic-worker"),
+            ("Deployment", "test-basic-scheduler"),
+            ("Deployment", "test-basic-statsd"),
+            ("Deployment", "test-basic-triggerer"),
+            ("Deployment", "test-basic-webserver"),
+            ("StatefulSet", "test-basic-postgresql"),
+            ("StatefulSet", "test-basic-redis"),
+            ("StatefulSet", "test-basic-worker"),
+            ("Job", "test-basic-create-user"),
+            ("Job", "test-basic-run-airflow-migrations"),
         }
         assert expected_object_count_in_basic_deployment == len(k8s_objects)
         for k8s_object in k8s_objects:
-            labels = jmespath.search('metadata.labels', k8s_object) or {}
-            if 'helm.sh/chart' in labels:
-                chart_name = labels.get('helm.sh/chart')
+            labels = jmespath.search("metadata.labels", k8s_object) or {}
+            if "helm.sh/chart" in labels:
+                chart_name = labels.get("helm.sh/chart")
             else:
-                chart_name = labels.get('chart')
-            if chart_name and 'postgresql' in chart_name:
+                chart_name = labels.get("chart")
+            if chart_name and "postgresql" in chart_name:
                 continue
-            k8s_name = k8s_object['kind'] + ":" + k8s_object['metadata']['name']
-            assert 'TEST-VALUE' == labels.get(
+            k8s_name = k8s_object["kind"] + ":" + k8s_object["metadata"]["name"]
+            assert "TEST-VALUE" == labels.get(
                 "test-label"
             ), f"Missing label test-label on {k8s_name}. Current labels: {labels}"
 
@@ -123,71 +123,71 @@ class TestBaseChartTest:
             self._get_values_with_version(
                 values={
                     "chart": {
-                        'metadata': 'AA',
+                        "metadata": "AA",
                     },
-                    'labels': {"test-label": "TEST-VALUE"},
+                    "labels": {"test-label": "TEST-VALUE"},
                     "fullnameOverride": "test-basic",
-                    "dagProcessor": {'enabled': True},
+                    "dagProcessor": {"enabled": True},
                 },
                 version=version,
             ),
         )
         list_of_kind_names_tuples = {
-            (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
+            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         }
         if version == "2.3.2":
-            assert ('Secret', 'test-basic-airflow-result-backend') in list_of_kind_names_tuples
-            list_of_kind_names_tuples.remove(('Secret', 'test-basic-airflow-result-backend'))
+            assert ("Secret", "test-basic-airflow-result-backend") in list_of_kind_names_tuples
+            list_of_kind_names_tuples.remove(("Secret", "test-basic-airflow-result-backend"))
         assert list_of_kind_names_tuples == {
-            ('ServiceAccount', 'test-basic-create-user-job'),
-            ('ServiceAccount', 'test-basic-migrate-database-job'),
-            ('ServiceAccount', 'test-basic-redis'),
-            ('ServiceAccount', 'test-basic-scheduler'),
-            ('ServiceAccount', 'test-basic-statsd'),
-            ('ServiceAccount', 'test-basic-triggerer'),
-            ('ServiceAccount', 'test-basic-dag-processor'),
-            ('ServiceAccount', 'test-basic-webserver'),
-            ('ServiceAccount', 'test-basic-worker'),
-            ('Secret', 'test-basic-airflow-metadata'),
-            ('Secret', 'test-basic-broker-url'),
-            ('Secret', 'test-basic-fernet-key'),
-            ('Secret', 'test-basic-webserver-secret-key'),
-            ('Secret', 'test-basic-postgresql'),
-            ('Secret', 'test-basic-redis-password'),
-            ('ConfigMap', 'test-basic-airflow-config'),
-            ('ConfigMap', 'test-basic-statsd'),
-            ('Role', 'test-basic-pod-launcher-role'),
-            ('Role', 'test-basic-pod-log-reader-role'),
-            ('RoleBinding', 'test-basic-pod-launcher-rolebinding'),
-            ('RoleBinding', 'test-basic-pod-log-reader-rolebinding'),
-            ('Service', 'test-basic-postgresql-headless'),
-            ('Service', 'test-basic-postgresql'),
-            ('Service', 'test-basic-redis'),
-            ('Service', 'test-basic-statsd'),
-            ('Service', 'test-basic-webserver'),
-            ('Service', 'test-basic-worker'),
-            ('Deployment', 'test-basic-scheduler'),
-            ('Deployment', 'test-basic-statsd'),
-            ('Deployment', 'test-basic-triggerer'),
-            ('Deployment', 'test-basic-dag-processor'),
-            ('Deployment', 'test-basic-webserver'),
-            ('StatefulSet', 'test-basic-postgresql'),
-            ('StatefulSet', 'test-basic-redis'),
-            ('StatefulSet', 'test-basic-worker'),
-            ('Job', 'test-basic-create-user'),
-            ('Job', 'test-basic-run-airflow-migrations'),
+            ("ServiceAccount", "test-basic-create-user-job"),
+            ("ServiceAccount", "test-basic-migrate-database-job"),
+            ("ServiceAccount", "test-basic-redis"),
+            ("ServiceAccount", "test-basic-scheduler"),
+            ("ServiceAccount", "test-basic-statsd"),
+            ("ServiceAccount", "test-basic-triggerer"),
+            ("ServiceAccount", "test-basic-dag-processor"),
+            ("ServiceAccount", "test-basic-webserver"),
+            ("ServiceAccount", "test-basic-worker"),
+            ("Secret", "test-basic-airflow-metadata"),
+            ("Secret", "test-basic-broker-url"),
+            ("Secret", "test-basic-fernet-key"),
+            ("Secret", "test-basic-webserver-secret-key"),
+            ("Secret", "test-basic-postgresql"),
+            ("Secret", "test-basic-redis-password"),
+            ("ConfigMap", "test-basic-airflow-config"),
+            ("ConfigMap", "test-basic-statsd"),
+            ("Role", "test-basic-pod-launcher-role"),
+            ("Role", "test-basic-pod-log-reader-role"),
+            ("RoleBinding", "test-basic-pod-launcher-rolebinding"),
+            ("RoleBinding", "test-basic-pod-log-reader-rolebinding"),
+            ("Service", "test-basic-postgresql-headless"),
+            ("Service", "test-basic-postgresql"),
+            ("Service", "test-basic-redis"),
+            ("Service", "test-basic-statsd"),
+            ("Service", "test-basic-webserver"),
+            ("Service", "test-basic-worker"),
+            ("Deployment", "test-basic-scheduler"),
+            ("Deployment", "test-basic-statsd"),
+            ("Deployment", "test-basic-triggerer"),
+            ("Deployment", "test-basic-dag-processor"),
+            ("Deployment", "test-basic-webserver"),
+            ("StatefulSet", "test-basic-postgresql"),
+            ("StatefulSet", "test-basic-redis"),
+            ("StatefulSet", "test-basic-worker"),
+            ("Job", "test-basic-create-user"),
+            ("Job", "test-basic-run-airflow-migrations"),
         }
         assert expected_object_count_with_standalone_scheduler == len(k8s_objects)
         for k8s_object in k8s_objects:
-            labels = jmespath.search('metadata.labels', k8s_object) or {}
-            if 'helm.sh/chart' in labels:
-                chart_name = labels.get('helm.sh/chart')
+            labels = jmespath.search("metadata.labels", k8s_object) or {}
+            if "helm.sh/chart" in labels:
+                chart_name = labels.get("helm.sh/chart")
             else:
-                chart_name = labels.get('chart')
-            if chart_name and 'postgresql' in chart_name:
+                chart_name = labels.get("chart")
+            if chart_name and "postgresql" in chart_name:
                 continue
-            k8s_name = k8s_object['kind'] + ":" + k8s_object['metadata']['name']
-            assert 'TEST-VALUE' == labels.get(
+            k8s_name = k8s_object["kind"] + ":" + k8s_object["metadata"]["name"]
+            assert "TEST-VALUE" == labels.get(
                 "test-label"
             ), f"Missing label test-label on {k8s_name}. Current labels: {labels}"
 
@@ -197,13 +197,13 @@ class TestBaseChartTest:
         k8s_objects = render_chart(
             "test-basic",
             values=self._get_values_with_version(
-                values={"webserver": {"defaultUser": {'enabled': False}}}, version=version
+                values={"webserver": {"defaultUser": {"enabled": False}}}, version=version
             ),
         )
         list_of_kind_names_tuples = [
-            (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
+            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
-        assert ('Job', 'test-basic-create-user') not in list_of_kind_names_tuples
+        assert ("Job", "test-basic-create-user") not in list_of_kind_names_tuples
         assert expected_object_count_in_basic_deployment - 2 == len(k8s_objects)
 
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
@@ -211,15 +211,15 @@ class TestBaseChartTest:
         expected_object_count_in_basic_deployment = self._get_object_count(version)
         k8s_objects = render_chart(
             "test-basic",
-            values=self._get_values_with_version(values={"statsd": {'enabled': False}}, version=version),
+            values=self._get_values_with_version(values={"statsd": {"enabled": False}}, version=version),
         )
         list_of_kind_names_tuples = [
-            (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
+            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
-        assert ('ServiceAccount', 'test-basic-statsd') not in list_of_kind_names_tuples
-        assert ('ConfigMap', 'test-basic-statsd') not in list_of_kind_names_tuples
-        assert ('Service', 'test-basic-statsd') not in list_of_kind_names_tuples
-        assert ('Deployment', 'test-basic-statsd') not in list_of_kind_names_tuples
+        assert ("ServiceAccount", "test-basic-statsd") not in list_of_kind_names_tuples
+        assert ("ConfigMap", "test-basic-statsd") not in list_of_kind_names_tuples
+        assert ("Service", "test-basic-statsd") not in list_of_kind_names_tuples
+        assert ("Deployment", "test-basic-statsd") not in list_of_kind_names_tuples
 
         assert expected_object_count_in_basic_deployment - 4 == len(k8s_objects)
 
@@ -234,17 +234,17 @@ class TestBaseChartTest:
             },
         )
         kind_names_tuples = {
-            (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
+            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         }
 
         expected_kind_names = [
-            ('NetworkPolicy', 'test-basic-redis-policy'),
-            ('NetworkPolicy', 'test-basic-flower-policy'),
-            ('NetworkPolicy', 'test-basic-pgbouncer-policy'),
-            ('NetworkPolicy', 'test-basic-scheduler-policy'),
-            ('NetworkPolicy', 'test-basic-statsd-policy'),
-            ('NetworkPolicy', 'test-basic-webserver-policy'),
-            ('NetworkPolicy', 'test-basic-worker-policy'),
+            ("NetworkPolicy", "test-basic-redis-policy"),
+            ("NetworkPolicy", "test-basic-flower-policy"),
+            ("NetworkPolicy", "test-basic-pgbouncer-policy"),
+            ("NetworkPolicy", "test-basic-scheduler-policy"),
+            ("NetworkPolicy", "test-basic-statsd-policy"),
+            ("NetworkPolicy", "test-basic-webserver-policy"),
+            ("NetworkPolicy", "test-basic-worker-policy"),
         ]
         for kind_name in expected_kind_names:
             assert kind_name in kind_names_tuples
@@ -281,7 +281,7 @@ class TestBaseChartTest:
             },
         )
         kind_k8s_obj_labels_tuples = {
-            (k8s_object['metadata']['name'], k8s_object['kind']): k8s_object['metadata']['labels']
+            (k8s_object["metadata"]["name"], k8s_object["kind"]): k8s_object["metadata"]["labels"]
             for k8s_object in k8s_objects
         }
 
@@ -355,7 +355,7 @@ class TestBaseChartTest:
             if component:
                 expected_labels["component"] = component
             if k8s_object_name == f"{release_name}-scheduler":
-                expected_labels['executor'] = 'CeleryExecutor'
+                expected_labels["executor"] = "CeleryExecutor"
             actual_labels = kind_k8s_obj_labels_tuples.pop((k8s_object_name, kind))
             assert actual_labels == expected_labels
 
@@ -380,9 +380,9 @@ class TestBaseChartTest:
             },
         )
         dict_of_labels_in_job_templates = {
-            k8s_object['metadata']['name']: k8s_object['spec']['template']['metadata']['labels']
+            k8s_object["metadata"]["name"]: k8s_object["spec"]["template"]["metadata"]["labels"]
             for k8s_object in k8s_objects
-            if k8s_object['kind'] == "Job"
+            if k8s_object["kind"] == "Job"
         }
 
         kind_names_tuples = [

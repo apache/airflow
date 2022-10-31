@@ -72,7 +72,6 @@ class TelegramHook(BaseHook):
         Returns the telegram bot client
 
         :return: telegram bot client
-        :rtype: telegram.bot.Bot
         """
         return telegram.bot.Bot(token=self.token)
 
@@ -83,7 +82,6 @@ class TelegramHook(BaseHook):
         :param token: telegram API token
         :param telegram_conn_id: telegram connection name
         :return: telegram API token
-        :rtype: str
         """
         if token is not None:
             return token
@@ -105,7 +103,6 @@ class TelegramHook(BaseHook):
         :param chat_id: optional chat ID
         :param telegram_conn_id: telegram connection name
         :return: telegram chat ID
-        :rtype: str
         """
         if chat_id is not None:
             return chat_id
@@ -134,10 +131,10 @@ class TelegramHook(BaseHook):
         }
         kwargs.update(api_params)
 
-        if 'text' not in kwargs or kwargs['text'] is None:
+        if "text" not in kwargs or kwargs["text"] is None:
             raise AirflowException("'text' must be provided for telegram message")
 
-        if kwargs['chat_id'] is None:
+        if kwargs["chat_id"] is None:
             raise AirflowException("'chat_id' must be provided for telegram message")
 
         response = self.connection.send_message(**kwargs)

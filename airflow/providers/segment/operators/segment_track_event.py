@@ -38,8 +38,8 @@ class SegmentTrackEventOperator(BaseOperator):
         Defaults to False
     """
 
-    template_fields: Sequence[str] = ('user_id', 'event', 'properties')
-    ui_color = '#ffd700'
+    template_fields: Sequence[str] = ("user_id", "event", "properties")
+    ui_color = "#ffd700"
 
     def __init__(
         self,
@@ -47,7 +47,7 @@ class SegmentTrackEventOperator(BaseOperator):
         user_id: str,
         event: str,
         properties: dict | None = None,
-        segment_conn_id: str = 'segment_default',
+        segment_conn_id: str = "segment_default",
         segment_debug_mode: bool = False,
         **kwargs,
     ) -> None:
@@ -63,7 +63,7 @@ class SegmentTrackEventOperator(BaseOperator):
         hook = SegmentHook(segment_conn_id=self.segment_conn_id, segment_debug_mode=self.segment_debug_mode)
 
         self.log.info(
-            'Sending track event (%s) for user id: %s with properties: %s',
+            "Sending track event (%s) for user id: %s with properties: %s",
             self.event,
             self.user_id,
             self.properties,

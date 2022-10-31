@@ -60,7 +60,6 @@ class AwsLogsHook(AwsBaseHook):
             This is for when there are multiple entries at the same timestamp.
         :param start_from_head: whether to start from the beginning (True) of the log or
             at the end of the log (False).
-        :rtype: dict
         :return: | A CloudWatch log event with the following key-value pairs:
                  |   'timestamp' (int): The time in milliseconds of the event.
                  |   'message' (str): The log event data.
@@ -69,7 +68,7 @@ class AwsLogsHook(AwsBaseHook):
         next_token = None
         while True:
             if next_token is not None:
-                token_arg: dict[str, str] | None = {'nextToken': next_token}
+                token_arg: dict[str, str] | None = {"nextToken": next_token}
             else:
                 token_arg = {}
 
@@ -81,7 +80,7 @@ class AwsLogsHook(AwsBaseHook):
                 **token_arg,
             )
 
-            events = response['events']
+            events = response["events"]
             event_count = len(events)
 
             if event_count > skip:
@@ -93,7 +92,7 @@ class AwsLogsHook(AwsBaseHook):
 
             yield from events
 
-            if next_token != response['nextForwardToken']:
-                next_token = response['nextForwardToken']
+            if next_token != response["nextForwardToken"]:
+                next_token = response["nextForwardToken"]
             else:
                 return

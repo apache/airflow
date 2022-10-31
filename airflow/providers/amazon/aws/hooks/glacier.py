@@ -35,7 +35,7 @@ class GlacierHook(AwsBaseHook):
 
         :param vault_name: the Glacier vault on which job is executed
         """
-        job_params = {'Type': 'inventory-retrieval'}
+        job_params = {"Type": "inventory-retrieval"}
         self.log.info("Retrieving inventory for vault: %s", vault_name)
         response = self.get_conn().initiate_job(vaultName=vault_name, jobParameters=job_params)
         self.log.info("Initiated inventory-retrieval job for: %s", vault_name)
@@ -63,5 +63,5 @@ class GlacierHook(AwsBaseHook):
         """
         self.log.info("Retrieving status for vault: %s and job %s", vault_name, job_id)
         response = self.get_conn().describe_job(vaultName=vault_name, jobId=job_id)
-        self.log.info("Job status: %s, code status: %s", response['Action'], response['StatusCode'])
+        self.log.info("Job status: %s, code status: %s", response["Action"], response["StatusCode"])
         return response

@@ -28,21 +28,21 @@ class TestAirbyteTriggerSyncOp(unittest.TestCase):
     Test execute function from Airbyte Operator
     """
 
-    airbyte_conn_id = 'test_airbyte_conn_id'
-    connection_id = 'test_airbyte_connection'
+    airbyte_conn_id = "test_airbyte_conn_id"
+    connection_id = "test_airbyte_connection"
     job_id = 1
     wait_seconds = 0
     timeout = 360
 
-    @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.submit_sync_connection')
-    @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.wait_for_job', return_value=None)
+    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.submit_sync_connection")
+    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.wait_for_job", return_value=None)
     def test_execute(self, mock_wait_for_job, mock_submit_sync_connection):
         mock_submit_sync_connection.return_value = mock.Mock(
-            **{'json.return_value': {'job': {'id': self.job_id}}}
+            **{"json.return_value": {"job": {"id": self.job_id}}}
         )
 
         op = AirbyteTriggerSyncOperator(
-            task_id='test_Airbyte_op',
+            task_id="test_Airbyte_op",
             airbyte_conn_id=self.airbyte_conn_id,
             connection_id=self.connection_id,
             wait_seconds=self.wait_seconds,

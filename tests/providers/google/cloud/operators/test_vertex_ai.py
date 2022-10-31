@@ -93,7 +93,7 @@ ACCELERATOR_COUNT = 0
 TRAINING_FRACTION_SPLIT = 0.7
 TEST_FRACTION_SPLIT = 0.15
 VALIDATION_FRACTION_SPLIT = 0.15
-COMMAND_2 = ['echo', 'Hello World']
+COMMAND_2 = ["echo", "Hello World"]
 
 TEST_API_ENDPOINT: str = "test-api-endpoint"
 TEST_PIPELINE_JOB: str = "test-pipeline-job"
@@ -124,7 +124,7 @@ TEST_IMPORT_CONFIG = [
             "test-labels-name": "test-labels-value",
         },
         "import_schema_uri": "test-shema-uri",
-        "gcs_source": {"uris": ['test-string']},
+        "gcs_source": {"uris": ["test-string"]},
     },
     {},
 ]
@@ -151,10 +151,10 @@ TEST_ENDPOINT = {
 TEST_ENDPOINT_ID = "1234567890"
 TEST_DEPLOYED_MODEL = {
     # format: 'projects/{project}/locations/{location}/models/{model}'
-    'model': f"projects/{GCP_PROJECT}/locations/{GCP_LOCATION}/models/test_model_id",
-    'display_name': "temp_endpoint_test",
+    "model": f"projects/{GCP_PROJECT}/locations/{GCP_LOCATION}/models/test_model_id",
+    "display_name": "temp_endpoint_test",
     "dedicated_resources": {
-        'min_replica_count': 1,
+        "min_replica_count": 1,
         "max_replica_count": 1,
     },
 }
@@ -170,7 +170,11 @@ TEST_OUTPUT_CONFIG = {
 class TestVertexAICreateCustomContainerTrainingJobOperator:
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CustomJobHook"))
     def test_execute(self, mock_hook):
-        mock_hook.return_value.create_custom_container_training_job.return_value = (None, 'training_id')
+        mock_hook.return_value.create_custom_container_training_job.return_value = (
+            None,
+            "training_id",
+            "custom_job_id",
+        )
         op = CreateCustomContainerTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -193,7 +197,7 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -236,7 +240,7 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             network=None,
             bigquery_destination=None,
             environment_variables=None,
-            boot_disk_type='pd-ssd',
+            boot_disk_type="pd-ssd",
             boot_disk_size_gb=100,
             training_filter_split=None,
             validation_filter_split=None,
@@ -251,7 +255,11 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
 class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CustomJobHook"))
     def test_execute(self, mock_hook):
-        mock_hook.return_value.create_custom_python_package_training_job.return_value = (None, 'training_id')
+        mock_hook.return_value.create_custom_python_package_training_job.return_value = (
+            None,
+            "training_id",
+            "custom_job_id",
+        )
         op = CreateCustomPythonPackageTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -275,7 +283,7 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -319,7 +327,7 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             network=None,
             bigquery_destination=None,
             environment_variables=None,
-            boot_disk_type='pd-ssd',
+            boot_disk_type="pd-ssd",
             boot_disk_size_gb=100,
             training_filter_split=None,
             validation_filter_split=None,
@@ -334,7 +342,11 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
 class TestVertexAICreateCustomTrainingJobOperator:
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CustomJobHook"))
     def test_execute(self, mock_hook):
-        mock_hook.return_value.create_custom_training_job.return_value = (None, 'training_id')
+        mock_hook.return_value.create_custom_training_job.return_value = (
+            None,
+            "training_id",
+            "custom_job_id",
+        )
         op = CreateCustomTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -351,7 +363,7 @@ class TestVertexAICreateCustomTrainingJobOperator:
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -395,7 +407,7 @@ class TestVertexAICreateCustomTrainingJobOperator:
             network=None,
             bigquery_destination=None,
             environment_variables=None,
-            boot_disk_type='pd-ssd',
+            boot_disk_type="pd-ssd",
             boot_disk_size_gb=100,
             training_filter_split=None,
             validation_filter_split=None,
@@ -468,7 +480,7 @@ class TestVertexAIListCustomTrainingJobOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -501,7 +513,7 @@ class TestVertexAICreateDatasetOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -635,7 +647,7 @@ class TestVertexAIListDatasetsOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -691,6 +703,7 @@ class TestVertexAICreateAutoMLForecastingTrainingJobOperator:
     @mock.patch("google.cloud.aiplatform.datasets.TimeSeriesDataset")
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
     def test_execute(self, mock_hook, mock_dataset):
+        mock_hook.return_value.create_auto_ml_forecasting_training_job.return_value = (None, "training_id")
         op = CreateAutoMLForecastingTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -710,7 +723,7 @@ class TestVertexAICreateAutoMLForecastingTrainingJobOperator:
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -757,6 +770,7 @@ class TestVertexAICreateAutoMLImageTrainingJobOperator:
     @mock.patch("google.cloud.aiplatform.datasets.ImageDataset")
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
     def test_execute(self, mock_hook, mock_dataset):
+        mock_hook.return_value.create_auto_ml_image_training_job.return_value = (None, "training_id")
         op = CreateAutoMLImageTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -771,7 +785,7 @@ class TestVertexAICreateAutoMLImageTrainingJobOperator:
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -806,6 +820,7 @@ class TestVertexAICreateAutoMLTabularTrainingJobOperator:
     @mock.patch("google.cloud.aiplatform.datasets.TabularDataset")
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
     def test_execute(self, mock_hook, mock_dataset):
+        mock_hook.return_value.create_auto_ml_tabular_training_job.return_value = (None, "training_id")
         op = CreateAutoMLTabularTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -819,7 +834,7 @@ class TestVertexAICreateAutoMLTabularTrainingJobOperator:
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -860,6 +875,7 @@ class TestVertexAICreateAutoMLTextTrainingJobOperator:
     @mock.patch("google.cloud.aiplatform.datasets.TextDataset")
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
     def test_execute(self, mock_hook, mock_dataset):
+        mock_hook.return_value.create_auto_ml_text_training_job.return_value = (None, "training_id")
         op = CreateAutoMLTextTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -874,7 +890,7 @@ class TestVertexAICreateAutoMLTextTrainingJobOperator:
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -906,6 +922,7 @@ class TestVertexAICreateAutoMLVideoTrainingJobOperator:
     @mock.patch("google.cloud.aiplatform.datasets.VideoDataset")
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
     def test_execute(self, mock_hook, mock_dataset):
+        mock_hook.return_value.create_auto_ml_video_training_job.return_value = (None, "training_id")
         op = CreateAutoMLVideoTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -919,7 +936,7 @@ class TestVertexAICreateAutoMLVideoTrainingJobOperator:
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -996,7 +1013,7 @@ class TestVertexAIListAutoMLTrainingJobOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -1029,7 +1046,7 @@ class TestVertexAICreateBatchPredictionJobOperator:
             instances_format="jsonl",
             predictions_format="jsonl",
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -1111,7 +1128,7 @@ class TestVertexAIListBatchPredictionJobsOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -1145,7 +1162,7 @@ class TestVertexAICreateEndpointOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -1207,7 +1224,7 @@ class TestVertexAIDeployModelOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -1248,7 +1265,7 @@ class TestVertexAIListEndpointsOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -1319,7 +1336,7 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
             max_trial_count=15,
             parallel_trial_count=3,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -1364,7 +1381,7 @@ class TestVertexAIGetHyperparameterTuningJobOperator:
             project_id=GCP_PROJECT,
             hyperparameter_tuning_job_id=TEST_HYPERPARAMETER_TUNING_JOB_ID,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -1427,7 +1444,7 @@ class TestVertexAIListHyperparameterTuningJobOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -1460,7 +1477,7 @@ class TestVertexAIExportModelOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -1530,7 +1547,7 @@ class TestVertexAIListModelsOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -1564,7 +1581,7 @@ class TestVertexAIUploadModelOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={'ti': mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )

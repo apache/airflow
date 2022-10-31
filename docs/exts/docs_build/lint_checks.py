@@ -275,7 +275,7 @@ def check_example_dags_in_provider_tocs() -> list[DocBuildError]:
     build_errors = []
 
     for provider in ALL_PROVIDER_YAMLS:
-        example_dags_dirs = list(find_example_dags(provider['package-dir']))
+        example_dags_dirs = list(find_example_dags(provider["package-dir"]))
         if not example_dags_dirs:
             continue
         doc_file_path = f"{DOCS_DIR}/{provider['package-name']}/index.rst"

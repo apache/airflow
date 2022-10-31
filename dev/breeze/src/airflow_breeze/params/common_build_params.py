@@ -39,12 +39,11 @@ class CommonBuildParams:
     additional_dev_apt_env: str = ""
     additional_python_deps: str = ""
     additional_pip_install_flags: str = ""
-    airflow_branch: str = os.environ.get('DEFAULT_BRANCH', AIRFLOW_BRANCH)
+    airflow_branch: str = os.environ.get("DEFAULT_BRANCH", AIRFLOW_BRANCH)
     default_constraints_branch: str = os.environ.get(
-        'DEFAULT_CONSTRAINTS_BRANCH', DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+        "DEFAULT_CONSTRAINTS_BRANCH", DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     )
     airflow_constraints_location: str = ""
-    answer: str | None = None
     build_id: int = 0
     builder: str = "default"
     constraints_github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
@@ -52,9 +51,9 @@ class CommonBuildParams:
     dev_apt_deps: str = ""
     docker_cache: str = "registry"
     empty_image: bool = False
-    github_actions: str = os.environ.get('GITHUB_ACTIONS', "false")
+    github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
-    github_token: str = os.environ.get('GITHUB_TOKEN', "")
+    github_token: str = os.environ.get("GITHUB_TOKEN", "")
     github_username: str = ""
     image_tag: str | None = None
     install_providers_from_sources: bool = False
@@ -66,6 +65,8 @@ class CommonBuildParams:
     tag_as_latest: bool = False
     upgrade_to_newer_dependencies: bool = False
     upgrade_on_failure: bool = False
+    dry_run: bool = False
+    verbose: bool = False
 
     @property
     def airflow_version(self):
@@ -81,15 +82,15 @@ class CommonBuildParams:
 
     @property
     def airflow_base_image_name(self):
-        image = f'ghcr.io/{self.github_repository.lower()}'
+        image = f"ghcr.io/{self.github_repository.lower()}"
         return image
 
     @property
     def airflow_image_name(self):
         """Construct image link"""
         image = (
-            f'{self.airflow_base_image_name}/{self.airflow_branch}/'
-            f'{self.image_type.lower()}/python{self.python}'
+            f"{self.airflow_base_image_name}/{self.airflow_branch}/"
+            f"{self.image_type.lower()}/python{self.python}"
         )
         return image
 
@@ -114,11 +115,11 @@ class CommonBuildParams:
         """Construct Python Base Image"""
         if self.python_image is not None:
             return self.python_image
-        return f'python:{self.python}-slim-bullseye'
+        return f"python:{self.python}-slim-bullseye"
 
     @property
     def airflow_image_repository(self):
-        return f'https://github.com/{self.github_repository}'
+        return f"https://github.com/{self.github_repository}"
 
     @property
     def airflow_image_date_created(self):
@@ -133,8 +134,8 @@ class CommonBuildParams:
     def airflow_image_name_with_tag(self):
         """Construct image link"""
         image = (
-            f'{self.airflow_base_image_name}/{self.airflow_branch}/'
-            f'{self.image_type.lower()}/python{self.python}'
+            f"{self.airflow_base_image_name}/{self.airflow_branch}/"
+            f"{self.image_type.lower()}/python{self.python}"
         )
         return image if self.image_tag is None else image + f":{self.image_tag}"
 

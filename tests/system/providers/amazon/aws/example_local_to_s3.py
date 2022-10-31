@@ -30,14 +30,14 @@ from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 sys_test_context_task = SystemTestContextBuilder().build()
 
 
-DAG_ID = 'example_local_to_s3'
-TEMP_FILE_PATH = '/tmp/sample-txt.txt'
-SAMPLE_TEXT = 'This is some sample text.'
+DAG_ID = "example_local_to_s3"
+TEMP_FILE_PATH = "/tmp/sample-txt.txt"
+SAMPLE_TEXT = "This is some sample text."
 
 
 @task
 def create_temp_file():
-    file = open(TEMP_FILE_PATH, 'w')
+    file = open(TEMP_FILE_PATH, "w")
     file.write(SAMPLE_TEXT)
 
 
@@ -49,21 +49,21 @@ def delete_temp_file():
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),  # Override to match your needs
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
-    env_id = test_context['ENV_ID']
+    env_id = test_context["ENV_ID"]
 
-    s3_bucket_name = f'{env_id}-bucket'
-    s3_key = f'{env_id}/files/my-temp-file.txt'
+    s3_bucket_name = f"{env_id}-bucket"
+    s3_key = f"{env_id}/files/my-temp-file.txt"
 
-    create_s3_bucket = S3CreateBucketOperator(task_id='create-s3-bucket', bucket_name=s3_bucket_name)
+    create_s3_bucket = S3CreateBucketOperator(task_id="create-s3-bucket", bucket_name=s3_bucket_name)
     # [START howto_transfer_local_to_s3]
     create_local_to_s3_job = LocalFilesystemToS3Operator(
-        task_id='create_local_to_s3_job',
+        task_id="create_local_to_s3_job",
         filename=TEMP_FILE_PATH,
         dest_key=s3_key,
         dest_bucket=s3_bucket_name,
@@ -72,7 +72,7 @@ with DAG(
     # [END howto_transfer_local_to_s3]
 
     delete_s3_bucket = S3DeleteBucketOperator(
-        task_id='delete_s3_bucket',
+        task_id="delete_s3_bucket",
         bucket_name=s3_bucket_name,
         force_delete=True,
         trigger_rule=TriggerRule.ALL_DONE,

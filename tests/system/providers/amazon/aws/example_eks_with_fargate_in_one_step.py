@@ -41,14 +41,14 @@ from tests.system.providers.amazon.aws.utils.ec2 import (
     remove_address_allocation,
 )
 
-DAG_ID = 'example_eks_with_fargate_in_one_step'
+DAG_ID = "example_eks_with_fargate_in_one_step"
 
 # Externally fetched variables
 # See https://docs.aws.amazon.com/eks/latest/userguide/service_IAM_role.html
-CLUSTER_ROLE_ARN_KEY = 'CLUSTER_ROLE_ARN'
+CLUSTER_ROLE_ARN_KEY = "CLUSTER_ROLE_ARN"
 # See https://docs.aws.amazon.com/eks/latest/userguide/pod-execution-role.html
-FARGATE_POD_ROLE_ARN_KEY = 'FARGATE_POD_ROLE_ARN'
-PUBLIC_SUBNET_ID_KEY = 'PUBLIC_SUBNET_ID'
+FARGATE_POD_ROLE_ARN_KEY = "FARGATE_POD_ROLE_ARN"
+PUBLIC_SUBNET_ID_KEY = "PUBLIC_SUBNET_ID"
 
 sys_test_context_task = (
     SystemTestContextBuilder()
@@ -60,9 +60,9 @@ sys_test_context_task = (
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
@@ -71,9 +71,9 @@ with DAG(
     fargate_pod_role_arn = test_context[FARGATE_POD_ROLE_ARN_KEY]
     public_subnet_id = test_context[PUBLIC_SUBNET_ID_KEY]
 
-    cluster_name = f'{env_id}-cluster'
-    fargate_profile_name = f'{env_id}-profile'
-    test_name = f'{env_id}_{DAG_ID}'
+    cluster_name = f"{env_id}-cluster"
+    fargate_profile_name = f"{env_id}-profile"
+    test_name = f"{env_id}_{DAG_ID}"
 
     vpc_id = get_default_vpc_id()
     allocation = create_address_allocation()
@@ -86,15 +86,15 @@ with DAG(
     # [START howto_operator_eks_create_cluster_with_fargate_profile]
     # Create an Amazon EKS cluster control plane and an AWS Fargate compute platform in one step.
     create_cluster_and_fargate_profile = EksCreateClusterOperator(
-        task_id='create_eks_cluster_and_fargate_profile',
+        task_id="create_eks_cluster_and_fargate_profile",
         cluster_name=cluster_name,
         cluster_role_arn=cluster_role_arn,
         resources_vpc_config={
-            'subnetIds': subnets,
-            'endpointPublicAccess': True,
-            'endpointPrivateAccess': False,
+            "subnetIds": subnets,
+            "endpointPublicAccess": True,
+            "endpointPrivateAccess": False,
         },
-        compute='fargate',
+        compute="fargate",
         fargate_profile_name=fargate_profile_name,
         # Opting to use the same ARN for the cluster and the pod here,
         # but a different ARN could be configured and passed if desired.
@@ -103,19 +103,19 @@ with DAG(
     # [END howto_operator_eks_create_cluster_with_fargate_profile]
 
     await_create_fargate_profile = EksFargateProfileStateSensor(
-        task_id='await_create_fargate_profile',
+        task_id="await_create_fargate_profile",
         cluster_name=cluster_name,
         fargate_profile_name=fargate_profile_name,
         target_state=FargateProfileStates.ACTIVE,
     )
 
     start_pod = EksPodOperator(
-        task_id='run_pod',
-        pod_name='run_pod',
+        task_id="run_pod",
+        pod_name="run_pod",
         cluster_name=cluster_name,
-        image='amazon/aws-cli:latest',
-        cmds=['sh', '-c', 'echo Test Airflow; date'],
-        labels={'demo': 'hello_world'},
+        image="amazon/aws-cli:latest",
+        cmds=["sh", "-c", "echo Test Airflow; date"],
+        labels={"demo": "hello_world"},
         get_logs=True,
         startup_timeout_seconds=600,
         # Delete the pod when it reaches its final state, or the execution is interrupted.
@@ -125,14 +125,14 @@ with DAG(
     # An Amazon EKS cluster can not be deleted with attached resources such as nodegroups or Fargate profiles.
     # Setting the `force` to `True` will delete any attached resources before deleting the cluster.
     delete_cluster_and_fargate_profile = EksDeleteClusterOperator(
-        task_id='delete_fargate_profile_and_cluster',
+        task_id="delete_fargate_profile_and_cluster",
         trigger_rule=TriggerRule.ALL_DONE,
         cluster_name=cluster_name,
         force_delete_compute=True,
     )
 
     await_delete_cluster = EksClusterStateSensor(
-        task_id='await_delete_cluster',
+        task_id="await_delete_cluster",
         trigger_rule=TriggerRule.ALL_DONE,
         cluster_name=cluster_name,
         target_state=ClusterStates.NONEXISTENT,
