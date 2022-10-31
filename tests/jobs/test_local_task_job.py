@@ -309,7 +309,7 @@ class TestLocalTaskJob:
                 time2 = heartbeat_records[i]
                 # Assert that difference small enough
                 delta = (time2 - time1).total_seconds()
-                assert abs(delta - job.heartrate) < 0.5
+                assert abs(delta - job.heartrate) < 0.8
 
     def test_mark_success_no_kill(self, caplog, get_test_dag, session):
         """
