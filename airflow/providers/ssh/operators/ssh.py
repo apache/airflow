@@ -162,7 +162,7 @@ class SSHOperator(BaseOperator):
         exit_status, agg_stdout, agg_stderr = self.ssh_hook.exec_ssh_client_command(
             ssh_client, command, timeout=self.timeout, environment=self.environment, get_pty=self.get_pty
         )
-        self.raise_for_status(exit_status, agg_stderr, context=kwargs['context'])
+        self.raise_for_status(exit_status, agg_stderr, context=kwargs["context"])
         return agg_stdout
 
     def execute(self, context=None) -> bytes | str:
