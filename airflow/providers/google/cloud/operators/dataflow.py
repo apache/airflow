@@ -1137,3 +1137,96 @@ class DataflowCreatePythonJobOperator(BaseOperator):
             self.dataflow_hook.cancel_job(
                 job_id=self.job_id, project_id=self.project_id or self.dataflow_hook.project_id
             )
+
+
+class DataflowStopJobOperator(BaseOperator):
+    """
+    Stops the job with the specified name prefix or Job ID.
+    All jobs with provided name prefix will be stopped.
+    Streaming jobs are drained by default.
+
+    Parameter ``job_name_prefix`` and ``job_id`` are mutually exclusive.
+
+    .. seealso::
+        For more details on stopping a pipeline see:
+        https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowStopJobOperator`
+
+    :param job_name_prefix: Name prefix specifying which jobs are to be stopped.
+    :param job_id: Job ID specifying which jobs are to be stopped.
+    :param project_id: Optional, the Google Cloud project ID in which to start a job.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
+    :param location: Optional, Job location. If set to None or missing, "us-central1" will be used.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :param poll_sleep: The time in seconds to sleep between polling Google
+        Cloud Platform for the dataflow job status to confirm it's stopped.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :param drain_pipeline: Optional, set to False if want to stop streaming job by canceling it
+        instead of draining. See: https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
+    :param stop_timeout: wait time in seconds for successful job canceling/draining
+    """
+
+    def __init__(
+        self,
+        job_name_prefix: str | None = None,
+        job_id: str | None = None,
+        project_id: str | None = None,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        poll_sleep: int = 10,
+        impersonation_chain: str | Sequence[str] | None = None,
+        stop_timeout: int | None = 10 * 60,
+        drain_pipeline: bool = True,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.poll_sleep = poll_sleep
+        self.stop_timeout = stop_timeout
+        self.job_name = job_name_prefix
+        self.job_id = job_id
+        self.project_id = project_id
+        self.location = location
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
+        self.hook: DataflowHook | None = None
+        self.drain_pipeline = drain_pipeline
+
+    def execute(self, context: Context) -> None:
+        self.dataflow_hook = DataflowHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            poll_sleep=self.poll_sleep,
+            impersonation_chain=self.impersonation_chain,
+            cancel_timeout=self.stop_timeout,
+            drain_pipeline=self.drain_pipeline,
+        )
+        if self.job_id or self.dataflow_hook.is_job_dataflow_running(
+            name=self.job_name,
+            project_id=self.project_id,
+            location=self.location,
+        ):
+            self.dataflow_hook.cancel_job(
+                job_name=self.job_name,
+                project_id=self.project_id,
+                location=self.location,
+                job_id=self.job_id,
+            )
+        else:
+            self.log.info("No jobs to stop")
+
+        return None

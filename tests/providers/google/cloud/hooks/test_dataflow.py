@@ -1505,8 +1505,6 @@ class TestDataflowJob(unittest.TestCase):
         get_method.assert_called_with(jobId=TEST_JOB_ID, location=TEST_LOCATION, projectId=TEST_PROJECT)
         get_method.return_value.execute.assert_called_with(num_retries=20)
 
-        self.mock_dataflow.new_batch_http_request.assert_called_once_with()
-        mock_batch = self.mock_dataflow.new_batch_http_request.return_value
         mock_update = mock_jobs.return_value.update
         mock_update.assert_called_once_with(
             body={"requestedState": "JOB_STATE_CANCELLED"},
@@ -1514,7 +1512,7 @@ class TestDataflowJob(unittest.TestCase):
             location=TEST_LOCATION,
             projectId="test-project",
         )
-        mock_batch.add.assert_called_once_with(mock_update.return_value)
+        mock_update.return_value.execute.assert_called_once_with(num_retries=20)
 
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.timeout")
     @mock.patch("time.sleep")
@@ -1546,8 +1544,6 @@ class TestDataflowJob(unittest.TestCase):
         get_method.assert_called_with(jobId=TEST_JOB_ID, location=TEST_LOCATION, projectId=TEST_PROJECT)
         get_method.return_value.execute.assert_called_with(num_retries=20)
 
-        self.mock_dataflow.new_batch_http_request.assert_called_once_with()
-        mock_batch = self.mock_dataflow.new_batch_http_request.return_value
         mock_update = mock_jobs.return_value.update
         mock_update.assert_called_once_with(
             body={"requestedState": "JOB_STATE_CANCELLED"},
@@ -1555,7 +1551,8 @@ class TestDataflowJob(unittest.TestCase):
             location=TEST_LOCATION,
             projectId="test-project",
         )
-        mock_batch.add.assert_called_once_with(mock_update.return_value)
+        mock_update.return_value.execute.assert_called_once_with(num_retries=20)
+
         mock_sleep.assert_has_calls([mock.call(4), mock.call(4), mock.call(4)])
         mock_timeout.assert_called_once_with(
             seconds=10, error_message="Canceling jobs failed due to timeout (10s): test-job-id"
@@ -1603,9 +1600,6 @@ class TestDataflowJob(unittest.TestCase):
 
         get_method.return_value.execute.assert_called_once_with(num_retries=20)
 
-        self.mock_dataflow.new_batch_http_request.assert_called_once_with()
-
-        mock_batch = self.mock_dataflow.new_batch_http_request.return_value
         mock_update = self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.update
         mock_update.assert_called_once_with(
             body={"requestedState": requested_state},
@@ -1613,8 +1607,7 @@ class TestDataflowJob(unittest.TestCase):
             location=TEST_LOCATION,
             projectId="test-project",
         )
-        mock_batch.add.assert_called_once_with(mock_update.return_value)
-        mock_batch.execute.assert_called_once()
+        mock_update.return_value.execute.assert_called_once_with(num_retries=20)
 
     def test_dataflow_job_cancel_job_no_running_jobs(self):
         mock_jobs = self.mock_dataflow.projects.return_value.locations.return_value.jobs
@@ -1643,7 +1636,6 @@ class TestDataflowJob(unittest.TestCase):
         get_method.assert_called_with(jobId=TEST_JOB_ID, location=TEST_LOCATION, projectId=TEST_PROJECT)
         get_method.return_value.execute.assert_called_with(num_retries=20)
 
-        self.mock_dataflow.new_batch_http_request.assert_not_called()
         mock_jobs.return_value.update.assert_not_called()
 
     def test_fetch_list_job_messages_responses(self):
