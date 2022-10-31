@@ -348,7 +348,6 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
         return json.dumps(start_export, default=str)
 
 
-# needs custom wait logic for "export task" (the task of sending an RDS snapshot to S3)
 class RdsCancelExportTaskOperator(RdsBaseOperator):
     """
     Cancels an export task in progress that is exporting a snapshot to Amazon S3
@@ -388,7 +387,6 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
         return json.dumps(cancel_export, default=str)
 
 
-# needs custom wait logic for "event subscription"
 class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
     """
     Creates an RDS event notification subscription

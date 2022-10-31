@@ -18,8 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from botocore.exceptions import ClientError
-
+from airflow.exceptions import AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.sensors.base import BaseSensorOperator
@@ -77,10 +76,13 @@ class RdsSnapshotExistenceSensor(RdsBaseSensor):
         self.log.info(
             "Poking for statuses : %s\nfor snapshot %s", self.target_statuses, self.db_snapshot_identifier
         )
-        if self.db_type.value == "instance":
-            state = self.hook.get_db_snapshot_state(self.db_snapshot_identifier)
-        else:
-            state = self.hook.get_db_cluster_snapshot_state(self.db_snapshot_identifier)
+        try:
+            if self.db_type.value == "instance":
+                state = self.hook.get_db_snapshot_state(self.db_snapshot_identifier)
+            else:
+                state = self.hook.get_db_cluster_snapshot_state(self.db_snapshot_identifier)
+        except AirflowNotFoundException:
+            return False
         return state in self.target_statuses
 
 
@@ -124,7 +126,10 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
         self.log.info(
             "Poking for statuses : %s\nfor export task %s", self.target_statuses, self.export_task_identifier
         )
-        state = self.hook.get_export_task_state(self.export_task_identifier)
+        try:
+            state = self.hook.get_export_task_state(self.export_task_identifier)
+        except AirflowNotFoundException:
+            return False
         return state in self.target_statuses
 
 
@@ -166,10 +171,13 @@ class RdsDbSensor(RdsBaseSensor):
         self.log.info(
             "Poking for statuses : %s\nfor db instance %s", self.target_statuses, self.db_identifier
         )
-        if db_type == RdsDbType.INSTANCE:
-            state = self.hook.get_db_instance_state(self.db_identifier)
-        else:
-            state = self.hook.get_db_cluster_state(self.db_identifier)
+        try:
+            if db_type == RdsDbType.INSTANCE:
+                state = self.hook.get_db_instance_state(self.db_identifier)
+            else:
+                state = self.hook.get_db_cluster_state(self.db_identifier)
+        except AirflowNotFoundException:
+            return False
         return state in self.target_statuses
 
 

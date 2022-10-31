@@ -21,7 +21,7 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Callable
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 if TYPE_CHECKING:
@@ -58,14 +58,13 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :param snapshot_id: The ID of the target DB instance snapshot
         :return: Returns the status of the DB snapshot as a string (eg. "available")
         :rtype: str
+        :raises AirflowNotFoundException: If the DB instance snapshot does not exist.
         """
-        response = self.conn.describe_db_snapshots(DBSnapshotIdentifier=snapshot_id)
-        items = response["DBSnapshots"]
-        count = len(items)
-        if count != 1:
-            raise AirflowException(f"Expected exactly 1 DB snapshot with id {snapshot_id}. Found {count}.")
-        state = items[0]["Status"].lower()
-        return state
+        try:
+            response = self.conn.describe_db_snapshots(DBSnapshotIdentifier=snapshot_id)
+        except self.conn.exceptions.DBSnapshotNotFoundFault as e:
+            raise AirflowNotFoundException(e)
+        return response["DBSnapshots"][0]["Status"].lower()
 
     def wait_for_db_snapshot_state(
         self, snapshot_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
@@ -101,16 +100,13 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :param snapshot_id: The ID of the target DB cluster.
         :return: Returns the status of the DB cluster snapshot as a string (eg. "available")
         :rtype: str
+        :raises AirflowNotFoundException: If the DB cluster snapshot does not exist.
         """
-        response = self.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=snapshot_id)
-        items = response["DBClusterSnapshots"]
-        count = len(items)
-        if count != 1:
-            raise AirflowException(
-                f"Expected exactly 1 DB cluster snapshot with id {snapshot_id}. Found {count}."
-            )
-        state = items[0]["Status"].lower()
-        return state
+        try:
+            response = self.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=snapshot_id)
+        except self.conn.exceptions.DBClusterSnapshotNotFoundFault as e:
+            raise AirflowNotFoundException(e)
+        return response["DBClusterSnapshots"][0]["Status"].lower()
 
     def wait_for_db_cluster_snapshot_state(
         self, snapshot_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
@@ -150,16 +146,18 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :param export_task_id: The identifier of the target snapshot export task.
         :return: Returns the status of the snapshot export task as a string (eg. "canceled")
         :rtype: str
+        :raises AirflowNotFoundException: If the export task does not exist.
         """
-        response = self.conn.describe_export_tasks(ExportTaskIdentifier=export_task_id)
-        items = response["ExportTasks"]
-        count = len(items)
-        if count != 1:
-            raise AirflowException(
-                f"Expected exactly 1 export task with id '{export_task_id}'. Found {count}."
-            )
-        state = items[0]["Status"].lower()
-        return state
+        try:
+            response = self.conn.describe_export_tasks(ExportTaskIdentifier=export_task_id)
+        # The RDS botocore documentation states that describe_export_tasks raises an exception of type ExportTaskNotFoundFault
+        # when the export task does not exist, but unit tests show that a generic ClientError is raised instead.
+        # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.describe_export_tasks
+        except self.conn.exceptions.ClientError as e:
+            if e.response["Error"]["Code"] == "ExportTaskNotFoundFault":
+                raise AirflowNotFoundException(e)
+            raise e
+        return response["ExportTasks"][0]["Status"].lower()
 
     def wait_for_export_task_state(
         self, export_task_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
@@ -182,7 +180,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
             return self.get_export_task_state(export_task_id)
 
         target_state = target_state.lower()
-        # error_statuses=['canceling', 'canceled'],
+        # error_statuses=['canceling', 'canceled'], # todo
         self._wait_on_state(poke, target_state, check_interval, max_attempts)
         self.log.info("export task '%s' reached the '%s' state" % (export_task_id, target_state))
 
@@ -193,16 +191,13 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :param subscription_name: The name of the target RDS event notification subscription.
         :return: Returns the status of the event subscription as a string (eg. "active")
         :rtype: str
+        :raises AirflowNotFoundException: If the event subscription does not exist.
         """
-        response = self.conn.describe_event_subscriptions(SubscriptionName=subscription_name)
-        items = response["EventSubscriptionsList"]
-        count = len(items)
-        if count != 1:
-            raise AirflowException(
-                f"Expected exactly 1 event subscription with name '{subscription_name}'. Found {count}."
-            )
-        state = items[0]["Status"].lower()
-        return state
+        try:
+            response = self.conn.describe_event_subscriptions(SubscriptionName=subscription_name)
+        except self.conn.exceptions.SubscriptionNotFoundFault as e:
+            raise AirflowNotFoundException(e)
+        return response["EventSubscriptionsList"][0]["Status"].lower()
 
     def wait_for_event_subscription_state(
         self, subscription_name: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
@@ -235,14 +230,13 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :param snapshot_id: The ID of the target DB instance.
         :return: Returns the status of the DB instance as a string (eg. "available")
         :rtype: str
+        :raises AirflowNotFoundException: If the DB instance does not exist.
         """
-        response = self.conn.describe_db_instances(DBInstanceIdentifier=db_instance_id)
-        items = response["DBInstances"]
-        count = len(items)
-        if count != 1:
-            raise AirflowException(f"Expected exactly 1 snapshot. Found {count}.")
-        state = items[0]["DBInstanceStatus"].lower()
-        return state
+        try:
+            response = self.conn.describe_db_instances(DBInstanceIdentifier=db_instance_id)
+        except self.conn.exceptions.DBInstanceNotFoundFault as e:
+            raise AirflowNotFoundException(e)
+        return response["DBInstances"][0]["DBInstanceStatus"].lower()
 
     def wait_for_db_instance_state(
         self, db_instance_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
@@ -282,14 +276,13 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :param snapshot_id: The ID of the target DB cluster.
         :return: Returns the status of the DB cluster as a string (eg. "available")
         :rtype: str
+        :raises AirflowNotFoundException: If the DB cluster does not exist.
         """
-        response = self.conn.describe_db_clusters(DBClusterIdentifier=db_cluster_id)
-        items = response["DBClusters"]
-        count = len(items)
-        if count != 1:
-            raise AirflowException(f"Expected exactly 1 DB cluster with id {db_cluster_id}. Found {count}.")
-        state = items[0]["Status"].lower()
-        return state
+        try:
+            response = self.conn.describe_db_clusters(DBClusterIdentifier=db_cluster_id)
+        except self.conn.exceptions.DBClusterNotFoundFault as e:
+            raise AirflowNotFoundException(e)
+        return response["DBClusters"][0]["Status"].lower()
 
     def wait_for_db_cluster_state(
         self, db_cluster_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
