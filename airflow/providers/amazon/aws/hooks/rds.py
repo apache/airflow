@@ -150,8 +150,9 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         """
         try:
             response = self.conn.describe_export_tasks(ExportTaskIdentifier=export_task_id)
-        # The RDS botocore documentation states that describe_export_tasks raises an exception of type ExportTaskNotFoundFault
-        # when the export task does not exist, but unit tests show that a generic ClientError is raised instead.
+        # The RDS botocore documentation states that describe_export_tasks raises an exception of type
+        # ExportTaskNotFoundFault when the export task does not exist, but unit tests show that a generic
+        # ClientError is raised instead.
         # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.describe_export_tasks
         except self.conn.exceptions.ClientError as e:
             if e.response["Error"]["Code"] == "ExportTaskNotFoundFault":
@@ -250,7 +251,8 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :param max_attempts: The maximum number of attempts to be made
 
         .. seealso::
-            For information about DB instance statuses, see Viewing DB instance status in the Amazon RDS User Guide.
+            For information about DB instance statuses, see Viewing DB instance status in the Amazon RDS
+            User Guide.
             https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/accessing-monitoring.html#Overview.DBInstance.Status
         """
 
@@ -296,7 +298,8 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :param max_attempts: The maximum number of attempts to be made
 
         .. seealso::
-            For information about DB instance statuses, see Viewing DB instance status in the Amazon RDS User Guide.
+            For information about DB instance statuses, see Viewing DB instance status in the Amazon RDS
+            User Guide.
             https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/accessing-monitoring.html#Overview.DBInstance.Status
         """
 
