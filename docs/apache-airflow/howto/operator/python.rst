@@ -116,11 +116,108 @@ pre-defined virtual environment. The virtualenv should be preinstalled in the en
 Python is run and in case ``dill`` is used, it has to be preinstalled in the virtualenv (the same
 version that is installed in main Airflow environment).
 
+
+Dockerfile Example
+
+```
+# You canswitch the airflow and python version numbers here (limited python versions to each ariflow version)
+FROM apache/airflow:2.4.2-python3.8
+
+# ExternalPythonOperator
+# Compulsory to switch parameter to use your own venve via ExternalPythonOperator
+ENV PIP_USER=false
+
+#python venv setup in container
+RUN python3 -m venv /opt/airflow/venv1
+
+# Install dependencies:
+COPY airflow/requirements.txt .
+# copy over folder that containes a my own local pip package
+COPY airflow/my_own_pip_package_folder /opt/airflow/my_own_pip_package_folder
+# copy over ahtever file
+COPY my_file.py /opt/airflow/my_file.py
+
+# install packages in my own docker virtual environemnt
+RUN /opt/airflow/venv1/bin/pip install -r requirements.txt
+RUN /opt/airflow/venv1/bin/pip install /opt/airflow/my_own_pip_package_folder
+RUN /opt/airflow/venv1/bin/pip install 'apache-airflow==2.4.2' --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.4.1/constraints-3.8.txt"
+```
+
+
+DAG Example Using The above Dockerfile
+```
+"""
+Example DAG demonstrating the usage of the TaskFlow API to execute Python functions natively and within a
+virtual environment.
+"""
+from __future__ import annotations
+
+import logging
+import os
+import shutil
+import sys
+import tempfile
+import time
+from pprint import pprint
+
+import pendulum
+
+from airflow import DAG
+from airflow.decorators import task
+
+log = logging.getLogger(__name__)
+PYTHON = sys.executable
+BASE_DIR = tempfile.gettempdir()
+
+
+my_default_args = {
+    'owner': 'me',
+    'email': ['myemail@myemail.com''],
+    'email_on_failure': True,
+    'email_on_retry': True,
+    'retries': 1,
+#     'retry_delay': timedelta(minutes=1)
+}
+
+
+with DAG(
+    dag_id='sample_schedule_dag',
+    # https://crontab.guru/
+    #  min  HOUR   DAY_OF_MONTH    MONTH   DAY_OF_WEEK
+    #   *     *          *           *         *
+    schedule='12 11 * * *', # IT IS AT UTC. EX.: 11:12 UTC = 12:12am BST = 12:12am UK time
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"), # this is from whre it starts counting time to run taks, NOT like cron
+    catchup=False,
+    default_args=my_default_args,
+    tags=['sample_tag', 'sample_tag2'],
+    ) as dag:
+    
+    #@task.external_python(task_id="test_external_python_venv_task", python=os.fspath(sys.executable))
+    @task.external_python(task_id="sample_task", python='/opt/airflow/venv1/bin/python3')
+    def go(): # this could be any function name
+        #PUT ALL IMPORTS HERE THAT THE FILE NEEDS
+        print('Straight of the sample DAG')
+        print('Internal Processes of sample dag')
+        print('End of sample dag')
+        return ['something, something2'] #any return value becasueit doesn not deine the succes of the task
+
+    external_python_task = go()
+
+```
+
 .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_external_python]
     :end-before: [END howto_operator_external_python]
+
+
+
+
+
+
+
+
 
 Passing in arguments
 ^^^^^^^^^^^^^^^^^^^^
