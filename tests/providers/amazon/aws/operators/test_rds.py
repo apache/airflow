@@ -23,7 +23,6 @@ from unittest.mock import patch
 import pytest
 from moto import mock_rds
 
-from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
@@ -520,7 +519,7 @@ class TestRdsCancelExportTaskOperator:
             export_task_identifier=EXPORT_TASK_NAME,
             aws_conn_id=AWS_CONN,
             dag=self.dag,
-            wait_for_completion=False
+            wait_for_completion=False,
         )
         _patch_hook_get_connection(cancel_export_operator.hook)
         cancel_export_operator.execute(None)

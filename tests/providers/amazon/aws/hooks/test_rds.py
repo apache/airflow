@@ -257,7 +257,10 @@ class TestRdsHook:
     def test_wait_for_db_cluster_snapshot_state_custom_waiter(
         self, rds_hook: RdsHook, db_cluster_snapshot_id: str
     ):
-        """Checks that the DB cluster snapshot waiter uses custom wait logic when AWS boto waiters aren't available"""
+        """
+        Checks that the DB cluster snapshot waiter uses custom wait logic when AWS boto waiters
+        aren't available
+        """
         with patch.object(rds_hook, "_wait_for_state") as mock:
             rds_hook.wait_for_db_cluster_snapshot_state(
                 db_cluster_snapshot_id, target_state="canceled", **self.waiter_args
@@ -277,7 +280,9 @@ class TestRdsHook:
         assert state_actual == state_expected
 
     def test_wait_for_export_task_state(self, rds_hook: RdsHook, export_task_id: str):
-        """Checks that the export task waiter uses custom wait logic (no boto waiters exist for this resource)"""
+        """
+        Checks that the export task waiter uses custom wait logic (no boto waiters exist for this resource)
+        """
         with patch.object(rds_hook, "_wait_for_state") as mock:
             rds_hook.wait_for_export_task_state(export_task_id, target_state="complete", **self.waiter_args)
             mock.assert_called_once()
@@ -293,7 +298,10 @@ class TestRdsHook:
         assert state_actual == state_expected
 
     def test_wait_for_event_subscription_state(self, rds_hook: RdsHook, event_subscription_name: str):
-        """Checks that the event subscription waiter uses custom wait logic (no boto waiters exist for this resource)"""
+        """
+        Checks that the event subscription waiter uses custom wait logic (no boto waiters
+        exist for this resource)
+        """
         with patch.object(rds_hook, "_wait_for_state") as mock:
             rds_hook.wait_for_event_subscription_state(
                 event_subscription_name, target_state="active", **self.waiter_args
@@ -313,5 +321,6 @@ class TestRdsHook:
         with pytest.raises(AirflowException, match="Max attempts exceeded"):
             with patch("airflow.providers.amazon.aws.hooks.rds.time.sleep") as mock:
                 rds_hook._wait_for_state(poke, target_state="bar", check_interval=0, max_attempts=2)
-        # This next line should exist outside of the pytest.raises() context manager (otherwise it won't get executed)
+        # This next line should exist outside of the pytest.raises() context manager or else it won't
+        # get executed
         mock.assert_called_once_with(0)
