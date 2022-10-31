@@ -37,7 +37,13 @@ from airflow.www import app as application
 from airflow.www.fab_security.manager import AnonymousUser
 from airflow.www.fab_security.sqla.models import User, assoc_permission_role
 from airflow.www.utils import CustomSQLAInterface
-from tests.test_utils.api_connexion_utils import create_user_scope, delete_role, set_user_single_role
+from tests.test_utils.api_connexion_utils import (
+    create_user,
+    create_user_scope,
+    delete_role,
+    delete_user,
+    set_user_single_role,
+)
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.mock_security_manager import MockSecurityManager
@@ -935,3 +941,16 @@ def test_update_user_auth_stat_subsequent_unsuccessful_auth(mock_security_manage
     assert old_user.fail_login_count == 10
     assert old_user.last_login == datetime.datetime(1984, 12, 1, 0, 0, 0)
     assert mock_security_manager.update_user.called_once
+
+
+def test_users_can_be_found(app, security_manager, session, caplog):
+    """Test that usernames are case insensitive"""
+    create_user(app, "Test")
+    create_user(app, "test")
+    create_user(app, "TEST")
+    create_user(app, "TeSt")
+    assert security_manager.find_user("Test")
+    users = security_manager.get_all_users()
+    assert len(users) == 1
+    delete_user(app, "Test")
+    assert "Error adding new user to database" in caplog.text

@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | Revision ID                     | Revises ID        | Airflow Version   | Description                                                  |
 +=================================+===================+===================+==============================================================+
-| ``b0d31815b5a6`` (head)         | ``ecb43d2a1842``  | ``2.4.2``         | Add missing auto-increment to columns on FAB tables          |
+| ``e07f49787c9d`` (head)         | ``b0d31815b5a6``  | ``2.4.3``         | Add case-insensitive unique constraint for username          |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``b0d31815b5a6``                | ``ecb43d2a1842``  | ``2.4.2``         | Add missing auto-increment to columns on FAB tables          |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``ecb43d2a1842``                | ``1486deb605b4``  | ``2.4.0``         | Add processor_subdir column to DagModel, SerializedDagModel  |
 |                                 |                   |                   | and CallbackRequest tables.                                  |
