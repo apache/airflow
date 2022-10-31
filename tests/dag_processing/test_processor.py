@@ -250,6 +250,49 @@ class TestDagFileProcessor:
         dag_file_processor.manage_slas(dag=dag, session=session)
 
     @mock.patch("airflow.dag_processing.processor.Stats.incr")
+    def test_dag_file_processor_sla_miss_continue_checking_the_task_instances_after_recording_missing_sla(
+        self, mock_stats_incr, dag_maker
+    ):
+        """
+        Test that the dag file processor continue checking subsequent task instances
+        even if the preceding task instance misses the sla ahead
+        """
+        session = settings.Session()
+
+        # Create a dag with a start of 3 days ago and sla of 1 day,
+        # so we have 2 missing slas
+        now = timezone.utcnow()
+        test_start_date = now - datetime.timedelta(days=3)
+        with dag_maker(
+            dag_id="test_sla_miss",
+            default_args={"start_date": test_start_date, "sla": datetime.timedelta(days=1)},
+        ) as dag:
+            task = EmptyOperator(task_id="dummy")
+
+        dag_maker.create_dagrun(execution_date=test_start_date, state=State.SUCCESS)
+
+        session.merge(TaskInstance(task=task, execution_date=test_start_date, state="success"))
+        session.merge(
+            SlaMiss(task_id=task.task_id, dag_id=dag.dag_id, execution_date=now - datetime.timedelta(days=2))
+        )
+        session.flush()
+
+        dag_file_processor = DagFileProcessor(
+            dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
+        )
+        dag_file_processor.manage_slas(dag=dag, session=session)
+        sla_miss_count = (
+            session.query(SlaMiss)
+            .filter(
+                SlaMiss.dag_id == dag.dag_id,
+                SlaMiss.task_id == task.task_id,
+            )
+            .count()
+        )
+        assert sla_miss_count == 2
+        mock_stats_incr.assert_called_with("sla_missed")
+
+    @mock.patch("airflow.dag_processing.processor.Stats.incr")
     def test_dag_file_processor_sla_miss_callback_exception(self, mock_stats_incr, create_dummy_dag):
         """
         Test that the dag file processor gracefully logs an exception if there is a problem
