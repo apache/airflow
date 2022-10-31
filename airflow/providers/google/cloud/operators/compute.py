@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Any, Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core import exceptions
 from google.api_core.retry import Retry
