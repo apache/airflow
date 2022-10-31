@@ -243,9 +243,8 @@ dask = [
     # Dask support is limited, we need Dask team to upgrade support for dask if we were to continue
     # Supporting it in the future
     "cloudpickle>=1.4.1",
-    # Dask in version 2022.10.1 removed `bokeh` support and dask integration needs to be upgraded
-    # by someone from Dask team who can test it
-    "dask>=2.9.0,<2022.10.1",
+    # Dask in version 2022.10.1 removed `bokeh` support and we should avoid installing it
+    "dask>=2.9.0,!=2022.10.1",
     "distributed>=2.11.1",
 ]
 deprecated_api = [
