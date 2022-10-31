@@ -29,6 +29,7 @@ from airflow_breeze.utils.cache import (
     read_from_cache_file,
     write_to_cache_file,
 )
+from airflow_breeze.utils.coertions import coerce_bool_value
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.shared_options import set_dry_run, set_forced_answer, set_verbose
@@ -112,7 +113,7 @@ class VerboseOption(ParamType):
     """
 
     def convert(self, value, param, ctx):
-        set_verbose(value)
+        set_verbose(coerce_bool_value(value))
         return super().convert(value, param, ctx)
 
 
@@ -122,7 +123,7 @@ class DryRunOption(ParamType):
     """
 
     def convert(self, value, param, ctx):
-        set_dry_run(value)
+        set_dry_run(coerce_bool_value(value))
         return super().convert(value, param, ctx)
 
 
