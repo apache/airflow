@@ -208,7 +208,7 @@ def write_version(filename: str = str(AIRFLOW_SOURCES_ROOT / "airflow" / "git_ve
         file.write(text)
 
 
-#
+# sss
 # NOTE! IN Airflow 2.4.+ dependencies for providers are maintained in `provider.yaml` files for each
 # provider separately. Before, the provider dependencies were kept here. THEY ARE NOT HERE ANYMORE.
 #
