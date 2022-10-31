@@ -44,7 +44,6 @@ class CommonBuildParams:
         "DEFAULT_CONSTRAINTS_BRANCH", DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     )
     airflow_constraints_location: str = ""
-    answer: str | None = None
     build_id: int = 0
     builder: str = "default"
     constraints_github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
@@ -66,6 +65,8 @@ class CommonBuildParams:
     tag_as_latest: bool = False
     upgrade_to_newer_dependencies: bool = False
     upgrade_on_failure: bool = False
+    dry_run: bool = False
+    verbose: bool = False
 
     @property
     def airflow_version(self):

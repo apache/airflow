@@ -28,9 +28,9 @@ from functools import lru_cache
 from pathlib import Path
 
 from airflow_breeze import NAME
-from airflow_breeze.utils.confirm import set_forced_answer
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.reinstall import reinstall_breeze, warn_dependencies_changed, warn_non_editable
+from airflow_breeze.utils.shared_options import set_forced_answer
 
 AIRFLOW_CFG_FILE = "setup.cfg"
 

@@ -259,6 +259,11 @@ class AutoMLHook(GoogleBaseHook):
         """Returns unique id of the Model."""
         return obj["name"].rpartition("/")[-1]
 
+    @staticmethod
+    def extract_training_id(resource_name: str) -> str:
+        """Returns unique id of the Training pipeline."""
+        return resource_name.rpartition("/")[-1]
+
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
         """Waits for long-lasting operation to complete."""
         try:
@@ -303,7 +308,7 @@ class AutoMLHook(GoogleBaseHook):
         export_evaluated_data_items_bigquery_destination_uri: str | None = None,
         export_evaluated_data_items_override_destination: bool = False,
         sync: bool = True,
-    ) -> models.Model:
+    ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Tabular Training Job.
 
@@ -488,9 +493,15 @@ class AutoMLHook(GoogleBaseHook):
             export_evaluated_data_items_override_destination=export_evaluated_data_items_override_destination,
             sync=sync,
         )
-        model.wait()
-
-        return model
+        training_id = self.extract_training_id(self._job.resource_name)
+        if model:
+            model.wait()
+        else:
+            self.log.warning(
+                "Training did not produce a Managed Model returning None. Training Pipeline is not "
+                "configured to upload a Model."
+            )
+        return model, training_id
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_auto_ml_forecasting_training_job(
@@ -529,7 +540,7 @@ class AutoMLHook(GoogleBaseHook):
         model_display_name: str | None = None,
         model_labels: dict[str, str] | None = None,
         sync: bool = True,
-    ) -> models.Model:
+    ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Forecasting Training Job.
 
@@ -715,9 +726,15 @@ class AutoMLHook(GoogleBaseHook):
             model_labels=model_labels,
             sync=sync,
         )
-        model.wait()
-
-        return model
+        training_id = self.extract_training_id(self._job.resource_name)
+        if model:
+            model.wait()
+        else:
+            self.log.warning(
+                "Training did not produce a Managed Model returning None. Training Pipeline is not "
+                "configured to upload a Model."
+            )
+        return model, training_id
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_auto_ml_image_training_job(
@@ -744,7 +761,7 @@ class AutoMLHook(GoogleBaseHook):
         model_labels: dict[str, str] | None = None,
         disable_early_stopping: bool = False,
         sync: bool = True,
-    ) -> models.Model:
+    ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Image Training Job.
 
@@ -885,9 +902,15 @@ class AutoMLHook(GoogleBaseHook):
             disable_early_stopping=disable_early_stopping,
             sync=sync,
         )
-        model.wait()
-
-        return model
+        training_id = self.extract_training_id(self._job.resource_name)
+        if model:
+            model.wait()
+        else:
+            self.log.warning(
+                "Training did not produce a Managed Model returning None. AutoML Image Training "
+                "Pipeline is not configured to upload a Model."
+            )
+        return model, training_id
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_auto_ml_text_training_job(
@@ -911,7 +934,7 @@ class AutoMLHook(GoogleBaseHook):
         model_display_name: str | None = None,
         model_labels: dict[str, str] | None = None,
         sync: bool = True,
-    ) -> models.Model:
+    ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Text Training Job.
 
@@ -1016,9 +1039,15 @@ class AutoMLHook(GoogleBaseHook):
             model_labels=model_labels,
             sync=sync,
         )
-        model.wait()
-
-        return model
+        training_id = self.extract_training_id(self._job.resource_name)
+        if model:
+            model.wait()
+        else:
+            self.log.warning(
+                "Training did not produce a Managed Model returning None. AutoML Text Training "
+                "Pipeline is not configured to upload a Model."
+            )
+        return model, training_id
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_auto_ml_video_training_job(
@@ -1039,7 +1068,7 @@ class AutoMLHook(GoogleBaseHook):
         model_display_name: str | None = None,
         model_labels: dict[str, str] | None = None,
         sync: bool = True,
-    ) -> models.Model:
+    ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Video Training Job.
 
@@ -1141,9 +1170,15 @@ class AutoMLHook(GoogleBaseHook):
             model_labels=model_labels,
             sync=sync,
         )
-        model.wait()
-
-        return model
+        training_id = self.extract_training_id(self._job.resource_name)
+        if model:
+            model.wait()
+        else:
+            self.log.warning(
+                "Training did not produce a Managed Model returning None. AutoML Video Training "
+                "Pipeline is not configured to upload a Model."
+            )
+        return model, training_id
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_training_pipeline(

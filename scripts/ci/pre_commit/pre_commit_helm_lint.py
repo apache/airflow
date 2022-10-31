@@ -30,14 +30,11 @@ sys.path.insert(
     0, os.fspath(AIRFLOW_SOURCES_DIR / "dev" / "breeze" / "src")
 )  # make sure setup is imported from Airflow
 
-VERBOSE = os.environ.get("VERBOSE", "false")[0].lower() == "t"
-DRY_RUN = os.environ.get("DRY_RUN", "false")[0].lower() == "t"
-
 if __name__ == "__main__":
     from airflow_breeze.utils.kubernetes_utils import HELM_BIN_PATH, make_sure_kubernetes_tools_are_installed
     from airflow_breeze.utils.run_utils import run_command
 
-    make_sure_kubernetes_tools_are_installed(verbose=VERBOSE, dry_run=DRY_RUN)
+    make_sure_kubernetes_tools_are_installed()
 
     result = run_command(
         [os.fspath(HELM_BIN_PATH), "lint", ".", "-f", "values.yaml"],

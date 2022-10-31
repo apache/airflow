@@ -34,12 +34,28 @@ from typing import Any, Generator, NamedTuple
 from rich.table import Table
 
 from airflow_breeze.utils.console import MessageType, Output, get_console
+from airflow_breeze.utils.shared_options import (
+    get_dry_run,
+    get_forced_answer,
+    get_verbose,
+    set_dry_run,
+    set_forced_answer,
+    set_verbose,
+)
 
 MAX_LINE_LENGTH = 155
 
 
+def _init_worker(verbose: bool, dry_run: bool, forced_answer: str | None):
+    set_verbose(verbose)
+    set_dry_run(dry_run)
+    set_forced_answer(forced_answer)
+
+
 def create_pool(parallelism: int) -> Pool:
-    return Pool(parallelism)
+    return Pool(
+        parallelism, initializer=_init_worker, initargs=(get_verbose(), get_dry_run(), get_forced_answer())
+    )
 
 
 def get_temp_file_name() -> str:
