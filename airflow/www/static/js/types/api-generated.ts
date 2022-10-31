@@ -285,6 +285,11 @@ export interface paths {
   };
   "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}": {
     get: operations["get_task_instance"];
+    /**
+     * Updates the state for single task instance.
+     * *New in version 2.5.0*
+     */
+    patch: operations["patch_task_instance"];
     parameters: {
       path: {
         /** The DAG ID. */
@@ -303,6 +308,11 @@ export interface paths {
      * *New in version 2.3.0*
      */
     get: operations["get_mapped_task_instance"];
+    /**
+     * Updates the state for single mapped task instance.
+     * *New in version 2.5.0*
+     */
+    patch: operations["patch_mapped_task_instance"];
     parameters: {
       path: {
         /** The DAG ID. */
@@ -1733,6 +1743,20 @@ export interface components {
        */
       new_state?: "success" | "failed";
     };
+    UpdateTaskInstance: {
+      /**
+       * @description If set, don't actually run this operation. The response will contain the task instance
+       * planned to be affected, but won't be modified in any way.
+       *
+       * @default false
+       */
+      dry_run?: boolean;
+      /**
+       * @description Expected new state.
+       * @enum {string}
+       */
+      new_state?: "success" | "failed";
+    };
     ListDagRunsForm: {
       /**
        * @description The name of the field to order the results by. Prefix a field name
@@ -3138,6 +3162,39 @@ export interface operations {
     };
   };
   /**
+   * Updates the state for single task instance.
+   * *New in version 2.5.0*
+   */
+  patch_task_instance: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstanceReference"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+    /** Parameters of action */
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateTaskInstance"];
+      };
+    };
+  };
+  /**
    * Get details of a mapped task instance.
    *
    * *New in version 2.3.0*
@@ -3165,6 +3222,41 @@ export interface operations {
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
       404: components["responses"]["NotFound"];
+    };
+  };
+  /**
+   * Updates the state for single mapped task instance.
+   * *New in version 2.5.0*
+   */
+  patch_mapped_task_instance: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+        /** The map index. */
+        map_index: components["parameters"]["MapIndex"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstanceReference"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+    /** Parameters of action */
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateTaskInstance"];
+      };
     };
   };
   /**
@@ -4201,6 +4293,7 @@ export type VersionInfo = CamelCasedPropertiesDeep<components['schemas']['Versio
 export type ClearDagRun = CamelCasedPropertiesDeep<components['schemas']['ClearDagRun']>;
 export type ClearTaskInstances = CamelCasedPropertiesDeep<components['schemas']['ClearTaskInstances']>;
 export type UpdateTaskInstancesState = CamelCasedPropertiesDeep<components['schemas']['UpdateTaskInstancesState']>;
+export type UpdateTaskInstance = CamelCasedPropertiesDeep<components['schemas']['UpdateTaskInstance']>;
 export type ListDagRunsForm = CamelCasedPropertiesDeep<components['schemas']['ListDagRunsForm']>;
 export type ListTaskInstanceForm = CamelCasedPropertiesDeep<components['schemas']['ListTaskInstanceForm']>;
 export type ScheduleInterval = CamelCasedPropertiesDeep<components['schemas']['ScheduleInterval']>;
@@ -4255,7 +4348,9 @@ export type DeletePoolVariables = CamelCasedPropertiesDeep<operations['delete_po
 export type PatchPoolVariables = CamelCasedPropertiesDeep<operations['patch_pool']['parameters']['path'] & operations['patch_pool']['parameters']['query'] & operations['patch_pool']['requestBody']['content']['application/json']>;
 export type GetTaskInstancesVariables = CamelCasedPropertiesDeep<operations['get_task_instances']['parameters']['path'] & operations['get_task_instances']['parameters']['query']>;
 export type GetTaskInstanceVariables = CamelCasedPropertiesDeep<operations['get_task_instance']['parameters']['path']>;
+export type PatchTaskInstanceVariables = CamelCasedPropertiesDeep<operations['patch_task_instance']['parameters']['path'] & operations['patch_task_instance']['requestBody']['content']['application/json']>;
 export type GetMappedTaskInstanceVariables = CamelCasedPropertiesDeep<operations['get_mapped_task_instance']['parameters']['path']>;
+export type PatchMappedTaskInstanceVariables = CamelCasedPropertiesDeep<operations['patch_mapped_task_instance']['parameters']['path'] & operations['patch_mapped_task_instance']['requestBody']['content']['application/json']>;
 export type GetMappedTaskInstancesVariables = CamelCasedPropertiesDeep<operations['get_mapped_task_instances']['parameters']['path'] & operations['get_mapped_task_instances']['parameters']['query']>;
 export type GetTaskInstancesBatchVariables = CamelCasedPropertiesDeep<operations['get_task_instances_batch']['requestBody']['content']['application/json']>;
 export type GetVariablesVariables = CamelCasedPropertiesDeep<operations['get_variables']['parameters']['query']>;
