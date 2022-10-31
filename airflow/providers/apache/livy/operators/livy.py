@@ -60,6 +60,7 @@ class LivyOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("spark_params",)
+    template_fields_renderers = {"spark_params": "json"}
 
     def __init__(
         self,
