@@ -621,7 +621,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         macros when starting.
     """
 
-    template_fields: Sequence[str] = tuple({'python_path'} | set(PythonOperator.template_fields))
+    template_fields: Sequence[str] = tuple({'python'} | set(PythonOperator.template_fields))
 
     def __init__(
         self,
