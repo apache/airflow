@@ -5104,7 +5104,7 @@
                 "auth": {
                     "description": "PostgreSQL authentication values.",
                     "type": "object",
-                    "additionalProperties": false,
+                    "additionalProperties": true,
                     "properties": {
                         "username": {
                             "description": "PostgreSQL username.",
