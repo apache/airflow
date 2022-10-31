@@ -21,7 +21,9 @@ from unittest import TestCase, mock
 from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.providers.google.cloud.operators.dataplex import (
+    DataplexCreateLakeOperator,
     DataplexCreateTaskOperator,
+    DataplexDeleteLakeOperator,
     DataplexDeleteTaskOperator,
     DataplexGetTaskOperator,
     DataplexListTasksOperator,
@@ -29,11 +31,18 @@ from airflow.providers.google.cloud.operators.dataplex import (
 
 HOOK_STR = "airflow.providers.google.cloud.operators.dataplex.DataplexHook"
 TASK_STR = "airflow.providers.google.cloud.operators.dataplex.Task"
+LAKE_STR = "airflow.providers.google.cloud.operators.dataplex.Lake"
 
 PROJECT_ID = "project-id"
 REGION = "region"
 LAKE_ID = "lake-id"
 BODY = {"body": "test"}
+BODY_LAKE = {
+    "display_name": "test_display_name",
+    "labels": [],
+    "description": "test_description",
+    "metastore": {"service": ""},
+}
 DATAPLEX_TASK_ID = "testTask001"
 
 GCP_CONN_ID = "google_cloud_default"
@@ -176,6 +185,73 @@ class TestDataplexGetTaskOperator(TestCase):
             region=REGION,
             lake_id=LAKE_ID,
             dataplex_task_id=DATAPLEX_TASK_ID,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataplexDeleteLakeOperator(TestCase):
+    @mock.patch(HOOK_STR)
+    def test_execute(self, hook_mock):
+        op = DataplexDeleteLakeOperator(
+            project_id=PROJECT_ID,
+            region=REGION,
+            lake_id=LAKE_ID,
+            task_id="delete_dataplex_lake",
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context=mock.MagicMock())
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            api_version=API_VERSION,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        hook_mock.return_value.delete_lake.assert_called_once_with(
+            project_id=PROJECT_ID,
+            region=REGION,
+            lake_id=LAKE_ID,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataplexCreateLakeOperator(TestCase):
+    @mock.patch(HOOK_STR)
+    @mock.patch(LAKE_STR)
+    def test_execute(self, lake_mock, hook_mock):
+        op = DataplexCreateLakeOperator(
+            task_id="create_dataplex_lake",
+            project_id=PROJECT_ID,
+            region=REGION,
+            lake_id=LAKE_ID,
+            body=BODY_LAKE,
+            validate_only=None,
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        hook_mock.return_value.wait_for_operation.return_value = None
+        lake_mock.return_value.to_dict.return_value = None
+        op.execute(context=mock.MagicMock())
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            api_version=API_VERSION,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        hook_mock.return_value.create_lake.assert_called_once_with(
+            project_id=PROJECT_ID,
+            region=REGION,
+            lake_id=LAKE_ID,
+            body=BODY_LAKE,
+            validate_only=None,
             retry=DEFAULT,
             timeout=None,
             metadata=(),

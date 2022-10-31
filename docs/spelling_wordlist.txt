@@ -378,6 +378,7 @@ dbs
 dbt
 dbtapquerycmd
 dbutils
+ddl
 de
 Debounce
 declaratively

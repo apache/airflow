@@ -446,6 +446,7 @@ def tests(
 )
 @option_image_tag_for_running
 @option_mount_sources
+@option_github_repository
 @option_verbose
 @option_dry_run
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
@@ -453,10 +454,12 @@ def helm_tests(
     extra_pytest_args: tuple,
     image_tag: str | None,
     mount_sources: str,
+    github_repository: str,
 ):
     exec_shell_params = ShellParams(
         image_tag=image_tag,
         mount_sources=mount_sources,
+        github_repository=github_repository,
     )
     env_variables = get_env_variables_for_docker_commands(exec_shell_params)
     env_variables["RUN_TESTS"] = "true"

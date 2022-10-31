@@ -149,12 +149,8 @@ class SerializedDagModel(Base):
                         (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated,
                     )
                 )
-                .first()
-                is not None
+                .scalar()
             ):
-                # TODO: .first() is not None can be changed to .scalar() once we update to sqlalchemy 1.4+
-                # as the associated sqlalchemy bug for MySQL was fixed
-                # related issue : https://github.com/sqlalchemy/sqlalchemy/issues/5481
                 return False
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
