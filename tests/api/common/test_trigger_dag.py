@@ -35,14 +35,14 @@ class TestTriggerDag:
     def teardown_method(self) -> None:
         db.clear_db_runs()
 
-    @mock.patch('airflow.models.DagBag')
+    @mock.patch("airflow.models.DagBag")
     def test_trigger_dag_dag_not_found(self, dag_bag_mock):
         dag_bag_mock.dags = {}
         with pytest.raises(AirflowException):
-            _trigger_dag('dag_not_found', dag_bag_mock)
+            _trigger_dag("dag_not_found", dag_bag_mock)
 
-    @mock.patch('airflow.api.common.trigger_dag.DagRun', spec=DagRun)
-    @mock.patch('airflow.models.DagBag')
+    @mock.patch("airflow.api.common.trigger_dag.DagRun", spec=DagRun)
+    @mock.patch("airflow.models.DagBag")
     def test_trigger_dag_dag_run_exist(self, dag_bag_mock, dag_run_mock):
         dag_id = "dag_run_exist"
         dag = DAG(dag_id)
@@ -52,9 +52,9 @@ class TestTriggerDag:
         with pytest.raises(AirflowException):
             _trigger_dag(dag_id, dag_bag_mock)
 
-    @mock.patch('airflow.models.DAG')
-    @mock.patch('airflow.api.common.trigger_dag.DagRun', spec=DagRun)
-    @mock.patch('airflow.models.DagBag')
+    @mock.patch("airflow.models.DAG")
+    @mock.patch("airflow.api.common.trigger_dag.DagRun", spec=DagRun)
+    @mock.patch("airflow.models.DagBag")
     def test_trigger_dag_include_subdags(self, dag_bag_mock, dag_run_mock, dag_mock):
         dag_id = "trigger_dag"
         dag_bag_mock.dags = [dag_id]
@@ -68,9 +68,9 @@ class TestTriggerDag:
 
         assert 3 == len(triggers)
 
-    @mock.patch('airflow.models.DAG')
-    @mock.patch('airflow.api.common.trigger_dag.DagRun', spec=DagRun)
-    @mock.patch('airflow.models.DagBag')
+    @mock.patch("airflow.models.DAG")
+    @mock.patch("airflow.api.common.trigger_dag.DagRun", spec=DagRun)
+    @mock.patch("airflow.models.DagBag")
     def test_trigger_dag_include_nested_subdags(self, dag_bag_mock, dag_run_mock, dag_mock):
         dag_id = "trigger_dag"
         dag_bag_mock.dags = [dag_id]
@@ -84,20 +84,20 @@ class TestTriggerDag:
 
         assert 3 == len(triggers)
 
-    @mock.patch('airflow.models.DagBag')
+    @mock.patch("airflow.models.DagBag")
     def test_trigger_dag_with_too_early_start_date(self, dag_bag_mock):
         dag_id = "trigger_dag_with_too_early_start_date"
-        dag = DAG(dag_id, default_args={'start_date': timezone.datetime(2016, 9, 5, 10, 10, 0)})
+        dag = DAG(dag_id, default_args={"start_date": timezone.datetime(2016, 9, 5, 10, 10, 0)})
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
 
         with pytest.raises(ValueError):
             _trigger_dag(dag_id, dag_bag_mock, execution_date=timezone.datetime(2015, 7, 5, 10, 10, 0))
 
-    @mock.patch('airflow.models.DagBag')
+    @mock.patch("airflow.models.DagBag")
     def test_trigger_dag_with_valid_start_date(self, dag_bag_mock):
         dag_id = "trigger_dag_with_valid_start_date"
-        dag = DAG(dag_id, default_args={'start_date': timezone.datetime(2016, 9, 5, 10, 10, 0)})
+        dag = DAG(dag_id, default_args={"start_date": timezone.datetime(2016, 9, 5, 10, 10, 0)})
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
         dag_bag_mock.dags_hash = {}
@@ -114,7 +114,7 @@ class TestTriggerDag:
             ('{"foo": "bar"}', {"foo": "bar"}),
         ],
     )
-    @mock.patch('airflow.models.DagBag')
+    @mock.patch("airflow.models.DagBag")
     def test_trigger_dag_with_conf(self, dag_bag_mock, conf, expected_conf):
         dag_id = "trigger_dag_with_conf"
         dag = DAG(dag_id)

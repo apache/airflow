@@ -45,20 +45,20 @@ class HDFSHook(BaseHook):
     :param autoconfig: use snakebite's automatically configured client
     """
 
-    conn_name_attr = 'hdfs_conn_id'
-    default_conn_name = 'hdfs_default'
-    conn_type = 'hdfs'
-    hook_name = 'HDFS'
+    conn_name_attr = "hdfs_conn_id"
+    default_conn_name = "hdfs_default"
+    conn_type = "hdfs"
+    hook_name = "HDFS"
 
     def __init__(
-        self, hdfs_conn_id: str = 'hdfs_default', proxy_user: str | None = None, autoconfig: bool = False
+        self, hdfs_conn_id: str = "hdfs_default", proxy_user: str | None = None, autoconfig: bool = False
     ):
         super().__init__()
         if not snakebite_loaded:
             raise ImportError(
-                'This HDFSHook implementation requires snakebite, but '
-                'snakebite is not compatible with Python 3 '
-                '(as of August 2015). Please help by submitting a PR!'
+                "This HDFSHook implementation requires snakebite, but "
+                "snakebite is not compatible with Python 3 "
+                "(as of August 2015). Please help by submitting a PR!"
             )
         self.hdfs_conn_id = hdfs_conn_id
         self.proxy_user = proxy_user
@@ -70,7 +70,7 @@ class HDFSHook(BaseHook):
         # take the first.
         effective_user = self.proxy_user
         autoconfig = self.autoconfig
-        use_sasl = conf.get('core', 'security') == 'kerberos'
+        use_sasl = conf.get("core", "security") == "kerberos"
 
         try:
             connections = self.get_connections(self.hdfs_conn_id)
@@ -78,8 +78,8 @@ class HDFSHook(BaseHook):
             if not effective_user:
                 effective_user = connections[0].login
             if not autoconfig:
-                autoconfig = connections[0].extra_dejson.get('autoconfig', False)
-            hdfs_namenode_principal = connections[0].extra_dejson.get('hdfs_namenode_principal')
+                autoconfig = connections[0].extra_dejson.get("autoconfig", False)
+            hdfs_namenode_principal = connections[0].extra_dejson.get("hdfs_namenode_principal")
         except AirflowException:
             if not autoconfig:
                 raise

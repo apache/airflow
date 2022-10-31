@@ -25,7 +25,7 @@ from airflow.utils.log.logging_mixin import StreamLogWriter, set_context
 
 class TestLoggingMixin:
     def setup_method(self):
-        warnings.filterwarnings(action='always')
+        warnings.filterwarnings(action="always")
 
     def test_set_context(self):
         handler1 = mock.MagicMock()

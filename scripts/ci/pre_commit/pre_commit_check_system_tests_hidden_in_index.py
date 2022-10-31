@@ -68,7 +68,7 @@ def check_system_test_entry_hidden(provider_index: Path):
         console.print(f"[yellow]All ok. The {provider_index} does not contain system tests.\n")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     for file in sys.argv[1:]:
         check_system_test_entry_hidden(Path(file))
     sys.exit(0 if len(errors) == 0 else 1)

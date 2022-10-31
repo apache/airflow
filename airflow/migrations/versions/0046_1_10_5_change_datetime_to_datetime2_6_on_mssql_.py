@@ -241,7 +241,7 @@ def downgrade():
         op.create_index('job_type_heart', 'job', ['job_type', 'latest_heartbeat'], unique=False)
 
 
-def get_table_constraints(conn, table_name):
+def get_table_constraints(conn, table_name) -> dict[tuple[str, str], list[str]]:
     """Return primary and unique constraint along with column name.
 
     This function return primary and unique constraint
@@ -253,7 +253,6 @@ def get_table_constraints(conn, table_name):
     :param conn: sql connection object
     :param table_name: table name
     :return: a dictionary of ((constraint name, constraint type), column name) of table
-    :rtype: defaultdict(list)
     """
     query = f"""SELECT tc.CONSTRAINT_NAME , tc.CONSTRAINT_TYPE, ccu.COLUMN_NAME
      FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc
@@ -318,7 +317,7 @@ def create_constraint(operator, constraint_dict):
                 )
 
 
-def modify_execution_date_with_constraint(conn, batch_operator, table_name, type_, nullable):
+def modify_execution_date_with_constraint(conn, batch_operator, table_name, type_, nullable) -> None:
     """Change type of column execution_date.
     Helper function changes type of column execution_date by
     dropping and recreating any primary/unique constraint associated with
@@ -330,7 +329,6 @@ def modify_execution_date_with_constraint(conn, batch_operator, table_name, type
     :param type_: DB column type
     :param nullable: nullable (boolean)
     :return: a dictionary of ((constraint name, constraint type), column name) of table
-    :rtype: defaultdict(list)
     """
     constraint_dict = get_table_constraints(conn, table_name)
     drop_constraint(batch_operator, constraint_dict)

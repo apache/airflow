@@ -95,7 +95,7 @@ with models.DAG(
         "target": TARGET,
         "extract_object_id": extract_object_id,
     },
-    tags=['example'],
+    tags=["example"],
 ) as create_deploy_dag:
     # [START howto_operator_automl_create_dataset]
     create_dataset_task = AutoMLCreateDatasetOperator(
@@ -105,7 +105,7 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    dataset_id = cast(str, XComArg(create_dataset_task, key='dataset_id'))
+    dataset_id = cast(str, XComArg(create_dataset_task, key="dataset_id"))
     # [END howto_operator_automl_create_dataset]
 
     MODEL["dataset_id"] = dataset_id
@@ -160,7 +160,7 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    model_id = cast(str, XComArg(create_model_task, key='model_id'))
+    model_id = cast(str, XComArg(create_model_task, key="model_id"))
     # [END howto_operator_automl_create_model]
 
     # [START howto_operator_automl_delete_model]
@@ -211,7 +211,7 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    dataset_id = cast(str, XComArg(create_dataset_task2, key='dataset_id'))
+    dataset_id = cast(str, XComArg(create_dataset_task2, key="dataset_id"))
 
     import_dataset_task = AutoMLImportDataOperator(
         task_id="import_dataset_task",

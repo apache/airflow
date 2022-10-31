@@ -35,26 +35,26 @@ class BigQueryDataframeResultsSystemTest(GoogleSystemTest):
     def test_output_is_dataframe_with_valid_query(self):
         import pandas as pd
 
-        df = self.instance.get_pandas_df('select 1')
+        df = self.instance.get_pandas_df("select 1")
         assert isinstance(df, pd.DataFrame)
 
     def test_throws_exception_with_invalid_query(self):
         with pytest.raises(Exception) as ctx:
-            self.instance.get_pandas_df('from `1`')
-        assert 'Reason: ' in str(ctx.value), ""
+            self.instance.get_pandas_df("from `1`")
+        assert "Reason: " in str(ctx.value), ""
 
     def test_succeeds_with_explicit_legacy_query(self):
-        df = self.instance.get_pandas_df('select 1', dialect='legacy')
+        df = self.instance.get_pandas_df("select 1", dialect="legacy")
         assert df.iloc(0)[0][0] == 1
 
     def test_succeeds_with_explicit_std_query(self):
-        df = self.instance.get_pandas_df('select * except(b) from (select 1 a, 2 b)', dialect='standard')
+        df = self.instance.get_pandas_df("select * except(b) from (select 1 a, 2 b)", dialect="standard")
         assert df.iloc(0)[0][0] == 1
 
     def test_throws_exception_with_incompatible_syntax(self):
         with pytest.raises(Exception) as ctx:
-            self.instance.get_pandas_df('select * except(b) from (select 1 a, 2 b)', dialect='legacy')
-        assert 'Reason: ' in str(ctx.value), ""
+            self.instance.get_pandas_df("select * except(b) from (select 1 a, 2 b)", dialect="legacy")
+        assert "Reason: " in str(ctx.value), ""
 
     def tearDown(self):
         super().tearDown()

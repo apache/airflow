@@ -24,11 +24,11 @@ from tests.charts.helm_template_generator import render_chart
 
 class TestPodReader:
     @pytest.mark.parametrize(
-        'triggerer, webserver, expected',
+        "triggerer, webserver, expected",
         [
-            (True, True, ['release-name-airflow-webserver', 'release-name-airflow-triggerer']),
-            (True, False, ['release-name-airflow-triggerer']),
-            (False, True, ['release-name-airflow-webserver']),
+            (True, True, ["release-name-airflow-webserver", "release-name-airflow-triggerer"]),
+            (True, False, ["release-name-airflow-triggerer"]),
+            (False, True, ["release-name-airflow-webserver"]),
             (False, False, []),
         ],
     )
@@ -44,11 +44,11 @@ class TestPodReader:
         assert actual == expected
 
     @pytest.mark.parametrize(
-        'triggerer, webserver, expected',
+        "triggerer, webserver, expected",
         [
-            (True, True, 'release-name-pod-log-reader-role'),
-            (True, False, 'release-name-pod-log-reader-role'),
-            (False, True, 'release-name-pod-log-reader-role'),
+            (True, True, "release-name-pod-log-reader-role"),
+            (True, False, "release-name-pod-log-reader-role"),
+            (False, True, "release-name-pod-log-reader-role"),
             (False, False, None),
         ],
     )

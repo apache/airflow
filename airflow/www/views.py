@@ -34,7 +34,7 @@ from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
 from typing import Any, Callable
-from urllib.parse import parse_qsl, unquote, urlencode, urlparse
+from urllib.parse import unquote, urljoin, urlsplit
 
 import configupdater
 import flask.json
@@ -155,27 +155,21 @@ def truncate_task_duration(task_duration):
 
 def get_safe_url(url):
     """Given a user-supplied URL, ensure it points to our web server"""
-    valid_schemes = ['http', 'https', '']
-    valid_netlocs = [request.host, '']
-
     if not url:
         return url_for('Airflow.index')
-
-    parsed = urlparse(url)
 
     # If the url contains semicolon, redirect it to homepage to avoid
     # potential XSS. (Similar to https://github.com/python/cpython/pull/24297/files (bpo-42967))
     if ';' in unquote(url):
         return url_for('Airflow.index')
 
-    query = parse_qsl(parsed.query, keep_blank_values=True)
+    host_url = urlsplit(request.host_url)
+    redirect_url = urlsplit(urljoin(request.host_url, url))
+    if not (redirect_url.scheme in ("http", "https") and host_url.netloc == redirect_url.netloc):
+        return url_for('Airflow.index')
 
-    url = parsed._replace(query=urlencode(query)).geturl()
-
-    if parsed.scheme in valid_schemes and parsed.netloc in valid_netlocs:
-        return url
-
-    return url_for('Airflow.index')
+    # This will ensure we only redirect to the right scheme/netloc
+    return redirect_url.geturl()
 
 
 def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
@@ -489,12 +483,29 @@ def not_found(error):
     """Show Not Found on screen for any error in the Webserver"""
     return (
         render_template(
-            'airflow/not_found.html',
+            'airflow/error.html',
             hostname=get_hostname()
             if conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
             else 'redact',
+            status_code=404,
+            error_message='Page cannot be found.',
         ),
         404,
+    )
+
+
+def method_not_allowed(error):
+    """Show Method Not Allowed on screen for any error in the Webserver"""
+    return (
+        render_template(
+            'airflow/error.html',
+            hostname=get_hostname()
+            if conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
+            else 'redact',
+            status_code=405,
+            error_message='Received an invalid request.',
+        ),
+        405,
     )
 
 
@@ -2454,7 +2465,8 @@ class Airflow(AirflowBaseView):
     @action_logging
     def dag(self, dag_id):
         """Redirect to default DAG view."""
-        return redirect(url_for('Airflow.grid', dag_id=dag_id, **request.args))
+        kwargs = {**request.args, "dag_id": dag_id}
+        return redirect(url_for('Airflow.grid', **kwargs))
 
     @expose('/legacy_tree')
     @auth.has_access(
@@ -3496,19 +3508,21 @@ class Airflow(AirflowBaseView):
 
         for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
             dag_node_id = f"dag:{dag}"
-            if dag_node_id not in nodes_dict:
-                nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")
-
-            for dep in dependencies:
-                if dep.node_id not in nodes_dict and (
-                    dep.dependency_type == 'dag' or dep.dependency_type == 'dataset'
-                ):
-                    nodes_dict[dep.node_id] = node_dict(dep.node_id, dep.dependency_id, dep.dependency_type)
-                edge_tuples.add((f"dag:{dep.source}", dep.node_id))
-                edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
+            if dag_node_id not in nodes_dict and len(dependencies) > 0:
+                for dep in dependencies:
+                    if dep.dependency_type == 'dag' or dep.dependency_type == 'dataset':
+                        nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, 'dag')
+                        if dep.node_id not in nodes_dict:
+                            nodes_dict[dep.node_id] = node_dict(
+                                dep.node_id, dep.dependency_id, dep.dependency_type
+                            )
+                        if dep.source != 'dataset':
+                            edge_tuples.add((f"dag:{dep.source}", dep.node_id))
+                        if dep.target != 'dataset':
+                            edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
 
         nodes = list(nodes_dict.values())
-        edges = [{"u": u, "v": v} for u, v in edge_tuples]
+        edges = [{"source": source, "target": target} for source, target in edge_tuples]
 
         data = {
             'nodes': nodes,
@@ -3866,7 +3880,7 @@ def action_has_dag_edit_access(action_func: Callable) -> Callable:
         else:
             raise ValueError(
                 "Was expecting the first argument of the action to be of type "
-                "Optional[Union[List[TaskInstance], List[DagRun], TaskInstance, DagRun]]."
+                "list[TaskInstance] | list[DagRun] | TaskInstance | DagRun | None."
                 f"Was of type: {type(items)}"
             )
 
@@ -4209,14 +4223,15 @@ class ConnectionModelView(AirflowModelView):
                 flash(
                     Markup(
                         "<p>The <em>Extra</em> connection field contained an invalid value for Conn ID: "
-                        f"<q>{conn_id}</q>.</p>"
+                        "<q>{conn_id}</q>.</p>"
                         "<p>If connection parameters need to be added to <em>Extra</em>, "
                         "please make sure they are in the form of a single, valid JSON object.</p><br>"
                         "The following <em>Extra</em> parameters were <b>not</b> added to the connection:<br>"
-                        f"{extra_json}",
-                    ),
+                        "{extra_json}"
+                    ).format(conn_id=conn_id, extra_json=extra_json),
                     category="error",
                 )
+                del form.extra
         del extra_json
 
         for key in self.extra_fields:

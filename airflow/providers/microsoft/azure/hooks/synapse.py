@@ -25,6 +25,7 @@ from azure.synapse.spark.models import SparkBatchJobOptions
 
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import get_field
 
 Credentials = Union[ClientSecretCredential, DefaultAzureCredential]
 
@@ -32,16 +33,16 @@ Credentials = Union[ClientSecretCredential, DefaultAzureCredential]
 class AzureSynapseSparkBatchRunStatus:
     """Azure Synapse Spark Job operation statuses."""
 
-    NOT_STARTED = 'not_started'
-    STARTING = 'starting'
-    RUNNING = 'running'
-    IDLE = 'idle'
-    BUSY = 'busy'
-    SHUTTING_DOWN = 'shutting_down'
-    ERROR = 'error'
-    DEAD = 'dead'
-    KILLED = 'killed'
-    SUCCESS = 'success'
+    NOT_STARTED = "not_started"
+    STARTING = "starting"
+    RUNNING = "running"
+    IDLE = "idle"
+    BUSY = "busy"
+    SHUTTING_DOWN = "shutting_down"
+    ERROR = "error"
+    DEAD = "dead"
+    KILLED = "killed"
+    SUCCESS = "success"
 
     TERMINAL_STATUSES = {SUCCESS, DEAD, KILLED, ERROR}
 
@@ -53,10 +54,10 @@ class AzureSynapseHook(BaseHook):
     :param spark_pool: The Apache Spark pool used to submit the job
     """
 
-    conn_type: str = 'azure_synapse'
-    conn_name_attr: str = 'azure_synapse_conn_id'
-    default_conn_name: str = 'azure_synapse_default'
-    hook_name: str = 'Azure Synapse'
+    conn_type: str = "azure_synapse"
+    conn_name_attr: str = "azure_synapse_conn_id"
+    default_conn_name: str = "azure_synapse_default"
+    hook_name: str = "Azure Synapse"
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
@@ -66,41 +67,45 @@ class AzureSynapseHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "extra__azure_synapse__tenantId": StringField(
-                lazy_gettext('Tenant ID'), widget=BS3TextFieldWidget()
-            ),
-            "extra__azure_synapse__subscriptionId": StringField(
-                lazy_gettext('Subscription ID'), widget=BS3TextFieldWidget()
-            ),
+            "tenantId": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
+            "subscriptionId": StringField(lazy_gettext("Subscription ID"), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['schema', 'port', 'extra'],
-            "relabeling": {'login': 'Client ID', 'password': 'Secret', 'host': 'Synapse Workspace URL'},
+            "hidden_fields": ["schema", "port", "extra"],
+            "relabeling": {"login": "Client ID", "password": "Secret", "host": "Synapse Workspace URL"},
         }
 
-    def __init__(self, azure_synapse_conn_id: str = default_conn_name, spark_pool: str = ''):
+    def __init__(self, azure_synapse_conn_id: str = default_conn_name, spark_pool: str = ""):
         self.job_id: int | None = None
         self._conn: SparkClient | None = None
         self.conn_id = azure_synapse_conn_id
         self.spark_pool = spark_pool
         super().__init__()
 
+    def _get_field(self, extras, name):
+        return get_field(
+            conn_id=self.conn_id,
+            conn_type=self.conn_type,
+            extras=extras,
+            field_name=name,
+        )
+
     def get_conn(self) -> SparkClient:
         if self._conn is not None:
             return self._conn
 
         conn = self.get_connection(self.conn_id)
-        tenant = conn.extra_dejson.get('extra__azure_synapse__tenantId')
+        extras = conn.extra_dejson
+        tenant = self._get_field(extras, "tenantId")
         spark_pool = self.spark_pool
         livy_api_version = "2022-02-22-preview"
 
-        try:
-            subscription_id = conn.extra_dejson['extra__azure_synapse__subscriptionId']
-        except KeyError:
+        subscription_id = self._get_field(extras, "subscriptionId")
+        if not subscription_id:
             raise ValueError("A Subscription ID is required to connect to Azure Synapse.")
 
         credential: Credentials

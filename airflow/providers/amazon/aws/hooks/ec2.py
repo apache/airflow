@@ -77,7 +77,6 @@ class EC2Hook(AwsBaseHook):
         :param instance_id: id of the AWS EC2 instance
         :param filters: List of filters to specify instances to get
         :return: Instance object
-        :rtype: ec2.Instance
         """
         if self._api_type == "client_type":
             return self.get_instances(filters=filters, instance_ids=[instance_id])
@@ -168,7 +167,6 @@ class EC2Hook(AwsBaseHook):
 
         :param instance_id: id of the AWS EC2 instance
         :return: current state of the instance
-        :rtype: str
         """
         if self._api_type == "client_type":
             return self.get_instances(instance_ids=[instance_id])[0]["State"]["Name"]
@@ -184,7 +182,6 @@ class EC2Hook(AwsBaseHook):
         :param check_interval: time in seconds that the job should wait in
             between each instance state checks until operation is completed
         :return: None
-        :rtype: None
         """
         instance_state = self.get_instance_state(instance_id=instance_id)
 

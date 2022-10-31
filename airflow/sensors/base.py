@@ -99,7 +99,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         pokes by using exponential backoff algorithm
     """
 
-    ui_color = '#e6f1f2'  # type: str
+    ui_color: str = '#e6f1f2'
     valid_modes = ['poke', 'reschedule']  # type: Iterable[str]
 
     # Adds one additional dependency for all sensor operators that checks if a

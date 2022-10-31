@@ -15,24 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 import asyncio
-import logging
 from typing import Any, Sequence
 
 from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerAsyncHook
-
-try:
-    from airflow.triggers.base import BaseTrigger, TriggerEvent
-except ImportError:
-    logging.getLogger(__name__).warning(
-        'Deferrable Operators only work starting Airflow 2.2',
-        exc_info=True,
-    )
-    BaseTrigger = object  # type: ignore
-    TriggerEvent = None  # type: ignore
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class CloudComposerExecutionTrigger(BaseTrigger):
@@ -52,11 +43,9 @@ class CloudComposerExecutionTrigger(BaseTrigger):
         self.project_id = project_id
         self.region = region
         self.operation_name = operation_name
-
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.delegate_to = delegate_to
-
         self.pooling_period_seconds = pooling_period_seconds
 
         self.gcp_hook = CloudComposerAsyncHook(
@@ -67,7 +56,7 @@ class CloudComposerExecutionTrigger(BaseTrigger):
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
-            'airflow.providers.google.cloud.triggers.cloud_composer.CloudComposerExecutionTrigger',
+            "airflow.providers.google.cloud.triggers.cloud_composer.CloudComposerExecutionTrigger",
             {
                 "project_id": self.project_id,
                 "region": self.region,

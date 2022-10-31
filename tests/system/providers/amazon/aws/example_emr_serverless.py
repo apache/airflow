@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import boto3
+
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.emr import (
@@ -30,27 +32,28 @@ from airflow.providers.amazon.aws.sensors.emr import EmrServerlessApplicationSen
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-DAG_ID = 'example_emr_serverless'
+DAG_ID = "example_emr_serverless"
 
 # Externally fetched variables:
-ROLE_ARN_KEY = 'ROLE_ARN'
+ROLE_ARN_KEY = "ROLE_ARN"
 
 
 sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
     role_arn = test_context[ROLE_ARN_KEY]
-    bucket_name = f'{env_id}-emr-serverless-bucket'
-    entryPoint = "s3://us-east-1.elasticmapreduce/emr-containers/samples/wordcount/scripts/wordcount.py"
-    create_s3_bucket = S3CreateBucketOperator(task_id='create_s3_bucket', bucket_name=bucket_name)
+    bucket_name = f"{env_id}-emr-serverless-bucket"
+    region = boto3.session.Session().region_name
+    entryPoint = f"s3://{region}.elasticmapreduce/emr-containers/samples/wordcount/scripts/wordcount.py"
+    create_s3_bucket = S3CreateBucketOperator(task_id="create_s3_bucket", bucket_name=bucket_name)
 
     SPARK_JOB_DRIVER = {
         "sparkSubmit": {
@@ -67,10 +70,10 @@ with DAG(
 
     # [START howto_operator_emr_serverless_create_application]
     emr_serverless_app = EmrServerlessCreateApplicationOperator(
-        task_id='create_emr_serverless_task',
-        release_label='emr-6.6.0',
+        task_id="create_emr_serverless_task",
+        release_label="emr-6.6.0",
         job_type="SPARK",
-        config={'name': 'new_application'},
+        config={"name": "new_application"},
     )
     # [END howto_operator_emr_serverless_create_application]
 
@@ -81,14 +84,14 @@ with DAG(
 
     # [START howto_sensor_emr_serverless_application]
     wait_for_app_creation = EmrServerlessApplicationSensor(
-        task_id='wait_for_app_creation',
+        task_id="wait_for_app_creation",
         application_id=emr_serverless_app_id,
     )
     # [END howto_sensor_emr_serverless_application]
 
     # [START howto_operator_emr_serverless_start_job]
     start_job = EmrServerlessStartJobOperator(
-        task_id='start_emr_serverless_job',
+        task_id="start_emr_serverless_job",
         application_id=emr_serverless_app_id,
         execution_role_arn=role_arn,
         job_driver=SPARK_JOB_DRIVER,
@@ -98,7 +101,7 @@ with DAG(
 
     # [START howto_sensor_emr_serverless_job]
     wait_for_job = EmrServerlessJobSensor(
-        task_id='wait_for_job',
+        task_id="wait_for_job",
         application_id=emr_serverless_app_id,
         job_run_id=start_job.output,
     )
@@ -106,14 +109,14 @@ with DAG(
 
     # [START howto_operator_emr_serverless_delete_application]
     delete_app = EmrServerlessDeleteApplicationOperator(
-        task_id='delete_application',
+        task_id="delete_application",
         application_id=emr_serverless_app_id,
     )
     # [END howto_operator_emr_serverless_delete_application]
     delete_app.trigger_rule = TriggerRule.ALL_DONE
 
     delete_s3_bucket = S3DeleteBucketOperator(
-        task_id='delete_s3_bucket',
+        task_id="delete_s3_bucket",
         bucket_name=bucket_name,
         force_delete=True,
         trigger_rule=TriggerRule.ALL_DONE,
