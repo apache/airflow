@@ -264,7 +264,6 @@ jobs:
           Build PROD Images
           ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/build-prod-images
-        if: needs.build-info.outputs.in-workflow-build == 'true'
         with:
           build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
         env:
