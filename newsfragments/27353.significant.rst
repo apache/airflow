@@ -1,3 +1,4 @@
 The helm chart is now using a newer version of bitnami/postgresql (from 10.5.3 to 12.0.0)
+
 This version of the chart uses ```postgresql.auth.username``` and ```postrgesql.auth.password``` instead of ```postgresql.postgresqlUsername``` and ```postgresql.postresqlPassword```
 Users will need to change these variable names in their values files if they are using the helm chart.
