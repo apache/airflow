@@ -33,22 +33,22 @@ class LivyOperator(BaseOperator):
     This operator wraps the Apache Livy batch REST API, allowing to submit a Spark
     application to the underlying cluster.
 
-    :param file: path of the file containing the application to execute (required).
-    :param class_name: name of the application Java/Spark main class.
-    :param args: application command line arguments.
-    :param jars: jars to be used in this sessions.
-    :param py_files: python files to be used in this session.
-    :param files: files to be used in this session.
-    :param driver_memory: amount of memory to use for the driver process.
-    :param driver_cores: number of cores to use for the driver process.
-    :param executor_memory: amount of memory to use per executor process.
-    :param executor_cores: number of cores to use for each executor.
-    :param num_executors: number of executors to launch for this session.
-    :param archives: archives to be used in this session.
-    :param queue: name of the YARN queue to which the application is submitted.
-    :param name: name of this session.
-    :param conf: Spark configuration properties.
-    :param proxy_user: user to impersonate when running the job.
+    :param file: path of the file containing the application to execute (required). (templated)
+    :param class_name: name of the application Java/Spark main class. (templated)
+    :param args: application command line arguments. (templated)
+    :param jars: jars to be used in this sessions. (templated)
+    :param py_files: python files to be used in this session. (templated)
+    :param files: files to be used in this session. (templated)
+    :param driver_memory: amount of memory to use for the driver process. (templated)
+    :param driver_cores: number of cores to use for the driver process. (templated)
+    :param executor_memory: amount of memory to use per executor process. (templated)
+    :param executor_cores: number of cores to use for each executor. (templated)
+    :param num_executors: number of executors to launch for this session. (templated)
+    :param archives: archives to be used in this session. (templated)
+    :param queue: name of the YARN queue to which the application is submitted. (templated)
+    :param name: name of this session. (templated)
+    :param conf: Spark configuration properties. (templated)
+    :param proxy_user: user to impersonate when running the job. (templated)
     :param livy_conn_id: reference to a pre-defined Livy Connection.
     :param livy_conn_auth_type: The auth type for the Livy Connection.
     :param polling_interval: time in seconds between polling for job completion. Don't poll for values >=0
