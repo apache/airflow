@@ -120,6 +120,9 @@ spec:
               mountPath: {{ template "airflow_config_path" . }}
               subPath: airflow.cfg
               readOnly: true
+            {{- if .Values.triggerer.extraVolumeMounts }}
+            {{ toYaml .Values.triggerer.extraVolumeMounts | nindent 12 }}
+            {{- end }}
           args:
           {{- include "wait-for-migrations-command" . | nindent 10 }}
           envFrom:
