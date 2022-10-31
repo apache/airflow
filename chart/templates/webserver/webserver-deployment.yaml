@@ -132,6 +132,9 @@ spec:
               mountPath: {{ template "airflow_config_path" . }}
               subPath: airflow.cfg
               readOnly: true
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigmapName }}
+            {{ include "airflow_webserver_config_mount" | indent 12 }}
+{{- end }}
           args:
           {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom:
@@ -172,11 +175,8 @@ spec:
               mountPath: {{ template "airflow_config_path" . }}
               subPath: airflow.cfg
               readOnly: true
-{{- if .Values.webserver.webserverConfig }}
-            - name: webserver-config
-              mountPath: {{ template "airflow_webserver_config_path" . }}
-              subPath: webserver_config.py
-              readOnly: true
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigmapName }}
+            {{ include "airflow_webserver_config_mount" | indent 12 }}
 {{- end }}
 {{- if .Values.airflowLocalSettings }}
             - name: config
@@ -241,10 +241,10 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
-        {{- if .Values.webserver.webserverConfig }}
+        {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigmapName }}
         - name: webserver-config
           configMap:
-            name: {{ .Release.Name }}-webserver-config
+            name: {{ template "airflow_webserver_config_configmap_name" . }}
         {{- end }}
         {{- if (semverCompare "<2.0.0" .Values.airflowVersion) }}
         {{- if .Values.dags.persistence.enabled }}

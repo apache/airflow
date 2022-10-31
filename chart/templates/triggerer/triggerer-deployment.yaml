@@ -120,6 +120,9 @@ spec:
               mountPath: {{ template "airflow_config_path" . }}
               subPath: airflow.cfg
               readOnly: true
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigmapName }}
+            {{ include "airflow_webserver_config_mount" | indent 12 }}
+{{- end }}
           args:
           {{- include "wait-for-migrations-command" . | nindent 10 }}
           envFrom:
@@ -196,6 +199,11 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+        {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigmapName }}
+        - name: webserver-config
+          configMap:
+            name: {{ template "airflow_webserver_config_configmap_name" . }}
+        {{- end }}
         {{- if .Values.dags.persistence.enabled }}
         - name: dags
           persistentVolumeClaim:
