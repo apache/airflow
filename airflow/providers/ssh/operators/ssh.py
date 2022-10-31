@@ -152,8 +152,8 @@ class SSHOperator(BaseOperator):
         )
 
     def raise_for_status(self, exit_status: int, stderr: bytes, **kwargs) -> None:
-        ti=kwargs['context'].get('task_instance')
-        ti.xcom_push(key='ssh_exit', value=exit_status)
+        ti=kwargs["context"].get("task_instance")
+        ti.xcom_push(key="ssh_exit", value=exit_status)
         if exit_status != 0:
             raise AirflowException(f"SSH operator error: exit status = {exit_status}")
 
