@@ -20,12 +20,10 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
-from moto import mock_rds, mock_s3, mock_sns
+from moto import mock_rds
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.hooks.sns import SnsHook
 
 
 @pytest.fixture
@@ -103,24 +101,11 @@ def db_cluster_snapshot_id(db_cluster_snapshot) -> str:
 
 
 @pytest.fixture
-def s3_hook() -> S3Hook:
-    with mock_s3():
-        return S3Hook(aws_conn_id="aws_default")
-
-
-@pytest.fixture
-def s3_bucket_name(s3_hook: S3Hook) -> str:
-    bucket_name = "testrdshook-s3-bucket"
-    s3_hook.create_bucket(bucket_name)
-    return bucket_name
-
-
-@pytest.fixture
-def export_task_id(rds_hook: RdsHook, db_snapshot_arn: str, s3_bucket_name: str) -> str:
+def export_task_id(rds_hook: RdsHook, db_snapshot_arn: str) -> str:
     response = rds_hook.conn.start_export_task(
         ExportTaskIdentifier="testrdshook-export-task",
         SourceArn=db_snapshot_arn,
-        S3BucketName=s3_bucket_name,
+        S3BucketName="test",
         IamRoleArn="test",
         KmsKeyId="test",
     )
@@ -128,23 +113,11 @@ def export_task_id(rds_hook: RdsHook, db_snapshot_arn: str, s3_bucket_name: str)
 
 
 @pytest.fixture
-def sns_hook() -> SnsHook:
-    with mock_sns():
-        return SnsHook(aws_conn_id="aws_default")
-
-
-@pytest.fixture
-def sns_topic_arn(sns_hook: SnsHook) -> str:
-    response = sns_hook.conn.create_topic(Name="testrdshook-sns-topic")
-    return response["TopicArn"]
-
-
-@pytest.fixture
-def event_subscription_name(rds_hook: RdsHook, sns_topic_arn: str, db_instance_id: str) -> str:
+def event_subscription_name(rds_hook: RdsHook, db_instance_id: str) -> str:
     """Creates an mock RDS event subscription and returns its name"""
     response = rds_hook.conn.create_event_subscription(
         SubscriptionName="testrdshook-event-subscription",
-        SnsTopicArn=sns_topic_arn,
+        SnsTopicArn="test",
         SourceType="db-instance",
         SourceIds=[db_instance_id],
         Enabled=True,
@@ -153,6 +126,10 @@ def event_subscription_name(rds_hook: RdsHook, sns_topic_arn: str, db_instance_i
 
 
 class TestRdsHook:
+    # For testing, set the delay between status checks to 0 so that we aren't sleeping during tests,
+    # and max_attempts to 1 so that we don't retry unless required.
+    waiter_args = {"check_interval": 0, "max_attempts": 1}
+
     def test_conn_attribute(self):
         hook = RdsHook(aws_conn_id="aws_default", region_name="us-east-1")
         assert hasattr(hook, "conn")
@@ -167,29 +144,28 @@ class TestRdsHook:
         state_actual = rds_hook.get_db_instance_state(db_instance_id)
         assert state_actual == state_expected
 
-    def test_wait_for_db_instance_state(self, rds_hook: RdsHook, db_instance_id: str):
-        """
-        The db instance waiter uses AWS provided boto waiters where possible, and falls back to a
-        custom waiter implementation.
+    def test_wait_for_db_instance_state_boto_waiters(self, rds_hook: RdsHook, db_instance_id: str):
+        """Checks that the DB instance waiter uses AWS boto waiters where possible"""
+        for state in ("available", "deleted"):
+            with patch.object(rds_hook.conn, "get_waiter") as mock:
+                rds_hook.wait_for_db_instance_state(db_instance_id, target_state=state, **self.waiter_args)
+                mock.assert_called_once_with(f"db_instance_{state}")
+                mock.return_value.wait.assert_called_once_with(
+                    DBInstanceIdentifier=db_instance_id,
+                    WaiterConfig={
+                        "Delay": self.waiter_args["check_interval"],
+                        "MaxAttempts": self.waiter_args["max_attempts"],
+                    },
+                )
 
-        it should call wait_for_state otherwise, which should also call get_db_snapshot_state (from poke closure)
-        """
-        common_kwargs = {"check_interval": 0, "max_attempts": 1}
-
-        with patch.object(rds_hook.conn, "get_waiter") as mock:
-            rds_hook.wait_for_db_instance_state(db_instance_id, target_state="available", **common_kwargs)
-            mock.assert_called_once_with("db_instance_available")
-
-        with patch.object(rds_hook.conn, "get_waiter") as mock:
-            rds_hook.wait_for_db_instance_state(db_instance_id, target_state="deleted", **common_kwargs)
-            mock.assert_called_once_with("db_instance_deleted")
-
+    def test_wait_for_db_instance_state_custom_waiter(self, rds_hook: RdsHook, db_instance_id: str):
+        """Checks that the DB instance waiter uses custom wait logic when AWS boto waiters aren't available"""
         with patch.object(rds_hook, "_wait_for_state") as mock:
-            rds_hook.wait_for_db_instance_state(db_instance_id, target_state="stopped", **common_kwargs)
+            rds_hook.wait_for_db_instance_state(db_instance_id, target_state="stopped", **self.waiter_args)
             mock.assert_called_once()
 
         with patch.object(rds_hook, "get_db_instance_state", return_value="stopped") as mock:
-            rds_hook.wait_for_db_instance_state(db_instance_id, target_state="stopped", **common_kwargs)
+            rds_hook.wait_for_db_instance_state(db_instance_id, target_state="stopped", **self.waiter_args)
             mock.assert_called_once_with(db_instance_id)
 
     def test_get_db_cluster_state(self, rds_hook: RdsHook, db_cluster_id: str):
@@ -198,27 +174,28 @@ class TestRdsHook:
         state_actual = rds_hook.get_db_cluster_state(db_cluster_id)
         assert state_actual == state_expected
 
-    def test_wait_for_db_cluster_state(self, rds_hook: RdsHook, db_cluster_id: str):
-        """
-        xxx
-        """
-        common_kwargs = {"check_interval": 0, "max_attempts": 1}
+    def test_wait_for_db_cluster_state_boto_waiters(self, rds_hook: RdsHook, db_cluster_id: str):
+        """Checks that the DB cluster waiter uses AWS boto waiters where possible"""
+        for state in ("available", "deleted"):
+            with patch.object(rds_hook.conn, "get_waiter") as mock:
+                rds_hook.wait_for_db_cluster_state(db_cluster_id, target_state=state, **self.waiter_args)
+                mock.assert_called_once_with(f"db_cluster_{state}")
+                mock.return_value.wait.assert_called_once_with(
+                    DBClusterIdentifier=db_cluster_id,
+                    WaiterConfig={
+                        "Delay": self.waiter_args["check_interval"],
+                        "MaxAttempts": self.waiter_args["max_attempts"],
+                    },
+                )
 
-        with patch.object(rds_hook.conn, "get_waiter") as mock:
-            rds_hook.wait_for_db_cluster_state(db_cluster_id, target_state="available", **common_kwargs)
-            mock.assert_called_once_with("db_cluster_available")
+    def test_wait_for_db_cluster_state_custom_waiter(self, rds_hook: RdsHook, db_cluster_id: str):
+        """Checks that the DB cluster waiter uses custom wait logic when AWS boto waiters aren't available"""
+        with patch.object(rds_hook, "_wait_for_state") as mock_wait_for_state:
+            rds_hook.wait_for_db_cluster_state(db_cluster_id, target_state="stopped", **self.waiter_args)
+            mock_wait_for_state.assert_called_once()
 
-        with patch.object(rds_hook.conn, "get_waiter") as mock:
-            rds_hook.wait_for_db_cluster_state(db_cluster_id, target_state="deleted", **common_kwargs)
-            mock.assert_called_once_with("db_cluster_deleted")
-
-        with patch.object(rds_hook, "_wait_for_state") as mock:
-            rds_hook.wait_for_db_cluster_state(db_cluster_id, target_state="stopped", **common_kwargs)
-            mock.assert_called_once()
-
-        # set the return value to stopped (the same as target state) so that the waiter returns immediately
         with patch.object(rds_hook, "get_db_cluster_state", return_value="stopped") as mock:
-            rds_hook.wait_for_db_cluster_state(db_cluster_id, target_state="stopped", **common_kwargs)
+            rds_hook.wait_for_db_cluster_state(db_cluster_id, target_state="stopped", **self.waiter_args)
             mock.assert_called_once_with(db_cluster_id)
 
     def test_get_db_snapshot_state(self, rds_hook: RdsHook, db_snapshot_id: str):
@@ -227,30 +204,28 @@ class TestRdsHook:
         state_actual = rds_hook.get_db_snapshot_state(db_snapshot_id)
         assert state_actual == state_expected
 
-    def test_wait_for_db_snapshot_state(self, rds_hook: RdsHook, db_snapshot_id: str):
-        """
-        setting check_interval=0, max_attempts=1 so that we dont trigger time.sleep during test
-        """
-        common_kwargs = {"check_interval": 0, "max_attempts": 1}
+    def test_wait_for_db_snapshot_state_boto_waiters(self, rds_hook: RdsHook, db_snapshot_id: str):
+        """Checks that the DB snapshot waiter uses AWS boto waiters where possible"""
+        for state in ("available", "deleted", "completed"):
+            with patch.object(rds_hook.conn, "get_waiter") as mock:
+                rds_hook.wait_for_db_snapshot_state(db_snapshot_id, target_state=state, **self.waiter_args)
+                mock.assert_called_once_with(f"db_snapshot_{state}")
+                mock.return_value.wait.assert_called_once_with(
+                    DBSnapshotIdentifier=db_snapshot_id,
+                    WaiterConfig={
+                        "Delay": self.waiter_args["check_interval"],
+                        "MaxAttempts": self.waiter_args["max_attempts"],
+                    },
+                )
 
-        with patch.object(rds_hook.conn, "get_waiter") as mock:
-            rds_hook.wait_for_db_snapshot_state(db_snapshot_id, target_state="available", **common_kwargs)
-            mock.assert_called_once_with("db_snapshot_available")
-
-        with patch.object(rds_hook.conn, "get_waiter") as mock:
-            rds_hook.wait_for_db_snapshot_state(db_snapshot_id, target_state="deleted", **common_kwargs)
-            mock.assert_called_once_with("db_snapshot_deleted")
-
-        with patch.object(rds_hook.conn, "get_waiter") as mock:
-            rds_hook.wait_for_db_snapshot_state(db_snapshot_id, target_state="completed", **common_kwargs)
-            mock.assert_called_once_with("db_snapshot_completed")
-
+    def test_wait_for_db_snapshot_state_custom_waiter(self, rds_hook: RdsHook, db_snapshot_id: str):
+        """Checks that the DB snapshot waiter uses custom wait logic when AWS boto waiters aren't available"""
         with patch.object(rds_hook, "_wait_for_state") as mock:
-            rds_hook.wait_for_db_snapshot_state(db_snapshot_id, target_state="canceled", **common_kwargs)
+            rds_hook.wait_for_db_snapshot_state(db_snapshot_id, target_state="canceled", **self.waiter_args)
             mock.assert_called_once()
 
         with patch.object(rds_hook, "get_db_snapshot_state", return_value="canceled") as mock:
-            rds_hook.wait_for_db_snapshot_state(db_snapshot_id, target_state="canceled", **common_kwargs)
+            rds_hook.wait_for_db_snapshot_state(db_snapshot_id, target_state="canceled", **self.waiter_args)
             mock.assert_called_once_with(db_snapshot_id)
 
     def test_get_db_cluster_snapshot_state(self, rds_hook: RdsHook, db_cluster_snapshot_id: str):
@@ -261,33 +236,37 @@ class TestRdsHook:
         state_actual = rds_hook.get_db_cluster_snapshot_state(db_cluster_snapshot_id)
         assert state_actual == state_expected
 
-    def test_wait_for_db_cluster_snapshot_state(self, rds_hook: RdsHook, db_cluster_snapshot_id: str):
-        """
-        setting check_interval=0, max_attempts=1 so that we dont trigger time.sleep during test
-        """
-        common_kwargs = {"check_interval": 0, "max_attempts": 1}
+    def test_wait_for_db_cluster_snapshot_state_boto_waiters(
+        self, rds_hook: RdsHook, db_cluster_snapshot_id: str
+    ):
+        """Checks that the DB cluster snapshot waiter uses AWS boto waiters where possible"""
+        for state in ("available", "deleted"):
+            with patch.object(rds_hook.conn, "get_waiter") as mock:
+                rds_hook.wait_for_db_cluster_snapshot_state(
+                    db_cluster_snapshot_id, target_state=state, **self.waiter_args
+                )
+                mock.assert_called_once_with(f"db_cluster_snapshot_{state}")
+                mock.return_value.wait.assert_called_once_with(
+                    DBClusterSnapshotIdentifier=db_cluster_snapshot_id,
+                    WaiterConfig={
+                        "Delay": self.waiter_args["check_interval"],
+                        "MaxAttempts": self.waiter_args["max_attempts"],
+                    },
+                )
 
-        with patch.object(rds_hook.conn, "get_waiter") as mock:
-            rds_hook.wait_for_db_cluster_snapshot_state(
-                db_cluster_snapshot_id, target_state="available", **common_kwargs
-            )
-            mock.assert_called_once_with("db_cluster_snapshot_available")
-
-        with patch.object(rds_hook.conn, "get_waiter") as mock:
-            rds_hook.wait_for_db_cluster_snapshot_state(
-                db_cluster_snapshot_id, target_state="deleted", **common_kwargs
-            )
-            mock.assert_called_once_with("db_cluster_snapshot_deleted")
-
+    def test_wait_for_db_cluster_snapshot_state_custom_waiter(
+        self, rds_hook: RdsHook, db_cluster_snapshot_id: str
+    ):
+        """Checks that the DB cluster snapshot waiter uses custom wait logic when AWS boto waiters aren't available"""
         with patch.object(rds_hook, "_wait_for_state") as mock:
             rds_hook.wait_for_db_cluster_snapshot_state(
-                db_cluster_snapshot_id, target_state="canceled", **common_kwargs
+                db_cluster_snapshot_id, target_state="canceled", **self.waiter_args
             )
             mock.assert_called_once()
 
         with patch.object(rds_hook, "get_db_cluster_snapshot_state", return_value="canceled") as mock:
             rds_hook.wait_for_db_cluster_snapshot_state(
-                db_cluster_snapshot_id, target_state="canceled", **common_kwargs
+                db_cluster_snapshot_id, target_state="canceled", **self.waiter_args
             )
             mock.assert_called_once_with(db_cluster_snapshot_id)
 
@@ -298,17 +277,13 @@ class TestRdsHook:
         assert state_actual == state_expected
 
     def test_wait_for_export_task_state(self, rds_hook: RdsHook, export_task_id: str):
-        """
-        xxx
-        """
-        common_kwargs = {"check_interval": 0, "max_attempts": 1}
-
+        """Checks that the export task waiter uses custom wait logic (no boto waiters exist for this resource)"""
         with patch.object(rds_hook, "_wait_for_state") as mock:
-            rds_hook.wait_for_export_task_state(export_task_id, target_state="complete", **common_kwargs)
+            rds_hook.wait_for_export_task_state(export_task_id, target_state="complete", **self.waiter_args)
             mock.assert_called_once()
 
         with patch.object(rds_hook, "get_export_task_state", return_value="complete") as mock:
-            rds_hook.wait_for_export_task_state(export_task_id, target_state="complete", **common_kwargs)
+            rds_hook.wait_for_export_task_state(export_task_id, target_state="complete", **self.waiter_args)
             mock.assert_called_once_with(export_task_id)
 
     def test_get_event_subscription_state(self, rds_hook: RdsHook, event_subscription_name: str):
@@ -318,20 +293,16 @@ class TestRdsHook:
         assert state_actual == state_expected
 
     def test_wait_for_event_subscription_state(self, rds_hook: RdsHook, event_subscription_name: str):
-        """
-        xxx
-        """
-        common_kwargs = {"check_interval": 0, "max_attempts": 1}
-
+        """Checks that the event subscription waiter uses custom wait logic (no boto waiters exist for this resource)"""
         with patch.object(rds_hook, "_wait_for_state") as mock:
             rds_hook.wait_for_event_subscription_state(
-                event_subscription_name, target_state="active", **common_kwargs
+                event_subscription_name, target_state="active", **self.waiter_args
             )
             mock.assert_called_once()
 
         with patch.object(rds_hook, "get_event_subscription_state", return_value="active") as mock:
             rds_hook.wait_for_event_subscription_state(
-                event_subscription_name, target_state="active", **common_kwargs
+                event_subscription_name, target_state="active", **self.waiter_args
             )
             mock.assert_called_once_with(event_subscription_name)
 
@@ -339,9 +310,8 @@ class TestRdsHook:
         def poke():
             return "foo"
 
-        # todo: target "Exceeded max attempts" message
         with pytest.raises(AirflowException, match="Max attempts exceeded"):
             with patch("airflow.providers.amazon.aws.hooks.rds.time.sleep") as mock:
                 rds_hook._wait_for_state(poke, target_state="bar", check_interval=0, max_attempts=2)
-        # must run this outside of the pytest.raises context otherwise exits before executed
+        # This next line should exist outside of the pytest.raises() context manager (otherwise it won't get executed)
         mock.assert_called_once_with(0)
