@@ -29,7 +29,11 @@ from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.auto_ml import AutoMLHook
-from airflow.providers.google.cloud.links.vertex_ai import VertexAIModelLink, VertexAITrainingPipelinesLink
+from airflow.providers.google.cloud.links.vertex_ai import (
+    VertexAIModelLink,
+    VertexAITrainingLink,
+    VertexAITrainingPipelinesLink,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -89,11 +93,12 @@ class AutoMLTrainingJobBaseOperator(BaseOperator):
 class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     """Create AutoML Forecasting Training job"""
 
-    template_fields = [
+    template_fields = (
+        "dataset_id",
         "region",
         "impersonation_chain",
-    ]
-    operator_extra_links = (VertexAIModelLink(),)
+    )
+    operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
     def __init__(
         self,
@@ -158,7 +163,7 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        model = self.hook.create_auto_ml_forecasting_training_job(
+        model, training_id = self.hook.create_auto_ml_forecasting_training_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
@@ -199,20 +204,26 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             sync=self.sync,
         )
 
-        result = Model.to_dict(model)
-        model_id = self.hook.extract_model_id(result)
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        if model:
+            result = Model.to_dict(model)
+            model_id = self.hook.extract_model_id(result)
+            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        else:
+            result = model  # type: ignore
+        self.xcom_push(context, key="training_id", value=training_id)
+        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
 
 class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     """Create Auto ML Image Training job"""
 
-    template_fields = [
+    template_fields = (
+        "dataset_id",
         "region",
         "impersonation_chain",
-    ]
-    operator_extra_links = (VertexAIModelLink(),)
+    )
+    operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
     def __init__(
         self,
@@ -249,7 +260,7 @@ class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        model = self.hook.create_auto_ml_image_training_job(
+        model, training_id = self.hook.create_auto_ml_image_training_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
@@ -274,20 +285,26 @@ class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             sync=self.sync,
         )
 
-        result = Model.to_dict(model)
-        model_id = self.hook.extract_model_id(result)
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        if model:
+            result = Model.to_dict(model)
+            model_id = self.hook.extract_model_id(result)
+            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        else:
+            result = model  # type: ignore
+        self.xcom_push(context, key="training_id", value=training_id)
+        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
 
 class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     """Create Auto ML Tabular Training job"""
 
-    template_fields = [
+    template_fields = (
+        "dataset_id",
         "region",
         "impersonation_chain",
-    ]
-    operator_extra_links = (VertexAIModelLink(),)
+    )
+    operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
     def __init__(
         self,
@@ -340,7 +357,7 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        model = self.hook.create_auto_ml_tabular_training_job(
+        model, training_id = self.hook.create_auto_ml_tabular_training_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
@@ -375,9 +392,14 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             sync=self.sync,
         )
 
-        result = Model.to_dict(model)
-        model_id = self.hook.extract_model_id(result)
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        if model:
+            result = Model.to_dict(model)
+            model_id = self.hook.extract_model_id(result)
+            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        else:
+            result = model  # type: ignore
+        self.xcom_push(context, key="training_id", value=training_id)
+        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
 
@@ -385,10 +407,11 @@ class CreateAutoMLTextTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     """Create Auto ML Text Training job"""
 
     template_fields = [
+        "dataset_id",
         "region",
         "impersonation_chain",
     ]
-    operator_extra_links = (VertexAIModelLink(),)
+    operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
     def __init__(
         self,
@@ -419,7 +442,7 @@ class CreateAutoMLTextTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        model = self.hook.create_auto_ml_text_training_job(
+        model, training_id = self.hook.create_auto_ml_text_training_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
@@ -441,20 +464,26 @@ class CreateAutoMLTextTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             sync=self.sync,
         )
 
-        result = Model.to_dict(model)
-        model_id = self.hook.extract_model_id(result)
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        if model:
+            result = Model.to_dict(model)
+            model_id = self.hook.extract_model_id(result)
+            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        else:
+            result = model  # type: ignore
+        self.xcom_push(context, key="training_id", value=training_id)
+        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
 
 class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     """Create Auto ML Video Training job"""
 
-    template_fields = [
+    template_fields = (
+        "dataset_id",
         "region",
         "impersonation_chain",
-    ]
-    operator_extra_links = (VertexAIModelLink(),)
+    )
+    operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
     def __init__(
         self,
@@ -479,7 +508,7 @@ class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        model = self.hook.create_auto_ml_video_training_job(
+        model, training_id = self.hook.create_auto_ml_video_training_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
@@ -498,9 +527,14 @@ class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             sync=self.sync,
         )
 
-        result = Model.to_dict(model)
-        model_id = self.hook.extract_model_id(result)
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        if model:
+            result = Model.to_dict(model)
+            model_id = self.hook.extract_model_id(result)
+            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        else:
+            result = model  # type: ignore
+        self.xcom_push(context, key="training_id", value=training_id)
+        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
 
@@ -509,7 +543,7 @@ class DeleteAutoMLTrainingJobOperator(BaseOperator):
     AutoMLTextTrainingJob, or AutoMLVideoTrainingJob.
     """
 
-    template_fields = ("region", "project_id", "impersonation_chain")
+    template_fields = ("training_pipeline", "region", "project_id", "impersonation_chain")
 
     def __init__(
         self,
@@ -563,11 +597,11 @@ class ListAutoMLTrainingJobOperator(BaseOperator):
     AutoMLTextTrainingJob, or AutoMLVideoTrainingJob in a Location.
     """
 
-    template_fields = [
+    template_fields = (
         "region",
         "project_id",
         "impersonation_chain",
-    ]
+    )
     operator_extra_links = [
         VertexAITrainingPipelinesLink(),
     ]

@@ -247,6 +247,11 @@ class CustomJobHook(GoogleBaseHook):
         """Returns unique id of the Training pipeline."""
         return resource_name.rpartition("/")[-1]
 
+    @staticmethod
+    def extract_custom_job_id(custom_job_name: str) -> str:
+        """Returns unique id of the Custom Job pipeline."""
+        return custom_job_name.rpartition("/")[-1]
+
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
         """Waits for long-lasting operation to complete."""
         try:
@@ -292,7 +297,7 @@ class CustomJobHook(GoogleBaseHook):
         timestamp_split_column_name: str | None = None,
         tensorboard: str | None = None,
         sync=True,
-    ) -> tuple[models.Model | None, str]:
+    ) -> tuple[models.Model | None, str, str]:
         """Run Job for training pipeline"""
         model = job.run(
             dataset=dataset,
@@ -323,6 +328,9 @@ class CustomJobHook(GoogleBaseHook):
             sync=sync,
         )
         training_id = self.extract_training_id(job.resource_name)
+        custom_job_id = self.extract_custom_job_id(
+            job.gca_resource.training_task_metadata.get("backingCustomJob")
+        )
         if model:
             model.wait()
         else:
@@ -332,7 +340,7 @@ class CustomJobHook(GoogleBaseHook):
                 "model_serving_container_image_uri and model_display_name passed in. "
                 "Ensure that your training script saves to model to os.environ['AIP_MODEL_DIR']."
             )
-        return model, training_id
+        return model, training_id, custom_job_id
 
     @GoogleBaseHook.fallback_to_default_project_id
     def cancel_pipeline_job(
@@ -613,7 +621,7 @@ class CustomJobHook(GoogleBaseHook):
         timestamp_split_column_name: str | None = None,
         tensorboard: str | None = None,
         sync=True,
-    ) -> tuple[models.Model | None, str]:
+    ) -> tuple[models.Model | None, str, str]:
         """
         Create Custom Container Training Job
 
@@ -885,7 +893,7 @@ class CustomJobHook(GoogleBaseHook):
         if not self._job:
             raise AirflowException("CustomJob was not created")
 
-        model, training_id = self._run_job(
+        model, training_id, custom_job_id = self._run_job(
             job=self._job,
             dataset=dataset,
             annotation_schema_uri=annotation_schema_uri,
@@ -915,7 +923,7 @@ class CustomJobHook(GoogleBaseHook):
             sync=sync,
         )
 
-        return model, training_id
+        return model, training_id, custom_job_id
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_custom_python_package_training_job(
@@ -971,7 +979,7 @@ class CustomJobHook(GoogleBaseHook):
         timestamp_split_column_name: str | None = None,
         tensorboard: str | None = None,
         sync=True,
-    ) -> tuple[models.Model | None, str]:
+    ) -> tuple[models.Model | None, str, str]:
         """
         Create Custom Python Package Training Job
 
@@ -1243,7 +1251,7 @@ class CustomJobHook(GoogleBaseHook):
         if not self._job:
             raise AirflowException("CustomJob was not created")
 
-        model, training_id = self._run_job(
+        model, training_id, custom_job_id = self._run_job(
             job=self._job,
             dataset=dataset,
             annotation_schema_uri=annotation_schema_uri,
@@ -1273,7 +1281,7 @@ class CustomJobHook(GoogleBaseHook):
             sync=sync,
         )
 
-        return model, training_id
+        return model, training_id, custom_job_id
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_custom_training_job(
@@ -1329,7 +1337,7 @@ class CustomJobHook(GoogleBaseHook):
         timestamp_split_column_name: str | None = None,
         tensorboard: str | None = None,
         sync=True,
-    ) -> tuple[models.Model | None, str]:
+    ) -> tuple[models.Model | None, str, str]:
         """
         Create Custom Training Job
 
@@ -1601,7 +1609,7 @@ class CustomJobHook(GoogleBaseHook):
         if not self._job:
             raise AirflowException("CustomJob was not created")
 
-        model, training_id = self._run_job(
+        model, training_id, custom_job_id = self._run_job(
             job=self._job,
             dataset=dataset,
             annotation_schema_uri=annotation_schema_uri,
@@ -1631,7 +1639,7 @@ class CustomJobHook(GoogleBaseHook):
             sync=sync,
         )
 
-        return model, training_id
+        return model, training_id, custom_job_id
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_pipeline_job(
