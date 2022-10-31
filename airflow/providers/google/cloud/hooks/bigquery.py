@@ -2247,7 +2247,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if project_id is None:
             if var_name is not None:
                 self.log.info(
-                    'Project not included in %s: %s; using project "%s"',
+                    'Project is not included in %s: %s; using project "%s"',
                     var_name,
                     table_input,
                     default_project_id,
@@ -2913,7 +2913,7 @@ def split_tablename(
     if project_id is None:
         if var_name is not None:
             log.info(
-                'Project not included in %s: %s; using project "%s"',
+                'Project is not included in %s: %s; using project "%s"',
                 var_name,
                 table_input,
                 default_project_id,
