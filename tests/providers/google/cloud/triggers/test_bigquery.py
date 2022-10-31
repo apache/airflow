@@ -425,7 +425,7 @@ async def test_bigquery_check_op_trigger_success_with_data(mock_job_output, mock
     generator = trigger.run()
     actual = await generator.asend(None)
 
-    assert TriggerEvent({"status": "success", "records": ["22"]}) == actual
+    assert TriggerEvent({"status": "success", "records": [22]}) == actual
 
 
 @pytest.mark.asyncio
@@ -507,7 +507,12 @@ async def test_bigquery_get_data_trigger_success_with_data(mock_job_output, mock
     mock_job_output.return_value = {
         "kind": "bigquery#tableDataList",
         "etag": "test_etag",
-        "schema": {"fields": [{"name": "f0_", "type": "INTEGER", "mode": "NULLABLE"}]},
+        "schema": {
+            "fields": [
+                {"name": "f0_", "type": "INTEGER", "mode": "NULLABLE"},
+                {"name": "f1_", "type": "STRING", "mode": "NULLABLE"},
+            ]
+        },
         "jobReference": {
             "projectId": "test-airflow-providers",
             "jobId": "test_jobid",
@@ -539,7 +544,7 @@ async def test_bigquery_get_data_trigger_success_with_data(mock_job_output, mock
             {
                 "status": "success",
                 "message": "success",
-                "records": [["42", "monthy python"], ["42", "fishy fish"]],
+                "records": [[42, "monthy python"], [42, "fishy fish"]],
             }
         )
         == actual
