@@ -146,6 +146,7 @@ jobs:
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mssql-exclude: ${{ steps.selective-checks.outputs.mssql-exclude }}
       sqlite-exclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
+      providers-package-format-exclude: ${{ steps.selective-checks.outputs.providers-package-format-exclude }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
       run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
@@ -668,14 +669,21 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: breeze ci fix-ownership
         if: always()
 
-  prepare-test-provider-packages-wheel:
+  prepare-test-provider-packages:
     timeout-minutes: 80
-    name: "Build and test provider packages wheel"
+    name: "Provider packages ${{matrix.package-format}}"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-ci-images]
+    strategy:
+      matrix:
+        package-format: ["sdist", "wheel"]
+        exclude: "${{fromJson(needs.build-info.outputs.providers-package-format-exclude)}}"
+      fail-fast: false
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      PACKAGE_FORMAT: "${{matrix.package-format}}"
+      USE_AIRFLOW_VERSION: "${{matrix.package-format}}"
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
     steps:
       - name: Cleanup repo
@@ -684,96 +692,42 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-        if: needs.build-info.outputs.default-branch == 'main'
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
-      - name: "Prepare provider documentation"
-        run: breeze release-management prepare-provider-documentation --answer yes
-      - name: "Prepare provider packages: wheel"
-        run: >
-          breeze release-management prepare-provider-packages
-          --package-format wheel --version-suffix-for-pypi dev0
-      - name: "Prepare airflow package: wheel"
-        run: >
-          breeze release-management prepare-airflow-package
-          --package-format wheel --version-suffix-for-pypi dev0
-      - name: "Install and test provider packages and airflow via wheel files"
-        run: >
-          breeze release-management verify-provider-packages
-          --use-airflow-version wheel --use-packages-from-dist --package-format wheel
+      - name: "Prepare provider packages: ${{matrix.package-format}}"
+        run: breeze release-management prepare-provider-packages --version-suffix-for-pypi dev0
+      - name: "Prepare airflow package: ${{matrix.package-format}}"
+        run: breeze release-management prepare-airflow-package --version-suffix-for-pypi dev0
+      - name: "Verify wheel packages with twine"
+        run: pipx install twine && twine check dist/*.whl
+        if: matrix.package-format == 'wheel'
+      - name: "Verify sdist packages with twine"
+        run: pipx install twine && twine check dist/*.tgz
+        if: matrix.package-format == 'sdist'
+      - name: "Install and test provider packages and airflow via ${{matrix.package-format}} files"
+        run: breeze release-management verify-provider-packages --use-packages-from-dist
         env:
           SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
-      - name: "Verify packages with twine"
-        run: |
-          pipx install twine
-          twine check dist/*.whl
       - name: "Remove airflow package and replace providers with 2.3-compliant versions"
         run: |
-          rm -vf dist/apache_airflow-*.whl \
-             dist/apache_airflow_providers_docker*.whl
-          pip download --no-deps --dest dist \
-              apache-airflow-providers-docker==3.1.0
-      - name: "Get all provider extras as AIRFLOW_EXTRAS evn variable"
+          rm -vf dist/apache_airflow-*.whl dist/apache_airflow_providers_docker*.whl
+          pip download --no-deps --dest dist apache-airflow-providers-docker==3.1.0
+        if: matrix.package-format == 'wheel'
+      - name: "Get all provider extras as AIRFLOW_EXTRAS env variable"
         run: >
           python -c 'from pathlib import Path; import json;
           providers = json.loads(Path("generated/provider_dependencies.json").read_text());
           provider_keys = ",".join(providers.keys());
           print("AIRFLOW_EXTRAS={}".format(provider_keys))' >> $GITHUB_ENV
+        if: matrix.package-format == 'wheel'
       - name: "Install and test provider packages and airflow on Airflow 2.3 files"
         run: >
           breeze release-management verify-provider-packages --use-airflow-version 2.3.0
-          --use-packages-from-dist --package-format wheel --airflow-constraints-reference constraints-2.3.0
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
-
-  prepare-test-provider-packages-sdist:
-    timeout-minutes: 80
-    name: "Build and test provider packages sdist"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-ci-images]
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-    if: >
-      needs.build-info.outputs.image-build == 'true' &&
-      needs.build-info.outputs.default-branch == 'main' &&
-      needs.build-info.outputs.canary-run == 'true'
-    steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
-        with:
-          persist-credentials: false
-      - name: >
-          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
-        uses: ./.github/actions/prepare_breeze_and_image
-      - name: "Cleanup dist files"
-        run: rm -fv ./dist/*
-      - name: "Prepare provider packages: sdist"
-        run: >
-          breeze release-management prepare-provider-packages
-          --package-format sdist --version-suffix-for-pypi dev0
-      - name: "Prepare airflow package: sdist"
-        run: >
-          breeze release-management prepare-airflow-package
-          --package-format sdist --version-suffix-for-pypi dev0
-      - name: "Upload provider distribution artifacts"
-        uses: actions/upload-artifact@v3
-        with:
-          name: airflow-provider-packages
-          path: "./dist/apache-airflow-providers-*.tar.gz"
-          retention-days: 1
-      - name: "Install and test provider packages and airflow via sdist files"
-        run: >
-          breeze release-management verify-provider-packages
-          --use-airflow-version sdist --use-packages-from-dist --package-format sdist
-        env:
-          SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
+          --use-packages-from-dist --airflow-constraints-reference constraints-2.3.0
+        if: matrix.package-format == 'wheel'
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
