@@ -241,6 +241,7 @@ class WorkflowsHook(GoogleBaseHook):
         metadata = metadata or ()
         client = self.get_executions_client()
         parent = f"projects/{project_id}/locations/{location}/workflows/{workflow_id}"
+        execution = {k: str(v) if isinstance(v, dict) else v for k, v in execution.items()}
         return client.create_execution(
             request={"parent": parent, "execution": execution},
             retry=retry,
