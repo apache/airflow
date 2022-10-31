@@ -26,6 +26,24 @@ from airflow.configuration import initialize_secrets_backends
 from airflow.providers.amazon.aws.secrets.systems_manager import SystemsManagerParameterStoreBackend
 from tests.test_utils.config import conf_vars
 
+URI_CONNECTION = pytest.param(
+    "postgres://my-login:my-pass@my-host:5432/my-schema?param1=val1&param2=val2", id="uri-connection"
+)
+JSON_CONNECTION = pytest.param(
+    json.dumps(
+        {
+            "conn_type": "postgres",
+            "login": "my-login",
+            "password": "my-pass",
+            "host": "my-host",
+            "port": 5432,
+            "schema": "my-schema",
+            "extra": {"param1": "val1", "param2": "val2"},
+        }
+    ),
+    id="json-connection",
+)
+
 
 class TestSsmSecrets:
     @mock.patch(
@@ -38,24 +56,7 @@ class TestSsmSecrets:
         assert conn.host == "host"
 
     @mock_ssm
-    @pytest.mark.parametrize(
-        "ssm_value",
-        [
-            "postgres://my-login:my-pass@my-host:5432/my-schema?param1=val1&param2=val2",
-            json.dumps(
-                {
-                    "conn_type": "postgres",
-                    "login": "my-login",
-                    "password": "my-pass",
-                    "host": "my-host",
-                    "port": 5432,
-                    "schema": "my-schema",
-                    "extra": {"param1": "val1", "param2": "val2"},
-                }
-            ),
-        ],
-        ids=["uri-conn", "json-conn"],
-    )
+    @pytest.mark.parametrize("ssm_value", [JSON_CONNECTION, URI_CONNECTION])
     def test_get_conn_value(self, ssm_value):
         param = {
             "Name": "/airflow/connections/test_postgres",
@@ -80,24 +81,7 @@ class TestSsmSecrets:
         assert test_conn.extra_dejson == {"param1": "val1", "param2": "val2"}
 
     @mock_ssm
-    @pytest.mark.parametrize(
-        "ssm_value",
-        [
-            "postgres://my-login:my-pass@my-host:5432/my-schema?param1=val1&param2=val2",
-            json.dumps(
-                {
-                    "conn_type": "postgres",
-                    "login": "my-login",
-                    "password": "my-pass",
-                    "host": "my-host",
-                    "port": 5432,
-                    "schema": "my-schema",
-                    "extra": {"param1": "val1", "param2": "val2"},
-                }
-            ),
-        ],
-        ids=["uri-conn", "json-conn"],
-    )
+    @pytest.mark.parametrize("ssm_value", [JSON_CONNECTION, URI_CONNECTION])
     def test_deprecated_get_conn_uri(self, ssm_value):
         param = {
             "Name": "/airflow/connections/test_postgres",
