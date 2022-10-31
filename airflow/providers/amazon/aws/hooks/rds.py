@@ -180,7 +180,6 @@ class RdsHook(AwsGenericHook["RDSClient"]):
             return self.get_export_task_state(export_task_id)
 
         target_state = target_state.lower()
-        # error_statuses=['canceling', 'canceled'], # todo
         self._wait_on_state(poke, target_state, check_interval, max_attempts)
         self.log.info("export task '%s' reached the '%s' state" % (export_task_id, target_state))
 

@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.hooks.sns import SnsHook
 
 @pytest.fixture
 def rds_hook() -> RdsHook:
+    """Returns an RdsHook whose underlying connection is mocked with moto"""
     with mock_rds():
         yield RdsHook(aws_conn_id="aws_default", region_name="us-east-1")
 
@@ -48,7 +49,6 @@ def db_instance_id(rds_hook: RdsHook) -> str:
     return response["DBInstance"]["DBInstanceIdentifier"]
 
 
-# Todo: Set scope of these fixtures to this file only (don't pollute global namespace)
 @pytest.fixture
 def db_cluster_id(rds_hook: RdsHook) -> str:
     """Creates an RDS DB cluster and returns its id"""
