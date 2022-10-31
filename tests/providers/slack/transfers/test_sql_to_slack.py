@@ -186,11 +186,11 @@ class TestSqlToSlackOperator:
             sql="SELECT 1",
             slack_message="message: {{ ds }}, {{ xxxx }}",
             sql_hook_params={
-                "schema": "public",
+                "log_sql": False,
             },
         )
         hook = op._get_hook()
-        assert hook.schema == "public"
+        assert hook.log_sql == op.sql_hook_params["log_sql"]
 
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseHook.get_connection")
     def test_hook_params_snowflake(self, mock_get_conn):
