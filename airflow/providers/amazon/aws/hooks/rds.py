@@ -84,7 +84,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
 
         target_state = target_state.lower()
         if target_state in ("available", "deleted", "completed"):
-            waiter = self.conn.get_waiter(f"db_snapshot_{target_state}")
+            waiter = self.conn.get_waiter(f"db_snapshot_{target_state}")  # type: ignore
             waiter.wait(
                 DBSnapshotIdentifier=snapshot_id,
                 WaiterConfig={"Delay": check_interval, "MaxAttempts": max_attempts},
@@ -130,7 +130,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
 
         target_state = target_state.lower()
         if target_state in ("available", "deleted"):
-            waiter = self.conn.get_waiter(f"db_cluster_snapshot_{target_state}")
+            waiter = self.conn.get_waiter(f"db_cluster_snapshot_{target_state}")  # type: ignore
             waiter.wait(
                 DBClusterSnapshotIdentifier=snapshot_id,
                 WaiterConfig={"Delay": check_interval, "MaxAttempts": max_attempts},
@@ -261,7 +261,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
 
         target_state = target_state.lower()
         if target_state in ("available", "deleted"):
-            waiter = self.conn.get_waiter(f"db_instance_{target_state}")
+            waiter = self.conn.get_waiter(f"db_instance_{target_state}")  # type: ignore
             waiter.wait(
                 DBInstanceIdentifier=db_instance_id,
                 WaiterConfig={"Delay": check_interval, "MaxAttempts": max_attempts},
@@ -308,7 +308,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
 
         target_state = target_state.lower()
         if target_state in ("available", "deleted"):
-            waiter = self.conn.get_waiter(f"db_cluster_{target_state}")
+            waiter = self.conn.get_waiter(f"db_cluster_{target_state}")  # type: ignore
             waiter.wait(
                 DBClusterIdentifier=db_cluster_id,
                 WaiterConfig={"Delay": check_interval, "MaxAttempts": max_attempts},
