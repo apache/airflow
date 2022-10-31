@@ -68,7 +68,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         return state
 
     def wait_for_db_snapshot_state(
-        self, snapshot_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 60
+        self, snapshot_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
     ) -> None:
         """
         Polls :py:meth:`RDS.Client.describe_db_snapshots` until the target state is reached.
@@ -113,7 +113,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         return state
 
     def wait_for_db_cluster_snapshot_state(
-        self, snapshot_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 60
+        self, snapshot_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
     ) -> None:
         """
         Polls :py:meth:`RDS.Client.describe_db_cluster_snapshots` until the target state is reached.
@@ -136,7 +136,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         if target_state in ("available", "deleted"):
             waiter = self.conn.get_waiter(f"db_cluster_snapshot_{target_state}")
             waiter.wait(
-                DBSnapshotIdentifier=snapshot_id,
+                DBClusterSnapshotIdentifier=snapshot_id,
                 WaiterConfig={"Delay": check_interval, "MaxAttempts": max_attempts},
             )
         else:
@@ -162,7 +162,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         return state
 
     def wait_for_export_task_state(
-        self, export_task_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 60
+        self, export_task_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
     ) -> None:
         """
         Polls :py:meth:`RDS.Client.describe_export_tasks` until the target state is reached.
@@ -205,7 +205,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         return state
 
     def wait_for_event_subscription_state(
-        self, subscription_name: str, target_state: str, check_interval: int = 30, max_attempts: int = 60
+        self, subscription_name: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
     ) -> None:
         """
         Polls :py:meth:`RDS.Client.describe_event_subscriptions` until the target state is reached.
@@ -245,7 +245,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         return state
 
     def wait_for_db_instance_state(
-        self, db_instance_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 60
+        self, db_instance_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
     ) -> None:
         """
         Polls :py:meth:`RDS.Client.describe_db_instances` until the target state is reached.
@@ -292,7 +292,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         return state
 
     def wait_for_db_cluster_state(
-        self, db_cluster_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 60
+        self, db_cluster_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
     ) -> None:
         """
         Polls :py:meth:`RDS.Client.describe_db_clusters` until the target state is reached.
