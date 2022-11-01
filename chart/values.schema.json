@@ -4161,6 +4161,11 @@
                     "x-docsSection": "Common",
                     "default": false
                 },
+                "replicas": {
+                    "description": "Number of PgBouncer replicas to run in Deployment.",
+                    "type": "integer",
+                    "default": 1
+                },
                 "revisionHistoryLimit": {
                     "description": "Number of old replicasets to retain.",
                     "type": [
