@@ -231,7 +231,7 @@ def find_airflow_sources_root_to_operate_on() -> Path:
         get_console().print(
             "\n[error]Breeze should only be installed with -e flag[/]\n\n"
             "[warning]Please go to Airflow sources and run[/]\n\n"
-            f"     {NAME} self-upgrade --force\n"
+            f"     {NAME} self-upgrade\n"
         )
         sys.exit(1)
     airflow_sources = get_used_airflow_sources()
