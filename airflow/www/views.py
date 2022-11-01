@@ -654,9 +654,10 @@ class Airflow(AirflowBaseView):
             dags_query = session.query(DagModel).filter(~DagModel.is_subdag, DagModel.is_active)
 
             if arg_search_query:
+                escaped_arg_search_query = arg_search_query.replace("_", r"\_")
                 dags_query = dags_query.filter(
-                    DagModel.dag_id.ilike('%' + arg_search_query + '%')
-                    | DagModel.owners.ilike('%' + arg_search_query + '%')
+                    DagModel.dag_id.ilike("%" + escaped_arg_search_query + "%", escape="\\")
+                    | DagModel.owners.ilike("%" + escaped_arg_search_query + "%", escape="\\")
                 )
 
             if arg_tags_filter:
