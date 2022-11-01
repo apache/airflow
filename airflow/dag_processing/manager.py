@@ -712,9 +712,9 @@ class DagFileProcessorManager(LoggingMixin):
                 # Remove file paths matching request.full_filepath from self._file_path_queue
                 # Since we are already going to use that filepath to run callback,
                 # there is no need to have same file path again in the queue
-                self._file_path_queue = collections.deque([
-                    file_path for file_path in self._file_path_queue if file_path != request.full_filepath
-                ])
+                self._file_path_queue = collections.deque(
+                    [file_path for file_path in self._file_path_queue if file_path != request.full_filepath]
+                )
             self._file_path_queue.appendleft(request.full_filepath)
 
     def _refresh_dag_dir(self):
@@ -1037,7 +1037,6 @@ class DagFileProcessorManager(LoggingMixin):
             self._processors[file_path] = processor
             self.waitables[processor.waitable_handle] = processor
 
-
     def add_new_file_path_to_queue(self):
         for file_path in self.file_paths:
             if file_path not in self._file_stats:
@@ -1047,7 +1046,6 @@ class DagFileProcessorManager(LoggingMixin):
                     num_dags=0, import_errors=0, last_finish_time=None, last_duration=None, run_count=0
                 )
                 self._file_path_queue.appendleft(file_path)
-
 
     def prepare_file_path_queue(self):
         """Generate more file paths to process. Result are saved in _file_path_queue."""
