@@ -1381,6 +1381,8 @@ statsd:
 pgbouncer:
   # Enable PgBouncer
   enabled: false
+  # Defines number of pgbouncer replicas to run in deployment
+  replicas: 1
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
   # Command to use for PgBouncer(templated).

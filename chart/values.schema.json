@@ -4161,6 +4161,11 @@
                     "x-docsSection": "Common",
                     "default": false
                 },
+                "replicas": {
+                    "description": "Number of pgbouncer replicas to run in deployment.",
+                    "type": "integer",
+                    "default": 1
+                },
                 "revisionHistoryLimit": {
                     "description": "Number of old replicasets to retain.",
                     "type": [
