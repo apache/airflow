@@ -220,6 +220,46 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "triggerer_job": None,
         }
 
+    @provide_session
+    @mock.patch(
+        "airflow.api_connexion.schemas.task_instance_schema.ExecutorConfigField._super_serialize",
+        side_effect=AttributeError(),
+    )
+    def test_task_instance_executor_config_exception(self, mock_executor_config, session):
+        self.create_task_instances(session)
+        response = self.client.get(
+            "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json == {
+            "dag_id": "example_python_operator",
+            "duration": 10000.0,
+            "end_date": "2020-01-03T00:00:00+00:00",
+            "execution_date": "2020-01-01T00:00:00+00:00",
+            "executor_config": "{}",
+            "hostname": "",
+            "map_index": -1,
+            "max_tries": 0,
+            "operator": "_PythonDecoratedOperator",
+            "pid": 100,
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "priority_weight": 9,
+            "queue": "default_queue",
+            "queued_when": None,
+            "sla_miss": None,
+            "start_date": "2020-01-02T00:00:00+00:00",
+            "state": "running",
+            "task_id": "print_the_context",
+            "try_number": 0,
+            "unixname": getuser(),
+            "dag_run_id": "TEST_DAG_RUN_ID",
+            "rendered_fields": {},
+            "trigger": None,
+            "triggerer_job": None,
+        }
+
     def test_should_respond_200_with_task_state_in_deferred(self, session):
         now = pendulum.now("UTC")
         ti = self.create_task_instances(

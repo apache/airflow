@@ -33,6 +33,17 @@ from airflow.utils.helpers import exactly_one
 from airflow.utils.state import State
 
 
+class _ExecutorConfigField(fields.String):
+    def _super_serialize(self, value, attr, obj):
+        return super()._serialize(value, attr, obj)
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        try:
+            return self._super_serialize(value, attr, obj)
+        except Exception:
+            return "{}"
+
+
 class TaskInstanceSchema(SQLAlchemySchema):
     """Task instance schema."""
 
