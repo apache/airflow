@@ -765,8 +765,8 @@ class TestWebserverConfigmap:
             },
             show_only=[
                 "templates/configmaps/scheduler-deployment.yaml",
-                "templates/configmaps/triggerer-deployment.yaml"
-                "templates/configmaps/webserver-deployment.yaml"
+                "templates/configmaps/triggerer-deployment.yaml",
+                "templates/configmaps/webserver-deployment.yaml",
                 "templates/configmaps/worker-deployment.yaml",
             ],
         )
