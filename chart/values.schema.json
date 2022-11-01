@@ -602,7 +602,7 @@
                         "tag": {
                             "description": "The redis image tag.",
                             "type": "string",
-                            "default": "6-bullseye"
+                            "default": "7-bullseye"
                         },
                         "pullPolicy": {
                             "description": "The redis image pull policy.",
