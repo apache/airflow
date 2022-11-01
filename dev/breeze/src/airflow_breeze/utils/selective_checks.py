@@ -306,7 +306,7 @@ class SelectiveChecks:
     def python_versions(self) -> list[str]:
         return (
             CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
-            if self.full_tests_needed
+            if self._run_everything or self.full_tests_needed
             else [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
         )
 
