@@ -4162,7 +4162,7 @@
                     "default": false
                 },
                 "replicas": {
-                    "description": "Number of pgbouncer replicas to run in deployment.",
+                    "description": "Number of PgBouncer replicas to run in Deployment.",
                     "type": "integer",
                     "default": 1
                 },
