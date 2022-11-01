@@ -133,7 +133,7 @@ spec:
               subPath: airflow.cfg
               readOnly: true
 {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigmapName }}
-            {{ include "airflow_webserver_config_mount" . | indent 12 }}
+{{ include "airflow_webserver_config_mount" . | indent 12 }}
 {{- end }}
           args:
           {{- include "wait-for-migrations-command" . | indent 10 }}
@@ -176,7 +176,7 @@ spec:
               subPath: airflow.cfg
               readOnly: true
 {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigmapName }}
-            {{ include "airflow_webserver_config_mount" . | indent 12 }}
+{{ include "airflow_webserver_config_mount" . | indent 12 }}
 {{- end }}
 {{- if .Values.airflowLocalSettings }}
             - name: config
