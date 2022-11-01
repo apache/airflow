@@ -76,11 +76,21 @@ The ``virtualenv`` package needs to be installed in the environment that runs Ai
     The ``@task.virtualenv`` decorator is recommended over the classic :class:`~airflow.operators.python.PythonVirtualenvOperator`
     to execute Python callables inside new Python virtual environments.
 
+TaskFlow example of using the PythonVirtualenvOperator:
+
 .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_python_venv]
     :end-before: [END howto_operator_python_venv]
+
+Classic example of using the PythonVirtualenvOperator:
+
+.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_python_venv_classic]
+    :end-before: [END howto_operator_python_venv_classic]
 
 Passing in arguments
 ^^^^^^^^^^^^^^^^^^^^
@@ -109,18 +119,36 @@ ExternalPythonOperator
 ======================
 
 The ``ExternalPythonOperator`` can help you to run some of your tasks with a different set of Python
-libraries than other tasks (and than the main Airflow environment).
+libraries than other tasks (and than the main Airflow environment). This might be a virtual environment
+or any installation of Python that is preinstalled and available in the environment where Airflow
+task is running. The operator takes Python binary as ``python`` parameter. Note, that even in case of
+virtual environment, the ``python`` path should point to the python binary inside the virtual environment
+(usually in ``bin`` subdirectory of the virtual environment). Contrary to regular use of virtual
+environment, there is no need for ``activation`` of the environment. Merely using ``python`` binary
+automatically activates it. In both examples below ``PATH_TO_PYTHON_BINARY`` is such a path, pointing
+to the executable Python binary.
 
 Use the :class:`~airflow.operators.python.ExternalPythonOperator` to execute Python callables inside a
-pre-defined virtual environment. The virtualenv should be preinstalled in the environment where
-Python is run and in case ``dill`` is used, it has to be preinstalled in the virtualenv (the same
-version that is installed in main Airflow environment).
+pre-defined environment. The virtualenv should be preinstalled in the environment where Python is run.
+In case ``dill`` is used, it has to be preinstalled in the environment (the same version that is installed
+in main Airflow environment).
+
+TaskFlow example of using the operator:
 
 .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_external_python]
     :end-before: [END howto_operator_external_python]
+
+Classic example of using the operator:
+
+.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_external_python_classic]
+    :end-before: [END howto_operator_external_python_classic]
+
 
 Passing in arguments
 ^^^^^^^^^^^^^^^^^^^^
