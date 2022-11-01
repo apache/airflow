@@ -129,9 +129,9 @@ automatically activates it. In both examples below ``PATH_TO_PYTHON_BINARY`` is 
 to the executable Python binary.
 
 Use the :class:`~airflow.operators.python.ExternalPythonOperator` to execute Python callables inside a
-pre-defined environment. The virtualenv should be preinstalled in the environment where Python is run. In case ``dill`` is used, ...
-Python is run and in case ``dill`` is used, it has to be preinstalled in the environment (the same
-version that is installed in main Airflow environment).
+pre-defined environment. The virtualenv should be preinstalled in the environment where Python is run.
+In case ``dill`` is used, it has to be preinstalled in the environment (the same version that is installed
+in main Airflow environment).
 
 TaskFlow example of using the operator:
 
