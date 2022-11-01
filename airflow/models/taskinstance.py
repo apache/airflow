@@ -2449,7 +2449,8 @@ class TaskInstance(Base, LoggingMixin):
             )
 
         filter_condition = []
-        # create 2 groups, 1 grouped by task_id the other by map_index and use the smaller group
+        # create 2 nested groups, both primarily grouped by dag_id and run_id, 
+        # and in the nested group 1 grouped by task_id the other by map_index
         task_id_groups, map_index_groups = defaultdict(lambda: defaultdict(list)), defaultdict(lambda: defaultdict(list))
         for t in tis:
             task_id_groups[(t.dag_id, t.run_id)][t.task_id].append(t.map_index)
@@ -2461,7 +2462,7 @@ class TaskInstance(Base, LoggingMixin):
             for cur_run_id in run_ids:
                 # we compare the group size between task_id and map_index and use the smaller group
                 dag_task_id_groups = task_id_groups[(cur_dag_id, cur_run_id)]
-                dag_map_index_groups = task_id_groups[(cur_dag_id, cur_run_id)]
+                dag_map_index_groups = map_index_groups[(cur_dag_id, cur_run_id)]
 
                 if len(dag_task_id_groups) <= len(dag_map_index_groups):
                     for cur_task_id, cur_map_indices in dag_task_id_groups.items():
