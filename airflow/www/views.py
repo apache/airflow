@@ -2058,9 +2058,7 @@ class Airflow(AirflowBaseView):
                 return redirect_or_json(
                     origin, msg=f"TaskGroup {group_id} could not be found", status="error", status_code=404
                 )
-            tasks = task_group.get_task_dict()
-            task_ids = list(tasks.keys())
-            task_ids_or_regex = task_ids
+            task_ids = task_ids_or_regex = [t.task_id for t in task_group.iter_tasks()]
         else:
             if map_indexes is None:
                 task_ids = [task_id]

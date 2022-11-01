@@ -477,6 +477,9 @@ class TaskGroup(DAGNode):
     def get_task_dict(self) -> dict[str, AbstractOperator]:
         """Returns a flat dictionary of task_id: AbstractOperator"""
         task_map: dict[str, AbstractOperator] = {}
+
+    def iter_tasks(self) -> Iterator[AbstractOperator]:
+        """Returns an iterator of the child tasks."""
         groups_to_visit = [self]
 
         while groups_to_visit:
@@ -484,15 +487,13 @@ class TaskGroup(DAGNode):
 
             for child in visiting.children.values():
                 if isinstance(child, AbstractOperator):
-                    task_map[child.task_id] = child
+                    yield child
                 elif isinstance(child, TaskGroup):
                     groups_to_visit.append(child)
                 else:
                     raise ValueError(
                         f"Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child)}"
                     )
-
-        return task_map
 
 
 class MappedTaskGroup(TaskGroup):
