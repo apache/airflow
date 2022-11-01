@@ -75,7 +75,11 @@ from airflow_breeze.utils.docker_command_utils import (
     get_extra_docker_flags,
     perform_environment_checks,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, create_mypy_volume_if_needed
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_SOURCES_ROOT,
+    cleanup_python_generated_files,
+    create_mypy_volume_if_needed,
+)
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
     assert_pre_commit_installed,
@@ -324,6 +328,7 @@ def build_docs(
         get_console().print("\n[warning]When building docs for production, clan-build is forced\n")
         clean_build = True
     perform_environment_checks()
+    cleanup_python_generated_files()
     params = BuildCiParams(github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
     rebuild_or_pull_ci_image_if_needed(command_params=params)
     if clean_build:
@@ -523,6 +528,7 @@ def enter_shell(**kwargs) -> RunCommandResult:
 
     """
     perform_environment_checks()
+    cleanup_python_generated_files()
     if read_from_cache_file("suppress_asciiart") is None:
         get_console().print(ASCIIART, style=ASCIIART_STYLE)
     if read_from_cache_file("suppress_cheatsheet") is None:
