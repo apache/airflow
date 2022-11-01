@@ -764,10 +764,10 @@ class TestWebserverConfigmap:
                 "workers": {"kerberosSidecar": {"enabled": True}, "persistence": {"enabled": True}},
             },
             show_only=[
-                "templates/configmaps/scheduler-deployment.yaml",
-                "templates/configmaps/triggerer-deployment.yaml",
-                "templates/configmaps/webserver-deployment.yaml",
-                "templates/configmaps/worker-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
             ],
         )
         for index in range(len(docs)):
