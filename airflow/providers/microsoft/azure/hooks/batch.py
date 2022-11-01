@@ -27,6 +27,7 @@ from azure.batch.models import JobAddParameter, PoolAddParameter, TaskAddParamet
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
+from airflow.providers.microsoft.azure.utils import get_field
 from airflow.utils import timezone
 
 
@@ -43,6 +44,14 @@ class AzureBatchHook(BaseHook):
     conn_type = "azure_batch"
     hook_name = "Azure Batch Service"
 
+    def _get_field(self, extras, name):
+        return get_field(
+            conn_id=self.conn_id,
+            conn_type=self.conn_type,
+            extras=extras,
+            field_name=name,
+        )
+
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
@@ -51,9 +60,7 @@ class AzureBatchHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "extra__azure_batch__account_url": StringField(
-                lazy_gettext("Batch Account URL"), widget=BS3TextFieldWidget()
-            ),
+            "account_url": StringField(lazy_gettext("Batch Account URL"), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
@@ -85,7 +92,7 @@ class AzureBatchHook(BaseHook):
         """
         conn = self._connection()
 
-        batch_account_url = conn.extra_dejson.get("extra__azure_batch__account_url")
+        batch_account_url = self._get_field(conn.extra_dejson, "account_url")
         if not batch_account_url:
             raise AirflowException("Batch Account URL parameter is missing.")
 

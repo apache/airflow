@@ -70,6 +70,8 @@ class TriggerDagRunOperator(BaseOperator):
     :param execution_date: Execution date for the dag (templated).
     :param reset_dag_run: Whether or not clear existing dag run if already exists.
         This is useful when backfill or rerun an existing dag run.
+        This only resets (not recreates) the dag run.
+        Dag run conf is immutable and will not be reset on rerun of an existing dag run.
         When reset_dag_run=False and dag run exists, DagRunAlreadyExists will be raised.
         When reset_dag_run=True and dag run exists, existing dag run will be cleared to rerun.
     :param wait_for_completion: Whether or not wait for dag run completion. (default: False)

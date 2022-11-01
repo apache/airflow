@@ -218,7 +218,7 @@ class S3Hook(AwsBaseHook):
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.head_bucket
             return_code = int(e.response["Error"]["Code"])
             if return_code == 404:
-                self.log.error('Bucket "%s" does not exist', bucket_name)
+                self.log.info('Bucket "%s" does not exist', bucket_name)
             elif return_code == 403:
                 self.log.error(
                     'Access to bucket "%s" is forbidden or there was an error with the request', bucket_name

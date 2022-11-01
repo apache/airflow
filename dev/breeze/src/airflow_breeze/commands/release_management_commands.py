@@ -74,6 +74,7 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
+from airflow_breeze.utils.path_utils import cleanup_python_generated_files
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
@@ -91,13 +92,15 @@ option_debug_release_management = click.option(
 )
 
 
-def run_with_debug(
+def run_docker_command_with_debug(
     params: ShellParams,
     command: list[str],
     debug: bool,
     enable_input: bool = False,
+    output_outside_the_group: bool = False,
     **kwargs,
 ) -> RunCommandResult:
+    cleanup_python_generated_files()
     env_variables = get_env_variables_for_docker_commands(params)
     extra_docker_flags = get_extra_docker_flags(mount_sources=params.mount_sources)
     if enable_input or debug:
@@ -130,6 +133,7 @@ echo -e '\\e[34mRun this command to debug:
         return run_command(
             base_command,
             env=env_variables,
+            output_outside_the_group=output_outside_the_group,
             **kwargs,
         )
     else:
@@ -138,6 +142,7 @@ echo -e '\\e[34mRun this command to debug:
             base_command,
             env=env_variables,
             check=False,
+            output_outside_the_group=output_outside_the_group,
             **kwargs,
         )
 
@@ -180,10 +185,11 @@ def prepare_airflow_packages(
         mount_sources=MOUNT_ALL,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
-    result_command = run_with_debug(
+    result_command = run_docker_command_with_debug(
         params=shell_params,
         command=["/opt/airflow/scripts/in_container/run_prepare_airflow_packages.sh"],
         debug=debug,
+        output_outside_the_group=True,
     )
     sys.exit(result_command.returncode)
 
@@ -220,7 +226,7 @@ def prepare_provider_documentation(
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     cmd_to_run = ["/opt/airflow/scripts/in_container/run_prepare_provider_documentation.sh", *packages]
     answer = get_forced_answer()
-    result_command = run_with_debug(
+    result_command = run_docker_command_with_debug(
         params=shell_params,
         command=cmd_to_run,
         enable_input=answer is None or answer[0].lower() != "y",
@@ -267,7 +273,7 @@ def prepare_provider_packages(
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     cmd_to_run = ["/opt/airflow/scripts/in_container/run_prepare_provider_packages.sh", *packages_list]
-    result_command = run_with_debug(
+    result_command = run_docker_command_with_debug(
         params=shell_params,
         command=cmd_to_run,
         debug=debug,
@@ -283,11 +289,12 @@ def run_generate_constraints(
     cmd_to_run = [
         "/opt/airflow/scripts/in_container/run_generate_constraints.sh",
     ]
-    generate_constraints_result = run_with_debug(
+    generate_constraints_result = run_docker_command_with_debug(
         params=shell_params,
         command=cmd_to_run,
         debug=debug,
         output=output,
+        output_outside_the_group=True,
     )
     return (
         generate_constraints_result.returncode,
@@ -487,10 +494,11 @@ def verify_provider_packages(
         "-c",
         "python /opt/airflow/scripts/in_container/verify_providers.py",
     ]
-    result_command = run_with_debug(
+    result_command = run_docker_command_with_debug(
         params=shell_params,
         command=cmd_to_run,
         debug=debug,
+        output_outside_the_group=True,
     )
     sys.exit(result_command.returncode)
 
