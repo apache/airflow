@@ -113,10 +113,6 @@ def action_cli(func=None, check_db=True):
             finally:
                 metrics['end_datetime'] = datetime.utcnow()
                 cli_action_loggers.on_post_execution(**metrics)
-                if verbose:
-                    root_logger.setLevel(logging.NOTSET)
-                    for handler in root_logger.handlers:
-                        handler.setLevel(logging.NOTSET)
 
         return cast(T, wrapper)
 
