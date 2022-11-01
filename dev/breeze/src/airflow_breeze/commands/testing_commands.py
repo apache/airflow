@@ -153,7 +153,6 @@ def _run_test(
         "--remove-orphans",
     ]
     run_command(down_cmd, env=env_variables, output=output, check=False)
-    cleanup_python_generated_files()
     run_cmd = [
         *DOCKER_COMPOSE_COMMAND,
         "--project-name",
@@ -410,6 +409,7 @@ def tests(
         forward_ports=False,
         test_type=test_type,
     )
+    cleanup_python_generated_files()
     if run_in_parallel:
         run_tests_in_parallel(
             exec_shell_params=exec_shell_params,
