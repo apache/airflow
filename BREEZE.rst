@@ -247,7 +247,7 @@ Those are all available commands for Breeze and details about the commands are d
 
 Breeze installed this way is linked to your checked out sources of Airflow so Breeze will
 automatically use latest version of sources from ``./dev/breeze``. Sometimes, when dependencies are
-updated ``breeze`` commands with offer you to run self-upgrade (you just need to answer ``y`` when asked).
+updated ``breeze`` commands with offer you to run self-upgrade.
 
 You can always run such self-upgrade at any time:
 
