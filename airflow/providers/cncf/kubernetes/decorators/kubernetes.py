@@ -57,7 +57,16 @@ def _read_file_contents(filename):
 class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     custom_operator_name = "@task.kubernetes"
 
-    template_fields: Sequence[str] = ("op_args", "op_kwargs", "env_vars")
+
+    # This allows for jinja template rendering of the template_fields passed
+    # to the KubernetesPodOperator. 
+    # cmds and arguments are specifically excluded as these are explicitly 
+    # used when running the python file generated from the code
+    # below the decorator.
+
+    template_fields: Sequence[str] = tuple(
+        {"op_args", "op_kwargs"} | set(KubernetesPodOperator.template_fields) - {"cmds", "arguments"}
+    )
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
