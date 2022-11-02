@@ -89,6 +89,7 @@ interface SeparateGraphsProps extends DatasetDependencies {
 const graphIndicesToMerge: Record<number, number[]> = {};
 const indicesToRemove: number[] = [];
 
+// find the downstream graph of each upstream edge
 const findDownstreamGraph = (
   { edges, nodes, graphs = [] }: SeparateGraphsProps,
 ): DatasetDependencies[] => {
@@ -96,28 +97,40 @@ const findDownstreamGraph = (
   let filteredEdges = [...edges];
 
   graphs.forEach((g, i) => {
-    const newEdges = edges.filter((e) => g.edges.some((ge) => ge.target === e.source));
-    const newNodes: DepNode[] = [];
-    newEdges.forEach((e) => {
+    // find downstream edges
+    const downstreamEdges = edges.filter((e) => g.edges.some((ge) => ge.target === e.source));
+    const downstreamNodes: DepNode[] = [];
+
+    downstreamEdges.forEach((e) => {
       const newNode = nodes.find((n) => n.id === e.target);
       if (newNode) {
-        newNodes.push(newNode);
+        downstreamNodes.push(newNode);
+
+        // check if the node already exists in a different graph
         const existingGraphIndex = newGraphs
           .findIndex(((ng) => ng.nodes.some((n) => n.id === newNode.id)));
+
+        // mark if the graph needs to merge with another
         if (existingGraphIndex > -1) {
           indicesToRemove.push(existingGraphIndex);
           graphIndicesToMerge[i] = [...(graphIndicesToMerge[i] || []), existingGraphIndex];
         }
+
+        // add node and edge to the graph
         newGraphs[i] = {
           nodes: [...newGraphs[i].nodes, newNode],
           edges: [...newGraphs[i].edges, e],
         };
+
+        // remove edge from edge list
         filteredEdges = filteredEdges
           .filter((fe) => !(fe.source === e.source && fe.target === e.target));
       }
     });
   });
 
+  // once there are no more filtered edges left, merge relevant graphs
+  // we merge afterwards to make sure we captured all nodes + edges
   if (!filteredEdges.length) {
     Object.keys(graphIndicesToMerge).forEach((key) => {
       const realKey = key as unknown as number;
@@ -132,38 +145,48 @@ const findDownstreamGraph = (
         };
       });
     });
-
     return newGraphs.filter((g, i) => !indicesToRemove.some((j) => i === j));
   }
+
   return findDownstreamGraph({ edges: filteredEdges, nodes, graphs: newGraphs });
 };
 
+// separate the list of nodes/edges into distinct dataset pipeline graphs
 const separateGraphs = ({ edges, nodes }: DatasetDependencies): DatasetDependencies[] => {
-  const newGraphs: DatasetDependencies[] = [];
+  const separatedGraphs: DatasetDependencies[] = [];
   let remainingEdges = [...edges];
   let remainingNodes = [...nodes];
 
   edges.forEach((edge) => {
-    const downstreams = edges.filter((e) => e.target === edge.source);
-    if (!downstreams.length) {
-      const newNodes = nodes.filter((n) => n.id === edge.source || n.id === edge.target);
-      const nodesInUse = newGraphs
-        .findIndex((g) => g.nodes.some((n) => newNodes.some((nn) => nn.id === n.id)));
+    const isDownstream = edges.some((e) => e.target === edge.source);
+
+    // if the edge is not downstream of anything, then start building the graph
+    if (!isDownstream) {
+      const connectedNodes = nodes.filter((n) => n.id === edge.source || n.id === edge.target);
+
+      // check if the node is already connected to a separated graph
+      const nodesInUse = separatedGraphs
+        .findIndex((g) => g.nodes.some((n) => connectedNodes.some((nn) => nn.id === n.id)));
+
       if (nodesInUse > -1) {
-        const { nodes: existingNodes, edges: existingEdges } = newGraphs[nodesInUse];
-        newGraphs[nodesInUse] = { nodes: unionBy(existingNodes, newNodes, 'id'), edges: [...existingEdges, edge] };
+        // if the node is in use, merge the graphs
+        const { nodes: existingNodes, edges: existingEdges } = separatedGraphs[nodesInUse];
+        separatedGraphs[nodesInUse] = { nodes: unionBy(existingNodes, connectedNodes, 'id'), edges: [...existingEdges, edge] };
       } else {
-        newGraphs.push({ nodes: newNodes, edges: [edge] });
+        // else just add the new separated graph
+        separatedGraphs.push({ nodes: connectedNodes, edges: [edge] });
       }
+
+      // filter out used nodes and edges
       remainingEdges = remainingEdges.filter((e) => e.source !== edge.source);
-      remainingNodes = remainingNodes.filter((n) => !newNodes.some((nn) => nn.id === n.id));
+      remainingNodes = remainingNodes.filter((n) => !connectedNodes.some((nn) => nn.id === n.id));
     }
   });
 
   if (remainingEdges.length) {
-    return findDownstreamGraph({ edges: remainingEdges, nodes, graphs: newGraphs });
+    return findDownstreamGraph({ edges: remainingEdges, nodes, graphs: separatedGraphs });
   }
-  return newGraphs;
+  return separatedGraphs;
 };
 
 const formatDependencies = async ({ edges, nodes }: DatasetDependencies) => {
