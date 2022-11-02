@@ -37,9 +37,10 @@ class SageMakerBaseSensor(BaseSensorOperator):
 
     ui_color = "#ededed"
 
-    def __init__(self, *, aws_conn_id: str = "aws_default", **kwargs):
+    def __init__(self, *, aws_conn_id: str = "aws_default", resource_type: str = "job", **kwargs):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
+        self.resource_type = resource_type  # only used for logs, to say what kind of resource we are sensing
         self.hook: SageMakerHook | None = None
 
     def get_hook(self) -> SageMakerHook:
@@ -55,12 +56,13 @@ class SageMakerBaseSensor(BaseSensorOperator):
             self.log.info("Bad HTTP response: %s", response)
             return False
         state = self.state_from_response(response)
-        self.log.info("Job currently %s", state)
+        self.log.info("%s currently %s", self.resource_type, state)
         if state in self.non_terminal_states():
             return False
         if state in self.failed_states():
             failed_reason = self.get_failed_reason_from_response(response)
-            raise AirflowException(f"Sagemaker job failed for the following reason: {failed_reason}")
+            raise AirflowException(
+                f"Sagemaker {self.resource_type} failed for the following reason: {failed_reason}")
         return True
 
     def non_terminal_states(self) -> set[str]:
@@ -269,3 +271,23 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
 
     def state_from_response(self, response):
         return response["TrainingJobStatus"]
+
+
+class SageMakerPipelineSensor(SageMakerBaseSensor):
+
+    def __init__(self, *, pipeline_exec_arn: str, **kwargs):
+        super().__init__(resource_type="pipeline", **kwargs)
+        self.pipeline_exec_arn = pipeline_exec_arn
+
+    def non_terminal_states(self) -> set[str]:
+        return SageMakerHook.pipeline_non_terminal_states
+
+    def failed_states(self) -> set[str]:
+        return SageMakerHook.failed_states
+
+    def get_sagemaker_response(self) -> dict:
+        self.log.info("Poking Sagemaker Pipeline Execution %s", self.pipeline_exec_arn)
+        return self.get_hook().describe_pipeline_exec(self.pipeline_exec_arn)
+
+    def state_from_response(self, response: dict) -> str:
+        return response["PipelineExecutionStatus"]

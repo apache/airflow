@@ -145,6 +145,7 @@ class SageMakerHook(AwsBaseHook):
 
     non_terminal_states = {"InProgress", "Stopping"}
     endpoint_non_terminal_states = {"Creating", "Updating", "SystemUpdating", "RollingBack", "Deleting"}
+    pipeline_non_terminal_states = {'Executing', 'Stopping'}
     failed_states = {"Failed"}
 
     def __init__(self, *args, **kwargs):
@@ -993,6 +994,9 @@ class SageMakerHook(AwsBaseHook):
         except Exception as general_error:
             self.log.error("Failed to delete model, error: %s", general_error)
             raise
+
+    def describe_pipeline_exec(self, pipeline_exec_arn: str):
+        return self.conn.describe_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
 
     def stop_pipeline(self, pipeline_exec_arn: str) -> str:
         """Stop SageMaker pipeline
