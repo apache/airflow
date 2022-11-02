@@ -100,7 +100,6 @@ def run_docker_command_with_debug(
     output_outside_the_group: bool = False,
     **kwargs,
 ) -> RunCommandResult:
-    cleanup_python_generated_files()
     env_variables = get_env_variables_for_docker_commands(params)
     extra_docker_flags = get_extra_docker_flags(mount_sources=params.mount_sources)
     if enable_input or debug:
@@ -173,6 +172,7 @@ def prepare_airflow_packages(
     github_repository: str,
 ):
     perform_environment_checks()
+    cleanup_python_generated_files()
     assert_pre_commit_installed()
     run_compile_www_assets(dev=False, run_in_background=False)
     shell_params = ShellParams(
@@ -216,6 +216,7 @@ def prepare_provider_documentation(
     packages: list[str],
 ):
     perform_environment_checks()
+    cleanup_python_generated_files()
     shell_params = ShellParams(
         mount_sources=MOUNT_ALL,
         github_repository=github_repository,
@@ -260,6 +261,7 @@ def prepare_provider_packages(
     github_repository: str,
 ):
     perform_environment_checks()
+    cleanup_python_generated_files()
     packages_list = list(packages)
     if package_list_file:
         packages_list.extend([package.strip() for package in package_list_file.readlines()])
@@ -381,6 +383,7 @@ def generate_constraints(
     github_repository: str,
 ):
     perform_environment_checks()
+    cleanup_python_generated_files()
     if debug and run_in_parallel:
         get_console().print("\n[error]Cannot run --debug and --run-in-parallel at the same time[/]\n")
         sys.exit(1)
@@ -478,6 +481,7 @@ def verify_provider_packages(
     github_repository: str,
 ):
     perform_environment_checks()
+    cleanup_python_generated_files()
     shell_params = ShellParams(
         mount_sources=MOUNT_SELECTED,
         github_repository=github_repository,
