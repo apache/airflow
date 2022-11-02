@@ -494,9 +494,8 @@ class SSHHook(BaseHook):
                 if recv.recv_ready():
                     line = stdout.channel.recv(len(recv.in_buffer))
                     agg_stdout += line
-                    lines = line.decode("utf-8", "replace").strip("\n").splitlines()
-                    for item in lines:
-                        self.log.info(item)
+                    for line in line.decode("utf-8", "replace").strip("\n").splitlines():
+                        self.log.info(line)
                 if recv.recv_stderr_ready():
                     line = stderr.channel.recv_stderr(len(recv.in_stderr_buffer))
                     agg_stderr += line
