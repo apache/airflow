@@ -148,10 +148,6 @@ def _get_connection_types():
     return _connection_types
 
 
-def _valid_conn_type(conn_type: str) -> bool:
-    return conn_type in _get_connection_types()
-
-
 def connections_export(args):
     """Exports all connections to a file"""
     file_formats = [".yaml", ".json", ".env"]
