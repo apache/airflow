@@ -277,7 +277,6 @@ def connections_add(args):
                         new_conn.schema or "",
                         "",
                         "",
-                        "",
                     )
                 ),
             )
