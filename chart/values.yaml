@@ -86,7 +86,7 @@ images:
     pullPolicy: IfNotPresent
   redis:
     repository: redis
-    tag: 6-bullseye
+    tag: 7-bullseye
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow
@@ -1457,6 +1457,8 @@ statsd:
 pgbouncer:
   # Enable PgBouncer
   enabled: false
+  # Number of PgBouncer replicas to run in Deployment
+  replicas: 1
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
   # Command to use for PgBouncer(templated).

@@ -628,6 +628,33 @@ class TestVaultHook(TestCase):
 
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_client_kwargs(self, mock_hvac, mock_get_connection):
+        """This test checks that values in connection extras keyed with 'client_kwargs' will be
+        consumed by the underlying Hashicorp Vault client init. The order of precedence should
+        be kwargs (passed through the hook init) > client_kwargs (found in connection extras).
+        """
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_connection = self.get_mock_connection()
+        mock_get_connection.return_value = mock_connection
+
+        connection_dict = {
+            "client_kwargs": {"namespace": "name", "timeout": 50, "generic_arg": "generic_val1"}
+        }
+
+        mock_connection.extra_dejson.get.side_effect = connection_dict.get
+        kwargs = {"vault_conn_id": "vault_conn_id", "generic_arg": "generic_val0"}
+        test_hook = VaultHook(**kwargs)
+        test_client = test_hook.get_conn()
+        mock_get_connection.assert_called_with("vault_conn_id")
+        mock_hvac.Client.assert_called_with(
+            url="http://localhost:8180", namespace="name", timeout=50, generic_arg="generic_val0"
+        )
+        test_client.is_authenticated.assert_called_with()
+        assert 2 == test_hook.vault_client.kv_engine_version
+
+    @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_ldap_init_params(self, mock_hvac, mock_get_connection):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client

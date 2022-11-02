@@ -117,7 +117,7 @@ also find a command that you can use for tracking the package, similar to:
 
 ```shell
 pip install ".[devel_all]" --upgrade --upgrade-strategy eager \
-        "dill<0.3.3" "certifi<2021.0.0" "google-ads<14.0.1"' "package1==N.N.N" "package2==N.N.N" ...
+        "dill<0.3.3" "certifi<2021.0.0" "package1==N.N.N" "package2==N.N.N" ...
 ```
 
 Example:
@@ -134,7 +134,7 @@ The process of tracking down which package is the "root cause" looks as follows:
 3. Enter breeze `breeze`
 4. Attempt to run the `pip install` command that was printed in the "Candidates ..." step
 5. The command should succeed (the candidates are pinned to the "working" version)
-6. Attempt to run `pip install ".[devel_all]" --upgrade --upgrade-strategy eager "dill<0.3.3" "certifi<2021.0.0" "google-ads<14.0.1"`
+6. Attempt to run `pip install ".[devel_all]" --upgrade --upgrade-strategy eager "dill<0.3.3" "certifi<2021.0.0"`
 7. This one should cause backtracking
 8. Use the original command from "Candidates ..." job the candidates and remove the candidates one-by-one
    from the command and re-run until you get into backtracking
@@ -149,7 +149,7 @@ when we tracked this one we did not have the "first failing" build and our list 
 after 3 days of failing build.
 
 ```shell
-pip install ".[devel_all]" --upgrade --upgrade-strategy eager "dill<0.3.3" "certifi<2021.0.0" "google-ads<14.0.1" \
+pip install ".[devel_all]" --upgrade --upgrade-strategy eager "dill<0.3.3" "certifi<2021.0.0" \
    "APScheduler==3.6.3" "boto3==1.21.4" "botocore==1.24.4" "connexion==2.11.2" "github3.py==3.0.0" \
    "google-api-python-client==1.12.10" "google-auth-oauthlib==0.4.6" "google-cloud-automl==2.6.0" \
    "google-cloud-dataproc==3.2.0" "google-cloud-os-login==2.5.1" \
@@ -159,7 +159,7 @@ pip install ".[devel_all]" --upgrade --upgrade-strategy eager "dill<0.3.3" "cert
 This command works correctly without backtracking. Then run the "bare" upgrade command:
 
 ```shell
-pip install ".[devel_all]" --upgrade --upgrade-strategy eager "dill<0.3.3" "certifi<2021.0.0" "google-ads<14.0.1"
+pip install ".[devel_all]" --upgrade --upgrade-strategy eager "dill<0.3.3" "certifi<2021.0.0"
 ```
 
 This one should enter into backtracking.
@@ -167,7 +167,7 @@ This one should enter into backtracking.
 After removing all the candidates one-by-one, what is left is:
 
 ```shell
-pip install ".[devel_all]" --upgrade --upgrade-strategy eager "dill<0.3.3" "certifi<2021.0.0" "google-ads<14.0.1" \
+pip install ".[devel_all]" --upgrade --upgrade-strategy eager "dill<0.3.3" "certifi<2021.0.0"\
     "github3.py==3.0.0"
 ```
 
