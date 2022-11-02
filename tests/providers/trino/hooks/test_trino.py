@@ -169,6 +169,16 @@ class TestTrinoHookConn:
 
         self.assert_connection_called_with(mock_connect, session_properties=extras["session_properties"])
 
+    @patch(HOOK_GET_CONNECTION)
+    @patch(TRINO_DBAPI_CONNECT)
+    def test_get_conn_client_tags(self, mock_connect, mock_get_connection):
+        extras = {"client_tags": ["abc", "xyz"]}
+
+        self.set_get_connection_return_value(mock_get_connection, extra=extras)
+        TrinoHook().get_conn()
+
+        self.assert_connection_called_with(mock_connect, client_tags=extras["client_tags"])
+
     @parameterized.expand(
         [
             ("False", False),
@@ -195,7 +205,7 @@ class TestTrinoHookConn:
 
     @staticmethod
     def assert_connection_called_with(
-        mock_connect, http_headers=mock.ANY, auth=None, verify=True, session_properties=None
+        mock_connect, http_headers=mock.ANY, auth=None, verify=True, session_properties=None, client_tags=None
     ):
         mock_connect.assert_called_once_with(
             catalog="hive",
@@ -210,6 +220,7 @@ class TestTrinoHookConn:
             auth=None if not auth else auth.return_value,
             verify=verify,
             session_properties=session_properties,
+            client_tags=client_tags,
         )
 
 
