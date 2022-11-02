@@ -929,6 +929,36 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
         )
 
 
+def check_username_duplicates(session: Session) -> Iterable[str]:
+    """
+    Check unique username in User & RegisterUser table
+
+    :param session:  session of the sqlalchemy
+    :rtype: str
+    """
+    from airflow.www.fab_security.sqla.models import RegisterUser, User
+
+    for model in [User, RegisterUser]:
+        dups = []
+        try:
+            dups = (
+                session.query(model.username)  # type: ignore[attr-defined]
+                .group_by(model.username)  # type: ignore[attr-defined]
+                .having(func.count() > 1)
+                .all()
+            )
+        except (exc.OperationalError, exc.ProgrammingError):
+            # fallback if tables hasn't been created yet
+            session.rollback()
+        if dups:
+            yield (
+                f'Seems you have mixed case usernames in {model.__table__.name} table.\n'  # type: ignore
+                'You have to rename or delete those mixed case usernames '
+                'before upgrading the database.\n'
+                f'usernames with mixed cases: {[dup.username for dup in dups]}'
+            )
+
+
 def reflect_tables(tables: list[Base | str] | None, session):
     """
     When running checks prior to upgrades, we use reflection to determine current state of the
@@ -1398,6 +1428,7 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
         check_conn_type_null,
         check_run_id_null,
         check_bad_references,
+        check_username_duplicates,
     )
     for check_fn in check_functions:
         log.debug("running check function %s", check_fn.__name__)
@@ -1684,7 +1715,7 @@ def drop_flask_models(connection):
     :param connection: SQLAlchemy Connection
     :return: None
     """
-    from flask_appbuilder.models.sqla import Base
+    from airflow.www.fab_security.sqla.models import Base
 
     Base.metadata.drop_all(connection)
 

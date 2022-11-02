@@ -30,6 +30,7 @@ from airflow.providers.hashicorp._internal_client.vault_client import (
     DEFAULT_KV_ENGINE_VERSION,
     _VaultClient,
 )
+from airflow.utils.helpers import merge_dicts
 
 
 class VaultHook(BaseHook):
@@ -118,6 +119,7 @@ class VaultHook(BaseHook):
         azure_resource: str | None = None,
         radius_host: str | None = None,
         radius_port: int | None = None,
+        **kwargs,
     ):
         super().__init__()
         self.connection = self.get_connection(vault_conn_id)
@@ -134,6 +136,11 @@ class VaultHook(BaseHook):
                 kv_engine_version = int(conn_version) if conn_version else DEFAULT_KV_ENGINE_VERSION
             except ValueError:
                 raise VaultError(f"The version is not an int: {conn_version}. ")
+
+        client_kwargs = self.connection.extra_dejson.get("client_kwargs", {})
+
+        if kwargs:
+            client_kwargs = merge_dicts(client_kwargs, kwargs)
 
         if auth_type == "approle":
             if role_id:
@@ -179,6 +186,10 @@ class VaultHook(BaseHook):
             else (None, None)
         )
 
+        key_id = self.connection.extra_dejson.get("key_id")
+        if not key_id:
+            key_id = self.connection.login
+
         if self.connection.conn_type == "vault":
             conn_protocol = "http"
         elif self.connection.conn_type == "vaults":
@@ -197,30 +208,34 @@ class VaultHook(BaseHook):
         # Schema is really path in the Connection definition. This is pretty confusing because of URL schema
         mount_point = self.connection.schema if self.connection.schema else "secret"
 
-        self.vault_client = _VaultClient(
-            url=url,
-            auth_type=auth_type,
-            auth_mount_point=auth_mount_point,
-            mount_point=mount_point,
-            kv_engine_version=kv_engine_version,
-            token=self.connection.password,
-            token_path=token_path,
-            username=self.connection.login,
-            password=self.connection.password,
-            key_id=self.connection.login,
-            secret_id=self.connection.password,
-            role_id=role_id,
-            kubernetes_role=kubernetes_role,
-            kubernetes_jwt_path=kubernetes_jwt_path,
-            gcp_key_path=gcp_key_path,
-            gcp_keyfile_dict=gcp_keyfile_dict,
-            gcp_scopes=gcp_scopes,
-            azure_tenant_id=azure_tenant_id,
-            azure_resource=azure_resource,
-            radius_host=radius_host,
-            radius_secret=self.connection.password,
-            radius_port=radius_port,
+        client_kwargs.update(
+            **dict(
+                url=url,
+                auth_type=auth_type,
+                auth_mount_point=auth_mount_point,
+                mount_point=mount_point,
+                kv_engine_version=kv_engine_version,
+                token=self.connection.password,
+                token_path=token_path,
+                username=self.connection.login,
+                password=self.connection.password,
+                key_id=self.connection.login,
+                secret_id=self.connection.password,
+                role_id=role_id,
+                kubernetes_role=kubernetes_role,
+                kubernetes_jwt_path=kubernetes_jwt_path,
+                gcp_key_path=gcp_key_path,
+                gcp_keyfile_dict=gcp_keyfile_dict,
+                gcp_scopes=gcp_scopes,
+                azure_tenant_id=azure_tenant_id,
+                azure_resource=azure_resource,
+                radius_host=radius_host,
+                radius_secret=self.connection.password,
+                radius_port=radius_port,
+            )
         )
+
+        self.vault_client = _VaultClient(**client_kwargs)
 
     def _get_kubernetes_parameters_from_connection(
         self, kubernetes_jwt_path: str | None, kubernetes_role: str | None

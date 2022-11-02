@@ -36,6 +36,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "false",
                     "needs-helm-tests": "false",
                     "run-tests": "false",
@@ -52,6 +54,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "false",
                     "run-tests": "true",
@@ -71,6 +75,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "false",
                     "run-tests": "true",
@@ -87,6 +93,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "false",
                     "run-tests": "true",
@@ -104,6 +112,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "false",
                     "run-tests": "false",
@@ -124,6 +134,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -146,6 +158,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -168,6 +182,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -190,6 +206,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -208,6 +226,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -216,7 +236,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "test-types": "API Always CLI Core Integration Other Providers WWW",
                 },
                 id="Everything should run - including all providers and upgrading to "
-                "newer requirements as setup.py changed",
+                "newer requirements as setup.py changed and all Python versions",
             )
         ),
         (
@@ -225,6 +245,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -262,6 +284,8 @@ def test_expected_output_pull_request_main(
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
@@ -284,6 +308,8 @@ def test_expected_output_pull_request_main(
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
@@ -304,6 +330,8 @@ def test_expected_output_pull_request_main(
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
@@ -324,6 +352,8 @@ def test_expected_output_pull_request_main(
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
