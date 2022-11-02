@@ -94,11 +94,11 @@ class OracleStoredProcedureOperator(BaseOperator):
     def execute(self, context: Context):
         self.log.info("Executing: %s", self.procedure)
         hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
-        ti=context.get('task_instance')
+        ti=context.get("task_instance")
         try:
             return hook.callproc(self.procedure, autocommit=True, parameters=self.parameters)
         except oracledb.DatabaseError as e:
-            code, mesg = e.args[0].message[:-1].split(': ', 1)
+            code, mesg = e.args[0].message[:-1].split(": ", 1)
             if self.do_xcom_push is True:
-                ti.xcom_push(key='ORA', value=str(code.split('-')[1]))
+                ti.xcom_push(key="ORA", value=str(code.split("-")[1]))
             raise
