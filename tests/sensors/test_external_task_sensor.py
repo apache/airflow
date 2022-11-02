@@ -24,7 +24,6 @@ import tempfile
 import unittest
 import zipfile
 from datetime import time, timedelta
-from airflow.decorators import task
 
 import pytest
 
@@ -1117,10 +1116,6 @@ def dag_bag_head_tail():
     dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
 
     with DAG("head_tail", start_date=DEFAULT_DATE, schedule="@daily") as dag:
-        @task
-        def dummy_task(x: int):
-            return x
-
         head = ExternalTaskSensor(
             task_id="head",
             external_dag_id=dag.dag_id,
@@ -1128,8 +1123,7 @@ def dag_bag_head_tail():
             execution_delta=timedelta(days=1),
             mode="reschedule",
         )
-        
-        body = dummy_task.expand(x=[i for i in range(5)])
+        body = EmptyOperator(task_id="body")
         tail = ExternalTaskMarker(
             task_id="tail",
             external_dag_id=dag.dag_id,
@@ -1159,20 +1153,15 @@ def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
         )
         session.add(dagrun)
         for task in dag.tasks:
-            if task.task_id == "dummy_task":
-                for map_index in range(5):
-                    ti = TaskInstance(task=task, map_index=map_index)
-                    dagrun.task_instances.append(ti)
-            else:
-                ti = TaskInstance(task=task)
-                dagrun.task_instances.append(ti)
+            ti = TaskInstance(task=task)
+            dagrun.task_instances.append(ti)
             ti.state = TaskInstanceState.SUCCESS
     session.flush()
 
     # The next two lines are doing the same thing. Clearing the first "head" with "Future"
     # selected is the same as not selecting "Future". They should take similar amount of
     # time too because dag.clear() uses visited_external_tis to keep track of visited ExternalTaskMarker.
-    assert dag.clear(start_date=DEFAULT_DATE, dag_bag=dag_bag_head_tail, session=session) == 70
+    assert dag.clear(start_date=DEFAULT_DATE, dag_bag=dag_bag_head_tail, session=session) == 30
     assert (
         dag.clear(
             start_date=DEFAULT_DATE,
@@ -1180,7 +1169,7 @@ def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
             dag_bag=dag_bag_head_tail,
             session=session,
         )
-        == 70
+        == 30
     )
 
 
