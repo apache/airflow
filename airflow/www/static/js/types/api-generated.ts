@@ -1156,7 +1156,7 @@ export interface components {
       timestamp?: string;
       description?: string | null;
       notification_sent?: boolean;
-    };
+    } | null;
     Trigger: {
       id?: number;
       classpath?: string;
