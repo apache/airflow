@@ -1146,7 +1146,7 @@ export interface components {
       timestamp?: string;
       description?: string | null;
       notification_sent?: boolean;
-    };
+    } | null;
     TaskInstance: {
       task_id?: string;
       dag_id?: string;
