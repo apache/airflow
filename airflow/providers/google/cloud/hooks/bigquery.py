@@ -2738,7 +2738,7 @@ class BigQueryCursor(BigQueryBaseCursor):
                 rows = query_results["rows"]
 
                 for dict_row in rows:
-                    typed_row = [_bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
+                    typed_row = [bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
                     self.buffer.append(typed_row)
 
                 if not self.page_token:
@@ -2844,6 +2844,18 @@ def _escape(s: str) -> str:
 
 
 def _bq_cast(string_field: str, bq_type: str) -> None | int | float | bool | str:
+    """
+    Helper method that casts a BigQuery row to the appropriate data types.
+    This is useful because BigQuery returns all fields as strings.
+    """
+    warnings.warn(
+        "This function is deprecated and will be Remove in future. Please use `bq_cast` function",
+        DeprecationWarning,
+    )
+    return bq_cast(string_field=string_field, bq_type=bq_type)
+
+
+def bq_cast(string_field: str, bq_type: str) -> None | int | float | bool | str:
     """
     Helper method that casts a BigQuery row to the appropriate data types.
     This is useful because BigQuery returns all fields as strings.
