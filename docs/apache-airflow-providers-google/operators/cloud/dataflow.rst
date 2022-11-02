@@ -33,7 +33,7 @@ Ways to run a data pipeline
 There are several ways to run a Dataflow pipeline depending on your environment, source files:
 
 - **Non-templated pipeline**: Developer can run the pipeline as a local process on the Airflow worker
-  if you have a '*.jar' file for Java or a '* .py' file for Python. This also means that the necessary system
+  if you have a ``*.jar`` file for Java or a ``*.py`` file for Python. This also means that the necessary system
   dependencies must be installed on the worker.  For Java, worker must have the JRE Runtime installed.
   For Python, the Python interpreter. The runtime versions must be compatible with the pipeline versions.
   This is the fastest way to start a pipeline, but because of its frequent problems with system dependencies,
