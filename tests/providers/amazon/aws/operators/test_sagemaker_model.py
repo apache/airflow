@@ -61,7 +61,6 @@ class TestSageMakerModelOperator(unittest.TestCase):
 
 
 class TestSageMakerDeleteModelOperator(unittest.TestCase):
-
     @mock.patch.object(SageMakerHook, "delete_model")
     def test_execute(self, delete_model):
         op = SageMakerDeleteModelOperator(
