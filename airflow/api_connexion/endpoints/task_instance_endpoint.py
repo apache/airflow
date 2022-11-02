@@ -33,10 +33,12 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceCollection,
     TaskInstanceReferenceCollection,
     clear_task_instance_form,
+    set_single_task_instance_state_form,
     set_task_instance_state_form,
     task_instance_batch_form,
     task_instance_collection_schema,
     task_instance_reference_collection_schema,
+    task_instance_reference_schema,
     task_instance_schema,
 )
 from airflow.api_connexion.types import APIResponse
@@ -545,3 +547,66 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
         session=session,
     )
     return task_instance_reference_collection_schema.dump(TaskInstanceReferenceCollection(task_instances=tis))
+
+
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+    ],
+)
+@provide_session
+def patch_task_instance(
+    *, dag_id: str, dag_run_id: str, task_id: str, map_index: int = -1, session: Session = NEW_SESSION
+) -> APIResponse:
+    """Update the state of a task instance."""
+    body = get_json_request_dict()
+    try:
+        data = set_single_task_instance_state_form.load(body)
+    except ValidationError as err:
+        raise BadRequest(detail=str(err.messages))
+
+    dag = get_airflow_app().dag_bag.get_dag(dag_id)
+    if not dag:
+        raise NotFound("DAG not found", detail=f"DAG {dag_id!r} not found")
+
+    if not dag.has_task(task_id):
+        raise NotFound("Task not found", detail=f"Task {task_id!r} not found in DAG {dag_id!r}")
+
+    ti: TI | None = session.query(TI).get(
+        {'task_id': task_id, 'dag_id': dag_id, 'run_id': dag_run_id, 'map_index': map_index}
+    )
+
+    if not ti:
+        error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {dag_run_id!r}"
+        raise NotFound(detail=error_message)
+
+    if not data["dry_run"]:
+        ti = dag.set_task_instance_state(
+            task_id=task_id,
+            run_id=dag_run_id,
+            map_indexes=[map_index],
+            state=data["new_state"],
+            commit=True,
+            session=session,
+        )
+
+    return task_instance_reference_schema.dump(ti)
+
+
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+    ],
+)
+@provide_session
+def patch_mapped_task_instance(
+    *, dag_id: str, dag_run_id: str, task_id: str, map_index: int, session: Session = NEW_SESSION
+) -> APIResponse:
+    """Update the state of a mapped task instance."""
+    return patch_task_instance(
+        dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index, session=session
+    )

@@ -595,6 +595,9 @@ sensors:
   - integration-name: Google Bigtable
     python-modules:
       - airflow.providers.google.cloud.sensors.bigtable
+  - integration-name: Google Cloud Composer
+    python-modules:
+      - airflow.providers.google.cloud.sensors.cloud_composer
   - integration-name: Google Cloud Storage Transfer Service
     python-modules:
       - airflow.providers.google.cloud.sensors.cloud_storage_transfer_service

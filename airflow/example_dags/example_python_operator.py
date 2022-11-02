@@ -22,7 +22,6 @@ virtual environment.
 from __future__ import annotations
 
 import logging
-import os
 import shutil
 import sys
 import tempfile
@@ -33,12 +32,18 @@ import pendulum
 
 from airflow import DAG
 from airflow.decorators import task
+from airflow.operators.python import ExternalPythonOperator, PythonVirtualenvOperator
 
 log = logging.getLogger(__name__)
 
-PYTHON = sys.executable
+PATH_TO_PYTHON_BINARY = sys.executable
 
 BASE_DIR = tempfile.gettempdir()
+
+
+def x():
+    pass
+
 
 with DAG(
     dag_id='example_python_operator',
@@ -114,7 +119,7 @@ with DAG(
         sleeping_task >> virtualenv_task
 
         # [START howto_operator_external_python]
-        @task.external_python(task_id="external_python", python=os.fspath(sys.executable))
+        @task.external_python(task_id="external_python", python=PATH_TO_PYTHON_BINARY)
         def callable_external_python():
             """
             Example function that will be performed in a virtual environment.
@@ -135,4 +140,20 @@ with DAG(
         external_python_task = callable_external_python()
         # [END howto_operator_external_python]
 
-        run_this >> external_python_task
+        # [START howto_operator_external_python_classic]
+        external_classic = ExternalPythonOperator(
+            task_id="external_python_classic",
+            python=PATH_TO_PYTHON_BINARY,
+            python_callable=x,
+        )
+        # [END howto_operator_external_python_classic]
+
+        # [START howto_operator_python_venv_classic]
+        virtual_classic = PythonVirtualenvOperator(
+            task_id="virtualenv_classic",
+            requirements="colorama==0.4.0",
+            python_callable=x,
+        )
+        # [END howto_operator_python_venv_classic]
+
+        run_this >> external_classic >> external_python_task >> virtual_classic

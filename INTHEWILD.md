@@ -414,6 +414,7 @@ Currently, **officially** using Airflow:
 1. [Strongmind](https://www.strongmind.com) [[@tomchapin](https://github.com/tomchapin) & [@wongstein](https://github.com/wongstein)]
 1. [Ströer Labs](https://stroeer-labs.com) [[@mbrtargeting](https://github.com/mbrtargeting/)]
 1. [Surfline](https://www.surfline.com/) [[@jawang35](https://github.com/jawang35)]
+1. [Swisscom](https://www.swisscom.ch) [[@JulesTriomphe](https://github.com/JulesTriomphe)]
 1. [Syapse](https://www.syapse.com/) [[@zedmor](https://github.com/zedmor)]
 1. [T2 Systems](http://t2systems.com) [[@unclaimedpants](https://github.com/unclaimedpants)]
 1. [Tails.com](https://tails.com/) [[@alanmcruickshank](https://github.com/alanmcruickshank)]

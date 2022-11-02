@@ -35,6 +35,8 @@ FROM ${PYTHON_BASE_IMAGE} as scripts
 COPY <<"EOF" /install_os_dependencies.sh
 set -euo pipefail
 
+DOCKER_CLI_VERSION=20.10.9
+
 if [[ "$#" != 1 ]]; then
     echo "ERROR! There should be 'runtime' or 'dev' parameter passed as argument.".
     exit 1
@@ -68,6 +70,18 @@ ldap-utils libffi7 libldap-2.4-2 libsasl2-2 libsasl2-modules libssl1.1 locales \
 lsb-release netcat openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc"
         export RUNTIME_APT_DEPS
     fi
+}
+
+function install_docker_cli() {
+    local platform
+    if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+        platform="aarch64"
+    else
+        platform="x86_64"
+    fi
+    curl --silent \
+        "https://download.docker.com/linux/static/stable/${platform}/docker-${DOCKER_CLI_VERSION}.tgz" \
+        |  tar -C /usr/bin --strip-components=1 -xvzf - docker/docker
 }
 
 function install_debian_dev_dependencies() {
@@ -110,9 +124,12 @@ function install_debian_runtime_dependencies() {
 if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
     get_runtime_apt_deps
     install_debian_runtime_dependencies
+    install_docker_cli
+
 else
     get_dev_apt_deps
     install_debian_dev_dependencies
+    install_docker_cli
 fi
 EOF
 
@@ -1017,12 +1034,6 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
 
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh dev
-
-ARG DOCKER_CLI_VERSION=20.10.9
-ENV DOCKER_CLI_VERSION=${DOCKER_CLI_VERSION}
-
-RUN  curl --silent "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_CLI_VERSION}.tgz" \
-    |  tar -C /usr/bin --strip-components=1 -xvzf - docker/docker
 
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here.
