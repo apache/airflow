@@ -190,6 +190,6 @@ https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserve
 
 {{- if or .Values.postgresql.postgresqlUsername .Values.postgresql.postgresqlPassword }}
 
-   {{ fail "postgresql.postgresqlUsername and postgresql.postgresqlPassword have been renamed to postgresql.auth.username and postgres.auth.password }}
+   {{ fail "postgresql.postgresqlUsername and postgresql.postgresqlPassword have been renamed to postgresql.auth.username and postgres.auth.password" }}
 
 {{- end }}
