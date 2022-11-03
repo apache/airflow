@@ -34,12 +34,9 @@ from airflow.utils.state import State
 
 
 class _ExecutorConfigField(fields.String):
-    def _super_serialize(self, value, attr, obj):
-        return super()._serialize(value, attr, obj)
-
     def _serialize(self, value, attr, obj, **kwargs):
         try:
-            return self._super_serialize(value, attr, obj)
+            return super().serialize(value, attr, obj, **kwargs)
         except Exception:
             return "{}"
 

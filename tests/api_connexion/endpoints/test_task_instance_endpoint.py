@@ -221,12 +221,10 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         }
 
     @provide_session
-    @mock.patch(
-        "airflow.api_connexion.schemas.task_instance_schema.ExecutorConfigField._super_serialize",
-        side_effect=AttributeError(),
-    )
-    def test_task_instance_executor_config_exception(self, mock_executor_config, session):
-        self.create_task_instances(session)
+    def test_task_instance_executor_config_exception(self, session):
+        tis = self.create_task_instances(session)
+        print_the_context = next(ti for ti in tis if ti.task_id == "print_the_context")
+        print_the_context.executor_config = Exception()
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
             environ_overrides={"REMOTE_USER": "test"},
@@ -245,7 +243,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
-            "priority_weight": 9,
+            "priority_weight": 11,
             "queue": "default_queue",
             "queued_when": None,
             "sla_miss": None,
