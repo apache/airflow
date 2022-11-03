@@ -168,7 +168,7 @@ class SecurityManager(BaseSecurityManager):
                 else:
                     return (
                         self.get_session.query(self.user_model)
-                        .filter(self.user_model.username == username)
+                        .filter(func.lower(self.user_model.username) == func.lower(username))
                         .one_or_none()
                     )
             except MultipleResultsFound:

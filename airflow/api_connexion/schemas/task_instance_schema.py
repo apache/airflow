@@ -166,6 +166,13 @@ class SetTaskInstanceStateFormSchema(Schema):
             raise ValidationError("Exactly one of execution_date or dag_run_id must be provided")
 
 
+class SetSingleTaskInstanceStateFormSchema(Schema):
+    """Schema for handling the request of updating state of a single task instance"""
+
+    dry_run = fields.Boolean(dump_default=True)
+    new_state = TaskInstanceStateField(required=True, validate=validate.OneOf([State.SUCCESS, State.FAILED]))
+
+
 class TaskInstanceReferenceSchema(Schema):
     """Schema for the task instance reference schema"""
 
@@ -192,5 +199,6 @@ task_instance_collection_schema = TaskInstanceCollectionSchema()
 task_instance_batch_form = TaskInstanceBatchFormSchema()
 clear_task_instance_form = ClearTaskInstanceFormSchema()
 set_task_instance_state_form = SetTaskInstanceStateFormSchema()
+set_single_task_instance_state_form = SetSingleTaskInstanceStateFormSchema()
 task_instance_reference_schema = TaskInstanceReferenceSchema()
 task_instance_reference_collection_schema = TaskInstanceReferenceCollectionSchema()
