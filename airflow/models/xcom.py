@@ -208,6 +208,27 @@ class BaseXCom(Base, LoggingMixin):
             if dag_run_id is None:
                 raise ValueError(f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
 
+        # Seamlessly resolve LazyXComAccess to a list. This is intended to work
+        # as a "lazy list" to avoid pulling a ton of XComs unnecessarily, but if
+        # it's pushed into XCom, the user should be aware of the performance
+        # implications, and this avoids leaking the implementation detail.
+        if isinstance(value, LazyXComAccess):
+            warning_message = (
+                "Coercing mapped lazy proxy %s from task %s (DAG %s, run %s) "
+                "to list, which may degrade performance. Review resource "
+                "requirements for this operation, and call list() to suppress "
+                "this message. See Dynamic Task Mapping documentation for "
+                "more information about lazy proxy objects."
+            )
+            log.warning(
+                warning_message,
+                "return value" if key == XCOM_RETURN_KEY else f"value {key}",
+                task_id,
+                dag_id,
+                run_id or execution_date,
+            )
+            value = list(value)
+
         value = cls.serialize_value(
             value=value,
             key=key,
@@ -596,13 +617,6 @@ class BaseXCom(Base, LoggingMixin):
         map_index: int | None = None,
     ) -> Any:
         """Serialize XCom value to str or pickled object."""
-        # Seamlessly resolve LazyXComAccess to a list. This is intended to work
-        # as a "lazy list" to avoid pulling a ton of XComs unnecessarily, but if
-        # it's pushed into XCom, the user should be aware of the performance
-        # implications, and this avoids leaking the implementation detail.
-        if isinstance(value, LazyXComAccess):
-            value = list(value)
-
         if conf.getboolean('core', 'enable_xcom_pickling'):
             return pickle.dumps(value)
         try:
