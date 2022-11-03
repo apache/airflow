@@ -40,6 +40,11 @@ DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"
 DEFAULT_DATETIME_STR_2 = "2020-01-02T00:00:00+00:00"
 
 
+class _BadExecutorConfig:
+    def __str__(self):
+        raise Exception()
+
+
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
@@ -220,11 +225,17 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "triggerer_job": None,
         }
 
+    @parameterized.expand(
+        [
+            ("Exception serialization", _BadExecutorConfig(), "{}"),
+            ("Dict serialization", {"foo": "bar"}, "{'foo': 'bar'}"),
+        ],
+    )
     @provide_session
-    def test_task_instance_executor_config_exception(self, session):
+    def test_task_instance_executor_config_exception(self, _, executor_config, expected_config, session):
         tis = self.create_task_instances(session)
         print_the_context = next(ti for ti in tis if ti.task_id == "print_the_context")
-        print_the_context.executor_config = Exception()
+        print_the_context.executor_config = executor_config
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
             environ_overrides={"REMOTE_USER": "test"},
@@ -235,7 +246,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
             "execution_date": "2020-01-01T00:00:00+00:00",
-            "executor_config": "{}",
+            "executor_config": expected_config,
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
