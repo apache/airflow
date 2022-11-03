@@ -104,6 +104,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions
+from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
 from airflow.timetables.base import DataInterval, TimeRestriction
@@ -1865,7 +1866,13 @@ class Airflow(AirflowBaseView):
             else:
                 try:
                     default_conf = json.dumps(
-                        {str(k): v.resolve(suppress_exception=True) for k, v in dag.params.items()}, indent=4
+                        {
+                            str(k): v.resolve(
+                                value=BaseSerialization.deserialize(v.value), suppress_exception=True
+                            )
+                            for k, v in dag.params.items()
+                        },
+                        indent=4,
                     )
                 except TypeError:
                     flash("Could not pre-populate conf field due to non-JSON-serializable data-types")
