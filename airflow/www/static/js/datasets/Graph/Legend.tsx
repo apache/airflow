@@ -32,7 +32,7 @@ interface Props {
 }
 
 const Legend = ({ zoom, center }: Props) => (
-  <Flex justifyContent="space-between" alignItems="center">
+  <Flex height="100%" flexDirection="column" justifyContent="space-between">
     <Box>
       <IconButton
         onClick={zoom.reset}
@@ -55,7 +55,7 @@ const Legend = ({ zoom, center }: Props) => (
       backgroundColor="white"
       p={2}
       borderColor="gray.200"
-      borderLeftWidth={1}
+      borderRightWidth={1}
       borderTopWidth={1}
     >
       <Text>Legend</Text>

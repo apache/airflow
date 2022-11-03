@@ -17,11 +17,10 @@
  * under the License.
  */
 
-import React, { useState, useEffect, RefObject } from 'react';
+import React, { RefObject } from 'react';
 import { Box, Spinner } from '@chakra-ui/react';
 import { Zoom } from '@visx/zoom';
 import { Group } from '@visx/group';
-import { debounce } from 'lodash';
 
 import { useDatasetDependencies } from 'src/api';
 
@@ -32,27 +31,14 @@ import Legend from './Legend';
 interface Props {
   onSelect: (datasetId: string) => void;
   selectedUri: string | null;
+  height: number;
+  width: number;
 }
 
-const Graph = ({ onSelect, selectedUri }: Props) => {
+const Graph = ({
+  onSelect, selectedUri, height, width,
+}: Props) => {
   const { data, isLoading } = useDatasetDependencies();
-  const [dimensions, setDimensions] = useState({
-    height: window.innerHeight,
-    width: window.innerWidth,
-  });
-
-  // Reset the graph div when the window size changes
-  useEffect(() => {
-    const handleResize = debounce(() => {
-      setDimensions({
-        height: window.innerHeight,
-        width: window.innerWidth,
-      });
-    }, 200);
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  });
 
   if (isLoading && !data) return <Spinner />;
   if (!data) return null;
@@ -75,65 +61,60 @@ const Graph = ({ onSelect, selectedUri }: Props) => {
       selectedEdges.some(({ sources, targets }) => (
         sources[0] === n.id || targets[0] === n.id))));
 
-  const width = dimensions.width - 600 || 200;
-  const height = dimensions.height - 125 || 200;
-
   return (
-    <Box position="relative" alignSelf="center" borderColor="gray.200" borderWidth={1}>
-      <Zoom
-        width={width}
-        height={height}
-        scaleXMin={1 / 4}
-        scaleXMax={1}
-        scaleYMin={1 / 4}
-        scaleYMax={1}
-        initialTransformMatrix={initialTransform}
-      >
-        {(zoom) => (
-          <Box>
-            <svg
-              id="GRAPH"
-              width={width}
-              height={height}
-              ref={zoom.containerRef as RefObject<SVGSVGElement>}
-              style={{ cursor: zoom.isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
-            >
-              <g transform={zoom.toString()}>
-                <g height={data.height} width={data.width}>
-                  {data.edges.map((edge) => (
-                    <Edge
-                      key={edge.id}
-                      edge={edge}
-                      isSelected={selectedEdges.some((e) => e.id === edge.id)}
-                    />
-                  ))}
-                  {data.children.map((node) => (
-                    <Node
-                      key={node.id}
-                      node={node}
-                      onSelect={onSelect}
-                      isSelected={node.id === `dataset:${selectedUri}`}
-                      isHighlighted={highlightedNodes.some((n) => n.id === node.id)}
-                    />
-                  ))}
-                </g>
-              </g>
-              <Group top={height - 50} left={0} height={50} width={width}>
-                <foreignObject width={width} height={50}>
-                  <Legend
-                    zoom={zoom}
-                    center={() => zoom.translateTo({
-                      x: (width - (data.width ?? 0)) / 2,
-                      y: (height - (data.height ?? 0)) / 2,
-                    })}
+    <Zoom
+      width={width}
+      height={height}
+      scaleXMin={1 / 4}
+      scaleXMax={1}
+      scaleYMin={1 / 4}
+      scaleYMax={1}
+      initialTransformMatrix={initialTransform}
+    >
+      {(zoom) => (
+        <Box>
+          <svg
+            id="GRAPH"
+            width={width}
+            height={height}
+            ref={zoom.containerRef as RefObject<SVGSVGElement>}
+            style={{ cursor: zoom.isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+          >
+            <g transform={zoom.toString()}>
+              <g height={data.height} width={data.width}>
+                {data.edges.map((edge) => (
+                  <Edge
+                    key={edge.id}
+                    edge={edge}
+                    isSelected={selectedEdges.some((e) => e.id === edge.id)}
                   />
-                </foreignObject>
-              </Group>
-            </svg>
-          </Box>
-        )}
-      </Zoom>
-    </Box>
+                ))}
+                {data.children.map((node) => (
+                  <Node
+                    key={node.id}
+                    node={node}
+                    onSelect={onSelect}
+                    isSelected={node.id === `dataset:${selectedUri}`}
+                    isHighlighted={highlightedNodes.some((n) => n.id === node.id)}
+                  />
+                ))}
+              </g>
+            </g>
+            <Group top={height - 100} left={0} height={100} width={width}>
+              <foreignObject width={150} height={100}>
+                <Legend
+                  zoom={zoom}
+                  center={() => zoom.translateTo({
+                    x: (width - (data.width ?? 0)) / 2,
+                    y: (height - (data.height ?? 0)) / 2,
+                  })}
+                />
+              </foreignObject>
+            </Group>
+          </svg>
+        </Box>
+      )}
+    </Zoom>
   );
 };
 
