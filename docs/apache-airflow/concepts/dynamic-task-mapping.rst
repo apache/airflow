@@ -72,6 +72,17 @@ The grid view also provides visibility into your mapped tasks in the details pan
 
     You can use normal sequence syntax on this object (e.g. ``values[0]``), or iterate through it normally with a ``for`` loop. ``list(values)`` will give you a "real" ``list``, but please be aware of the potential performance implications if the list is large.
 
+    Note that the same also applies to when you push this proxy object into XCom. This, for example, would not
+    work with the default XCom backend:
+
+    .. code-block:: python
+
+        @task
+        def forward_values(values):
+            return values  # This is a lazy proxy and can't be pushed!
+
+    You need to explicitly call ``list(values)`` instead, and accept the performance implications.
+
 .. note:: A reduce task is not required.
 
     Although we show a "reduce" task here (``sum_it``) you don't have to have one, the mapped tasks will still be executed even if they have no downstream tasks.
