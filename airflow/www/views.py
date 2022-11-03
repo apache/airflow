@@ -2270,6 +2270,7 @@ class Airflow(AirflowBaseView):
         future: bool,
         past: bool,
         state: TaskInstanceState,
+        user_updated_state: bool = False,
     ):
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
 
@@ -2286,6 +2287,7 @@ class Airflow(AirflowBaseView):
             downstream=downstream,
             future=future,
             past=past,
+            user_updated_state=user_updated_state,
         )
 
         flash(f"Marked {state} on {len(altered)} task instances")
@@ -2412,6 +2414,7 @@ class Airflow(AirflowBaseView):
             future=future,
             past=past,
             state=TaskInstanceState.FAILED,
+            user_updated_state=True,
         )
 
     @expose('/success', methods=['POST'])
@@ -2451,6 +2454,7 @@ class Airflow(AirflowBaseView):
             future=future,
             past=past,
             state=TaskInstanceState.SUCCESS,
+            user_updated_state=True,
         )
 
     @expose('/dags/<string:dag_id>')

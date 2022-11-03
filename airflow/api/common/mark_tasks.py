@@ -89,6 +89,7 @@ def set_state(
     state: TaskInstanceState = TaskInstanceState.SUCCESS,
     commit: bool = False,
     session: SASession = NEW_SESSION,
+    user_updated_state: bool = False,
 ) -> list[TaskInstance]:
     """
     Set the state of a task instance and if needed its relatives. Can set state
@@ -109,6 +110,7 @@ def set_state(
     :param state: State to which the tasks need to be set
     :param commit: Commit tasks to be altered to the database
     :param session: database session
+    :param user_updated_state: Indicate if user has manually updated the state of TaskInstance
     :return: list of tasks that have been created and updated
     """
     if not tasks:
@@ -153,7 +155,7 @@ def set_state(
             qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
             tis_altered += qry_sub_dag.with_for_update().all()
         for task_instance in tis_altered:
-            task_instance.set_state(state, session=session)
+            task_instance.set_state(state, session=session, user_updated_state=user_updated_state)
         session.flush()
     else:
         tis_altered = qry_dag.all()

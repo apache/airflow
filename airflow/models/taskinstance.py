@@ -50,6 +50,7 @@ import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     Float,
@@ -453,6 +454,7 @@ class TaskInstance(Base, LoggingMixin):
     pid = Column(Integer)
     executor_config = Column(ExecutorConfigType(pickler=dill))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
+    user_updated_state = Column(Boolean, default=False, nullable=False)
 
     external_executor_id = Column(StringID())
 
@@ -940,12 +942,15 @@ class TaskInstance(Base, LoggingMixin):
         return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
 
     @provide_session
-    def set_state(self, state: str | None, session: Session = NEW_SESSION) -> bool:
+    def set_state(
+        self, state: str | None, session: Session = NEW_SESSION, user_updated_state: bool = False
+    ) -> bool:
         """
         Set TaskInstance state.
 
         :param state: State to set for the TI
         :param session: SQLAlchemy ORM Session
+        :param user_updated_state: Indicate if user has manually updated the state of TaskInstance
         :return: Was the state changed
         """
         if self.state == state:
@@ -954,6 +959,7 @@ class TaskInstance(Base, LoggingMixin):
         current_time = timezone.utcnow()
         self.log.debug("Setting task state for %s to %s", self, state)
         self.state = state
+        self.user_updated_state = user_updated_state
         self.start_date = self.start_date or current_time
         if self.state in State.finished or self.state == State.UP_FOR_RETRY:
             self.end_date = self.end_date or current_time
