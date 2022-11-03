@@ -387,7 +387,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         session.add(rendered_fields)
         session.commit()
         new_ti = TaskInstance(task=ti.task, run_id=ti.run_id, map_index=2)
-        for attr in ['duration', 'end_date', 'pid', 'start_date', 'state', 'queue', 'notes']:
+        for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "notes"]:
             setattr(new_ti, attr, getattr(ti, attr))
         session.add(new_ti)
         rendered_fields = RTIF(new_ti, render_templates=False)
@@ -1811,7 +1811,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 400
         assert response.json["detail"] == expected
-        assert response.json['detail'] == expected
+        assert response.json["detail"] == expected
 
 
 class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
@@ -1871,7 +1871,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
         session.add(rendered_fields)
         session.commit()
         new_ti = TaskInstance(task=ti.task, run_id=ti.run_id, map_index=2)
-        for attr in ['duration', 'end_date', 'pid', 'start_date', 'state', 'queue', 'notes']:
+        for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "notes"]:
             setattr(new_ti, attr, getattr(ti, attr))
         session.add(new_ti)
         rendered_fields = RTIF(new_ti, render_templates=False)
@@ -1906,14 +1906,14 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
                 "priority_weight": 9,
                 "queue": "default_queue",
                 "queued_when": None,
-                'sla_miss': None,
+                "sla_miss": None,
                 "start_date": "2020-01-02T00:00:00+00:00",
                 "state": "running",
                 "task_id": "print_the_context",
                 "try_number": 0,
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
-                "rendered_fields": {'op_args': [], 'op_kwargs': {}, 'templates_dict': None},
+                "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
                 "trigger": None,
                 "triggerer_job": None,
             }
@@ -1936,7 +1936,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
                 "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
                 f"print_the_context{map_index}/setNote",
                 json={"notes": "I am setting a note without the proper permissions."},
-                environ_overrides={'REMOTE_USER': "test_no_permissions"},
+                environ_overrides={"REMOTE_USER": "test_no_permissions"},
             )
             assert response.status_code == 403
 
