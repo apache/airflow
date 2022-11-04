@@ -24,6 +24,7 @@ import tempfile
 import unittest
 import zipfile
 from datetime import time, timedelta
+from airflow.decorators import task
 
 import pytest
 
@@ -1170,6 +1171,130 @@ def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
         )
         == 30
     )
+
+
+@provide_session
+def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
+    dag: DAG = dag_bag_head_tail.get_dag("head_tail")
+
+    # "Run" 10 times.
+    for delta in range(0, 10):
+        execution_date = DEFAULT_DATE + timedelta(days=delta)
+        dagrun = DagRun(
+            dag_id=dag.dag_id,
+            state=DagRunState.SUCCESS,
+            execution_date=execution_date,
+            run_type=DagRunType.MANUAL,
+            run_id=f"test_{delta}",
+        )
+        session.add(dagrun)
+        for task in dag.tasks:
+            ti = TaskInstance(task=task)
+            dagrun.task_instances.append(ti)
+            ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+
+    # The next two lines are doing the same thing. Clearing the first "head" with "Future"
+    # selected is the same as not selecting "Future". They should take similar amount of
+    # time too because dag.clear() uses visited_external_tis to keep track of visited ExternalTaskMarker.
+    assert dag.clear(start_date=DEFAULT_DATE, dag_bag=dag_bag_head_tail, session=session) == 30
+    assert (
+        dag.clear(
+            start_date=DEFAULT_DATE,
+            end_date=execution_date,
+            dag_bag=dag_bag_head_tail,
+            session=session,
+        )
+        == 30
+    )
+
+@pytest.fixture
+def dag_bag_head_tail_mapped_tasks():
+    """
+    Create a DagBag containing one DAG, with task "head" depending on task "tail" of the
+    previous execution_date.
+
+    20200501     20200502                 20200510
+    +------+     +------+                 +------+
+    | head |    -->head |    -->         -->head |
+    |  |   |   / |  |   |   /           / |  |   |
+    |  v   |  /  |  v   |  /           /  |  v   |
+    | body | /   | body | /     ...   /   | body |
+    |  |   |/    |  |   |/           /    |  |   |
+    |  v   /     |  v   /           /     |  v   |
+    | tail/|     | tail/|          /      | tail |
+    +------+     +------+                 +------+
+    """
+    dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
+
+    with DAG("head_tail", start_date=DEFAULT_DATE, schedule="@daily") as dag:
+        @task
+        def dummy_task(x: int):
+            return x
+
+        head = ExternalTaskSensor(
+            task_id="head",
+            external_dag_id=dag.dag_id,
+            external_task_id="tail",
+            execution_delta=timedelta(days=1),
+            mode="reschedule",
+        )
+        
+        body = dummy_task.expand(x=[i for i in range(5)])
+        tail = ExternalTaskMarker(
+            task_id="tail",
+            external_dag_id=dag.dag_id,
+            external_task_id=head.task_id,
+            execution_date="{{ macros.ds_add(ds, 1) }}",
+        )
+        head >> body >> tail
+
+    dag_bag.bag_dag(dag=dag, root_dag=dag)
+
+    return dag_bag
+
+
+@provide_session
+def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_mapped_tasks, session):
+    dag: DAG = dag_bag_head_tail_mapped_tasks.get_dag("head_tail")
+
+    # "Run" 10 times.
+    for delta in range(0, 10):
+        execution_date = DEFAULT_DATE + timedelta(days=delta)
+        dagrun = DagRun(
+            dag_id=dag.dag_id,
+            state=DagRunState.SUCCESS,
+            execution_date=execution_date,
+            run_type=DagRunType.MANUAL,
+            run_id=f"test_{delta}",
+        )
+        session.add(dagrun)
+        for task in dag.tasks:
+            if task.task_id == "dummy_task":
+                for map_index in range(5):
+                    ti = TaskInstance(task=task, run_id=dagrun.run_id, map_index=map_index)
+                    ti.state = TaskInstanceState.SUCCESS
+                    dagrun.task_instances.append(ti)
+            else:
+                ti = TaskInstance(task=task, run_id=dagrun.run_id)
+                ti.state = TaskInstanceState.SUCCESS
+                dagrun.task_instances.append(ti)
+    session.flush()
+
+    dag = dag.partial_subset(
+        task_ids_or_regex=["head"],
+        include_downstream=True,
+        include_upstream=False,
+    )
+    task_ids = [tid for tid in dag.task_dict]
+    assert dag.clear(
+        start_date=DEFAULT_DATE, 
+        end_date=DEFAULT_DATE,
+        dag_bag=dag_bag_head_tail_mapped_tasks, 
+        session=session,
+        task_ids=task_ids,
+    ) == 70
+
 
 
 class TestExternalTaskSensorLink:
