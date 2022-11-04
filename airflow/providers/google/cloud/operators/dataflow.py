@@ -20,11 +20,13 @@ from __future__ import annotations
 
 import copy
 import re
+import uuid
 import warnings
 from contextlib import ExitStack
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Sequence
 
+from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.google.cloud.hooks.dataflow import (
@@ -34,6 +36,7 @@ from airflow.providers.google.cloud.hooks.dataflow import (
 )
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.dataflow import DataflowJobLink
+from airflow.providers.google.cloud.triggers.dataflow import TemplateJobStartTrigger
 from airflow.version import version
 
 if TYPE_CHECKING:
@@ -583,7 +586,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
        )
 
     ``template``, ``dataflow_default_options``, ``parameters``, and ``job_name`` are
-    templated so you can use variables in them.
+    templated, so you can use variables in them.
 
     Note that ``dataflow_default_options`` is expected to save high-level options
     for project information, which apply to all dataflow operators in the DAG.
@@ -614,12 +617,12 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
     def __init__(
         self,
         *,
+        project_id: str,
         template: str,
         job_name: str = "{{task.task_id}}",
         options: dict[str, Any] | None = None,
         dataflow_default_options: dict[str, Any] | None = None,
         parameters: dict[str, str] | None = None,
-        project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
@@ -629,9 +632,11 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         cancel_timeout: int | None = 10 * 60,
         wait_until_finished: bool | None = None,
         append_job_name: bool = True,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+
         self.template = template
         self.job_name = job_name
         self.options = options or {}
@@ -646,31 +651,38 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             )
         self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
-        self.job = None
-        self.hook: DataflowHook | None = None
         self.impersonation_chain = impersonation_chain
         self.environment = environment
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
         self.append_job_name = append_job_name
+        self.deferrable = deferrable
 
-    def execute(self, context: Context) -> dict:
-        self.hook = DataflowHook(
-            gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
-            poll_sleep=self.poll_sleep,
-            impersonation_chain=self.impersonation_chain,
-            cancel_timeout=self.cancel_timeout,
-            wait_until_finished=self.wait_until_finished,
-        )
+        self.job: dict | None = None
+        self._hook: DataflowHook | None = None
 
+        self._validate_deferrable_params()
+
+    def _validate_deferrable_params(self):
+        if self.deferrable and self.wait_until_finished:
+            raise ValueError(
+                "Conflict between deferrable and wait_until_finished parameters "
+                "because it makes operator as blocking when it requires to be deferred. "
+                "It should be True as deferrable parameter or True as wait_until_finished."
+            )
+
+        if self.deferrable and self.wait_until_finished is None:
+            self.wait_until_finished = False
+
+    def execute(self, context: Context):
         def set_current_job(current_job):
             self.job = current_job
             DataflowJobLink.persist(self, context, self.project_id, self.location, self.job.get("id"))
 
         options = self.dataflow_default_options
         options.update(self.options)
-        job = self.hook.start_template_dataflow(
+
+        self.job = self._get_hook().start_template_dataflow(
             job_name=self.job_name,
             variables=options,
             parameters=self.parameters,
@@ -681,17 +693,62 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             environment=self.environment,
             append_job_name=self.append_job_name,
         )
+        job_id = self.job.get("id")
 
-        return job
+        if job_id is None:
+            raise AirflowException(
+                "While reading job object after template execution error occurred. Job object has no id."
+            )
+
+        if not self.deferrable:
+            return job_id
+
+        context["ti"].xcom_push(key="job_id", value=job_id)
+
+        self.defer(
+            trigger=TemplateJobStartTrigger(
+                project_id=self.project_id,
+                job_id=job_id,
+                location=self.location,
+                gcp_conn_id=self.gcp_conn_id,
+                delegate_to=self.delegate_to,
+                poll_sleep=self.poll_sleep,
+                impersonation_chain=self.impersonation_chain,
+                cancel_timeout=self.cancel_timeout,
+            ),
+            method_name="execute_complete",
+        )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]):
+        """Method which executes after trigger finishes its work."""
+        if event["status"] == "error" or event["status"] == "stopped":
+            self.log.info("status: %s, msg: %s", event["status"], event["message"])
+            raise AirflowException(event["message"])
+
+        self.log.info("Task %s completed with response %s", self.task_id, event["message"])
 
     def on_kill(self) -> None:
         self.log.info("On kill.")
-        if self.job:
-            self.hook.cancel_job(
+        if self.job is not None:
+            self.log.info("Cancel job %s", self.job_name)
+            self._get_hook().cancel_job(
+                job_name=self.job_name,
                 job_id=self.job.get("id"),
                 project_id=self.job.get("projectId"),
                 location=self.job.get("location"),
             )
+
+    def _get_hook(self) -> DataflowHook:
+        if self._hook is None:
+            self._hook = DataflowHook(
+                gcp_conn_id=self.gcp_conn_id,
+                delegate_to=self.delegate_to,
+                poll_sleep=self.poll_sleep,
+                impersonation_chain=self.impersonation_chain,
+                cancel_timeout=self.cancel_timeout,
+                wait_until_finished=self.wait_until_finished,
+            )
+        return self._hook
 
 
 class DataflowStartFlexTemplateOperator(BaseOperator):
@@ -706,7 +763,6 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.locations.flexTemplates/launch#request-body
     :param location: The location of the Dataflow job (for example europe-west1)
     :param project_id: The ID of the GCP project that owns the job.
-        If set to ``None`` or missing, the default project_id from the GCP connection is used.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud
         Platform.
     :param delegate_to: The account to impersonate, if any.
@@ -767,13 +823,14 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         self,
         body: dict,
         location: str,
-        project_id: str | None = None,
+        project_id: str,
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         drain_pipeline: bool = False,
         cancel_timeout: int | None = 10 * 60,
         wait_until_finished: bool | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = False,
         *args,
         **kwargs,
     ) -> None:
@@ -790,9 +847,23 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         self.drain_pipeline = drain_pipeline
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
-        self.job = None
+        self.job: dict | None = None
         self.hook: DataflowHook | None = None
         self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
+
+        self._validate_deferrable_params()
+
+    def _validate_deferrable_params(self):
+        if self.deferrable and self.wait_until_finished:
+            raise ValueError(
+                "Conflict between deferrable and wait_until_finished parameters "
+                "because it makes operator as blocking when it requires to be deferred. "
+                "It should be True as deferrable parameter or True as wait_until_finished."
+            )
+
+        if self.deferrable and self.wait_until_finished is None:
+            self.wait_until_finished = False
 
     def execute(self, context: Context):
         self.hook = DataflowHook(
@@ -804,22 +875,61 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
+        self._append_uuid_to_job_name()
+
         def set_current_job(current_job):
             self.job = current_job
             DataflowJobLink.persist(self, context, self.project_id, self.location, self.job.get("id"))
 
-        job = self.hook.start_flex_template(
+        self.job = self.hook.start_flex_template(
             body=self.body,
             location=self.location,
             project_id=self.project_id,
             on_new_job_callback=set_current_job,
         )
 
-        return job
+        job_id = self.job.get("id")
+        if job_id is None:
+            raise AirflowException(
+                "While reading job object after template execution error occurred. Job object has no id."
+            )
+
+        if not self.deferrable:
+            return self.job
+
+        self.defer(
+            trigger=TemplateJobStartTrigger(
+                project_id=self.project_id,
+                job_id=job_id,
+                location=self.location,
+                gcp_conn_id=self.gcp_conn_id,
+                delegate_to=self.delegate_to,
+                impersonation_chain=self.impersonation_chain,
+                cancel_timeout=self.cancel_timeout,
+            ),
+            method_name="execute_complete",
+        )
+
+    def _append_uuid_to_job_name(self):
+        job_body = self.body.get("launch_parameter") or self.body.get("launchParameter")
+        job_name = job_body.get("jobName")
+        if job_name:
+            job_name += f"-{str(uuid.uuid4())[:8]}"
+            job_body["jobName"] = job_name
+            self.log.info("Job name was changed to %s", job_name)
+
+    def execute_complete(self, context: Context, event: dict):
+        """Method which executes after trigger finishes its work."""
+        if event["status"] == "error" or event["status"] == "stopped":
+            self.log.info("status: %s, msg: %s", event["status"], event["message"])
+            raise AirflowException(event["message"])
+
+        job_id = event["job_id"]
+        self.log.info("Task %s completed with response %s", job_id, event["message"])
 
     def on_kill(self) -> None:
         self.log.info("On kill.")
-        if self.job:
+        if self.job is not None and self.hook is not None:
             self.hook.cancel_job(
                 job_id=self.job.get("id"),
                 project_id=self.job.get("projectId"),

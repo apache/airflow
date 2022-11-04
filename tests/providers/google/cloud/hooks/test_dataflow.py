@@ -20,8 +20,10 @@ from __future__ import annotations
 import copy
 import re
 import shlex
+import sys
+import unittest
+from concurrent.futures import Future
 from typing import Any
-from unittest import mock
 from unittest.mock import MagicMock
 from uuid import UUID
 
@@ -31,6 +33,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.apache.beam.hooks.beam import BeamCommandRunner, BeamHook
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
+    AsyncDataflowHook,
     DataflowHook,
     DataflowJobStatus,
     DataflowJobType,
@@ -38,6 +41,12 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     _fallback_to_project_id_from_variables,
     process_line_and_extract_dataflow_job_id_callback,
 )
+
+if sys.version_info < (3, 8):
+    from asynctest import mock
+else:
+    from unittest import mock
+
 
 DEFAULT_RUNNER = "DirectRunner"
 BEAM_STRING = "airflow.providers.apache.beam.hooks.beam.{}"
@@ -52,6 +61,7 @@ PARAMETERS = {
     "inputFile": "gs://dataflow-samples/shakespeare/kinglear.txt",
     "output": "gs://test/output/my_output",
 }
+TEST_ENVIRONMENT = {}
 PY_FILE = "apache_beam.examples.wordcount"
 JAR_FILE = "unitest.jar"
 JOB_CLASS = "com.example.UnitTest"
@@ -1882,3 +1892,34 @@ class TestDataflow:
         mock_logging.info.assert_called_once_with("Running command: %s", "test cmd")
         with pytest.raises(Exception):
             dataflow.wait_for_done()
+
+
+class TestAsyncHook:
+    @pytest.fixture
+    def hook(self):
+        return AsyncDataflowHook(
+            gcp_conn_id=TEST_PROJECT_ID,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch.object(JobsV1Beta3AsyncClient, "__init__", lambda self: None)
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.JobsV1Beta3AsyncClient.get_job")
+    async def test_get_job(self, mock_method, hook):
+        mock_method.return_value = Future()
+        await hook.get_job(
+            project_id=TEST_PROJECT_ID,
+            job_id=TEST_JOB_ID,
+            location=TEST_LOCATION,
+        )
+        request = GetJobRequest(
+            dict(
+                project_id=TEST_PROJECT_ID,
+                job_id=TEST_JOB_ID,
+                location=TEST_LOCATION,
+                view=JobView.JOB_VIEW_SUMMARY,
+            )
+        )
+
+        mock_method.assert_called_once_with(
+            request=request,
+        )

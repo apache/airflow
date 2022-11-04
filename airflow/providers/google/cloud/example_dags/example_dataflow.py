@@ -52,6 +52,7 @@ GCS_STAGING = os.environ.get("GCP_DATAFLOW_GCS_STAGING", "gs://INVALID BUCKET NA
 GCS_OUTPUT = os.environ.get("GCP_DATAFLOW_GCS_OUTPUT", "gs://INVALID BUCKET NAME/output")
 GCS_JAR = os.environ.get("GCP_DATAFLOW_JAR", "gs://INVALID BUCKET NAME/word-count-beam-bundled-0.1.jar")
 GCS_PYTHON = os.environ.get("GCP_DATAFLOW_PYTHON", "gs://INVALID BUCKET NAME/wordcount_debugging.py")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 GCS_JAR_PARTS = urlsplit(GCS_JAR)
 GCS_JAR_BUCKET_NAME = GCS_JAR_PARTS.netloc
@@ -257,6 +258,7 @@ with models.DAG(
     # [START howto_operator_start_template_job]
     start_template_job = DataflowTemplatedJobStartOperator(
         task_id="start-template-job",
+        project_id=PROJECT_ID,
         template="gs://dataflow-templates/latest/Word_Count",
         parameters={"inputFile": "gs://dataflow-samples/shakespeare/kinglear.txt", "output": GCS_OUTPUT},
         location="europe-west3",
@@ -279,6 +281,7 @@ with models.DAG(
     # [END howto_operator_stop_dataflow_job]
     start_template_job = DataflowTemplatedJobStartOperator(
         task_id="start-template-job",
+        project_id=PROJECT_ID,
         template="gs://dataflow-templates/latest/Word_Count",
         parameters={"inputFile": "gs://dataflow-samples/shakespeare/kinglear.txt", "output": GCS_OUTPUT},
         location="europe-west3",
