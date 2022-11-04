@@ -624,7 +624,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.configuration_overrides = configuration_overrides
         self.wait_for_completion = wait_for_completion
         self.config = config or {}
-        self.name = name or self.config.pop("name", f"emr_serverless_job_airflow_{str(uuid4())}")
+        self.name = name or self.config.pop("name", f"emr_serverless_job_airflow_{uuid4()}")
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
