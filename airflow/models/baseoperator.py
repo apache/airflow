@@ -57,7 +57,6 @@ from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskD
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
-    DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
     DEFAULT_PRIORITY_WEIGHT,
     DEFAULT_QUEUE,
@@ -190,7 +189,7 @@ def partial(
     task_group: TaskGroup | None = None,
     start_date: datetime | None = None,
     end_date: datetime | None = None,
-    owner: str = DEFAULT_OWNER,
+    owner: str | None = None,
     email: None | str | Iterable[str] = None,
     params: dict | None = None,
     resources: dict[str, Any] | None = None,
@@ -700,7 +699,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def __init__(
         self,
         task_id: str,
-        owner: str = DEFAULT_OWNER,
+        owner: str | None = None,
         email: str | Iterable[str] | None = None,
         email_on_retry: bool = conf.getboolean('email', 'default_email_on_retry', fallback=True),
         email_on_failure: bool = conf.getboolean('email', 'default_email_on_failure', fallback=True),

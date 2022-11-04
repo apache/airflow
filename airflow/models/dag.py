@@ -1225,13 +1225,17 @@ class DAG(LoggingMixin):
         return os.path.dirname(self.fileloc)
 
     @property
-    def owner(self) -> str:
+    def owner(self) -> str | None:
         """
         Return list of all owners found in DAG tasks.
 
         :return: Comma separated list of owners in DAG tasks
         """
-        return ", ".join({t.owner for t in self.tasks})
+        owners = list(filter(None, {t.owner for t in self.tasks}))
+        if owners:
+            return ", ".join(owners)
+        else:
+            return None
 
     @property
     def allow_future_exec_dates(self) -> bool:

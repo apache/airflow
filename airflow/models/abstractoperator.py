@@ -45,7 +45,6 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
 
-DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
 DEFAULT_POOL_SLOTS: int = 1
 DEFAULT_PRIORITY_WEIGHT: int = 1
 DEFAULT_QUEUE: str = conf.get_mandatory_value("operators", "default_queue")
@@ -90,7 +89,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
     # Defines which files extensions to look for in the templated fields.
     template_ext: Sequence[str]
 
-    owner: str
+    owner: str | None
     task_id: str
 
     outlets: list

@@ -35,7 +35,6 @@ from airflow.compat.functools import cache, cached_property
 from airflow.exceptions import AirflowException, UnmappableOperator
 from airflow.models.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
-    DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
     DEFAULT_PRIORITY_WEIGHT,
     DEFAULT_QUEUE,
@@ -372,8 +371,8 @@ class MappedOperator(AbstractOperator):
         return [self]
 
     @property
-    def owner(self) -> str:  # type: ignore[override]
-        return self.partial_kwargs.get("owner", DEFAULT_OWNER)
+    def owner(self) -> str | None:  # type: ignore[override]
+        return self.partial_kwargs.get("owner", None)
 
     @property
     def email(self) -> None | str | Iterable[str]:

@@ -996,14 +996,6 @@
 - name: operators
   description: ~
   options:
-    - name: default_owner
-      description: |
-        The default owner assigned to each new operator, unless
-        provided explicitly or passed via ``default_args``
-      version_added: ~
-      type: string
-      example: ~
-      default: "airflow"
     - name: default_cpus
       description: ~
       version_added: ~
