@@ -228,7 +228,7 @@ class TaskDecoratorCollection:
         shm_size: int | None = None,
         tty: bool = False,
         privileged: bool = False,
-        cap_add: str | None | None = None,
+        cap_add: str | None = None,
         extra_hosts: dict[str, str] | None = None,
         **kwargs,
     ) -> TaskDecorator:
