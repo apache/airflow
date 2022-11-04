@@ -187,7 +187,7 @@ With a AWS IAM key pair
     export AIRFLOW_CONN_AWS_DEFAULT='{
       "conn_type": "aws",
       "login": "AKIAIOSFODNN7EXAMPLE",
-      "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+      "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
     }'
 
 Examples for the **Extra** field
