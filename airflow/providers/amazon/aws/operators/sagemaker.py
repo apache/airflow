@@ -223,7 +223,6 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
         **kwargs,
     ):
         super().__init__(config=config, **kwargs)
-        self.config = config
         self.aws_conn_id = aws_conn_id
 
     def _create_integer_fields(self) -> None:
@@ -304,7 +303,6 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         **kwargs,
     ):
         super().__init__(config=config, **kwargs)
-        self.config = config
         self.aws_conn_id = aws_conn_id
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
@@ -433,7 +431,6 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         **kwargs,
     ):
         super().__init__(config=config, **kwargs)
-        self.config = config
         self.aws_conn_id = aws_conn_id
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
@@ -546,7 +543,6 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
         **kwargs,
     ):
         super().__init__(config=config, **kwargs)
-        self.config = config
         self.aws_conn_id = aws_conn_id
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
@@ -609,7 +605,6 @@ class SageMakerModelOperator(SageMakerBaseOperator):
 
     def __init__(self, *, config: dict, aws_conn_id: str = DEFAULT_CONN_ID, **kwargs):
         super().__init__(config=config, **kwargs)
-        self.config = config
         self.aws_conn_id = aws_conn_id
 
     def expand_role(self) -> None:
@@ -746,7 +741,6 @@ class SageMakerDeleteModelOperator(SageMakerBaseOperator):
 
     def __init__(self, *, config: dict, aws_conn_id: str = DEFAULT_CONN_ID, **kwargs):
         super().__init__(config=config, **kwargs)
-        self.config = config
         self.aws_conn_id = aws_conn_id
 
     def execute(self, context: Context) -> Any:
