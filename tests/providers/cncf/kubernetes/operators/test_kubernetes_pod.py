@@ -121,8 +121,8 @@ class TestKubernetesPodOperator:
             task_id='task-id',
             namespace='{{ dag.dag_id }}',
             container_resources=k8s.V1ResourceRequirements(
-                requests={'memory': 'my_requested_memory', 'cpu': 'my_requested_cpu'},
-                limits={'memory': 'my_memory_limit', 'cpu': 'my_cpu_limit'},
+                requests={'memory': '{{ dag.dag_id }}', 'cpu': '{{ dag.dag_id }}'},
+                limits={'memory': '{{ dag.dag_id }}', 'cpu': '{{ dag.dag_id }}'},
             ),
             pod_template_file='{{ dag.dag_id }}',
             config_file='{{ dag.dag_id }}',
@@ -135,10 +135,10 @@ class TestKubernetesPodOperator:
 
         rendered = ti.render_templates()
 
-        assert 'my_memory_limit' == rendered.container_resources.limits['memory']
-        assert 'my_cpu_limit' == rendered.container_resources.limits['cpu']
-        assert 'my_requested_memory' == rendered.container_resources.requests['memory']
-        assert 'my_requested_cpu' == rendered.container_resources.requests['cpu']
+        assert dag_id == rendered.container_resources.limits['memory']
+        assert dag_id == rendered.container_resources.limits['cpu']
+        assert dag_id == rendered.container_resources.requests['memory']
+        assert dag_id == rendered.container_resources.requests['cpu']
         assert dag_id == ti.task.image
         assert dag_id == ti.task.cmds
         assert dag_id == ti.task.namespace
