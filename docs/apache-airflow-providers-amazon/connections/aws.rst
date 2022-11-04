@@ -118,8 +118,8 @@ If you are configuring the connection via a URI, ensure that all components of t
 Examples
 --------
 
-Snippet for create Connection as URI
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Snippet to create Connection and convert to URI
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
   .. code-block:: python
 
