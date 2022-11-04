@@ -1690,24 +1690,29 @@
                             ],
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                         },
-                        "containerSecurityContext": {
-                            "description": "Container security context definition. The values in this parameter will be used when `containerSecurityContext` is not defined for specific Containers",
+                        "securityContexts": {
+                            "description": "Security context definition for the Airflow workers log groomer sidecar. If not set, the values from global `securityContexts` will be used.",
                             "type": "object",
-                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
-                            "default": {
-                                "runAsUser": 0
-                            },
                             "x-docsSection": "Kubernetes",
-                            "examples": [
-                                {
-                                    "allowPrivilegeEscalation": false,
-                                    "capabilities": {
-                                        "drop": [
-                                            "ALL"
-                                        ]
-                                    }
+                            "properties": {
+                                "container": {
+                                    "description": "Container security context definition for the Airflow workers log groomer sidecar.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
                                 }
-                            ]
+                            }
                         }
                     }
                 },
@@ -4723,7 +4728,7 @@
                                 }
                             ]
                         }
-                    ]
+                    }
                 },
                 "podAnnotations": {
                     "description": "Annotations to add to the StatsD pods.",
