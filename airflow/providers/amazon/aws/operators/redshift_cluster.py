@@ -380,8 +380,6 @@ class RedshiftResumeClusterOperator(BaseOperator):
 
     :param cluster_identifier: id of the AWS Redshift Cluster
     :param aws_conn_id: aws connection to use
-    :param attempts: number of attempts to resume the cluster
-    :param attempt_interval: seconds to wait before each attempt
     """
 
     template_fields: Sequence[str] = ("cluster_identifier",)
@@ -393,15 +391,16 @@ class RedshiftResumeClusterOperator(BaseOperator):
         *,
         cluster_identifier: str,
         aws_conn_id: str = "aws_default",
-        attempts: int = 1,
-        attempt_interval: int = 30,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.cluster_identifier = cluster_identifier
         self.aws_conn_id = aws_conn_id
-        self.attempts = attempts
-        self.attempt_interval = attempt_interval
+        # These parameters are added to address an issue with the boto3 API where the API
+        # prematurely reports the cluster as available to receive requests. This causes the cluster
+        # to reject initial attempts to resume the cluster despite reporting the correct state.
+        self.attempts = 10
+        self.attempt_interval = 15
 
     def execute(self, context: Context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
@@ -443,15 +442,16 @@ class RedshiftPauseClusterOperator(BaseOperator):
         *,
         cluster_identifier: str,
         aws_conn_id: str = "aws_default",
-        attempts: int = 1,
-        attempt_interval: int = 30,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.cluster_identifier = cluster_identifier
         self.aws_conn_id = aws_conn_id
-        self.attempts = attempts
-        self.attempt_interval = attempt_interval
+        # These parameters are added to address an issue with the boto3 API where the API
+        # prematurely reports the cluster as available to receive requests. This causes the cluster
+        # to reject initial attempts to pause the cluster despite reporting the correct state.
+        self.attempts = 10
+        self.attempt_interval = 15
 
     def execute(self, context: Context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
