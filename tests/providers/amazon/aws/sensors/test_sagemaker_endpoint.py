@@ -79,7 +79,7 @@ class TestSageMakerEndpointSensor(unittest.TestCase):
             DESCRIBE_ENDPOINT_INSERVICE_RESPONSE,
         ]
         sensor = SageMakerEndpointSensor(
-            task_id="test_task", poke_interval=1, aws_conn_id="aws_test", endpoint_name="test_job_name"
+            task_id="test_task", poke_interval=0, aws_conn_id="aws_test", endpoint_name="test_job_name"
         )
 
         sensor.execute(None)
