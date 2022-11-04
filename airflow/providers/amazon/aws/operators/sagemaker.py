@@ -753,17 +753,44 @@ class SageMakerStopPipelineOperator(SageMakerBaseOperator):
     """
     Stops a SageMaker pipeline execution.
 
-    :param config: The configuration to stop the pipeline execution.
-        Should contain the targeted PipelineExecutionArn (Amazon Resource Number)
+    :param config: The configuration to start the pipeline execution.
     :param aws_conn_id: The AWS connection ID to use.
+    :param pipeline_exec_arn: Amazon Resource Name of the pipeline execution to stop.
+    :param wait_for_completion: If true, this operator will only complete once the pipeline is fully stopped.
+    :param check_interval: How long to wait between checks for pipeline status when waiting for completion.
+    :param fail_if_not_running: raises an exception if the pipeline stopped or succeeded before this was run
+
+    :return Str: Returns the status of the pipeline execution after the operation has been done.
     """
 
-    def __init__(self, *, config: dict, aws_conn_id: str = DEFAULT_CONN_ID, **kwargs):
+    def __init__(
+        self,
+        *,
+        config: dict,
+        aws_conn_id: str = DEFAULT_CONN_ID,
+        pipeline_exec_arn: str,
+        wait_for_completion: bool = False,
+        check_interval: int = CHECK_INTERVAL_SECOND,
+        fail_if_not_running: bool = False,
+        **kwargs,
+    ):
         super().__init__(config=config, **kwargs)
         self.aws_conn_id = aws_conn_id
+        self.pipeline_exec_arn = pipeline_exec_arn
+        self.wait_for_completion = wait_for_completion
+        self.check_interval = check_interval
+        self.fail_if_not_running = fail_if_not_running
 
-    def execute(self, _: Context) -> dict:
-        status = self.hook.stop_pipeline(pipeline_exec_arn=self.config['PipelineExecutionArn'])
-        self.log.info("Stop requested for pipeline execution with ARN %s. Status is now %s",
-                      self.config['PipelineExecutionArn'], status)
-        return {"Status": status}
+    def execute(self, _: Context) -> str:
+        status = self.hook.stop_pipeline(
+            pipeline_exec_arn=self.pipeline_exec_arn,
+            wait_for_completion=self.wait_for_completion,
+            check_interval=self.check_interval,
+            fail_if_not_running=self.fail_if_not_running,
+        )
+        self.log.info(
+            "Stop requested for pipeline execution with ARN %s. Status is now %s",
+            self.pipeline_exec_arn,
+            status,
+        )
+        return status

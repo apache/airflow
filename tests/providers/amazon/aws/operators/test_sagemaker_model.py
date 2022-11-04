@@ -75,9 +75,14 @@ class TestSageMakerStopPipelineOperator:
     @mock.patch.object(SageMakerHook, "stop_pipeline")
     def test_execute(self, stop_pipeline):
         op = SageMakerStopPipelineOperator(
-            task_id="test_sagemaker_operator", config={"PipelineExecutionArn": "pipeline_arn"}
+            task_id="test_sagemaker_operator", config={}, pipeline_exec_arn="pipeline_arn"
         )
 
         op.execute(None)
 
-        stop_pipeline.assert_called_once_with(pipeline_exec_arn="pipeline_arn")
+        stop_pipeline.assert_called_once_with(
+            pipeline_exec_arn="pipeline_arn",
+            wait_for_completion=False,
+            check_interval=30,
+            fail_if_not_running=False,
+        )

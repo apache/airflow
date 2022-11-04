@@ -145,7 +145,7 @@ class SageMakerHook(AwsBaseHook):
 
     non_terminal_states = {"InProgress", "Stopping"}
     endpoint_non_terminal_states = {"Creating", "Updating", "SystemUpdating", "RollingBack", "Deleting"}
-    pipeline_non_terminal_states = {'Executing', 'Stopping'}
+    pipeline_non_terminal_states = {"Executing", "Stopping"}
     failed_states = {"Failed"}
 
     def __init__(self, *args, **kwargs):
@@ -648,28 +648,28 @@ class SageMakerHook(AwsBaseHook):
 
     def check_status(
         self,
-        job_name: str,
+        resource_name: str,
         key: str,
         describe_function: Callable,
         check_interval: int,
         max_ingestion_time: int | None = None,
         non_terminal_states: set | None = None,
-    ):
+    ) -> dict:
         """
-        Check status of a SageMaker job
+        Check status of a SageMaker resource
 
-        :param job_name: name of the job to check status
+        :param resource_name: name of the resource to check status
         :param key: the key of the response dict
             that points to the state
         :param describe_function: the function used to retrieve the status
         :param args: the arguments for the function
         :param check_interval: the time interval in seconds which the operator
-            will check the status of any SageMaker job
+            will check the status of any SageMaker resource
         :param max_ingestion_time: the maximum ingestion time in seconds. Any
-            SageMaker jobs that run longer than this will fail. Setting this to
-            None implies no timeout for any SageMaker job.
+            SageMaker resources that run longer than this will fail. Setting this to
+            None implies no timeout for any SageMaker resource.
         :param non_terminal_states: the set of nonterminal states
-        :return: response of describe call after job is done
+        :return: response of describe call after resource is done
         """
         if not non_terminal_states:
             non_terminal_states = self.non_terminal_states
@@ -681,24 +681,24 @@ class SageMakerHook(AwsBaseHook):
             sec += check_interval
 
             try:
-                response = describe_function(job_name)
+                response = describe_function(resource_name)
                 status = response[key]
-                self.log.info("Job still running for %s seconds... current status is %s", sec, status)
+                self.log.info("Resource still running for %s seconds... current status is %s", sec, status)
             except KeyError:
-                raise AirflowException("Could not get status of the SageMaker job")
+                raise AirflowException("Could not get status of the SageMaker resource")
             except ClientError:
                 raise AirflowException("AWS request failed, check logs for more info")
 
             if status in self.failed_states:
-                raise AirflowException(f"SageMaker job failed because {response['FailureReason']}")
+                raise AirflowException(f"SageMaker resource failed because {response['FailureReason']}")
             elif status not in non_terminal_states:
                 break
 
             if max_ingestion_time and sec > max_ingestion_time:
-                # ensure that the job gets killed if the max ingestion time is exceeded
-                raise AirflowException(f"SageMaker job took more than {max_ingestion_time} seconds")
+                # ensure that the resource gets killed if the max ingestion time is exceeded
+                raise AirflowException(f"SageMaker resource took more than {max_ingestion_time} seconds")
 
-        self.log.info("SageMaker Job completed")
+        self.log.info("SageMaker resource completed")
         return response
 
     def check_training_status_with_log(
@@ -998,19 +998,53 @@ class SageMakerHook(AwsBaseHook):
     def describe_pipeline_exec(self, pipeline_exec_arn: str):
         return self.conn.describe_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
 
-    def stop_pipeline(self, pipeline_exec_arn: str) -> str:
-        """Stop SageMaker pipeline
+    def stop_pipeline(
+        self,
+        pipeline_exec_arn: str,
+        wait_for_completion: bool = False,
+        check_interval: int = 10,
+        fail_if_not_running: bool = False,
+    ) -> str:
+        """Stop SageMaker pipeline execution
 
         :param pipeline_exec_arn: Amazon Resource Name (ARN) of the pipeline execution.
-            Note that this is different from the ARN of the pipeline itself.
-        :return: status of the pipeline execution after the operation.
+            It's the ARN of the pipeline itself followed by "/execution/" and an id.
+        :param wait_for_completion: Whether to wait for the pipeline to reach a final state.
+            (i.e. either 'Stopped' or 'Failed')
+        :param check_interval: How long to wait between checks for pipeline status when waiting for
+            completion.
+        :param fail_if_not_running: This method will raise an exception if the pipeline we're trying to stop
+            is not in an "Executing" state when the call is sent (which would mean that the pipeline is
+            already either stopping or stopped).
+            Note that setting this to True will raise an error if the pipeline finished successfully before it
+            was stopped.
+        :return: Status of the pipeline execution after the operation.
             One of 'Executing'|'Stopping'|'Stopped'|'Failed'|'Succeeded'.
         """
         conn = self.conn
         try:
             conn.stop_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
-        except conn.exceptions.ResourceNotFound as not_found_error:
-            self.log.error("Can't find pipeline %s: %s", pipeline_exec_arn, not_found_error)
-            raise
-        res = conn.describe_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
+        except ClientError as ce:
+            # we have to rely on the message to catch the right error here, because its type
+            # (ValidationException) is shared with other kinds of error (for instance, badly formatted ARN)
+            if (
+                not fail_if_not_running
+                and "Only pipelines with 'Executing' status can be stopped" in ce.response["Error"]["Message"]
+            ):
+                self.log.warning("Cannot stop pipeline execution, as it was not running: %s", ce)
+            else:
+                self.log.error(ce)
+                raise
+
+        res = self.describe_pipeline_exec(pipeline_exec_arn)
+
+        if wait_for_completion and res["PipelineExecutionStatus"] in self.pipeline_non_terminal_states:
+            res = self.check_status(
+                pipeline_exec_arn,
+                "PipelineExecutionStatus",
+                self.describe_pipeline_exec,
+                check_interval,
+                non_terminal_states=self.pipeline_non_terminal_states,
+            )
+
         return res["PipelineExecutionStatus"]
