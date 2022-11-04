@@ -80,7 +80,7 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
         ]
         sensor = SageMakerTrainingSensor(
             task_id="test_task",
-            poke_interval=2,
+            poke_interval=0,
             aws_conn_id="aws_test",
             job_name="test_job_name",
             print_log=False,
@@ -113,7 +113,7 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
         ]
         sensor = SageMakerTrainingSensor(
             task_id="test_task",
-            poke_interval=2,
+            poke_interval=0,
             aws_conn_id="aws_test",
             job_name="test_job_name",
             print_log=True,
