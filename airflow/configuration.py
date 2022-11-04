@@ -81,7 +81,7 @@ def expand_env_var(env_var: str) -> str:
     ...
 
 
-def expand_env_var(env_var: str | None) -> str | None | None:
+def expand_env_var(env_var: str | None) -> str | None:
     """
     Expands (potentially nested) env vars by repeatedly applying
     `expandvars` and `expanduser` until interpolation stops having
