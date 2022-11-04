@@ -62,9 +62,10 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             return WasbHook(remote_conn_id)
         except Exception:
             self.log.exception(
-                'Could not create a WasbHook with connection id "%s".'
-                " Please make sure that apache-airflow[azure] is installed"
-                " and the Wasb connection exists.",
+                "Could not create an WasbHook with connection id '%s'. "
+                "Do you have apache-airflow[azure] installed? "
+                "Does connection the connection exist, and is it "
+                "configured properly?",
                 remote_conn_id,
             )
             return None
