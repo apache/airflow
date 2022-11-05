@@ -76,7 +76,7 @@ The current list of prerequisites is limited to ``xmllint``:
 
 Some pre-commit hooks also require the Docker Engine to be configured as the static
 checks are executed in the Docker environment (See table in the
-Available pre-commit checks <#available-pre-commit-checks>`_ . You should build the images
+`Available pre-commit checks <#available-pre-commit-checks>`_ . You should build the images
 locally before installing pre-commit checks as described in `BREEZE.rst <BREEZE.rst>`__.
 
 Sometimes your image is outdated and needs to be rebuilt because some dependencies have been changed.
