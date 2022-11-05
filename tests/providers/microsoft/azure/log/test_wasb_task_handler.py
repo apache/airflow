@@ -68,21 +68,15 @@ class TestWasbTaskHandler:
         assert isinstance(self.wasb_task_handler.hook, WasbHook)
 
     @conf_vars({("logging", "remote_log_conn_id"): "wasb_default"})
-    def test_hook_raises(self):
+    def test_hook_warns(self):
         handler = self.wasb_task_handler
-        with mock.patch.object(handler.log, "error") as mock_error:
+        with mock.patch.object(handler.log, "exception") as mock_exc:
             with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook") as mock_hook:
                 mock_hook.side_effect = AzureHttpError("failed to connect", 404)
                 # Initialize the hook
                 handler.hook
 
-            mock_error.assert_called_once_with(
-                'Could not create an WasbHook with connection id "%s".'
-                " Please make sure that apache-airflow[azure] is installed"
-                " and the Wasb connection exists.",
-                "wasb_default",
-                exc_info=True,
-            )
+        assert "Could not create a WasbHook with connection id '%s'" in mock_exc.call_args[0][0]
 
     def test_set_context_raw(self, ti):
         ti.raw = True
