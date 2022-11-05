@@ -173,8 +173,8 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         assert self.expected_pod["spec"] == actual_pod["spec"]
         assert self.expected_pod["metadata"]["labels"] == actual_pod["metadata"]["labels"]
 
-    def test_pod_node_selectors(self):
-        node_selectors = {"beta.kubernetes.io/os": "linux"}
+    def test_pod_node_selector(self):
+        node_selector = {"beta.kubernetes.io/os": "linux"}
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
@@ -185,12 +185,12 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             task_id="task",
             in_cluster=False,
             do_xcom_push=False,
-            node_selectors=node_selectors,
+            node_selector=node_selector,
         )
         context = create_context(k)
         k.execute(context)
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        self.expected_pod["spec"]["nodeSelector"] = node_selectors
+        self.expected_pod["spec"]["nodeSelector"] = node_selector
         assert self.expected_pod == actual_pod
 
     def test_pod_affinity(self):
