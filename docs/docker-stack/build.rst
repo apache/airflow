@@ -332,6 +332,16 @@ You should be aware, about a few things:
 
     RUN usermod -g 0 airflow
 
+Example of dockerfile with creating new virtualenv
+................................................
+
+The following example shows how to add your own python venv and install packages via requirements.txt ExternalPythonOperator
+
+.. exampleinclude:: docker-examples/extending/add-python-venv/Dockerfile
+    :language: Dockerfile
+    :start-after: [START Dockerfile]
+    :end-before: [END Dockerfile]
+
 Examples of image extending
 ---------------------------
 
