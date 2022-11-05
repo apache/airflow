@@ -191,7 +191,7 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         self.schema = schema
         self.authenticator = authenticator
         self.session_parameters = session_parameters
-        self.query_ids: list[str] = []
+        self.running_query_ids: list[str] = []
 
 
 class SnowflakeValueCheckOperator(SQLValueCheckOperator):
@@ -257,7 +257,7 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         self.schema = schema
         self.authenticator = authenticator
         self.session_parameters = session_parameters
-        self.query_ids: list[str] = []
+        self.running_query_ids: list[str] = []
 
 
 class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
@@ -336,4 +336,4 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         self.schema = schema
         self.authenticator = authenticator
         self.session_parameters = session_parameters
-        self.query_ids: list[str] = []
+        self.running_query_ids: list[str] = []

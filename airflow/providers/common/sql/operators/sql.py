@@ -197,9 +197,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 
     def execute(self, context):
         self.log.info("Executing: %s", self.sql)
-        hook = self.get_db_hook()
         if self.do_xcom_push:
-            output = hook.run(
+            output = self._hook.run(
                 sql=self.sql,
                 autocommit=self.autocommit,
                 parameters=self.parameters,
@@ -208,7 +207,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
                 return_last=self.return_last,
             )
         else:
-            output = hook.run(
+            output = self._hook.run(
                 sql=self.sql,
                 autocommit=self.autocommit,
                 parameters=self.parameters,
@@ -220,6 +219,16 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
                 self._process_output(*out)
 
         return output
+
+    def on_kill(self) -> None:
+        for query_id in self._hook.running_query_ids.copy():
+            self.log.info("Stopping query: %s", query_id)
+            try:
+                self._hook.kill_query(query_id)
+            except NotImplementedError:
+                self.log.info("Method '.kill()' is not implemented for ", self._hook.__class__.__name__)
+            except Exception as e:
+                self.log.info("The query '%s' can not be killed due to %s", query_id, str(e))
 
     def prepare_template(self) -> None:
         """Parse template file for attribute parameters."""

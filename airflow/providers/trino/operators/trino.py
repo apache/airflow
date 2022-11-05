@@ -21,10 +21,7 @@ from __future__ import annotations
 import warnings
 from typing import Any, Sequence
 
-from trino.exceptions import TrinoQueryError
-
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
-from airflow.providers.trino.hooks.trino import TrinoHook
 
 
 class TrinoOperator(SQLExecuteQueryOperator):
@@ -58,18 +55,3 @@ class TrinoOperator(SQLExecuteQueryOperator):
             DeprecationWarning,
             stacklevel=2,
         )
-
-    def on_kill(self) -> None:
-        if self._hook is not None and isinstance(self._hook, TrinoHook):
-            query_id = "'" + self._hook.query_id + "'"
-            try:
-                self.log.info("Stopping query run with queryId - %s", self._hook.query_id)
-                self._hook.run(
-                    sql=f"CALL system.runtime.kill_query(query_id => {query_id},message => 'Job "
-                    f"killed by "
-                    f"user');",
-                    handler=list,
-                )
-            except TrinoQueryError as e:
-                self.log.info(str(e))
-            self.log.info("Trino query (%s) terminated", query_id)

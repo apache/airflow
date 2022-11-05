@@ -114,6 +114,7 @@ class DbApiHook(BaseForDbApiHook):
         # Hook deriving from the DBApiHook to still have access to the field in it's constructor
         self.__schema = schema
         self.log_sql = log_sql
+        self.running_query_ids: list[str] = []
 
     def get_conn(self):
         """Returns a connection object"""
@@ -244,6 +245,7 @@ class DbApiHook(BaseForDbApiHook):
         :param return_last: Whether to return result for only last statement or for all after split
         :return: return only result of the ALL SQL expressions if handler was provided.
         """
+        self.running_query_ids = []
         scalar_return_last = isinstance(sql, str) and return_last
         if isinstance(sql, str):
             if split_statements:
@@ -264,6 +266,7 @@ class DbApiHook(BaseForDbApiHook):
                 results = []
                 for sql_statement in sql:
                     self._run_command(cur, sql_statement, parameters)
+                    self._update_query_ids(cur)
 
                     if handler is not None:
                         result = handler(cur)
@@ -293,6 +296,22 @@ class DbApiHook(BaseForDbApiHook):
         # According to PEP 249, this is -1 when query result is not applicable.
         if cur.rowcount >= 0:
             self.log.info("Rows affected: %s", cur.rowcount)
+
+    def _update_query_ids(self, cursor) -> None:
+        """
+        Adds query ids to list
+        :param cur: current cursor after run
+        :return:
+        """
+        return None
+
+    def kill_query(self, query_id) -> Any:
+        """
+        Stops query with certain identifier
+        :param query_id: identifier of the query
+        :return:
+        """
+        raise NotImplementedError
 
     def set_autocommit(self, conn, autocommit):
         """Sets the autocommit flag on the connection"""

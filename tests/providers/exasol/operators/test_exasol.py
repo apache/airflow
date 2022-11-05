@@ -25,11 +25,11 @@ from airflow.providers.exasol.operators.exasol import ExasolOperator
 
 
 class TestExasol(unittest.TestCase):
-    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
-    def test_overwrite_autocommit(self, mock_get_db_hook):
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator._hook")
+    def test_overwrite_autocommit(self, mock_hook):
         operator = ExasolOperator(task_id="TEST", sql="SELECT 1", autocommit=True)
         operator.execute({})
-        mock_get_db_hook.return_value.run.assert_called_once_with(
+        mock_hook.run.assert_called_once_with(
             sql="SELECT 1",
             autocommit=True,
             parameters=None,
@@ -38,11 +38,11 @@ class TestExasol(unittest.TestCase):
             split_statements=False,
         )
 
-    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
-    def test_pass_parameters(self, mock_get_db_hook):
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator._hook")
+    def test_pass_parameters(self, mock_hook):
         operator = ExasolOperator(task_id="TEST", sql="SELECT {value!s}", parameters={"value": 1})
         operator.execute({})
-        mock_get_db_hook.return_value.run.assert_called_once_with(
+        mock_hook.run.assert_called_once_with(
             sql="SELECT {value!s}",
             autocommit=False,
             parameters={"value": 1},

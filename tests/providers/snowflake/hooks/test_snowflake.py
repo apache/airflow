@@ -550,7 +550,7 @@ class TestPytestSnowflakeHook:
         hook.run(sql, parameters=mock_params)
 
         cur.execute.assert_has_calls([mock.call(query, mock_params) for query in expected_sql])
-        assert hook.query_ids == expected_query_ids
+        assert hook.running_query_ids == expected_query_ids
         cur.close.assert_called()
 
     @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_first")

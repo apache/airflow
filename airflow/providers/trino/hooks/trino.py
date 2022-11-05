@@ -211,6 +211,16 @@ class TrinoHook(DbApiHook):
             return_last=return_last,
         )
 
+    def _update_query_ids(self, cursor) -> None:
+        self.running_query_ids.append(cursor.stats["queryId"])
+
+    def kill_query(self, query_id) -> Any:
+        result = super().run(
+            sql=f"CALL system.runtime.kill_query(query_id => '{query_id}',message => 'Job killed by user');",
+            handler=list,
+        )
+        return result
+
     def insert_rows(
         self,
         table: str,
