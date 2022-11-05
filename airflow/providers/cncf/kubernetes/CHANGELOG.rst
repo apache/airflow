@@ -34,6 +34,8 @@ Previously KubernetesPodOperator considered some settings from the Airflow confi
 
 Drop support for providing ``resource`` as dict in ``KubernetesPodOperator``. You should use ``container_resources`` with ``V1ResourceRequirements``.
 
+Param ``node_selectors`` has been removed in ``KubernetesPodOperator``; use ``node_selector`` instead.
+
 Features
 ~~~~~~~~
 
