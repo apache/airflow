@@ -1418,9 +1418,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param project_id: Google Cloud Project where the job is running
         :param location: location the job is running
         """
+        project_id = project_id or self.project_id
         location = location or self.location
 
-        if self.poll_job_complete(job_id=job_id):
+        if self.poll_job_complete(job_id=job_id, project_id=project_id, location=location):
             self.log.info("No running BigQuery jobs to cancel.")
             return
 
@@ -1434,17 +1435,18 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job_complete = False
         while polling_attempts < max_polling_attempts and not job_complete:
             polling_attempts += 1
-            job_complete = self.poll_job_complete(job_id)
+            job_complete = self.poll_job_complete(job_id=job_id, project_id=project_id, location=location)
             if job_complete:
                 self.log.info("Job successfully canceled: %s, %s", project_id, job_id)
             elif polling_attempts == max_polling_attempts:
                 self.log.info(
-                    "Stopping polling due to timeout. Job with id %s "
+                    "Stopping polling due to timeout. Job %s, %s "
                     "has not completed cancel and may or may not finish.",
+                    project_id,
                     job_id,
                 )
             else:
-                self.log.info("Waiting for canceled job with id %s to finish.", job_id)
+                self.log.info("Waiting for canceled job %s, %s to finish.", project_id, job_id)
                 time.sleep(5)
 
     @GoogleBaseHook.fallback_to_default_project_id
