@@ -116,8 +116,6 @@ class KubernetesPodOperator(BaseOperator):
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
-    :param node_selectors: (Deprecated) A dict containing a group of scheduling rules.
-        Please use node_selector instead.
     :param node_selector: A dict containing a group of scheduling rules.
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
         If more than one secret is required, provide a
@@ -192,7 +190,6 @@ class KubernetesPodOperator(BaseOperator):
         container_resources: k8s.V1ResourceRequirements | None = None,
         affinity: k8s.V1Affinity | None = None,
         config_file: str | None = None,
-        node_selectors: dict | None = None,
         node_selector: dict | None = None,
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
@@ -221,7 +218,13 @@ class KubernetesPodOperator(BaseOperator):
                 "Specifying resources for the launched pod with 'resources' is deprecated. "
                 "Use 'container_resources' instead."
             )
-
+        # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
+        # node_selector parameter.
+        if "node_selectors" in kwargs:
+            raise ValueError(
+                "Param `node_selectors` supplied. This param is no longer supported. "
+                "Use `node_selector` instead."
+            )
         super().__init__(**kwargs)
         self.kubernetes_conn_id = kubernetes_conn_id
         self.do_xcom_push = do_xcom_push
@@ -246,16 +249,7 @@ class KubernetesPodOperator(BaseOperator):
         self.reattach_on_restart = reattach_on_restart
         self.get_logs = get_logs
         self.image_pull_policy = image_pull_policy
-        if node_selectors:
-            # Node selectors is incorrect based on k8s API
-            warnings.warn(
-                "node_selectors is deprecated. Please use node_selector instead.", DeprecationWarning
-            )
-            self.node_selector = node_selectors
-        elif node_selector:
-            self.node_selector = node_selector
-        else:
-            self.node_selector = {}
+        self.node_selector = node_selector or {}
         self.annotations = annotations or {}
         self.affinity = convert_affinity(affinity) if affinity else {}
         self.container_resources = container_resources

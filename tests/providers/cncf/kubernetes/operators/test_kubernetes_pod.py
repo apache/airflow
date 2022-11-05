@@ -810,20 +810,6 @@ class TestKubernetesPodOperator:
         assert isinstance(pod.spec.node_selector, dict)
         assert sanitized_pod["spec"]["nodeSelector"] == node_selector
 
-        # repeat tests using deprecated parameter
-        with pytest.warns(
-            DeprecationWarning, match="node_selectors is deprecated. Please use node_selector instead."
-        ):
-            k = KubernetesPodOperator(
-                task_id="task",
-                node_selectors=node_selector,
-            )
-
-        pod = k.build_pod_request_obj(create_context(k))
-        sanitized_pod = self.sanitize_for_serialization(pod)
-        assert isinstance(pod.spec.node_selector, dict)
-        assert sanitized_pod["spec"]["nodeSelector"] == node_selector
-
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @patch(f"{POD_MANAGER_CLASS}.extract_xcom")
     @patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
