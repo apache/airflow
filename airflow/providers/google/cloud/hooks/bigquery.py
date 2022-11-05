@@ -3080,7 +3080,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             fields = query_results["schema"]["fields"]
             col_types = [field["type"] for field in fields]
             for dict_row in rows:
-                typed_row = [_bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
+                typed_row = [bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
                 buffer.append(typed_row)
         return buffer
 
