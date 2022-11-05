@@ -816,7 +816,7 @@ class TestKubernetesPodOperator:
         ):
             k = KubernetesPodOperator(
                 task_id="task",
-                node_selectors=node_selector,
+                node_selector=node_selector,
             )
 
         pod = k.build_pod_request_obj(create_context(k))
