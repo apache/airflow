@@ -26,11 +26,11 @@ ENV PIP_USER=false
 RUN python3 -m venv /opt/airflow/venv1
 # Installing dependencies :
 COPY airflow/requirements.txt .
-# copy over folder that contains my own local pip package :
+# copy over folder that contains our own local pip package :
 COPY airflow/my_own_pip_package_folder /opt/airflow/my_own_pip_package_folder
 # copy over our file :
 COPY my_file.py /opt/airflow/my_file.py
-# installing packages in our own docker virtual environemnt :
+# installing packages in our own docker virtual environment :
 RUN /opt/airflow/venv1/bin/pip install -r requirements.txt
 RUN /opt/airflow/venv1/bin/pip install /opt/airflow/my_own_pip_package_folder
 RUN /opt/airflow/venv1/bin/pip install 'apache-airflow==2.4.2' --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.4.1/constraints-3.8.txt"
