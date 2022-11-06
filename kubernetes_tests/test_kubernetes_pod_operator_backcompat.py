@@ -121,24 +121,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         client = hook.core_v1_client
         client.delete_collection_namespaced_pod(namespace="default")
 
-    def test_working_pod(self):
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="test",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-        )
-        context = create_context(k)
-        k.execute(context)
-        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        assert self.expected_pod["spec"] == actual_pod["spec"]
-        assert self.expected_pod["metadata"]["labels"] == actual_pod["metadata"]["labels"]
-
     def test_pod_node_selector(self):
         node_selector = {"beta.kubernetes.io/os": "linux"}
         k = KubernetesPodOperator(
