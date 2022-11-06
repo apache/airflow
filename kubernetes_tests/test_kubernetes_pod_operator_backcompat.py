@@ -16,23 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
 import kubernetes.client.models as k8s
 import pendulum
-import pytest
 from kubernetes.client.api_client import ApiClient
-from kubernetes.client.rest import ApiException
 
-from airflow.exceptions import AirflowException
 from airflow.kubernetes.secret import Secret
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 from airflow.version import version as airflow_version
@@ -120,79 +115,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         hook = KubernetesHook(conn_id=None, in_cluster=False)
         client = hook.core_v1_client
         client.delete_collection_namespaced_pod(namespace="default")
-
-    def test_faulty_service_account(self):
-        """pod creation should fail when service account does not exist"""
-        service_account = "foobar"
-        namespace = "default"
-        k = KubernetesPodOperator(
-            namespace=namespace,
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="test",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-            startup_timeout_seconds=5,
-            service_account_name=service_account,
-        )
-        context = create_context(k)
-        pod = k.build_pod_request_obj(context)
-        with pytest.raises(
-            ApiException, match=f"error looking up service account {namespace}/{service_account}"
-        ):
-            k.get_or_create_pod(pod, context)
-
-    def test_pod_failure(self):
-        """
-        Tests that the task fails when a pod reports a failure
-        """
-        bad_internal_command = ["foobar 10 "]
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=bad_internal_command,
-            labels={"foo": "bar"},
-            name="test",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-        )
-        with pytest.raises(AirflowException):
-            context = create_context(k)
-            k.execute(context)
-            actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-            self.expected_pod["spec"]["containers"][0]["args"] = bad_internal_command
-            assert self.expected_pod == actual_pod
-
-    def test_xcom_push(self):
-        return_value = '{"foo": "bar"\n, "buzz": 2}'
-        args = [f"echo '{return_value}' > /airflow/xcom/return.json"]
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=args,
-            labels={"foo": "bar"},
-            name="test",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=True,
-        )
-        context = create_context(k)
-        assert k.execute(context) == json.loads(return_value)
-        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        volume = self.api_client.sanitize_for_serialization(PodDefaults.VOLUME)
-        volume_mount = self.api_client.sanitize_for_serialization(PodDefaults.VOLUME_MOUNT)
-        container = self.api_client.sanitize_for_serialization(PodDefaults.SIDECAR_CONTAINER)
-        self.expected_pod["spec"]["containers"][0]["args"] = args
-        self.expected_pod["spec"]["containers"][0]["volumeMounts"].insert(0, volume_mount)
-        self.expected_pod["spec"]["volumes"].insert(0, volume)
-        self.expected_pod["spec"]["containers"].append(container)
-        assert self.expected_pod == actual_pod
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")

@@ -37,11 +37,10 @@ from pytest import param
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes.secret import Secret
-from airflow.models import DAG, XCOM_RETURN_KEY, DagRun, TaskInstance
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
-from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.types import DagRunType
@@ -600,7 +599,6 @@ class TestKubernetesPodOperatorSystem:
             assert self.expected_pod == actual_pod
 
     def test_faulty_service_account(self):
-        bad_service_account_name = "foobar"
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
@@ -611,7 +609,7 @@ class TestKubernetesPodOperatorSystem:
             in_cluster=False,
             do_xcom_push=False,
             startup_timeout_seconds=5,
-            service_account_name=bad_service_account_name,
+            service_account_name="foobar",
         )
         context = create_context(k)
         pod = k.build_pod_request_obj(context)
@@ -640,10 +638,9 @@ class TestKubernetesPodOperatorSystem:
             self.expected_pod["spec"]["containers"][0]["args"] = bad_internal_command
             assert self.expected_pod == actual_pod
 
-    @mock.patch("airflow.models.taskinstance.TaskInstance.xcom_push")
-    def test_xcom_push(self, xcom_push):
-        return_value = f'{{"test_label": "{get_label()}"\n, "buzz": 2}}'
-        args = [f"echo '{return_value}' > /airflow/xcom/return.json"]
+    def test_xcom_push(self):
+        expected = {"test_label": get_label(), "buzz": 2}
+        args = [f"echo '{json.dumps(expected)}' > /airflow/xcom/return.json"]
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
@@ -655,17 +652,7 @@ class TestKubernetesPodOperatorSystem:
             do_xcom_push=True,
         )
         context = create_context(k)
-        k.execute(context)
-        assert xcom_push.called_once_with(key=XCOM_RETURN_KEY, value=json.loads(return_value))
-        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        volume = self.api_client.sanitize_for_serialization(PodDefaults.VOLUME)
-        volume_mount = self.api_client.sanitize_for_serialization(PodDefaults.VOLUME_MOUNT)
-        container = self.api_client.sanitize_for_serialization(PodDefaults.SIDECAR_CONTAINER)
-        self.expected_pod["spec"]["containers"][0]["args"] = args
-        self.expected_pod["spec"]["containers"][0]["volumeMounts"].insert(0, volume_mount)
-        self.expected_pod["spec"]["volumes"].insert(0, volume)
-        self.expected_pod["spec"]["containers"].append(container)
-        assert self.expected_pod == actual_pod
+        assert k.execute(context) == expected
 
     @mock.patch(f"{POD_MANAGER_CLASS}.create_pod")
     @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
