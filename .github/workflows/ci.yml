@@ -1125,7 +1125,7 @@ jobs:
   constraints:
     permissions:
       contents: write
-    timeout-minutes: 40
+    timeout-minutes: 80
     name: "Constraints"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs:
