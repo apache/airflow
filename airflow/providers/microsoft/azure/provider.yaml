@@ -125,8 +125,6 @@ integrations:
 operators:
   - integration-name: Microsoft Azure Data Lake Storage
     python-modules:
-      - airflow.providers.microsoft.azure.operators.adls_list
-      - airflow.providers.microsoft.azure.operators.adls_delete
       - airflow.providers.microsoft.azure.operators.adls
   - integration-name: Microsoft Azure Data Explorer
     python-modules:
@@ -134,15 +132,12 @@ operators:
   - integration-name: Microsoft Azure Batch
     python-modules:
       - airflow.providers.microsoft.azure.operators.batch
-      - airflow.providers.microsoft.azure.operators.azure_batch
   - integration-name: Microsoft Azure Container Instances
     python-modules:
       - airflow.providers.microsoft.azure.operators.container_instances
-      - airflow.providers.microsoft.azure.operators.azure_container_instances
   - integration-name: Microsoft Azure Cosmos DB
     python-modules:
       - airflow.providers.microsoft.azure.operators.cosmos
-      - airflow.providers.microsoft.azure.operators.azure_cosmos
   - integration-name: Microsoft Azure Blob Storage
     python-modules:
       - airflow.providers.microsoft.azure.operators.wasb_delete_blob
@@ -160,7 +155,6 @@ sensors:
   - integration-name: Microsoft Azure Cosmos DB
     python-modules:
       - airflow.providers.microsoft.azure.sensors.cosmos
-      - airflow.providers.microsoft.azure.sensors.azure_cosmos
   - integration-name: Microsoft Azure Blob Storage
     python-modules:
       - airflow.providers.microsoft.azure.sensors.wasb
@@ -174,38 +168,30 @@ hooks:
       - airflow.providers.microsoft.azure.hooks.container_volume
       - airflow.providers.microsoft.azure.hooks.container_registry
       - airflow.providers.microsoft.azure.hooks.container_instance
-      - airflow.providers.microsoft.azure.hooks.azure_container_volume
-      - airflow.providers.microsoft.azure.hooks.azure_container_registry
-      - airflow.providers.microsoft.azure.hooks.azure_container_instance
   - integration-name: Microsoft Azure Data Explorer
     python-modules:
       - airflow.providers.microsoft.azure.hooks.adx
   - integration-name: Microsoft Azure FileShare
     python-modules:
       - airflow.providers.microsoft.azure.hooks.fileshare
-      - airflow.providers.microsoft.azure.hooks.azure_fileshare
   - integration-name: Microsoft Azure
     python-modules:
       - airflow.providers.microsoft.azure.hooks.base_azure
   - integration-name: Microsoft Azure Batch
     python-modules:
       - airflow.providers.microsoft.azure.hooks.batch
-      - airflow.providers.microsoft.azure.hooks.azure_batch
   - integration-name: Microsoft Azure Data Lake Storage
     python-modules:
       - airflow.providers.microsoft.azure.hooks.data_lake
-      - airflow.providers.microsoft.azure.hooks.azure_data_lake
   - integration-name: Microsoft Azure Cosmos DB
     python-modules:
       - airflow.providers.microsoft.azure.hooks.cosmos
-      - airflow.providers.microsoft.azure.hooks.azure_cosmos
   - integration-name: Microsoft Azure Blob Storage
     python-modules:
       - airflow.providers.microsoft.azure.hooks.wasb
   - integration-name: Microsoft Azure Data Factory
     python-modules:
       - airflow.providers.microsoft.azure.hooks.data_factory
-      - airflow.providers.microsoft.azure.hooks.azure_data_factory
   - integration-name: Microsoft Azure Service Bus
     python-modules:
       - airflow.providers.microsoft.azure.hooks.asb
@@ -221,9 +207,6 @@ transfers:
   - source-integration-name: Oracle
     target-integration-name: Microsoft Azure Data Lake Storage
     python-module: airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake
-  - source-integration-name: Local
-    target-integration-name: Microsoft Azure Blob Storage
-    python-module: airflow.providers.microsoft.azure.transfers.file_to_wasb
   - source-integration-name: Local
     target-integration-name: Microsoft Azure Blob Storage
     python-module: airflow.providers.microsoft.azure.transfers.local_to_wasb
@@ -269,7 +252,6 @@ connection-types:
 
 secrets-backends:
   - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
-  - airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend
 
 logging:
   - airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler
