@@ -509,8 +509,9 @@ class TestKubernetesPodOperatorSystem:
             ]
             assert self.expected_pod == actual_pod
 
-    def test_run_as_user_root(self):
-        security_context = {"runAsUser": 0}
+    @pytest.mark.parametrize("uid", [0, 1000])
+    def test_run_as_user(self, uid):
+        security_context = {"runAsUser": uid}
         name = str(uuid4())
         k = KubernetesPodOperator(
             namespace="default",
@@ -531,34 +532,7 @@ class TestKubernetesPodOperatorSystem:
             name=name,
             namespace="default",
         )
-        assert pod.to_dict()["spec"]["security_context"]["run_as_user"] == security_context["runAsUser"]
-
-    def test_run_as_user_non_root(self):
-        security_context = {
-            "runAsUser": 1000,
-        }
-        name = str(uuid4())
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels=self.labels,
-            task_id=name,
-            name=name,
-            random_name_suffix=False,
-            in_cluster=False,
-            do_xcom_push=False,
-            security_context=security_context,
-            is_delete_operator_pod=False,
-        )
-        context = create_context(k)
-        k.execute(context)
-        pod = k.hook.core_v1_client.read_namespaced_pod(
-            name=name,
-            namespace="default",
-        )
-        assert pod.to_dict()["spec"]["security_context"]["run_as_user"] == security_context["runAsUser"]
+        assert pod.to_dict()["spec"]["security_context"]["run_as_user"] == uid
 
     def test_disable_privilege_escalation(self):
         container_security_context = {"allowPrivilegeEscalation": False}
