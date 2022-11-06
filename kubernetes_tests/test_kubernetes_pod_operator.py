@@ -534,6 +534,31 @@ class TestKubernetesPodOperatorSystem:
         )
         assert pod.to_dict()["spec"]["security_context"]["run_as_user"] == uid
 
+    @pytest.mark.parametrize("gid", [0, 1000])
+    def test_fs_group(self, gid):
+        security_context = {"fsGroup": gid}
+        name = str(uuid4())
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            task_id=name,
+            name=name,
+            random_name_suffix=False,
+            is_delete_operator_pod=False,
+            in_cluster=False,
+            do_xcom_push=False,
+            security_context=security_context,
+        )
+        context = create_context(k)
+        k.execute(context)
+        pod = k.hook.core_v1_client.read_namespaced_pod(
+            name=name,
+            namespace="default",
+        )
+        assert pod.to_dict()["spec"]["security_context"]["fs_group"] == gid
+
     def test_disable_privilege_escalation(self):
         container_security_context = {"allowPrivilegeEscalation": False}
 
@@ -552,28 +577,6 @@ class TestKubernetesPodOperatorSystem:
         k.execute(context)
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         self.expected_pod["spec"]["containers"][0]["securityContext"] = container_security_context
-        assert self.expected_pod == actual_pod
-
-    def test_fs_group(self):
-        security_context = {
-            "fsGroup": 1000,
-        }
-
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels=self.labels,
-            task_id=str(uuid4()),
-            in_cluster=False,
-            do_xcom_push=False,
-            security_context=security_context,
-        )
-        context = create_context(k)
-        k.execute(context)
-        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        self.expected_pod["spec"]["securityContext"] = security_context
         assert self.expected_pod == actual_pod
 
     def test_faulty_image(self):
