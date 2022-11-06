@@ -92,7 +92,7 @@ def find_newer_dependencies(
     get_console().print("[info]Use the following pip install command (see the doc above for details)\n")
     get_console().print(
         'pip install ".[devel_all]" --upgrade --upgrade-strategy eager '
-        '"dill<0.3.3" "certifi<2021.0.0"' + constraint_string,
+        '"dill<0.3.3" "pyarrow>=6.0.0" "protobuf<4.21.0"' + constraint_string,
         markup=False,
         soft_wrap=True,
     )
