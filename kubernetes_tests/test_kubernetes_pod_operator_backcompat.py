@@ -121,55 +121,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         client = hook.core_v1_client
         client.delete_collection_namespaced_pod(namespace="default")
 
-    def test_run_as_user_root(self):
-        security_context = {
-            "securityContext": {
-                "runAsUser": 0,
-            }
-        }
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="test",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-            security_context=security_context,
-        )
-        context = create_context(k)
-        k.execute(context)
-        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        self.expected_pod["spec"]["securityContext"] = security_context
-        assert self.expected_pod == actual_pod
-
-    def test_run_as_user_non_root(self):
-        security_context = {
-            "securityContext": {
-                "runAsUser": 1000,
-            }
-        }
-
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="test",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-            security_context=security_context,
-        )
-        context = create_context(k)
-        k.execute(context)
-        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        self.expected_pod["spec"]["securityContext"] = security_context
-        assert self.expected_pod == actual_pod
-
     def test_fs_group(self):
         security_context = {
             "securityContext": {
