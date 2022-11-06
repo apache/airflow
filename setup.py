@@ -276,7 +276,9 @@ doc = [
     "sphinxcontrib-spelling>=7.3",
 ]
 flask_appbuilder_oauth = [
-    "flask-appbuilder[oauth]",
+    "authlib>=1.0.0",
+    # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
+    "flask-appbuilder[oauth]==4.1.4",
 ]
 kerberos = [
     "pykerberos>=1.1.13",
@@ -365,7 +367,7 @@ devel_only = [
     "click>=8.0",
     "coverage",
     "filelock",
-    "flake8>=3.6.0",
+    "flake8>=3.9.0",
     "flake8-colors",
     "flake8-implicit-str-concat",
     "flaky",
