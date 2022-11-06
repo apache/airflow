@@ -321,9 +321,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         ):
             get_credentials_and_project_id(key_secret_name="secret name")
 
-    def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(
-        self,
-    ):
+    def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(self):
         with pytest.raises(
             AirflowException,
             match=re.escape(
@@ -404,9 +402,7 @@ class TestGetTargetPrincipalAndDelegates(unittest.TestCase):
 
 
 class TestGetProjectIdFromServiceAccountEmail(unittest.TestCase):
-    def test_get_project_id_from_service_account_email(
-        self,
-    ):
+    def test_get_project_id_from_service_account_email(self):
         assert _get_project_id_from_service_account_email(ACCOUNT_3_ANOTHER_PROJECT) == ANOTHER_PROJECT_ID
 
     def test_get_project_id_from_service_account_email_wrong_input(self):

@@ -179,9 +179,7 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[0].security_context == container_security_context
 
-    def test_envs_from_configmaps(
-        self,
-    ):
+    def test_envs_from_configmaps(self):
         env_from = [k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="test-config-map"))]
         k = KubernetesPodOperator(
             task_id="task",
