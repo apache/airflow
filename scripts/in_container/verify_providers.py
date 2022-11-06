@@ -232,21 +232,6 @@ KNOWN_COMMON_DEPRECATED_MESSAGES: set[str] = {
 # ignore those messages when the warnings are generated directly by importlib - which means that
 # we imported it directly during module walk by the importlib library
 KNOWN_DEPRECATED_DIRECT_IMPORTS: set[str] = {
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.batch`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.container_instance`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.container_registry`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.container_volume`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.cosmos`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.data_factory`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.data_lake`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.fileshare`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.batch`.",
-    "This module is deprecated. "
-    "Please use `airflow.providers.microsoft.azure.operators.container_instances`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.cosmos`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.secrets.key_vault`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.sensors.cosmos`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.transfers.local_to_wasb`.",
     "This module is deprecated. Please use `kubernetes.client.models.V1Volume`.",
     "This module is deprecated. Please use `kubernetes.client.models.V1VolumeMount`.",
     (

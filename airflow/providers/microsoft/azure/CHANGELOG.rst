@@ -34,6 +34,7 @@ Breaking changes
   providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
 * In AzureFileShareHook, if both ``extra__azure_fileshare__foo`` and ``foo`` existed in connection extra
   dict, the prefixed version would be used; now, the non-prefixed version will be preferred.
+* ``Remove deprecated classes (#27417)``
 
 4.3.0
 .....
