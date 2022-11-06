@@ -17,6 +17,8 @@
 # shellcheck shell=bash
 set -euo pipefail
 
+DOCKER_CLI_VERSION=20.10.9
+
 if [[ "$#" != 1 ]]; then
     echo "ERROR! There should be 'runtime' or 'dev' parameter passed as argument.".
     exit 1
@@ -50,6 +52,18 @@ ldap-utils libffi7 libldap-2.4-2 libsasl2-2 libsasl2-modules libssl1.1 locales \
 lsb-release netcat openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc"
         export RUNTIME_APT_DEPS
     fi
+}
+
+function install_docker_cli() {
+    local platform
+    if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+        platform="aarch64"
+    else
+        platform="x86_64"
+    fi
+    curl --silent \
+        "https://download.docker.com/linux/static/stable/${platform}/docker-${DOCKER_CLI_VERSION}.tgz" \
+        |  tar -C /usr/bin --strip-components=1 -xvzf - docker/docker
 }
 
 function install_debian_dev_dependencies() {
@@ -92,7 +106,10 @@ function install_debian_runtime_dependencies() {
 if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
     get_runtime_apt_deps
     install_debian_runtime_dependencies
+    install_docker_cli
+
 else
     get_dev_apt_deps
     install_debian_dev_dependencies
+    install_docker_cli
 fi

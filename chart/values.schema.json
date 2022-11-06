@@ -602,7 +602,7 @@
                         "tag": {
                             "description": "The redis image tag.",
                             "type": "string",
-                            "default": "6-bullseye"
+                            "default": "7-bullseye"
                         },
                         "pullPolicy": {
                             "description": "The redis image pull policy.",
@@ -4160,6 +4160,11 @@
                     "type": "boolean",
                     "x-docsSection": "Common",
                     "default": false
+                },
+                "replicas": {
+                    "description": "Number of PgBouncer replicas to run in Deployment.",
+                    "type": "integer",
+                    "default": 1
                 },
                 "revisionHistoryLimit": {
                     "description": "Number of old replicasets to retain.",

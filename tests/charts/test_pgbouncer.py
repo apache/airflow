@@ -307,6 +307,18 @@ class TestPgbouncer:
             "spec.template.spec.containers[0].volumeMounts[*].name", docs[0]
         )
 
+    def test_pgbouncer_replicas_are_configurable(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "replicas": 2,
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+        assert 2 == jmespath.search("spec.replicas", docs[0])
+
 
 class TestPgbouncerConfig:
     def test_config_not_created_by_default(self):

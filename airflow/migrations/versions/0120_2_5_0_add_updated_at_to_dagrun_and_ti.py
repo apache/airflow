@@ -19,7 +19,7 @@
 """Add updated_at column to DagRun and TaskInstance
 
 Revision ID: ee8d93fcc81e
-Revises: b0d31815b5a6
+Revises: e07f49787c9d
 Create Date: 2022-09-08 19:08:37.623121
 
 """
@@ -33,7 +33,7 @@ from airflow.migrations.db_types import TIMESTAMP
 
 # revision identifiers, used by Alembic.
 revision = 'ee8d93fcc81e'
-down_revision = 'b0d31815b5a6'
+down_revision = 'e07f49787c9d'
 branch_labels = None
 depends_on = None
 airflow_version = '2.5.0'

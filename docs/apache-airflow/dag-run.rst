@@ -19,7 +19,7 @@ DAG Runs
 =========
 A DAG Run is an object representing an instantiation of the DAG in time.
 Any time the DAG is executed, a DAG Run is created and all tasks inside it are executed. The status of the DAG Run depends on the tasks states.
-Each DAG Run is run separately from another, meaning that you can have running DAG many times at the same time.
+Each DAG Run is run separately from one another, meaning that you can have many runs of a DAG at the same time.
 
 .. _dag-run:dag-run-status:
 

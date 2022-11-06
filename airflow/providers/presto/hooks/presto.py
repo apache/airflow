@@ -145,8 +145,7 @@ class PrestoHook(DbApiHook):
         self,
         sql: str | list[str] = "",
         parameters: Iterable | Mapping | None = None,
-        **kwargs: dict,
-    ):
+    ) -> Any:
         if not isinstance(sql, str):
             raise ValueError(f"The sql in Presto Hook must be a string and is {sql}!")
         try:
@@ -154,7 +153,7 @@ class PrestoHook(DbApiHook):
         except DatabaseError as e:
             raise PrestoException(e)
 
-    def get_first(self, sql: str | list[str] = "", parameters: dict | None = None) -> Any:
+    def get_first(self, sql: str | list[str] = "", parameters: Iterable | Mapping | None = None) -> Any:
         if not isinstance(sql, str):
             raise ValueError(f"The sql in Presto Hook must be a string and is {sql}!")
         try:

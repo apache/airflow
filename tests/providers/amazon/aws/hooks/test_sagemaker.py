@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import time
-import unittest
 from datetime import datetime
 from unittest import mock
 from unittest.mock import patch
@@ -241,7 +240,7 @@ test_evaluation_config = {
 }
 
 
-class TestSageMakerHook(unittest.TestCase):
+class TestSageMakerHook:
     @mock.patch.object(AwsLogsHook, "get_log_events")
     def test_multi_stream_iter(self, mock_log_stream):
         event = {"timestamp": 1}
@@ -298,8 +297,7 @@ class TestSageMakerHook(unittest.TestCase):
         hook.check_tuning_config(create_tuning_params)
         mock_check_url.assert_called_once_with(data_url)
 
-    @mock.patch.object(SageMakerHook, "get_client_type")
-    def test_conn(self, mock_get_client_type):
+    def test_conn(self):
         hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
         assert hook.aws_conn_id == "sagemaker_test_conn_id"
 
@@ -564,9 +562,10 @@ class TestSageMakerHook(unittest.TestCase):
         )
         assert response == (LogState.JOB_COMPLETE, {}, 50)
 
+    @pytest.mark.parametrize("log_state", [LogState.JOB_COMPLETE, LogState.COMPLETE])
     @mock.patch.object(AwsLogsHook, "get_conn")
     @mock.patch.object(SageMakerHook, "get_conn")
-    def test_describe_training_job_with_logs_job_complete(self, mock_client, mock_log_client):
+    def test_describe_training_job_with_complete_states(self, mock_client, mock_log_client, log_state):
         mock_session = mock.Mock()
         mock_log_session = mock.Mock()
         attrs = {"describe_training_job.return_value": DESCRIBE_TRAINING_COMPLETED_RETURN}
@@ -584,33 +583,7 @@ class TestSageMakerHook(unittest.TestCase):
             positions={},
             stream_names=[],
             instance_count=1,
-            state=LogState.JOB_COMPLETE,
-            last_description={},
-            last_describe_job_call=0,
-        )
-        assert response == (LogState.COMPLETE, {}, 0)
-
-    @mock.patch.object(AwsLogsHook, "get_conn")
-    @mock.patch.object(SageMakerHook, "get_conn")
-    def test_describe_training_job_with_logs_complete(self, mock_client, mock_log_client):
-        mock_session = mock.Mock()
-        mock_log_session = mock.Mock()
-        attrs = {"describe_training_job.return_value": DESCRIBE_TRAINING_COMPLETED_RETURN}
-        log_attrs = {
-            "describe_log_streams.side_effect": LIFECYCLE_LOG_STREAMS,
-            "get_log_events.side_effect": STREAM_LOG_EVENTS,
-        }
-        mock_session.configure_mock(**attrs)
-        mock_client.return_value = mock_session
-        mock_log_session.configure_mock(**log_attrs)
-        mock_log_client.return_value = mock_log_session
-        hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
-        response = hook.describe_training_job_with_log(
-            job_name=job_name,
-            positions={},
-            stream_names=[],
-            instance_count=1,
-            state=LogState.COMPLETE,
+            state=log_state,
             last_description={},
             last_describe_job_call=0,
         )
@@ -649,9 +622,8 @@ class TestSageMakerHook(unittest.TestCase):
         assert mock_session.describe_training_job.call_count == 1
 
     @mock.patch.object(SageMakerHook, "get_conn")
-    def test_find_processing_job_by_name(self, mock_conn):
+    def test_find_processing_job_by_name(self, _):
         hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
-        mock_conn.describe_processing_job.return_value = {}
         ret = hook.find_processing_job_by_name("existing_job")
         assert ret
 
