@@ -571,7 +571,9 @@ class KubernetesPodOperator(BaseOperator):
             pod.metadata.name = PodGenerator.make_unique_pod_id(pod.metadata.name)
 
         if not pod.metadata.namespace:
-            hook_namespace = self.hook.conn_extras.get("extra__kubernetes__namespace")
+            # todo: replace with call to `hook.get_namespace` in 6.0, when it doesn't default to `default`.
+            # if namespace not actually defined in hook, we want to check k8s if in cluster
+            hook_namespace = self.hook._get_namespace()
             pod_namespace = self.namespace or hook_namespace or self._incluster_namespace or "default"
             pod.metadata.namespace = pod_namespace
 
