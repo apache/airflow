@@ -19,21 +19,21 @@ from __future__ import annotations
 import json
 import logging
 import os
-import random
 import shutil
 import sys
 import textwrap
-import unittest
 from copy import copy
 from tempfile import NamedTemporaryFile
 from unittest import mock
 from unittest.mock import ANY, MagicMock
+from uuid import uuid4
 
 import pendulum
 import pytest
 from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
+from pytest import param
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes.secret import Secret
@@ -43,6 +43,7 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import Kubernete
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from airflow.utils.types import DagRunType
 from airflow.version import version as airflow_version
 
@@ -50,7 +51,7 @@ HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.Kuberne
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
 
 
-def create_context(task):
+def create_context(task) -> Context:
     dag = DAG(dag_id="dag")
     tzinfo = pendulum.timezone("Europe/Amsterdam")
     execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
@@ -84,12 +85,8 @@ def get_label():
 
 
 @pytest.mark.execution_timeout(180)
-class TestKubernetesPodOperatorSystem(unittest.TestCase):
-    def get_current_task_name(self):
-        # reverse test name to make pod name unique (it has limited length)
-        return "_" + unittest.TestCase.id(self).replace(".", "_")[::-1]
-
-    def setUp(self):
+class TestKubernetesPodOperatorSystem:
+    def setup(self):
         self.maxDiff = None
         self.api_client = ApiClient()
         self.labels = {"test_label": get_label()}
@@ -141,7 +138,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             return None
         return ",".join([f"{key}={value}" for key, value in enumerate(self.labels)])
 
-    def tearDown(self) -> None:
+    def teardown(self) -> None:
         hook = KubernetesHook(conn_id=None, in_cluster=False)
         client = hook.core_v1_client
         client.delete_collection_namespaced_pod(namespace="default", grace_period_seconds=0)
@@ -157,8 +154,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
             config_file=new_config_path,
@@ -177,8 +173,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
-            name="test1",
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
             is_delete_operator_pod=False,
@@ -197,8 +192,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
         )
@@ -215,8 +209,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
             is_delete_operator_pod=True,
@@ -232,15 +225,13 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         When ``is_delete_operator_pod=False``, pod should have 'already_checked'
         label, whether pod is successful or not.
         """
-        pod_name = "test-" + str(random.randint(0, 1000000))
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
-            name=pod_name,
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
             is_delete_operator_pod=False,
@@ -256,15 +247,13 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         When ``is_delete_operator_pod=False``, pod should have 'already_checked'
         label, whether pod is successful or not.
         """
-        pod_name = "test-" + str(random.randint(0, 1000000))
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["lalala"],
             labels=self.labels,
-            name=pod_name,
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
             is_delete_operator_pod=False,
@@ -285,8 +274,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
             hostnetwork=True,
@@ -306,8 +294,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
             hostnetwork=True,
@@ -329,8 +316,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
             schedulername=scheduler_name,
@@ -349,8 +335,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
             node_selector=node_selector,
@@ -372,8 +357,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
             container_resources=resources,
@@ -407,8 +391,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
             affinity=affinity,
@@ -431,8 +414,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
             ports=[port],
@@ -465,8 +447,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 labels=self.labels,
                 volume_mounts=[volume_mount],
                 volumes=[volume],
-                name="test-" + str(random.randint(0, 1000000)),
-                task_id="task" + self.get_current_task_name(),
+                task_id=str(uuid4()),
                 in_cluster=False,
                 do_xcom_push=False,
             )
@@ -491,8 +472,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
             security_context=security_context,
@@ -513,8 +493,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
             security_context=security_context,
@@ -534,8 +513,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
             container_security_context=container_security_context,
@@ -557,8 +535,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
-            name="test-fs-group",
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
             security_context=security_context,
@@ -577,8 +554,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
             startup_timeout_seconds=5,
@@ -598,8 +574,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
             startup_timeout_seconds=5,
@@ -621,8 +596,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=bad_internal_command,
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
         )
@@ -643,8 +617,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=args,
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=True,
         )
@@ -679,8 +652,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             arguments=["echo 10"],
             secrets=secrets,
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
         )
@@ -711,8 +683,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             arguments=["echo 10"],
             env_vars=env_vars,
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
         )
@@ -730,7 +701,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         """Note: this test requires that you have a namespace ``mem-example`` in your cluster."""
         fixture = sys.path[0] + "/tests/kubernetes/basic_pod.yaml"
         k = KubernetesPodOperator(
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             labels=self.labels,
             pod_template_file=fixture,
@@ -742,10 +713,17 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         assert result is not None
         assert result == {"hello": "world"}
 
-    def test_pod_template_file_with_overrides_system(self):
+    @pytest.mark.parametrize(
+        "input",
+        [
+            param([k8s.V1EnvVar(name="env_name", value="value")], id="current"),
+            param({"env_name": "value"}, id="backcompat"),  # todo: remove?
+        ],
+    )
+    def test_pod_template_file_with_overrides_system(self, input):
         fixture = sys.path[0] + "/tests/kubernetes/basic_pod.yaml"
         k = KubernetesPodOperator(
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             labels=self.labels,
             env_vars=[k8s.V1EnvVar(name="env_name", value="value")],
             in_cluster=False,
@@ -785,7 +763,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             ),
         )
         k = KubernetesPodOperator(
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             labels=self.labels,
             in_cluster=False,
             pod_template_file=fixture,
@@ -829,7 +807,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             ),
         )
         k = KubernetesPodOperator(
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             labels=self.labels,
             full_pod_spec=pod_spec,
@@ -894,8 +872,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             volumes=[volume],
             init_containers=[init_container],
             in_cluster=False,
@@ -916,7 +893,12 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
     @mock.patch(f"{POD_MANAGER_CLASS}.create_pod", new=MagicMock)
     @mock.patch(HOOK_CLASS)
     def test_pod_template_file(
-        self, hook_mock, await_pod_completion_mock, extract_xcom_mock, await_xcom_sidecar_container_start_mock
+        self,
+        hook_mock,
+        await_pod_completion_mock,
+        extract_xcom_mock,
+        await_xcom_sidecar_container_start_mock,
+        caplog,
     ):
         # todo: This isn't really a system test
         await_xcom_sidecar_container_start_mock.return_value = None
@@ -924,7 +906,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         extract_xcom_mock.return_value = "{}"
         path = sys.path[0] + "/tests/kubernetes/pod.yaml"
         k = KubernetesPodOperator(
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             labels=self.labels,
             random_name_suffix=False,
             pod_template_file=path,
@@ -934,21 +916,21 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         pod_mock.status.phase = "Succeeded"
         await_pod_completion_mock.return_value = pod_mock
         context = create_context(k)
-        with self.assertLogs(k.log, level=logging.DEBUG) as cm:
+        with caplog.at_level(logging.DEBUG) as cm:
             k.execute(context)
-            expected_line = textwrap.dedent(
-                """\
-            DEBUG:airflow.task.operators:Starting pod:
-            api_version: v1
-            kind: Pod
-            metadata:
-              annotations: {}
-              cluster_name: null
-              creation_timestamp: null
-              deletion_grace_period_seconds: null\
-            """
-            ).strip()
-            assert any(line.startswith(expected_line) for line in cm.output)
+        expected_line = textwrap.dedent(
+            """\
+        DEBUG:airflow.task.operators:Starting pod:
+        api_version: v1
+        kind: Pod
+        metadata:
+          annotations: {}
+          cluster_name: null
+          creation_timestamp: null
+          deletion_grace_period_seconds: null\
+        """
+        ).strip()
+        assert any(line.startswith(expected_line) for line in cm.output)
 
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         expected_dict = {
@@ -1023,8 +1005,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
             priority_class_name=priority_class_name,
@@ -1049,7 +1030,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 arguments=["echo 10"],
                 labels=self.labels,
                 name=pod_name_too_long,
-                task_id="task" + self.get_current_task_name(),
+                task_id=str(uuid4()),
                 in_cluster=False,
                 do_xcom_push=False,
             )
@@ -1066,7 +1047,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["sleep 1000"],
             labels=self.labels,
-            name="test",
+            name=name,
             task_id=name,
             in_cluster=False,
             do_xcom_push=False,
@@ -1166,8 +1147,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 cmds=["bash", "-cx"],
                 arguments=["echo 10"],
                 labels=self.labels,
-                name="test-" + str(random.randint(0, 1000000)),
-                task_id="task" + self.get_current_task_name(),
+                task_id=str(uuid4()),
                 in_cluster=False,
                 do_xcom_push=False,
                 resources=resources,
