@@ -64,7 +64,7 @@ dependencies:
   # Limited due to https://github.com/Azure/azure-uamqp-python/issues/191
   - azure-servicebus>=7.6.1; platform_machine != "aarch64"
   - azure-synapse-spark
-  - adal>=.1.2.7
+  - adal>=1.2.7
 
 integrations:
   - integration-name: Microsoft Azure Batch
