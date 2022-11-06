@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import sys
 import unittest
 from unittest import mock
 from unittest.mock import MagicMock
@@ -425,63 +424,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         assert create_mock.call_args[1]["pod"].spec.containers[0].env_from == [
             k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name=secret_ref))
         ]
-
-    def test_env_vars(self):
-        # WHEN
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            env_vars={
-                "ENV1": "val1",
-                "ENV2": "val2",
-            },
-            labels={"foo": "bar"},
-            name="test",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-        )
-
-        context = create_context(k)
-        k.execute(context)
-
-        # THEN
-        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        self.expected_pod["spec"]["containers"][0]["env"] = [
-            {"name": "ENV1", "value": "val1"},
-            {"name": "ENV2", "value": "val2"},
-        ]
-        assert self.expected_pod == actual_pod
-
-    def test_pod_template_file_with_overrides_system(self):
-        fixture = sys.path[0] + "/tests/kubernetes/basic_pod.yaml"
-        k = KubernetesPodOperator(
-            task_id="task" + self.get_current_task_name(),
-            labels={"foo": "bar", "fizz": "buzz"},
-            env_vars={"env_name": "value"},
-            in_cluster=False,
-            pod_template_file=fixture,
-            do_xcom_push=True,
-        )
-
-        context = create_context(k)
-        result = k.execute(context)
-        assert result is not None
-        assert k.pod.metadata.labels == {
-            "fizz": "buzz",
-            "foo": "bar",
-            "airflow_version": mock.ANY,
-            "airflow_kpo_in_cluster": "False",
-            "dag_id": "dag",
-            "run_id": "manual__2016-01-01T0100000100-da4d1ce7b",
-            "kubernetes_pod_operator": "True",
-            "task_id": mock.ANY,
-            "try_number": "1",
-        }
-        assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
-        assert result == {"hello": "world"}
 
     def test_init_container(self):
         # GIVEN

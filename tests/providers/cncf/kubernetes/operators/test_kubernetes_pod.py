@@ -24,6 +24,7 @@ from unittest.mock import MagicMock, patch
 import pendulum
 import pytest
 from kubernetes.client import ApiClient, models as k8s
+from pytest import param
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
@@ -146,18 +147,17 @@ class TestKubernetesPodOperator:
             in_cluster=None,
         )
 
-    def test_env_vars(self):
+    @pytest.mark.parametrize(
+        "input",
+        [
+            param([k8s.V1EnvVar(name="{{ bar }}", value="{{ foo }}")], id="current"),
+            param({"{{ bar }}": "{{ foo }}"}, id="backcompat"),
+        ],
+    )
+    def test_env_vars(self, input):
         k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            env_vars=[k8s.V1EnvVar(name="{{ bar }}", value="{{ foo }}")],
-            labels={"foo": "bar"},
-            name="test",
+            env_vars=input,
             task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
         )
         k.render_template_fields(context={"foo": "footemplated", "bar": "bartemplated"})
         assert k.env_vars[0].value == "footemplated"
