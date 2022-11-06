@@ -62,13 +62,13 @@ def create_context(task) -> Context:
     task_instance.dag_run = dag_run
     task_instance.dag_id = dag.dag_id
     task_instance.xcom_push = mock.Mock()
-    return {
-        "dag": dag,
-        "run_id": dag_run.run_id,
-        "task": task,
-        "ti": task_instance,
-        "task_instance": task_instance,
-    }
+    return Context(
+        dag=dag,
+        run_id=dag_run.run_id,
+        task=task,
+        ti=task_instance,
+        task_instance=task_instance,
+    )
 
 
 def get_kubeconfig_path():
