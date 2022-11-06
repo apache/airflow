@@ -102,10 +102,9 @@ class OracleStoredProcedureOperator(BaseOperator):
         try:
             return hook.callproc(self.procedure, autocommit=True, parameters=self.parameters)
         except oracledb.DatabaseError as e:
-            try:
-                code = re.search("^ORA-(\\d+):.+", str(e)).group(1)
+            code_match = re.search("^ORA-(\\d+):.+", str(e))
+            if code_match is not None:
                 if self.do_xcom_push:
-                    ti.xcom_push(key="ORA", value=code)
-            except AttributeError:
-                pass
+                    if ti is not None:
+                        ti.xcom_push(key="ORA", value=code_match.group(1))
             raise
