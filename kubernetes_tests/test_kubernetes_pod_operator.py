@@ -371,8 +371,53 @@ class TestKubernetesPodOperatorSystem:
         }
         assert self.expected_pod == actual_pod
 
-    def test_pod_affinity(self):
-        affinity = {
+    @pytest.mark.parametrize(
+        "val",
+        [
+            param(
+                k8s.V1Affinity(
+                    node_affinity=k8s.V1NodeAffinity(
+                        required_during_scheduling_ignored_during_execution=k8s.V1NodeSelector(
+                            node_selector_terms=[
+                                k8s.V1NodeSelectorTerm(
+                                    match_expressions=[
+                                        k8s.V1NodeSelectorRequirement(
+                                            key="beta.kubernetes.io/os",
+                                            operator="In",
+                                            values=["linux"],
+                                        )
+                                    ]
+                                )
+                            ]
+                        )
+                    )
+                ),
+                id="current",
+            ),
+            param(
+                {
+                    "nodeAffinity": {
+                        "requiredDuringSchedulingIgnoredDuringExecution": {
+                            "nodeSelectorTerms": [
+                                {
+                                    "matchExpressions": [
+                                        {
+                                            "key": "beta.kubernetes.io/os",
+                                            "operator": "In",
+                                            "values": ["linux"],
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                id="backcompat",
+            ),
+        ],
+    )
+    def test_pod_affinity(self, val):
+        expected = {
             "nodeAffinity": {
                 "requiredDuringSchedulingIgnoredDuringExecution": {
                     "nodeSelectorTerms": [
@@ -394,12 +439,12 @@ class TestKubernetesPodOperatorSystem:
             task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
-            affinity=affinity,
+            affinity=val,
         )
         context = create_context(k)
         k.execute(context=context)
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        self.expected_pod["spec"]["affinity"] = affinity
+        self.expected_pod["spec"]["affinity"] = expected
         assert self.expected_pod == actual_pod
 
     def test_port(self):

@@ -121,38 +121,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         client = hook.core_v1_client
         client.delete_collection_namespaced_pod(namespace="default")
 
-    def test_pod_affinity(self):
-        affinity = {
-            "nodeAffinity": {
-                "requiredDuringSchedulingIgnoredDuringExecution": {
-                    "nodeSelectorTerms": [
-                        {
-                            "matchExpressions": [
-                                {"key": "beta.kubernetes.io/os", "operator": "In", "values": ["linux"]}
-                            ]
-                        }
-                    ]
-                }
-            }
-        }
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="test",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-            affinity=affinity,
-        )
-        context = create_context(k)
-        k.execute(context=context)
-        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        self.expected_pod["spec"]["affinity"] = affinity
-        assert self.expected_pod == actual_pod
-
     def test_run_as_user_root(self):
         security_context = {
             "securityContext": {
