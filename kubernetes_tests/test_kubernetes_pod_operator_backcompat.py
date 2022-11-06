@@ -119,35 +119,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
     @mock.patch(HOOK_CLASS, new=MagicMock)
-    def test_envs_from_configmaps(self, mock_monitor, mock_start):
-        # GIVEN
-        configmap = "test-configmap"
-        # WHEN
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="test",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-            configmaps=[configmap],
-        )
-        # THEN
-        mock_pod = MagicMock()
-        mock_pod.status.phase = "Succeeded"
-        mock_monitor.return_value = mock_pod
-        context = create_context(k)
-        k.execute(context)
-        assert mock_start.call_args[1]["pod"].spec.containers[0].env_from == [
-            k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name=configmap))
-        ]
-
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-    @mock.patch(HOOK_CLASS, new=MagicMock)
     def test_envs_from_secrets(self, await_pod_completion_mock, create_mock):
         # GIVEN
         secret_ref = "secret_name"

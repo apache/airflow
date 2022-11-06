@@ -192,6 +192,16 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[0].env_from == env_from
 
+    def test_envs_from_configmaps_backcompat(self):
+        # todo: formally deprecate / remove this?
+        k = KubernetesPodOperator(
+            task_id="task",
+            configmaps=["test-config-map"],
+        )
+        expected = [k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="test-config-map"))]
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[0].env_from == expected
+
     @pytest.mark.parametrize(("in_cluster",), ([True], [False]))
     @patch(HOOK_CLASS)
     def test_labels(self, hook_mock, in_cluster):
