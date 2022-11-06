@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import warnings
 from typing import TYPE_CHECKING, Sequence
+import oracledb
+import re
 
 from airflow.models import BaseOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
@@ -26,8 +28,7 @@ from airflow.providers.oracle.hooks.oracle import OracleHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-    
-import oracledb
+
 
 class OracleOperator(SQLExecuteQueryOperator):
     """
@@ -70,6 +71,9 @@ class OracleStoredProcedureOperator(BaseOperator):
     :param oracle_conn_id: The :ref:`Oracle connection id <howto/connection:oracle>`
         reference to a specific Oracle database.
     :param parameters: (optional, templated) the parameters provided in the call
+
+    :xcom ORA: Oracle db exit code. Optional (if self.do_xcom_push is True).
+        Numeric exit code that Oracle throws in case of failure.
     """
 
     template_fields: Sequence[str] = (
@@ -98,7 +102,7 @@ class OracleStoredProcedureOperator(BaseOperator):
         try:
             return hook.callproc(self.procedure, autocommit=True, parameters=self.parameters)
         except oracledb.DatabaseError as e:
-            code, mesg = e.args[0].message[:-1].split(": ", 1)
+            code = re.search("^ORA-(\\d+):.+", e).group(1)
             if self.do_xcom_push:
-                ti.xcom_push(key="ORA", value=str(code.split("-")[1]))
+                ti.xcom_push(key="ORA", value=code)
             raise
