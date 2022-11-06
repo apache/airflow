@@ -18,13 +18,11 @@ from __future__ import annotations
 
 import unittest
 from unittest import mock
-from unittest.mock import MagicMock
 
 import kubernetes.client.models as k8s
 import pendulum
 from kubernetes.client.api_client import ApiClient
 
-from airflow.kubernetes.secret import Secret
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
@@ -115,37 +113,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         hook = KubernetesHook(conn_id=None, in_cluster=False)
         client = hook.core_v1_client
         client.delete_collection_namespaced_pod(namespace="default")
-
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-    @mock.patch(HOOK_CLASS, new=MagicMock)
-    def test_envs_from_secrets(self, await_pod_completion_mock, create_mock):
-        # GIVEN
-        secret_ref = "secret_name"
-        secrets = [Secret("env", None, secret_ref)]
-        # WHEN
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            secrets=secrets,
-            labels={"foo": "bar"},
-            name="test",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-        )
-        # THEN
-
-        mock_pod = MagicMock()
-        mock_pod.status.phase = "Succeeded"
-        await_pod_completion_mock.return_value = mock_pod
-        context = create_context(k)
-        k.execute(context)
-        assert create_mock.call_args[1]["pod"].spec.containers[0].env_from == [
-            k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name=secret_ref))
-        ]
 
     def test_init_container(self):
         # GIVEN

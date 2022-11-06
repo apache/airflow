@@ -36,7 +36,6 @@ from kubernetes.client.rest import ApiException
 from pytest import param
 
 from airflow.exceptions import AirflowException
-from airflow.kubernetes.secret import Secret
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
@@ -653,37 +652,6 @@ class TestKubernetesPodOperatorSystem:
         )
         context = create_context(k)
         assert k.execute(context) == expected
-
-    @mock.patch(f"{POD_MANAGER_CLASS}.create_pod")
-    @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
-    @mock.patch(HOOK_CLASS, new=MagicMock)
-    def test_envs_from_secrets(self, await_pod_completion_mock, create_pod):
-        # todo: This isn't really a system test
-
-        # GIVEN
-
-        secret_ref = "secret_name"
-        secrets = [Secret("env", None, secret_ref)]
-        # WHEN
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            secrets=secrets,
-            labels=self.labels,
-            task_id=str(uuid4()),
-            in_cluster=False,
-            do_xcom_push=False,
-        )
-        # THEN
-        await_pod_completion_mock.side_effect = AirflowException
-        context = create_context(k)
-        with pytest.raises(AirflowException):
-            k.execute(context)
-        assert create_pod.call_args[1]["pod"].spec.containers[0].env_from == [
-            k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name=secret_ref))
-        ]
 
     def test_env_vars(self):
         # WHEN

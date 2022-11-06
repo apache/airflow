@@ -27,6 +27,7 @@ from kubernetes.client import ApiClient, models as k8s
 from pytest import param
 
 from airflow.exceptions import AirflowException
+from airflow.kubernetes.secret import Secret
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.models.xcom import XCom
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
@@ -201,6 +202,18 @@ class TestKubernetesPodOperator:
         expected = [k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="test-config-map"))]
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[0].env_from == expected
+
+    def test_envs_from_secrets(self):
+        secret_ref = "secret_name"
+        secrets = [Secret("env", None, secret_ref)]
+        k = KubernetesPodOperator(
+            secrets=secrets,
+            task_id="test",
+        )
+        pod = k.build_pod_request_obj()
+        assert pod.spec.containers[0].env_from == [
+            k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name=secret_ref))
+        ]
 
     @pytest.mark.parametrize(("in_cluster",), ([True], [False]))
     @patch(HOOK_CLASS)
