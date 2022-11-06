@@ -215,14 +215,14 @@ class TestDagRunOperator:
 
     def test_trigger_dagrun_operator_templated_invalid_conf(self):
         """Test passing a conf that is not JSON Serializable raise error."""
-
+        task = TriggerDagRunOperator(
+            task_id="test_trigger_dagrun_with_invalid_conf",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            conf={"foo": "{{ dag.dag_id }}", "datetime": timezone.utcnow()},
+            dag=self.dag,
+        )
         with pytest.raises(AirflowException, match="^conf parameter should be JSON Serializable$"):
-            TriggerDagRunOperator(
-                task_id="test_trigger_dagrun_with_invalid_conf",
-                trigger_dag_id=TRIGGERED_DAG_ID,
-                conf={"foo": "{{ dag.dag_id }}", "datetime": timezone.utcnow()},
-                dag=self.dag,
-            )
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_trigger_dagrun_operator_templated_conf(self):
         """Test passing a templated conf to the triggered DagRun."""
