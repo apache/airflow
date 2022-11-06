@@ -15,9 +15,6 @@
     specific language governing permissions and limitations
     under the License.
 
-
-
-
 Issue reporting and resolution process
 ======================================
 
@@ -27,16 +24,115 @@ of resolving issues.
 
 An unusual element of the Apache Airflow project is that you can open a PR
 to fix an issue or make an enhancement, without needing to open an issue first.
-This is intended to make it as easy as possible to contribute to
-the project.
+This is intended to make it as easy as possible to contribute to the project.
+
+Usually users are report `Issues <https://github.com/apache/airflow/issues>`_ where they describe
+the issues they think are Airflow issues and should be solved. There are two kinds of issues:
+
+* Bugs - when the user thinks the reported issue is a bug in Airflow
+* Features - when there are small features that the user would like to see in Airflow
+
+We have `templates <https://github.com/apache/airflow/tree/main/.github/ISSUE_TEMPLATE>`_ for both types
+of issues defined in Airflow.
+
+However, important part of our issue reporting process are
+`GitHub Discussions <https://github.com/apache/airflow/discussions>`_ . Issues should represent
+clear, small feature requests or reproducible bugs which can/should be either implemented or fixed.
+Users are encouraged to open discussions rather than issues if there are no clear, reproducible
+steps, or when they have troubleshooting problems, and one of the important points of issue triaging is
+to determine if the issue reported should be rather a discussion. Converting an issue to a discussion
+while explaining the user why is an important part of triaging process.
+
+Responding to issues/discussions (relatively) quickly
+'''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+It is vital to provide rather quick feedback to issues and discussions opened by our users, so that they
+feel listened to rather than ignored. Even if the response is "we are not going to work on it because ...",
+or "converting this issue to discussion because ..." or "closing because it is a duplicate of #xxx", it is
+far more welcoming than leaving issues and discussions unanswered. Sometimes issues and discussions are
+answered by other users (and this is cool) but if an issue/discussion is not responded to for a few days or
+weeks, this gives an impression that the user was ignored and that the Airflow project is unwelcoming.
+
+We strive to provide relatively quick responses to all such issues and discussions. Users should exercise
+patience while waiting for those (knowing that people might be busy, on vacations etc.) however they should
+not wait weeks until someone looks at their issues.
+
+
+Issue Triage Team
+''''''''''''''''''
+
+While many of the issues can be responded to by other users and committers, the committer team is not
+big enough to handle all such requests and sometimes they are busy with implementing important
+Therefore, some people who are regularly contributing and helping other users and shown their deep interest
+in the project can be invited to join the triage team.
+`the .asf.yaml <.asf.yaml>`_ file in the ``collaborators`` section.
+
+Committers can invite people to become members of the triage team if they see that the users are already
+helping and responding to issues and when they see the users are involved regularly. But you can also ask
+to become a member of the team (on devlist) if you can show that you have done that and when you want to have
+more ways to help others.
+
+The triage team members do not have committer privileges but they can
+assign, edit, and close issues and pull requests without having capabilities to merge the code. They can
+also convert issues into discussions and back. The expectation for the issue triage team is that they
+spend a bit of their time on those efforts. Triaging means not only assigning the labels but often responding
+to the issues and answering user concerns or if additional input is needed - tagging the committers or other community members who might be able to help provide more complete answers.
+
+Being an active and helpful member of the "Issue Triage Team" is actually one of the paths towards
+becoming a committer. By actively helping the users, triaging the issues, responding to them and
+involving others (when needed) shows that you are not only willing to help our users and the community,
+but are also ready to learn about parts of the projects you are not actively contributing to - all of that
+are super valuable components of being eligible to `become a committer <COMMITTERS.md>`_.
+
+If you are a member of the triage team and not able to make any commitment, it's best to ask to have yourself
+removed from the triage team.
+
+BTW. Every committer is pretty much automatically part of the "Issue Triage Team" - so if you are committer,
+feel free to follow the process for every issue you stumble upon.
+
+Actions that can be taken by the issue triager
+''''''''''''''''''''''''''''''''''''''''''''''
+
+There are several actions an issue triager might take:
+
+* Closing and issue with "invalid" label explaining why it is closed in case the issue is invalid. This
+  should be accompanied by information that we can always re-open an issue if our understanding was wrong
+  or if the user provides more information.
+
+* Converting an issue to a discussion, if it is not very likely it is an Airflow issue or when it is not
+  responsible, or when it is a bigger feature proposal requiring discussion or when it's really users
+  troubleshooting or when the issue description is not at all clear. This also involves inviting the user
+  to a discussion if more information might change it.
+
+* Assigning the issue to a milestone, if the issue seems important enough that it should likely be looked
+  at before the next release but there is not enough information or doubts on why and what can be fixed.
+  Usually we assign to the the next bugfix release - then, no matter what the issue will be looked at
+  by the release manager and it might trigger additional actions during the release preparation.
+  This is usually followed by one of the actions below.
+
+* Fixing the issue in a PR if you see it is easy to fix. This is a great way also to learn and
+  contribute to parts that you usually are not contributing to, and sometimes it is surprisingly easy.
+
+* Assigning "good first issue" label if an issue is clear but not important to be fixed immediately, This
+  often lead to contributors picking up the issues when they are interested. This can be followed by assigning
+  the user who comments "I want to work on this" in the issue (which is most welcome).
+
+* Asking the user for additional information if it is needed to perform further investigations. This should
+  be accompanied by assigning ``pending response`` label so that we can clearly see the issues that need
+  extra information.
+
+* Calling other people who might be knowledgeable in the area by @-mentioning them in a comment.
+
+* Assigning other labels to the issue as described below.
+
 
 Labels
 ''''''
 
-Since Apache Airflow uses GitHub Issues as the issue tracking system, the
-use of labels is extensive. Though issue labels tend to change over time
-based on components within the project, the majority of the ones listed
-below should stand the test of time.
+Since Apache Airflow uses "GitHub Issues" and "Github Discussions" as the
+issue tracking systems, the use of labels is extensive. Though issue
+labels tend to change over time based on components within the project,
+the majority of the ones listed below should stand the test of time.
 
 The intention with the use of labels with the Apache Airflow project is
 that they should ideally be non-temporal in nature and primarily used
@@ -93,7 +189,6 @@ For example:
 * Feature request for an additional API would have ``kind:feature`` and ``area:API``
 * Bug report on the User Interface would have ``kind:bug`` and ``area:UI``
 * Documentation request on the Kubernetes Executor, would have ``kind:documentation`` and ``area:kubernetes``
-
 
 Response to issues
 ''''''''''''''''''
@@ -208,7 +303,7 @@ following situations:
 **GitHub Discussions**
 
 Issues should represent clear feature requests which can/should be implemented. If the idea is vague or can be solved with easier steps
-we normally convert such issues to Discussions in the Ideas category.
-Issues that seems more like support requests are also converted to Discussions in the Q&A category.
-We use judgment about which Issues to convert to Discussions, it's best to always clarify with a comment why the Issue is being converted.
-Note that we can always convert Discussions back to Issues.
+we normally convert such issues to discussions in the Ideas category.
+Issues that seems more like support requests are also converted to discussions in the Q&A category.
+We use judgment about which Issues to convert to discussions, it's best to always clarify with a comment why the issue is being converted.
+Note that we can always convert discussions back to issues.
