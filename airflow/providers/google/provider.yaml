@@ -66,6 +66,7 @@ dependencies:
   # TODO: Upgrade all Google libraries that are limited to <2.0.0
   - PyOpenSSL
   - asgiref>=3.5.2
+  - gcloud_aio_auth>=4.0.0
   - gcloud-aio-bigquery>=6.1.2
   - gcloud-aio-storage
   - google-ads>=15.1.1

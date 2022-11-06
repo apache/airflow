@@ -19,11 +19,11 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.3.0",
       "apache-airflow>=2.3.0",
-      "boto3>=1.15.0",
+      "boto3>=1.24.0",
       "jsonpath_ng>=1.5.3",
-      "mypy-boto3-appflow>=1.21.0",
-      "mypy-boto3-rds>=1.21.0",
-      "mypy-boto3-redshift-data>=1.21.0",
+      "mypy-boto3-appflow>=1.24.0",
+      "mypy-boto3-rds>=1.24.0",
+      "mypy-boto3-redshift-data>=1.24.0",
       "pandas>=0.17.1",
       "redshift_connector>=2.0.888",
       "sqlalchemy_redshift>=0.8.6",
@@ -305,6 +305,7 @@
       "asgiref>=3.5.2",
       "gcloud-aio-bigquery>=6.1.2",
       "gcloud-aio-storage",
+      "gcloud_aio_auth>=4.0.0",
       "google-ads>=15.1.1",
       "google-api-core>=2.7.0,<3.0.0",
       "google-api-python-client>=1.6.0,<2.0.0",
@@ -426,6 +427,7 @@
   },
   "microsoft.azure": {
     "deps": [
+      "adal>=.1.2.7",
       "apache-airflow>=2.3.0",
       "azure-batch>=8.0.0",
       "azure-cosmos>=4.0.0",
