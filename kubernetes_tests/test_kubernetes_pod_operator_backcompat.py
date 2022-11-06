@@ -19,13 +19,11 @@ from __future__ import annotations
 import unittest
 from unittest import mock
 
-import kubernetes.client.models as k8s
 import pendulum
 from kubernetes.client.api_client import ApiClient
 
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 from airflow.version import version as airflow_version
@@ -113,50 +111,3 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         hook = KubernetesHook(conn_id=None, in_cluster=False)
         client = hook.core_v1_client
         client.delete_collection_namespaced_pod(namespace="default")
-
-    def test_init_container(self):
-        # GIVEN
-        volume_mounts = [
-            k8s.V1VolumeMount(mount_path="/etc/foo", name="test-volume", sub_path=None, read_only=True)
-        ]
-
-        init_environments = [
-            k8s.V1EnvVar(name="key1", value="value1"),
-            k8s.V1EnvVar(name="key2", value="value2"),
-        ]
-
-        init_container = k8s.V1Container(
-            name="init-container",
-            image="ubuntu:16.04",
-            env=init_environments,
-            volume_mounts=volume_mounts,
-            command=["bash", "-cx"],
-            args=["echo 10"],
-        )
-
-        expected_init_container = {
-            "name": "init-container",
-            "image": "ubuntu:16.04",
-            "command": ["bash", "-cx"],
-            "args": ["echo 10"],
-            "env": [{"name": "key1", "value": "value1"}, {"name": "key2", "value": "value2"}],
-            "volumeMounts": [{"mountPath": "/etc/foo", "name": "test-volume", "readOnly": True}],
-        }
-
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="test",
-            task_id="task",
-            init_containers=[init_container],
-            in_cluster=False,
-            do_xcom_push=False,
-        )
-        context = create_context(k)
-        pod = k.build_pod_request_obj(context)
-        actual_pod = self.api_client.sanitize_for_serialization(pod)
-        self.expected_pod["spec"]["initContainers"] = [expected_init_container]
-        assert actual_pod == self.expected_pod
