@@ -308,24 +308,21 @@ jobs:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       UPGRADE_TO_NEWER_DEPENDENCIES: false
       PLATFORM: "linux/amd64"
+    if: needs.build-info.outputs.canary-run == 'true'
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Check that image builds quickly"
         run: breeze shell --max-time 120
-        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Fix ownership"
         run: breeze ci fix-ownership
-        if: always() && needs.build-info.outputs.canary-run == 'true'
+        if: always()
 
   build-ci-images:
     permissions:
