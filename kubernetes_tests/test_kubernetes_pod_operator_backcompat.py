@@ -121,33 +121,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         client = hook.core_v1_client
         client.delete_collection_namespaced_pod(namespace="default")
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-    @mock.patch(HOOK_CLASS, new=MagicMock)
-    def test_image_pull_secrets_correctly_set(self, await_pod_completion_mock, create_mock):
-        fake_pull_secrets = "fakeSecret"
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="test",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-            image_pull_secrets=fake_pull_secrets,
-            cluster_context="default",
-        )
-        mock_pod = MagicMock()
-        mock_pod.status.phase = "Succeeded"
-        await_pod_completion_mock.return_value = mock_pod
-        context = create_context(k)
-        k.execute(context=context)
-        assert create_mock.call_args[1]["pod"].spec.image_pull_secrets == [
-            k8s.V1LocalObjectReference(name=fake_pull_secrets)
-        ]
-
     def test_working_pod(self):
         k = KubernetesPodOperator(
             namespace="default",

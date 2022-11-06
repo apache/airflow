@@ -254,15 +254,21 @@ class TestKubernetesPodOperator:
             "already_checked!=True,!airflow-worker"
         )
 
-    def test_image_pull_secrets_correctly_set(self):
-        fake_pull_secrets = "fakeSecret"
+    @pytest.mark.parametrize(
+        "val",
+        [
+            param([k8s.V1LocalObjectReference("fakeSecret")], id="current"),
+            param("fakeSecret", id="backcompat"),
+        ],
+    )
+    def test_image_pull_secrets_correctly_set(self, val):
         k = KubernetesPodOperator(
             task_id="task",
-            image_pull_secrets=[k8s.V1LocalObjectReference(fake_pull_secrets)],
+            image_pull_secrets=val,
         )
 
         pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.image_pull_secrets == [k8s.V1LocalObjectReference(name=fake_pull_secrets)]
+        assert pod.spec.image_pull_secrets == [k8s.V1LocalObjectReference(name="fakeSecret")]
 
     def test_omitted_name(self):
         k = KubernetesPodOperator(task_id="this-task-name")
