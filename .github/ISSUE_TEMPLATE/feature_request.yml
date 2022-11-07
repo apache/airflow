@@ -12,9 +12,21 @@ body:
 
         We really appreciate the community efforts to improve Airflow.
 
-        Note, that you do not need to create an issue if you have a change ready to submit!
-
+        Features should be small improvements that do not dramatically change Airflow assumptions.
+        Note, that in this case you do not even need to create an issue if you have a code change ready to submit!
         You can open [Pull Request](https://github.com/apache/airflow/pulls) immediately instead.
+
+        For bigger features, those that are impacting Airflow's architecture, security assumptions,
+        backwards compatibility etc. should be discussed in the [airflow devlist](https://lists.apache.org/list.html?dev@airflow.apache.org).
+        Such features will need initial discussion - possibly in [discussion](https://github.com/apache/airflow/discussions), followed by
+        [Airflow Improvement Proposal](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvement+Proposals) and formal voting.
+        If you want to introduce such feature, you need to be prepared to lead a discussion, get consensus
+        among the community and eventually conduct a successful
+        [vote](https://www.apache.org/foundation/voting.html) in the community.
+
+        If unsure - open a [discussion](https://github.com/apache/airflow/discussions) first to gather
+        an initial feedback on your idea.
+
         <br clear='left'/>"
 
       # yamllint enable rule:line-length
@@ -37,10 +49,12 @@ body:
     attributes:
       label: Are you willing to submit a PR?
       description: >
-        This is absolutely not required, but we are happy to guide you in the contribution process
-        especially if you already have a good understanding of how to implement the feature.
+        If want to submit a PR you do not need to open feature request, <b>just create the PR!</b>.
+        Especially if you already have a good understanding of how to implement the feature.
         Airflow is a community-managed project and we love to bring new contributors in.
-        Find us in #airflow-how-to-pr on Slack!
+        Find us in #airflow-how-to-pr on Slack! It's optional though - if you have good idea for small
+        feature, others might implement it if they pick an interest in it, so feel free to leave that
+        checkbox unchecked.
       options:
         - label: Yes I am willing to submit a PR!
   - type: checkboxes

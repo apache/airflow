@@ -37,7 +37,7 @@ class LevelDBOperator(BaseOperator):
             ``"put"``, ``"get"``, ``"delete"``, ``"write_batch"``.
         :param key: key for command(put,get,delete) execution(, e.g. ``b'key'``, ``b'another-key'``)
         :param value: value for command(put) execution(bytes, e.g. ``b'value'``, ``b'another-value'``)
-        :param keys: keys for command(write_batch) execution(List[bytes], e.g. ``[b'key', b'another-key'])``
+        :param keys: keys for command(write_batch) execution(list[bytes], e.g. ``[b'key', b'another-key'])``
         :param values: values for command(write_batch) execution e.g. ``[b'value'``, ``b'another-value']``
         :param leveldb_conn_id:
         :param create_if_missing: whether a new database should be created if needed
@@ -75,8 +75,7 @@ class LevelDBOperator(BaseOperator):
         Execute command in LevelDB
 
         :returns: value from get(str, not bytes, to prevent error in json.dumps in serialize_value in xcom.py)
-            or None(Optional[str])
-        :rtype: Optional[str]
+            or str | None
         """
         leveldb_hook = LevelDBHook(leveldb_conn_id=self.leveldb_conn_id)
         leveldb_hook.get_conn(

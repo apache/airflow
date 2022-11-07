@@ -34,6 +34,7 @@ from airflow.providers.apache.beam.operators.beam import (
 from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
 from airflow.providers.google.cloud.operators.dataflow import (
     CheckJobRunning,
+    DataflowStopJobOperator,
     DataflowTemplatedJobStartOperator,
 )
 from airflow.providers.google.cloud.sensors.dataflow import (
@@ -175,7 +176,7 @@ with models.DAG(
     # [START howto_sensor_wait_for_job_status]
     wait_for_python_job_async_done = DataflowJobStatusSensor(
         task_id="wait-for-python-job-async-done",
-        job_id="{{task_instance.xcom_pull('start-python-job-async')['dataflow_job_id']}}",
+        job_id="{{task_instance.xcom_pull('start-python-job-async')['id']}}",
         expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
         location="europe-west3",
     )
@@ -199,7 +200,7 @@ with models.DAG(
 
     wait_for_python_job_async_metric = DataflowJobMetricsSensor(
         task_id="wait-for-python-job-async-metric",
-        job_id="{{task_instance.xcom_pull('start-python-job-async')['dataflow_job_id']}}",
+        job_id="{{task_instance.xcom_pull('start-python-job-async')['id']}}",
         location="europe-west3",
         callback=check_metric_scalar_gte(metric_name="Service-cpu_num_seconds", value=100),
         fail_on_terminal_state=False,
@@ -216,7 +217,7 @@ with models.DAG(
 
     wait_for_python_job_async_message = DataflowJobMessagesSensor(
         task_id="wait-for-python-job-async-message",
-        job_id="{{task_instance.xcom_pull('start-python-job-async')['dataflow_job_id']}}",
+        job_id="{{task_instance.xcom_pull('start-python-job-async')['id']}}",
         location="europe-west3",
         callback=check_message,
         fail_on_terminal_state=False,
@@ -233,7 +234,7 @@ with models.DAG(
 
     wait_for_python_job_async_autoscaling_event = DataflowJobAutoScalingEventsSensor(
         task_id="wait-for-python-job-async-autoscaling-event",
-        job_id="{{task_instance.xcom_pull('start-python-job-async')['dataflow_job_id']}}",
+        job_id="{{task_instance.xcom_pull('start-python-job-async')['id']}}",
         location="europe-west3",
         callback=check_autoscaling_event,
         fail_on_terminal_state=False,
@@ -261,3 +262,27 @@ with models.DAG(
         location="europe-west3",
     )
     # [END howto_operator_start_template_job]
+
+with models.DAG(
+    "example_gcp_stop_dataflow_job",
+    default_args=default_args,
+    start_date=START_DATE,
+    catchup=False,
+    tags=["example"],
+) as dag_template:
+    # [START howto_operator_stop_dataflow_job]
+    stop_dataflow_job = DataflowStopJobOperator(
+        task_id="stop-dataflow-job",
+        location="europe-west3",
+        job_name_prefix="start-template-job",
+    )
+    # [END howto_operator_stop_dataflow_job]
+    start_template_job = DataflowTemplatedJobStartOperator(
+        task_id="start-template-job",
+        template="gs://dataflow-templates/latest/Word_Count",
+        parameters={"inputFile": "gs://dataflow-samples/shakespeare/kinglear.txt", "output": GCS_OUTPUT},
+        location="europe-west3",
+        append_job_name=False,
+    )
+
+    stop_dataflow_job >> start_template_job

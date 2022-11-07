@@ -45,7 +45,7 @@ class RedshiftSQLHook(DbApiHook):
     supports_autocommit = True
 
     @staticmethod
-    def get_ui_field_behavior() -> dict:
+    def get_ui_field_behaviour() -> dict:
         """Returns custom field behavior"""
         return {
             "hidden_fields": [],
@@ -104,9 +104,8 @@ class RedshiftSQLHook(DbApiHook):
         """
         Helper method that returns the table primary key
         :param table: Name of the target table
-        :param table: Name of the target schema, public by default
+        :param schema: Name of the target schema, public by default
         :return: Primary key columns list
-        :rtype: List[str]
         """
         sql = """
             select kcu.column_name

@@ -113,9 +113,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         response = self.get_conn().queries().getquery(queryId=query_id).execute(num_retries=self.num_retries)
         return response
 
-    def list_queries(
-        self,
-    ) -> list[dict]:
+    def list_queries(self) -> list[dict]:
         """Retrieves stored queries."""
         response = self.get_conn().queries().listqueries().execute(num_retries=self.num_retries)
         return response.get("queries", [])
@@ -140,7 +138,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
         :param line_items: downloaded data from GCS and passed to the body request
         :return: response body.
-        :rtype: List[Dict[str, Any]]
         """
         request_body = {
             "lineItems": line_items,

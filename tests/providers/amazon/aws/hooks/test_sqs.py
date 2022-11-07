@@ -17,18 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
+from moto import mock_sqs
 
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 
-try:
-    from moto import mock_sqs
-except ImportError:
-    mock_sqs = None
 
-
-@unittest.skipIf(mock_sqs is None, "moto sqs package missing")
-class TestSqsHook(unittest.TestCase):
+class TestSqsHook:
     @mock_sqs
     def test_get_conn(self):
         hook = SqsHook(aws_conn_id="aws_default")

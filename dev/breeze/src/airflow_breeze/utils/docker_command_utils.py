@@ -31,6 +31,7 @@ from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
 from airflow_breeze.utils.image import find_available_ci_image
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.shared_options import get_forced_answer
 
 try:
     from packaging import version
@@ -141,11 +142,11 @@ def get_extra_docker_flags(mount_sources: str, include_mypy_volume: bool = False
     return extra_docker_flags
 
 
-def check_docker_resources(airflow_image_name: str, verbose: bool, dry_run: bool) -> RunCommandResult:
+def check_docker_resources(airflow_image_name: str) -> RunCommandResult:
     """
     Check if we have enough resources to run docker. This is done via running script embedded in our image.
-    :param verbose: print commands when running
-    :param dry_run: whether to run it in dry run mode
+
+
     :param airflow_image_name: name of the airflow image to use
     """
     return run_command(
@@ -161,26 +162,23 @@ def check_docker_resources(airflow_image_name: str, verbose: bool, dry_run: bool
             "-c",
             "python /opt/airflow/scripts/in_container/run_resource_check.py",
         ],
-        verbose=verbose,
-        dry_run=dry_run,
         text=True,
     )
 
 
-def check_docker_permission_denied(verbose: bool) -> bool:
+def check_docker_permission_denied() -> bool:
     """
     Checks if we have permission to write to docker socket. By default, on Linux you need to add your user
     to docker group and some new users do not realize that. We help those users if we have
     permission to run docker commands.
 
-    :param verbose: print commands when running
+
     :return: True if permission is denied
     """
     permission_denied = False
     docker_permission_command = ["docker", "info"]
     command_result = run_command(
         docker_permission_command,
-        verbose=verbose,
         no_output_dump_on_exception=True,
         capture_output=True,
         text=True,
@@ -203,14 +201,13 @@ def compare_version(current_version: str, min_version: str) -> bool:
     return version.parse(current_version) >= version.parse(min_version)
 
 
-def check_docker_is_running(verbose: bool):
+def check_docker_is_running():
     """
     Checks if docker is running. Suppressed Dockers stdout and stderr output.
-    :param verbose: print commands when running
+
     """
     response = run_command(
         ["docker", "info"],
-        verbose=verbose,
         no_output_dump_on_exception=True,
         text=False,
         capture_output=True,
@@ -224,26 +221,24 @@ def check_docker_is_running(verbose: bool):
         sys.exit(1)
 
 
-def check_docker_version(verbose: bool):
+def check_docker_version():
     """
     Checks if the docker compose version is as expected. including some specific modifications done by
     some vendors such as Microsoft. They might have modified version of docker-compose/docker in their
     cloud. In case docker compose version is wrong we continue but print warning for the user.
 
-
-    :param verbose: print commands when running
     """
-    permission_denied = check_docker_permission_denied(verbose)
+    permission_denied = check_docker_permission_denied()
     if not permission_denied:
         docker_version_command = ["docker", "version", "--format", "{{.Client.Version}}"]
         docker_version = ""
         docker_version_result = run_command(
             docker_version_command,
-            verbose=verbose,
             no_output_dump_on_exception=True,
             capture_output=True,
             text=True,
             check=False,
+            dry_run_override=False,
         )
         if docker_version_result.returncode == 0:
             docker_version = docker_version_result.stdout.strip()
@@ -270,32 +265,32 @@ Please upgrade to at least {MIN_DOCKER_VERSION}[/]
 DOCKER_COMPOSE_COMMAND = ["docker-compose"]
 
 
-def check_docker_compose_version(verbose: bool):
+def check_docker_compose_version():
     """
     Checks if the docker compose version is as expected, including some specific modifications done by
     some vendors such as Microsoft. They might have modified version of docker-compose/docker in their
     cloud. In case docker compose version is wrong we continue but print warning for the user.
 
-    :param verbose: print commands when running
+
     """
     version_pattern = re.compile(r"(\d+)\.(\d+)\.(\d+)")
     docker_compose_version_command = ["docker-compose", "--version"]
     try:
         docker_compose_version_result = run_command(
             docker_compose_version_command,
-            verbose=verbose,
             no_output_dump_on_exception=True,
             capture_output=True,
             text=True,
+            dry_run_override=False,
         )
     except FileNotFoundError:
         docker_compose_version_command = ["docker", "compose", "version"]
         docker_compose_version_result = run_command(
             docker_compose_version_command,
-            verbose=verbose,
             no_output_dump_on_exception=True,
             capture_output=True,
             text=True,
+            dry_run_override=False,
         )
         DOCKER_COMPOSE_COMMAND.clear()
         DOCKER_COMPOSE_COMMAND.extend(["docker", "compose"])
@@ -328,18 +323,18 @@ Make sure docker-compose you install is first on the PATH variable of yours.
         )
 
 
-def check_docker_context(verbose: bool):
+def check_docker_context():
     """
     Checks whether Docker is using the expected context
-    :param verbose: print commands when running
+
     """
     expected_docker_context = "default"
     response = run_command(
         ["docker", "info", "--format", "{{json .ClientInfo.Context}}"],
-        verbose=verbose,
         no_output_dump_on_exception=False,
         text=True,
         capture_output=True,
+        dry_run_override=False,
     )
     if response.returncode != 0:
         get_console().print(
@@ -408,8 +403,8 @@ def prepare_docker_build_cache_command(
     """
     Constructs docker build_cache command based on the parameters passed.
     :param image_params: parameters of the image
-    :param dry_run: dry_run rather than run the command
-    :param verbose: print commands when running
+
+
     :return: Command to run as list of string
     """
     arguments = prepare_arguments_for_docker_build_command(image_params)
@@ -431,7 +426,7 @@ def prepare_docker_build_cache_command(
     return final_command
 
 
-def prepare_base_build_command(image_params: CommonBuildParams, verbose: bool) -> list[str]:
+def prepare_base_build_command(image_params: CommonBuildParams) -> list[str]:
     """
     Prepare build command for docker build. Depending on whether we have buildx plugin installed or not,
     and whether we run cache preparation, there might be different results:
@@ -441,11 +436,11 @@ def prepare_base_build_command(image_params: CommonBuildParams, verbose: bool) -
     * if no buildx plugin is installed, and we do not prepare cache, regular docker `build` command is used.
     * if no buildx plugin is installed, and we prepare cache - we fail. Cache can only be done with buildx
     :param image_params: parameters of the image
-    :param verbose: print commands when running
+
     :return: command to use as docker build command
     """
     build_command_param = []
-    is_buildx_available = check_if_buildx_plugin_installed(verbose=verbose)
+    is_buildx_available = check_if_buildx_plugin_installed()
     if is_buildx_available:
         build_command_param.extend(
             [
@@ -464,16 +459,17 @@ def prepare_base_build_command(image_params: CommonBuildParams, verbose: bool) -
 
 def prepare_docker_build_command(
     image_params: CommonBuildParams,
-    verbose: bool,
 ) -> list[str]:
     """
     Constructs docker build command based on the parameters passed.
     :param image_params: parameters of the image
-    :param verbose: print commands when running
+
     :return: Command to run as list of string
     """
     arguments = prepare_arguments_for_docker_build_command(image_params)
-    build_command = prepare_base_build_command(image_params=image_params, verbose=verbose)
+    build_command = prepare_base_build_command(
+        image_params=image_params,
+    )
     build_flags = image_params.extra_docker_build_flags
     final_command = []
     final_command.extend(["docker"])
@@ -511,9 +507,7 @@ def prepare_docker_build_from_input(
     return ["docker", "build", "-t", image_params.airflow_image_name_with_tag, "-"]
 
 
-def build_cache(
-    image_params: CommonBuildParams, output: Output | None, dry_run: bool, verbose: bool
-) -> RunCommandResult:
+def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCommandResult:
     build_command_result: CompletedProcess | CalledProcessError = CompletedProcess(args=[], returncode=0)
     for platform in image_params.platforms:
         platform_image_params = deepcopy(image_params)
@@ -523,8 +517,6 @@ def build_cache(
         cmd = prepare_docker_build_cache_command(image_params=platform_image_params)
         build_command_result = run_command(
             cmd,
-            verbose=verbose,
-            dry_run=dry_run,
             cwd=AIRFLOW_SOURCES_ROOT,
             output=output,
             check=False,
@@ -535,13 +527,13 @@ def build_cache(
     return build_command_result
 
 
-def make_sure_builder_configured(params: CommonBuildParams, dry_run: bool, verbose: bool):
+def make_sure_builder_configured(params: CommonBuildParams):
     if params.builder != "default":
         cmd = ["docker", "buildx", "inspect", params.builder]
-        buildx_command_result = run_command(cmd, verbose=verbose, dry_run=dry_run, text=True, check=False)
+        buildx_command_result = run_command(cmd, text=True, check=False, dry_run_override=False)
         if buildx_command_result and buildx_command_result.returncode != 0:
             next_cmd = ["docker", "buildx", "create", "--name", params.builder]
-            run_command(next_cmd, verbose=verbose, text=True, check=False)
+            run_command(next_cmd, text=True, check=False, dry_run_override=False)
 
 
 def set_value_to_default_if_not_set(env: dict[str, str], name: str, default: str):
@@ -562,10 +554,11 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
 
     :param env: environment variables to update with missing values if not set.
     """
+    answer = get_forced_answer()
     set_value_to_default_if_not_set(env, "AIRFLOW_CONSTRAINTS_MODE", "constraints-source-providers")
     set_value_to_default_if_not_set(env, "AIRFLOW_CONSTRAINTS_REFERENCE", "constraints-source-providers")
     set_value_to_default_if_not_set(env, "AIRFLOW_EXTRAS", "")
-    set_value_to_default_if_not_set(env, "ANSWER", "")
+    set_value_to_default_if_not_set(env, "ANSWER", answer if answer is not None else "")
     set_value_to_default_if_not_set(env, "BASE_BRANCH", "main")
     set_value_to_default_if_not_set(env, "BREEZE", "true")
     set_value_to_default_if_not_set(env, "BREEZE_INIT_COMMAND", "")
@@ -615,7 +608,6 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "AIRFLOW_PROD_IMAGE": "airflow_image_name",
     "AIRFLOW_SOURCES": "airflow_sources",
     "AIRFLOW_VERSION": "airflow_version",
-    "ANSWER": "answer",
     "BACKEND": "backend",
     "BASE_BRANCH": "base_branch",
     "COMPOSE_FILE": "compose_file",
@@ -684,11 +676,11 @@ def get_env_variables_for_docker_commands(params: ShellParams | BuildCiParams) -
     return env_variables
 
 
-def perform_environment_checks(verbose: bool):
-    check_docker_is_running(verbose=verbose)
-    check_docker_version(verbose=verbose)
-    check_docker_compose_version(verbose=verbose)
-    check_docker_context(verbose=verbose)
+def perform_environment_checks():
+    check_docker_is_running()
+    check_docker_version()
+    check_docker_compose_version()
+    check_docker_context()
 
 
 def get_docker_syntax_version() -> str:
@@ -697,7 +689,7 @@ def get_docker_syntax_version() -> str:
     return (AIRFLOW_SOURCES_ROOT / "Dockerfile").read_text().splitlines()[0]
 
 
-def warm_up_docker_builder(image_params: CommonBuildParams, verbose: bool, dry_run: bool):
+def warm_up_docker_builder(image_params: CommonBuildParams):
     from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
     if image_params.builder == "default":
@@ -707,7 +699,7 @@ def warm_up_docker_builder(image_params: CommonBuildParams, verbose: bool, dry_r
     warm_up_image_param = deepcopy(image_params)
     warm_up_image_param.image_tag = "warmup"
     warm_up_image_param.push = False
-    build_command = prepare_base_build_command(image_params=warm_up_image_param, verbose=verbose)
+    build_command = prepare_base_build_command(image_params=warm_up_image_param)
     warm_up_command = []
     warm_up_command.extend(["docker"])
     warm_up_command.extend(build_command)
@@ -718,8 +710,6 @@ def warm_up_docker_builder(image_params: CommonBuildParams, verbose: bool, dry_r
 FROM scratch
 LABEL description="test warmup image"
 """,
-        verbose=verbose,
-        dry_run=dry_run,
         cwd=AIRFLOW_SOURCES_ROOT,
         text=True,
         check=False,
@@ -731,10 +721,10 @@ LABEL description="test warmup image"
         )
 
 
-def fix_ownership_using_docker(dry_run: bool, verbose: bool):
-    perform_environment_checks(verbose=verbose)
+def fix_ownership_using_docker():
+    perform_environment_checks()
     shell_params = find_available_ci_image(
-        github_repository=APACHE_AIRFLOW_GITHUB_REPOSITORY, dry_run=dry_run, verbose=verbose
+        github_repository=APACHE_AIRFLOW_GITHUB_REPOSITORY,
     )
     extra_docker_flags = get_extra_docker_flags(MOUNT_ALL)
     env = get_env_variables_for_docker_commands(shell_params)
@@ -748,4 +738,4 @@ def fix_ownership_using_docker(dry_run: bool, verbose: bool):
         shell_params.airflow_image_name_with_tag,
         "/opt/airflow/scripts/in_container/run_fix_ownership.sh",
     ]
-    run_command(cmd, verbose=verbose, dry_run=dry_run, text=True, env=env, check=False)
+    run_command(cmd, text=True, env=env, check=False)

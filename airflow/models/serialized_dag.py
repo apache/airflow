@@ -22,7 +22,6 @@ import hashlib
 import logging
 import zlib
 from datetime import datetime, timedelta
-from typing import Any
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, or_
@@ -150,12 +149,8 @@ class SerializedDagModel(Base):
                         (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated,
                     )
                 )
-                .first()
-                is not None
+                .scalar()
             ):
-                # TODO: .first() is not None can be changed to .scalar() once we update to sqlalchemy 1.4+
-                # as the associated sqlalchemy bug for MySQL was fixed
-                # related issue : https://github.com/sqlalchemy/sqlalchemy/issues/5481
                 return False
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
@@ -220,7 +215,7 @@ class SerializedDagModel(Base):
         SerializedDAG._load_operator_extra_links = self.load_op_links
 
         if isinstance(self.data, dict):
-            dag = SerializedDAG.from_dict(self.data)  # type: Any
+            dag = SerializedDAG.from_dict(self.data)
         else:
             dag = SerializedDAG.from_json(self.data)
         return dag
@@ -353,7 +348,6 @@ class SerializedDagModel(Base):
         :param dag_id: DAG ID
         :param session: ORM Session
         :return: DAG Hash, or None if the DAG is not found
-        :rtype: str | None
         """
         return session.query(cls.dag_hash).filter(cls.dag_id == dag_id).scalar()
 

@@ -31,7 +31,7 @@ The DAG is Airflow's core model that represents a recurring workflow. Check out 
 Operators
 ---------
 Operators allow for generation of certain types of tasks that become nodes in
-the DAG when instantiated. All operators derive from :class:`~airflow.models.BaseOperator` and
+the DAG when instantiated. All operators derive from :class:`~airflow.models.baseoperator.BaseOperator` and
 inherit many attributes and methods that way.
 
 There are 3 main types of operators:
@@ -47,16 +47,16 @@ There are 3 main types of operators:
 
 BaseOperator
 ''''''''''''
-All operators are derived from :class:`~airflow.models.BaseOperator` and acquire much
+All operators are derived from :class:`~airflow.models.baseoperator.BaseOperator` and acquire much
 functionality through inheritance. Since this is the core of the engine,
-it's worth taking the time to understand the parameters of :class:`~airflow.models.BaseOperator`
+it's worth taking the time to understand the parameters of :class:`~airflow.models.baseoperator.BaseOperator`
 to understand the primitive features that can be leveraged in your
 DAGs.
 
 BaseSensorOperator
 ''''''''''''''''''
 All sensors are derived from :class:`~airflow.sensors.base.BaseSensorOperator`. All sensors inherit
-the :attr:`~airflow.sensors.base.BaseSensorOperator.timeout` and :attr:`~airflow.sensors.base.BaseSensorOperator.poke_interval` on top of the :class:`~airflow.models.BaseOperator`
+the :attr:`~airflow.sensors.base.BaseSensorOperator.timeout` and :attr:`~airflow.sensors.base.BaseSensorOperator.poke_interval` on top of the :class:`~airflow.models.baseoperator.BaseOperator`
 attributes.
 
 Operators packages

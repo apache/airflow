@@ -359,6 +359,22 @@ Notes on using the operator:
     You should upgrade to Airflow 2.4 or above in order to use it.
 
 
+Using the TaskFlow API with Sensor operators
+--------------------------------------------
+You can apply the ``@task.sensor`` decorator to convert a regular Python function to an instance of the
+BaseSensorOperator class. The Python function implements the poke logic and returns an instance of
+the ``PokeReturnValue`` class as the ``poke()`` method in the BaseSensorOperator does. The ``PokeReturnValue`` is
+a new feature in Airflow 2.3 that allows a sensor operator to push an XCom value as described in
+section "Having sensors return XOM values" of :doc:`apache-airflow-providers:howto/create-update-providers`.
+
+.. _taskflow/task_sensor_example:
+
+.. exampleinclude:: /../../airflow/example_dags/example_sensor_decorator.py
+    :language: python
+    :start-after: [START tutorial]
+    :end-before: [END tutorial]
+
+
 Multiple outputs inference
 --------------------------
 Tasks can also infer multiple outputs by using dict Python typing.
@@ -366,7 +382,7 @@ Tasks can also infer multiple outputs by using dict Python typing.
 .. code-block:: python
 
    @task
-   def identity_dict(x: int, y: int) -> Dict[str, int]:
+   def identity_dict(x: int, y: int) -> dict[str, int]:
        return {"x": x, "y": y}
 
 By using the typing ``Dict`` for the function return type, the ``multiple_outputs`` parameter

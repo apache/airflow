@@ -51,7 +51,6 @@ class CeleryQueueSensor(BaseSensorOperator):
 
         :param context: Airflow's execution context
         :return: True if task has been executed, otherwise False
-        :rtype: bool
         """
         ti = context["ti"]
         celery_result = ti.xcom_pull(task_ids=self.target_task_id)

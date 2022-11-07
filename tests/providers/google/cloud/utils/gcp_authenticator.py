@@ -20,7 +20,6 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-from typing import Optional
 
 from airflow import settings
 from airflow.exceptions import AirflowException
@@ -77,7 +76,7 @@ class GcpAuthenticator(CommandExecutor):
            connection
     """
 
-    original_account = None  # type: Optional[str]
+    original_account: str | None = None
 
     def __init__(self, gcp_key: str, project_extra: str | None = None):
         super().__init__()

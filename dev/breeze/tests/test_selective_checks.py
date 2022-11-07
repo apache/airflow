@@ -36,6 +36,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "false",
                     "needs-helm-tests": "false",
                     "run-tests": "false",
@@ -52,6 +54,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "false",
                     "run-tests": "true",
@@ -71,6 +75,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "false",
                     "run-tests": "true",
@@ -87,6 +93,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "false",
                     "run-tests": "true",
@@ -104,6 +112,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "false",
                     "run-tests": "false",
@@ -124,6 +134,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -146,6 +158,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -168,6 +182,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -190,6 +206,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -208,6 +226,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -216,7 +236,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "test-types": "API Always CLI Core Integration Other Providers WWW",
                 },
                 id="Everything should run - including all providers and upgrading to "
-                "newer requirements as setup.py changed",
+                "newer requirements as setup.py changed and all Python versions",
             )
         ),
         (
@@ -225,6 +245,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -262,9 +284,13 @@ def test_expected_output_pull_request_main(
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
+                    "full-tests-needed": "true",
+                    "providers-package-format-exclude": "[]",
                     "upgrade-to-newer-dependencies": "false",
                     "test-types": "API Always CLI Core Integration Other Providers WWW",
                 },
@@ -282,9 +308,13 @@ def test_expected_output_pull_request_main(
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
+                    "full-tests-needed": "true",
+                    "providers-package-format-exclude": "[]",
                     "upgrade-to-newer-dependencies": "false",
                     "test-types": "API Always CLI Core Integration Other Providers WWW",
                 },
@@ -300,10 +330,14 @@ def test_expected_output_pull_request_main(
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
+                    "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
+                    "providers-package-format-exclude": "[]",
                     "test-types": "API Always CLI Core Integration Other Providers WWW",
                 },
                 id="Everything should run including full providers when"
@@ -318,10 +352,14 @@ def test_expected_output_pull_request_main(
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
+                    "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
+                    "providers-package-format-exclude": "[]",
                     "test-types": "API Always CLI Core Other WWW",
                 },
                 id="Everything should run except Providers and Integration "
@@ -358,6 +396,8 @@ def test_expected_output_full_tests_needed(
                 "needs-helm-tests": "false",
                 "run-tests": "false",
                 "docs-build": "false",
+                "full-tests-needed": "false",
+                "providers-package-format-exclude": "[{'package-format': 'sdist'}]",
                 "upgrade-to-newer-dependencies": "false",
                 "test-types": "",
             },
@@ -375,6 +415,8 @@ def test_expected_output_full_tests_needed(
                 "image-build": "true",
                 "run-tests": "true",
                 "docs-build": "true",
+                "full-tests-needed": "false",
+                "providers-package-format-exclude": "[{'package-format': 'sdist'}]",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "test-types": "Always",
@@ -394,6 +436,8 @@ def test_expected_output_full_tests_needed(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
+                "full-tests-needed": "false",
+                "providers-package-format-exclude": "[{'package-format': 'sdist'}]",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "test-types": "Always CLI",
@@ -412,6 +456,8 @@ def test_expected_output_full_tests_needed(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
+                "full-tests-needed": "false",
+                "providers-package-format-exclude": "[{'package-format': 'sdist'}]",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "test-types": "API Always CLI Core Other WWW",

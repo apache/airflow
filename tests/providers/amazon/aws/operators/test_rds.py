@@ -21,6 +21,7 @@ import logging
 from unittest.mock import patch
 
 import pytest
+from moto import mock_rds
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
@@ -41,12 +42,6 @@ from airflow.providers.amazon.aws.operators.rds import (
     RdsStopDbOperator,
 )
 from airflow.utils import timezone
-
-try:
-    from moto import mock_rds
-except ImportError:
-    mock_rds = None
-
 
 DEFAULT_DATE = timezone.datetime(2019, 1, 1)
 
@@ -179,7 +174,6 @@ class TestBaseRdsOperator:
         )
 
 
-@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
 class TestRdsCreateDbSnapshotOperator:
     @classmethod
     def setup_class(cls):
@@ -279,7 +273,6 @@ class TestRdsCreateDbSnapshotOperator:
         assert mock_no_wait.not_called()
 
 
-@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
 class TestRdsCopyDbSnapshotOperator:
     @classmethod
     def setup_class(cls):
@@ -386,7 +379,6 @@ class TestRdsCopyDbSnapshotOperator:
         assert mock_await_status.not_called()
 
 
-@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
 class TestRdsDeleteDbSnapshotOperator:
     @classmethod
     def setup_class(cls):
@@ -436,7 +428,6 @@ class TestRdsDeleteDbSnapshotOperator:
             self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT)
 
 
-@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
 class TestRdsStartExportTaskOperator:
     @classmethod
     def setup_class(cls):
@@ -503,7 +494,6 @@ class TestRdsStartExportTaskOperator:
         assert mock_await_status.not_called()
 
 
-@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
 class TestRdsCancelExportTaskOperator:
     @classmethod
     def setup_class(cls):
@@ -563,7 +553,6 @@ class TestRdsCancelExportTaskOperator:
         assert mock_await_status.not_called()
 
 
-@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
 class TestRdsCreateEventSubscriptionOperator:
     @classmethod
     def setup_class(cls):
@@ -625,7 +614,6 @@ class TestRdsCreateEventSubscriptionOperator:
         assert mock_await_status.not_called()
 
 
-@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
 class TestRdsDeleteEventSubscriptionOperator:
     @classmethod
     def setup_class(cls):
@@ -655,7 +643,6 @@ class TestRdsDeleteEventSubscriptionOperator:
             self.hook.conn.describe_event_subscriptions(SubscriptionName=EXPORT_TASK_NAME)
 
 
-@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
 class TestRdsCreateDbInstanceOperator:
     @classmethod
     def setup_class(cls):
@@ -717,7 +704,6 @@ class TestRdsCreateDbInstanceOperator:
         assert mock_await_status.not_called()
 
 
-@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
 class TestRdsDeleteDbInstanceOperator:
     @classmethod
     def setup_class(cls):
@@ -772,7 +758,6 @@ class TestRdsDeleteDbInstanceOperator:
         assert mock_await_status.not_called()
 
 
-@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
 class TestRdsStopDbOperator:
     @classmethod
     def setup_class(cls):
@@ -863,7 +848,6 @@ class TestRdsStopDbOperator:
         assert warning_message in caplog.text
 
 
-@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
 class TestRdsStartDbOperator:
     @classmethod
     def setup_class(cls):

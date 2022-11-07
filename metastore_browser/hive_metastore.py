@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import List
 
 import pandas as pd
 from flask import Blueprint, request
@@ -38,8 +37,8 @@ METASTORE_MYSQL_CONN_ID = "metastore_mysql"
 PRESTO_CONN_ID = "presto_default"
 HIVE_CLI_CONN_ID = "hive_default"
 DEFAULT_DB = "default"
-DB_ALLOW_LIST = []  # type: List[str]
-DB_DENY_LIST = ["tmp"]  # type: List[str]
+DB_ALLOW_LIST: list[str] = []
+DB_DENY_LIST: list[str] = ["tmp"]
 TABLE_SELECTOR_LIMIT = 2000
 
 # Keeping pandas from truncating long strings
@@ -73,6 +72,7 @@ class MetastoreBrowserView(BaseView):
         )
         return self.render_template("metastore_browser/dbs.html", table=Markup(table))
 
+    # [START howto_customview_table]
     @expose("/table/")
     def table(self):
         """Create table view"""
@@ -83,6 +83,9 @@ class MetastoreBrowserView(BaseView):
             "metastore_browser/table.html", table=table, table_name=table_name, datetime=datetime, int=int
         )
 
+    # [END howto_customview_table]
+
+    # [START howto_customview_show_database_table]
     @expose("/db/")
     def db(self):
         """Show tables in database"""
@@ -91,6 +94,9 @@ class MetastoreBrowserView(BaseView):
         tables = sorted(metastore.get_tables(db=db), key=lambda x: x.tableName)
         return self.render_template("metastore_browser/db.html", tables=tables, db=db)
 
+    # [END howto_customview_show_database_table]
+
+    # [START howto_customview_partitions_info]
     @gzipped
     @expose("/partitions/")
     def partitions(self):
@@ -120,6 +126,8 @@ class MetastoreBrowserView(BaseView):
             index=False,
             na_rep="",
         )
+
+    # [END howto_customview_partitions_info]
 
     @gzipped
     @expose("/objects/")
