@@ -461,9 +461,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         )
         assert ("CREDENTIALS", "SECOND_PROJECT_ID") == result
 
-    def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(
-        self,
-    ):
+    def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(self):
         self.instance.extras = {
             "project": "PROJECT_ID",
             "key_path": "KEY_PATH",
@@ -477,9 +475,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         ):
             self.instance.get_credentials_and_project_id()
 
-    def test_get_credentials_and_project_id_with_invalid_keyfile_dict(
-        self,
-    ):
+    def test_get_credentials_and_project_id_with_invalid_keyfile_dict(self):
         self.instance.extras = {
             "keyfile_dict": "INVALID_DICT",
         }

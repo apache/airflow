@@ -90,9 +90,7 @@ class MsSqlHook(DbApiHook):
         engine = self.get_sqlalchemy_engine(engine_kwargs=engine_kwargs)
         return engine.connect(**(connect_kwargs or {}))
 
-    def get_conn(
-        self,
-    ) -> pymssql.connect:
+    def get_conn(self) -> pymssql.connect:
         """Returns a mssql connection object"""
         conn = self.get_connection(self.mssql_conn_id)  # type: ignore[attr-defined]
 

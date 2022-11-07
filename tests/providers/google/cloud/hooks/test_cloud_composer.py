@@ -59,9 +59,7 @@ def mock_init(*args, **kwargs):
 
 
 class TestCloudComposerHook(unittest.TestCase):
-    def setUp(
-        self,
-    ) -> None:
+    def setUp(self) -> None:
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = CloudComposerHook(gcp_conn_id="test")
 
@@ -197,9 +195,7 @@ class TestCloudComposerHook(unittest.TestCase):
 
 
 class TestCloudComposerAsyncHook(unittest.TestCase):
-    def setUp(
-        self,
-    ) -> None:
+    def setUp(self) -> None:
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = CloudComposerAsyncHook(gcp_conn_id="test")
 

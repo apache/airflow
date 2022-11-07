@@ -46,9 +46,7 @@ TEST_PARENT: str = "users/test-user"
 
 
 class TestOSLoginHook(TestCase):
-    def setUp(
-        self,
-    ) -> None:
+    def setUp(self) -> None:
         with mock.patch(
             "airflow.providers.google.cloud.hooks.os_login.OSLoginHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -82,9 +80,7 @@ class TestOSLoginHook(TestCase):
 
 
 class TestOSLoginHookWithDefaultProjectIdHook(TestCase):
-    def setUp(
-        self,
-    ) -> None:
+    def setUp(self) -> None:
         with mock.patch(
             "airflow.providers.google.cloud.hooks.os_login.OSLoginHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -118,9 +114,7 @@ class TestOSLoginHookWithDefaultProjectIdHook(TestCase):
 
 
 class TestOSLoginHookWithoutDefaultProjectIdHook(TestCase):
-    def setUp(
-        self,
-    ) -> None:
+    def setUp(self) -> None:
         with mock.patch(
             "airflow.providers.google.cloud.hooks.os_login.OSLoginHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
@@ -156,9 +150,7 @@ TEST_MESSAGE = re.escape(
 
 
 class TestOSLoginHookMissingProjectIdHook(TestCase):
-    def setUp(
-        self,
-    ) -> None:
+    def setUp(self) -> None:
         with mock.patch(
             "airflow.providers.google.cloud.hooks.os_login.OSLoginHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,

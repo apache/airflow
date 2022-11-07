@@ -31,9 +31,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 class DataformHook(GoogleBaseHook):
     """Hook for Google Cloud DataForm APIs."""
 
-    def get_dataform_client(
-        self,
-    ) -> DataformClient:
+    def get_dataform_client(self) -> DataformClient:
         """Retrieves client library object that allow access to Cloud Dataform service."""
         return DataformClient(credentials=self.get_credentials())
 

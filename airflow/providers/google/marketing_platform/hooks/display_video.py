@@ -113,9 +113,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         response = self.get_conn().queries().getquery(queryId=query_id).execute(num_retries=self.num_retries)
         return response
 
-    def list_queries(
-        self,
-    ) -> list[dict]:
+    def list_queries(self) -> list[dict]:
         """Retrieves stored queries."""
         response = self.get_conn().queries().listqueries().execute(num_retries=self.num_retries)
         return response.get("queries", [])

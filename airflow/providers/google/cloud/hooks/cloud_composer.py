@@ -54,9 +54,7 @@ class CloudComposerHook(GoogleBaseHook):
             client_options=self.client_options,
         )
 
-    def get_image_versions_client(
-        self,
-    ) -> ImageVersionsClient:
+    def get_image_versions_client(self) -> ImageVersionsClient:
         """Retrieves client library object that allow access Image Versions service."""
         return ImageVersionsClient(
             credentials=self.get_credentials(),
