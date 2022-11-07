@@ -487,9 +487,12 @@ class SSHHook(BaseHook):
         if stdout_buffer_length > 0:
             agg_stdout += stdout.channel.recv(stdout_buffer_length)
 
+        timedout = False
+
         # read from both stdout and stderr
         while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
             readq, _, _ = select([channel], [], [], timeout)
+            timedout = len(readq) == 0
             for recv in readq:
                 if recv.recv_ready():
                     line = stdout.channel.recv(len(recv.in_buffer))
@@ -503,7 +506,7 @@ class SSHHook(BaseHook):
                 stdout.channel.exit_status_ready()
                 and not stderr.channel.recv_stderr_ready()
                 and not stdout.channel.recv_ready()
-            ):
+            ) or timedout:
                 stdout.channel.shutdown_read()
                 try:
                     stdout.channel.close()
@@ -516,6 +519,9 @@ class SSHHook(BaseHook):
 
         stdout.close()
         stderr.close()
+
+        if timedout:
+            raise AirflowException("SSH command timed out")
 
         exit_status = stdout.channel.recv_exit_status()
 

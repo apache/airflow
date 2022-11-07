@@ -50,8 +50,6 @@ class SSHOperator(BaseOperator):
         Nullable. If provided, it will replace the `conn_timeout` which was
         predefined in the connection of `ssh_conn_id`.
     :param cmd_timeout: timeout (in seconds) for executing the command. The default is 10 seconds.
-    :param timeout: (deprecated) timeout (in seconds) for executing the command. The default is 10 seconds.
-        Use conn_timeout and cmd_timeout parameters instead.
     :param environment: a dict of shell environment variables. Note that the
         server will reject them silently if `AcceptEnv` is not set in SSH config. (templated)
     :param get_pty: request a pseudo-terminal from the server. Set to ``True``
@@ -75,7 +73,6 @@ class SSHOperator(BaseOperator):
         ssh_conn_id: str | None = None,
         remote_host: str | None = None,
         command: str | None = None,
-        timeout: int | None = None,
         conn_timeout: int | None = None,
         cmd_timeout: int | None = None,
         environment: dict | None = None,
@@ -88,25 +85,11 @@ class SSHOperator(BaseOperator):
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
         self.command = command
-        self.timeout = timeout
         self.conn_timeout = conn_timeout
-        self.cmd_timeout = cmd_timeout
-        if self.conn_timeout is None and self.timeout:
-            self.conn_timeout = self.timeout
-        if self.cmd_timeout is None:
-            self.cmd_timeout = self.timeout if self.timeout else CMD_TIMEOUT
+        self.cmd_timeout = cmd_timeout if cmd_timeout else CMD_TIMEOUT
         self.environment = environment
         self.get_pty = get_pty
         self.banner_timeout = banner_timeout
-
-        if self.timeout:
-            warnings.warn(
-                "Parameter `timeout` is deprecated."
-                "Please use `conn_timeout` and `cmd_timeout` instead."
-                "The old option `timeout` will be removed in a future version.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
 
     def get_hook(self) -> SSHHook:
         from airflow.providers.ssh.hooks.ssh import SSHHook
@@ -148,7 +131,7 @@ class SSHOperator(BaseOperator):
         )
         assert self.ssh_hook
         return self.ssh_hook.exec_ssh_client_command(
-            ssh_client, command, timeout=self.timeout, environment=self.environment, get_pty=self.get_pty
+            ssh_client, command, timeout=self.cmd_timeout, environment=self.environment, get_pty=self.get_pty
         )
 
     def raise_for_status(self, exit_status: int, stderr: bytes) -> None:
@@ -158,7 +141,7 @@ class SSHOperator(BaseOperator):
     def run_ssh_client_command(self, ssh_client: SSHClient, command: str) -> bytes:
         assert self.ssh_hook
         exit_status, agg_stdout, agg_stderr = self.ssh_hook.exec_ssh_client_command(
-            ssh_client, command, timeout=self.timeout, environment=self.environment, get_pty=self.get_pty
+            ssh_client, command, timeout=self.cmd_timeout, environment=self.environment, get_pty=self.get_pty
         )
         self.raise_for_status(exit_status, agg_stderr)
         return agg_stdout
