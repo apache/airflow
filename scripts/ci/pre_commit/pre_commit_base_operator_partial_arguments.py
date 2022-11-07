@@ -16,7 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
 import ast
@@ -45,14 +44,12 @@ IGNORED = {
     "HIDE_ATTRS_FROM_UI",
     # Only on BaseOperator.
     "_dag",
-    "mapped_arguments_validated_by_init",
     "output",
     "partial",
     "shallow_copy_attrs",
     # Only on MappedOperator.
     "expand_input",
     "partial_kwargs",
-    "validate_upstream_return_value",
 }
 
 

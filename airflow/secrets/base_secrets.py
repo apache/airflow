@@ -14,9 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import warnings
 from abc import ABC
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING
+
+from airflow.exceptions import RemovedInAirflow3Warning
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
@@ -36,7 +40,7 @@ class BaseSecretsBackend(ABC):
         """
         return f"{path_prefix}{sep}{secret_id}"
 
-    def get_conn_value(self, conn_id: str) -> Optional[str]:
+    def get_conn_value(self, conn_id: str) -> str | None:
         """
         Retrieve from Secrets Backend a string value representing the Connection object.
 
@@ -47,7 +51,7 @@ class BaseSecretsBackend(ABC):
         """
         raise NotImplementedError
 
-    def deserialize_connection(self, conn_id: str, value: str) -> 'Connection':
+    def deserialize_connection(self, conn_id: str, value: str) -> Connection:
         """
         Given a serialized representation of the airflow Connection, return an instance.
         Looks at first character to determine how to deserialize.
@@ -64,7 +68,7 @@ class BaseSecretsBackend(ABC):
         else:
             return Connection(conn_id=conn_id, uri=value)
 
-    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+    def get_conn_uri(self, conn_id: str) -> str | None:
         """
         Get conn_uri from Secrets Backend
 
@@ -75,7 +79,7 @@ class BaseSecretsBackend(ABC):
         """
         raise NotImplementedError()
 
-    def get_connection(self, conn_id: str) -> Optional['Connection']:
+    def get_connection(self, conn_id: str) -> Connection | None:
         """
         Return connection object with a given ``conn_id``.
 
@@ -93,7 +97,7 @@ class BaseSecretsBackend(ABC):
             not_implemented_get_conn_value = True
             warnings.warn(
                 "Method `get_conn_uri` is deprecated. Please use `get_conn_value`.",
-                PendingDeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
 
@@ -112,7 +116,7 @@ class BaseSecretsBackend(ABC):
         else:
             return None
 
-    def get_connections(self, conn_id: str) -> List['Connection']:
+    def get_connections(self, conn_id: str) -> list[Connection]:
         """
         Return connection object with a given ``conn_id``.
 
@@ -121,7 +125,7 @@ class BaseSecretsBackend(ABC):
         warnings.warn(
             "This method is deprecated. Please use "
             "`airflow.secrets.base_secrets.BaseSecretsBackend.get_connection`.",
-            PendingDeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         conn = self.get_connection(conn_id=conn_id)
@@ -129,7 +133,7 @@ class BaseSecretsBackend(ABC):
             return [conn]
         return []
 
-    def get_variable(self, key: str) -> Optional[str]:
+    def get_variable(self, key: str) -> str | None:
         """
         Return value for Airflow Variable
 
@@ -138,7 +142,7 @@ class BaseSecretsBackend(ABC):
         """
         raise NotImplementedError()
 
-    def get_config(self, key: str) -> Optional[str]:
+    def get_config(self, key: str) -> str | None:
         """
         Return value for Airflow Config Key
 

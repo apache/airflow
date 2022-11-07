@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from airflow.models import BaseOperator
 from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook
@@ -35,7 +37,7 @@ class LevelDBOperator(BaseOperator):
             ``"put"``, ``"get"``, ``"delete"``, ``"write_batch"``.
         :param key: key for command(put,get,delete) execution(, e.g. ``b'key'``, ``b'another-key'``)
         :param value: value for command(put) execution(bytes, e.g. ``b'value'``, ``b'another-value'``)
-        :param keys: keys for command(write_batch) execution(List[bytes], e.g. ``[b'key', b'another-key'])``
+        :param keys: keys for command(write_batch) execution(list[bytes], e.g. ``[b'key', b'another-key'])``
         :param values: values for command(write_batch) execution e.g. ``[b'value'``, ``b'another-value']``
         :param leveldb_conn_id:
         :param create_if_missing: whether a new database should be created if needed
@@ -48,13 +50,13 @@ class LevelDBOperator(BaseOperator):
         *,
         command: str,
         key: bytes,
-        value: Optional[bytes] = None,
-        keys: Optional[List[bytes]] = None,
-        values: Optional[List[bytes]] = None,
-        leveldb_conn_id: str = 'leveldb_default',
-        name: str = '/tmp/testdb/',
+        value: bytes | None = None,
+        keys: list[bytes] | None = None,
+        values: list[bytes] | None = None,
+        leveldb_conn_id: str = "leveldb_default",
+        name: str = "/tmp/testdb/",
         create_if_missing: bool = True,
-        create_db_extra_options: Optional[Dict[str, Any]] = None,
+        create_db_extra_options: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -68,13 +70,12 @@ class LevelDBOperator(BaseOperator):
         self.create_if_missing = create_if_missing
         self.create_db_extra_options = create_db_extra_options or {}
 
-    def execute(self, context: 'Context') -> Optional[str]:
+    def execute(self, context: Context) -> str | None:
         """
         Execute command in LevelDB
 
         :returns: value from get(str, not bytes, to prevent error in json.dumps in serialize_value in xcom.py)
-            or None(Optional[str])
-        :rtype: Optional[str]
+            or str | None
         """
         leveldb_hook = LevelDBHook(leveldb_conn_id=self.leveldb_conn_id)
         leveldb_hook.get_conn(

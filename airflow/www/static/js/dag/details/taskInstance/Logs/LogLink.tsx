@@ -32,15 +32,17 @@ interface Props {
   executionDate: DagRun['executionDate'];
   isInternal?: boolean;
   tryNumber: TaskInstance['tryNumber'];
+  mapIndex?: TaskInstance['mapIndex'];
 }
 
 const LogLink = ({
-  dagId, taskId, executionDate, isInternal, tryNumber,
+  dagId, taskId, executionDate, isInternal, tryNumber, mapIndex,
 }: Props) => {
   let fullMetadataUrl = `${isInternal ? logsWithMetadataUrl : externalLogUrl
   }?dag_id=${encodeURIComponent(dagId)
   }&task_id=${encodeURIComponent(taskId)
   }&execution_date=${encodeURIComponent(executionDate)
+  }&map_index=${encodeURIComponent(mapIndex?.toString() ?? '-1')
   }`;
 
   if (isInternal && tryNumber) {

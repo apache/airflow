@@ -15,16 +15,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import abc
 import logging
 import re
 import sys
 from io import IOBase
 from logging import Handler, Logger, StreamHandler
-from typing import IO, Optional
+from typing import IO
 
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
+
+# Private: A sentinel object
+DISABLE_PROPOGATE = object()
 
 
 def remove_escape_codes(text: str) -> str:
@@ -38,7 +43,7 @@ def remove_escape_codes(text: str) -> str:
 class LoggingMixin:
     """Convenience super-class to have a logger configured with the class name"""
 
-    _log: Optional[logging.Logger] = None
+    _log: logging.Logger | None = None
 
     def __init__(self, context=None):
         self._set_context(context)
@@ -177,15 +182,14 @@ def set_context(logger, value):
     :param logger: logger
     :param value: value to set
     """
-    _logger = logger
-    while _logger:
-        for handler in _logger.handlers:
+    while logger:
+        for handler in logger.handlers:
             # Not all handlers need to have context passed in so we ignore
             # the error when handlers do not have set_context defined.
             set_context = getattr(handler, 'set_context', None)
-            if set_context:
-                set_context(value)
-        if _logger.propagate is True:
-            _logger = _logger.parent
+            if set_context and set_context(value) is DISABLE_PROPOGATE:
+                logger.propagate = False
+        if logger.propagate is True:
+            logger = logger.parent
         else:
-            _logger = None
+            break

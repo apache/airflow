@@ -28,6 +28,39 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.3.0
+.....
+
+Latest change: 2022-09-19
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`24d88e8fee <https://github.com/apache/airflow/commit/24d88e8feedcb11edc316f0d3f20f4ea54dc23b8>`_  2022-09-19   ``Add DataFlow operations to Azure DataFactory hook (#26345)``
+`1f7b296227 <https://github.com/apache/airflow/commit/1f7b296227fee772de9ba15af6ce107937ef9b9b>`_  2022-09-18   ``Auto tail file logs in Web UI (#26169)``
+`06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+`5060785988 <https://github.com/apache/airflow/commit/5060785988f69d01ee2513b1e3bba73fbbc0f310>`_  2022-09-09   ``Add network_profile param in AzureContainerInstancesOperator (#26117)``
+`4bd0734a35 <https://github.com/apache/airflow/commit/4bd0734a355fe2815fde9bf537f8e4f85466a6fb>`_  2022-09-01   ``Add Azure synapse operator (#26038)``
+`afb282aee4 <https://github.com/apache/airflow/commit/afb282aee4329042b273d501586ff27505c16b22>`_  2022-08-27   ``Fix AzureBatchOperator false negative task status (#25844)``
+`5c7c518aa0 <https://github.com/apache/airflow/commit/5c7c518aa065bba873bc95d5764658faa9e81b63>`_  2022-08-16   ``Implement Azure Service Bus Topic Create, Delete Operators (#25436)``
+=================================================================================================  ===========  ====================================================================================
+
+4.2.0
+.....
+
+Latest change: 2022-08-10
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`e5ac6c7cfb <https://github.com/apache/airflow/commit/e5ac6c7cfb189c33e3b247f7d5aec59fe5e89a00>`_  2022-08-10   ``Prepare docs for new providers release (August 2022) (#25618)``
+`d5f40d739f <https://github.com/apache/airflow/commit/d5f40d739fc583c50ae3b3f4b4bde29e61c8d81b>`_  2022-08-09   ``Set default wasb Azure http logging level to warning; fixes #16224 (#18896)``
+`8bb0c4fd32 <https://github.com/apache/airflow/commit/8bb0c4fd32b21bf2900e33ec29b1dc7d772589c9>`_  2022-07-28   ``Add 'test_connection' method to AzureContainerInstanceHook (#25362)``
+`eab0167f1b <https://github.com/apache/airflow/commit/eab0167f1beb81de8e613685da79ef9a04eef5b3>`_  2022-07-22   ``Add test_connection to Azure Batch hook (#25235)``
+`e32e9c5880 <https://github.com/apache/airflow/commit/e32e9c58802fe9363cc87ea283a59218df7cec3a>`_  2022-07-18   ``Bump typing-extensions and mypy for ParamSpec (#25088)``
+`292440d54f <https://github.com/apache/airflow/commit/292440d54f4db84aaf0c5a98cf5fcf34303f2fa8>`_  2022-07-14   ``Implement Azure Service Bus (Update and Receive) Subscription Operator (#25029)``
+=================================================================================================  ===========  ===================================================================================
+
 4.1.0
 .....
 
@@ -36,6 +69,7 @@ Latest change: 2022-07-13
 =================================================================================================  ===========  =============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================
+`d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
 `bfd506cbfc <https://github.com/apache/airflow/commit/bfd506cbfcf4561c2df87e5240d27787793813ce>`_  2022-07-13   ``Add 'test_connection' method to AzureCosmosDBHook (#25018)``
 `aa8bf2cf85 <https://github.com/apache/airflow/commit/aa8bf2cf85d6a9df40de267672936f20fbac970d>`_  2022-07-12   ``Implement Azure service bus subscription Operators (#24625)``
 `b27fc0367c <https://github.com/apache/airflow/commit/b27fc0367cd1125f4d312497ba5337115476315e>`_  2022-07-06   ``Add test_connection method to AzureFileShareHook (#24843)``

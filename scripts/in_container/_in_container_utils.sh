@@ -59,78 +59,21 @@ function in_container_script_start() {
     fi
 }
 
-function in_container_script_end() {
-    #shellcheck disable=2181
-    EXIT_CODE=$?
-    if [[ ${EXIT_CODE} != 0 ]]; then
-        if [[ "${PRINT_INFO_FROM_SCRIPTS="true"}" == "true" || "${PRINT_INFO_FROM_SCRIPTS}" == "True" ]]; then
-            echo "########################################################################################################################"
-            echo "${COLOR_BLUE} [IN CONTAINER]   EXITING ${0} WITH EXIT CODE ${EXIT_CODE}  ${COLOR_RESET}"
-            echo "########################################################################################################################"
-        fi
-    fi
-
-    if [[ ${VERBOSE_COMMANDS:="false"} == "true" || ${VERBOSE_COMMANDS} == "True" ]]; then
-        set +x
-    fi
-}
-
-#
-# Cleans up PYC files (in case they come in mounted folders)
-#
-function in_container_cleanup_pyc() {
-    set +o pipefail
-    if [[ ${CLEANED_PYC=} == "true" ]]; then
-        return
-    fi
-    sudo find . \
-        -path "./airflow/www/node_modules" -prune -o \
-        -path "./airflow/ui/node_modules" -prune -o \
-        -path "./provider_packages/airflow/www/node_modules" -prune -o \
-        -path "./provider_packages/airflow/ui/node_modules" -prune -o \
-        -path "./.eggs" -prune -o \
-        -path "./docs/_build" -prune -o \
-        -path "./build" -prune -o \
-        -name "*.pyc" | grep ".pyc$" | sudo xargs rm -f
-    set -o pipefail
-    export CLEANED_PYC="true"
-}
-
-#
-# Cleans up __pycache__ directories (in case they come in mounted folders)
-#
-function in_container_cleanup_pycache() {
-    set +o pipefail
-    if [[ ${CLEANED_PYCACHE=} == "true" ]]; then
-        return
-    fi
-    find . \
-        -path "./airflow/www/node_modules" -prune -o \
-        -path "./airflow/ui/node_modules" -prune -o \
-        -path "./provider_packages/airflow/www/node_modules" -prune -o \
-        -path "./provider_packages/airflow/ui/node_modules" -prune -o \
-        -path "./.eggs" -prune -o \
-        -path "./docs/_build" -prune -o \
-        -path "./build" -prune -o \
-        -name "__pycache__" | grep "__pycache__" | sudo xargs rm -rf
-    set -o pipefail
-    export CLEANED_PYCACHE="true"
-}
-
 #
 # Fixes ownership of files generated in container - if they are owned by root, they will be owned by
 # The host user. Only needed if the host is Linux - on Mac, ownership of files is automatically
 # changed to the Host user via osxfs filesystem
 #
 function in_container_fix_ownership() {
-    if [[ ${HOST_OS:=} == "Linux" ]]; then
+    if [[ ${HOST_OS:=} == "linux" ]]; then
         DIRECTORIES_TO_FIX=(
             "/dist"
             "/files"
-            "/opt/airflow/logs"
-            "/opt/airflow/docs"
-            "/opt/airflow/dags"
-            "/opt/airflow/airflow/"
+            "${AIRFLOW_SOURCES}/logs"
+            "${AIRFLOW_SOURCES}/docs"
+            "${AIRFLOW_SOURCES}/dags"
+            "${AIRFLOW_SOURCES}/airflow/"
+            "${AIRFLOW_SOURCES}/images/"
         )
         count_matching=$(find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -printf . 2>/dev/null | wc -m || true)
         if [[ ${count_matching=} != "0" && ${count_matching=} != "" ]]; then
@@ -149,10 +92,6 @@ function in_container_fix_ownership() {
     fi
 }
 
-function in_container_clear_tmp() {
-    rm -rf /tmp/*
-}
-
 function in_container_go_to_airflow_sources() {
     pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
 }
@@ -160,8 +99,6 @@ function in_container_go_to_airflow_sources() {
 function in_container_basic_sanity_check() {
     assert_in_container
     in_container_go_to_airflow_sources
-    in_container_cleanup_pyc
-    in_container_cleanup_pycache
 }
 
 export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"
@@ -225,8 +162,17 @@ function install_airflow_from_wheel() {
     if [[ ${constraints_reference} == "none" ]]; then
         pip install "${airflow_package}${extras}"
     else
+        set +e
         pip install "${airflow_package}${extras}" --constraint \
             "https://raw.githubusercontent.com/apache/airflow/${constraints_reference}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+        res=$?
+        set -e
+        if [[ ${res} != "0" ]]; then
+            >&2 echo
+            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode"
+            >&2 echo
+            pip install "${airflow_package}${extras}"
+        fi
     fi
 }
 
@@ -255,8 +201,17 @@ function install_airflow_from_sdist() {
     if [[ ${constraints_reference} == "none" ]]; then
         pip install "${airflow_package}${extras}"
     else
+        set +e
         pip install "${airflow_package}${extras}" --constraint \
             "https://raw.githubusercontent.com/apache/airflow/${constraints_reference}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+        res=$?
+        set -e
+        if [[ ${res} != "0" ]]; then
+            >&2 echo
+            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode"
+            >&2 echo
+            pip install "${airflow_package}${extras}"
+        fi
     fi
 }
 

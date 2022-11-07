@@ -15,9 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
+from __future__ import annotations
 
-from airflow.sensors.base import BaseSensorOperator
+from typing import Any, Callable, Mapping, Sequence
+
+from airflow.sensors.base import BaseSensorOperator, PokeReturnValue
 from airflow.utils.context import Context, context_merge
 from airflow.utils.operator_helpers import determine_kwargs
 
@@ -40,6 +42,10 @@ class PythonSensor(BaseSensorOperator):
         will get templated by the Airflow engine sometime between
         ``__init__`` and ``execute`` takes place and are made available
         in your callable's context after the template has been applied.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/operator:PythonSensor`
     """
 
     template_fields: Sequence[str] = ('templates_dict', 'op_args', 'op_kwargs')
@@ -48,9 +54,9 @@ class PythonSensor(BaseSensorOperator):
         self,
         *,
         python_callable: Callable,
-        op_args: Optional[List] = None,
-        op_kwargs: Optional[Mapping[str, Any]] = None,
-        templates_dict: Optional[Dict] = None,
+        op_args: list | None = None,
+        op_kwargs: Mapping[str, Any] | None = None,
+        templates_dict: dict | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -59,10 +65,10 @@ class PythonSensor(BaseSensorOperator):
         self.op_kwargs = op_kwargs or {}
         self.templates_dict = templates_dict
 
-    def poke(self, context: Context) -> bool:
+    def poke(self, context: Context) -> PokeReturnValue:
         context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
         self.op_kwargs = determine_kwargs(self.python_callable, self.op_args, context)
 
         self.log.info("Poking callable: %s", str(self.python_callable))
         return_value = self.python_callable(*self.op_args, **self.op_kwargs)
-        return bool(return_value)
+        return PokeReturnValue(bool(return_value))

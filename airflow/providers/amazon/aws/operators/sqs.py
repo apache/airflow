@@ -14,10 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Publish message to SQS queue"""
-import warnings
-from typing import TYPE_CHECKING, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
@@ -45,24 +45,24 @@ class SqsPublishOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'sqs_queue',
-        'message_content',
-        'delay_seconds',
-        'message_attributes',
-        'message_group_id',
+        "sqs_queue",
+        "message_content",
+        "delay_seconds",
+        "message_attributes",
+        "message_group_id",
     )
-    template_fields_renderers = {'message_attributes': 'json'}
-    ui_color = '#6ad3fa'
+    template_fields_renderers = {"message_attributes": "json"}
+    ui_color = "#6ad3fa"
 
     def __init__(
         self,
         *,
         sqs_queue: str,
         message_content: str,
-        message_attributes: Optional[dict] = None,
+        message_attributes: dict | None = None,
         delay_seconds: int = 0,
-        message_group_id: Optional[str] = None,
-        aws_conn_id: str = 'aws_default',
+        message_group_id: str | None = None,
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -73,14 +73,13 @@ class SqsPublishOperator(BaseOperator):
         self.message_attributes = message_attributes or {}
         self.message_group_id = message_group_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context) -> dict:
         """
         Publish the message to the Amazon SQS queue
 
         :param context: the context object
         :return: dict with information about the message sent
             For details of the returned dict see :py:meth:`botocore.client.SQS.send_message`
-        :rtype: dict
         """
         hook = SqsHook(aws_conn_id=self.aws_conn_id)
 
@@ -92,22 +91,6 @@ class SqsPublishOperator(BaseOperator):
             message_group_id=self.message_group_id,
         )
 
-        self.log.info('send_message result: %s', result)
+        self.log.info("send_message result: %s", result)
 
         return result
-
-
-class SQSPublishOperator(SqsPublishOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

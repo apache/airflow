@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from datetime import datetime
 
@@ -26,6 +27,7 @@ except ModuleNotFoundError:
 
 from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudGetJobRunArtifactOperator,
+    DbtCloudListJobsOperator,
     DbtCloudRunJobOperator,
 )
 from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunSensor
@@ -39,7 +41,7 @@ with DAG(
     dag_id=DAG_ID,
     default_args={"dbt_cloud_conn_id": "dbt", "account_id": 39151},
     start_date=datetime(2021, 1, 1),
-    schedule_interval=None,
+    schedule=None,
     catchup=False,
 ) as dag:
     begin = EmptyOperator(task_id="begin")
@@ -75,9 +77,13 @@ with DAG(
     )
     # [END howto_operator_dbt_cloud_run_job_sensor]
 
+    # [START howto_operator_dbt_cloud_list_jobs]
+    list_dbt_jobs = DbtCloudListJobsOperator(task_id="list_dbt_jobs", account_id=106277, project_id=160645)
+    # [END howto_operator_dbt_cloud_list_jobs]
+
     begin >> Label("No async wait") >> trigger_job_run1
     begin >> Label("Do async wait with sensor") >> trigger_job_run2
-    [get_run_results_artifact, job_run_sensor] >> end
+    [get_run_results_artifact, job_run_sensor, list_dbt_jobs] >> end
 
     # Task dependency created via `XComArgs`:
     # trigger_job_run1 >> get_run_results_artifact

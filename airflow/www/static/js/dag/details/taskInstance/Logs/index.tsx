@@ -37,6 +37,7 @@ import { useTimezone } from 'src/context/timezone';
 import type { Dag, DagRun, TaskInstance } from 'src/types';
 import MultiSelect from 'src/components/MultiSelect';
 
+import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 import LogLink from './LogLink';
 import { LogLevel, logLevelColorMapping, parseLogs } from './utils';
 
@@ -60,13 +61,12 @@ const getLinkIndexes = (tryNumber: number | undefined): Array<Array<number>> => 
   const externalIndexes: Array<number> = [];
 
   if (tryNumber) {
-    [...Array(tryNumber + 1 || 0)].forEach((_, index) => {
-      if (index === 0 && tryNumber < 2) return;
-      const isExternal = index !== 0 && showExternalLogRedirect;
-      if (isExternal) {
-        externalIndexes.push(index);
+    [...Array(tryNumber)].forEach((_, index) => {
+      const tryNum = index + 1;
+      if (showExternalLogRedirect) {
+        externalIndexes.push(tryNum);
       } else {
-        internalIndexes.push(index);
+        internalIndexes.push(tryNum);
       }
     });
   }
@@ -84,36 +84,48 @@ interface Props {
   dagId: Dag['id'];
   dagRunId: DagRun['runId'];
   taskId: TaskInstance['taskId'];
+  mapIndex?: TaskInstance['mapIndex'];
   executionDate: DagRun['executionDate'];
   tryNumber: TaskInstance['tryNumber'];
+  state?: TaskInstance['state'];
 }
 
 const Logs = ({
   dagId,
   dagRunId,
   taskId,
+  mapIndex,
   executionDate,
   tryNumber,
+  state,
 }: Props) => {
   const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
-  const [selectedAttempt, setSelectedAttempt] = useState(1);
+  const [selectedTryNumber, setSelectedTryNumber] = useState<number | undefined>();
   const [shouldRequestFullContent, setShouldRequestFullContent] = useState(false);
-  const [wrap, setWrap] = useState(false);
+  const [wrap, setWrap] = useState(getMetaValue('default_wrap') === 'True');
   const [logLevelFilters, setLogLevelFilters] = useState<Array<LogLevelOption>>([]);
   const [fileSourceFilters, setFileSourceFilters] = useState<Array<FileSourceOption>>([]);
   const { timezone } = useTimezone();
+
+  const taskTryNumber = selectedTryNumber || tryNumber || 1;
   const { data, isSuccess } = useTaskLog({
     dagId,
     dagRunId,
     taskId,
-    taskTryNumber: selectedAttempt,
+    mapIndex,
+    taskTryNumber,
     fullContent: shouldRequestFullContent,
+    state,
   });
 
-  const params = new URLSearchParams({
+  const params = new URLSearchParamsWrapper({
     task_id: taskId,
     execution_date: executionDate,
-  }).toString();
+  });
+
+  if (mapIndex !== undefined) {
+    params.append('map_index', mapIndex.toString());
+  }
 
   const { parsedLogs, fileSources = [] } = useMemo(
     () => parseLogs(
@@ -136,8 +148,8 @@ const Logs = ({
   useEffect(() => {
     // Reset fileSourceFilters and selected attempt when changing to
     // a task that do not have those filters anymore.
-    if (!internalIndexes.includes(selectedAttempt)) {
-      setSelectedAttempt(internalIndexes[0]);
+    if (taskTryNumber > (tryNumber || 1)) {
+      setSelectedTryNumber(undefined);
     }
 
     if (data && fileSourceFilters.length > 0
@@ -147,11 +159,11 @@ const Logs = ({
       )) {
       setFileSourceFilters([]);
     }
-  }, [data, internalIndexes, fileSourceFilters, fileSources, selectedAttempt]);
+  }, [data, fileSourceFilters, fileSources, taskTryNumber, tryNumber]);
 
   return (
     <>
-      {tryNumber! > 0 && (
+      {tryNumber !== undefined && (
         <>
           <Text as="span"> (by attempts)</Text>
           <Flex my={1} justifyContent="space-between">
@@ -159,9 +171,9 @@ const Logs = ({
               {internalIndexes.map((index) => (
                 <Button
                   key={index}
-                  variant="ghost"
+                  variant={taskTryNumber === index ? 'solid' : 'ghost'}
                   colorScheme="blue"
-                  onClick={() => setSelectedAttempt(index)}
+                  onClick={() => setSelectedTryNumber(index)}
                   data-testid={`log-attempt-select-button-${index}`}
                 >
                   {index}
@@ -209,8 +221,10 @@ const Logs = ({
             </Flex>
             <Flex alignItems="center">
               <Checkbox
+                isChecked={wrap}
                 onChange={() => setWrap((previousState) => !previousState)}
                 px={4}
+                data-testid="wrap-checkbox"
               >
                 <Text as="strong">Wrap</Text>
               </Checkbox>
@@ -227,9 +241,10 @@ const Logs = ({
                 executionDate={executionDate}
                 isInternal
                 tryNumber={tryNumber}
+                mapIndex={mapIndex}
               />
               <LinkButton
-                href={`${logUrl}&${params}`}
+                href={`${logUrl}&${params.toString()}`}
               >
                 See More
               </LinkButton>

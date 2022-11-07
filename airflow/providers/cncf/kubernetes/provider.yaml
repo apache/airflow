@@ -22,6 +22,8 @@ description: |
     `Kubernetes <https://kubernetes.io/>`__
 
 versions:
+  - 4.4.0
+  - 4.3.0
   - 4.2.0
   - 4.1.0
   - 4.0.2
@@ -90,3 +92,7 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook
     connection-type: kubernetes
+
+task-decorators:
+  - class-name: airflow.providers.cncf.kubernetes.decorators.kubernetes.kubernetes_task
+    name: kubernetes

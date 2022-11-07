@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 
@@ -23,36 +23,38 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks import RunState
-from airflow.providers.databricks.utils.databricks import deep_string_coerce, validate_trigger_event
+from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
 
 RUN_ID = 1
-RUN_PAGE_URL = 'run-page-url'
+RUN_PAGE_URL = "run-page-url"
 
 
 class TestDatabricksOperatorSharedFunctions(unittest.TestCase):
-    def test_deep_string_coerce(self):
+    def test_normalise_json_content(self):
         test_json = {
-            'test_int': 1,
-            'test_float': 1.0,
-            'test_dict': {'key': 'value'},
-            'test_list': [1, 1.0, 'a', 'b'],
-            'test_tuple': (1, 1.0, 'a', 'b'),
+            "test_bool": True,
+            "test_int": 1,
+            "test_float": 1.0,
+            "test_dict": {"key": "value"},
+            "test_list": [1, 1.0, "a", "b"],
+            "test_tuple": (1, 1.0, "a", "b"),
         }
 
         expected = {
-            'test_int': '1',
-            'test_float': '1.0',
-            'test_dict': {'key': 'value'},
-            'test_list': ['1', '1.0', 'a', 'b'],
-            'test_tuple': ['1', '1.0', 'a', 'b'],
+            "test_bool": True,
+            "test_int": "1",
+            "test_float": "1.0",
+            "test_dict": {"key": "value"},
+            "test_list": ["1", "1.0", "a", "b"],
+            "test_tuple": ["1", "1.0", "a", "b"],
         }
-        assert deep_string_coerce(test_json) == expected
+        assert normalise_json_content(test_json) == expected
 
     def test_validate_trigger_event_success(self):
         event = {
-            'run_id': RUN_ID,
-            'run_page_url': RUN_PAGE_URL,
-            'run_state': RunState('TERMINATED', 'SUCCESS', '').to_json(),
+            "run_id": RUN_ID,
+            "run_page_url": RUN_PAGE_URL,
+            "run_state": RunState("TERMINATED", "SUCCESS", "").to_json(),
         }
         self.assertIsNone(validate_trigger_event(event))
 

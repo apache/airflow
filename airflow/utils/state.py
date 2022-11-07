@@ -15,12 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from enum import Enum
-from typing import Dict, FrozenSet, Tuple
 
 from airflow.settings import STATE_COLORS
-from airflow.utils.types import Optional
 
 
 class TaskInstanceState(str, Enum):
@@ -49,7 +48,6 @@ class TaskInstanceState(str, Enum):
     UP_FOR_RESCHEDULE = "up_for_reschedule"  # A waiting `reschedule` sensor
     UPSTREAM_FAILED = "upstream_failed"  # One or more upstream deps failed
     SKIPPED = "skipped"  # Skipped by branching or some other mechanism
-    SENSING = "sensing"  # Smart sensor offloaded to the sensor DAG
     DEFERRED = "deferred"  # Deferrable operator waiting on a trigger
 
     def __str__(self) -> str:
@@ -97,19 +95,18 @@ class State:
     UP_FOR_RESCHEDULE = TaskInstanceState.UP_FOR_RESCHEDULE
     UPSTREAM_FAILED = TaskInstanceState.UPSTREAM_FAILED
     SKIPPED = TaskInstanceState.SKIPPED
-    SENSING = TaskInstanceState.SENSING
     DEFERRED = TaskInstanceState.DEFERRED
 
-    task_states: Tuple[Optional[TaskInstanceState], ...] = (None,) + tuple(TaskInstanceState)
+    task_states: tuple[TaskInstanceState | None, ...] = (None,) + tuple(TaskInstanceState)
 
-    dag_states: Tuple[DagRunState, ...] = (
+    dag_states: tuple[DagRunState, ...] = (
         DagRunState.QUEUED,
         DagRunState.SUCCESS,
         DagRunState.RUNNING,
         DagRunState.FAILED,
     )
 
-    state_color: Dict[Optional[TaskInstanceState], str] = {
+    state_color: dict[TaskInstanceState | None, str] = {
         None: 'lightblue',
         TaskInstanceState.QUEUED: 'gray',
         TaskInstanceState.RUNNING: 'lime',
@@ -125,7 +122,6 @@ class State:
         TaskInstanceState.SCHEDULED: 'tan',
         TaskInstanceState.DEFERRED: 'mediumpurple',
     }
-    state_color[TaskInstanceState.SENSING] = state_color[TaskInstanceState.DEFERRED]
     state_color.update(STATE_COLORS)  # type: ignore
 
     @classmethod
@@ -141,14 +137,12 @@ class State:
             return 'white'
         return 'black'
 
-    running: FrozenSet[TaskInstanceState] = frozenset(
-        [TaskInstanceState.RUNNING, TaskInstanceState.SENSING, TaskInstanceState.DEFERRED]
-    )
+    running: frozenset[TaskInstanceState] = frozenset([TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED])
     """
     A list of states indicating that a task is being executed.
     """
 
-    finished: FrozenSet[TaskInstanceState] = frozenset(
+    finished: frozenset[TaskInstanceState] = frozenset(
         [
             TaskInstanceState.SUCCESS,
             TaskInstanceState.FAILED,
@@ -166,13 +160,12 @@ class State:
     case, it is no longer running.
     """
 
-    unfinished: FrozenSet[Optional[TaskInstanceState]] = frozenset(
+    unfinished: frozenset[TaskInstanceState | None] = frozenset(
         [
             None,
             TaskInstanceState.SCHEDULED,
             TaskInstanceState.QUEUED,
             TaskInstanceState.RUNNING,
-            TaskInstanceState.SENSING,
             TaskInstanceState.SHUTDOWN,
             TaskInstanceState.RESTARTING,
             TaskInstanceState.UP_FOR_RETRY,
@@ -185,14 +178,14 @@ class State:
     a run or has not even started.
     """
 
-    failed_states: FrozenSet[TaskInstanceState] = frozenset(
+    failed_states: frozenset[TaskInstanceState] = frozenset(
         [TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED]
     )
     """
     A list of states indicating that a task or dag is a failed state.
     """
 
-    success_states: FrozenSet[TaskInstanceState] = frozenset(
+    success_states: frozenset[TaskInstanceState] = frozenset(
         [TaskInstanceState.SUCCESS, TaskInstanceState.SKIPPED]
     )
     """
@@ -203,11 +196,3 @@ class State:
     """
     A list of states indicating that a task has been terminated.
     """
-
-
-class PokeState:
-    """Static class with poke states constants used in smart operator."""
-
-    LANDED = 'landed'
-    NOT_LANDED = 'not_landed'
-    POKE_EXCEPTION = 'poke_exception'

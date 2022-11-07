@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Google Drive service"""
-from typing import IO, Any, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import IO, Any, Sequence
 
 from googleapiclient.discovery import Resource, build
 from googleapiclient.http import HttpRequest, MediaFileUpload
@@ -43,14 +45,14 @@ class GoogleDriveHook(GoogleBaseHook):
         account from the list granting this role to the originating account.
     """
 
-    _conn = None  # type: Optional[Resource]
+    _conn: Resource | None = None
 
     def __init__(
         self,
         api_version: str = "v3",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -122,37 +124,50 @@ class GoogleDriveHook(GoogleBaseHook):
 
         :param file_id: The Google Drive file id
         :return: request
-        :rtype: HttpRequest
         """
         service = self.get_conn()
         request = service.files().get_media(fileId=file_id)
         return request
 
-    def exists(self, folder_id: str, file_name: str, drive_id: Optional[str] = None):
+    def exists(
+        self, folder_id: str, file_name: str, drive_id: str | None = None, *, include_trashed: bool = True
+    ) -> bool:
         """
         Checks to see if a file exists within a Google Drive folder
 
         :param folder_id: The id of the Google Drive folder in which the file resides
         :param file_name: The name of a file in Google Drive
         :param drive_id: Optional. The id of the shared Google Drive in which the file resides.
-        :return: True if the file exists, False otherwise
-        :rtype: bool
-        """
-        return bool(self.get_file_id(folder_id=folder_id, file_name=file_name, drive_id=drive_id))
+        :param include_trashed: Whether to include objects in trash or not, default True as in Google API.
 
-    def get_file_id(self, folder_id: str, file_name: str, drive_id: Optional[str] = None):
+        :return: True if the file exists, False otherwise
+        """
+        return bool(
+            self.get_file_id(
+                folder_id=folder_id, file_name=file_name, include_trashed=include_trashed, drive_id=drive_id
+            )
+        )
+
+    def get_file_id(
+        self, folder_id: str, file_name: str, drive_id: str | None = None, *, include_trashed: bool = True
+    ) -> dict:
         """
         Returns the file id of a Google Drive file
 
         :param folder_id: The id of the Google Drive folder in which the file resides
         :param file_name: The name of a file in Google Drive
         :param drive_id: Optional. The id of the shared Google Drive in which the file resides.
+        :param include_trashed: Whether to include objects in trash or not, default True as in Google API.
+
         :return: Google Drive file id if the file exists, otherwise None
-        :rtype: str if file exists else None
         """
         query = f"name = '{file_name}'"
         if folder_id:
             query += f" and parents in '{folder_id}'"
+
+        if not include_trashed:
+            query += " and trashed=false"
+
         service = self.get_conn()
         if drive_id:
             files = (
@@ -176,8 +191,8 @@ class GoogleDriveHook(GoogleBaseHook):
                 .execute(num_retries=self.num_retries)
             )
         file_metadata = {}
-        if files['files']:
-            file_metadata = {"id": files['files'][0]['id'], "mime_type": files['files'][0]['mimeType']}
+        if files["files"]:
+            file_metadata = {"id": files["files"][0]["id"], "mime_type": files["files"][0]["mimeType"]}
         return file_metadata
 
     def upload_file(
@@ -200,7 +215,6 @@ class GoogleDriveHook(GoogleBaseHook):
         :param resumable: True if this is a resumable upload. False means upload
             in a single request.
         :return: File ID
-        :rtype: str
         """
         service = self.get_conn()
         directory_path, _, file_name = remote_location.rpartition("/")

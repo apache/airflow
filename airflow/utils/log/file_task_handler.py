@@ -16,18 +16,23 @@
 # specific language governing permissions and limitations
 # under the License.
 """File logging handler for tasks."""
+from __future__ import annotations
+
 import logging
 import os
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any
+from urllib.parse import urljoin
 
 from airflow.configuration import AirflowConfigException, conf
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
-from airflow.utils.jwt_signer import JWTSigner
+from airflow.utils.log.logging_mixin import DISABLE_PROPOGATE
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.session import create_session
+from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -44,17 +49,20 @@ class FileTaskHandler(logging.Handler):
     :param filename_template: template filename string
     """
 
-    def __init__(self, base_log_folder: str, filename_template: Optional[str] = None):
+    def __init__(self, base_log_folder: str, filename_template: str | None = None):
         super().__init__()
-        self.handler: Optional[logging.FileHandler] = None
+        self.handler: logging.FileHandler | None = None
         self.local_base = base_log_folder
         if filename_template is not None:
             warnings.warn(
-                "Passing filename_template to FileTaskHandler is deprecated and has no effect",
-                DeprecationWarning,
+                "Passing filename_template to a log handler is deprecated and has no effect",
+                RemovedInAirflow3Warning,
+                # We want to reference the stack that actually instantiates the
+                # handler, not the one that calls super()__init__.
+                stacklevel=(2 if type(self) == FileTaskHandler else 3),
             )
 
-    def set_context(self, ti: "TaskInstance"):
+    def set_context(self, ti: TaskInstance):
         """
         Provide task_instance context to airflow task handler.
 
@@ -65,6 +73,8 @@ class FileTaskHandler(logging.Handler):
         if self.formatter:
             self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
+
+        return DISABLE_PROPOGATE
 
     def emit(self, record):
         if self.handler:
@@ -78,7 +88,7 @@ class FileTaskHandler(logging.Handler):
         if self.handler:
             self.handler.close()
 
-    def _render_filename(self, ti: "TaskInstance", try_number: int) -> str:
+    def _render_filename(self, ti: TaskInstance, try_number: int) -> str:
         with create_session() as session:
             dag_run = ti.get_dagrun(session=session)
             template = dag_run.get_log_template(session=session).filename
@@ -123,7 +133,7 @@ class FileTaskHandler(logging.Handler):
     def _read_grouped_logs(self):
         return False
 
-    def _read(self, ti, try_number, metadata=None):
+    def _read(self, ti: TaskInstance, try_number: int, metadata: dict[str, Any] | None = None):
         """
         Template method that contains custom logic of reading
         logs given the try_number.
@@ -132,8 +142,21 @@ class FileTaskHandler(logging.Handler):
         :param try_number: current try_number to read log from
         :param metadata: log metadata,
                          can be used for steaming log reading and auto-tailing.
+                         Following attributes are used:
+                         log_pos: (absolute) Char position to which the log
+                                  which was retrieved in previous calls, this
+                                  part will be skipped and only following test
+                                  returned to be added to tail.
+
         :return: log message as a string and metadata.
+                 Following attributes are used in metadata:
+                 end_of_log: Boolean, True if end of log is reached or False
+                             if further calls might get more log text.
+                             This is determined by the status of the TaskInstance
+                 log_pos: (absolute) Char position to which the log is retrieved
         """
+        from airflow.utils.jwt_signer import JWTSigner
+
         # Task instance here might be different from task instance when
         # initializing the handler. Thus explicitly getting log location
         # is needed to get correct log path.
@@ -150,6 +173,7 @@ class FileTaskHandler(logging.Handler):
             except Exception as e:
                 log = f"*** Failed to load local log file: {location}\n"
                 log += f"*** {str(e)}\n"
+                return log, {'end_of_log': True}
         elif conf.get('core', 'executor') == 'KubernetesExecutor':
             try:
                 from airflow.kubernetes.kube_client import get_kube_client
@@ -160,7 +184,7 @@ class FileTaskHandler(logging.Handler):
                     # Kubernetes takes the pod name and truncates it for the hostname. This truncated hostname
                     # is returned for the fqdn to comply with the 63 character limit imposed by DNS standards
                     # on any label of a FQDN.
-                    pod_list = kube_client.list_namespaced_pod(conf.get('kubernetes', 'namespace'))
+                    pod_list = kube_client.list_namespaced_pod(conf.get('kubernetes_executor', 'namespace'))
                     matches = [
                         pod.metadata.name
                         for pod in pod_list.items
@@ -174,7 +198,7 @@ class FileTaskHandler(logging.Handler):
 
                 res = kube_client.read_namespaced_pod_log(
                     name=ti.hostname,
-                    namespace=conf.get('kubernetes', 'namespace'),
+                    namespace=conf.get('kubernetes_executor', 'namespace'),
                     container='base',
                     follow=False,
                     tail_lines=100,
@@ -186,12 +210,11 @@ class FileTaskHandler(logging.Handler):
 
             except Exception as f:
                 log += f'*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n'
+                return log, {'end_of_log': True}
         else:
             import httpx
 
-            url = os.path.join("http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path).format(
-                ti=ti, worker_log_server_port=conf.get('logging', 'WORKER_LOG_SERVER_PORT')
-            )
+            url = self._get_log_retrieval_url(ti, log_relative_path)
             log += f"*** Log file does not exist: {location}\n"
             log += f"*** Fetching from: {url}\n"
             try:
@@ -211,7 +234,7 @@ class FileTaskHandler(logging.Handler):
                 response = httpx.get(
                     url,
                     timeout=timeout,
-                    headers={b'Authorization': signer.generate_signed_token({"filename": log_relative_path})},
+                    headers={'Authorization': signer.generate_signed_token({"filename": log_relative_path})},
                 )
                 response.encoding = "utf-8"
 
@@ -232,8 +255,24 @@ class FileTaskHandler(logging.Handler):
                 log += '\n' + response.text
             except Exception as e:
                 log += f"*** Failed to fetch log file from worker. {str(e)}\n"
+                return log, {'end_of_log': True}
 
-        return log, {'end_of_log': True}
+        # Process tailing if log is not at it's end
+        end_of_log = ti.try_number != try_number or ti.state not in State.running
+        log_pos = len(log)
+        if metadata and 'log_pos' in metadata:
+            previous_chars = metadata['log_pos']
+            log = log[previous_chars:]  # Cut off previously passed log test as new tail
+
+        return log, {'end_of_log': end_of_log, 'log_pos': log_pos}
+
+    @staticmethod
+    def _get_log_retrieval_url(ti: TaskInstance, log_relative_path: str) -> str:
+        url = urljoin(
+            f"http://{ti.hostname}:{conf.get('logging', 'WORKER_LOG_SERVER_PORT')}/log/",
+            log_relative_path,
+        )
+        return url
 
     def read(self, task_instance, try_number=None, metadata=None):
         """
@@ -265,11 +304,11 @@ class FileTaskHandler(logging.Handler):
         logs = [''] * len(try_numbers)
         metadata_array = [{}] * len(try_numbers)
         for i, try_number_element in enumerate(try_numbers):
-            log, metadata = self._read(task_instance, try_number_element, metadata)
+            log, out_metadata = self._read(task_instance, try_number_element, metadata)
             # es_task_handler return logs grouped by host. wrap other handler returning log string
             # with default/ empty host so that UI can render the response in the same way
             logs[i] = log if self._read_grouped_logs() else [(task_instance.hostname, log)]
-            metadata_array[i] = metadata
+            metadata_array[i] = out_metadata
 
         return logs, metadata_array
 

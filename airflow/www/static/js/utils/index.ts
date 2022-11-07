@@ -17,15 +17,17 @@
  * under the License.
  */
 
+import type { DagRun, RunOrdering, Task } from 'src/types';
+
 // Delay in ms for various hover actions
 const hoverDelay = 200;
 
 function getMetaValue(name: string) {
   const elem = document.querySelector(`meta[name="${name}"]`);
   if (!elem) {
-    return null;
+    return '';
   }
-  return elem.getAttribute('content');
+  return elem.getAttribute('content') || '';
 }
 
 const finalStatesMap = () => new Map([
@@ -36,7 +38,6 @@ const finalStatesMap = () => new Map([
   ['up_for_reschedule', 0],
   ['running', 0],
   ['deferred', 0],
-  ['sensing', 0],
   ['queued', 0],
   ['scheduled', 0],
   ['skipped', 0],
@@ -49,9 +50,86 @@ const appendSearchParams = (url: string | null, params: URLSearchParams | string
   return `${url}${separator}${params}`;
 };
 
+interface GetTaskProps {
+  task: Task;
+  taskId: Task['id'];
+}
+
+const getTask = ({ taskId, task }: GetTaskProps) => {
+  if (task.id === taskId) return task;
+  if (task.children) {
+    let foundTask;
+    task.children.forEach((c) => {
+      const childTask = getTask({ taskId, task: c });
+      if (childTask) foundTask = childTask;
+    });
+    return foundTask;
+  }
+  return null;
+};
+
+interface SummaryProps {
+  task: Task;
+  taskCount?: number;
+  groupCount?: number;
+  operators?: Record<string, number>;
+}
+
+const getTaskSummary = ({
+  task,
+  taskCount = 0,
+  groupCount = 0,
+  operators = {},
+}: SummaryProps) => {
+  let tc = taskCount;
+  let gc = groupCount;
+  const op = operators;
+  if (task.children) {
+    if (task.id) { // Don't count the root
+      gc += 1;
+    }
+    task.children.forEach((c) => {
+      const childSummary = getTaskSummary({
+        task: c, taskCount: tc, groupCount: gc, operators: op,
+      });
+      if (childSummary) {
+        tc = childSummary.taskCount;
+        gc = childSummary.groupCount;
+      }
+    });
+  } else {
+    if (task.operator) {
+      if (!op[task.operator]) {
+        op[task.operator] = 1;
+      } else if (operators[task.operator]) {
+        op[task.operator] += 1;
+      }
+    }
+    tc += 1;
+  }
+  return {
+    taskCount: tc,
+    groupCount: gc,
+    operators: op,
+  };
+};
+
+interface RunLabelProps {
+  dagRun: DagRun;
+  ordering?: RunOrdering;
+}
+
+const getDagRunLabel = ({
+  dagRun,
+  ordering = ['dataIntervalEnd', 'executionDate'],
+}: RunLabelProps) => dagRun[ordering[0]] ?? dagRun[ordering[1]];
+
 export {
   hoverDelay,
   finalStatesMap,
   getMetaValue,
   appendSearchParams,
+  getTask,
+  getTaskSummary,
+  getDagRunLabel,
 };

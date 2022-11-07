@@ -31,9 +31,6 @@
 /airflow/api/ @mik-laj @ephraimbuddy
 /airflow/api_connexion/ @mik-laj @ephraimbuddy
 
-# UI
-/airflow/ui/ @ryanahamilton @ashb @bbovenzi
-
 # WWW
 /airflow/www/ @ryanahamilton @ashb @bbovenzi
 
@@ -45,6 +42,15 @@
 # Calendar/Timetables
 /airflow/timetables/ @uranusjr
 /docs/apache-airflow/concepts/timetable.rst @uranusjr
+
+# Task expansion, scheduling, and rendering
+/airflow/models/abstractoperator.py @uranusjr
+/airflow/models/baseoperator.py @uranusjr
+/airflow/models/expandinput.py @uranusjr
+/airflow/models/mappedoperator.py @uranusjr
+/airflow/models/operator.py @uranusjr
+/airflow/models/xcom_arg.py @uranusjr
+/docs/apache-airflow/concepts/dynamic-task-mapping.rst @uranusjr
 
 # Async Operators & Triggerer
 /airflow/jobs/triggerer_job.py @dstandish
@@ -59,13 +65,21 @@
 /airflow/providers/google/ @turbaszek
 /airflow/providers/snowflake/ @turbaszek @potiuk @mik-laj
 /airflow/providers/cncf/kubernetes @jedcunningham
+/airflow/providers/dbt/cloud/ @josh-fell
 /airflow/providers/tabular/ @Fokko
+/airflow/providers/amazon/ @eladkal
+/airflow/providers/common/sql/ @eladkal
+/airflow/providers/slack/ @eladkal
+/docs/apache-airflow-providers-amazon/ @eladkal
+/docs/apache-airflow-providers-common-sql/ @eladkal
+/docs/apache-airflow-providers-slack/ @eladkal
 /docs/apache-airflow-providers-cncf-kubernetes @jedcunningham
+/tests/providers/amazon/ @eladkal
+/tests/providers/common/sql/ @eladkal
+/tests/providers/slack/ @eladkal
 
 # Dev tools
 /.github/workflows/ @potiuk @ashb @kaxil
-breeze @potiuk
-breeze-complete @potiuk
 Dockerfile @potiuk @ashb @mik-laj
 Dockerfile.ci @potiuk @ashb
 /dev/ @potiuk @ashb @jedcunningham

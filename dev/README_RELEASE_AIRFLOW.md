@@ -55,6 +55,7 @@
   - [Update `main` with the latest release details](#update-main-with-the-latest-release-details)
   - [Update default Airflow version in the helm chart](#update-default-airflow-version-in-the-helm-chart)
   - [Update airflow/config_templates/config.yml file](#update-airflowconfig_templatesconfigyml-file)
+  - [Update EndOfLife data](#update-endoflife-data)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -217,6 +218,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
     ```shell script
     git checkout v${VERSION_BRANCH}-test
+    git reset --hard origin/v${VERSION_BRANCH}-test
     ```
 
 - Set your version in `setup.py` (without the RC tag)
@@ -240,12 +242,14 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
     ```shell script
     git checkout v${VERSION_BRANCH}-stable
+    git reset --hard origin/v${VERSION_BRANCH}-stable
     ```
 
 - PR from the 'test' branch to the 'stable' branch, and manually merge it once approved. Here's how to manually merge the PR:
 
     ```shell script
     git merge --ff-only v${VERSION_BRANCH}-test
+    git push origin v${VERSION_BRANCH}-stable
     ```
 
 - Tag your release
@@ -269,13 +273,12 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Make sure you have the latest CI image
 
     ```shell script
-    breeze build-image --python 3.7
+    breeze ci-image build --python 3.7
     ```
 
 - Tarball the repo
 
     ```shell script
-    mkdir dist
     git archive --format=tar.gz ${VERSION} \
         --prefix=apache-airflow-${VERSION_WITHOUT_RC}/ \
         -o dist/apache-airflow-${VERSION_WITHOUT_RC}-source.tar.gz
@@ -286,7 +289,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
 
     ```shell script
-    breeze prepare-airflow-package --package-format both
+    breeze release-management prepare-airflow-package --package-format both
     pushd dist
     ${AIRFLOW_REPO_ROOT}/dev/sign.sh *
     popd
@@ -306,19 +309,19 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     ```shell script
     git checkout origin/constraints-${VERSION_BRANCH}
     git tag -s "constraints-${VERSION}" -m "Constraints for Apache Airflow ${VERSION}"
-    git push origin "constraints-${VERSION}"
+    git push origin tag "constraints-${VERSION}"
     ```
 
 - Push the artifacts to ASF dev dist repo
 
     ```shell script
     # First clone the repo
-    svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
-    cd airflow-dev
-    # Or move into it if you already have it cloned
+
+    [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+    svn update --set-depth=infinity asf-dist/dev/airflow
+    cd asf-dist/dev/airflow
 
     # Create new folder for the release
-    svn update
     svn mkdir ${VERSION}
 
     # Move the artifacts to svn folder & commit
@@ -326,6 +329,8 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     cd ${VERSION}
     svn add *
     svn commit -m "Add artifacts for Airflow ${VERSION}"
+    cd ${AIRFLOW_REPO_ROOT}
+    rm -rf asf-dist
     ```
 
 ## Prepare new release branches and cache - optional when first minor version is released
@@ -353,31 +358,7 @@ Run script to re-tag images from the ``main`` branch to the  ``vX-Y-test`` branc
 
 ### Update default branches
 
-#### In the legacy, bash breeze (to be removed when the bash breeze is entirely gone)
-
-In ``./scripts/ci/libraries/_intialization.sh`` update branches to reflect the new branch:
-
-```bash
-export DEFAULT_BRANCH=${DEFAULT_BRANCH="main"}
-export DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH="constraints-main"}
-```
-
-should become this, where ``X-Y`` is your new branch version:
-
-```bash
-export DEFAULT_BRANCH=${DEFAULT_BRANCH="vX-Y-test"}
-export DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH="constraints-X-Y"}
-```
-
-In ``./scripts/ci/libraries/_build_images.sh`` add branch to preload packages from (replace X and Y in
-values for comparison and regexp):
-
-```bash
-    elif [[ ${AIRFLOW_VERSION} =~ v?X\.Y* ]]; then
-        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="vX-Y-stable"
-```
-
-#### In the new breeze
+#### In Breeze
 
 In ``./dev/breeze/src/airflow_breeze/branch_defaults.py`` update branches to reflect the new branch:
 
@@ -479,7 +460,7 @@ To do this we need to
 - Build the package:
 
     ```shell script
-    breeze prepare-airflow-package --version-suffix-for-pypi "${VERSION_SUFFIX}" --package-format both
+    breeze release-management prepare-airflow-package --version-suffix-for-pypi "${VERSION_SUFFIX}" --package-format both
     ```
 
 - Verify the artifacts that would be uploaded:
@@ -895,19 +876,14 @@ The best way of doing this is to svn cp between the two repos (this avoids havin
 ```shell script
 # GO to Airflow Sources first
 cd <YOUR_AIRFLOW_REPO_ROOT>
-export AIRFLOW_REPO_ROOT=$(pwd)
+export AIRFLOW_REPO_ROOT="$(pwd)"
+cd ..
 
-# GO to Checked out DEV repo. Should be checked out before via:
-# svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
-cd <YOUR_AIFLOW_DEV_SVN>
-svn update
-export AIRFLOW_DEV_SVN=$(pwd)
-
-# GO to Checked out RELEASE repo. Should be checked out before via:
-# svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
-cd <YOUR_AIFLOW_RELEASE_SVN>
-svn update
-export AIRFLOW_RELEASE_SVN=$(pwd)
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/{release,dev}/airflow
+AIRFLOW_DEV_SVN="${PWD}/asf-dist/dev/airflow"
+AIRFLOW_RELEASE_SVN="${PWD}/asf-dist/release/airflow"
+cd "${AIRFLOW_RELEASE_SVN}"
 
 export RC=2.0.2rc5
 export VERSION=${RC/rc?/}
@@ -1013,10 +989,10 @@ the older branches, you should set the "skip" field to true.
 for PYTHON in 3.7 3.8 3.9 3.10
 do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
-    breeze verify-prod-image --image-name apache/airflow:${VERSION}-python${PYTHON}
+    breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}
 done
 docker pull apache/airflow:${VERSION}
-breeze verify-prod-image --image-name apache/airflow:${VERSION}
+breeze prod-image verify --image-name apache/airflow:${VERSION}
 ```
 
 
@@ -1172,7 +1148,7 @@ This includes:
 - For major/minor release, Update version in `setup.py` and `docs/docker-stack/` to the next likely minor version release.
 - Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes
-- Updating issue templates in `.github/ISSUE_TEMPLATE/` with the new version
+- Updating `airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version
 - Updating `Dockerfile` with the new version
 
 ## Update default Airflow version in the helm chart
@@ -1196,3 +1172,8 @@ File `airflow/config_templates/config.yml` contains documentation on all configu
     ```
 
 - Update `airflow/config_templates/config.yml` with the details, and commit it.
+
+## Update EndOfLife data
+
+- Make a PR [EndOfLife](https://github.com/endoflife-date/endoflife.date) with release date, latest version and updated
+changelog link.

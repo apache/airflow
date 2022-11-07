@@ -14,16 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, List, Optional, cast
+from typing import TYPE_CHECKING, cast
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.providers.amazon.aws.hooks.appflow import AppflowHook
-from airflow.providers.amazon.aws.utils import datetime_to_epoch_ms, get_airflow_version
+from airflow.providers.amazon.aws.utils import datetime_to_epoch_ms
 
 if TYPE_CHECKING:
     from mypy_boto3_appflow.type_defs import (
@@ -61,11 +62,11 @@ class AppflowBaseOperator(BaseOperator):
         source: str,
         flow_name: str,
         flow_update: bool,
-        source_field: Optional[str] = None,
-        filter_date: Optional[str] = None,
+        source_field: str | None = None,
+        filter_date: str | None = None,
         poll_interval: int = 20,
         aws_conn_id: str = "aws_default",
-        region: Optional[str] = None,
+        region: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -85,8 +86,8 @@ class AppflowBaseOperator(BaseOperator):
         """Create and return an AppflowHook."""
         return AppflowHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
 
-    def execute(self, context: "Context") -> None:
-        self.filter_date_parsed: Optional[datetime] = (
+    def execute(self, context: Context) -> None:
+        self.filter_date_parsed: datetime | None = (
             datetime.fromisoformat(self.filter_date) if self.filter_date else None
         )
         self.connector_type = self._get_connector_type()
@@ -132,7 +133,7 @@ class AppflowRunOperator(AppflowBaseOperator):
         flow_name: str,
         poll_interval: int = 20,
         aws_conn_id: str = "aws_default",
-        region: Optional[str] = None,
+        region: str | None = None,
         **kwargs,
     ) -> None:
         if source not in {"salesforce", "zendesk"}:
@@ -171,7 +172,7 @@ class AppflowRunFullOperator(AppflowBaseOperator):
         flow_name: str,
         poll_interval: int = 20,
         aws_conn_id: str = "aws_default",
-        region: Optional[str] = None,
+        region: str | None = None,
         **kwargs,
     ) -> None:
         if source not in {"salesforce", "zendesk"}:
@@ -216,7 +217,7 @@ class AppflowRunBeforeOperator(AppflowBaseOperator):
         filter_date: str,
         poll_interval: int = 20,
         aws_conn_id: str = "aws_default",
-        region: Optional[str] = None,
+        region: str | None = None,
         **kwargs,
     ) -> None:
         if not filter_date:
@@ -242,7 +243,7 @@ class AppflowRunBeforeOperator(AppflowBaseOperator):
             raise ValueError(f"Invalid filter_date argument parser value: {self.filter_date_parsed}")
         if not self.source_field:
             raise ValueError(f"Invalid source_field argument value: {self.source_field}")
-        filter_task: "TaskTypeDef" = {
+        filter_task: TaskTypeDef = {
             "taskType": "Filter",
             "connectorOperator": {self.connector_type: "LESS_THAN"},  # type: ignore
             "sourceFields": [self.source_field],
@@ -283,7 +284,7 @@ class AppflowRunAfterOperator(AppflowBaseOperator):
         filter_date: str,
         poll_interval: int = 20,
         aws_conn_id: str = "aws_default",
-        region: Optional[str] = None,
+        region: str | None = None,
         **kwargs,
     ) -> None:
         if not filter_date:
@@ -307,7 +308,7 @@ class AppflowRunAfterOperator(AppflowBaseOperator):
             raise ValueError(f"Invalid filter_date argument parser value: {self.filter_date_parsed}")
         if not self.source_field:
             raise ValueError(f"Invalid source_field argument value: {self.source_field}")
-        filter_task: "TaskTypeDef" = {
+        filter_task: TaskTypeDef = {
             "taskType": "Filter",
             "connectorOperator": {self.connector_type: "GREATER_THAN"},  # type: ignore
             "sourceFields": [self.source_field],
@@ -348,7 +349,7 @@ class AppflowRunDailyOperator(AppflowBaseOperator):
         filter_date: str,
         poll_interval: int = 20,
         aws_conn_id: str = "aws_default",
-        region: Optional[str] = None,
+        region: str | None = None,
         **kwargs,
     ) -> None:
         if not filter_date:
@@ -374,7 +375,7 @@ class AppflowRunDailyOperator(AppflowBaseOperator):
             raise ValueError(f"Invalid source_field argument value: {self.source_field}")
         start_filter_date = self.filter_date_parsed - timedelta(milliseconds=1)
         end_filter_date = self.filter_date_parsed + timedelta(days=1)
-        filter_task: "TaskTypeDef" = {
+        filter_task: TaskTypeDef = {
             "taskType": "Filter",
             "connectorOperator": {self.connector_type: "BETWEEN"},  # type: ignore
             "sourceFields": [self.source_field],
@@ -399,7 +400,7 @@ class AppflowRecordsShortCircuitOperator(ShortCircuitOperator):
 
     :param flow_name: The flow name
     :param appflow_run_task_id: Run task ID from where this operator should extract the execution ID
-    :param ignore_downstream_trigger_rules: Ignore downstream trigger rules (Ignored for Airflow < 2.3)
+    :param ignore_downstream_trigger_rules: Ignore downstream trigger rules
     :param aws_conn_id: aws connection to use
     :param region: aws region to use
     """
@@ -413,22 +414,16 @@ class AppflowRecordsShortCircuitOperator(ShortCircuitOperator):
         appflow_run_task_id: str,
         ignore_downstream_trigger_rules: bool = True,
         aws_conn_id: str = "aws_default",
-        region: Optional[str] = None,
+        region: str | None = None,
         **kwargs,
     ) -> None:
-        if get_airflow_version() >= (2, 3):
-            kwargs["ignore_downstream_trigger_rules"] = ignore_downstream_trigger_rules
-        else:
-            self.log.warning(
-                "Ignoring argument ignore_downstream_trigger_rules (%s) - Only supported for Airflow >= 2.3",
-                ignore_downstream_trigger_rules,
-            )
         super().__init__(
             python_callable=self._has_new_records_func,
             op_kwargs={
                 "flow_name": flow_name,
                 "appflow_run_task_id": appflow_run_task_id,
             },
+            ignore_downstream_trigger_rules=ignore_downstream_trigger_rules,
             **kwargs,
         )
         self.aws_conn_id = aws_conn_id
@@ -436,8 +431,8 @@ class AppflowRecordsShortCircuitOperator(ShortCircuitOperator):
 
     @staticmethod
     def _get_target_execution_id(
-        records: List["ExecutionRecordTypeDef"], execution_id: str
-    ) -> Optional["ExecutionRecordTypeDef"]:
+        records: list[ExecutionRecordTypeDef], execution_id: str
+    ) -> ExecutionRecordTypeDef | None:
         for record in records:
             if record.get("executionId") == execution_id:
                 return record
@@ -460,7 +455,7 @@ class AppflowRecordsShortCircuitOperator(ShortCircuitOperator):
             raise AirflowException(f"No execution_id found from task_id {appflow_task_id}!")
         self.log.info("execution_id: %s", execution_id)
         args = {"flowName": flow_name, "maxResults": 100}
-        response: "DescribeFlowExecutionRecordsResponseTypeDef" = cast(
+        response: DescribeFlowExecutionRecordsResponseTypeDef = cast(
             "DescribeFlowExecutionRecordsResponseTypeDef", {}
         )
         record = None

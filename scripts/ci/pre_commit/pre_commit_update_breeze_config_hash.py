@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import hashlib
 from pathlib import Path
 
@@ -58,5 +60,5 @@ def process_breeze_readme():
     breeze_readme.write_text("".join(result_lines))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     process_breeze_readme()

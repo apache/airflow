@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import datetime
-import unittest
 
 import pytest
 from freezegun import freeze_time
@@ -33,31 +34,46 @@ from airflow.utils.weekday import WeekDay
 
 DEFAULT_DATE = timezone.datetime(2020, 2, 5)  # Wednesday
 INTERVAL = datetime.timedelta(hours=12)
+TEST_CASE_BRANCH_FOLLOW_TRUE = {
+    "with-string": "Monday",
+    "with-enum": WeekDay.MONDAY,
+    "with-enum-set": {WeekDay.MONDAY},
+    "with-enum-list": [WeekDay.MONDAY],
+    "with-enum-dict": {WeekDay.MONDAY: "some_value"},
+    "with-enum-set-2-items": {WeekDay.MONDAY, WeekDay.FRIDAY},
+    "with-enum-list-2-items": [WeekDay.MONDAY, WeekDay.FRIDAY],
+    "with-enum-dict-2-items": {WeekDay.MONDAY: "some_value", WeekDay.FRIDAY: "some_value_2"},
+    "with-string-set": {"Monday"},
+    "with-string-set-2-items": {"Monday", "Friday"},
+    "with-set-mix-types": {"Monday", WeekDay.FRIDAY},
+    "with-list-mix-types": ["Monday", WeekDay.FRIDAY],
+    "with-dict-mix-types": {"Monday": "some_value", WeekDay.FRIDAY: "some_value_2"},
+}
 
 
-class TestBranchDayOfWeekOperator(unittest.TestCase):
+class TestBranchDayOfWeekOperator:
     """
     Tests for BranchDayOfWeekOperator
     """
 
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
             session.query(XCom).delete()
 
-    def setUp(self):
+    def setup_method(self):
         self.dag = DAG(
             "branch_day_of_week_operator_test",
             start_date=DEFAULT_DATE,
-            schedule_interval=INTERVAL,
+            schedule=INTERVAL,
         )
         self.branch_1 = EmptyOperator(task_id="branch_1", dag=self.dag)
         self.branch_2 = EmptyOperator(task_id="branch_2", dag=self.dag)
         self.branch_3 = None
 
-    def tearDown(self):
+    def teardown_method(self):
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
@@ -70,33 +86,16 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
             try:
                 expected_state = task_ids_to_states[ti.task_id]
             except KeyError:
-                raise ValueError(f'Invalid task id {ti.task_id} found!')
+                raise ValueError(f"Invalid task id {ti.task_id} found!")
             else:
-                self.assertEqual(
-                    ti.state,
-                    expected_state,
-                    f"Task {ti.task_id} has state {ti.state} instead of expected {expected_state}",
-                )
+                assert_msg = f"Task {ti.task_id} has state {ti.state} instead of expected {expected_state}"
+                assert ti.state == expected_state, assert_msg
 
-    @parameterized.expand(
-        [
-            ("with-string", "Monday"),
-            ("with-enum", WeekDay.MONDAY),
-            ("with-enum-set", {WeekDay.MONDAY}),
-            ("with-enum-list", [WeekDay.MONDAY]),
-            ("with-enum-dict", {WeekDay.MONDAY: "some_value"}),
-            ("with-enum-set-2-items", {WeekDay.MONDAY, WeekDay.FRIDAY}),
-            ("with-enum-list-2-items", [WeekDay.MONDAY, WeekDay.FRIDAY]),
-            ("with-enum-dict-2-items", {WeekDay.MONDAY: "some_value", WeekDay.FRIDAY: "some_value_2"}),
-            ("with-string-set", {"Monday"}),
-            ("with-string-set-2-items", {"Monday", "Friday"}),
-            ("with-set-mix-types", {"Monday", WeekDay.FRIDAY}),
-            ("with-list-mix-types", ["Monday", WeekDay.FRIDAY]),
-            ("with-dict-mix-types", {"Monday": "some_value", WeekDay.FRIDAY: "some_value_2"}),
-        ]
+    @pytest.mark.parametrize(
+        "weekday", TEST_CASE_BRANCH_FOLLOW_TRUE.values(), ids=TEST_CASE_BRANCH_FOLLOW_TRUE.keys()
     )
     @freeze_time("2021-01-25")  # Monday
-    def test_branch_follow_true(self, _, weekday):
+    def test_branch_follow_true(self, weekday):
         """Checks if BranchDayOfWeekOperator follows true branch"""
         print(datetime.datetime.now())
         branch_op = BranchDayOfWeekOperator(
@@ -125,10 +124,10 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
         self._assert_task_ids_match_states(
             dr,
             {
-                'make_choice': State.SUCCESS,
-                'branch_1': State.NONE,
-                'branch_2': State.NONE,
-                'branch_3': State.SKIPPED,
+                "make_choice": State.SUCCESS,
+                "branch_1": State.NONE,
+                "branch_2": State.NONE,
+                "branch_3": State.SKIPPED,
             },
         )
 
@@ -161,9 +160,9 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
         self._assert_task_ids_match_states(
             dr,
             {
-                'make_choice': State.SUCCESS,
-                'branch_1': State.NONE,
-                'branch_2': State.SKIPPED,
+                "make_choice": State.SUCCESS,
+                "branch_1": State.NONE,
+                "branch_2": State.SKIPPED,
             },
         )
 
@@ -195,15 +194,15 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
         self._assert_task_ids_match_states(
             dr,
             {
-                'make_choice': State.SUCCESS,
-                'branch_1': State.SKIPPED,
-                'branch_2': State.NONE,
+                "make_choice": State.SUCCESS,
+                "branch_1": State.SKIPPED,
+                "branch_2": State.NONE,
             },
         )
 
     def test_branch_with_no_weekday(self):
         """Check if BranchDayOfWeekOperator raises exception on missing weekday"""
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             BranchDayOfWeekOperator(
                 task_id="make_choice",
                 follow_task_ids_if_true="branch_1",
@@ -272,8 +271,8 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
 
         tis = dr.get_task_instances()
         for ti in tis:
-            if ti.task_id == 'make_choice':
-                assert ti.xcom_pull(task_ids='make_choice') == 'branch_1'
+            if ti.task_id == "make_choice":
+                assert ti.xcom_pull(task_ids="make_choice") == "branch_1"
 
     def test_deprecation_warning(self):
         warning_message = (

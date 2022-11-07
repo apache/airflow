@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from airflow import DAG
 from airflow.providers.common.sql.operators.sql import SQLColumnCheckOperator, SQLTableCheckOperator
 from airflow.utils.dates import datetime
@@ -35,7 +37,7 @@ with DAG(
     description="Example DAG for SQLColumnCheckOperator and SQLTableCheckOperator.",
     default_args=connection_args,
     start_date=datetime(2021, 1, 1),
-    schedule_interval=None,
+    schedule=None,
     catchup=False,
 ) as dag:
     """

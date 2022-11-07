@@ -14,16 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
+from __future__ import annotations
 
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class CreateUserJobTest(unittest.TestCase):
+class TestCreateUserJob:
     def test_should_run_by_default(self):
         docs = render_chart(show_only=["templates/jobs/create-user-job.yaml"])
         assert "Job" == docs[0]["kind"]
@@ -41,6 +40,18 @@ class CreateUserJobTest(unittest.TestCase):
         job_annotations = jmespath.search("metadata.annotations", docs[0])
         assert "fiz" in job_annotations
         assert "fuz" == job_annotations["fiz"]
+
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "createUserJob": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
@@ -170,7 +181,22 @@ class CreateUserJobTest(unittest.TestCase):
             "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
         )
 
-    @parameterized.expand(
+    def test_should_add_extraEnvs(self):
+        docs = render_chart(
+            values={
+                "createUserJob": {
+                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                },
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+
+        assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
+            "spec.template.spec.containers[0].env", docs[0]
+        )
+
+    @pytest.mark.parametrize(
+        "airflow_version, expected_arg",
         [
             ("1.10.14", "airflow create_user"),
             ("2.0.2", "airflow users create"),
@@ -188,7 +214,7 @@ class CreateUserJobTest(unittest.TestCase):
         assert [
             "bash",
             "-c",
-            f"exec \\\n{expected_arg} \"$@\"",
+            f'exec \\\n{expected_arg} "$@"',
             "--",
             "-r",
             "Admin",
@@ -204,14 +230,8 @@ class CreateUserJobTest(unittest.TestCase):
             "admin",
         ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
-    @parameterized.expand(
-        [
-            (None, None),
-            (None, ["custom", "args"]),
-            (["custom", "command"], None),
-            (["custom", "command"], ["custom", "args"]),
-        ]
-    )
+    @pytest.mark.parametrize("command", [None, ["custom", "command"]])
+    @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_command_and_args_overrides(self, command, args):
         docs = render_chart(
             values={"createUserJob": {"command": command, "args": args}},
@@ -229,7 +249,7 @@ class CreateUserJobTest(unittest.TestCase):
             show_only=["templates/jobs/create-user-job.yaml"],
         )
 
-        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_default_user_overrides(self):
@@ -253,7 +273,7 @@ class CreateUserJobTest(unittest.TestCase):
         assert [
             "bash",
             "-c",
-            "exec \\\nairflow users create \"$@\"",
+            'exec \\\nairflow users create "$@"',
             "--",
             "-r",
             "SomeRole",
@@ -268,3 +288,18 @@ class CreateUserJobTest(unittest.TestCase):
             "-p",
             "whereisjane?",
         ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+
+class TestCreateUserJobServiceAccount:
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "createUserJob": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/jobs/create-user-job-serviceaccount.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"

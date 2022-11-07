@@ -30,7 +30,6 @@ type TaskState = RunState
 | 'up_for_reschedule'
 | 'upstream_failed'
 | 'skipped'
-| 'sensing'
 | 'deferred'
 | null;
 
@@ -45,14 +44,18 @@ interface Dag {
 
 interface DagRun {
   runId: string;
-  runType: 'manual' | 'backfill' | 'scheduled';
+  runType: 'manual' | 'backfill' | 'scheduled' | 'dataset_triggered';
   state: RunState;
   executionDate: string;
   dataIntervalStart: string;
   dataIntervalEnd: string;
+  queuedAt: string | null;
   startDate: string | null;
   endDate: string | null;
   lastSchedulingDecision: string | null;
+  externalTrigger: boolean;
+  conf: string | null;
+  confIsJson: boolean;
 }
 
 interface TaskInstance {
@@ -64,7 +67,20 @@ interface TaskInstance {
   mappedStates?: {
     [key: string]: number;
   },
+  mapIndex?: number;
   tryNumber?: number;
+  triggererJob?: Job;
+  trigger?: Trigger;
+}
+
+interface Trigger {
+  classpath: string | null;
+  createdDate: string | null;
+}
+
+interface Job {
+  latestHeartbeat: string | null;
+  hostname: string | null;
 }
 
 interface Task {
@@ -75,16 +91,32 @@ interface Task {
   children?: Task[];
   extraLinks?: string[];
   isMapped?: boolean;
+  operator?: string;
+  hasOutletDatasets?: boolean;
 }
 
-type SnakeToCamelCase<S extends string> =
-  S extends `${infer T}_${infer U}`
-    ? `${T}${Capitalize<SnakeToCamelCase<U>>}`
-    : S;
+type RunOrdering = ('dataIntervalStart' | 'executionDate' | 'dataIntervalEnd')[];
 
-type SnakeToCamelCaseNested<T> = T extends object ? {
-  [K in keyof T as SnakeToCamelCase<K & string>]: SnakeToCamelCaseNested<T[K]>
-} : T;
+interface DepNode {
+  id: string;
+  value: {
+    id?: string;
+    class: 'dag' | 'dataset' | 'trigger' | 'sensor';
+    label: string;
+    rx: number;
+    ry: number;
+  }
+}
+
+interface DepEdge {
+  source: string;
+  target: string;
+}
+
+interface DatasetListItem extends API.Dataset {
+  lastDatasetUpdate: string | null;
+  totalUpdates: number;
+}
 
 export type {
   Dag,
@@ -93,7 +125,9 @@ export type {
   TaskState,
   TaskInstance,
   Task,
+  DepNode,
+  DepEdge,
   API,
-  SnakeToCamelCase,
-  SnakeToCamelCaseNested,
+  RunOrdering,
+  DatasetListItem,
 };

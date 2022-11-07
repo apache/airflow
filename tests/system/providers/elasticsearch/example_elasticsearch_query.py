@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG for Elasticsearch Query.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -27,11 +28,11 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.elasticsearch.hooks.elasticsearch import ElasticsearchPythonHook, ElasticsearchSQLHook
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = 'elasticsearch_dag'
-CONN_ID = 'elasticsearch_default'
+DAG_ID = "elasticsearch_dag"
+CONN_ID = "elasticsearch_default"
 
 
-@task(task_id='es_print_tables')
+@task(task_id="es_print_tables")
 def show_tables():
     """
     show_tables queries elasticsearch to list available tables
@@ -41,7 +42,7 @@ def show_tables():
 
     # Handle ES conn with context manager
     with es.get_conn() as es_conn:
-        tables = es_conn.execute('SHOW TABLES')
+        tables = es_conn.execute("SHOW TABLES")
         for table, *_ in tables:
             print(f"table: {table}")
     return True
@@ -66,7 +67,7 @@ def use_elasticsearch_hook():
 
 with models.DAG(
     DAG_ID,
-    schedule_interval="@once",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "elasticsearch"],
@@ -77,7 +78,7 @@ with models.DAG(
         execute_query
     )
     es_python_test = PythonOperator(
-        task_id='print_data_from_elasticsearch', python_callable=use_elasticsearch_hook
+        task_id="print_data_from_elasticsearch", python_callable=use_elasticsearch_hook
     )
 
 from tests.system.utils import get_test_run  # noqa: E402

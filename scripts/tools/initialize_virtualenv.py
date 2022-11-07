@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 import shlex
@@ -38,7 +39,7 @@ def clean_up_airflow_home(airflow_home: Path):
 
 
 def check_if_in_virtualenv() -> bool:
-    return hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix)
+    return hasattr(sys, "real_prefix") or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix)
 
 
 def check_for_package_extras() -> str:
@@ -48,7 +49,7 @@ def check_for_package_extras() -> str:
     """
     if len(sys.argv) > 1:
         if len(sys.argv) > 2:
-            print("Provide extras as 1 argument like: \"devel,google,snowflake\"")
+            print('Provide extras as 1 argument like: "devel,google,snowflake"')
             sys.exit(1)
         return sys.argv[1]
     return "devel"
@@ -110,8 +111,8 @@ def main():
     """
     Setup local virtual environment.
     """
-    airflow_home_dir = os.environ.get("AIRFLOW_HOME", Path.home() / "airflow")
-    airflow_sources = str(Path(__file__).parents[2])
+    airflow_home_dir = Path(os.environ.get("AIRFLOW_HOME", Path.home() / "airflow"))
+    airflow_sources = Path(__file__).parents[2]
 
     if not check_if_in_virtualenv():
         print(
@@ -152,8 +153,8 @@ def main():
         os_type = sys.platform
         if os_type == "darwin":
             print("brew install sqlite mysql postgresql openssl")
-            print("export LDFLAGS=\"-L/usr/local/opt/openssl/lib\"")
-            print("export CPPFLAGS=\"-I/usr/local/opt/openssl/include\"")
+            print('export LDFLAGS="-L/usr/local/opt/openssl/lib"')
+            print('export CPPFLAGS="-I/usr/local/opt/openssl/include"')
         else:
             print(
                 "sudo apt install build-essential python3-dev libsqlite3-dev openssl"

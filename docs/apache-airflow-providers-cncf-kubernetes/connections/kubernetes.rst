@@ -20,7 +20,7 @@
 Kubernetes cluster Connection
 =============================
 
-The Kubernetes cluster Connection type enables connection to a Kubernetes cluster by :class:`~airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator` tasks. They are not used by ``KubernetesPodOperator`` tasks.
+The Kubernetes cluster Connection type enables connection to a Kubernetes cluster by :class:`~airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator` tasks and :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` tasks.
 
 
 Authenticating to Kubernetes cluster
@@ -72,4 +72,10 @@ Example storing connection in env var using URI format:
 
 .. code-block:: bash
 
-    AIRFLOW_CONN_KUBERNETES_DEFAULT='kubernetes://?extra__kubernetes__in_cluster=True&extra__kubernetes__kube_config_path=~%2F.kube%2Fconfig&extra__kubernetes__kube_config=kubeconfig+json&extra__kubernetes__namespace=namespace'
+    AIRFLOW_CONN_KUBERNETES_DEFAULT='kubernetes://?in_cluster=True&kube_config_path=~%2F.kube%2Fconfig&kube_config=kubeconfig+json&namespace=namespace'
+
+And using JSON format:
+
+.. code-block:: bash
+
+    AIRFLOW_CONN_KUBERNETES_DEFAULT='{"conn_type": "kubernetes", "extra": {"in_cluster": true, "kube_config_path": "~/.kube/config", "namespace": "my-namespace"}}'

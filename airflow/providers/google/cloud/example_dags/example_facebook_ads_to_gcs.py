@@ -18,6 +18,8 @@
 """
 Example Airflow DAG that shows how to use FacebookAdsReportToGcsOperator.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -52,12 +54,11 @@ FIELDS = [
     AdsInsights.Field.clicks,
     AdsInsights.Field.impressions,
 ]
-PARAMETERS = {'level': 'ad', 'date_preset': 'yesterday'}
+PARAMETERS = {"level": "ad", "date_preset": "yesterday"}
 # [END howto_FB_ADS_variables]
 
 with models.DAG(
     "example_facebook_ads_to_gcs",
-    schedule_interval='@once',  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
@@ -78,18 +79,18 @@ with models.DAG(
         dataset_id=DATASET_NAME,
         table_id=TABLE_NAME,
         schema_fields=[
-            {'name': 'campaign_name', 'type': 'STRING', 'mode': 'NULLABLE'},
-            {'name': 'campaign_id', 'type': 'STRING', 'mode': 'NULLABLE'},
-            {'name': 'ad_id', 'type': 'STRING', 'mode': 'NULLABLE'},
-            {'name': 'clicks', 'type': 'STRING', 'mode': 'NULLABLE'},
-            {'name': 'impressions', 'type': 'STRING', 'mode': 'NULLABLE'},
+            {"name": "campaign_name", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "campaign_id", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "ad_id", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "clicks", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "impressions", "type": "STRING", "mode": "NULLABLE"},
         ],
     )
 
     # [START howto_operator_facebook_ads_to_gcs]
     run_operator = FacebookAdsReportToGcsOperator(
-        task_id='run_fetch_data',
-        owner='airflow',
+        task_id="run_fetch_data",
+        owner="airflow",
         bucket_name=GCS_BUCKET,
         parameters=PARAMETERS,
         fields=FIELDS,
@@ -99,11 +100,11 @@ with models.DAG(
     # [END howto_operator_facebook_ads_to_gcs]
 
     load_csv = GCSToBigQueryOperator(
-        task_id='gcs_to_bq_example',
+        task_id="gcs_to_bq_example",
         bucket=GCS_BUCKET,
         source_objects=[GCS_OBJ_PATH],
         destination_project_dataset_table=f"{DATASET_NAME}.{TABLE_NAME}",
-        write_disposition='WRITE_TRUNCATE',
+        write_disposition="WRITE_TRUNCATE",
     )
 
     read_data_from_gcs_many_chunks = BigQueryInsertJobOperator(

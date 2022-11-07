@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,74 +14,61 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from datetime import datetime
 
 from airflow import DAG
-from airflow.decorators import task
 from airflow.models.baseoperator import chain
-from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.operators.rds import (
     RdsCopyDbSnapshotOperator,
+    RdsCreateDbInstanceOperator,
     RdsCreateDbSnapshotOperator,
+    RdsDeleteDbInstanceOperator,
     RdsDeleteDbSnapshotOperator,
 )
 from airflow.providers.amazon.aws.sensors.rds import RdsSnapshotExistenceSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-DAG_ID = 'example_rds_snapshot'
+DAG_ID = "example_rds_snapshot"
 
 sys_test_context_task = SystemTestContextBuilder().build()
 
 
-@task
-def create_rds_instance(db_name, instance_name) -> None:
-    rds_client = RdsHook().get_conn()
-    rds_client.create_db_instance(
-        DBName=db_name,
-        DBInstanceIdentifier=instance_name,
-        AllocatedStorage=20,
-        DBInstanceClass='db.t3.micro',
-        Engine='postgres',
-        MasterUsername='username',
-        # NEVER store your production password in plaintext in a DAG like this.
-        # Use Airflow Secrets or a secret manager for this in production.
-        MasterUserPassword='rds_password',
-    )
-
-    rds_client.get_waiter('db_instance_available').wait(DBInstanceIdentifier=instance_name)
-
-
-@task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_rds_instance(instance_name) -> None:
-    rds_client = RdsHook().get_conn()
-    rds_client.delete_db_instance(
-        DBInstanceIdentifier=instance_name,
-        SkipFinalSnapshot=True,
-    )
-
-    rds_client.get_waiter('db_instance_deleted').wait(DBInstanceIdentifier=instance_name)
-
-
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
 
-    rds_db_name = f'{test_context[ENV_ID_KEY]}_db'
-    rds_instance_name = f'{test_context[ENV_ID_KEY]}-instance'
-    rds_snapshot_name = f'{test_context[ENV_ID_KEY]}-snapshot'
-    rds_snapshot_copy_name = f'{rds_snapshot_name}-copy'
+    rds_db_name = f"{test_context[ENV_ID_KEY]}_db"
+    rds_instance_name = f"{test_context[ENV_ID_KEY]}-instance"
+    rds_snapshot_name = f"{test_context[ENV_ID_KEY]}-snapshot"
+    rds_snapshot_copy_name = f"{rds_snapshot_name}-copy"
+
+    create_db_instance = RdsCreateDbInstanceOperator(
+        task_id="create_db_instance",
+        db_instance_identifier=rds_instance_name,
+        db_instance_class="db.t4g.micro",
+        engine="postgres",
+        rds_kwargs={
+            "MasterUsername": "rds_username",
+            # NEVER store your production password in plaintext in a DAG like this.
+            # Use Airflow Secrets or a secret manager for this in production.
+            "MasterUserPassword": "rds_password",
+            "AllocatedStorage": 20,
+            "DBName": rds_db_name,
+        },
+    )
 
     # [START howto_operator_rds_create_db_snapshot]
     create_snapshot = RdsCreateDbSnapshotOperator(
-        task_id='create_snapshot',
-        db_type='instance',
+        task_id="create_snapshot",
+        db_type="instance",
         db_identifier=rds_instance_name,
         db_snapshot_identifier=rds_snapshot_name,
     )
@@ -90,17 +76,17 @@ with DAG(
 
     # [START howto_sensor_rds_snapshot_existence]
     snapshot_sensor = RdsSnapshotExistenceSensor(
-        task_id='snapshot_sensor',
-        db_type='instance',
+        task_id="snapshot_sensor",
+        db_type="instance",
         db_snapshot_identifier=rds_snapshot_name,
-        target_statuses=['available'],
+        target_statuses=["available"],
     )
     # [END howto_sensor_rds_snapshot_existence]
 
     # [START howto_operator_rds_copy_snapshot]
     copy_snapshot = RdsCopyDbSnapshotOperator(
-        task_id='copy_snapshot',
-        db_type='instance',
+        task_id="copy_snapshot",
+        db_type="instance",
         source_db_snapshot_identifier=rds_snapshot_name,
         target_db_snapshot_identifier=rds_snapshot_copy_name,
     )
@@ -108,29 +94,37 @@ with DAG(
 
     # [START howto_operator_rds_delete_snapshot]
     delete_snapshot = RdsDeleteDbSnapshotOperator(
-        task_id='delete_snapshot',
-        db_type='instance',
+        task_id="delete_snapshot",
+        db_type="instance",
         db_snapshot_identifier=rds_snapshot_name,
     )
     # [END howto_operator_rds_delete_snapshot]
 
     snapshot_copy_sensor = RdsSnapshotExistenceSensor(
-        task_id='snapshot_copy_sensor',
-        db_type='instance',
+        task_id="snapshot_copy_sensor",
+        db_type="instance",
         db_snapshot_identifier=rds_snapshot_copy_name,
-        target_statuses=['available'],
+        target_statuses=["available"],
     )
 
     delete_snapshot_copy = RdsDeleteDbSnapshotOperator(
-        task_id='delete_snapshot_copy',
-        db_type='instance',
+        task_id="delete_snapshot_copy",
+        db_type="instance",
         db_snapshot_identifier=rds_snapshot_copy_name,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
+    delete_db_instance = RdsDeleteDbInstanceOperator(
+        task_id="delete_db_instance",
+        db_instance_identifier=rds_instance_name,
+        rds_kwargs={"SkipFinalSnapshot": True},
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     chain(
         # TEST SETUP
         test_context,
-        create_rds_instance(rds_db_name, rds_instance_name),
+        create_db_instance,
         # TEST BODY
         create_snapshot,
         snapshot_sensor,
@@ -139,7 +133,7 @@ with DAG(
         # TEST TEARDOWN
         snapshot_copy_sensor,
         delete_snapshot_copy,
-        delete_rds_instance(rds_instance_name),
+        delete_db_instance,
     )
 
     from tests.system.utils.watcher import watcher

@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime
 
 from airflow.models import DAG
@@ -23,9 +25,9 @@ from airflow.operators.empty import EmptyOperator
 DEFAULT_DATE = datetime(2016, 1, 1)
 
 args = {
-    'owner': 'airflow',
-    'start_date': DEFAULT_DATE,
+    "owner": "airflow",
+    "start_date": DEFAULT_DATE,
 }
 
-dag = DAG(dag_id='test_localtaskjob_double_trigger', default_args=args)
-task = EmptyOperator(task_id='test_localtaskjob_double_trigger_task', dag=dag)
+dag = DAG(dag_id="test_localtaskjob_double_trigger", default_args=args)
+task = EmptyOperator(task_id="test_localtaskjob_double_trigger_task", dag=dag)

@@ -23,12 +23,112 @@
 Changelog
 ---------
 
-8.2.0
+8.4.0
 .....
 
-Breaking changes
-~~~~~~~~~~~~~~~~
+Features
+~~~~~~~~
 
+* ``Add BigQuery Column and Table Check Operators (#26368)``
+* ``Add deferrable big query operators and sensors (#26156)``
+* ``Add 'output' property to MappedOperator (#25604)``
+* ``Added append_job_name parameter to DataflowTemplatedJobStartOperator (#25746)``
+* ``Adding a parameter for exclusion of trashed files in GoogleDriveHook (#25675)``
+* ``Cloud Data Loss Prevention Operators assets (#26618)``
+* ``Cloud Storage Transfer Operators assets & system tests migration (AIP-47) (#26072)``
+* ``Merge deferrable BigQuery operators to exisitng one (#26433)``
+* ``specifying project id when calling wait_for_operation in delete/create cluster (#26418)``
+* ``Auto tail file logs in Web UI (#26169)``
+* ``Cloud Functions Operators assets & system tests migration (AIP-47) (#26073)``
+* ``GCSToBigQueryOperator Resolve 'max_id_key' job retrieval and xcom return (#26285)``
+* ``Allow for the overriding of 'stringify_dict' for json export format on BaseSQLToGCSOperator (#26277)``
+* ``Append GoogleLink base in the link class (#26057)``
+* ``Cloud Video Intelligence Operators assets & system tests migration (AIP-47) (#26132)``
+* ``Life Science assets & system tests migration (AIP-47) (#25548)``
+* ``GCSToBigQueryOperator allow for schema_object in alternate GCS Bucket (#26190)``
+* ``Use AsyncClient for Composer Operators in deferrable mode (#25951)``
+* ``Use project_id to get authenticated client (#25984)``
+* ``Cloud Build assets & system tests migration (AIP-47) (#25895)``
+* ``Dataproc submit job operator async (#25302)``
+* ``Support project_id argument in BigQueryGetDataOperator (#25782)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix JSONDecodeError in Datafusion operators (#26202)``
+* ``Fixed never ending loop to in CreateWorkflowInvocation (#25737)``
+* ``Update gcs.py (#26570)``
+* ``Don't throw an exception when a BQ cusor job has no schema (#26096)``
+* ``Google Cloud Tasks Sensor for queue being empty (#25622)``
+* ``Correcting the transfer config name. (#25719)``
+* ``Fix parsing of optional 'mode' field in BigQuery Result Schema (#26786)``
+* ``Fix MaxID logic for GCSToBigQueryOperator (#26768)``
+
+Misc
+~~~~
+
+* ``Sql to GSC operators update docs for parquet format (#25878)``
+* ``Limit Google Protobuf for compatibility with biggtable client (#25886)``
+* ``Make GoogleBaseHook credentials functions public (#25785)``
+* ``Consolidate to one 'schedule' param (#25410)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Migrate Data Loss Prevention system tests according to AIP-47 (#26060)``
+   * ``Google Drive to Google Cloud Storage Transfer Operator - system tests migration (AIP-47) (#26487)``
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to core airflow (#26290)``
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+   * ``Replace SQL with Common SQL in pre commit (#26058)``
+   * ``Hook into Mypy to get rid of those cast() (#26023)``
+   * ``Work around pyupgrade edge cases (#26384)``
+   * ``D400 first line should end with period batch02 (#25268)``
+   * ``Fix GCS sensor system tests failing with DebugExecutor (#26742)``
+   * ``Update docs for September Provider's release (#26731)``
+
+8.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add description method in BigQueryCursor class (#25366)``
+* ``Add project_id as a templated variable in two BQ operators (#24768)``
+* ``Remove deprecated modules in Amazon provider (#25543)``
+* ``Move all "old" SQL operators to common.sql providers (#25350)``
+* ``Improve taskflow type hints with ParamSpec (#25173)``
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+* ``Bump typing-extensions and mypy for ParamSpec (#25088)``
+* ``Deprecate hql parameters and synchronize DBApiHook method APIs (#25299)``
+* ``Dataform operators (#25587)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix GCSListObjectsOperator docstring (#25614)``
+* ``Fix BigQueryInsertJobOperator cancel_on_kill (#25342)``
+* ``Fix BaseSQLToGCSOperator approx_max_file_size_bytes (#25469)``
+* ``Fix PostgresToGCSOperat bool dtype (#25475)``
+* ``Fix Vertex AI Custom Job training issue (#25367)``
+* ``Fix Flask Login user setting for Flask 2.2 and Flask-Login 0.6.2 (#25318)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Migrate Google example trino_to_gcs to new design AIP-47 (#25420)``
+   * ``Migrate Google example automl_nl_text_extraction to new design AIP-47 (#25418)``
+   * ``Memorystore assets & system tests migration (AIP-47) (#25361)``
+   * ``Translate system tests migration (AIP-47) (#25340)``
+   * ``Migrate Google example life_sciences to new design AIP-47 (#25264)``
+   * ``Migrate Google example natural_language to new design AIP-47 (#25262)``
+   * ``Delete redundant system test bigquery_to_bigquery (#25261)``
+   * ``Migrate Google example bigquery_to_mssql to new design AIP-47 (#25174)``
+   * ``Migrate Google example compute_igm to new design AIP-47 (#25132)``
+   * ``Migrate Google example automl_vision to new design AIP-47 (#25152)``
+   * ``Migrate Google example gcs_to_sftp to new design AIP-47 (#25107)``
+   * ``Migrate Google campaign manager example to new design AIP-47 (#25069)``
+   * ``Migrate Google analytics example to new design AIP-47 (#25006)``
+
+8.2.0
+.....
 
 Features
 ~~~~~~~~

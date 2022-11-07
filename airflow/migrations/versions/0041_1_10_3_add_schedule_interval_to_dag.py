@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add schedule interval to dag
 
 Revision ID: dd4ecb8fbee3
@@ -23,6 +22,7 @@ Revises: c8ffec048a3b
 Create Date: 2018-12-27 18:39:25.748032
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

@@ -14,25 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-import functools
 import inspect
 import re
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
+    ClassVar,
     Collection,
     Dict,
     Generic,
-    Iterable,
     Iterator,
     Mapping,
-    Optional,
     Sequence,
-    Set,
-    Tuple,
-    Type,
     TypeVar,
     cast,
     overload,
@@ -58,46 +53,68 @@ from airflow.models.expandinput import (
     DictOfListsExpandInput,
     ExpandInput,
     ListOfDictsExpandInput,
+    OperatorExpandArgument,
+    OperatorExpandKwargsArgument,
 )
 from airflow.models.mappedoperator import (
     MappedOperator,
     ValidationSource,
     ensure_xcomarg_return_value,
     get_mappable_types,
-    prevent_duplicates,
 )
 from airflow.models.pool import Pool
 from airflow.models.xcom_arg import XComArg
-from airflow.typing_compat import Protocol
+from airflow.typing_compat import ParamSpec, Protocol
 from airflow.utils import timezone
 from airflow.utils.context import KNOWN_CONTEXT_KEYS, Context
+from airflow.utils.helpers import prevent_duplicates
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
 from airflow.utils.types import NOTSET
 
-if TYPE_CHECKING:
-    import jinja2  # Slow import.
 
-    from airflow.models.mappedoperator import Mappable
+class ExpandableFactory(Protocol):
+    """Protocol providing inspection against wrapped function.
 
+    This is used in ``validate_expand_kwargs`` and implemented by function
+    decorators like ``@task`` and ``@task_group``.
 
-def validate_python_callable(python_callable: Any) -> None:
+    :meta private:
     """
-    Validate that python callable can be wrapped by operator.
-    Raises exception if invalid.
 
-    :param python_callable: Python object to be validated
-    :raises: TypeError, AirflowException
-    """
-    if not callable(python_callable):
-        raise TypeError('`python_callable` param must be callable')
-    if 'self' in inspect.signature(python_callable).parameters.keys():
-        raise AirflowException('@task does not support methods')
+    function: Callable
+
+    @cached_property
+    def function_signature(self) -> inspect.Signature:
+        return inspect.signature(self.function)
+
+    @cached_property
+    def _mappable_function_argument_names(self) -> set[str]:
+        """Arguments that can be mapped against."""
+        return set(self.function_signature.parameters)
+
+    def _validate_arg_names(self, func: ValidationSource, kwargs: dict[str, Any]) -> None:
+        """Ensure that all arguments passed to operator-mapping functions are accounted for."""
+        parameters = self.function_signature.parameters
+        if any(v.kind == inspect.Parameter.VAR_KEYWORD for v in parameters.values()):
+            return
+        kwargs_left = kwargs.copy()
+        for arg_name in self._mappable_function_argument_names:
+            value = kwargs_left.pop(arg_name, NOTSET)
+            if func != "expand" or value is NOTSET or isinstance(value, get_mappable_types()):
+                continue
+            tname = type(value).__name__
+            raise ValueError(f"expand() got an unexpected type {tname!r} for keyword argument {arg_name!r}")
+        if len(kwargs_left) == 1:
+            raise TypeError(f"{func}() got an unexpected keyword argument {next(iter(kwargs_left))!r}")
+        elif kwargs_left:
+            names = ", ".join(repr(n) for n in kwargs_left)
+            raise TypeError(f"{func}() got unexpected keyword arguments {names}")
 
 
 def get_unique_task_id(
     task_id: str,
-    dag: Optional[DAG] = None,
-    task_group: Optional[TaskGroup] = None,
+    dag: DAG | None = None,
+    task_group: TaskGroup | None = None,
 ) -> str:
     """
     Generate unique task id given a DAG (or if run in a DAG context)
@@ -164,10 +181,10 @@ class DecoratedOperator(BaseOperator):
         *,
         python_callable: Callable,
         task_id: str,
-        op_args: Optional[Collection[Any]] = None,
-        op_kwargs: Optional[Mapping[str, Any]] = None,
+        op_args: Collection[Any] | None = None,
+        op_kwargs: Mapping[str, Any] | None = None,
         multiple_outputs: bool = False,
-        kwargs_to_upstream: Optional[Dict[str, Any]] = None,
+        kwargs_to_upstream: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         task_id = get_unique_task_id(task_id, kwargs.get('dag'), kwargs.get('task_group'))
@@ -236,13 +253,15 @@ class DecoratedOperator(BaseOperator):
         return args, kwargs
 
 
-Function = TypeVar("Function", bound=Callable)
+FParams = ParamSpec("FParams")
+
+FReturn = TypeVar("FReturn")
 
 OperatorSubclass = TypeVar("OperatorSubclass", bound="BaseOperator")
 
 
 @attr.define(slots=False)
-class _TaskDecorator(Generic[Function, OperatorSubclass]):
+class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubclass]):
     """
     Helper class for providing dynamic task mapping to decorated functions.
 
@@ -251,12 +270,14 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
     :meta private:
     """
 
-    function: Function = attr.ib()
-    operator_class: Type[OperatorSubclass]
+    function: Callable[FParams, FReturn] = attr.ib(validator=attr.validators.is_callable())
+    operator_class: type[OperatorSubclass]
     multiple_outputs: bool = attr.ib()
-    kwargs: Dict[str, Any] = attr.ib(factory=dict)
+    kwargs: dict[str, Any] = attr.ib(factory=dict)
 
     decorator_name: str = attr.ib(repr=False, default="task")
+
+    _airflow_is_task_decorator: ClassVar[bool] = True
 
     @multiple_outputs.default
     def _infer_multiple_outputs(self):
@@ -272,7 +293,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             raise TypeError(f"@{self.decorator_name} does not support methods")
         self.kwargs.setdefault('task_id', self.function.__name__)
 
-    def __call__(self, *args, **kwargs) -> XComArg:
+    def __call__(self, *args: FParams.args, **kwargs: FParams.kwargs) -> XComArg:
         op = self.operator_class(
             python_callable=self.function,
             op_args=args,
@@ -285,24 +306,10 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         return XComArg(op)
 
     @property
-    def __wrapped__(self) -> Function:
+    def __wrapped__(self) -> Callable[FParams, FReturn]:
         return self.function
 
-    @cached_property
-    def function_signature(self):
-        return inspect.signature(self.function)
-
-    @cached_property
-    def _function_is_vararg(self):
-        parameters = self.function_signature.parameters
-        return any(v.kind == inspect.Parameter.VAR_KEYWORD for v in parameters.values())
-
-    @cached_property
-    def _mappable_function_argument_names(self) -> Set[str]:
-        """Arguments that can be mapped against."""
-        return set(self.function_signature.parameters)
-
-    def _validate_arg_names(self, func: ValidationSource, kwargs: Dict[str, Any]):
+    def _validate_arg_names(self, func: ValidationSource, kwargs: dict[str, Any]):
         # Ensure that context variables are not shadowed.
         context_keys_being_mapped = KNOWN_CONTEXT_KEYS.intersection(kwargs)
         if len(context_keys_being_mapped) == 1:
@@ -312,23 +319,9 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             names = ", ".join(repr(n) for n in context_keys_being_mapped)
             raise ValueError(f"cannot call {func}() on task context variables {names}")
 
-        # Ensure that all arguments passed in are accounted for.
-        if self._function_is_vararg:
-            return
-        kwargs_left = kwargs.copy()
-        for arg_name in self._mappable_function_argument_names:
-            value = kwargs_left.pop(arg_name, NOTSET)
-            if func != "expand" or value is NOTSET or isinstance(value, get_mappable_types()):
-                continue
-            tname = type(value).__name__
-            raise ValueError(f"expand() got an unexpected type {tname!r} for keyword argument {arg_name!r}")
-        if len(kwargs_left) == 1:
-            raise TypeError(f"{func}() got an unexpected keyword argument {next(iter(kwargs_left))!r}")
-        elif kwargs_left:
-            names = ", ".join(repr(n) for n in kwargs_left)
-            raise TypeError(f"{func}() got unexpected keyword arguments {names}")
+        super()._validate_arg_names(func, kwargs)
 
-    def expand(self, **map_kwargs: "Mappable") -> XComArg:
+    def expand(self, **map_kwargs: OperatorExpandArgument) -> XComArg:
         if not map_kwargs:
             raise TypeError("no arguments to expand against")
         self._validate_arg_names("expand", map_kwargs)
@@ -337,11 +330,13 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         # to False to skip the checks on execution.
         return self._expand(DictOfListsExpandInput(map_kwargs), strict=False)
 
-    def expand_kwargs(self, kwargs: "XComArg", *, strict: bool = True) -> XComArg:
-        from airflow.models.xcom_arg import XComArg
-
-        if not isinstance(kwargs, XComArg):
-            raise TypeError(f"expected XComArg object, not {type(kwargs).__name__}")
+    def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
+        if isinstance(kwargs, Sequence):
+            for item in kwargs:
+                if not isinstance(item, (XComArg, Mapping)):
+                    raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
+        elif not isinstance(kwargs, XComArg):
+            raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
 
     def _expand(self, expand_input: ExpandInput, *, strict: bool) -> XComArg:
@@ -351,7 +346,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         dag = task_kwargs.pop("dag", None) or DagContext.get_current_dag()
         task_group = task_kwargs.pop("task_group", None) or TaskGroupContext.get_current_task_group(dag)
 
-        partial_kwargs, default_params = get_merged_defaults(
+        partial_kwargs, partial_params = get_merged_defaults(
             dag=dag,
             task_group=task_group,
             task_params=task_kwargs.pop("params", None),
@@ -360,7 +355,8 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         partial_kwargs.update(task_kwargs)
 
         task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
-        params = partial_kwargs.pop("params", None) or default_params
+        if task_group:
+            task_id = task_group.child_id(task_id)
 
         # Logic here should be kept in sync with BaseOperatorMeta.partial().
         if "task_concurrency" in partial_kwargs:
@@ -389,12 +385,18 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
 
         # Mypy does not work well with a subclassed attrs class :(
         _MappedOperator = cast(Any, DecoratedMappedOperator)
+
+        try:
+            operator_name = self.operator_class.custom_operator_name  # type: ignore
+        except AttributeError:
+            operator_name = self.operator_class.__name__
+
         operator = _MappedOperator(
             operator_class=self.operator_class,
             expand_input=EXPAND_INPUT_EMPTY,  # Don't use this; mapped values go to op_kwargs_expand_input.
             partial_kwargs=partial_kwargs,
             task_id=task_id,
-            params=params,
+            params=partial_params,
             deps=MappedOperator.deps_for(self.operator_class),
             operator_extra_links=self.operator_class.operator_extra_links,
             template_ext=self.operator_class.template_ext,
@@ -405,6 +407,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             is_empty=False,
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
+            operator_name=operator_name,
             dag=dag,
             task_group=task_group,
             start_date=start_date,
@@ -420,14 +423,14 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         )
         return XComArg(operator=operator)
 
-    def partial(self, **kwargs: Any) -> "_TaskDecorator[Function, OperatorSubclass]":
+    def partial(self, **kwargs: Any) -> _TaskDecorator[FParams, FReturn, OperatorSubclass]:
         self._validate_arg_names("partial", kwargs)
         old_kwargs = self.kwargs.get("op_kwargs", {})
         prevent_duplicates(old_kwargs, kwargs, fail_reason="duplicate partial")
         kwargs.update(old_kwargs)
         return attr.evolve(self, kwargs={**self.kwargs, "op_kwargs": kwargs})
 
-    def override(self, **kwargs: Any) -> "_TaskDecorator[Function, OperatorSubclass]":
+    def override(self, **kwargs: Any) -> _TaskDecorator[FParams, FReturn, OperatorSubclass]:
         return attr.evolve(self, kwargs={**self.kwargs, **kwargs})
 
 
@@ -451,62 +454,28 @@ class DecoratedMappedOperator(MappedOperator):
         super(DecoratedMappedOperator, DecoratedMappedOperator).__attrs_post_init__(self)
         XComArg.apply_upstream_relationship(self, self.op_kwargs_expand_input.value)
 
-    def _expand_mapped_kwargs(self, resolve: Optional[Tuple[Context, Session]]) -> Dict[str, Any]:
+    def _expand_mapped_kwargs(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
         # We only use op_kwargs_expand_input so this must always be empty.
         assert self.expand_input is EXPAND_INPUT_EMPTY
-        return {"op_kwargs": super()._expand_mapped_kwargs(resolve)}
+        op_kwargs, resolved_oids = super()._expand_mapped_kwargs(context, session)
+        return {"op_kwargs": op_kwargs}, resolved_oids
 
-    def _get_unmap_kwargs(self, mapped_kwargs: Dict[str, Any], *, strict: bool) -> Dict[str, Any]:
+    def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> dict[str, Any]:
+        partial_op_kwargs = self.partial_kwargs["op_kwargs"]
+        mapped_op_kwargs = mapped_kwargs["op_kwargs"]
+
         if strict:
-            prevent_duplicates(
-                self.partial_kwargs["op_kwargs"],
-                mapped_kwargs["op_kwargs"],
-                fail_reason="mapping already partial",
-            )
-
-        static_kwargs = {k for k, _ in self.op_kwargs_expand_input.iter_parse_time_resolved_kwargs()}
-        self._combined_op_kwargs = {**self.partial_kwargs["op_kwargs"], **mapped_kwargs["op_kwargs"]}
-        self._already_resolved_op_kwargs = {k for k in mapped_kwargs["op_kwargs"] if k not in static_kwargs}
+            prevent_duplicates(partial_op_kwargs, mapped_op_kwargs, fail_reason="mapping already partial")
 
         kwargs = {
             "multiple_outputs": self.multiple_outputs,
             "python_callable": self.python_callable,
-            "op_kwargs": self._combined_op_kwargs,
+            "op_kwargs": {**partial_op_kwargs, **mapped_op_kwargs},
         }
         return super()._get_unmap_kwargs(kwargs, strict=False)
 
-    def _get_template_fields_to_render(self, expanded: Iterable[str]) -> Iterable[str]:
-        # Different from a regular MappedOperator, we still want to render
-        # some fields in op_kwargs (those that are NOT passed as XComArg from
-        # upstream). Already-rendered op_kwargs keys are detected in a different
-        # way (see render_template below and _get_unmap_kwargs above).
-        assert list(expanded) == ["op_kwargs"]
-        return self.template_fields
 
-    def render_template(
-        self,
-        value: Any,
-        context: Context,
-        jinja_env: Optional["jinja2.Environment"] = None,
-        seen_oids: Optional[Set] = None,
-    ) -> Any:
-        if value is not getattr(self, "_combined_op_kwargs", object()):
-            return super().render_template(value, context, jinja_env=jinja_env, seen_oids=seen_oids)
-
-        def _render_if_not_already_resolved(key: str, value: Any):
-            if key in self._already_resolved_op_kwargs:
-                return value
-            # The magic super() doesn't work here, so we use the explicit form.
-            # Not using super(..., self) to work around pyupgrade bug.
-            return super(DecoratedMappedOperator, DecoratedMappedOperator).render_template(
-                self, value, context=context, jinja_env=jinja_env, seen_oids=seen_oids
-            )
-
-        # Avoid rendering values that came out of resolved XComArgs.
-        return {k: _render_if_not_already_resolved(k, v) for k, v in value.items()}
-
-
-class Task(Generic[Function]):
+class Task(Generic[FParams, FReturn]):
     """Declaration of a @task-decorated callable for type-checking.
 
     An instance of this type inherits the call signature of the decorated
@@ -517,18 +486,24 @@ class Task(Generic[Function]):
     This type is implemented by ``_TaskDecorator`` at runtime.
     """
 
-    __call__: Function
+    __call__: Callable[FParams, XComArg]
 
-    function: Function
+    function: Callable[FParams, FReturn]
 
     @property
-    def __wrapped__(self) -> Function:
+    def __wrapped__(self) -> Callable[FParams, FReturn]:
         ...
 
-    def expand(self, **kwargs: "Mappable") -> XComArg:
+    def partial(self, **kwargs: Any) -> Task[FParams, FReturn]:
         ...
 
-    def partial(self, **kwargs: Any) -> "Task[Function]":
+    def expand(self, **kwargs: OperatorExpandArgument) -> XComArg:
+        ...
+
+    def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
+        ...
+
+    def override(self, **kwargs: Any) -> Task[FParams, FReturn]:
         ...
 
 
@@ -536,36 +511,46 @@ class TaskDecorator(Protocol):
     """Type declaration for ``task_decorator_factory`` return type."""
 
     @overload
-    def __call__(self, python_callable: Function) -> Task[Function]:
+    def __call__(  # type: ignore[misc]
+        self,
+        python_callable: Callable[FParams, FReturn],
+    ) -> Task[FParams, FReturn]:
         """For the "bare decorator" ``@task`` case."""
 
     @overload
     def __call__(
         self,
         *,
-        multiple_outputs: Optional[bool] = None,
+        multiple_outputs: bool | None = None,
         **kwargs: Any,
-    ) -> Callable[[Function], Task[Function]]:
+    ) -> Callable[[Callable[FParams, FReturn]], Task[FParams, FReturn]]:
         """For the decorator factory ``@task()`` case."""
+
+    def override(self, **kwargs: Any) -> Task[FParams, FReturn]:
+        ...
 
 
 def task_decorator_factory(
-    python_callable: Optional[Callable] = None,
+    python_callable: Callable | None = None,
     *,
-    multiple_outputs: Optional[bool] = None,
-    decorated_operator_class: Type[BaseOperator],
+    multiple_outputs: bool | None = None,
+    decorated_operator_class: type[BaseOperator],
     **kwargs,
 ) -> TaskDecorator:
-    """
-    A factory that generates a wrapper that wraps a function into an Airflow operator.
-    Accepts kwargs for operator kwarg. Can be reused in a single DAG.
+    """Generate a wrapper that wraps a function into an Airflow operator.
 
-    :param python_callable: Function to decorate
-    :param multiple_outputs: If set to True, the decorated function's return value will be unrolled to
-        multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys. Defaults to False.
-    :param decorated_operator_class: The operator that executes the logic needed to run the python function in
-        the correct environment
+    Can be reused in a single DAG.
 
+    :param python_callable: Function to decorate.
+    :param multiple_outputs: If set to True, the decorated function's return
+        value will be unrolled to multiple XCom values. Dict will unroll to XCom
+        values with its keys as XCom keys. If set to False (default), only at
+        most one XCom value is pushed.
+    :param decorated_operator_class: The operator that executes the logic needed
+        to run the python function in the correct environment.
+
+    Other kwargs are directly forwarded to the underlying operator class when
+    it's instantiated.
     """
     if multiple_outputs is None:
         multiple_outputs = cast(bool, attr.NOTHING)
@@ -579,10 +564,13 @@ def task_decorator_factory(
         return cast(TaskDecorator, decorator)
     elif python_callable is not None:
         raise TypeError('No args allowed while using @task, use kwargs instead')
-    decorator_factory = functools.partial(
-        _TaskDecorator,
-        multiple_outputs=multiple_outputs,
-        operator_class=decorated_operator_class,
-        kwargs=kwargs,
-    )
+
+    def decorator_factory(python_callable):
+        return _TaskDecorator(
+            function=python_callable,
+            multiple_outputs=multiple_outputs,
+            operator_class=decorated_operator_class,
+            kwargs=kwargs,
+        )
+
     return cast(TaskDecorator, decorator_factory)

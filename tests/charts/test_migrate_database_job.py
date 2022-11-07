@@ -14,10 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import jmespath
 import pytest
-from parameterized import parameterized
 
 from tests.charts.helm_template_generator import render_chart
 
@@ -219,7 +219,8 @@ class TestMigrateDatabaseJob:
             "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
         )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "airflow_version, expected_arg",
         [
             ("1.10.14", "airflow upgradedb"),
             ("2.0.2", "airflow db upgrade"),
@@ -240,14 +241,8 @@ class TestMigrateDatabaseJob:
             f"exec \\\n{expected_arg}",
         ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
-    @parameterized.expand(
-        [
-            (None, None),
-            (None, ["custom", "args"]),
-            (["custom", "command"], None),
-            (["custom", "command"], ["custom", "args"]),
-        ]
-    )
+    @pytest.mark.parametrize("command", [None, ["custom", "command"]])
+    @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_command_and_args_overrides(self, command, args):
         docs = render_chart(
             values={"migrateDatabaseJob": {"command": command, "args": args}},
@@ -265,5 +260,5 @@ class TestMigrateDatabaseJob:
             show_only=["templates/jobs/migrate-database-job.yaml"],
         )
 
-        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])

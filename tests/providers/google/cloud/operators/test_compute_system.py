@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import pytest
 
 from tests.providers.google.cloud.operators.test_compute_system_helper import GCPComputeTestHelper
@@ -40,4 +42,4 @@ class GcpComputeExampleDagsSystemTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_COMPUTE_KEY)
     def test_run_example_dag_compute(self):
-        self.run_dag('example_gcp_compute', CLOUD_DAG_FOLDER)
+        self.run_dag("example_gcp_compute", CLOUD_DAG_FOLDER)

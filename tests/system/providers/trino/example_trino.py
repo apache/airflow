@@ -18,6 +18,7 @@
 """
 Example DAG using TrinoOperator.
 """
+from __future__ import annotations
 
 from datetime import datetime
 
@@ -33,7 +34,7 @@ TABLE2 = "city2"
 
 with models.DAG(
     dag_id="example_trino",
-    schedule_interval='@once',  # Override to match your needs
+    schedule="@once",  # Override to match your needs
     start_date=datetime(2022, 1, 1),
     catchup=False,
     tags=["example"],
@@ -71,7 +72,7 @@ with models.DAG(
         task_id="trino_templated_query",
         sql="SELECT * FROM {{ params.SCHEMA }}.{{ params.TABLE }}",
         handler=list,
-        params={'SCHEMA': SCHEMA, 'TABLE': TABLE1},
+        params={"SCHEMA": SCHEMA, "TABLE": TABLE1},
     )
     trino_parameterized_query = TrinoOperator(
         task_id="trino_parameterized_query",

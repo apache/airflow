@@ -14,19 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import re
-import unittest
 from base64 import b64decode
 from subprocess import CalledProcessError
-from typing import Optional
 
 import jmespath
 import pytest
-from parameterized import parameterized
 
 from tests.charts.helm_template_generator import prepare_k8s_lookup_dict, render_chart
 
-RELEASE_NAME_REDIS = "TEST-REDIS"
+RELEASE_NAME_REDIS = "test-redis"
 
 REDIS_OBJECTS = {
     "NETWORK_POLICY": ("NetworkPolicy", f"{RELEASE_NAME_REDIS}-redis-policy"),
@@ -37,10 +36,10 @@ REDIS_OBJECTS = {
 }
 SET_POSSIBLE_REDIS_OBJECT_KEYS = set(REDIS_OBJECTS.values())
 
-CELERY_EXECUTORS_PARAMS = [("CeleryExecutor",), ("CeleryKubernetesExecutor",)]
+CELERY_EXECUTORS_PARAMS = ["CeleryExecutor", "CeleryKubernetesExecutor"]
 
 
-class RedisTest(unittest.TestCase):
+class TestRedis:
     @staticmethod
     def get_broker_url_in_broker_url_secret(k8s_obj_by_key):
         broker_url_in_obj = b64decode(
@@ -66,7 +65,7 @@ class RedisTest(unittest.TestCase):
         return env["valueFrom"]["secretKeyRef"]["name"]
 
     def assert_password_and_broker_url_secrets(
-        self, k8s_obj_by_key, expected_password_match: Optional[str], expected_broker_url_match: Optional[str]
+        self, k8s_obj_by_key, expected_password_match: str | None, expected_broker_url_match: str | None
     ):
         if expected_password_match is not None:
             redis_password_in_password_secret = self.get_redis_password_in_password_secret(k8s_obj_by_key)
@@ -93,7 +92,7 @@ class RedisTest(unittest.TestCase):
         )
         assert broker_url_secret_in_worker == expected_broker_url_secret_name
 
-    @parameterized.expand(CELERY_EXECUTORS_PARAMS)
+    @pytest.mark.parametrize("executor", CELERY_EXECUTORS_PARAMS)
     def test_redis_by_chart_default(self, executor):
         k8s_objects = render_chart(
             RELEASE_NAME_REDIS,
@@ -111,12 +110,12 @@ class RedisTest(unittest.TestCase):
         self.assert_password_and_broker_url_secrets(
             k8s_obj_by_key,
             expected_password_match=r"\w+",
-            expected_broker_url_match=fr"redis://:.+@{RELEASE_NAME_REDIS}-redis:6379/0",
+            expected_broker_url_match=rf"redis://:.+@{RELEASE_NAME_REDIS}-redis:6379/0",
         )
 
         self.assert_broker_url_env(k8s_obj_by_key)
 
-    @parameterized.expand(CELERY_EXECUTORS_PARAMS)
+    @pytest.mark.parametrize("executor", CELERY_EXECUTORS_PARAMS)
     def test_redis_by_chart_password(self, executor):
         k8s_objects = render_chart(
             RELEASE_NAME_REDIS,
@@ -135,13 +134,13 @@ class RedisTest(unittest.TestCase):
             k8s_obj_by_key,
             expected_password_match="test-redis-password",
             expected_broker_url_match=re.escape(
-                "redis://:test-redis-password%21%40%23$%25%5E&%2A%28%29_+@TEST-REDIS-redis:6379/0"
+                "redis://:test-redis-password%21%40%23$%25%5E&%2A%28%29_+@test-redis-redis:6379/0"
             ),
         )
 
         self.assert_broker_url_env(k8s_obj_by_key)
 
-    @parameterized.expand(CELERY_EXECUTORS_PARAMS)
+    @pytest.mark.parametrize("executor", CELERY_EXECUTORS_PARAMS)
     def test_redis_by_chart_password_secret_name_missing_broker_url_secret_name(self, executor):
         with pytest.raises(CalledProcessError):
             render_chart(
@@ -155,7 +154,7 @@ class RedisTest(unittest.TestCase):
                 },
             )
 
-    @parameterized.expand(CELERY_EXECUTORS_PARAMS)
+    @pytest.mark.parametrize("executor", CELERY_EXECUTORS_PARAMS)
     def test_redis_by_chart_password_secret_name(self, executor):
         expected_broker_url_secret_name = "test-redis-broker-url-secret-name"
         k8s_objects = render_chart(
@@ -184,7 +183,7 @@ class RedisTest(unittest.TestCase):
 
         self.assert_broker_url_env(k8s_obj_by_key, expected_broker_url_secret_name)
 
-    @parameterized.expand(CELERY_EXECUTORS_PARAMS)
+    @pytest.mark.parametrize("executor", CELERY_EXECUTORS_PARAMS)
     def test_external_redis_broker_url(self, executor):
         k8s_objects = render_chart(
             RELEASE_NAME_REDIS,
@@ -210,7 +209,7 @@ class RedisTest(unittest.TestCase):
 
         self.assert_broker_url_env(k8s_obj_by_key)
 
-    @parameterized.expand(CELERY_EXECUTORS_PARAMS)
+    @pytest.mark.parametrize("executor", CELERY_EXECUTORS_PARAMS)
     def test_external_redis_broker_url_secret_name(self, executor):
         expected_broker_url_secret_name = "redis-broker-url-secret-name"
         k8s_objects = render_chart(
@@ -292,8 +291,8 @@ class RedisTest(unittest.TestCase):
             values={
                 "redis": {
                     "resources": {
-                        "limits": {"cpu": "200m", 'memory': "128Mi"},
-                        "requests": {"cpu": "300m", 'memory': "169Mi"},
+                        "limits": {"cpu": "200m", "memory": "128Mi"},
+                        "requests": {"cpu": "300m", "memory": "169Mi"},
                     }
                 },
             },

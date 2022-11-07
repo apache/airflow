@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import enum
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
 import numpy as np
 import pandas as pd
@@ -43,12 +44,12 @@ class FILE_FORMAT(enum.Enum):
     PARQUET = enum.auto()
 
 
-FileOptions = namedtuple('FileOptions', ['mode', 'suffix', 'function'])
+FileOptions = namedtuple("FileOptions", ["mode", "suffix", "function"])
 
 FILE_OPTIONS_MAP = {
-    FILE_FORMAT.CSV: FileOptions('r+', '.csv', 'to_csv'),
-    FILE_FORMAT.JSON: FileOptions('r+', '.json', 'to_json'),
-    FILE_FORMAT.PARQUET: FileOptions('rb+', '.parquet', 'to_parquet'),
+    FILE_FORMAT.CSV: FileOptions("r+", ".csv", "to_csv"),
+    FILE_FORMAT.JSON: FileOptions("r+", ".json", "to_json"),
+    FILE_FORMAT.PARQUET: FileOptions("rb+", ".parquet", "to_parquet"),
 }
 
 
@@ -82,11 +83,12 @@ class SqlToS3Operator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        's3_bucket',
-        's3_key',
-        'query',
+        "s3_bucket",
+        "s3_key",
+        "query",
+        "sql_conn_id",
     )
-    template_ext: Sequence[str] = ('.sql',)
+    template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {
         "query": "sql",
         "pd_kwargs": "json",
@@ -99,12 +101,12 @@ class SqlToS3Operator(BaseOperator):
         s3_bucket: str,
         s3_key: str,
         sql_conn_id: str,
-        parameters: Union[None, Mapping, Iterable] = None,
+        parameters: None | Mapping | Iterable = None,
         replace: bool = False,
-        aws_conn_id: str = 'aws_default',
-        verify: Optional[Union[bool, str]] = None,
-        file_format: Literal['csv', 'json', 'parquet'] = 'csv',
-        pd_kwargs: Optional[dict] = None,
+        aws_conn_id: str = "aws_default",
+        verify: bool | str | None = None,
+        file_format: Literal["csv", "json", "parquet"] = "csv",
+        pd_kwargs: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -119,7 +121,7 @@ class SqlToS3Operator(BaseOperator):
         self.parameters = parameters
 
         if "path_or_buf" in self.pd_kwargs:
-            raise AirflowException('The argument path_or_buf is not allowed, please remove it')
+            raise AirflowException("The argument path_or_buf is not allowed, please remove it")
 
         try:
             self.file_format = FILE_FORMAT[file_format.upper()]
@@ -127,14 +129,14 @@ class SqlToS3Operator(BaseOperator):
             raise AirflowException(f"The argument file_format doesn't support {file_format} value.")
 
     @staticmethod
-    def _fix_dtypes(df: pd.DataFrame) -> None:
+    def _fix_dtypes(df: pd.DataFrame, file_format: FILE_FORMAT) -> None:
         """
         Mutate DataFrame to set dtypes for float columns containing NaN values.
         Set dtype of object to str to allow for downstream transformations.
         """
         for col in df:
 
-            if df[col].dtype.name == 'object':
+            if df[col].dtype.name == "object" and file_format == "parquet":
                 # if the type wasn't identified or converted, change it to a string so if can still be
                 # processed.
                 df[col] = df[col].astype(str)
@@ -151,13 +153,13 @@ class SqlToS3Operator(BaseOperator):
                     df[col] = np.where(df[col].isnull(), None, df[col])
                     df[col] = df[col].astype(pd.Float64Dtype())
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         sql_hook = self._get_hook()
         s3_conn = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         data_df = sql_hook.get_pandas_df(sql=self.query, parameters=self.parameters)
         self.log.info("Data from SQL obtained")
 
-        self._fix_dtypes(data_df)
+        self._fix_dtypes(data_df, self.file_format)
         file_options = FILE_OPTIONS_MAP[self.file_format]
 
         with NamedTemporaryFile(mode=file_options.mode, suffix=file_options.suffix) as tmp_file:
@@ -174,7 +176,7 @@ class SqlToS3Operator(BaseOperator):
         self.log.debug("Get connection for %s", self.sql_conn_id)
         conn = BaseHook.get_connection(self.sql_conn_id)
         hook = conn.get_hook()
-        if not callable(getattr(hook, 'get_pandas_df', None)):
+        if not callable(getattr(hook, "get_pandas_df", None)):
             raise AirflowException(
                 "This hook is not supported. The hook class must have get_pandas_df method."
             )

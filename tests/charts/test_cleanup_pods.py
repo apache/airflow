@@ -14,16 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
+from __future__ import annotations
 
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class CleanupPodsTest(unittest.TestCase):
+class TestCleanupPods:
     def test_should_create_cronjob_for_enabled_cleanup(self):
         docs = render_chart(
             values={
@@ -36,9 +35,9 @@ class CleanupPodsTest(unittest.TestCase):
             "spec.jobTemplate.spec.template.spec.containers[0].name", docs[0]
         )
         assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].image", docs[0]).startswith(
-            'apache/airflow'
+            "apache/airflow"
         )
-        assert {"name": "config", "configMap": {"name": "RELEASE-NAME-airflow-config"}} in jmespath.search(
+        assert {"name": "config", "configMap": {"name": "release-name-airflow-config"}} in jmespath.search(
             "spec.jobTemplate.spec.template.spec.volumes", docs[0]
         )
         assert {
@@ -52,7 +51,7 @@ class CleanupPodsTest(unittest.TestCase):
         render_chart(
             values={"cleanup": {"enabled": True}},
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
-            kubernetes_version='1.16.0',
+            kubernetes_version="1.16.0",
         )  # checks that no validation exception is raised
 
     def test_should_change_image_when_set_airflow_image(self):
@@ -123,14 +122,23 @@ class CleanupPodsTest(unittest.TestCase):
             "spec.jobTemplate.spec.template.spec.containers[0].args", docs[0]
         )
 
-    @parameterized.expand(
-        [
-            (None, None),
-            (None, ["custom", "args"]),
-            (["custom", "command"], None),
-            (["custom", "command"], ["custom", "args"]),
-        ]
-    )
+    def test_should_add_extraEnvs(self):
+        docs = render_chart(
+            values={
+                "cleanup": {
+                    "enabled": True,
+                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                },
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
+        assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
+            "spec.jobTemplate.spec.template.spec.containers[0].env", docs[0]
+        )
+
+    @pytest.mark.parametrize("command", [None, ["custom", "command"]])
+    @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_command_and_args_overrides(self, command, args):
         docs = render_chart(
             values={"cleanup": {"enabled": True, "command": command, "args": args}},
@@ -154,7 +162,7 @@ class CleanupPodsTest(unittest.TestCase):
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
         )
 
-        assert ["RELEASE-NAME"] == jmespath.search(
+        assert ["release-name"] == jmespath.search(
             "spec.jobTemplate.spec.template.spec.containers[0].command", docs[0]
         )
         assert ["Helm"] == jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].args", docs[0])
@@ -171,9 +179,26 @@ class CleanupPodsTest(unittest.TestCase):
         assert {
             "tier": "airflow",
             "component": "airflow-cleanup-pods",
-            "release": "RELEASE-NAME",
+            "release": "release-name",
             "project": "airflow",
         } == jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0])
+
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "cleanup": {
+                    "enabled": True,
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0])
+        assert (
+            jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     def test_cleanup_resources_are_configurable(self):
         resources = {
@@ -199,3 +224,33 @@ class CleanupPodsTest(unittest.TestCase):
         assert resources == jmespath.search(
             "spec.jobTemplate.spec.template.spec.containers[0].resources", docs[0]
         )
+
+    def test_should_set_job_history_limits(self):
+        docs = render_chart(
+            values={
+                "cleanup": {
+                    "enabled": True,
+                    "failedJobsHistoryLimit": 2,
+                    "successfulJobsHistoryLimit": 4,
+                },
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+        assert 2 == jmespath.search("spec.failedJobsHistoryLimit", docs[0])
+        assert 4 == jmespath.search("spec.successfulJobsHistoryLimit", docs[0])
+
+
+class TestCleanupServiceAccount:
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "cleanup": {
+                    "enabled": True,
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/cleanup/cleanup-serviceaccount.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"

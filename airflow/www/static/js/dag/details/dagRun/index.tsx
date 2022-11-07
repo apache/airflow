@@ -24,10 +24,14 @@ import {
   Button,
   Link,
   Divider,
+  Table,
+  Tbody,
+  Tr,
+  Td,
 } from '@chakra-ui/react';
 
-import { MdPlayArrow, MdOutlineSchedule, MdOutlineAccountTree } from 'react-icons/md';
-import { RiArrowGoBackFill } from 'react-icons/ri';
+import { MdOutlineAccountTree } from 'react-icons/md';
+import ReactJson from 'react-json-view';
 
 import { useGridData } from 'src/api';
 import { appendSearchParams, getMetaValue } from 'src/utils';
@@ -36,15 +40,17 @@ import { SimpleStatus } from 'src/dag/StatusBox';
 import { ClipboardText } from 'src/components/Clipboard';
 import { formatDuration, getDuration } from 'src/datetime_utils';
 import Time from 'src/components/Time';
+import RunTypeIcon from 'src/components/RunTypeIcon';
 
+import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 import MarkFailedRun from './MarkFailedRun';
 import MarkSuccessRun from './MarkSuccessRun';
 import QueueRun from './QueueRun';
 import ClearRun from './ClearRun';
+import DatasetTriggerEvents from './DatasetTriggerEvents';
 
 const dagId = getMetaValue('dag_id');
 const graphUrl = getMetaValue('graph_url');
-const dagRunDetailsUrl = getMetaValue('dagrun_details_url');
 
 interface Props {
   runId: DagRunType['runId'];
@@ -63,96 +69,143 @@ const DagRun = ({ runId }: Props) => {
     dataIntervalEnd,
     startDate,
     endDate,
+    queuedAt,
+    externalTrigger,
+    conf,
+    confIsJson,
   } = run;
-  const detailsParams = new URLSearchParams({
-    run_id: runId,
-  }).toString();
-  const graphParams = new URLSearchParams({
+  const graphParams = new URLSearchParamsWrapper({
     execution_date: executionDate,
   }).toString();
   const graphLink = appendSearchParams(graphUrl, graphParams);
-  const detailsLink = appendSearchParams(dagRunDetailsUrl, detailsParams);
 
   return (
-    <Box py="4px">
+    <>
       <Flex justifyContent="space-between" alignItems="center">
-        <Button as={Link} variant="ghost" colorScheme="blue" href={detailsLink}>DAG Run Details</Button>
         <Button as={Link} variant="ghost" colorScheme="blue" href={graphLink} leftIcon={<MdOutlineAccountTree />}>
           Graph
         </Button>
         <MarkFailedRun dagId={dagId} runId={runId} />
         <MarkSuccessRun dagId={dagId} runId={runId} />
       </Flex>
-      <Divider my={3} />
-      <Flex justifyContent="flex-end" alignItems="center">
-        <Text fontWeight="bold" mr={2}>Re-run:</Text>
-        <ClearRun dagId={dagId} runId={runId} />
-        <QueueRun dagId={dagId} runId={runId} />
-      </Flex>
-      <Divider my={3} />
-      <Flex alignItems="center">
-        <Text as="strong">Status:</Text>
-        <SimpleStatus state={state} mx={2} />
-        {state || 'no status'}
-      </Flex>
-      <br />
-      <Text whiteSpace="nowrap">
-        Run Id:
-        {' '}
-        <ClipboardText value={runId} />
-      </Text>
-      <Text>
-        Run Type:
-        {' '}
-        {runType === 'manual' && <MdPlayArrow style={{ display: 'inline' }} />}
-        {runType === 'backfill' && <RiArrowGoBackFill style={{ display: 'inline' }} />}
-        {runType === 'scheduled' && <MdOutlineSchedule style={{ display: 'inline' }} />}
-        {runType}
-      </Text>
-      <Text>
-        Duration:
-        {' '}
-        {formatDuration(getDuration(startDate, endDate))}
-      </Text>
-      {lastSchedulingDecision && (
-      <Text>
-        Last Scheduling Decision:
-        {' '}
-        <Time dateTime={lastSchedulingDecision} />
-      </Text>
+      <Box py="4px">
+        <Divider my={3} />
+        <Flex justifyContent="flex-end" alignItems="center">
+          <Text fontWeight="bold" mr={2}>Re-run:</Text>
+          <ClearRun dagId={dagId} runId={runId} />
+          <QueueRun dagId={dagId} runId={runId} />
+        </Flex>
+        <Divider my={3} />
+      </Box>
+      <Table variant="striped">
+        <Tbody>
+          <Tr>
+            <Td>Status</Td>
+            <Td>
+              <Flex>
+                <SimpleStatus state={state} mx={2} />
+                {state || 'no status'}
+              </Flex>
+            </Td>
+          </Tr>
+          <Tr>
+            <Td>Run ID</Td>
+            <Td><ClipboardText value={runId} /></Td>
+          </Tr>
+          <Tr>
+            <Td>Run type</Td>
+            <Td>
+              <RunTypeIcon runType={runType} />
+              {runType}
+            </Td>
+          </Tr>
+          <Tr>
+            <Td>Run duration</Td>
+            <Td>
+              {formatDuration(getDuration(startDate, endDate))}
+            </Td>
+          </Tr>
+          {lastSchedulingDecision && (
+            <Tr>
+              <Td>Last scheduling decision</Td>
+              <Td>
+                <Time dateTime={lastSchedulingDecision} />
+              </Td>
+            </Tr>
+          )}
+          {queuedAt && (
+            <Tr>
+              <Td>Queued at</Td>
+              <Td>
+                <Time dateTime={queuedAt} />
+              </Td>
+            </Tr>
+          )}
+          {startDate && (
+            <Tr>
+              <Td>Started</Td>
+              <Td>
+                <Time dateTime={startDate} />
+              </Td>
+            </Tr>
+          )}
+          {endDate && (
+            <Tr>
+              <Td>Ended</Td>
+              <Td>
+                <Time dateTime={endDate} />
+              </Td>
+            </Tr>
+          )}
+          {dataIntervalStart && dataIntervalEnd && (
+            <>
+              <Tr>
+                <Td>Data interval start</Td>
+                <Td>
+                  <Time dateTime={dataIntervalStart} />
+                </Td>
+              </Tr>
+              <Tr>
+                <Td>Data interval end</Td>
+                <Td>
+                  <Time dateTime={dataIntervalEnd} />
+                </Td>
+              </Tr>
+            </>
+          )}
+          <Tr>
+            <Td>Externally triggered</Td>
+            <Td>
+              {externalTrigger ? 'True' : 'False'}
+            </Td>
+          </Tr>
+          <Tr>
+            <Td>Run config</Td>
+            {
+                confIsJson
+                  ? (
+                    <Td>
+                      <ReactJson
+                        src={JSON.parse(conf ?? '')}
+                        name={false}
+                        theme="rjv-default"
+                        iconStyle="triangle"
+                        indentWidth={2}
+                        displayDataTypes={false}
+                        enableClipboard={false}
+                        style={{ backgroundColor: 'inherit' }}
+                      />
+                    </Td>
+                  )
+                  : <Td>{conf ?? 'None'}</Td>
+              }
+          </Tr>
+        </Tbody>
+      </Table>
+      {runType === 'dataset_triggered' && (
+        <DatasetTriggerEvents runId={runId} />
       )}
-      <br />
-      {startDate && (
-      <Text>
-        Started:
-        {' '}
-        <Time dateTime={startDate} />
-      </Text>
-      )}
-      {endDate && (
-      <Text>
-        Ended:
-        {' '}
-        <Time dateTime={endDate} />
-      </Text>
-      )}
-      {dataIntervalStart && dataIntervalEnd && (
-        <>
-          <br />
-          <Text as="strong">Data Interval:</Text>
-          <Text>
-            Start:
-            {' '}
-            <Time dateTime={dataIntervalStart} />
-          </Text>
-          <Text>
-            End:
-            {' '}
-            <Time dateTime={dataIntervalEnd} />
-          </Text>
-        </>
-      )}
-    </Box>
+    </>
   );
 };
 

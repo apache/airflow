@@ -40,37 +40,40 @@ Take a look at the following snippet of code:
     from datetime import datetime
 
     from airflow import DAG
+    from airflow.decorators import task
     from airflow.operators.bash import BashOperator
-    from airflow.operators.python import PythonOperator
 
     # A DAG represents a workflow, a collection of tasks
-    with DAG(dag_id="demo", start_date=datetime(2022, 1, 1), schedule_interval="0 0 * * *") as dag:
+    with DAG(dag_id="demo", start_date=datetime(2022, 1, 1), schedule="0 0 * * *") as dag:
 
         # Tasks are represented as operators
         hello = BashOperator(task_id="hello", bash_command="echo hello")
-        airflow = PythonOperator(task_id="airflow", python_callable=lambda: print("airflow"))
+
+        @task()
+        def airflow():
+            print("airflow")
 
         # Set dependencies between tasks
-        hello >> airflow
+        hello >> airflow()
 
 
 Here you see:
 
 - A DAG named "demo", starting on Jan 1st 2022 and running once a day. A DAG is Airflow's representation of a workflow.
-- Two tasks, a BashOperator running a Bash script and a PythonOperator running a Python script
+- Two tasks, a BashOperator running a Bash script and a Python function defined using the ``@task`` decorator
 - ``>>`` between the tasks defines a dependency and controls in which order the tasks will be executed
 
 Airflow evaluates this script and executes the tasks at the set interval and in the defined order. The status
 of the "demo" DAG is visible in the web interface:
 
-.. image:: /img/hello_world_graph_view.png
+.. image:: /img/demo_graph_view.png
   :alt: Demo DAG in the Graph View, showing the status of one DAG run
 
 This example demonstrates a simple Bash and Python script, but these tasks can run any arbitrary code. Think
 of running a Spark job, moving data between two buckets, or sending an email. The same structure can also be
 seen running over time:
 
-.. image:: /img/hello_world_grid_view.png
+.. image:: /img/demo_grid_view.png
   :alt: Demo DAG in the Grid View, showing the status of all DAG runs
 
 Each column represents one DAG run. These are two of the most used views in Airflow, but there are several
@@ -125,11 +128,10 @@ so coding will always be required.
     Overview <self>
     project
     license
-    start/index
+    start
     installation/index
     upgrading-from-1-10/index
-    tutorial
-    tutorial_taskflow_api
+    tutorial/index
     howto/index
     ui
     concepts/index
@@ -165,4 +167,10 @@ so coding will always be required.
     deprecated-rest-api-ref
     Configurations <configurations-ref>
     Extra packages <extra-packages-ref>
+
+.. toctree::
+    :hidden:
+    :caption: Internal DB details
+
     Database Migrations <migrations-ref>
+    Database ERD Schema <database-erd-ref>

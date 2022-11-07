@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 This sample "listen to directory". move the new file and print it,
 using docker-containers.
@@ -24,6 +23,8 @@ BashOperator & ShortCircuitOperator.
 TODO: Review the workflow, change it accordingly to
 your environment & enable the code.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -35,11 +36,11 @@ from airflow.operators.python import ShortCircuitOperator
 from airflow.providers.docker.operators.docker import DockerOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = 'docker_sample_copy_data'
+DAG_ID = "docker_sample_copy_data"
 
 with models.DAG(
     DAG_ID,
-    schedule_interval="@once",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "docker"],

@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import pathlib
 import sys
 from pathlib import Path
-from typing import List
 
 from rich.console import Console
 
@@ -34,11 +35,11 @@ ROOT_DIR = pathlib.Path(__file__).resolve().parents[3]
 
 console = Console(color_system="standard", width=200)
 
-errors: List[str] = []
+errors: list[str] = []
 
 added = False
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     for dirname, sub_dirs, files in os.walk(ROOT_DIR / "tests"):
         dir = Path(dirname)
         sub_dirs[:] = [subdir for subdir in sub_dirs if subdir not in {"__pycache__", "test_logs"}]

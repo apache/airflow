@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 This module contains sensor that check the existence
 of a table in a Cassandra cluster.
 """
+from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -52,7 +52,7 @@ class CassandraTableSensor(BaseSensorOperator):
         when connecting to Cassandra cluster
     """
 
-    template_fields: Sequence[str] = ('table',)
+    template_fields: Sequence[str] = ("table",)
 
     def __init__(
         self,
@@ -65,7 +65,7 @@ class CassandraTableSensor(BaseSensorOperator):
         self.cassandra_conn_id = cassandra_conn_id
         self.table = table
 
-    def poke(self, context: "Context") -> bool:
-        self.log.info('Sensor check existence of table: %s', self.table)
+    def poke(self, context: Context) -> bool:
+        self.log.info("Sensor check existence of table: %s", self.table)
         hook = CassandraHook(self.cassandra_conn_id)
         return hook.table_exists(self.table)

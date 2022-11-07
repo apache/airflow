@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery to MySQL operator."""
-from typing import TYPE_CHECKING, List, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
@@ -74,10 +76,10 @@ class BigQueryToMySqlOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'dataset_id',
-        'table_id',
-        'mysql_table',
-        'impersonation_chain',
+        "dataset_id",
+        "table_id",
+        "mysql_table",
+        "impersonation_chain",
     )
 
     def __init__(
@@ -85,15 +87,15 @@ class BigQueryToMySqlOperator(BaseOperator):
         *,
         dataset_table: str,
         mysql_table: str,
-        selected_fields: Optional[Union[List[str], str]] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        mysql_conn_id: str = 'mysql_default',
-        database: Optional[str] = None,
-        delegate_to: Optional[str] = None,
+        selected_fields: list[str] | str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        mysql_conn_id: str = "mysql_default",
+        database: str | None = None,
+        delegate_to: str | None = None,
         replace: bool = False,
         batch_size: int = 1000,
-        location: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        location: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -108,11 +110,11 @@ class BigQueryToMySqlOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
         try:
-            self.dataset_id, self.table_id = dataset_table.split('.')
+            self.dataset_id, self.table_id = dataset_table.split(".")
         except ValueError:
-            raise ValueError(f'Could not parse {dataset_table} as <dataset>.<table>') from None
+            raise ValueError(f"Could not parse {dataset_table} as <dataset>.<table>") from None
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         big_query_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

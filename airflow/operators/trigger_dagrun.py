@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 import json
 import time
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Sequence, cast
 
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
@@ -39,7 +40,6 @@ XCOM_RUN_ID = "trigger_run_id"
 
 
 if TYPE_CHECKING:
-    from airflow.models.abstractoperator import AbstractOperator
     from airflow.models.taskinstance import TaskInstanceKey
 
 
@@ -51,12 +51,7 @@ class TriggerDagRunLink(BaseOperatorLink):
 
     name = 'Triggered DAG'
 
-    def get_link(
-        self,
-        operator: "AbstractOperator",
-        *,
-        ti_key: "TaskInstanceKey",
-    ) -> str:
+    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         # Fetch the correct execution date for the triggerED dag which is
         # stored in xcom during execution of the triggerING task.
         when = XCom.get_value(ti_key=ti_key, key=XCOM_EXECUTION_DATE_ISO)
@@ -75,6 +70,8 @@ class TriggerDagRunOperator(BaseOperator):
     :param execution_date: Execution date for the dag (templated).
     :param reset_dag_run: Whether or not clear existing dag run if already exists.
         This is useful when backfill or rerun an existing dag run.
+        This only resets (not recreates) the dag run.
+        Dag run conf is immutable and will not be reset on rerun of an existing dag run.
         When reset_dag_run=False and dag run exists, DagRunAlreadyExists will be raised.
         When reset_dag_run=True and dag run exists, existing dag run will be cleared to rerun.
     :param wait_for_completion: Whether or not wait for dag run completion. (default: False)
@@ -93,14 +90,14 @@ class TriggerDagRunOperator(BaseOperator):
         self,
         *,
         trigger_dag_id: str,
-        trigger_run_id: Optional[str] = None,
-        conf: Optional[Dict] = None,
-        execution_date: Optional[Union[str, datetime.datetime]] = None,
+        trigger_run_id: str | None = None,
+        conf: dict | None = None,
+        execution_date: str | datetime.datetime | None = None,
         reset_dag_run: bool = False,
         wait_for_completion: bool = False,
         poke_interval: int = 60,
-        allowed_states: Optional[List] = None,
-        failed_states: Optional[List] = None,
+        allowed_states: list | None = None,
+        failed_states: list | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -120,11 +117,6 @@ class TriggerDagRunOperator(BaseOperator):
 
         self.execution_date = execution_date
 
-        try:
-            json.dumps(self.conf)
-        except TypeError:
-            raise AirflowException("conf parameter should be JSON Serializable")
-
     def execute(self, context: Context):
         if isinstance(self.execution_date, datetime.datetime):
             parsed_execution_date = self.execution_date
@@ -132,6 +124,11 @@ class TriggerDagRunOperator(BaseOperator):
             parsed_execution_date = timezone.parse(self.execution_date)
         else:
             parsed_execution_date = timezone.utcnow()
+
+        try:
+            json.dumps(self.conf)
+        except TypeError:
+            raise AirflowException("conf parameter should be JSON Serializable")
 
         if self.trigger_run_id:
             run_id = self.trigger_run_id

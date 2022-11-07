@@ -14,15 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
+from __future__ import annotations
 
 import jmespath
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class CeleryKubernetesExecutorTest(unittest.TestCase):
+class TestCeleryKubernetesExecutor:
     def test_should_create_a_worker_deployment_with_the_celery_executor(self):
         docs = render_chart(
             values={

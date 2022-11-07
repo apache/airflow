@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
@@ -47,19 +48,19 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
 
     """
 
-    template_fields: Sequence[str] = ('function_name', 'payload', 'qualifier', 'invocation_type')
-    ui_color = '#ff7300'
+    template_fields: Sequence[str] = ("function_name", "payload", "qualifier", "invocation_type")
+    ui_color = "#ff7300"
 
     def __init__(
         self,
         *,
         function_name: str,
-        log_type: Optional[str] = None,
-        qualifier: Optional[str] = None,
-        invocation_type: Optional[str] = None,
-        client_context: Optional[str] = None,
-        payload: Optional[str] = None,
-        aws_conn_id: str = 'aws_default',
+        log_type: str | None = None,
+        qualifier: str | None = None,
+        invocation_type: str | None = None,
+        client_context: str | None = None,
+        payload: str | None = None,
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -71,7 +72,7 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
         self.client_context = client_context
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """
         Invokes the target AWS Lambda function from Airflow.
 
@@ -90,13 +91,13 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
         )
         self.log.info("Lambda response metadata: %r", response.get("ResponseMetadata"))
         if response.get("StatusCode") not in success_status_codes:
-            raise ValueError('Lambda function did not execute', json.dumps(response.get("ResponseMetadata")))
+            raise ValueError("Lambda function did not execute", json.dumps(response.get("ResponseMetadata")))
         payload_stream = response.get("Payload")
         payload = payload_stream.read().decode()
         if "FunctionError" in response:
             raise ValueError(
-                'Lambda function execution resulted in error',
+                "Lambda function execution resulted in error",
                 {"ResponseMetadata": response.get("ResponseMetadata"), "Payload": payload},
             )
-        self.log.info('Lambda function invocation succeeded: %r', response.get("ResponseMetadata"))
+        self.log.info("Lambda function invocation succeeded: %r", response.get("ResponseMetadata"))
         return payload

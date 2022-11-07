@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from datetime import datetime
 
@@ -24,7 +25,7 @@ from airflow.operators.python import PythonOperator
 with DAG(
     "test_invalid_param",
     start_date=datetime(2021, 1, 1),
-    schedule_interval="@once",
+    schedule="@once",
     params={
         # a mandatory str param
         "str_param": Param(type="string", minLength=2, maxLength=4),

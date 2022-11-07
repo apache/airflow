@@ -24,6 +24,42 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.3+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+Misc
+~~~~
+
+* In JdbcHook, non-prefixed extra fields are supported and are preferred.  E.g. ``drv_path`` will
+  be preferred if ``extra__jdbc__drv_path`` is also present.
+
+3.2.1
+.....
+
+Misc
+~~~~
+
+* ``Add common-sql lower bound for common-sql (#25789)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Adding configurable fetch_all_handler for JdbcOperator (#25412)``
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+
+
 3.1.0
 .....
 

@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG to submit Apache Spark applications using
 `SparkSubmitOperator`, `SparkJDBCOperator` and `SparkSqlOperator`.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -34,10 +34,10 @@ DAG_ID = "example_spark_operator"
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [START howto_operator_spark_submit]
     submit_job = SparkSubmitOperator(
@@ -47,7 +47,7 @@ with DAG(
 
     # [START howto_operator_spark_jdbc]
     jdbc_to_spark_job = SparkJDBCOperator(
-        cmd_type='jdbc_to_spark',
+        cmd_type="jdbc_to_spark",
         jdbc_table="foo",
         spark_jars="${SPARK_HOME}/jars/postgresql-42.2.12.jar",
         jdbc_driver="org.postgresql.Driver",
@@ -58,7 +58,7 @@ with DAG(
     )
 
     spark_to_jdbc_job = SparkJDBCOperator(
-        cmd_type='spark_to_jdbc',
+        cmd_type="spark_to_jdbc",
         jdbc_table="foo",
         spark_jars="${SPARK_HOME}/jars/postgresql-42.2.12.jar",
         jdbc_driver="org.postgresql.Driver",

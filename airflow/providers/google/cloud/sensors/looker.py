@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains Google Cloud Looker sensors."""
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.looker import JobStatus, LookerHook
@@ -47,18 +47,18 @@ class LookerCheckPdtBuildSensor(BaseSensorOperator):
         self.materialization_id = materialization_id
         self.looker_conn_id = looker_conn_id
         self.cancel_on_kill = cancel_on_kill
-        self.hook: Optional[LookerHook] = None
+        self.hook: LookerHook | None = None
 
-    def poke(self, context: "Context") -> bool:
+    def poke(self, context: Context) -> bool:
 
         self.hook = LookerHook(looker_conn_id=self.looker_conn_id)
 
         if not self.materialization_id:
-            raise AirflowException('Invalid `materialization_id`.')
+            raise AirflowException("Invalid `materialization_id`.")
 
         # materialization_id is templated var pulling output from start task
         status_dict = self.hook.pdt_build_status(materialization_id=self.materialization_id)
-        status = status_dict['status']
+        status = status_dict["status"]
 
         if status == JobStatus.ERROR.value:
             msg = status_dict["message"]
@@ -67,11 +67,11 @@ class LookerCheckPdtBuildSensor(BaseSensorOperator):
             )
         elif status == JobStatus.CANCELLED.value:
             raise AirflowException(
-                f'PDT materialization job was cancelled. Job id: {self.materialization_id}.'
+                f"PDT materialization job was cancelled. Job id: {self.materialization_id}."
             )
         elif status == JobStatus.UNKNOWN.value:
             raise AirflowException(
-                f'PDT materialization job has unknown status. Job id: {self.materialization_id}.'
+                f"PDT materialization job has unknown status. Job id: {self.materialization_id}."
             )
         elif status == JobStatus.DONE.value:
             self.log.debug(

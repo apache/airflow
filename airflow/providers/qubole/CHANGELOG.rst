@@ -24,6 +24,34 @@
 Changelog
 ---------
 
+3.2.1
+.....
+
+Misc
+~~~~
+
+* ``Add common-sql lower bound for common-sql (#25789)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+   * ``D400 first line should end with period batch02 (#25268)``
+
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Make extra link work in UI (#25500)``
+* ``Move all "old" SQL operators to common.sql providers (#25350)``
+* ``Improve taskflow type hints with ParamSpec (#25173)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Correctly render 'results_parser_callable' param in Qubole docs (#25514)``
+
+
 3.1.0
 .....
 

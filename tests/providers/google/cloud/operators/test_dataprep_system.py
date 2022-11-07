@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 from os import environ
 
@@ -26,10 +28,10 @@ from tests.test_utils.db import clear_db_connections
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest
 
 TOKEN = environ.get("DATAPREP_TOKEN")
-EXTRA = {"extra__dataprep__token": TOKEN}
+EXTRA = {"token": TOKEN}
 
 
-@pytest.mark.skipif(TOKEN is None, reason='Dataprep token not present')
+@pytest.mark.skipif(TOKEN is None, reason="Dataprep token not present")
 class DataprepExampleDagsTest(GoogleSystemTest):
     """
     System tests for Dataprep operators.

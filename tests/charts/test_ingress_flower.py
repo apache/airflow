@@ -14,17 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import itertools
-import unittest
 
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class IngressFlowerTest(unittest.TestCase):
+class TestIngressFlower:
     def test_should_pass_validation_with_just_ingress_enabled_v1(self):
         render_chart(
             values={"flower": {"enabled": True}, "ingress": {"flower": {"enabled": True}}},
@@ -35,7 +35,7 @@ class IngressFlowerTest(unittest.TestCase):
         render_chart(
             values={"flower": {"enabled": True}, "ingress": {"flower": {"enabled": True}}},
             show_only=["templates/flower/flower-ingress.yaml"],
-            kubernetes_version='1.16.0',
+            kubernetes_version="1.16.0",
         )  # checks that no validation exception is raised
 
     def test_should_allow_more_than_one_annotation(self):
@@ -136,7 +136,8 @@ class IngressFlowerTest(unittest.TestCase):
         )
         assert not jmespath.search("spec.rules[*].host", docs[0])
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "global_value, flower_value, expected",
         [
             (None, None, False),
             (None, False, False),
@@ -145,7 +146,7 @@ class IngressFlowerTest(unittest.TestCase):
             (True, None, True),
             (False, True, True),  # We will deploy it if _either_ are true
             (True, False, True),
-        ]
+        ],
     )
     def test_ingress_created(self, global_value, flower_value, expected):
         values = {"flower": {"enabled": True}, "ingress": {}}
@@ -168,3 +169,18 @@ class IngressFlowerTest(unittest.TestCase):
             show_only=["templates/flower/flower-ingress.yaml"],
         )
         assert 0 == len(docs)
+
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "ingress": {"enabled": True},
+                "flower": {
+                    "enabled": True,
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/flower/flower-ingress.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"

@@ -18,6 +18,8 @@
 """
 Example use of Neo4j related operators.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -30,15 +32,15 @@ DAG_ID = "example_neo4j"
 with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
 
     # [START run_query_neo4j_operator]
 
     neo4j_task = Neo4jOperator(
-        task_id='run_neo4j_query',
-        neo4j_conn_id='neo4j_conn_id',
+        task_id="run_neo4j_query",
+        neo4j_conn_id="neo4j_conn_id",
         sql='MATCH (tom {name: "Tom Hanks", date: "{{ds}}"}) RETURN tom',
         dag=dag,
     )

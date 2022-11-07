@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
+from __future__ import annotations
 
 from airflow.api_connexion.schemas.error_schema import (
     ImportErrorCollection,
@@ -27,12 +27,12 @@ from airflow.utils.session import provide_session
 from tests.test_utils.db import clear_db_import_errors
 
 
-class TestErrorSchemaBase(unittest.TestCase):
-    def setUp(self) -> None:
+class TestErrorSchemaBase:
+    def setup_method(self) -> None:
         clear_db_import_errors()
         self.timestamp = "2020-06-10T12:02:44"
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         clear_db_import_errors()
 
 

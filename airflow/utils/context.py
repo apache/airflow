@@ -15,31 +15,32 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Jinja2 template rendering context helper."""
+from __future__ import annotations
 
 import contextlib
 import copy
 import functools
 import warnings
 from typing import (
+    TYPE_CHECKING,
     Any,
     Container,
-    Dict,
     ItemsView,
     Iterator,
     KeysView,
-    List,
     Mapping,
     MutableMapping,
-    Optional,
-    Tuple,
     ValuesView,
 )
 
 import lazy_object_proxy
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.types import NOTSET
+
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator
 
 # NOTE: Please keep this in sync with Context in airflow/utils/context.pyi.
 KNOWN_CONTEXT_KEYS = {
@@ -77,6 +78,7 @@ KNOWN_CONTEXT_KEYS = {
     "ti",
     "tomorrow_ds",
     "tomorrow_ds_nodash",
+    "triggering_dataset_events",
     "ts",
     "ts_nodash",
     "ts_nodash_with_tz",
@@ -136,11 +138,11 @@ class ConnectionAccessor:
             return default_conn
 
 
-class AirflowContextDeprecationWarning(DeprecationWarning):
+class AirflowContextDeprecationWarning(RemovedInAirflow3Warning):
     """Warn for usage of deprecated context variables in a task."""
 
 
-def _create_deprecation_warning(key: str, replacements: List[str]) -> DeprecationWarning:
+def _create_deprecation_warning(key: str, replacements: list[str]) -> RemovedInAirflow3Warning:
     message = f"Accessing {key!r} from the template is deprecated and will be removed in a future version."
     if not replacements:
         return AirflowContextDeprecationWarning(message)
@@ -159,7 +161,7 @@ class Context(MutableMapping[str, Any]):
     (and only when) deprecated context keys are accessed.
     """
 
-    _DEPRECATION_REPLACEMENTS: Dict[str, List[str]] = {
+    _DEPRECATION_REPLACEMENTS: dict[str, list[str]] = {
         "execution_date": ["data_interval_start", "logical_date"],
         "next_ds": ["{{ data_interval_end | ds }}"],
         "next_ds_nodash": ["{{ data_interval_end | ds_nodash }}"],
@@ -174,7 +176,7 @@ class Context(MutableMapping[str, Any]):
         "yesterday_ds_nodash": [],
     }
 
-    def __init__(self, context: Optional[MutableMapping[str, Any]] = None, **kwargs: Any) -> None:
+    def __init__(self, context: MutableMapping[str, Any] | None = None, **kwargs: Any) -> None:
         self._context: MutableMapping[str, Any] = context or {}
         if kwargs:
             self._context.update(kwargs)
@@ -183,7 +185,7 @@ class Context(MutableMapping[str, Any]):
     def __repr__(self) -> str:
         return repr(self._context)
 
-    def __reduce_ex__(self, protocol: int) -> Tuple[Any, ...]:
+    def __reduce_ex__(self, protocol: int) -> tuple[Any, ...]:
         """Pickle the context as a dict.
 
         We are intentionally going through ``__getitem__`` in this function,
@@ -192,7 +194,7 @@ class Context(MutableMapping[str, Any]):
         items = [(key, self[key]) for key in self._context]
         return dict, (items,)
 
-    def __copy__(self) -> "Context":
+    def __copy__(self) -> Context:
         new = type(self)(copy.copy(self._context))
         new._deprecation_replacements = self._deprecation_replacements.copy()
         return new
@@ -241,7 +243,7 @@ class Context(MutableMapping[str, Any]):
         return ValuesView(self._context)
 
 
-def context_merge(context: "Context", *args: Any, **kwargs: Any) -> None:
+def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
     """Merge parameters into an existing context.
 
     Like ``dict.update()`` , this take the same parameters, and updates
@@ -256,7 +258,22 @@ def context_merge(context: "Context", *args: Any, **kwargs: Any) -> None:
     context.update(*args, **kwargs)
 
 
-def context_copy_partial(source: "Context", keys: Container[str]) -> "Context":
+def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
+    """Update context after task unmapping.
+
+    Since ``get_template_context()`` is called before unmapping, the context
+    contains information about the mapped task. We need to do some in-place
+    updates to ensure the template context reflects the unmapped task instead.
+
+    :meta private:
+    """
+    from airflow.models.param import process_params
+
+    context["task"] = context["ti"].task = task
+    context["params"] = process_params(context["dag"], task, context["dag_run"], suppress_exception=False)
+
+
+def context_copy_partial(source: Context, keys: Container[str]) -> Context:
     """Create a context by copying items under selected keys in ``source``.
 
     This is implemented as a free function because the ``Context`` type is
@@ -284,6 +301,11 @@ def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
 
     :meta private:
     """
+    if not isinstance(source, Context):
+        # Sometimes we are passed a plain dict (usually in tests, or in User's
+        # custom operators) -- be lienent about what we accept so we don't
+        # break anything for users.
+        return source
 
     def _deprecated_proxy_factory(k: str, v: Any) -> Any:
         replacements = source._deprecation_replacements[k]

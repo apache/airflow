@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
@@ -42,18 +44,18 @@ class SalesforceBulkOperator(BaseOperator):
     :param salesforce_conn_id: The :ref:`Salesforce Connection id <howto/connection:SalesforceHook>`.
     """
 
-    available_operations = ('insert', 'update', 'upsert', 'delete', 'hard_delete')
+    available_operations = ("insert", "update", "upsert", "delete", "hard_delete")
 
     def __init__(
         self,
         *,
-        operation: Literal[available_operations],
+        operation: Literal["insert", "update", "upsert", "delete", "hard_delete"],
         object_name: str,
         payload: list,
-        external_id_field: str = 'Id',
+        external_id_field: str = "Id",
         batch_size: int = 10000,
         use_serial: bool = False,
-        salesforce_conn_id: str = 'salesforce_default',
+        salesforce_conn_id: str = "salesforce_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -76,7 +78,7 @@ class SalesforceBulkOperator(BaseOperator):
                 f"Available operations are {self.available_operations}."
             )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """
         Makes an HTTP request to Salesforce Bulk API.
 
@@ -87,26 +89,26 @@ class SalesforceBulkOperator(BaseOperator):
         conn = sf_hook.get_conn()
 
         result = []
-        if self.operation == 'insert':
+        if self.operation == "insert":
             result = conn.bulk.__getattr__(self.object_name).insert(
                 data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
             )
-        elif self.operation == 'update':
+        elif self.operation == "update":
             result = conn.bulk.__getattr__(self.object_name).update(
                 data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
             )
-        elif self.operation == 'upsert':
+        elif self.operation == "upsert":
             result = conn.bulk.__getattr__(self.object_name).upsert(
                 data=self.payload,
                 external_id_field=self.external_id_field,
                 batch_size=self.batch_size,
                 use_serial=self.use_serial,
             )
-        elif self.operation == 'delete':
+        elif self.operation == "delete":
             result = conn.bulk.__getattr__(self.object_name).delete(
                 data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
             )
-        elif self.operation == 'hard_delete':
+        elif self.operation == "hard_delete":
             result = conn.bulk.__getattr__(self.object_name).hard_delete(
                 data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
             )

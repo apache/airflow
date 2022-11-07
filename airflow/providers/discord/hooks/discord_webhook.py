@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import json
 import re
-from typing import Any, Dict, Optional
+from typing import Any
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -47,20 +48,20 @@ class DiscordWebhookHook(HttpHook):
     :param proxy: Proxy to use to make the Discord webhook call
     """
 
-    conn_name_attr = 'http_conn_id'
-    default_conn_name = 'discord_default'
-    conn_type = 'discord'
-    hook_name = 'Discord'
+    conn_name_attr = "http_conn_id"
+    default_conn_name = "discord_default"
+    conn_type = "discord"
+    hook_name = "Discord"
 
     def __init__(
         self,
-        http_conn_id: Optional[str] = None,
-        webhook_endpoint: Optional[str] = None,
+        http_conn_id: str | None = None,
+        webhook_endpoint: str | None = None,
         message: str = "",
-        username: Optional[str] = None,
-        avatar_url: Optional[str] = None,
+        username: str | None = None,
+        avatar_url: str | None = None,
         tts: bool = False,
-        proxy: Optional[str] = None,
+        proxy: str | None = None,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -73,7 +74,7 @@ class DiscordWebhookHook(HttpHook):
         self.tts = tts
         self.proxy = proxy
 
-    def _get_webhook_endpoint(self, http_conn_id: Optional[str], webhook_endpoint: Optional[str]) -> str:
+    def _get_webhook_endpoint(self, http_conn_id: str | None, webhook_endpoint: str | None) -> str:
         """
         Given a Discord http_conn_id, return the default webhook endpoint or override if a
         webhook_endpoint is manually supplied.
@@ -87,14 +88,14 @@ class DiscordWebhookHook(HttpHook):
         elif http_conn_id:
             conn = self.get_connection(http_conn_id)
             extra = conn.extra_dejson
-            endpoint = extra.get('webhook_endpoint', '')
+            endpoint = extra.get("webhook_endpoint", "")
         else:
             raise AirflowException(
-                'Cannot get webhook endpoint: No valid Discord webhook endpoint or http_conn_id supplied.'
+                "Cannot get webhook endpoint: No valid Discord webhook endpoint or http_conn_id supplied."
             )
 
         # make sure endpoint matches the expected Discord webhook format
-        if not re.match('^webhooks/[0-9]+/[a-zA-Z0-9_-]+$', endpoint):
+        if not re.match("^webhooks/[0-9]+/[a-zA-Z0-9_-]+$", endpoint):
             raise AirflowException(
                 'Expected Discord webhook endpoint in the form of "webhooks/{webhook.id}/{webhook.token}".'
             )
@@ -108,19 +109,19 @@ class DiscordWebhookHook(HttpHook):
 
         :return: Discord payload (str) to send
         """
-        payload: Dict[str, Any] = {}
+        payload: dict[str, Any] = {}
 
         if self.username:
-            payload['username'] = self.username
+            payload["username"] = self.username
         if self.avatar_url:
-            payload['avatar_url'] = self.avatar_url
+            payload["avatar_url"] = self.avatar_url
 
-        payload['tts'] = self.tts
+        payload["tts"] = self.tts
 
         if len(self.message) <= 2000:
-            payload['content'] = self.message
+            payload["content"] = self.message
         else:
-            raise AirflowException('Discord message length must be 2000 or fewer characters.')
+            raise AirflowException("Discord message length must be 2000 or fewer characters.")
 
         return json.dumps(payload)
 
@@ -129,13 +130,13 @@ class DiscordWebhookHook(HttpHook):
         proxies = {}
         if self.proxy:
             # we only need https proxy for Discord
-            proxies = {'https': self.proxy}
+            proxies = {"https": self.proxy}
 
         discord_payload = self._build_discord_payload()
 
         self.run(
             endpoint=self.webhook_endpoint,
             data=discord_payload,
-            headers={'Content-type': 'application/json'},
-            extra_options={'proxies': proxies},
+            headers={"Content-type": "application/json"},
+            extra_options={"proxies": proxies},
         )

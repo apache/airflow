@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module allows you to connect to the Google Discovery API Service and query it."""
-from typing import Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import Sequence
 
 from googleapiclient.discovery import Resource, build
 
@@ -45,15 +46,15 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         account from the list granting this role to the originating account.
     """
 
-    _conn = None  # type: Optional[Resource]
+    _conn: Resource | None = None
 
     def __init__(
         self,
         api_service_name: str,
         api_version: str,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -68,7 +69,6 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         Creates an authenticated api client for the given api service name and credentials.
 
         :return: the authenticated api service.
-        :rtype: Resource
         """
         self.log.info("Authenticating Google API Client")
 
@@ -96,7 +96,6 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         :param paginate: If set to True, it will collect all pages of data.
         :param num_retries: Define the number of retries for the requests being made if it fails.
         :return: the API response from the passed endpoint.
-        :rtype: dict
         """
         google_api_conn_client = self.get_conn()
 
@@ -104,7 +103,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         return api_response
 
     def _call_api_request(self, google_api_conn_client, endpoint, data, paginate, num_retries):
-        api_endpoint_parts = endpoint.split('.')
+        api_endpoint_parts = endpoint.split(".")
 
         google_api_endpoint_instance = self._build_api_request(
             google_api_conn_client, api_sub_functions=api_endpoint_parts[1:], api_endpoint_params=data
@@ -150,7 +149,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
                 google_api_conn_client = getattr(google_api_conn_client, sub_function)
                 google_api_conn_client = google_api_conn_client()
             else:
-                google_api_conn_client = getattr(google_api_conn_client, sub_function + '_next')
+                google_api_conn_client = getattr(google_api_conn_client, sub_function + "_next")
                 google_api_conn_client = google_api_conn_client(api_endpoint_instance, api_response)
 
         return google_api_conn_client

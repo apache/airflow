@@ -146,7 +146,7 @@ Create a database instance
 To create a AWS DB instance you can use
 :class:`~airflow.providers.amazon.aws.operators.rds.RdsCreateDbInstanceOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/rds/example_rds_instance.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_instance.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_rds_create_db_instance]
@@ -160,14 +160,59 @@ Delete a database instance
 To delete a AWS DB instance you can use
 :class:`~airflow.providers.amazon.aws.operators.rds.RDSDeleteDbInstanceOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/rds/example_rds_instance.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_instance.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_rds_delete_db_instance]
     :end-before: [END howto_operator_rds_delete_db_instance]
 
+.. _howto/operator:RdsStartDbOperator:
+
+Start a database instance or cluster
+====================================
+
+To start an Amazon RDS DB instance or cluster you can use
+:class:`~airflow.providers.amazon.aws.operators.rds.RdsStartDbOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_instance.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_rds_start_db]
+    :end-before: [END howto_operator_rds_start_db]
+
+
+.. _howto/operator:RdsStopDbOperator:
+
+Stop a database instance or cluster
+===================================
+
+To stop an Amazon RDS DB instance or cluster you can use
+:class:`~airflow.providers.amazon.aws.operators.rds.RdsStopDbOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_instance.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_rds_stop_db]
+    :end-before: [END howto_operator_rds_stop_db]
+
 Sensors
 -------
+
+.. _howto/sensor:RdsDbSensor:
+
+Wait on an Amazon RDS instance or cluster status
+================================================
+
+To wait for an Amazon RDS instance or cluster to reach a specific status you can use
+:class:`~airflow.providers.amazon.aws.sensors.rds.RdsDbSensor`.
+By default, the sensor waits for a database instance to reach the ``available`` state.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_instance.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_rds_instance]
+    :end-before: [END howto_sensor_rds_instance]
+
 
 .. _howto/sensor:RdsSnapshotExistenceSensor:
 
@@ -204,3 +249,4 @@ Reference
 ---------
 
 * `AWS boto3 library documentation for RDS <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html>`__
+* `RDS DB instance statuses <https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/accessing-monitoring.html>`__

@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
 import json
@@ -22,8 +21,8 @@ import os
 import sys
 from enum import Enum
 
-from rich.markup import escape
-
+from airflow_breeze.utils.github_actions import get_ga_output
+from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
 if sys.version_info >= (3, 8):
@@ -38,22 +37,18 @@ from typing import Any, Dict, List, TypeVar
 
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
-    CURRENT_HELM_VERSIONS,
-    CURRENT_KIND_VERSIONS,
-    CURRENT_KUBERNETES_MODES,
     CURRENT_KUBERNETES_VERSIONS,
     CURRENT_MSSQL_VERSIONS,
     CURRENT_MYSQL_VERSIONS,
     CURRENT_POSTGRES_VERSIONS,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
-    DEFAULT_HELM_VERSION,
-    DEFAULT_KIND_VERSION,
-    DEFAULT_KUBERNETES_MODE,
     DEFAULT_KUBERNETES_VERSION,
     DEFAULT_MSSQL_VERSION,
     DEFAULT_MYSQL_VERSION,
     DEFAULT_POSTGRES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    HELM_VERSION,
+    KIND_VERSION,
     GithubEvents,
     SelectiveUnitTestTypes,
     all_selective_test_types,
@@ -61,13 +56,7 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.console import get_console
 
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
-
-
-def get_ga_output(name: str, value: Any) -> str:
-    output_name = name.replace('_', '-')
-    printed_value = str(value).lower() if isinstance(value, bool) else value
-    get_console().print(f"[info]{output_name}[/] = [green]{escape(str(printed_value))}[/]")
-    return f"::set-output name={output_name}::{printed_value}"
+DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
 
 
 class FileGroupForCi(Enum):
@@ -79,14 +68,13 @@ class FileGroupForCi(Enum):
     HELM_FILES = "helm_files"
     SETUP_FILES = "setup_files"
     DOC_FILES = "doc_files"
-    UI_FILES = "ui_files"
     WWW_FILES = "www_files"
     KUBERNETES_FILES = "kubernetes_files"
     ALL_PYTHON_FILES = "all_python_files"
     ALL_SOURCE_FILES = "all_sources_for_tests"
 
 
-T = TypeVar('T', FileGroupForCi, SelectiveUnitTestTypes)
+T = TypeVar("T", FileGroupForCi, SelectiveUnitTestTypes)
 
 
 class HashableDict(Dict[T, List[str]]):
@@ -99,6 +87,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.ENVIRONMENT_FILES: [
             r"^.github/workflows",
             r"^dev/breeze",
+            r"^dev/.*\.py$",
             r"^Dockerfile",
             r"^scripts",
             r"^setup.py",
@@ -117,19 +106,21 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/api",
         ],
         FileGroupForCi.API_CODEGEN_FILES: [
-            "^airflow/api_connexion/openapi/v1.yaml",
-            "^clients/gen",
+            r"^airflow/api_connexion/openapi/v1\.yaml",
+            r"^clients/gen",
         ],
         FileGroupForCi.HELM_FILES: [
-            "^chart",
-            "^airflow/kubernetes",
-            "^tests/kubernetes",
+            r"^chart",
+            r"^airflow/kubernetes",
+            r"^tests/kubernetes",
+            r"^tests/charts",
         ],
         FileGroupForCi.SETUP_FILES: [
             r"^pyproject.toml",
             r"^setup.cfg",
             r"^setup.py",
             r"^generated/provider_dependencies.json$",
+            r"^airflow/providers/.*/provider.yaml$",
         ],
         FileGroupForCi.DOC_FILES: [
             r"^docs",
@@ -142,11 +133,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/RELEASE_NOTES\.txt",
             r"^chart/values\.schema\.json",
             r"^chart/values\.json",
-        ],
-        FileGroupForCi.UI_FILES: [
-            r"^airflow/ui/.*\.[tj]sx?$",
-            r"^airflow/ui/[^/]+\.json$",
-            r"^airflow/ui/.*\.lock$",
         ],
         FileGroupForCi.WWW_FILES: [
             r"^airflow/www/.*\.js[x]?$",
@@ -191,7 +177,7 @@ TEST_TYPE_MATCHES = HashableDict(
             "^tests/providers/",
             "^tests/system/",
         ],
-        SelectiveUnitTestTypes.WWW: ["^airflow/www", "^tests/www", "^airflow/ui"],
+        SelectiveUnitTestTypes.WWW: ["^airflow/www", "^tests/www"],
     }
 )
 
@@ -227,8 +213,12 @@ def add_dependent_providers(
     providers: set[str], provider_to_check: str, dependencies: dict[str, dict[str, list[str]]]
 ):
     for provider, provider_info in dependencies.items():
-        if provider_to_check in provider_info['cross-providers-deps']:
+        # Providers that use this provider
+        if provider_to_check in provider_info["cross-providers-deps"]:
             providers.add(provider)
+        # and providers we use directly
+        for dep_name in dependencies[provider_to_check]["cross-providers-deps"]:
+            providers.add(dep_name)
 
 
 def find_all_providers_affected(changed_files: tuple[str, ...]) -> set[str]:
@@ -246,7 +236,7 @@ def find_all_providers_affected(changed_files: tuple[str, ...]) -> set[str]:
 
 
 class SelectiveChecks:
-    __HASHABLE_FIELDS = {'_files', '_default_branch', '_commit_ref', "_pr_labels", "_github_event"}
+    __HASHABLE_FIELDS = {"_files", "_default_branch", "_commit_ref", "_pr_labels", "_github_event"}
 
     def __init__(
         self,
@@ -278,7 +268,7 @@ class SelectiveChecks:
     def __str__(self) -> str:
         output = []
         for field_name in dir(self):
-            if not field_name.startswith('_'):
+            if not field_name.startswith("_"):
                 output.append(get_ga_output(field_name, getattr(self, field_name)))
         return "\n".join(output)
 
@@ -288,8 +278,8 @@ class SelectiveChecks:
     default_mssql_version = DEFAULT_MSSQL_VERSION
 
     default_kubernetes_version = DEFAULT_KUBERNETES_VERSION
-    default_kind_version = DEFAULT_KIND_VERSION
-    default_helm_version = DEFAULT_HELM_VERSION
+    default_kind_version = KIND_VERSION
+    default_helm_version = HELM_VERSION
 
     @cached_property
     def default_branch(self) -> str:
@@ -300,7 +290,7 @@ class SelectiveChecks:
         return self._default_constraints_branch
 
     @cached_property
-    def _full_tests_needed(self) -> bool:
+    def full_tests_needed(self) -> bool:
         if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
             get_console().print(f"[warning]Full tests needed because event is {self._github_event}[/]")
             return True
@@ -316,7 +306,7 @@ class SelectiveChecks:
     def python_versions(self) -> list[str]:
         return (
             CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
-            if self._full_tests_needed
+            if self._run_everything or self.full_tests_needed
             else [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
         )
 
@@ -325,18 +315,10 @@ class SelectiveChecks:
         return " ".join(self.python_versions)
 
     @cached_property
-    def min_max_python_versions_as_string(self) -> str:
-        return " ".join(
-            [CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[0], CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[-1]]
-            if self._full_tests_needed
-            else [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
-        )
-
-    @cached_property
     def all_python_versions(self) -> list[str]:
         return (
             ALL_PYTHON_MAJOR_MINOR_VERSIONS
-            if self._run_everything or self._full_tests_needed
+            if self._run_everything or self.full_tests_needed
             else [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
         )
 
@@ -345,60 +327,62 @@ class SelectiveChecks:
         return " ".join(self.all_python_versions)
 
     @cached_property
-    def kubernetes_modes(self):
-        return CURRENT_KUBERNETES_MODES if self._full_tests_needed else [DEFAULT_KUBERNETES_MODE]
-
-    @cached_property
     def postgres_versions(self) -> list[str]:
-        return CURRENT_POSTGRES_VERSIONS if self._full_tests_needed else [DEFAULT_POSTGRES_VERSION]
+        return CURRENT_POSTGRES_VERSIONS if self.full_tests_needed else [DEFAULT_POSTGRES_VERSION]
 
     @cached_property
     def mysql_versions(self) -> list[str]:
-        return CURRENT_MYSQL_VERSIONS if self._full_tests_needed else [DEFAULT_MYSQL_VERSION]
+        return CURRENT_MYSQL_VERSIONS if self.full_tests_needed else [DEFAULT_MYSQL_VERSION]
 
     @cached_property
     def mssql_versions(self) -> list[str]:
-        return CURRENT_MSSQL_VERSIONS if self._full_tests_needed else [DEFAULT_MSSQL_VERSION]
+        return CURRENT_MSSQL_VERSIONS if self.full_tests_needed else [DEFAULT_MSSQL_VERSION]
 
     @cached_property
-    def kind_versions(self) -> list[str]:
-        return CURRENT_KIND_VERSIONS
+    def kind_version(self) -> str:
+        return KIND_VERSION
 
     @cached_property
-    def helm_versions(self) -> list[str]:
-        return CURRENT_HELM_VERSIONS
+    def helm_version(self) -> str:
+        return HELM_VERSION
+
+    @cached_property
+    def providers_package_format_exclude(self) -> list[dict[str, str]]:
+        # Exclude sdist format unless full tests are run
+        return [{"package-format": "sdist"}] if not self.full_tests_needed else []
 
     @cached_property
     def postgres_exclude(self) -> list[dict[str, str]]:
-        return [{"python-version": "3.7"}] if self._full_tests_needed else []
+        return [{"python-version": "3.7"}] if self.full_tests_needed else []
 
     @cached_property
     def mssql_exclude(self) -> list[dict[str, str]]:
-        return [{"python-version": "3.8"}] if self._full_tests_needed else []
+        return [{"python-version": "3.8"}] if self.full_tests_needed else []
 
     @cached_property
     def mysql_exclude(self) -> list[dict[str, str]]:
-        return [{"python-version": "3.10"}] if self._full_tests_needed else []
+        return [{"python-version": "3.10"}] if self.full_tests_needed else []
 
     @cached_property
     def sqlite_exclude(self) -> list[dict[str, str]]:
-        return [{"python-version": "3.9"}] if self._full_tests_needed else []
+        return [{"python-version": "3.9"}] if self.full_tests_needed else []
 
     @cached_property
     def kubernetes_versions(self) -> list[str]:
-        return CURRENT_KUBERNETES_VERSIONS if self._full_tests_needed else [DEFAULT_KUBERNETES_VERSION]
-
-    @cached_property
-    def min_max_kubernetes_versions_as_string(self) -> str:
-        return " ".join(
-            [CURRENT_KUBERNETES_VERSIONS[0], CURRENT_KUBERNETES_VERSIONS[-1]]
-            if self._full_tests_needed
-            else [DEFAULT_KUBERNETES_VERSION]
-        )
+        return CURRENT_KUBERNETES_VERSIONS if self.full_tests_needed else [DEFAULT_KUBERNETES_VERSION]
 
     @cached_property
     def kubernetes_versions_list_as_string(self) -> str:
         return " ".join(self.kubernetes_versions)
+
+    @cached_property
+    def kubernetes_combos(self) -> str:
+        python_version_array: list[str] = self.python_versions_list_as_string.split(" ")
+        kubernetes_version_array: list[str] = self.kubernetes_versions_list_as_string.split(" ")
+        combo_titles, short_combo_titles, combos = get_kubernetes_python_combos(
+            kubernetes_version_array, python_version_array
+        )
+        return " ".join(short_combo_titles)
 
     def _match_files_with_regexps(self, matched_files, regexps):
         for file in self._files:
@@ -425,7 +409,7 @@ class SelectiveChecks:
         if not self._commit_ref:
             get_console().print("[warning]Running everything as commit is missing[/]")
             return True
-        if self._full_tests_needed:
+        if self.full_tests_needed:
             get_console().print("[warning]Running everything as full tests are needed[/]")
             return True
         if len(self._matching_files(FileGroupForCi.ENVIRONMENT_FILES, CI_FILE_GROUP_MATCHES)) > 0:
@@ -464,10 +448,6 @@ class SelectiveChecks:
     @cached_property
     def needs_api_codegen(self) -> bool:
         return self._should_be_run(FileGroupForCi.API_CODEGEN_FILES)
-
-    @cached_property
-    def run_ui_tests(self) -> bool:
-        return self._should_be_run(FileGroupForCi.UI_FILES)
 
     @cached_property
     def run_www_tests(self) -> bool:
@@ -585,7 +565,7 @@ class SelectiveChecks:
     def docs_filter(self) -> str:
         return (
             ""
-            if self._default_branch == 'main'
+            if self._default_branch == "main"
             else "--package-filter apache-airflow --package-filter docker-stack"
         )
 
@@ -596,3 +576,7 @@ class SelectiveChecks:
     @cached_property
     def cache_directive(self) -> str:
         return "disabled" if self._github_event == GithubEvents.SCHEDULE else "registry"
+
+    @cached_property
+    def debug_resources(self) -> bool:
+        return DEBUG_CI_RESOURCES_LABEL in self._pr_labels

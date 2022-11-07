@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import pytest
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_AUTOML_KEY
@@ -30,7 +32,7 @@ class AutoMLDatasetOperationsSystemTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_AUTOML_KEY)
     def test_run_example_dag(self):
-        self.run_dag('example_automl_dataset', CLOUD_DAG_FOLDER)
+        self.run_dag("example_automl_dataset", CLOUD_DAG_FOLDER)
 
     def tearDown(self):
         super().tearDown()
@@ -45,7 +47,7 @@ class AutoMLModelOperationsSystemTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_AUTOML_KEY)
     def test_run_example_dag(self):
-        self.run_dag('example_create_and_deploy', CLOUD_DAG_FOLDER)
+        self.run_dag("example_create_and_deploy", CLOUD_DAG_FOLDER)
 
     def tearDown(self):
         super().tearDown()

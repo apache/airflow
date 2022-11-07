@@ -28,14 +28,45 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.4.0
+.....
+
+Latest change: 2022-09-22
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`1a07cbe423 <https://github.com/apache/airflow/commit/1a07cbe423dde2558c2a148a54bac1e902000e07>`_  2022-09-22   ``Prepare to release cncf.kubernetes provider (#26588)``
+`e60a459d56 <https://github.com/apache/airflow/commit/e60a459d560e6f9caa83392a1901963c4bc7e15d>`_  2022-09-14   ``Avoid calculating all elements when one item is needed (#26377)``
+`06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+`4b26c8c541 <https://github.com/apache/airflow/commit/4b26c8c541a720044fa96475620fc70f3ac6ccab>`_  2022-09-09   ``feat(KubernetesPodOperator): Add support of container_security_context (#25530)``
+`0eb0b543a9 <https://github.com/apache/airflow/commit/0eb0b543a9751f3d458beb2f03d4c6ff22fcd1c7>`_  2022-08-23   ``Add @task.kubernetes taskflow decorator (#25663)``
+`db5543ef60 <https://github.com/apache/airflow/commit/db5543ef608bdd7aefdb5fefea150955d369ddf4>`_  2022-08-22   ``pretty print KubernetesPodOperator rendered template env_vars (#25850)``
+`ccdd73ec50 <https://github.com/apache/airflow/commit/ccdd73ec50ab9fb9d18d1cce7a19a95fdedcf9b9>`_  2022-08-22   ``Wait for xcom sidecar container to start before sidecar exec (#25055)``
+=================================================================================================  ===========  ====================================================================================
+
+4.3.0
+.....
+
+Latest change: 2022-08-10
+
+=================================================================================================  ===========  =================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================
+`e5ac6c7cfb <https://github.com/apache/airflow/commit/e5ac6c7cfb189c33e3b247f7d5aec59fe5e89a00>`_  2022-08-10   ``Prepare docs for new providers release (August 2022) (#25618)``
+`c8af0592c0 <https://github.com/apache/airflow/commit/c8af0592c08017ee48f69f608ad4a6529ee14292>`_  2022-07-26   ``Improve taskflow type hints with ParamSpec (#25173)``
+`f05a06537b <https://github.com/apache/airflow/commit/f05a06537be4d12276862eae1960515c76aa11d1>`_  2022-07-16   ``Fix xcom_sidecar stuck problem (#24993)``
+=================================================================================================  ===========  =================================================================
+
 4.2.0
 .....
 
-Latest change: 2022-07-11
+Latest change: 2022-07-13
 
 =================================================================================================  ===========  =============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================
+`d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
 `ef79a0d1c4 <https://github.com/apache/airflow/commit/ef79a0d1c4c0a041d7ebf83b93cbb25aa3778a70>`_  2022-07-11   ``Only assert stuff for mypy when type checking (#24937)``
 `e2fd41f7b1 <https://github.com/apache/airflow/commit/e2fd41f7b14adef2c3a88dde14d088b5ef93b460>`_  2022-07-04   ``Remove 'xcom_push' flag from providers (#24823)``
 `9d307102b4 <https://github.com/apache/airflow/commit/9d307102b4a604034d9b1d7f293884821263575f>`_  2022-06-29   ``More typing and minor refactor for kubernetes (#24719)``

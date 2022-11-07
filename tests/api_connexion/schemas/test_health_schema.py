@@ -14,13 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
+from __future__ import annotations
 
 from airflow.api_connexion.schemas.health_schema import health_schema
 
 
-class TestHealthSchema(unittest.TestCase):
-    def setUp(self):
+class TestHealthSchema:
+    def setup_method(self):
         self.default_datetime = "2020-06-10T12:02:44+00:00"
 
     def test_serialize(self):

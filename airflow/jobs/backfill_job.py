@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Iterator, List, Optional, Sequence, Set, Tuple
+from typing import TYPE_CHECKING, Any, Iterable, Iterator, Sequence
 
 import attr
 import pendulum
@@ -88,15 +88,15 @@ class BackfillJob(BaseJob):
         :param total_runs: Number of total dag runs able to run
         """
 
-        to_run: Dict[TaskInstanceKey, TaskInstance] = attr.ib(factory=dict)
-        running: Dict[TaskInstanceKey, TaskInstance] = attr.ib(factory=dict)
-        skipped: Set[TaskInstanceKey] = attr.ib(factory=set)
-        succeeded: Set[TaskInstanceKey] = attr.ib(factory=set)
-        failed: Set[TaskInstanceKey] = attr.ib(factory=set)
-        not_ready: Set[TaskInstanceKey] = attr.ib(factory=set)
-        deadlocked: Set[TaskInstance] = attr.ib(factory=set)
-        active_runs: List[DagRun] = attr.ib(factory=list)
-        executed_dag_run_dates: Set[pendulum.DateTime] = attr.ib(factory=set)
+        to_run: dict[TaskInstanceKey, TaskInstance] = attr.ib(factory=dict)
+        running: dict[TaskInstanceKey, TaskInstance] = attr.ib(factory=dict)
+        skipped: set[TaskInstanceKey] = attr.ib(factory=set)
+        succeeded: set[TaskInstanceKey] = attr.ib(factory=set)
+        failed: set[TaskInstanceKey] = attr.ib(factory=set)
+        not_ready: set[TaskInstanceKey] = attr.ib(factory=set)
+        deadlocked: set[TaskInstance] = attr.ib(factory=set)
+        active_runs: list[DagRun] = attr.ib(factory=list)
+        executed_dag_run_dates: set[pendulum.DateTime] = attr.ib(factory=set)
         finished_runs: int = 0
         total_runs: int = 0
 
@@ -217,6 +217,12 @@ class BackfillJob(BaseJob):
                 tis_to_be_scheduled.append(ti)
                 ti_status.running.pop(reduced_key)
                 ti_status.to_run[ti.key] = ti
+            # special case: Deferrable task can go from DEFERRED to SCHEDULED;
+            # when that happens, we need to put it back as in UP_FOR_RESCHEDULE
+            elif ti.state == TaskInstanceState.SCHEDULED:
+                self.log.debug("Task instance %s is resumed from deferred state", ti)
+                ti_status.running.pop(ti.key)
+                ti_status.to_run[ti.key] = ti
 
         # Batch schedule of task instances
         if tis_to_be_scheduled:
@@ -228,7 +234,7 @@ class BackfillJob(BaseJob):
 
     def _manage_executor_state(
         self, running, session
-    ) -> Iterator[Tuple["MappedOperator", str, Sequence[TaskInstance], int]]:
+    ) -> Iterator[tuple[MappedOperator, str, Sequence[TaskInstance], int]]:
         """
         Checks if the executor agrees with the state of task instances
         that are running.
@@ -292,13 +298,15 @@ class BackfillJob(BaseJob):
         # check if we are scheduling on top of a already existing dag_run
         # we could find a "scheduled" run instead of a "backfill"
         runs = DagRun.find(dag_id=dag.dag_id, execution_date=run_date, session=session)
-        run: Optional[DagRun]
+        run: DagRun | None
         if runs:
             run = runs[0]
             if run.state == DagRunState.RUNNING:
                 respect_dag_max_active_limit = False
             # Fixes --conf overwrite for backfills with already existing DagRuns
             run.conf = self.conf or {}
+            # start_date is cleared for existing DagRuns
+            run.start_date = timezone.utcnow()
         else:
             run = None
 
@@ -329,7 +337,7 @@ class BackfillJob(BaseJob):
         return run
 
     @provide_session
-    def _task_instances_for_dag_run(self, dag_run, session=None):
+    def _task_instances_for_dag_run(self, dag, dag_run, session=None):
         """
         Returns a map of task instance key to task instance object for the tasks to
         run in the given dag run.
@@ -349,18 +357,19 @@ class BackfillJob(BaseJob):
         dag_run.refresh_from_db()
         make_transient(dag_run)
 
+        dag_run.dag = dag
+        info = dag_run.task_instance_scheduling_decisions(session=session)
+        schedulable_tis = info.schedulable_tis
         try:
-            for ti in dag_run.get_task_instances():
-                # all tasks part of the backfill are scheduled to run
-                if ti.state == State.NONE:
-                    ti.set_state(TaskInstanceState.SCHEDULED, session=session)
+            for ti in dag_run.get_task_instances(session=session):
+                if ti in schedulable_tis:
+                    ti.set_state(TaskInstanceState.SCHEDULED)
                 if ti.state != TaskInstanceState.REMOVED:
                     tasks_to_run[ti.key] = ti
             session.commit()
         except Exception:
             session.rollback()
             raise
-
         return tasks_to_run
 
     def _log_progress(self, ti_status):
@@ -388,7 +397,7 @@ class BackfillJob(BaseJob):
         pickle_id,
         start_date=None,
         session=None,
-    ):
+    ) -> list:
         """
         Process a set of task instances from a set of dag runs. Special handling is done
         to account for different task instance states that could be present when running
@@ -400,7 +409,6 @@ class BackfillJob(BaseJob):
         :param start_date: the start date of the backfill job
         :param session: the current session object
         :return: the list of execution_dates for the finished dag runs
-        :rtype: list
         """
         executed_run_dates = []
 
@@ -439,13 +447,6 @@ class BackfillJob(BaseJob):
                         ti_status.running.pop(key)
                     return
 
-                # guard against externally modified tasks instances or
-                # in case max concurrency has been reached at task runtime
-                elif ti.state == State.NONE:
-                    self.log.warning(
-                        "FIXME: Task instance %s state was set to None externally. This should not happen", ti
-                    )
-                    ti.set_state(TaskInstanceState.SCHEDULED, session=session)
                 if self.rerun_failed_tasks:
                     # Rerun failed tasks or upstreamed failed tasks
                     if ti.state in (TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED):
@@ -707,7 +708,7 @@ class BackfillJob(BaseJob):
 
         return err
 
-    def _get_dag_with_subdags(self) -> List[DAG]:
+    def _get_dag_with_subdags(self) -> list[DAG]:
         return [self.dag] + self.dag.subdags
 
     @provide_session
@@ -727,7 +728,7 @@ class BackfillJob(BaseJob):
         for dagrun_info in dagrun_infos:
             for dag in self._get_dag_with_subdags():
                 dag_run = self._get_dag_run(dagrun_info, dag, session=session)
-                tis_map = self._task_instances_for_dag_run(dag_run, session=session)
+                tis_map = self._task_instances_for_dag_run(dag, dag_run, session=session)
                 if dag_run is None:
                     continue
 
@@ -831,7 +832,7 @@ class BackfillJob(BaseJob):
             pickle_id = pickle.id
 
         executor = self.executor
-        executor.job_id = "backfill"
+        executor.job_id = self.id
         executor.start()
 
         ti_status.total_runs = len(dagrun_infos)  # total dag runs in backfill
@@ -876,10 +877,10 @@ class BackfillJob(BaseJob):
             session.commit()
             executor.end()
 
-        self.log.info("Backfill done. Exiting.")
+        self.log.info("Backfill done for DAG %s. Exiting.", self.dag)
 
     @provide_session
-    def reset_state_for_orphaned_tasks(self, filter_by_dag_run=None, session=None):
+    def reset_state_for_orphaned_tasks(self, filter_by_dag_run=None, session=None) -> int | None:
         """
         This function checks if there are any tasks in the dagrun (or all) that
         have a schedule or queued states but are not known by the executor. If
@@ -889,7 +890,6 @@ class BackfillJob(BaseJob):
 
         :param filter_by_dag_run: the dag_run we want to process, None if all
         :return: the number of TIs reset
-        :rtype: int
         """
         queued_tis = self.executor.queued_tasks
         # also consider running as the state might not have changed in the db yet

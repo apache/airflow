@@ -16,9 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from __future__ import annotations
+
 import multiprocessing
+import typing
 
 from airflow.configuration import conf
+from airflow.utils.context import Context
 
 
 class MultiprocessingStartMethodMixin:
@@ -36,3 +40,10 @@ class MultiprocessingStartMethodMixin:
         if not method:
             raise ValueError("Failed to determine start method")
         return method
+
+
+class ResolveMixin:
+    """A runtime-resolved value."""
+
+    def resolve(self, context: Context) -> typing.Any:
+        raise NotImplementedError

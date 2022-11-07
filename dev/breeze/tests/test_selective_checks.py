@@ -14,8 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import Dict, Tuple
+from __future__ import annotations
 
 import pytest
 
@@ -23,9 +22,9 @@ from airflow_breeze.global_constants import GithubEvents
 from airflow_breeze.utils.selective_checks import SelectiveChecks
 
 
-def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
+def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
     for name, value in expected_outputs.items():
-        assert f"::set-output name={name}::{value}" in output
+        assert f"{name}={value}" in stderr
 
 
 @pytest.mark.parametrize(
@@ -37,6 +36,8 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "false",
                     "needs-helm-tests": "false",
                     "run-tests": "false",
@@ -53,6 +54,8 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "false",
                     "run-tests": "true",
@@ -67,18 +70,19 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
             pytest.param(
                 (
                     "airflow/api/file.py",
-                    "tests/providers/google/file.py",
+                    "tests/providers/postgres/file.py",
                 ),
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "false",
                     "run-tests": "true",
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "API Always Providers[amazon,apache.beam,google,hashicorp,"
-                    "microsoft.azure,presto,trino]",
+                    "test-types": "API Always Providers[amazon,common.sql,google,postgres]",
                 },
                 id="API and providers tests and docs should run",
             )
@@ -89,6 +93,8 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "false",
                     "run-tests": "true",
@@ -106,6 +112,8 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "false",
                     "run-tests": "false",
@@ -121,21 +129,23 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
             pytest.param(
                 (
                     "chart/aaaa.txt",
-                    "tests/providers/google/file.py",
+                    "tests/providers/postgres/file.py",
                 ),
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
                     "docs-build": "true",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "Always Providers[amazon,apache.beam,google,"
-                    "hashicorp,microsoft.azure,presto,trino]",
+                    "test-types": "Always Providers[amazon,common.sql,google,postgres]",
                 },
-                id="Helm tests, providers, kubernetes tests and docs should run",
+                id="Helm tests, providers (both upstream and downstream),"
+                "kubernetes tests and docs should run",
             )
         ),
         (
@@ -148,14 +158,15 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
                     "docs-build": "true",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "Always Providers[airbyte,apache.livy,"
-                    "dbt.cloud,dingding,discord,http,slack]",
+                    "test-types": "Always Providers[airbyte,apache.livy,dbt.cloud,dingding,discord,http]",
                 },
                 id="Helm tests, http and all relevant providers, kubernetes tests and "
                 "docs should run even if unimportant files were added",
@@ -171,15 +182,17 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
                     "docs-build": "true",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "Always Providers[airbyte]",
+                    "test-types": "Always Providers[airbyte,http]",
                 },
-                id="Helm tests, airbyte providers, kubernetes tests and "
+                id="Helm tests, airbyte/http providers, kubernetes tests and "
                 "docs should run even if unimportant files were added",
             )
         ),
@@ -193,6 +206,8 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
+                    "python-versions": "['3.7']",
+                    "python-versions-list-as-string": "3.7",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -211,6 +226,8 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -219,7 +236,7 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
                     "test-types": "API Always CLI Core Integration Other Providers WWW",
                 },
                 id="Everything should run - including all providers and upgrading to "
-                "newer requirements as setup.py changed",
+                "newer requirements as setup.py changed and all Python versions",
             )
         ),
         (
@@ -228,6 +245,8 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -241,17 +260,17 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
     ],
 )
 def test_expected_output_pull_request_main(
-    files: Tuple[str, ...],
-    expected_outputs: Dict[str, str],
+    files: tuple[str, ...],
+    expected_outputs: dict[str, str],
 ):
-    sc = SelectiveChecks(
+    stderr = SelectiveChecks(
         files=files,
         commit_ref="HEAD",
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=(),
         default_branch="main",
     )
-    assert_outputs_are_printed(expected_outputs, str(sc))
+    assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
 @pytest.mark.parametrize(
@@ -265,9 +284,13 @@ def test_expected_output_pull_request_main(
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
+                    "full-tests-needed": "true",
+                    "providers-package-format-exclude": "[]",
                     "upgrade-to-newer-dependencies": "false",
                     "test-types": "API Always CLI Core Integration Other Providers WWW",
                 },
@@ -285,9 +308,13 @@ def test_expected_output_pull_request_main(
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
+                    "full-tests-needed": "true",
+                    "providers-package-format-exclude": "[]",
                     "upgrade-to-newer-dependencies": "false",
                     "test-types": "API Always CLI Core Integration Other Providers WWW",
                 },
@@ -303,10 +330,14 @@ def test_expected_output_pull_request_main(
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
+                    "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
+                    "providers-package-format-exclude": "[]",
                     "test-types": "API Always CLI Core Integration Other Providers WWW",
                 },
                 id="Everything should run including full providers when"
@@ -321,10 +352,14 @@ def test_expected_output_pull_request_main(
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
+                    "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
+                    "providers-package-format-exclude": "[]",
                     "test-types": "API Always CLI Core Other WWW",
                 },
                 id="Everything should run except Providers and Integration "
@@ -334,20 +369,19 @@ def test_expected_output_pull_request_main(
     ],
 )
 def test_expected_output_full_tests_needed(
-    files: Tuple[str, ...],
-    pr_labels: Tuple[str, ...],
+    files: tuple[str, ...],
+    pr_labels: tuple[str, ...],
     default_branch: str,
-    expected_outputs: Dict[str, str],
+    expected_outputs: dict[str, str],
 ):
-    sc = SelectiveChecks(
+    stderr = SelectiveChecks(
         files=files,
         commit_ref="HEAD",
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=pr_labels,
         default_branch=default_branch,
     )
-    output = str(sc)
-    assert_outputs_are_printed(expected_outputs, output)
+    assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
 @pytest.mark.parametrize(
@@ -362,6 +396,8 @@ def test_expected_output_full_tests_needed(
                 "needs-helm-tests": "false",
                 "run-tests": "false",
                 "docs-build": "false",
+                "full-tests-needed": "false",
+                "providers-package-format-exclude": "[{'package-format': 'sdist'}]",
                 "upgrade-to-newer-dependencies": "false",
                 "test-types": "",
             },
@@ -379,6 +415,8 @@ def test_expected_output_full_tests_needed(
                 "image-build": "true",
                 "run-tests": "true",
                 "docs-build": "true",
+                "full-tests-needed": "false",
+                "providers-package-format-exclude": "[{'package-format': 'sdist'}]",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "test-types": "Always",
@@ -398,6 +436,8 @@ def test_expected_output_full_tests_needed(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
+                "full-tests-needed": "false",
+                "providers-package-format-exclude": "[{'package-format': 'sdist'}]",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "test-types": "Always CLI",
@@ -416,6 +456,8 @@ def test_expected_output_full_tests_needed(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
+                "full-tests-needed": "false",
+                "providers-package-format-exclude": "[{'package-format': 'sdist'}]",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "test-types": "API Always CLI Core Other WWW",
@@ -426,17 +468,17 @@ def test_expected_output_full_tests_needed(
     ],
 )
 def test_expected_output_pull_request_v2_3(
-    files: Tuple[str, ...],
-    expected_outputs: Dict[str, str],
+    files: tuple[str, ...],
+    expected_outputs: dict[str, str],
 ):
-    sc = SelectiveChecks(
+    stderr = SelectiveChecks(
         files=files,
         commit_ref="HEAD",
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=(),
         default_branch="v2-3-stable",
     )
-    assert_outputs_are_printed(expected_outputs, str(sc))
+    assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
 @pytest.mark.parametrize(
@@ -496,17 +538,17 @@ def test_expected_output_pull_request_v2_3(
     ],
 )
 def test_expected_output_pull_request_target(
-    files: Tuple[str, ...],
-    expected_outputs: Dict[str, str],
+    files: tuple[str, ...],
+    expected_outputs: dict[str, str],
 ):
-    sc = SelectiveChecks(
+    stderr = SelectiveChecks(
         files=files,
         commit_ref="HEAD",
         github_event=GithubEvents.PULL_REQUEST_TARGET,
         pr_labels=(),
         default_branch="main",
     )
-    assert_outputs_are_printed(expected_outputs, str(sc))
+    assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
 @pytest.mark.parametrize(
@@ -564,19 +606,19 @@ def test_expected_output_pull_request_target(
     ],
 )
 def test_expected_output_push(
-    files: Tuple[str, ...],
-    pr_labels: Tuple[str, ...],
+    files: tuple[str, ...],
+    pr_labels: tuple[str, ...],
     default_branch: str,
-    expected_outputs: Dict[str, str],
+    expected_outputs: dict[str, str],
 ):
-    sc = SelectiveChecks(
+    stderr = SelectiveChecks(
         files=files,
         commit_ref="HEAD",
         github_event=GithubEvents.PUSH,
         pr_labels=pr_labels,
         default_branch=default_branch,
     )
-    assert_outputs_are_printed(expected_outputs, str(sc))
+    assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
 @pytest.mark.parametrize(
@@ -590,7 +632,7 @@ def test_expected_output_push(
     ],
 )
 def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
-    sc = SelectiveChecks(
+    stderr = SelectiveChecks(
         files=(),
         commit_ref="",
         github_event=github_event,
@@ -610,5 +652,56 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             else "false",
             "test-types": "API Always CLI Core Integration Other Providers WWW",
         },
-        str(sc),
+        str(stderr),
     )
+
+
+@pytest.mark.parametrize(
+    "files, expected_outputs,",
+    [
+        pytest.param(
+            ("airflow/models/dag.py",),
+            {
+                "upgrade-to-newer-dependencies": "false",
+            },
+            id="Regular source changed",
+        ),
+        pytest.param(
+            ("setup.py",),
+            {
+                "upgrade-to-newer-dependencies": "true",
+            },
+            id="Setup.py changed",
+        ),
+        pytest.param(
+            ("setup.cfg",),
+            {
+                "upgrade-to-newer-dependencies": "true",
+            },
+            id="Setup.cfg changed",
+        ),
+        pytest.param(
+            ("airflow/providers/microsoft/azure/provider.yaml",),
+            {
+                "upgrade-to-newer-dependencies": "true",
+            },
+            id="Provider.yaml changed",
+        ),
+        pytest.param(
+            ("generated/provider_dependencies.json",),
+            {
+                "upgrade-to-newer-dependencies": "true",
+            },
+            id="Generated provider_dependencies changed",
+        ),
+    ],
+)
+def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs: dict[str, str]):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref="HEAD",
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=(),
+        default_branch="main",
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))

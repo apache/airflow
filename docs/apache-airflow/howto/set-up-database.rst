@@ -79,7 +79,7 @@ it only works with Sequential Executor) and it should NEVER be used for producti
 There is a minimum version of sqlite3 required to run Airflow 2.0+ - minimum version is 3.15.0. Some of the
 older systems have an earlier version of sqlite installed by default and for those system you need to manually
 upgrade SQLite to use version newer than 3.15.0. Note, that this is not a ``python library`` version, it's the
-SQLite system-level application that needs to be upgraded. There are different ways how SQLIte might be
+SQLite system-level application that needs to be upgraded. There are different ways how SQLite might be
 installed, you can find some information about that at the `official website of SQLite
 <https://www.sqlite.org/index.html>`_ and in the documentation specific to distribution of your Operating
 System.
@@ -118,7 +118,7 @@ An example URI for the sqlite database:
 AmazonLinux SQLite can only be upgraded to v3.7 using the source repos. Airflow requires v3.15 or higher. Use the
 following instructions to setup the base image (or AMI) with latest SQLite3
 
-Pre-requisite: You will need ``wget``, ``tar``, ``gzip``,`` gcc``, ``make``, and ``expect`` to get the upgrade process working.
+Pre-requisite: You will need ``wget``, ``tar``, ``gzip``, ``gcc``, ``make``, and ``expect`` to get the upgrade process working.
 
 .. code-block:: bash
 
@@ -350,14 +350,14 @@ Official Docker image we have ODBC driver installed, so you need to specify the 
 Other configuration options
 ---------------------------
 
-There are more configuration options for configuring SQLAlchemy behavior. For details, see :ref:`reference documentation <config:core>` for ``sqlalchemy_*`` option in ``[core]`` section.
+There are more configuration options for configuring SQLAlchemy behavior. For details, see :ref:`reference documentation <config:database>` for ``sqlalchemy_*`` option in ``[database]`` section.
 
 For instance, you can specify a database schema where Airflow will create its required tables. If you want Airflow to install its tables in the ``airflow`` schema of a PostgreSQL database, specify these environment variables:
 
 .. code-block:: bash
 
-    export AIRFLOW__CORE__SQL_ALCHEMY_CONN="postgresql://postgres@localhost:5432/my_database?options=-csearch_path%3Dairflow"
-    export AIRFLOW__CORE__SQL_ALCHEMY_SCHEMA="airflow"
+    export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN="postgresql://postgres@localhost:5432/my_database?options=-csearch_path%3Dairflow"
+    export AIRFLOW__DATABASE__SQL_ALCHEMY_SCHEMA="airflow"
 
 Note the ``search_path`` at the end of the ``SQL_ALCHEMY_CONN`` database URL.
 

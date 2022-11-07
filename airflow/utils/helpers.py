@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import copy
 import re
 import signal
@@ -22,22 +24,11 @@ import warnings
 from datetime import datetime
 from functools import reduce
 from itertools import filterfalse, tee
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    Generator,
-    Iterable,
-    List,
-    MutableMapping,
-    Optional,
-    Tuple,
-    TypeVar,
-)
+from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping, MutableMapping, TypeVar, cast
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.utils.context import Context
 from airflow.utils.module_loading import import_string
 from airflow.utils.types import NOTSET
 
@@ -79,7 +70,7 @@ def validate_group_key(k: str, max_length: int = 200):
         )
 
 
-def alchemy_to_dict(obj: Any) -> Optional[Dict]:
+def alchemy_to_dict(obj: Any) -> dict | None:
     """Transforms a SQLAlchemy model instance into a dictionary"""
     if not obj:
         return None
@@ -92,7 +83,7 @@ def alchemy_to_dict(obj: Any) -> Optional[Dict]:
     return output
 
 
-def ask_yesno(question: str, default: Optional[bool] = None) -> bool:
+def ask_yesno(question: str, default: bool | None = None) -> bool:
     """Helper to get a yes or no answer from the user."""
     yes = {'yes', 'y'}
     no = {'no', 'n'}
@@ -109,7 +100,7 @@ def ask_yesno(question: str, default: Optional[bool] = None) -> bool:
         print("Please respond with y/yes or n/no.")
 
 
-def prompt_with_timeout(question: str, timeout: int, default: Optional[bool] = None) -> bool:
+def prompt_with_timeout(question: str, timeout: int, default: bool | None = None) -> bool:
     """Ask the user a question and timeout if they don't respond"""
 
     def handler(signum, frame):
@@ -139,7 +130,7 @@ def as_tuple(obj: Any) -> tuple:
         return tuple([obj])
 
 
-def chunks(items: List[T], chunk_size: int) -> Generator[List[T], None, None]:
+def chunks(items: list[T], chunk_size: int) -> Generator[list[T], None, None]:
     """Yield successive chunks of a given size from a list of items"""
     if chunk_size <= 0:
         raise ValueError('Chunk size must be a positive integer')
@@ -147,7 +138,7 @@ def chunks(items: List[T], chunk_size: int) -> Generator[List[T], None, None]:
         yield items[i : i + chunk_size]
 
 
-def reduce_in_chunks(fn: Callable[[S, List[T]], S], iterable: List[T], initializer: S, chunk_size: int = 0):
+def reduce_in_chunks(fn: Callable[[S, list[T]], S], iterable: list[T], initializer: S, chunk_size: int = 0):
     """
     Reduce the given list of items by splitting it into chunks
     of the given size and passing each chunk through the reducer
@@ -159,7 +150,7 @@ def reduce_in_chunks(fn: Callable[[S, List[T]], S], iterable: List[T], initializ
     return reduce(fn, chunks(iterable, chunk_size), initializer)
 
 
-def as_flattened_list(iterable: Iterable[Iterable[T]]) -> List[T]:
+def as_flattened_list(iterable: Iterable[Iterable[T]]) -> list[T]:
     """
     Return an iterable with one level flattened
 
@@ -169,7 +160,7 @@ def as_flattened_list(iterable: Iterable[Iterable[T]]) -> List[T]:
     return [e for i in iterable for e in i]
 
 
-def parse_template_string(template_string: str) -> Tuple[Optional[str], Optional["jinja2.Template"]]:
+def parse_template_string(template_string: str) -> tuple[str | None, jinja2.Template | None]:
     """Parses Jinja template string."""
     import jinja2
 
@@ -179,7 +170,7 @@ def parse_template_string(template_string: str) -> Tuple[Optional[str], Optional
         return template_string, None
 
 
-def render_log_filename(ti: "TaskInstance", try_number, filename_template) -> str:
+def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
     """
     Given task instance, try_number, filename_template, return the rendered log
     filename
@@ -208,7 +199,7 @@ def convert_camel_to_snake(camel_str: str) -> str:
     return CAMELCASE_TO_SNAKE_CASE_REGEX.sub(r'_\1', camel_str).lower()
 
 
-def merge_dicts(dict1: Dict, dict2: Dict) -> Dict:
+def merge_dicts(dict1: dict, dict2: dict) -> dict:
     """
     Merge two dicts recursively, returning new dict (input dict is not mutated).
 
@@ -223,7 +214,7 @@ def merge_dicts(dict1: Dict, dict2: Dict) -> Dict:
     return merged
 
 
-def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> Tuple[Iterable[T], Iterable[T]]:
+def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[Iterable[T], Iterable[T]]:
     """Use a predicate to partition entries into false entries and true entries"""
     iter_1, iter_2 = tee(iterable)
     return filterfalse(pred, iter_1), filter(pred, iter_2)
@@ -233,7 +224,7 @@ def chain(*args, **kwargs):
     """This function is deprecated. Please use `airflow.models.baseoperator.chain`."""
     warnings.warn(
         "This function is deprecated. Please use `airflow.models.baseoperator.chain`.",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
     return import_string('airflow.models.baseoperator.chain')(*args, **kwargs)
@@ -243,13 +234,13 @@ def cross_downstream(*args, **kwargs):
     """This function is deprecated. Please use `airflow.models.baseoperator.cross_downstream`."""
     warnings.warn(
         "This function is deprecated. Please use `airflow.models.baseoperator.cross_downstream`.",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
     return import_string('airflow.models.baseoperator.cross_downstream')(*args, **kwargs)
 
 
-def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
+def build_airflow_url_with_query(query: dict[str, Any]) -> str:
     """
     Build airflow url using base_url and default_view and provided query
     For example:
@@ -292,14 +283,14 @@ def render_template(template: Any, context: MutableMapping[str, Any], *, native:
     return "".join(nodes)
 
 
-def render_template_to_string(template: "jinja2.Template", context: MutableMapping[str, Any]) -> str:
+def render_template_to_string(template: jinja2.Template, context: Context) -> str:
     """Shorthand to ``render_template(native=False)`` with better typing support."""
-    return render_template(template, context, native=False)
+    return render_template(template, cast(MutableMapping[str, Any], context), native=False)
 
 
-def render_template_as_native(template: "jinja2.Template", context: MutableMapping[str, Any]) -> Any:
+def render_template_as_native(template: jinja2.Template, context: Context) -> Any:
     """Shorthand to ``render_template(native=True)`` with better typing support."""
-    return render_template(template, context, native=True)
+    return render_template(template, cast(MutableMapping[str, Any], context), native=True)
 
 
 def exactly_one(*args) -> bool:
@@ -376,3 +367,17 @@ def prune_dict(val: Any, mode='strict'):
         return new_list
     else:
         return val
+
+
+def prevent_duplicates(kwargs1: dict[str, Any], kwargs2: Mapping[str, Any], *, fail_reason: str) -> None:
+    """Ensure *kwargs1* and *kwargs2* do not contain common keys.
+
+    :raises TypeError: If common keys are found.
+    """
+    duplicated_keys = set(kwargs1).intersection(kwargs2)
+    if not duplicated_keys:
+        return
+    if len(duplicated_keys) == 1:
+        raise TypeError(f"{fail_reason} argument: {duplicated_keys.pop()}")
+    duplicated_keys_display = ", ".join(sorted(duplicated_keys))
+    raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")

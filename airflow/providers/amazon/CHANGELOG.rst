@@ -24,6 +24,146 @@
 Changelog
 ---------
 
+6.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  In this version of provider Amazon S3 Connection (``conn_type="s3"``) removed due to the fact that it was always
+  an alias to AWS connection ``conn_type="aws"``
+  In practice the only impact is you won't be able to ``test`` the connection in the web UI / API.
+  In order to restore ability to test connection you need to change connection type from **Amazon S3** (``conn_type="s3"``)
+  to **Amazon Web Services** (``conn_type="aws"``) manually.
+
+* ``Remove Amazon S3 Connection Type (#25980)``
+
+Features
+~~~~~~~~
+
+* ``Add RdsDbSensor to amazon provider package (#26003)``
+* ``Set template_fields on RDS operators (#26005)``
+* ``Auto tail file logs in Web UI (#26169)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SageMakerEndpointConfigOperator's return value (#26541)``
+* ``EMR Serverless Fix for Jobs marked as success even on failure (#26218)``
+* ``Fix AWS Connection warn condition for invalid 'profile_name' argument (#26464)``
+* ``Athena and EMR operator max_retries mix-up fix (#25971)``
+* ``Fixes SageMaker operator return values (#23628)``
+* ``Remove redundant catch exception in Amazon Log Task Handlers (#26442)``
+
+Misc
+~~~~
+
+* ``Remove duplicated connection-type within the provider (#26628)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Redshift to S3 and S3 to Redshift System test (AIP-47) (#26613)``
+   * ``Convert example_eks_with_fargate_in_one_step.py and example_eks_with_fargate_profile to AIP-47 (#26537)``
+   * ``Redshift System Test (AIP-47) (#26187)``
+   * ``GoogleAPIToS3Operator System Test (AIP-47) (#26370)``
+   * ``Convert EKS with Nodegroups sample DAG to a system test (AIP-47) (#26539)``
+   * ``Convert EC2 sample DAG to system test (#26540)``
+   * ``Convert S3 example DAG to System test (AIP-47) (#26535)``
+   * ``Convert 'example_eks_with_nodegroup_in_one_step' sample DAG to system test (AIP-47) (#26410)``
+   * ``Migrate DMS sample dag to system test (#26270)``
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+   * ``D400 first line should end with period batch02 (#25268)``
+   * ``Change links to 'boto3' documentation (#26708)``
+
+5.1.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Additional mask aws credentials (#26014)``
+* ``Add RedshiftDeleteClusterSnapshotOperator (#25975)``
+* ``Add redshift create cluster snapshot operator (#25857)``
+* ``Add common-sql lower bound for common-sql (#25789)``
+* ``Allow AWS Secrets Backends use AWS Connection capabilities (#25628)``
+* ``Implement 'EmrEksCreateClusterOperator' (#25816)``
+* ``Improve error handling/messaging around bucket exist check (#25805)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix display aws connection info (#26025)``
+* ``Fix 'EcsBaseOperator' and 'EcsBaseSensor' arguments (#25989)``
+* ``Fix RDS system test (#25839)``
+* ``Avoid circular import problems when instantiating AWS SM backend (#25810)``
+* ``fix bug construction of Connection object in version 5.0.0rc3 (#25716)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix EMR serverless system test (#25969)``
+   * ``Add 'output' property to MappedOperator (#25604)``
+   * ``Add Airflow specific warning classes (#25799)``
+   * ``Replace SQL with Common SQL in pre commit (#26058)``
+   * ``Hook into Mypy to get rid of those cast() (#26023)``
+   * ``Raise an error on create bucket if use regional endpoint for us-east-1 and region not set (#25945)``
+   * ``Update AWS system tests to use SystemTestContextBuilder (#25748)``
+   * ``Convert Quicksight Sample DAG to System Test (#25696)``
+   * ``Consolidate to one 'schedule' param (#25410)``
+
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Avoid requirement that AWS Secret Manager JSON values be urlencoded. (#25432)``
+* ``Remove deprecated modules (#25543)``
+* ``Resolve Amazon Hook's 'region_name' and 'config' in wrapper (#25336)``
+* ``Resolve and validate AWS Connection parameters in wrapper (#25256)``
+* ``Standardize AwsLambda (#25100)``
+* ``Refactor monolithic ECS Operator into Operators, Sensors, and a Hook (#25413)``
+* ``Remove deprecated modules from Amazon provider package (#25609)``
+
+Features
+~~~~~~~~
+
+* ``Add EMR Serverless Operators and Hooks (#25324)``
+* ``Hide unused fields for Amazon Web Services connection (#25416)``
+* ``Enable Auto-incrementing Transform job name in SageMakerTransformOperator (#25263)``
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+* ``SQSPublishOperator should allow sending messages to a FIFO Queue (#25171)``
+* ``Glue Job Driver logging (#25142)``
+* ``Bump typing-extensions and mypy for ParamSpec (#25088)``
+* ``Enable multiple query execution in RedshiftDataOperator (#25619)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix S3Hook transfer config arguments validation (#25544)``
+* ``Fix BatchOperator links on wait_for_completion = True (#25228)``
+* ``Makes changes to SqlToS3Operator method _fix_int_dtypes (#25083)``
+* ``refactor: Deprecate parameter 'host' as an extra attribute for the connection. Depreciation is happening in favor of 'endpoint_url' in extra. (#25494)``
+* ``Get boto3.session.Session by appropriate method (#25569)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``System test for EMR Serverless  (#25559)``
+   * ``Convert Local to S3 example DAG to System Test (AIP-47) (#25345)``
+   * ``Convert ECS Fargate Sample DAG to System Test (#25316)``
+   * ``Sagemaker System Tests - Part 3 of 3 - example_sagemaker_endpoint.py (AIP-47) (#25134)``
+   * ``Convert RDS Export Sample DAG to System Test (AIP-47) (#25205)``
+   * ``AIP-47 - Migrate redshift DAGs to new design #22438 (#24239)``
+   * ``Convert Glue Sample DAG to System Test (#25136)``
+   * ``Convert the batch sample dag to system tests (AIP-47) (#24448)``
+   * ``Migrate datasync sample dag to system tests (AIP-47) (#24354)``
+   * ``Sagemaker System Tests - Part 2 of 3 - example_sagemaker.py (#25079)``
+   * ``Migrate lambda sample dag to system test (AIP-47) (#24355)``
+   * ``SageMaker system tests - Part 1 of 3 - Prep Work (AIP-47) (#25078)``
+   * ``Prepare docs for new providers release (August 2022) (#25618)``
+
 4.1.0
 .....
 

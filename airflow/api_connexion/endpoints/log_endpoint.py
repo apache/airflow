@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from flask import Response, request
 from itsdangerous.exc import BadSignature
@@ -48,7 +50,8 @@ def get_log(
     task_id: str,
     task_try_number: int,
     full_content: bool = False,
-    token: Optional[str] = None,
+    map_index: int = -1,
+    token: str | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get logs for specific task instance"""
@@ -72,13 +75,13 @@ def get_log(
     task_log_reader = TaskLogReader()
     if not task_log_reader.supports_read:
         raise BadRequest("Task log handler does not support read logs.")
-
     ti = (
         session.query(TaskInstance)
         .filter(
             TaskInstance.task_id == task_id,
             TaskInstance.dag_id == dag_id,
             TaskInstance.run_id == dag_run_id,
+            TaskInstance.map_index == map_index,
         )
         .join(TaskInstance.dag_run)
         .one_or_none()

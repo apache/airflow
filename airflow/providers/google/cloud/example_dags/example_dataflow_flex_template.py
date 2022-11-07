@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG for Google Cloud Dataflow service
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -28,26 +29,25 @@ from airflow.providers.google.cloud.operators.dataflow import DataflowStartFlexT
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 
 DATAFLOW_FLEX_TEMPLATE_JOB_NAME = os.environ.get(
-    'GCP_DATAFLOW_FLEX_TEMPLATE_JOB_NAME', "dataflow-flex-template"
+    "GCP_DATAFLOW_FLEX_TEMPLATE_JOB_NAME", "dataflow-flex-template"
 )
 
 # For simplicity we use the same topic name as the subscription name.
 PUBSUB_FLEX_TEMPLATE_TOPIC = os.environ.get(
-    'GCP_DATAFLOW_PUBSUB_FLEX_TEMPLATE_TOPIC', "dataflow-flex-template"
+    "GCP_DATAFLOW_PUBSUB_FLEX_TEMPLATE_TOPIC", "dataflow-flex-template"
 )
 PUBSUB_FLEX_TEMPLATE_SUBSCRIPTION = PUBSUB_FLEX_TEMPLATE_TOPIC
 GCS_FLEX_TEMPLATE_TEMPLATE_PATH = os.environ.get(
-    'GCP_DATAFLOW_GCS_FLEX_TEMPLATE_TEMPLATE_PATH',
+    "GCP_DATAFLOW_GCS_FLEX_TEMPLATE_TEMPLATE_PATH",
     "gs://INVALID BUCKET NAME/samples/dataflow/templates/streaming-beam-sql.json",
 )
-BQ_FLEX_TEMPLATE_DATASET = os.environ.get('GCP_DATAFLOW_BQ_FLEX_TEMPLATE_DATASET', 'airflow_dataflow_samples')
-BQ_FLEX_TEMPLATE_LOCATION = os.environ.get('GCP_DATAFLOW_BQ_FLEX_TEMPLATE_LOCATION>', 'us-west1')
+BQ_FLEX_TEMPLATE_DATASET = os.environ.get("GCP_DATAFLOW_BQ_FLEX_TEMPLATE_DATASET", "airflow_dataflow_samples")
+BQ_FLEX_TEMPLATE_LOCATION = os.environ.get("GCP_DATAFLOW_BQ_FLEX_TEMPLATE_LOCATION>", "us-west1")
 
 with models.DAG(
     dag_id="example_gcp_dataflow_flex_template_java",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    schedule_interval='@once',  # Override to match your needs
 ) as dag_flex_template:
     # [START howto_operator_start_template_job]
     start_flex_template = DataflowStartFlexTemplateOperator(

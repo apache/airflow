@@ -20,15 +20,16 @@ Removes older releases of provider packages from the folder using svn rm.
 
 It iterates over the folder specified as first parameter and removes all but latest releases of
 packages found in that directory.
-
 """
+from __future__ import annotations
+
 import argparse
 import glob
 import operator
 import os
 import subprocess
 from collections import defaultdict
-from typing import Dict, List, NamedTuple
+from typing import NamedTuple
 
 from packaging.version import Version
 
@@ -54,7 +55,7 @@ def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
 
 
 def process_all_files(directory: str, suffix: str, execute: bool):
-    package_types_dicts: Dict[str, List[VersionedFile]] = defaultdict(list)
+    package_types_dicts: dict[str, list[VersionedFile]] = defaultdict(list)
     os.chdir(directory)
 
     for file in glob.glob("*" + suffix):
@@ -81,21 +82,21 @@ def process_all_files(directory: str, suffix: str, execute: bool):
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description='Removes old releases.')
+    parser = argparse.ArgumentParser(description="Removes old releases.")
     parser.add_argument(
-        '--directory',
-        dest='directory',
-        action='store',
+        "--directory",
+        dest="directory",
+        action="store",
         required=True,
-        help='Directory to remove old releases in',
+        help="Directory to remove old releases in",
     )
     parser.add_argument(
-        '--execute', dest='execute', action='store_true', help='Execute the removal rather than dry run'
+        "--execute", dest="execute", action="store_true", help="Execute the removal rather than dry run"
     )
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_args()
     process_all_files(args.directory, ".tar.gz", args.execute)
     process_all_files(args.directory, ".tar.gz.sha512", args.execute)

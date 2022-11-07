@@ -16,15 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 """Standard task runner"""
+from __future__ import annotations
+
 import logging
 import os
-from typing import Optional
 
 import psutil
 from setproctitle import setproctitle
 
 from airflow.settings import CAN_FORK
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
+from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.process_utils import reap_process_group, set_new_process_group
 
 
@@ -34,6 +36,7 @@ class StandardTaskRunner(BaseTaskRunner):
     def __init__(self, local_task_job):
         super().__init__(local_task_job)
         self._rc = None
+        self.dag = local_task_job.task_instance.task.dag
 
     def start(self):
         if CAN_FORK and not self.run_as_user:
@@ -62,7 +65,6 @@ class StandardTaskRunner(BaseTaskRunner):
             from airflow import settings
             from airflow.cli.cli_parser import get_parser
             from airflow.sentry import Sentry
-            from airflow.utils.cli import get_dag
 
             # Force a new SQLAlchemy session. We can't share open DB handles
             # between process. The cli code will re-create this as part of its
@@ -84,13 +86,14 @@ class StandardTaskRunner(BaseTaskRunner):
             if job_id is not None:
                 proc_title += " {0.job_id}"
             setproctitle(proc_title.format(args))
-
             return_code = 0
             try:
-                # parse dag file since `airflow tasks run --local` does not parse dag file
-                dag = get_dag(args.subdir, args.dag_id)
-                args.func(args, dag=dag)
-                return_code = 0
+                with _airflow_parsing_context_manager(
+                    dag_id=self._task_instance.dag_id,
+                    task_id=self._task_instance.task_id,
+                ):
+                    args.func(args, dag=self.dag)
+                    return_code = 0
             except Exception as exc:
                 return_code = 1
 
@@ -129,7 +132,7 @@ class StandardTaskRunner(BaseTaskRunner):
             # deleted at os._exit()
             os._exit(return_code)
 
-    def return_code(self, timeout: int = 0) -> Optional[int]:
+    def return_code(self, timeout: int = 0) -> int | None:
         # We call this multiple times, but we can only wait on the process once
         if self._rc is not None or not self.process:
             return self._rc

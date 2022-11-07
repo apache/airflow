@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import warnings
-from typing import Iterable, Mapping, Optional, Sequence, Union
+from typing import Iterable, Mapping, Sequence
 
 from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackOperator
 
@@ -51,8 +52,8 @@ class SnowflakeToSlackOperator(SqlToSlackOperator):
         'webhook_token' attribute needs to be specified in the 'Extra' JSON field against the slack_conn_id.
     """
 
-    template_fields: Sequence[str] = ('sql', 'slack_message')
-    template_ext: Sequence[str] = ('.sql', '.jinja', '.j2')
+    template_fields: Sequence[str] = ("sql", "slack_message")
+    template_ext: Sequence[str] = (".sql", ".jinja", ".j2")
     template_fields_renderers = {"sql": "sql", "slack_message": "jinja"}
     times_rendered = 0
 
@@ -61,15 +62,15 @@ class SnowflakeToSlackOperator(SqlToSlackOperator):
         *,
         sql: str,
         slack_message: str,
-        snowflake_conn_id: str = 'snowflake_default',
-        slack_conn_id: str = 'slack_default',
-        results_df_name: str = 'results_df',
-        parameters: Optional[Union[Iterable, Mapping]] = None,
-        warehouse: Optional[str] = None,
-        database: Optional[str] = None,
-        schema: Optional[str] = None,
-        role: Optional[str] = None,
-        slack_token: Optional[str] = None,
+        snowflake_conn_id: str = "snowflake_default",
+        slack_conn_id: str = "slack_default",
+        results_df_name: str = "results_df",
+        parameters: Iterable | Mapping | None = None,
+        warehouse: str | None = None,
+        database: str | None = None,
+        schema: str | None = None,
+        role: str | None = None,
+        slack_token: str | None = None,
         **kwargs,
     ) -> None:
         self.snowflake_conn_id = snowflake_conn_id

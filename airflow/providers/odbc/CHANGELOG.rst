@@ -24,6 +24,26 @@
 Changelog
 ---------
 
+3.1.2
+.....
+
+Misc
+~~~~
+
+* ``Add common-sql lower bound for common-sql (#25789)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+
+3.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix odbc hook sqlalchemy_scheme docstring (#25421)``
+
 3.1.0
 .....
 

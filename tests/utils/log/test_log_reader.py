@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import copy
 import datetime
@@ -106,7 +107,7 @@ class TestLogView:
             state=TaskInstanceState.RUNNING,
         )
         ti.try_number = 3
-        ti.hostname = 'localhost'
+        ti.hostname = "localhost"
         self.ti = ti
         yield
         clear_db_runs()
@@ -120,13 +121,13 @@ class TestLogView:
 
         assert [
             (
-                'localhost',
+                "localhost",
                 f"*** Reading local file: "
                 f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
                 f"try_number=1.\n",
             )
         ] == logs[0]
-        assert {"end_of_log": True} == metadatas
+        assert metadatas == {"end_of_log": True, "log_pos": 102 + len(self.log_dir)}
 
     def test_test_read_log_chunks_should_read_all_files(self):
         task_log_reader = TaskLogReader()
@@ -135,7 +136,7 @@ class TestLogView:
         assert [
             [
                 (
-                    'localhost',
+                    "localhost",
                     "*** Reading local file: "
                     f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
                     "try_number=1.\n",
@@ -143,7 +144,7 @@ class TestLogView:
             ],
             [
                 (
-                    'localhost',
+                    "localhost",
                     f"*** Reading local file: "
                     f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
                     f"try_number=2.\n",
@@ -151,14 +152,14 @@ class TestLogView:
             ],
             [
                 (
-                    'localhost',
+                    "localhost",
                     f"*** Reading local file: "
                     f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
                     f"try_number=3.\n",
                 )
             ],
         ] == logs
-        assert {"end_of_log": True} == metadatas
+        assert {"end_of_log": True, "log_pos": 102 + len(self.log_dir)} == metadatas
 
     def test_test_test_read_log_stream_should_read_one_try(self):
         task_log_reader = TaskLogReader()
@@ -173,6 +174,7 @@ class TestLogView:
 
     def test_test_test_read_log_stream_should_read_all_logs(self):
         task_log_reader = TaskLogReader()
+        self.ti.state = TaskInstanceState.SUCCESS  # Ensure mocked instance is completed to return stream
         stream = task_log_reader.read_log_stream(ti=self.ti, try_number=None, metadata={})
         assert [
             "localhost\n*** Reading local file: "
@@ -191,13 +193,14 @@ class TestLogView:
 
     @mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read")
     def test_read_log_stream_should_support_multiple_chunks(self, mock_read):
-        first_return = ([[('', "1st line")]], [{}])
-        second_return = ([[('', "2nd line")]], [{"end_of_log": False}])
-        third_return = ([[('', "3rd line")]], [{"end_of_log": True}])
-        fourth_return = ([[('', "should never be read")]], [{"end_of_log": True}])
+        first_return = ([[("", "1st line")]], [{}])
+        second_return = ([[("", "2nd line")]], [{"end_of_log": False}])
+        third_return = ([[("", "3rd line")]], [{"end_of_log": True}])
+        fourth_return = ([[("", "should never be read")]], [{"end_of_log": True}])
         mock_read.side_effect = [first_return, second_return, third_return, fourth_return]
 
         task_log_reader = TaskLogReader()
+        self.ti.state = TaskInstanceState.SUCCESS
         log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=1, metadata={})
         assert ["\n1st line\n", "\n2nd line\n", "\n3rd line\n"] == list(log_stream)
 
@@ -212,15 +215,15 @@ class TestLogView:
 
     @mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read")
     def test_read_log_stream_should_read_each_try_in_turn(self, mock_read):
-        first_return = ([[('', "try_number=1.")]], [{"end_of_log": True}])
-        second_return = ([[('', "try_number=2.")]], [{"end_of_log": True}])
-        third_return = ([[('', "try_number=3.")]], [{"end_of_log": True}])
-        fourth_return = ([[('', "should never be read")]], [{"end_of_log": True}])
+        first_return = ([[("", "try_number=1.")]], [{"end_of_log": True}])
+        second_return = ([[("", "try_number=2.")]], [{"end_of_log": True}])
+        third_return = ([[("", "try_number=3.")]], [{"end_of_log": True}])
+        fourth_return = ([[("", "should never be read")]], [{"end_of_log": True}])
         mock_read.side_effect = [first_return, second_return, third_return, fourth_return]
 
         task_log_reader = TaskLogReader()
         log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=None, metadata={})
-        assert ['\ntry_number=1.\n', '\ntry_number=2.\n', '\ntry_number=3.\n'] == list(log_stream)
+        assert ["\ntry_number=1.\n", "\ntry_number=2.\n", "\ntry_number=3.\n"] == list(log_stream)
 
         mock_read.assert_has_calls(
             [
@@ -267,7 +270,7 @@ class TestLogView:
         def echo_run_type(dag_run: DagRun, **kwargs):
             print(dag_run.run_type)
 
-        with dag_maker(dag_id, start_date=self.DEFAULT_DATE, schedule_interval="@daily") as dag:
+        with dag_maker(dag_id, start_date=self.DEFAULT_DATE, schedule="@daily") as dag:
             PythonOperator(task_id=task_id, python_callable=echo_run_type)
 
         start = pendulum.datetime(2021, 1, 1)

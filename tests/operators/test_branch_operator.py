@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
-import unittest
 
 from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.operators.branch import BaseBranchOperator
@@ -33,38 +33,34 @@ INTERVAL = datetime.timedelta(hours=12)
 
 class ChooseBranchOne(BaseBranchOperator):
     def choose_branch(self, context):
-        return 'branch_1'
+        return "branch_1"
 
 
 class ChooseBranchOneTwo(BaseBranchOperator):
     def choose_branch(self, context):
-        return ['branch_1', 'branch_2']
+        return ["branch_1", "branch_2"]
 
 
-class TestBranchOperator(unittest.TestCase):
+class TestBranchOperator:
     @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-
+    def setup_class(cls):
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
 
-    def setUp(self):
+    def setup_method(self):
         self.dag = DAG(
-            'branch_operator_test',
-            default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
-            schedule_interval=INTERVAL,
+            "branch_operator_test",
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            schedule=INTERVAL,
         )
 
-        self.branch_1 = EmptyOperator(task_id='branch_1', dag=self.dag)
-        self.branch_2 = EmptyOperator(task_id='branch_2', dag=self.dag)
+        self.branch_1 = EmptyOperator(task_id="branch_1", dag=self.dag)
+        self.branch_2 = EmptyOperator(task_id="branch_2", dag=self.dag)
         self.branch_3 = None
         self.branch_op = None
 
-    def tearDown(self):
-        super().tearDown()
-
+    def teardown_method(self):
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
@@ -82,22 +78,22 @@ class TestBranchOperator(unittest.TestCase):
             tis = session.query(TI).filter(TI.dag_id == self.dag.dag_id, TI.execution_date == DEFAULT_DATE)
 
             for ti in tis:
-                if ti.task_id == 'make_choice':
+                if ti.task_id == "make_choice":
                     assert ti.state == State.SUCCESS
-                elif ti.task_id == 'branch_1':
+                elif ti.task_id == "branch_1":
                     # should exist with state None
                     assert ti.state == State.NONE
-                elif ti.task_id == 'branch_2':
+                elif ti.task_id == "branch_2":
                     assert ti.state == State.SKIPPED
                 else:
                     raise Exception
 
     def test_branch_list_without_dag_run(self):
         """This checks if the BranchOperator supports branching off to a list of tasks."""
-        self.branch_op = ChooseBranchOneTwo(task_id='make_choice', dag=self.dag)
+        self.branch_op = ChooseBranchOneTwo(task_id="make_choice", dag=self.dag)
         self.branch_1.set_upstream(self.branch_op)
         self.branch_2.set_upstream(self.branch_op)
-        self.branch_3 = EmptyOperator(task_id='branch_3', dag=self.dag)
+        self.branch_3 = EmptyOperator(task_id="branch_3", dag=self.dag)
         self.branch_3.set_upstream(self.branch_op)
         self.dag.clear()
 
@@ -136,11 +132,11 @@ class TestBranchOperator(unittest.TestCase):
 
         tis = dagrun.get_task_instances()
         for ti in tis:
-            if ti.task_id == 'make_choice':
+            if ti.task_id == "make_choice":
                 assert ti.state == State.SUCCESS
-            elif ti.task_id == 'branch_1':
+            elif ti.task_id == "branch_1":
                 assert ti.state == State.NONE
-            elif ti.task_id == 'branch_2':
+            elif ti.task_id == "branch_2":
                 assert ti.state == State.SKIPPED
             else:
                 raise Exception
@@ -162,17 +158,17 @@ class TestBranchOperator(unittest.TestCase):
 
         tis = dagrun.get_task_instances()
         for ti in tis:
-            if ti.task_id == 'make_choice':
+            if ti.task_id == "make_choice":
                 assert ti.state == State.SUCCESS
-            elif ti.task_id == 'branch_1':
+            elif ti.task_id == "branch_1":
                 assert ti.state == State.NONE
-            elif ti.task_id == 'branch_2':
+            elif ti.task_id == "branch_2":
                 assert ti.state == State.NONE
             else:
                 raise Exception
 
     def test_xcom_push(self):
-        self.branch_op = ChooseBranchOne(task_id='make_choice', dag=self.dag)
+        self.branch_op = ChooseBranchOne(task_id="make_choice", dag=self.dag)
 
         self.branch_1.set_upstream(self.branch_op)
         self.branch_2.set_upstream(self.branch_op)
@@ -189,5 +185,5 @@ class TestBranchOperator(unittest.TestCase):
 
         tis = dr.get_task_instances()
         for ti in tis:
-            if ti.task_id == 'make_choice':
-                assert ti.xcom_pull(task_ids='make_choice') == 'branch_1'
+            if ti.task_id == "make_choice":
+                assert ti.xcom_pull(task_ids="make_choice") == "branch_1"

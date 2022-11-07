@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
@@ -26,7 +27,7 @@ if TYPE_CHECKING:
 
 
 def expand_mapped_task(
-    mapped: "MappedOperator", run_id: str, upstream_task_id: str, length: int, session: "Session"
+    mapped: MappedOperator, run_id: str, upstream_task_id: str, length: int, session: Session
 ):
     session.add(
         TaskMap(
@@ -41,4 +42,4 @@ def expand_mapped_task(
     session.flush()
 
     mapped.expand_mapped_task(run_id, session=session)
-    mapped.run_time_mapped_ti_count.cache_clear()  # type: ignore[attr-defined]
+    mapped.get_mapped_ti_count.cache_clear()  # type: ignore[attr-defined]

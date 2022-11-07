@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG for Apache Beam operators
 """
+from __future__ import annotations
 
 from airflow import models
 from airflow.providers.apache.beam.operators.beam import BeamRunJavaPipelineOperator
@@ -32,10 +32,10 @@ from tests.system.providers.apache.beam.utils import (
 
 with models.DAG(
     "example_beam_native_java_direct_runner",
-    schedule_interval=None,  # Override to match your needs
+    schedule=None,  # Override to match your needs
     start_date=START_DATE,
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
 
     # [START howto_operator_start_java_direct_runner_pipeline]
@@ -50,10 +50,10 @@ with models.DAG(
         task_id="start_java_pipeline_direct_runner",
         jar="/tmp/beam_wordcount_direct_runner_{{ ds_nodash }}.jar",
         pipeline_options={
-            'output': '/tmp/start_java_pipeline_direct_runner',
-            'inputFile': GCS_INPUT,
+            "output": "/tmp/start_java_pipeline_direct_runner",
+            "inputFile": GCS_INPUT,
         },
-        job_class='org.apache.beam.examples.WordCount',
+        job_class="org.apache.beam.examples.WordCount",
     )
 
     jar_to_local_direct_runner >> start_java_pipeline_direct_runner

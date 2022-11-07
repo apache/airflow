@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import io
 import json
@@ -99,12 +100,12 @@ class TestAwsLambdaInvokeFunctionOperator(unittest.TestCase):
 
     @pytest.mark.execution_timeout(120)
     def test_invoke_lambda(self):
-        self.create_lambda_function('test')
+        self.create_lambda_function("test")
         test_event_input = {"TestInput": "Testdata"}
         lambda_invoke_function = AwsLambdaInvokeFunctionOperator(
             task_id="task_test",
             function_name="test",
-            log_type='None',
+            log_type="None",
             payload=json.dumps(test_event_input),
         )
         value = lambda_invoke_function.execute(None)

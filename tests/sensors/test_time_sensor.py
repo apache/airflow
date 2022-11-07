@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from datetime import datetime, time
 from unittest.mock import patch
@@ -68,3 +69,10 @@ class TestTimeSensorAsync:
         assert exc_info.value.trigger.moment == timezone.datetime(2020, 7, 7, 10)
         assert exc_info.value.method_name == "execute_complete"
         assert exc_info.value.kwargs is None
+
+    def test_target_time_aware(self):
+        with DAG("test_target_time_aware", start_date=timezone.datetime(2020, 1, 1, 23, 0)):
+            aware_time = time(0, 1).replace(tzinfo=pendulum.local_timezone())
+            op = TimeSensorAsync(task_id="test", target_time=aware_time)
+            assert hasattr(op.target_datetime.tzinfo, "offset")
+            assert op.target_datetime.tzinfo.offset == 0

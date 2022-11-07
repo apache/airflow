@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import re
-import unittest
 from unittest import mock
 
 import pytest
@@ -25,14 +25,14 @@ from airflow.www.extensions import init_views
 from tests.test_utils.config import conf_vars
 
 
-class TestInitApiExperimental(unittest.TestCase):
-    @conf_vars({('api', 'enable_experimental_api'): 'true'})
+class TestInitApiExperimental:
+    @conf_vars({("api", "enable_experimental_api"): "true"})
     def test_should_raise_deprecation_warning_when_enabled(self):
         app = mock.MagicMock()
         with pytest.warns(DeprecationWarning, match=re.escape("The experimental REST API is deprecated.")):
             init_views.init_api_experimental(app)
 
-    @conf_vars({('api', 'enable_experimental_api'): 'false'})
+    @conf_vars({("api", "enable_experimental_api"): "false"})
     def test_should_not_raise_deprecation_warning_when_disabled(self):
         app = mock.MagicMock()
         with pytest.warns(None) as warnings:

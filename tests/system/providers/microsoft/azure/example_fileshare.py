@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -21,7 +23,7 @@ from airflow.decorators import task
 from airflow.models import DAG
 from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
 
-NAME = 'myfileshare'
+NAME = "myfileshare"
 DIRECTORY = "mydirectory"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_fileshare"
@@ -47,7 +49,7 @@ def delete_fileshare():
 
 with DAG(
     DAG_ID,
-    schedule_interval="@once",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:

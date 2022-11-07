@@ -15,10 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import logging
-from typing import Optional
+from __future__ import annotations
 
-from cryptography.fernet import Fernet, MultiFernet
+import logging
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -58,7 +57,7 @@ class NullFernet:
         return b
 
 
-_fernet = None  # type: Optional[FernetProtocol]
+_fernet: FernetProtocol | None = None
 
 
 def get_fernet():
@@ -71,6 +70,8 @@ def get_fernet():
     :return: Fernet object
     :raises: airflow.exceptions.AirflowException if there's a problem trying to load Fernet
     """
+    from cryptography.fernet import Fernet, MultiFernet
+
     global _fernet
 
     if _fernet:

@@ -24,6 +24,30 @@
 Changelog
 ---------
 
+3.2.1
+.....
+
+Features
+~~~~~~~~
+
+* ``Add common-sql lower bound for common-sql (#25789)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix placeholders in 'TrinoHook', 'PrestoHook', 'SqliteHook' (#25939)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+
 3.1.0
 .....
 

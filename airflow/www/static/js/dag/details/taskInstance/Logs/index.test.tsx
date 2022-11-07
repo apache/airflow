@@ -23,6 +23,7 @@ import React from 'react';
 import { render, fireEvent } from '@testing-library/react';
 import type { UseQueryResult } from 'react-query';
 
+import * as utils from 'src/utils';
 import * as useTaskLogModule from 'src/api/useTaskLog';
 
 import Logs from './index';
@@ -78,6 +79,75 @@ describe('Test Logs Component.', () => {
       { exact: false },
     )).toBeDefined();
     expect(getByText('AIRFLOW_CTX_DAG_ID=test_ui_grid', { exact: false })).toBeDefined();
+
+    expect(useTaskLogMock).toHaveBeenLastCalledWith({
+      dagId: 'dummyDagId',
+      dagRunId: 'dummyDagRunId',
+      fullContent: false,
+      taskId: 'dummyTaskId',
+      taskTryNumber: 2,
+    });
+  });
+
+  test.each([
+    { defaultWrap: 'True', shouldBeChecked: true },
+    { defaultWrap: 'False', shouldBeChecked: false },
+    { defaultWrap: '', shouldBeChecked: false },
+  ])('Test wrap checkbox initial value $defaultWrap', ({ defaultWrap, shouldBeChecked }) => {
+    jest.spyOn(utils, 'getMetaValue').mockImplementation(
+      (meta) => {
+        if (meta === 'default_wrap') return defaultWrap;
+        return '';
+      },
+    );
+
+    const tryNumber = 2;
+    const { getByTestId } = render(
+      <Logs
+        dagId="dummyDagId"
+        dagRunId="dummyDagRunId"
+        taskId="dummyTaskId"
+        executionDate="2020:01:01T01:00+00:00"
+        mapIndex={1}
+        tryNumber={tryNumber}
+      />,
+    );
+
+    const wrapCheckbox = getByTestId('wrap-checkbox');
+    if (shouldBeChecked) {
+      expect(wrapCheckbox).toHaveAttribute('data-checked');
+    } else {
+      expect(wrapCheckbox.getAttribute('data-checked')).toBeNull();
+    }
+  });
+
+  test('Test Logs Content Mapped Task', () => {
+    const tryNumber = 2;
+    const { getByText } = render(
+      <Logs
+        dagId="dummyDagId"
+        dagRunId="dummyDagRunId"
+        taskId="dummyTaskId"
+        executionDate="2020:01:01T01:00+00:00"
+        mapIndex={1}
+        tryNumber={tryNumber}
+      />,
+    );
+    expect(getByText('[2022-06-04, 00:00:01 UTC] {taskinstance.py:1329} INFO -', { exact: false })).toBeDefined();
+    expect(getByText(
+      '[2022-06-04, 00:00:01 UTC] {standard_task_runner.py:81} INFO - Job 1626: Subtask section_1.get_entry_group',
+      { exact: false },
+    )).toBeDefined();
+    expect(getByText('AIRFLOW_CTX_DAG_ID=test_ui_grid', { exact: false })).toBeDefined();
+
+    expect(useTaskLogMock).toHaveBeenLastCalledWith({
+      dagId: 'dummyDagId',
+      dagRunId: 'dummyDagRunId',
+      fullContent: false,
+      mapIndex: 1,
+      taskId: 'dummyTaskId',
+      taskTryNumber: 2,
+    });
   });
 
   test('Test Logs Attempt Select Button', () => {
@@ -102,18 +172,18 @@ describe('Test Logs Component.', () => {
       dagRunId: 'dummyDagRunId',
       fullContent: false,
       taskId: 'dummyTaskId',
-      taskTryNumber: 1,
+      taskTryNumber: 2,
     });
-    const attemptButton2 = getByTestId('log-attempt-select-button-2');
+    const attemptButton1 = getByTestId('log-attempt-select-button-1');
 
-    fireEvent.click(attemptButton2);
+    fireEvent.click(attemptButton1);
 
     expect(useTaskLogMock).toHaveBeenLastCalledWith({
       dagId: 'dummyDagId',
       dagRunId: 'dummyDagRunId',
       fullContent: false,
       taskId: 'dummyTaskId',
-      taskTryNumber: 2,
+      taskTryNumber: 1,
     });
   });
 
@@ -133,7 +203,7 @@ describe('Test Logs Component.', () => {
       dagRunId: 'dummyDagRunId',
       fullContent: false,
       taskId: 'dummyTaskId',
-      taskTryNumber: 1,
+      taskTryNumber: 2,
     });
     const fullContentCheckbox = getByTestId('full-content-checkbox');
 
@@ -144,7 +214,7 @@ describe('Test Logs Component.', () => {
       dagRunId: 'dummyDagRunId',
       fullContent: true,
       taskId: 'dummyTaskId',
-      taskTryNumber: 1,
+      taskTryNumber: 2,
     });
   });
 });

@@ -14,13 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 import subprocess
 import sys
 import tempfile
 import time
-import unittest
 from unittest import mock
 
 import psutil
@@ -34,8 +34,8 @@ from airflow.utils.cli import setup_locations
 from tests.test_utils.config import conf_vars
 
 
-class TestGunicornMonitor(unittest.TestCase):
-    def setUp(self) -> None:
+class TestGunicornMonitor:
+    def setup_method(self) -> None:
         self.monitor = GunicornMonitor(
             gunicorn_master_pid=1,
             num_workers_expected=4,
@@ -44,14 +44,14 @@ class TestGunicornMonitor(unittest.TestCase):
             worker_refresh_batch_size=2,
             reload_on_plugin_change=True,
         )
-        mock.patch.object(self.monitor, '_generate_plugin_state', return_value={}).start()
-        mock.patch.object(self.monitor, '_get_num_ready_workers_running', return_value=4).start()
-        mock.patch.object(self.monitor, '_get_num_workers_running', return_value=4).start()
-        mock.patch.object(self.monitor, '_spawn_new_workers', return_value=None).start()
-        mock.patch.object(self.monitor, '_kill_old_workers', return_value=None).start()
-        mock.patch.object(self.monitor, '_reload_gunicorn', return_value=None).start()
+        mock.patch.object(self.monitor, "_generate_plugin_state", return_value={}).start()
+        mock.patch.object(self.monitor, "_get_num_ready_workers_running", return_value=4).start()
+        mock.patch.object(self.monitor, "_get_num_workers_running", return_value=4).start()
+        mock.patch.object(self.monitor, "_spawn_new_workers", return_value=None).start()
+        mock.patch.object(self.monitor, "_kill_old_workers", return_value=None).start()
+        mock.patch.object(self.monitor, "_reload_gunicorn", return_value=None).start()
 
-    @mock.patch('airflow.cli.commands.webserver_command.sleep')
+    @mock.patch("airflow.cli.commands.webserver_command.sleep")
     def test_should_wait_for_workers_to_start(self, mock_sleep):
         self.monitor._get_num_ready_workers_running.return_value = 0
         self.monitor._get_num_workers_running.return_value = 4
@@ -60,7 +60,7 @@ class TestGunicornMonitor(unittest.TestCase):
         self.monitor._kill_old_workers.assert_not_called()
         self.monitor._reload_gunicorn.assert_not_called()
 
-    @mock.patch('airflow.cli.commands.webserver_command.sleep')
+    @mock.patch("airflow.cli.commands.webserver_command.sleep")
     def test_should_kill_excess_workers(self, mock_sleep):
         self.monitor._get_num_ready_workers_running.return_value = 10
         self.monitor._get_num_workers_running.return_value = 10
@@ -69,7 +69,7 @@ class TestGunicornMonitor(unittest.TestCase):
         self.monitor._kill_old_workers.assert_called_once_with(2)
         self.monitor._reload_gunicorn.assert_not_called()
 
-    @mock.patch('airflow.cli.commands.webserver_command.sleep')
+    @mock.patch("airflow.cli.commands.webserver_command.sleep")
     def test_should_start_new_workers_when_missing(self, mock_sleep):
         self.monitor._get_num_ready_workers_running.return_value = 3
         self.monitor._get_num_workers_running.return_value = 3
@@ -79,7 +79,7 @@ class TestGunicornMonitor(unittest.TestCase):
         self.monitor._kill_old_workers.assert_not_called()
         self.monitor._reload_gunicorn.assert_not_called()
 
-    @mock.patch('airflow.cli.commands.webserver_command.sleep')
+    @mock.patch("airflow.cli.commands.webserver_command.sleep")
     def test_should_start_new_batch_when_missing_many_workers(self, mock_sleep):
         self.monitor._get_num_ready_workers_running.return_value = 1
         self.monitor._get_num_workers_running.return_value = 1
@@ -89,7 +89,7 @@ class TestGunicornMonitor(unittest.TestCase):
         self.monitor._kill_old_workers.assert_not_called()
         self.monitor._reload_gunicorn.assert_not_called()
 
-    @mock.patch('airflow.cli.commands.webserver_command.sleep')
+    @mock.patch("airflow.cli.commands.webserver_command.sleep")
     def test_should_start_new_workers_when_refresh_interval_has_passed(self, mock_sleep):
         self.monitor._last_refresh_time -= 200
         self.monitor._check_workers()
@@ -98,9 +98,9 @@ class TestGunicornMonitor(unittest.TestCase):
         self.monitor._reload_gunicorn.assert_not_called()
         assert abs(self.monitor._last_refresh_time - time.monotonic()) < 5
 
-    @mock.patch('airflow.cli.commands.webserver_command.sleep')
+    @mock.patch("airflow.cli.commands.webserver_command.sleep")
     def test_should_reload_when_plugin_has_been_changed(self, mock_sleep):
-        self.monitor._generate_plugin_state.return_value = {'AA': 12}
+        self.monitor._generate_plugin_state.return_value = {"AA": 12}
 
         self.monitor._check_workers()
 
@@ -108,7 +108,7 @@ class TestGunicornMonitor(unittest.TestCase):
         self.monitor._kill_old_workers.assert_not_called()
         self.monitor._reload_gunicorn.assert_not_called()
 
-        self.monitor._generate_plugin_state.return_value = {'AA': 32}
+        self.monitor._generate_plugin_state.return_value = {"AA": 32}
 
         self.monitor._check_workers()
 
@@ -116,7 +116,7 @@ class TestGunicornMonitor(unittest.TestCase):
         self.monitor._kill_old_workers.assert_not_called()
         self.monitor._reload_gunicorn.assert_not_called()
 
-        self.monitor._generate_plugin_state.return_value = {'AA': 32}
+        self.monitor._generate_plugin_state.return_value = {"AA": 32}
 
         self.monitor._check_workers()
 
@@ -126,7 +126,7 @@ class TestGunicornMonitor(unittest.TestCase):
         assert abs(self.monitor._last_refresh_time - time.monotonic()) < 5
 
 
-class TestGunicornMonitorGeneratePluginState(unittest.TestCase):
+class TestGunicornMonitorGeneratePluginState:
     @staticmethod
     def _prepare_test_file(filepath: str, size: int):
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
@@ -183,12 +183,12 @@ class TestGunicornMonitorGeneratePluginState(unittest.TestCase):
             assert 4 == len(state_d)
 
 
-class TestCLIGetNumReadyWorkersRunning(unittest.TestCase):
+class TestCLIGetNumReadyWorkersRunning:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
-    def setUp(self):
+    def setup_method(self):
         self.children = mock.MagicMock()
         self.child = mock.MagicMock()
         self.process = mock.MagicMock()
@@ -205,27 +205,27 @@ class TestCLIGetNumReadyWorkersRunning(unittest.TestCase):
         self.child.cmdline.return_value = [settings.GUNICORN_WORKER_READY_PREFIX]
         self.process.children.return_value = [self.child]
 
-        with mock.patch('psutil.Process', return_value=self.process):
+        with mock.patch("psutil.Process", return_value=self.process):
             assert self.monitor._get_num_ready_workers_running() == 1
 
     def test_ready_prefix_on_cmdline_no_children(self):
         self.process.children.return_value = []
 
-        with mock.patch('psutil.Process', return_value=self.process):
+        with mock.patch("psutil.Process", return_value=self.process):
             assert self.monitor._get_num_ready_workers_running() == 0
 
     def test_ready_prefix_on_cmdline_zombie(self):
         self.child.cmdline.return_value = []
         self.process.children.return_value = [self.child]
 
-        with mock.patch('psutil.Process', return_value=self.process):
+        with mock.patch("psutil.Process", return_value=self.process):
             assert self.monitor._get_num_ready_workers_running() == 0
 
     def test_ready_prefix_on_cmdline_dead_process(self):
         self.child.cmdline.side_effect = psutil.NoSuchProcess(11347)
         self.process.children.return_value = [self.child]
 
-        with mock.patch('psutil.Process', return_value=self.process):
+        with mock.patch("psutil.Process", return_value=self.process):
             assert self.monitor._get_num_ready_workers_running() == 0
 
 
@@ -340,18 +340,16 @@ class TestCliWebServer:
     )
     def test_cli_webserver_shutdown_when_gunicorn_master_is_killed(self, _):
         # Shorten timeout so that this test doesn't take too long time
-        args = self.parser.parse_args(['webserver'])
-        with conf_vars({('webserver', 'web_server_master_timeout'): '10'}):
+        args = self.parser.parse_args(["webserver"])
+        with conf_vars({("webserver", "web_server_master_timeout"): "10"}):
             with pytest.raises(SystemExit) as ctx:
                 webserver_command.webserver(args)
         assert ctx.value.code == 1
 
     def test_cli_webserver_debug(self, app):
-        with mock.patch.object(webserver_command, 'create_app') as create_app, mock.patch.object(
-            app, 'run'
+        with mock.patch("airflow.www.app.create_app", return_value=app), mock.patch.object(
+            app, "run"
         ) as app_run:
-            create_app.return_value = app
-
             args = self.parser.parse_args(
                 [
                     "webserver",
@@ -364,12 +362,12 @@ class TestCliWebServer:
                 debug=True,
                 use_reloader=False,
                 port=8080,
-                host='0.0.0.0',
+                host="0.0.0.0",
                 ssl_context=None,
             )
 
     def test_cli_webserver_args(self):
-        with mock.patch("subprocess.Popen") as Popen, mock.patch.object(webserver_command, 'GunicornMonitor'):
+        with mock.patch("subprocess.Popen") as Popen, mock.patch.object(webserver_command, "GunicornMonitor"):
             args = self.parser.parse_args(
                 [
                     "webserver",
@@ -384,29 +382,30 @@ class TestCliWebServer:
             Popen.assert_called_with(
                 [
                     sys.executable,
-                    '-m',
-                    'gunicorn',
-                    '--workers',
-                    '4',
-                    '--worker-class',
-                    'sync',
-                    '--timeout',
-                    '120',
-                    '--bind',
-                    '0.0.0.0:8080',
-                    '--name',
-                    'airflow-webserver',
-                    '--pid',
-                    '/tmp/x.pid',
-                    '--config',
-                    'python:airflow.www.gunicorn_config',
-                    '--access-logfile',
-                    '-',
-                    '--error-logfile',
-                    '-',
-                    '--access-logformat',
-                    'custom_log_format',
-                    'airflow.www.app:cached_app()',
+                    "-m",
+                    "gunicorn",
+                    "--workers",
+                    "4",
+                    "--worker-class",
+                    "sync",
+                    "--timeout",
+                    "120",
+                    "--bind",
+                    "0.0.0.0:8080",
+                    "--name",
+                    "airflow-webserver",
+                    "--pid",
+                    "/tmp/x.pid",
+                    "--config",
+                    "python:airflow.www.gunicorn_config",
+                    "--access-logfile",
+                    "-",
+                    "--error-logfile",
+                    "-",
+                    "--access-logformat",
+                    "custom_log_format",
+                    "airflow.www.app:cached_app()",
+                    "--preload",
                 ],
                 close_fds=True,
             )

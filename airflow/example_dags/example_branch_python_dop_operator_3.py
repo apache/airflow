@@ -15,25 +15,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Example DAG demonstrating the usage of ``@task.branch`` TaskFlow API decorator with depends_on_past=True,
+where tasks may be run or skipped on alternating runs.
+"""
+from __future__ import annotations
 
-"""
-Example DAG demonstrating the usage of BranchPythonOperator with depends_on_past=True, where tasks may be run
-or skipped on alternating runs.
-"""
 import pendulum
 
 from airflow import DAG
+from airflow.decorators import task
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import BranchPythonOperator
 
 
-def should_run(**kwargs):
+@task.branch()
+def should_run(**kwargs) -> str:
     """
     Determine which empty_task should be run based on if the execution date minute is even or odd.
 
     :param dict kwargs: Context
     :return: Id of the task to run
-    :rtype: str
     """
     print(
         f"------------- exec dttm = {kwargs['execution_date']} and minute = {kwargs['execution_date'].minute}"
@@ -46,16 +47,13 @@ def should_run(**kwargs):
 
 with DAG(
     dag_id='example_branch_dop_operator_v3',
-    schedule_interval='*/1 * * * *',
+    schedule='*/1 * * * *',
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     default_args={'depends_on_past': True},
     tags=['example'],
 ) as dag:
-    cond = BranchPythonOperator(
-        task_id='condition',
-        python_callable=should_run,
-    )
+    cond = should_run()
 
     empty_task_1 = EmptyOperator(task_id='empty_task_1')
     empty_task_2 = EmptyOperator(task_id='empty_task_2')

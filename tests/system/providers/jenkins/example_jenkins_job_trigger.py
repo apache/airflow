@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -37,7 +39,7 @@ with DAG(
         "max_active_runs": 8,
     },
     start_date=datetime(2017, 6, 1),
-    schedule_interval=None,
+    schedule=None,
 ) as dag:
     job_trigger = JenkinsJobTriggerOperator(
         task_id="trigger_job",
@@ -60,7 +62,7 @@ with DAG(
         # You can then use it to access things or to get the job number
         # This url looks like : http://jenkins_url/job/job_name/job_number/
         url += "artifact/myartifact.xml"  # Or any other artifact name
-        request = Request(method='GET', url=url)
+        request = Request(method="GET", url=url)
         response = jenkins_server.jenkins_open(request)
         return response  # We store the artifact content in a xcom variable for later use
 

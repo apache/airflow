@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -34,7 +35,7 @@ LOOKER_CONN_ID = "test-conn"
 MODEL = "test_model"
 VIEW = "test_view"
 
-TEST_DAG_ID = 'test-looker-operators'
+TEST_DAG_ID = "test-looker-operators"
 DEFAULT_DATE = datetime(2020, 1, 1)
 TEST_JOB_ID = "123"
 
@@ -166,6 +167,6 @@ class TestLookerStartPdtBuildOperator(LookerTestBase):
 
         # check AirflowException is raised
         with pytest.raises(
-            AirflowException, match=f'No `materialization_id` was returned for model: {MODEL}, view: {VIEW}.'
+            AirflowException, match=f"No `materialization_id` was returned for model: {MODEL}, view: {VIEW}."
         ):
             task.execute(context=self.mock_context)

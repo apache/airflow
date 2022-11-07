@@ -253,7 +253,7 @@
       description: |
           The number of seconds each task is going to wait by default between retries. Can be overridden at
           dag or task level.
-      version_added: 2.3.2
+      version_added: 2.4.0
       type: integer
       example: ~
       default: "300"
@@ -373,6 +373,31 @@
       type: integer
       example: ~
       default: "1024"
+
+    - name: daemon_umask
+      description: |
+        The default umask to use for process when run in daemon mode (scheduler, worker,  etc.)
+
+        This controls the file-creation mode mask which determines the initial value of file permission bits
+        for newly created files.
+
+        This value is treated as an octal-integer.
+      version_added: 2.3.4
+      type: string
+      default: "0o077"
+      example: ~
+    - name: dataset_manager_class
+      description: Class to use as dataset manager.
+      version_added: 2.4.0
+      type: string
+      default: ~
+      example: 'airflow.datasets.manager.DatasetManager'
+    - name: dataset_manager_kwargs
+      description: Kwargs to supply to dataset manager.
+      version_added: 2.4.0
+      type: string
+      default: ~
+      example: '{"some_param": "some_value"}'
 
 - name: database
   description: ~
@@ -634,6 +659,21 @@
       type: string
       example: ~
       default: "%%(asctime)s %%(levelname)s - %%(message)s"
+    - name: dag_processor_log_target
+      description: Where to send dag parser logs. If "file",
+        logs are sent to log files defined by child_process_log_directory.
+      version_added: 2.4.0
+      type: string
+      example: ~
+      default: "file"
+    - name: dag_processor_log_format
+      description: |
+        Format of Dag Processor Log line
+      version_added: 2.4.0
+      type: string
+      example: ~
+      default: "[%%(asctime)s] [SOURCE:DAG_PROCESSOR]
+        {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
     - name: log_formatter_class
       description: ~
       version_added: 2.3.4
@@ -1172,7 +1212,9 @@
       default: ""
     - name: expose_config
       description: |
-        Expose the configuration file in the web server
+        Expose the configuration file in the web server. Set to "non-sensitive-only" to show all values
+        except those that have security implications. "True" shows all values. "False" hides the
+        configuration completely.
       version_added: ~
       type: string
       example: ~
@@ -1190,7 +1232,7 @@
       version_added: 1.10.8
       type: string
       example: ~
-      default: "True"
+      default: "False"
     - name: dag_default_view
       description: |
         Default DAG view. Valid values are: ``grid``, ``graph``, ``duration``, ``gantt``, ``landing_times``
@@ -1652,15 +1694,6 @@
       type: boolean
       example: ~
       default: "true"
-    - name: worker_umask
-      description: |
-        Umask that will be used when starting workers with the ``airflow celery worker``
-        in daemon mode. This control the file-creation mode mask which determines the initial
-        value of file permission bits for newly created files.
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "0o077"
     - name: broker_url
       description: |
         The Celery broker URL. Celery supports RabbitMQ, Redis and experimentally
@@ -2105,6 +2138,14 @@
       type: integer
       example: ~
       default: "20"
+    - name: dag_stale_not_seen_duration
+      description: |
+        Only applicable if `[scheduler]standalone_dag_processor` is true.
+        Time in seconds after which dags, which were not updated by Dag Processor are deactivated.
+      version_added: 2.4.0
+      type: integer
+      example: ~
+      default: "600"
     - name: use_job_schedule
       description: |
         Turn off scheduler use of cron intervals by setting this to False.
@@ -2121,12 +2162,6 @@
       type: string
       example: ~
       default: "False"
-    - name: dependency_detector
-      description: DAG dependency detector class to use
-      version_added: 2.1.0
-      type: string
-      example: ~
-      default: "airflow.serialization.serialized_objects.DependencyDetector"
     - name: trigger_timeout_check_interval
       description: |
         How often to check for expired trigger requests that have not run yet.
@@ -2276,7 +2311,7 @@
       type: string
       example: ~
       default: "True"
-- name: kubernetes
+- name: kubernetes_executor
   description: ~
   options:
     - name: pod_template_file
@@ -2469,36 +2504,3 @@
       type: float
       example: ~
       default: "604800"
-- name: smart_sensor
-  description: ~
-  options:
-    - name: use_smart_sensor
-      description: |
-        When `use_smart_sensor` is True, Airflow redirects multiple qualified sensor tasks to
-        smart sensor task.
-      version_added: 2.0.0
-      type: boolean
-      example: ~
-      default: "False"
-    - name: shard_code_upper_limit
-      description: |
-        `shard_code_upper_limit` is the upper limit of `shard_code` value. The `shard_code` is generated
-        by `hashcode % shard_code_upper_limit`.
-      version_added: 2.0.0
-      type: integer
-      example: ~
-      default: "10000"
-    - name: shards
-      description: |
-        The number of running smart sensor processes for each service.
-      version_added: 2.0.0
-      type: integer
-      example: ~
-      default: "5"
-    - name: sensors_enabled
-      description: |
-        comma separated sensor classes support in smart_sensor.
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "NamedHivePartitionSensor"

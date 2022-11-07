@@ -19,16 +19,18 @@
 
 /* global document */
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import createCache from '@emotion/cache';
 import { useSearchParams } from 'react-router-dom';
-import { Center } from '@chakra-ui/react';
+import { Flex, Box, useDimensions } from '@chakra-ui/react';
 
 import App from 'src/App';
+import useContentHeight from 'src/utils/useContentHeight';
 
 import DatasetsList from './List';
 import DatasetDetails from './Details';
+import Graph from './Graph';
 
 // create shadowRoot
 const root = document.querySelector('#root');
@@ -39,25 +41,44 @@ const cache = createCache({
 });
 const mainElement = document.getElementById('react-container');
 
-const DATASET_ID = 'dataset_id';
+const DATASET_URI = 'uri';
 
 const Datasets = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const contentRef = useRef<HTMLDivElement>(null);
+  const graphRef = useRef<HTMLDivElement>(null);
+  const dimensions = useDimensions(graphRef, true);
 
   const onBack = () => {
-    searchParams.delete(DATASET_ID);
+    searchParams.delete(DATASET_URI);
     setSearchParams(searchParams);
   };
 
-  const onSelect = (datasetId: string) => {
-    searchParams.set(DATASET_ID, datasetId);
+  const onSelect = (datasetUri: string) => {
+    searchParams.set(DATASET_URI, encodeURIComponent(datasetUri));
     setSearchParams(searchParams);
   };
 
-  const datasetId = searchParams.get(DATASET_ID);
-  return (datasetId
-    ? <DatasetDetails datasetId={datasetId} onBack={onBack} />
-    : <DatasetsList onSelect={onSelect} />
+  const datasetUri = decodeURIComponent(searchParams.get(DATASET_URI) || '');
+
+  useContentHeight(contentRef);
+
+  return (
+    <Flex alignItems="flex-start" justifyContent="space-between" ref={contentRef}>
+      <Box minWidth="450px" height="100%" overflowY="scroll">
+        {datasetUri
+          ? <DatasetDetails uri={datasetUri} onBack={onBack} />
+          : <DatasetsList onSelect={onSelect} />}
+      </Box>
+      <Box flex={1} ref={graphRef} height="100%" borderColor="gray.200" borderWidth={1}>
+        <Graph
+          selectedUri={datasetUri}
+          onSelect={onSelect}
+          height={dimensions?.contentBox.height || 0}
+          width={dimensions?.contentBox.width || 0}
+        />
+      </Box>
+    </Flex>
   );
 };
 
@@ -66,9 +87,7 @@ if (mainElement) {
   const reactRoot = createRoot(mainElement);
   reactRoot.render(
     <App cache={cache}>
-      <Center>
-        <Datasets />
-      </Center>
+      <Datasets />
     </App>,
   );
 }

@@ -14,19 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains Google Dataplex hook."""
-from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from typing import Any, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 from google.cloud.dataplex_v1 import DataplexServiceClient
-from google.cloud.dataplex_v1.types import Task
+from google.cloud.dataplex_v1.types import Lake, Task
 from googleapiclient.discovery import Resource
 
 from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -48,14 +50,14 @@ class DataplexHook(GoogleBaseHook):
         account from the list granting this role to the originating account (templated).
     """
 
-    _conn = None  # type: Optional[Resource]
+    _conn: Resource | None = None
 
     def __init__(
         self,
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -66,13 +68,13 @@ class DataplexHook(GoogleBaseHook):
 
     def get_dataplex_client(self) -> DataplexServiceClient:
         """Returns DataplexServiceClient."""
-        client_options = ClientOptions(api_endpoint='dataplex.googleapis.com:443')
+        client_options = ClientOptions(api_endpoint="dataplex.googleapis.com:443")
 
         return DataplexServiceClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
-    def wait_for_operation(self, timeout: Optional[float], operation: Operation):
+    def wait_for_operation(self, timeout: float | None, operation: Operation):
         """Waits for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
@@ -86,12 +88,12 @@ class DataplexHook(GoogleBaseHook):
         project_id: str,
         region: str,
         lake_id: str,
-        body: Union[Dict[str, Any], Task],
+        body: dict[str, Any] | Task,
         dataplex_task_id: str,
-        validate_only: Optional[bool] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        validate_only: bool | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
         Creates a task resource within a lake.
@@ -109,14 +111,14 @@ class DataplexHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Additional metadata that is provided to the method.
         """
-        parent = f'projects/{project_id}/locations/{region}/lakes/{lake_id}'
+        parent = f"projects/{project_id}/locations/{region}/lakes/{lake_id}"
 
         client = self.get_dataplex_client()
         result = client.create_task(
             request={
-                'parent': parent,
-                'task_id': dataplex_task_id,
-                'task': body,
+                "parent": parent,
+                "task_id": dataplex_task_id,
+                "task": body,
             },
             retry=retry,
             timeout=timeout,
@@ -131,9 +133,9 @@ class DataplexHook(GoogleBaseHook):
         region: str,
         lake_id: str,
         dataplex_task_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
         Delete the task resource.
@@ -148,12 +150,12 @@ class DataplexHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Additional metadata that is provided to the method.
         """
-        name = f'projects/{project_id}/locations/{region}/lakes/{lake_id}/tasks/{dataplex_task_id}'
+        name = f"projects/{project_id}/locations/{region}/lakes/{lake_id}/tasks/{dataplex_task_id}"
 
         client = self.get_dataplex_client()
         result = client.delete_task(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -167,13 +169,13 @@ class DataplexHook(GoogleBaseHook):
         project_id: str,
         region: str,
         lake_id: str,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        filter: Optional[str] = None,
-        order_by: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        page_size: int | None = None,
+        page_token: str | None = None,
+        filter: str | None = None,
+        order_by: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
         Lists tasks under the given lake.
@@ -195,16 +197,16 @@ class DataplexHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Additional metadata that is provided to the method.
         """
-        parent = f'projects/{project_id}/locations/{region}/lakes/{lake_id}'
+        parent = f"projects/{project_id}/locations/{region}/lakes/{lake_id}"
 
         client = self.get_dataplex_client()
         result = client.list_tasks(
             request={
-                'parent': parent,
-                'page_size': page_size,
-                'page_token': page_token,
-                'filter': filter,
-                'order_by': order_by,
+                "parent": parent,
+                "page_size": page_size,
+                "page_token": page_token,
+                "filter": filter,
+                "order_by": order_by,
             },
             retry=retry,
             timeout=timeout,
@@ -219,9 +221,9 @@ class DataplexHook(GoogleBaseHook):
         region: str,
         lake_id: str,
         dataplex_task_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
         Get task resource.
@@ -236,11 +238,121 @@ class DataplexHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Additional metadata that is provided to the method.
         """
-        name = f'projects/{project_id}/locations/{region}/lakes/{lake_id}/tasks/{dataplex_task_id}'
+        name = f"projects/{project_id}/locations/{region}/lakes/{lake_id}/tasks/{dataplex_task_id}"
         client = self.get_dataplex_client()
         result = client.get_task(
             request={
-                'name': name,
+                "name": name,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_lake(
+        self,
+        project_id: str,
+        region: str,
+        lake_id: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Any:
+        """
+         Delete the lake resource.
+
+        :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
+        :param region: Required. The ID of the Google Cloud region that the lake belongs to.
+        :param lake_id: Required. The ID of the Google Cloud lake to be deleted.
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        name = f"projects/{project_id}/locations/{region}/lakes/{lake_id}"
+
+        client = self.get_dataplex_client()
+        result = client.delete_lake(
+            request={
+                "name": name,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def create_lake(
+        self,
+        project_id: str,
+        region: str,
+        lake_id: str,
+        body: dict[str, Any] | Lake,
+        validate_only: bool | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Any:
+        """
+        Creates a lake resource.
+
+        :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
+        :param region: Required. The ID of the Google Cloud region that the lake belongs to.
+        :param lake_id: Required. Lake identifier.
+        :param body: Required. The Request body contains an instance of Lake.
+        :param validate_only: Optional. Only validate the request, but do not perform mutations.
+            The default is false.
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        parent = f"projects/{project_id}/locations/{region}"
+        client = self.get_dataplex_client()
+        result = client.create_lake(
+            request={
+                "parent": parent,
+                "lake_id": lake_id,
+                "lake": body,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_lake(
+        self,
+        project_id: str,
+        region: str,
+        lake_id: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Any:
+        """
+        Get lake resource.
+
+        :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
+        :param region: Required. The ID of the Google Cloud region that the lake belongs to.
+        :param lake_id: Required. The ID of the Google Cloud lake to be retrieved.
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        name = f"projects/{project_id}/locations/{region}/lakes/{lake_id}/"
+        client = self.get_dataplex_client()
+        result = client.get_lake(
+            request={
+                "name": name,
             },
             retry=retry,
             timeout=timeout,

@@ -15,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains an operator to move data from MySQL to Hive."""
+from __future__ import annotations
 
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 import MySQLdb
 import unicodecsv as csv
@@ -68,10 +68,10 @@ class MySqlToHiveOperator(BaseOperator):
     :param tblproperties: TBLPROPERTIES of the hive table being created
     """
 
-    template_fields: Sequence[str] = ('sql', 'partition', 'hive_table')
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'mysql'}
-    ui_color = '#a0e08c'
+    template_fields: Sequence[str] = ("sql", "partition", "hive_table")
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "mysql"}
+    ui_color = "#a0e08c"
 
     def __init__(
         self,
@@ -80,14 +80,14 @@ class MySqlToHiveOperator(BaseOperator):
         hive_table: str,
         create: bool = True,
         recreate: bool = False,
-        partition: Optional[Dict] = None,
+        partition: dict | None = None,
         delimiter: str = chr(1),
-        quoting: Optional[str] = None,
+        quoting: str | None = None,
         quotechar: str = '"',
-        escapechar: Optional[str] = None,
-        mysql_conn_id: str = 'mysql_default',
-        hive_cli_conn_id: str = 'hive_cli_default',
-        tblproperties: Optional[Dict] = None,
+        escapechar: str | None = None,
+        mysql_conn_id: str = "mysql_default",
+        hive_cli_conn_id: str = "hive_cli_default",
+        tblproperties: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -110,22 +110,22 @@ class MySqlToHiveOperator(BaseOperator):
         """Maps MySQL type to Hive type."""
         types = MySQLdb.constants.FIELD_TYPE
         type_map = {
-            types.BIT: 'INT',
-            types.DECIMAL: 'DOUBLE',
-            types.NEWDECIMAL: 'DOUBLE',
-            types.DOUBLE: 'DOUBLE',
-            types.FLOAT: 'DOUBLE',
-            types.INT24: 'INT',
-            types.LONG: 'BIGINT',
-            types.LONGLONG: 'DECIMAL(38,0)',
-            types.SHORT: 'INT',
-            types.TINY: 'SMALLINT',
-            types.YEAR: 'INT',
-            types.TIMESTAMP: 'TIMESTAMP',
+            types.BIT: "INT",
+            types.DECIMAL: "DOUBLE",
+            types.NEWDECIMAL: "DOUBLE",
+            types.DOUBLE: "DOUBLE",
+            types.FLOAT: "DOUBLE",
+            types.INT24: "INT",
+            types.LONG: "BIGINT",
+            types.LONGLONG: "DECIMAL(38,0)",
+            types.SHORT: "INT",
+            types.TINY: "SMALLINT",
+            types.YEAR: "INT",
+            types.TIMESTAMP: "TIMESTAMP",
         }
-        return type_map.get(mysql_type, 'STRING')
+        return type_map.get(mysql_type, "STRING")
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Context):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
 

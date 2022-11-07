@@ -15,17 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-import unittest
+from __future__ import annotations
+
 from unittest import mock
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import sync_perm_command
 
 
-class TestCliSyncPerm(unittest.TestCase):
+class TestCliSyncPerm:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
     @mock.patch("airflow.cli.commands.sync_perm_command.cached_app")
@@ -33,7 +33,7 @@ class TestCliSyncPerm(unittest.TestCase):
         appbuilder = mock_cached_app.return_value.appbuilder
         appbuilder.sm = mock.Mock()
 
-        args = self.parser.parse_args(['sync-perm'])
+        args = self.parser.parse_args(["sync-perm"])
         sync_perm_command.sync_perm(args)
 
         appbuilder.add_permissions.assert_called_once_with(update_perms=True)
@@ -45,7 +45,7 @@ class TestCliSyncPerm(unittest.TestCase):
         appbuilder = mock_cached_app.return_value.appbuilder
         appbuilder.sm = mock.Mock()
 
-        args = self.parser.parse_args(['sync-perm', '--include-dags'])
+        args = self.parser.parse_args(["sync-perm", "--include-dags"])
         sync_perm_command.sync_perm(args)
 
         appbuilder.add_permissions.assert_called_once_with(update_perms=True)

@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Resource based permissions.
 
 Revision ID: 2c6edca13270
@@ -23,10 +22,12 @@ Revises: 849da589634d
 Create Date: 2020-10-21 00:18:52.529438
 
 """
+from __future__ import annotations
+
 import logging
 
 from airflow.security import permissions
-from airflow.www.app import create_app
+from airflow.www.app import cached_app
 
 # revision identifiers, used by Alembic.
 revision = '2c6edca13270'
@@ -287,7 +288,7 @@ mapping = {
 
 def remap_permissions():
     """Apply Map Airflow permissions."""
-    appbuilder = create_app(config={'FAB_UPDATE_PERMS': False}).appbuilder
+    appbuilder = cached_app(config={'FAB_UPDATE_PERMS': False}).appbuilder
     for old, new in mapping.items():
         (old_resource_name, old_action_name) = old
         old_permission = appbuilder.sm.get_permission(old_action_name, old_resource_name)
@@ -312,7 +313,7 @@ def remap_permissions():
 
 def undo_remap_permissions():
     """Unapply Map Airflow permissions"""
-    appbuilder = create_app(config={'FAB_UPDATE_PERMS': False}).appbuilder
+    appbuilder = cached_app(config={'FAB_UPDATE_PERMS': False}).appbuilder
     for old, new in mapping.items():
         (new_resource_name, new_action_name) = new[0]
         new_permission = appbuilder.sm.get_permission(new_action_name, new_resource_name)

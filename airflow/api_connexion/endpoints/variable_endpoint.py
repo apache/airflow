@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from http import HTTPStatus
-from typing import Optional
 
 from flask import Response
 from marshmallow import ValidationError
@@ -42,13 +43,13 @@ def delete_variable(*, variable_key: str) -> Response:
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
-def get_variable(*, variable_key: str) -> Response:
-    """Get a variables by key"""
-    try:
-        var = Variable.get(variable_key)
-    except KeyError:
+@provide_session
+def get_variable(*, variable_key: str, session: Session = NEW_SESSION) -> Response:
+    """Get a variable by key"""
+    var = session.query(Variable).filter(Variable.key == variable_key)
+    if not var.count():
         raise NotFound("Variable not found")
-    return variable_schema.dump({"key": variable_key, "val": var})
+    return variable_schema.dump(var.first())
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
@@ -56,9 +57,9 @@ def get_variable(*, variable_key: str) -> Response:
 @provide_session
 def get_variables(
     *,
-    limit: Optional[int],
+    limit: int | None,
     order_by: str = "id",
-    offset: Optional[int] = None,
+    offset: int | None = None,
     session: Session = NEW_SESSION,
 ) -> Response:
     """Get all variable values"""

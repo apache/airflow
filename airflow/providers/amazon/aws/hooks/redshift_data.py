@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
@@ -24,7 +25,7 @@ if TYPE_CHECKING:
     from mypy_boto3_redshift_data import RedshiftDataAPIServiceClient  # noqa
 
 
-class RedshiftDataHook(AwsGenericHook['RedshiftDataAPIServiceClient']):
+class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
     """
     Interact with AWS Redshift Data, using the boto3 library
     Hook attribute `conn` has all methods that listed in documentation

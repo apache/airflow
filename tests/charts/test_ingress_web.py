@@ -14,16 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
+from __future__ import annotations
 
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class IngressWebTest(unittest.TestCase):
+class TestIngressWeb:
     def test_should_pass_validation_with_just_ingress_enabled_v1(self):
         render_chart(
             values={"ingress": {"web": {"enabled": True}}},
@@ -34,7 +33,7 @@ class IngressWebTest(unittest.TestCase):
         render_chart(
             values={"ingress": {"web": {"enabled": True}}},
             show_only=["templates/webserver/webserver-ingress.yaml"],
-            kubernetes_version='1.16.0',
+            kubernetes_version="1.16.0",
         )  # checks that no validation exception is raised
 
     def test_should_allow_more_than_one_annotation(self):
@@ -131,7 +130,8 @@ class IngressWebTest(unittest.TestCase):
         )
         assert not jmespath.search("spec.rules[*].host", docs[0])
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "global_value, web_value, expected",
         [
             (None, None, False),
             (None, False, False),
@@ -140,7 +140,7 @@ class IngressWebTest(unittest.TestCase):
             (True, None, True),
             (False, True, True),  # We will deploy it if _either_ are true
             (True, False, True),
-        ]
+        ],
     )
     def test_ingress_created(self, global_value, web_value, expected):
         values = {"ingress": {}}
@@ -152,3 +152,16 @@ class IngressWebTest(unittest.TestCase):
             del values["ingress"]
         docs = render_chart(values=values, show_only=["templates/webserver/webserver-ingress.yaml"])
         assert expected == (1 == len(docs))
+
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "ingress": {"enabled": True},
+                "webserver": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/webserver/webserver-ingress.yaml"],
+        )
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"

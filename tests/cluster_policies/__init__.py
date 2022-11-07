@@ -15,9 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from abc import ABC
 from datetime import timedelta
-from typing import Callable, List
+from typing import Callable
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowClusterPolicyViolation
@@ -28,11 +30,11 @@ from airflow.models.baseoperator import BaseOperator
 # [START example_cluster_policy_rule]
 def task_must_have_owners(task: BaseOperator):
     if task.owner and not isinstance(task.owner, str):
-        raise AirflowClusterPolicyViolation(f'''owner should be a string. Current value: {task.owner!r}''')
+        raise AirflowClusterPolicyViolation(f"""owner should be a string. Current value: {task.owner!r}""")
 
-    if not task.owner or task.owner.lower() == conf.get('operators', 'default_owner'):
+    if not task.owner or task.owner.lower() == conf.get("operators", "default_owner"):
         raise AirflowClusterPolicyViolation(
-            f'''Task must have non-None non-default owner. Current value: {task.owner}'''
+            f"""Task must have non-None non-default owner. Current value: {task.owner}"""
         )
 
 
@@ -40,7 +42,7 @@ def task_must_have_owners(task: BaseOperator):
 
 
 # [START example_list_of_cluster_policy_rules]
-TASK_RULES: List[Callable[[BaseOperator], None]] = [
+TASK_RULES: list[Callable[[BaseOperator], None]] = [
     task_must_have_owners,
 ]
 
@@ -87,7 +89,7 @@ class TimedOperator(BaseOperator, ABC):
 
 
 def task_policy(task: TimedOperator):
-    if task.task_type == 'HivePartitionSensor':
+    if task.task_type == "HivePartitionSensor":
         task.queue = "sensor_queue"
     if task.timeout > timedelta(hours=48):
         task.timeout = timedelta(hours=48)
@@ -99,7 +101,7 @@ def task_policy(task: TimedOperator):
 # [START example_task_mutation_hook]
 def task_instance_mutation_hook(task_instance: TaskInstance):
     if task_instance.try_number >= 1:
-        task_instance.queue = 'retry_queue'
+        task_instance.queue = "retry_queue"
 
 
 # [END example_task_mutation_hook]

@@ -18,6 +18,8 @@
 """
 Tests for Google Cloud Life Sciences Hook
 """
+from __future__ import annotations
+
 import unittest
 from unittest import mock
 from unittest.mock import PropertyMock
@@ -33,8 +35,8 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
 )
 
 TEST_OPERATION = {
-    "name": 'operation-name',
-    "metadata": {"@type": 'anytype'},
+    "name": "operation-name",
+    "metadata": {"@type": "anytype"},
     "done": True,
     "response": "response",
 }
@@ -43,7 +45,7 @@ TEST_WAITING_OPERATION = {"done": False, "response": "response"}
 TEST_DONE_OPERATION = {"done": True, "response": "response"}
 TEST_ERROR_OPERATION = {"done": True, "response": "response", "error": "error"}
 TEST_PROJECT_ID = "life-science-project-id"
-TEST_LOCATION = 'test-location'
+TEST_LOCATION = "test-location"
 
 
 class TestLifeSciencesHookWithPassedProjectId(unittest.TestCase):
@@ -55,7 +57,7 @@ class TestLifeSciencesHookWithPassedProjectId(unittest.TestCase):
             self.hook = LifeSciencesHook(gcp_conn_id="test")
 
     def test_location_path(self):
-        path = 'projects/life-science-project-id/locations/test-location'
+        path = "projects/life-science-project-id/locations/test-location"
         path2 = self.hook._location_path(project_id=TEST_PROJECT_ID, location=TEST_LOCATION)
         assert path == path2
 
@@ -64,13 +66,13 @@ class TestLifeSciencesHookWithPassedProjectId(unittest.TestCase):
     def test_life_science_client_creation(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
-            'lifesciences', 'v2beta', http=mock_authorize.return_value, cache_discovery=False
+            "lifesciences", "v2beta", http=mock_authorize.return_value, cache_discovery=False
         )
         assert mock_build.return_value == result
         assert self.hook._conn == result
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
@@ -102,7 +104,7 @@ class TestLifeSciencesHookWithPassedProjectId(unittest.TestCase):
         assert result == TEST_OPERATION
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
@@ -131,7 +133,7 @@ class TestLifeSciencesHookWithPassedProjectId(unittest.TestCase):
         assert result == TEST_OPERATION
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
@@ -170,13 +172,13 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection(unittest.TestCase):
     def test_life_science_client_creation(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
-            'lifesciences', 'v2beta', http=mock_authorize.return_value, cache_discovery=False
+            "lifesciences", "v2beta", http=mock_authorize.return_value, cache_discovery=False
         )
         assert mock_build.return_value == result
         assert self.hook._conn == result
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
@@ -207,7 +209,7 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection(unittest.TestCase):
         assert result == TEST_OPERATION
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
@@ -235,7 +237,7 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection(unittest.TestCase):
         assert result == TEST_OPERATION
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
@@ -276,13 +278,13 @@ class TestLifeSciencesHookWithoutProjectId(unittest.TestCase):
     def test_life_science_client_creation(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
-            'lifesciences', 'v2beta', http=mock_authorize.return_value, cache_discovery=False
+            "lifesciences", "v2beta", http=mock_authorize.return_value, cache_discovery=False
         )
         assert mock_build.return_value == result
         assert self.hook._conn == result
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value=None,
     )

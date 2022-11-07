@@ -14,10 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import List
+from __future__ import annotations
 
 from airflow.jobs.base_job import BaseJob
+from airflow.utils.net import get_hostname
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
@@ -27,6 +27,9 @@ def check(args, session=None):
     """Checks if job(s) are still alive"""
     if args.allow_multiple and not args.limit > 1:
         raise SystemExit("To use option --allow-multiple, you must set the limit to a value greater than 1.")
+    if args.hostname and args.local:
+        raise SystemExit("You can't use --hostname and --local at the same time")
+
     query = (
         session.query(BaseJob)
         .filter(BaseJob.state == State.RUNNING)
@@ -36,10 +39,12 @@ def check(args, session=None):
         query = query.filter(BaseJob.job_type == args.job_type)
     if args.hostname:
         query = query.filter(BaseJob.hostname == args.hostname)
+    if args.local:
+        query = query.filter(BaseJob.hostname == get_hostname())
     if args.limit > 0:
         query = query.limit(args.limit)
 
-    jobs: List[BaseJob] = query.all()
+    jobs: list[BaseJob] = query.all()
     alive_jobs = [job for job in jobs if job.is_alive()]
 
     count_alive_jobs = len(alive_jobs)

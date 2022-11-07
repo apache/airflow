@@ -14,8 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -54,7 +56,7 @@ class LocalFilesystemToADLSOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("local_path", "remote_path")
-    ui_color = '#e4f0e8'
+    ui_color = "#e4f0e8"
 
     def __init__(
         self,
@@ -65,8 +67,8 @@ class LocalFilesystemToADLSOperator(BaseOperator):
         nthreads: int = 64,
         buffersize: int = 4194304,
         blocksize: int = 4194304,
-        extra_upload_options: Optional[Dict[str, Any]] = None,
-        azure_data_lake_conn_id: str = 'azure_data_lake_default',
+        extra_upload_options: dict[str, Any] | None = None,
+        azure_data_lake_conn_id: str = "azure_data_lake_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -79,13 +81,13 @@ class LocalFilesystemToADLSOperator(BaseOperator):
         self.extra_upload_options = extra_upload_options
         self.azure_data_lake_conn_id = azure_data_lake_conn_id
 
-    def execute(self, context: "Context") -> None:
-        if '**' in self.local_path:
+    def execute(self, context: Context) -> None:
+        if "**" in self.local_path:
             raise AirflowException("Recursive glob patterns using `**` are not supported")
         if not self.extra_upload_options:
             self.extra_upload_options = {}
         hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
-        self.log.info('Uploading %s to %s', self.local_path, self.remote_path)
+        self.log.info("Uploading %s to %s", self.local_path, self.remote_path)
         return hook.upload_file(
             local_path=self.local_path,
             remote_path=self.remote_path,

@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import pytest
 
 from airflow.models import DagModel
@@ -36,7 +38,7 @@ def running_subdag(admin_client, dag_maker):
     with pytest.deprecated_call(), dag_maker(dag_id="running_dag") as dag:
         SubDagOperator(task_id="subdag", subdag=subdag)
 
-    dag_bag = DagBag(include_examples=False, include_smart_sensor=False)
+    dag_bag = DagBag(include_examples=False)
     dag_bag.bag_dag(dag, root_dag=dag)
 
     with create_session() as session:

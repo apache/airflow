@@ -633,7 +633,13 @@ Create the name of the cleanup service account to use
 
 {{define "scheduler_liveness_check_command"}}
 
-  {{- if semverCompare ">=2.1.0" .Values.airflowVersion }}
+  {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check --job-type SchedulerJob --local
+  {{- else if semverCompare ">=2.1.0" .Values.airflowVersion }}
   - sh
   - -c
   - |
@@ -659,11 +665,19 @@ Create the name of the cleanup service account to use
 {{- end }}
 
 {{define "triggerer_liveness_check_command"}}
-  - sh
-  - -c
-  - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
-    airflow jobs check --job-type TriggererJob --hostname $(hostname)
+    {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
+    - sh
+    - -c
+    - |
+      CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+      airflow jobs check --job-type TriggererJob --local
+    {{- else }}
+    - sh
+    - -c
+    - |
+      CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+      airflow jobs check --job-type TriggererJob  --hostname $(hostname)
+    {{- end }}
 {{- end }}
 
 {{define "dag_processor_liveness_check_command"}}
@@ -782,3 +796,15 @@ Where `.` is the global variables scope and `.Values.workers` the local variable
     {{- end -}}
   {{- end -}}
 {{- end -}}
+{{- define "container_extra_envs" -}}
+{{- $ := index . 0 -}}
+{{- $env := index . 1 -}}
+{{- range $i, $config := $env }}
+  - name: {{ $config.name }}
+    value: {{ $config.value | quote }}
+    {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
+  - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
+    value: {{ $config.value | quote }}
+    {{- end }}
+  {{- end }}
+{{- end }}

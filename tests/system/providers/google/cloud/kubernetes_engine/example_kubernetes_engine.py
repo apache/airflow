@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for Google Kubernetes Engine.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -43,10 +44,10 @@ CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
 
 with models.DAG(
     DAG_ID,
-    schedule_interval='@once',  # Override to match your needs
+    schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [START howto_operator_gke_create_cluster]
     create_cluster = GKECreateClusterOperator(
@@ -78,7 +79,7 @@ with models.DAG(
         do_xcom_push=True,
         namespace="default",
         image="alpine",
-        cmds=["sh", "-c", 'mkdir -p /airflow/xcom/;echo \'[1,2,3,4]\' > /airflow/xcom/return.json'],
+        cmds=["sh", "-c", "mkdir -p /airflow/xcom/;echo '[1,2,3,4]' > /airflow/xcom/return.json"],
         name="test-pod-xcom",
         in_cluster=False,
         is_delete_operator_pod=True,

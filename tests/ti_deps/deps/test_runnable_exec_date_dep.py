@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
@@ -36,7 +36,7 @@ def clean_db(session):
     session.query(TaskInstance).delete()
 
 
-@freeze_time('2016-11-01')
+@freeze_time("2016-11-01")
 @pytest.mark.parametrize(
     "allow_trigger_in_future,schedule_interval,execution_date,is_met",
     [
@@ -61,12 +61,12 @@ def test_exec_date_dep(
     If the dag's execution date is in the future but (allow_trigger_in_future=False or not schedule_interval)
     this dep should fail
     """
-    with patch.object(settings, 'ALLOW_FUTURE_EXEC_DATES', allow_trigger_in_future):
+    with patch.object(settings, "ALLOW_FUTURE_EXEC_DATES", allow_trigger_in_future):
         create_dummy_dag(
-            'test_localtaskjob_heartbeat',
+            "test_localtaskjob_heartbeat",
             start_date=datetime(2015, 1, 1),
             end_date=datetime(2016, 11, 5),
-            schedule_interval=schedule_interval,
+            schedule=schedule_interval,
             with_dagrun_type=DagRunType.MANUAL,
             session=session,
         )
@@ -74,16 +74,16 @@ def test_exec_date_dep(
         assert RunnableExecDateDep().is_met(ti=ti) == is_met
 
 
-@freeze_time('2016-01-01')
+@freeze_time("2016-01-01")
 def test_exec_date_after_end_date(session, dag_maker, create_dummy_dag):
     """
     If the dag's execution date is in the future this dep should fail
     """
     create_dummy_dag(
-        'test_localtaskjob_heartbeat',
+        "test_localtaskjob_heartbeat",
         start_date=datetime(2015, 1, 1),
         end_date=datetime(2016, 11, 5),
-        schedule_interval=None,
+        schedule=None,
         with_dagrun_type=DagRunType.MANUAL,
         session=session,
     )

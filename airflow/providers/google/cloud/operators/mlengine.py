@@ -16,18 +16,26 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud MLEngine operators."""
-import datetime
+
+from __future__ import annotations
+
 import logging
 import re
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, BaseOperatorLink, XCom
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook
+from airflow.providers.google.cloud.links.mlengine import (
+    MLEngineJobDetailsLink,
+    MLEngineJobSListLink,
+    MLEngineModelLink,
+    MLEngineModelsListLink,
+    MLEngineModelVersionDetailsLink,
+)
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -43,25 +51,24 @@ def _normalize_mlengine_job_id(job_id: str) -> str:
 
     :param job_id: A job_id str that may have invalid characters.
     :return: A valid job_id representation.
-    :rtype: str
     """
     # Add a prefix when a job_id starts with a digit or a template
-    match = re.search(r'\d|\{{2}', job_id)
+    match = re.search(r"\d|\{{2}", job_id)
     if match and match.start() == 0:
-        job = f'z_{job_id}'
+        job = f"z_{job_id}"
     else:
         job = job_id
 
     # Clean up 'bad' characters except templates
     tracker = 0
-    cleansed_job_id = ''
-    for match in re.finditer(r'\{{2}.+?\}{2}', job):
-        cleansed_job_id += re.sub(r'[^0-9a-zA-Z]+', '_', job[tracker : match.start()])
+    cleansed_job_id = ""
+    for match in re.finditer(r"\{{2}.+?\}{2}", job):
+        cleansed_job_id += re.sub(r"[^0-9a-zA-Z]+", "_", job[tracker : match.start()])
         cleansed_job_id += job[match.start() : match.end()]
         tracker = match.end()
 
     # Clean up last substring or the full string if no templates
-    cleansed_job_id += re.sub(r'[^0-9a-zA-Z]+', '_', job[tracker:])
+    cleansed_job_id += re.sub(r"[^0-9a-zA-Z]+", "_", job[tracker:])
 
     return cleansed_job_id
 
@@ -152,15 +159,15 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        '_project_id',
-        '_job_id',
-        '_region',
-        '_input_paths',
-        '_output_path',
-        '_model_name',
-        '_version_name',
-        '_uri',
-        '_impersonation_chain',
+        "_project_id",
+        "_job_id",
+        "_region",
+        "_input_paths",
+        "_output_path",
+        "_model_name",
+        "_version_name",
+        "_uri",
+        "_impersonation_chain",
     )
 
     def __init__(
@@ -169,19 +176,19 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         job_id: str,
         region: str,
         data_format: str,
-        input_paths: List[str],
+        input_paths: list[str],
         output_path: str,
-        model_name: Optional[str] = None,
-        version_name: Optional[str] = None,
-        uri: Optional[str] = None,
-        max_worker_count: Optional[int] = None,
-        runtime_version: Optional[str] = None,
-        signature_name: Optional[str] = None,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        model_name: str | None = None,
+        version_name: str | None = None,
+        uri: str | None = None,
+        max_worker_count: int | None = None,
+        runtime_version: str | None = None,
+        signature_name: str | None = None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        labels: dict[str, str] | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -204,60 +211,60 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         self._impersonation_chain = impersonation_chain
 
         if not self._project_id:
-            raise AirflowException('Google Cloud project id is required.')
+            raise AirflowException("Google Cloud project id is required.")
         if not self._job_id:
-            raise AirflowException('An unique job id is required for Google MLEngine prediction job.')
+            raise AirflowException("An unique job id is required for Google MLEngine prediction job.")
 
         if self._uri:
             if self._model_name or self._version_name:
                 raise AirflowException(
-                    'Ambiguous model origin: Both uri and model/version name are provided.'
+                    "Ambiguous model origin: Both uri and model/version name are provided."
                 )
 
         if self._version_name and not self._model_name:
             raise AirflowException(
-                'Missing model: Batch prediction expects a model name when a version name is provided.'
+                "Missing model: Batch prediction expects a model name when a version name is provided."
             )
 
         if not (self._uri or self._model_name):
             raise AirflowException(
-                'Missing model origin: Batch prediction expects a model, '
-                'a model & version combination, or a URI to a savedModel.'
+                "Missing model origin: Batch prediction expects a model, "
+                "a model & version combination, or a URI to a savedModel."
             )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         job_id = _normalize_mlengine_job_id(self._job_id)
-        prediction_request: Dict[str, Any] = {
-            'jobId': job_id,
-            'predictionInput': {
-                'dataFormat': self._data_format,
-                'inputPaths': self._input_paths,
-                'outputPath': self._output_path,
-                'region': self._region,
+        prediction_request: dict[str, Any] = {
+            "jobId": job_id,
+            "predictionInput": {
+                "dataFormat": self._data_format,
+                "inputPaths": self._input_paths,
+                "outputPath": self._output_path,
+                "region": self._region,
             },
         }
         if self._labels:
-            prediction_request['labels'] = self._labels
+            prediction_request["labels"] = self._labels
 
         if self._uri:
-            prediction_request['predictionInput']['uri'] = self._uri
+            prediction_request["predictionInput"]["uri"] = self._uri
         elif self._model_name:
-            origin_name = f'projects/{self._project_id}/models/{self._model_name}'
+            origin_name = f"projects/{self._project_id}/models/{self._model_name}"
             if not self._version_name:
-                prediction_request['predictionInput']['modelName'] = origin_name
+                prediction_request["predictionInput"]["modelName"] = origin_name
             else:
-                prediction_request['predictionInput']['versionName'] = (
-                    origin_name + f'/versions/{self._version_name}'
+                prediction_request["predictionInput"]["versionName"] = (
+                    origin_name + f"/versions/{self._version_name}"
                 )
 
         if self._max_worker_count:
-            prediction_request['predictionInput']['maxWorkerCount'] = self._max_worker_count
+            prediction_request["predictionInput"]["maxWorkerCount"] = self._max_worker_count
 
         if self._runtime_version:
-            prediction_request['predictionInput']['runtimeVersion'] = self._runtime_version
+            prediction_request["predictionInput"]["runtimeVersion"] = self._runtime_version
 
         if self._signature_name:
-            prediction_request['predictionInput']['signatureName'] = self._signature_name
+            prediction_request["predictionInput"]["signatureName"] = self._signature_name
 
         hook = MLEngineHook(
             self._gcp_conn_id, self._delegate_to, impersonation_chain=self._impersonation_chain
@@ -266,17 +273,17 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         # Helper method to check if the existing job's prediction input is the
         # same as the request we get here.
         def check_existing_job(existing_job):
-            return existing_job.get('predictionInput') == prediction_request['predictionInput']
+            return existing_job.get("predictionInput") == prediction_request["predictionInput"]
 
         finished_prediction_job = hook.create_job(
             project_id=self._project_id, job=prediction_request, use_existing_job_fn=check_existing_job
         )
 
-        if finished_prediction_job['state'] != 'SUCCEEDED':
-            self.log.error('MLEngine batch prediction job failed: %s', str(finished_prediction_job))
-            raise RuntimeError(finished_prediction_job['errorMessage'])
+        if finished_prediction_job["state"] != "SUCCEEDED":
+            self.log.error("MLEngine batch prediction job failed: %s", str(finished_prediction_job))
+            raise RuntimeError(finished_prediction_job["errorMessage"])
 
-        return finished_prediction_job['predictionOutput']
+        return finished_prediction_job["predictionOutput"]
 
 
 class MLEngineManageModelOperator(BaseOperator):
@@ -315,20 +322,20 @@ class MLEngineManageModelOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        '_project_id',
-        '_model',
-        '_impersonation_chain',
+        "_project_id",
+        "_model",
+        "_impersonation_chain",
     )
 
     def __init__(
         self,
         *,
         model: dict,
-        operation: str = 'create',
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        operation: str = "create",
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -347,18 +354,18 @@ class MLEngineManageModelOperator(BaseOperator):
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
             delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
-        if self._operation == 'create':
+        if self._operation == "create":
             return hook.create_model(project_id=self._project_id, model=self._model)
-        elif self._operation == 'get':
-            return hook.get_model(project_id=self._project_id, model_name=self._model['name'])
+        elif self._operation == "get":
+            return hook.get_model(project_id=self._project_id, model_name=self._model["name"])
         else:
-            raise ValueError(f'Unknown operation: {self._operation}')
+            raise ValueError(f"Unknown operation: {self._operation}")
 
 
 class MLEngineCreateModelOperator(BaseOperator):
@@ -390,19 +397,20 @@ class MLEngineCreateModelOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        '_project_id',
-        '_model',
-        '_impersonation_chain',
+        "_project_id",
+        "_model",
+        "_impersonation_chain",
     )
+    operator_extra_links = (MLEngineModelLink(),)
 
     def __init__(
         self,
         *,
         model: dict,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -412,12 +420,22 @@ class MLEngineCreateModelOperator(BaseOperator):
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
             delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
+
+        project_id = self._project_id or hook.project_id
+        if project_id:
+            MLEngineModelLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                model_id=self._model["name"],
+            )
+
         return hook.create_model(project_id=self._project_id, model=self._model)
 
 
@@ -450,19 +468,20 @@ class MLEngineGetModelOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        '_project_id',
-        '_model_name',
-        '_impersonation_chain',
+        "_project_id",
+        "_model_name",
+        "_impersonation_chain",
     )
+    operator_extra_links = (MLEngineModelLink(),)
 
     def __init__(
         self,
         *,
         model_name: str,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -472,12 +491,21 @@ class MLEngineGetModelOperator(BaseOperator):
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
             delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
+        project_id = self._project_id or hook.project_id
+        if project_id:
+            MLEngineModelLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                model_id=self._model_name,
+            )
+
         return hook.get_model(project_id=self._project_id, model_name=self._model_name)
 
 
@@ -513,20 +541,21 @@ class MLEngineDeleteModelOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        '_project_id',
-        '_model_name',
-        '_impersonation_chain',
+        "_project_id",
+        "_model_name",
+        "_impersonation_chain",
     )
+    operator_extra_links = (MLEngineModelsListLink(),)
 
     def __init__(
         self,
         *,
         model_name: str,
         delete_contents: bool = False,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -537,12 +566,20 @@ class MLEngineDeleteModelOperator(BaseOperator):
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
             delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
+
+        project_id = self._project_id or hook.project_id
+        if project_id:
+            MLEngineModelsListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
 
         return hook.delete_model(
             project_id=self._project_id, model_name=self._model_name, delete_contents=self._delete_contents
@@ -606,24 +643,24 @@ class MLEngineManageVersionOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        '_project_id',
-        '_model_name',
-        '_version_name',
-        '_version',
-        '_impersonation_chain',
+        "_project_id",
+        "_model_name",
+        "_version_name",
+        "_version",
+        "_impersonation_chain",
     )
 
     def __init__(
         self,
         *,
         model_name: str,
-        version_name: Optional[str] = None,
-        version: Optional[dict] = None,
-        operation: str = 'create',
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        version_name: str | None = None,
+        version: dict | None = None,
+        operation: str = "create",
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -643,9 +680,9 @@ class MLEngineManageVersionOperator(BaseOperator):
             stacklevel=3,
         )
 
-    def execute(self, context: 'Context'):
-        if 'name' not in self._version:
-            self._version['name'] = self._version_name
+    def execute(self, context: Context):
+        if "name" not in self._version:
+            self._version["name"] = self._version_name
 
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
@@ -653,24 +690,24 @@ class MLEngineManageVersionOperator(BaseOperator):
             impersonation_chain=self._impersonation_chain,
         )
 
-        if self._operation == 'create':
+        if self._operation == "create":
             if not self._version:
                 raise ValueError(f"version attribute of {self.__class__.__name__} could not be empty")
             return hook.create_version(
                 project_id=self._project_id, model_name=self._model_name, version_spec=self._version
             )
-        elif self._operation == 'set_default':
+        elif self._operation == "set_default":
             return hook.set_default_version(
-                project_id=self._project_id, model_name=self._model_name, version_name=self._version['name']
+                project_id=self._project_id, model_name=self._model_name, version_name=self._version["name"]
             )
-        elif self._operation == 'list':
+        elif self._operation == "list":
             return hook.list_versions(project_id=self._project_id, model_name=self._model_name)
-        elif self._operation == 'delete':
+        elif self._operation == "delete":
             return hook.delete_version(
-                project_id=self._project_id, model_name=self._model_name, version_name=self._version['name']
+                project_id=self._project_id, model_name=self._model_name, version_name=self._version["name"]
             )
         else:
-            raise ValueError(f'Unknown operation: {self._operation}')
+            raise ValueError(f"Unknown operation: {self._operation}")
 
 
 class MLEngineCreateVersionOperator(BaseOperator):
@@ -704,21 +741,22 @@ class MLEngineCreateVersionOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        '_project_id',
-        '_model_name',
-        '_version',
-        '_impersonation_chain',
+        "_project_id",
+        "_model_name",
+        "_version",
+        "_impersonation_chain",
     )
+    operator_extra_links = (MLEngineModelVersionDetailsLink(),)
 
     def __init__(
         self,
         *,
         model_name: str,
         version: dict,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
 
@@ -738,12 +776,22 @@ class MLEngineCreateVersionOperator(BaseOperator):
         if not self._version:
             raise AirflowException("The version parameter could not be empty.")
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
             delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
+
+        project_id = self._project_id or hook.project_id
+        if project_id:
+            MLEngineModelVersionDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                model_id=self._model_name,
+                version_id=self._version["name"],
+            )
 
         return hook.create_version(
             project_id=self._project_id, model_name=self._model_name, version_spec=self._version
@@ -781,21 +829,22 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        '_project_id',
-        '_model_name',
-        '_version_name',
-        '_impersonation_chain',
+        "_project_id",
+        "_model_name",
+        "_version_name",
+        "_impersonation_chain",
     )
+    operator_extra_links = (MLEngineModelVersionDetailsLink(),)
 
     def __init__(
         self,
         *,
         model_name: str,
         version_name: str,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
 
@@ -815,12 +864,22 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
         if not self._version_name:
             raise AirflowException("The version_name parameter could not be empty.")
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
             delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
+
+        project_id = self._project_id or hook.project_id
+        if project_id:
+            MLEngineModelVersionDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                model_id=self._model_name,
+                version_id=self._version_name,
+            )
 
         return hook.set_default_version(
             project_id=self._project_id, model_name=self._model_name, version_name=self._version_name
@@ -857,19 +916,20 @@ class MLEngineListVersionsOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        '_project_id',
-        '_model_name',
-        '_impersonation_chain',
+        "_project_id",
+        "_model_name",
+        "_impersonation_chain",
     )
+    operator_extra_links = (MLEngineModelLink(),)
 
     def __init__(
         self,
         *,
         model_name: str,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
 
@@ -885,12 +945,21 @@ class MLEngineListVersionsOperator(BaseOperator):
         if not self._model_name:
             raise AirflowException("The model_name parameter could not be empty.")
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
             delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
+
+        project_id = self._project_id or hook.project_id
+        if project_id:
+            MLEngineModelLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                model_id=self._model_name,
+            )
 
         return hook.list_versions(
             project_id=self._project_id,
@@ -929,21 +998,22 @@ class MLEngineDeleteVersionOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        '_project_id',
-        '_model_name',
-        '_version_name',
-        '_impersonation_chain',
+        "_project_id",
+        "_model_name",
+        "_version_name",
+        "_impersonation_chain",
     )
+    operator_extra_links = (MLEngineModelLink(),)
 
     def __init__(
         self,
         *,
         model_name: str,
         version_name: str,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
 
@@ -963,45 +1033,25 @@ class MLEngineDeleteVersionOperator(BaseOperator):
         if not self._version_name:
             raise AirflowException("The version_name parameter could not be empty.")
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
             delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
 
+        project_id = self._project_id or hook.project_id
+        if project_id:
+            MLEngineModelLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                model_id=self._model_name,
+            )
+
         return hook.delete_version(
             project_id=self._project_id, model_name=self._model_name, version_name=self._version_name
         )
-
-
-class AIPlatformConsoleLink(BaseOperatorLink):
-    """Helper class for constructing AI Platform Console link."""
-
-    name = "AI Platform Console"
-
-    def get_link(
-        self,
-        operator,
-        dttm: Optional[datetime.datetime] = None,
-        ti_key: Optional["TaskInstanceKey"] = None,
-    ) -> str:
-        if ti_key is not None:
-            gcp_metadata_dict = XCom.get_value(key="gcp_metadata", ti_key=ti_key)
-        else:
-            assert dttm is not None
-            gcp_metadata_dict = XCom.get_one(
-                key="gcp_metadata",
-                dag_id=operator.dag.dag_id,
-                task_id=operator.task_id,
-                execution_date=dttm,
-            )
-        if not gcp_metadata_dict:
-            return ''
-        job_id = gcp_metadata_dict['job_id']
-        project_id = gcp_metadata_dict['project_id']
-        console_link = f"https://console.cloud.google.com/ai-platform/jobs/{job_id}?project={project_id}"
-        return console_link
 
 
 class MLEngineStartTrainingJobOperator(BaseOperator):
@@ -1069,47 +1119,46 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        '_project_id',
-        '_job_id',
-        '_region',
-        '_package_uris',
-        '_training_python_module',
-        '_training_args',
-        '_scale_tier',
-        '_master_type',
-        '_master_config',
-        '_runtime_version',
-        '_python_version',
-        '_job_dir',
-        '_service_account',
-        '_hyperparameters',
-        '_impersonation_chain',
+        "_project_id",
+        "_job_id",
+        "_region",
+        "_package_uris",
+        "_training_python_module",
+        "_training_args",
+        "_scale_tier",
+        "_master_type",
+        "_master_config",
+        "_runtime_version",
+        "_python_version",
+        "_job_dir",
+        "_service_account",
+        "_hyperparameters",
+        "_impersonation_chain",
     )
-
-    operator_extra_links = (AIPlatformConsoleLink(),)
+    operator_extra_links = (MLEngineJobDetailsLink(),)
 
     def __init__(
         self,
         *,
         job_id: str,
         region: str,
-        package_uris: Optional[List[str]] = None,
-        training_python_module: Optional[str] = None,
-        training_args: Optional[List[str]] = None,
-        scale_tier: Optional[str] = None,
-        master_type: Optional[str] = None,
-        master_config: Optional[Dict] = None,
-        runtime_version: Optional[str] = None,
-        python_version: Optional[str] = None,
-        job_dir: Optional[str] = None,
-        service_account: Optional[str] = None,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        mode: str = 'PRODUCTION',
-        labels: Optional[Dict[str, str]] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        hyperparameters: Optional[Dict] = None,
+        package_uris: list[str] | None = None,
+        training_python_module: str | None = None,
+        training_args: list[str] | None = None,
+        scale_tier: str | None = None,
+        master_type: str | None = None,
+        master_config: dict | None = None,
+        runtime_version: str | None = None,
+        python_version: str | None = None,
+        job_dir: str | None = None,
+        service_account: str | None = None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        mode: str = "PRODUCTION",
+        labels: dict[str, str] | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        hyperparameters: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1133,78 +1182,78 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         self._hyperparameters = hyperparameters
         self._impersonation_chain = impersonation_chain
 
-        custom = self._scale_tier is not None and self._scale_tier.upper() == 'CUSTOM'
+        custom = self._scale_tier is not None and self._scale_tier.upper() == "CUSTOM"
         custom_image = (
             custom
             and self._master_config is not None
-            and self._master_config.get('imageUri', None) is not None
+            and self._master_config.get("imageUri", None) is not None
         )
 
         if not self._project_id:
-            raise AirflowException('Google Cloud project id is required.')
+            raise AirflowException("Google Cloud project id is required.")
         if not self._job_id:
-            raise AirflowException('An unique job id is required for Google MLEngine training job.')
+            raise AirflowException("An unique job id is required for Google MLEngine training job.")
         if not self._region:
-            raise AirflowException('Google Compute Engine region is required.')
+            raise AirflowException("Google Compute Engine region is required.")
         if custom and not self._master_type:
-            raise AirflowException('master_type must be set when scale_tier is CUSTOM')
+            raise AirflowException("master_type must be set when scale_tier is CUSTOM")
         if self._master_config and not self._master_type:
-            raise AirflowException('master_type must be set when master_config is provided')
+            raise AirflowException("master_type must be set when master_config is provided")
         if not (package_uris and training_python_module) and not custom_image:
             raise AirflowException(
-                'Either a Python package with a Python module or a custom Docker image should be provided.'
+                "Either a Python package with a Python module or a custom Docker image should be provided."
             )
         if (package_uris or training_python_module) and custom_image:
             raise AirflowException(
-                'Either a Python package with a Python module or '
-                'a custom Docker image should be provided but not both.'
+                "Either a Python package with a Python module or "
+                "a custom Docker image should be provided but not both."
             )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         job_id = _normalize_mlengine_job_id(self._job_id)
-        training_request: Dict[str, Any] = {
-            'jobId': job_id,
-            'trainingInput': {
-                'scaleTier': self._scale_tier,
-                'region': self._region,
+        training_request: dict[str, Any] = {
+            "jobId": job_id,
+            "trainingInput": {
+                "scaleTier": self._scale_tier,
+                "region": self._region,
             },
         }
         if self._package_uris:
-            training_request['trainingInput']['packageUris'] = self._package_uris
+            training_request["trainingInput"]["packageUris"] = self._package_uris
 
         if self._training_python_module:
-            training_request['trainingInput']['pythonModule'] = self._training_python_module
+            training_request["trainingInput"]["pythonModule"] = self._training_python_module
 
         if self._training_args:
-            training_request['trainingInput']['args'] = self._training_args
+            training_request["trainingInput"]["args"] = self._training_args
 
         if self._master_type:
-            training_request['trainingInput']['masterType'] = self._master_type
+            training_request["trainingInput"]["masterType"] = self._master_type
 
         if self._master_config:
-            training_request['trainingInput']['masterConfig'] = self._master_config
+            training_request["trainingInput"]["masterConfig"] = self._master_config
 
         if self._runtime_version:
-            training_request['trainingInput']['runtimeVersion'] = self._runtime_version
+            training_request["trainingInput"]["runtimeVersion"] = self._runtime_version
 
         if self._python_version:
-            training_request['trainingInput']['pythonVersion'] = self._python_version
+            training_request["trainingInput"]["pythonVersion"] = self._python_version
 
         if self._job_dir:
-            training_request['trainingInput']['jobDir'] = self._job_dir
+            training_request["trainingInput"]["jobDir"] = self._job_dir
 
         if self._service_account:
-            training_request['trainingInput']['serviceAccount'] = self._service_account
+            training_request["trainingInput"]["serviceAccount"] = self._service_account
 
         if self._hyperparameters:
-            training_request['trainingInput']['hyperparameters'] = self._hyperparameters
+            training_request["trainingInput"]["hyperparameters"] = self._hyperparameters
 
         if self._labels:
-            training_request['labels'] = self._labels
+            training_request["labels"] = self._labels
 
-        if self._mode == 'DRY_RUN':
-            self.log.info('In dry_run mode.')
-            self.log.info('MLEngine Training job request is: %s', training_request)
+        if self._mode == "DRY_RUN":
+            self.log.info("In dry_run mode.")
+            self.log.info("MLEngine Training job request is: %s", training_request)
             return
 
         hook = MLEngineHook(
@@ -1216,14 +1265,14 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         # Helper method to check if the existing job's training input is the
         # same as the request we get here.
         def check_existing_job(existing_job):
-            existing_training_input = existing_job.get('trainingInput')
-            requested_training_input = training_request['trainingInput']
-            if 'scaleTier' not in existing_training_input:
-                existing_training_input['scaleTier'] = None
+            existing_training_input = existing_job.get("trainingInput")
+            requested_training_input = training_request["trainingInput"]
+            if "scaleTier" not in existing_training_input:
+                existing_training_input["scaleTier"] = None
 
-            existing_training_input['args'] = existing_training_input.get('args')
+            existing_training_input["args"] = existing_training_input.get("args")
             requested_training_input["args"] = (
-                requested_training_input['args'] if requested_training_input["args"] else None
+                requested_training_input["args"] if requested_training_input["args"] else None
             )
 
             return existing_training_input == requested_training_input
@@ -1232,15 +1281,18 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
             project_id=self._project_id, job=training_request, use_existing_job_fn=check_existing_job
         )
 
-        if finished_training_job['state'] != 'SUCCEEDED':
-            self.log.error('MLEngine training job failed: %s', str(finished_training_job))
-            raise RuntimeError(finished_training_job['errorMessage'])
+        if finished_training_job["state"] != "SUCCEEDED":
+            self.log.error("MLEngine training job failed: %s", str(finished_training_job))
+            raise RuntimeError(finished_training_job["errorMessage"])
 
-        gcp_metadata = {
-            "job_id": job_id,
-            "project_id": self._project_id,
-        }
-        context['task_instance'].xcom_push("gcp_metadata", gcp_metadata)
+        project_id = self._project_id or hook.project_id
+        if project_id:
+            MLEngineJobDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                job_id=job_id,
+            )
 
 
 class MLEngineTrainingCancelJobOperator(BaseOperator):
@@ -1267,19 +1319,20 @@ class MLEngineTrainingCancelJobOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        '_project_id',
-        '_job_id',
-        '_impersonation_chain',
+        "_project_id",
+        "_job_id",
+        "_impersonation_chain",
     )
+    operator_extra_links = (MLEngineJobSListLink(),)
 
     def __init__(
         self,
         *,
         job_id: str,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1290,14 +1343,22 @@ class MLEngineTrainingCancelJobOperator(BaseOperator):
         self._impersonation_chain = impersonation_chain
 
         if not self._project_id:
-            raise AirflowException('Google Cloud project id is required.')
+            raise AirflowException("Google Cloud project id is required.")
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
 
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
             delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
+
+        project_id = self._project_id or hook.project_id
+        if project_id:
+            MLEngineJobSListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
 
         hook.cancel_job(project_id=self._project_id, job_id=_normalize_mlengine_job_id(self._job_id))

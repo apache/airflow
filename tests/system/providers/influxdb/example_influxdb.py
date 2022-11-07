@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -25,7 +26,7 @@ from airflow.providers.influxdb.hooks.influxdb import InfluxDBHook
 
 @task(task_id="influxdb_task")
 def test_influxdb_hook():
-    bucket_name = 'test-influx'
+    bucket_name = "test-influx"
     influxdb_hook = InfluxDBHook()
     client = influxdb_hook.get_conn()
     print(client)
@@ -53,10 +54,10 @@ DAG_ID = "influxdb_example_dag"
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     max_active_runs=1,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     test_influxdb_hook()
 
