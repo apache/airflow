@@ -1232,7 +1232,10 @@ ARG ADDITIONAL_PYTHON_DEPS=""
 # are compatible with the new protobuf version. All the google python client libraries need
 # to be upgraded to >=2.0.0 in order to able to lift that limitation
 # https://developers.google.com/protocol-buffers/docs/news/2022-05-06#python-updates
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3 pyarrow>=6.0.0 protobuf<4.21.0"
+# * authlib, gcloud_aio_auth, adal are needed to generate constraints for PyPI packages and can be removed after we release
+#   new google, azure providers
+# !!! MAKE SURE YOU SYNCHRONIZE THE LIST BETWEEN: Dockerfile, Dockerfile.ci, find_newer_dependencies.py
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3 pyarrow>=6.0.0 protobuf<4.21.0 authlib>=1.0.0 gcloud_aio_auth>=4.0.0 adal>=1.2.7"
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     INSTALL_PACKAGES_FROM_CONTEXT=${INSTALL_PACKAGES_FROM_CONTEXT} \
