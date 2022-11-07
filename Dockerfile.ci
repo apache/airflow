@@ -1155,6 +1155,7 @@ RUN echo "Airflow version: ${AIRFLOW_VERSION}"
 # https://developers.google.com/protocol-buffers/docs/news/2022-05-06#python-updates
 # * authlib, gcloud_aio_auth, adal are needed to generate constraints for PyPI packages and can be removed after we release
 #   new google, azure providers
+# !!! MAKE SURE YOU SYNCHRONIZE THE LIST BETWEEN: Dockerfile, Dockerfile.ci, find_newer_dependencies.py
 ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3 pyarrow>=6.0.0 protobuf<4.21.0 authlib>=1.0.0 gcloud_aio_auth>=4.0.0 adal>=1.2.7"
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
