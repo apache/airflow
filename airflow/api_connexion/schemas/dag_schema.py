@@ -77,9 +77,10 @@ class DAGSchema(SQLAlchemySchema):
     @staticmethod
     def get_owners(obj: DagModel):
         """Convert owners attribute to DAG representation"""
-        if not getattr(obj, 'owners', None):
+        if obj.owners is None:
             return []
-        return obj.owners.split(",")
+        else:
+            return obj.owners.split(",")
 
     @staticmethod
     def get_token(obj: DagModel):
@@ -126,9 +127,10 @@ class DAGDetailSchema(DAGSchema):
     @staticmethod
     def get_owners(obj: DAG):
         """Convert owners attribute to DAG representation"""
-        if not getattr(obj, 'owner', None):
+        if obj.owner is None:
             return []
-        return obj.owner.split(",")
+        else:
+            return obj.owner.split(",")
 
     @staticmethod
     def get_is_paused(obj: DAG):
