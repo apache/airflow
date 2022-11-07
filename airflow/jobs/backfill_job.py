@@ -117,6 +117,7 @@ class BackfillJob(BaseJob):
         run_backwards=False,
         run_at_least_once=False,
         continue_on_failures=False,
+        disable_retry=False,
         *args,
         **kwargs,
     ):
@@ -156,6 +157,7 @@ class BackfillJob(BaseJob):
         self.run_backwards = run_backwards
         self.run_at_least_once = run_at_least_once
         self.continue_on_failures = continue_on_failures
+        self.disable_retry = disable_retry
         super().__init__(*args, **kwargs)
 
     def _update_counters(self, ti_status, session=None):
@@ -627,6 +629,11 @@ class BackfillJob(BaseJob):
 
                 for new_ti in new_mapped_tis:
                     new_ti.set_state(TaskInstanceState.SCHEDULED, session=session)
+
+            # Set state to failed for running TIs that are set up for retry if disable-retry flag is set
+            for ti in ti_status.running.values():
+                if self.disable_retry and ti.state == TaskInstanceState.UP_FOR_RETRY:
+                    ti.set_state(TaskInstanceState.FAILED, session=session)
 
             # update the task counters
             self._update_counters(ti_status=ti_status, session=session)

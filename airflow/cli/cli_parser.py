@@ -351,6 +351,11 @@ ARG_CONTINUE_ON_FAILURES = Arg(
     help=("if set, the backfill will keep going even if some of the tasks failed"),
     action="store_true",
 )
+ARG_DISABLE_RETRY = Arg(
+    ("--disable-retry",),
+    help=("if set, the backfill will set tasks as failed without retrying."),
+    action="store_true",
+)
 ARG_RUN_BACKWARDS = Arg(
     (
         "-B",
@@ -1162,6 +1167,7 @@ DAGS_COMMANDS = (
             ARG_DONOT_PICKLE,
             ARG_YES,
             ARG_CONTINUE_ON_FAILURES,
+            ARG_DISABLE_RETRY,
             ARG_BF_IGNORE_DEPENDENCIES,
             ARG_BF_IGNORE_FIRST_DEPENDS_ON_PAST,
             ARG_SUBDIR,

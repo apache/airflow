@@ -1836,3 +1836,49 @@ class TestBackfillJob:
             states = [ti.state for _, ti in tasks_to_run.items()]
             assert TaskInstanceState.SCHEDULED in states
             assert State.NONE in states
+
+    @pytest.mark.parametrize(
+        ["disable_retry", "try_number", "exception"],
+        (
+            (True, 1, BackfillUnfinished),
+            (False, 2, AirflowException),
+        ),
+    )
+    def test_backfill_disable_retry(self, dag_maker, disable_retry, try_number, exception):
+        with dag_maker(
+            dag_id="test_disable_retry",
+            schedule_interval="@daily",
+            default_args={
+                "retries": 2,
+                "retry_delay": datetime.timedelta(seconds=3),
+            },
+        ) as dag:
+            task1 = EmptyOperator(task_id="task1")
+        dag_run = dag_maker.create_dagrun(state=None)
+
+        executor = MockExecutor(parallelism=16)
+        executor.mock_task_results[
+            TaskInstanceKey(dag.dag_id, task1.task_id, dag_run.run_id, try_number=1)
+        ] = TaskInstanceState.UP_FOR_RETRY
+        executor.mock_task_results[
+            TaskInstanceKey(dag.dag_id, task1.task_id, dag_run.run_id, try_number=2)
+        ] = TaskInstanceState.FAILED
+
+        job = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            disable_retry=disable_retry,
+        )
+        with pytest.raises(exception):
+            job.run()
+        ti = dag_run.get_task_instance(task_id=task1.task_id)
+
+        assert ti._try_number == try_number
+
+        dag_run.refresh_from_db()
+
+        assert dag_run.state == DagRunState.FAILED
+
+        dag.clear()
