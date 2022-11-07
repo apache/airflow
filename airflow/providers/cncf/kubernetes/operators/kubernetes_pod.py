@@ -74,12 +74,10 @@ def _task_id_to_pod_name(val: str) -> str:
     if not val:
         raise ValueError("_task_id_to_pod_name requires non-empty string.")
     val = val.lower()
-    first = val[0]
-    if not re.match(r"[a-z0-9]", first):
-        val = "0" + val
-    last = val[-1]
-    if not re.match(r"[a-z0-9]", last):
-        val = val + "0"
+    if not re.match(r"[a-z0-9]", val[0]):
+        val = f"0{val}"
+    if not re.match(r"[a-z0-9]", val[-1]):
+        val = f"{val}0"
     val = re.sub(r"[^a-z0-9\-.]", "-", val)
     if len(val) > 253:
         raise ValueError(
