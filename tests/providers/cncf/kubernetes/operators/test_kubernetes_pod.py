@@ -898,10 +898,8 @@ class TestKubernetesPodOperator:
         mock_delete_pod.assert_not_called()
 
 
-def test__suppress():
-    with patch("logging.Logger.error") as mock_error:
+def test__suppress(caplog):
+    with _suppress(ValueError):
+        raise ValueError("failure")
 
-        with _suppress(ValueError):
-            raise ValueError("failure")
-
-        mock_error.assert_called_once_with("failure", exc_info=True)
+    assert "ValueError: failure" in caplog.text
