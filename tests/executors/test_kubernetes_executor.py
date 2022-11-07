@@ -890,7 +890,7 @@ class TestKubernetesExecutor:
 
         executor = self.kubernetes_executor
         executor.job_id = 1
-        executor.kubernetes_queue = 'kubernetes'
+        executor.kubernetes_queue = "kubernetes"
 
         executor.kube_client = mock_kube_client
         executor.clear_not_launched_queued_tasks(session=session)
