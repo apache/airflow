@@ -51,7 +51,7 @@ POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodMana
 
 def create_context(task) -> Context:
     dag = DAG(dag_id="dag")
-    tzinfo = pendulum.timezone("Europe/Amsterdam")
+    tzinfo = pendulum.timezone("Europe/Amsterdam")  # type: ignore
     execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
     dag_run = DagRun(
         dag_id=dag.dag_id,
@@ -61,7 +61,7 @@ def create_context(task) -> Context:
     task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
     task_instance.dag_id = dag.dag_id
-    task_instance.xcom_push = mock.Mock()
+    task_instance.xcom_push = mock.Mock()  # type: ignore
     return Context(
         dag=dag,
         run_id=dag_run.run_id,
