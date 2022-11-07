@@ -21,7 +21,6 @@ import logging
 import os
 import shutil
 import sys
-import textwrap
 from copy import copy
 from tempfile import NamedTemporaryFile
 from unittest import mock
@@ -905,21 +904,22 @@ class TestKubernetesPodOperatorSystem:
         pod_mock.status.phase = "Succeeded"
         await_pod_completion_mock.return_value = pod_mock
         context = create_context(k)
-        with caplog.at_level(logging.DEBUG) as cm:
+
+        # I'm not really sure what the point is of this assert
+        with caplog.at_level(logging.DEBUG, logger="airflow.task.operators"):
             k.execute(context)
-        expected_line = textwrap.dedent(
-            """\
-        DEBUG:airflow.task.operators:Starting pod:
-        api_version: v1
-        kind: Pod
-        metadata:
-          annotations: {}
-          cluster_name: null
-          creation_timestamp: null
-          deletion_grace_period_seconds: null\
-        """
-        ).strip()
-        assert any(line.startswith(expected_line) for line in cm.output)
+            expected_lines = [
+                "Starting pod:",
+                "api_version: v1",
+                "kind: Pod",
+                "metadata:",
+                "  annotations: {}",
+                "  cluster_name: null",
+                "  creation_timestamp: null",
+                "  deletion_grace_period_seconds: null",
+            ]
+            actual = [x.getMessage() for x in caplog.records if x.msg == "Starting pod:\n%s"][0].splitlines()
+            assert actual[: len(expected_lines)] == expected_lines
 
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         expected_dict = {
