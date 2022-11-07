@@ -21,6 +21,11 @@ from __future__ import annotations
 import time
 from typing import Any, Sequence
 
+from google.api_core.retry import Retry
+from google.cloud.compute_v1.services.instance_group_managers import InstanceGroupManagersClient
+from google.cloud.compute_v1.services.instance_templates import InstanceTemplatesClient
+from google.cloud.compute_v1.services.instances import InstancesClient
+from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
@@ -66,11 +71,355 @@ class ComputeEngineHook(GoogleBaseHook):
         """
         Retrieves connection to Google Compute Engine.
         :return: Google Compute Engine services object
+        :rtype: dict
         """
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build("compute", self.api_version, http=http_authorized, cache_discovery=False)
         return self._conn
+
+    def get_compute_instance_template_client(self):
+        """Returns Compute Engine Instance Template Client."""
+        return InstanceTemplatesClient(credentials=self._get_credentials(), client_info=self.client_info)
+
+    def get_compute_instance_client(self):
+        """Returns Compute Engine Instance Client."""
+        return InstancesClient(credentials=self._get_credentials(), client_info=self.client_info)
+
+    def get_compute_instance_group_managers_client(self):
+        """Returns Compute Engine Instance Group Managers Client."""
+        return InstanceGroupManagersClient(credentials=self._get_credentials(), client_info=self.client_info)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def insert_instance_template(
+        self,
+        body: dict,
+        request_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | None = None,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> None:
+        """
+        Creates Instance Template using body specified.
+        Must be called with keyword arguments rather than positional.
+
+        :param body: Instance Template representation as an object.
+        :param request_id: Unique request_id that you might add to achieve
+            full idempotence (for example when client call times out repeating the request
+            with the same request id will not create a new instance template again)
+            It should be in UUID format as defined in RFC 4122
+        :param project_id: Google Cloud project ID where the Compute Engine Instance Template exists.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        client = self.get_compute_instance_template_client()
+        client.insert(
+            # Calling method insert() on client to create Instance Template.
+            # This method accepts request object as an argument and should be of type
+            # Union[google.cloud.compute_v1.types.InsertInstanceTemplateRequest, dict] to construct a request
+            # message.
+            # The request object should be represented using arguments:
+            #   instance_template_resource (google.cloud.compute_v1.types.InstanceTemplate):
+            #       The body resource for this request.
+            #   request_id (str):
+            #       An optional request ID to identify requests.
+            #   project (str):
+            #       Project ID for this request.
+            request={
+                "instance_template_resource": body,
+                "request_id": request_id,
+                "project": project_id,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_instance_template(
+        self,
+        resource_id: str,
+        request_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | None = None,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> None:
+        """
+        Deletes Instance Template.
+        Deleting an Instance Template is permanent and cannot be undone. It
+        is not possible to delete templates that are already in use by a managed instance group.
+        Must be called with keyword arguments rather than positional.
+
+        :param resource_id: Name of the Compute Engine Instance Template resource.
+        :param request_id: Unique request_id that you might add to achieve
+            full idempotence (for example when client call times out repeating the request
+            with the same request id will not create a new instance template again)
+            It should be in UUID format as defined in RFC 4122
+        :param project_id: Google Cloud project ID where the Compute Engine Instance Template exists.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        client = self.get_compute_instance_template_client()
+        client.delete(
+            # Calling method delete() on client to delete Instance Template.
+            # This method accepts request object as an argument and should be of type
+            # Union[google.cloud.compute_v1.types.DeleteInstanceTemplateRequest, dict] to
+            # construct a request message.
+            # The request object should be represented using arguments:
+            #   instance_template (str):
+            #       The name of the Instance Template to delete.
+            #   project (str):
+            #       Project ID for this request.
+            #   request_id (str):
+            #       An optional request ID to identify requests.
+            request={
+                "instance_template": resource_id,
+                "project": project_id,
+                "request_id": request_id,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_instance_template(
+        self,
+        resource_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | None = None,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> InstanceTemplate:
+        """
+        Retrieves Instance Template by project_id and resource_id.
+        Must be called with keyword arguments rather than positional.
+
+        :param resource_id: Name of the Instance Template.
+        :param project_id: Google Cloud project ID where the Compute Engine Instance Template exists.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param retry: A retry object used to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        :return: Instance Template representation as object according to
+            https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
+        :rtype: object
+        """
+        client = self.get_compute_instance_template_client()
+        instance_template_obj = client.get(
+            # Calling method get() on client to get the specified Instance Template.
+            # This method accepts request object as an argument and should be of type
+            # Union[google.cloud.compute_v1.types.GetInstanceTemplateRequest, dict] to construct a request
+            # message.
+            # The request object should be represented using arguments:
+            #   instance_template (str):
+            #       The name of the Instance Template.
+            #   project (str):
+            #       Project ID for this request.
+            request={
+                "instance_template": resource_id,
+                "project": project_id,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return instance_template_obj
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def insert_instance(
+        self,
+        body: dict,
+        zone: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        request_id: str | None = None,
+        source_instance_template: str | None = None,
+        retry: Retry | None = None,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> None:
+        """
+        Creates Instance using body specified.
+        Must be called with keyword arguments rather than positional.
+
+        :param body: Instance representation as an object. Should at least include 'name', 'machine_type',
+            'disks' and 'network_interfaces' fields but doesn't include 'zone' field, as it will be specified
+            in 'zone' parameter.
+            Full or partial URL and can be represented as examples below:
+            1. "machine_type": "projects/your-project-name/zones/your-zone/machineTypes/your-machine-type"
+            2. "source_image": "projects/your-project-name/zones/your-zone/diskTypes/your-disk-type"
+            3. "subnetwork": "projects/your-project-name/regions/your-region/subnetworks/your-subnetwork"
+        :param zone: Google Cloud zone where the Instance exists
+        :param project_id: Google Cloud project ID where the Compute Engine Instance Template exists.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param source_instance_template: Existing Instance Template that will be used as a base while
+            creating new Instance.
+            When specified, only name of new Instance should be provided as input arguments in 'body'
+            parameter when creating new Instance. All other parameters, such as machine_type, disks
+            and network_interfaces and etc will be passed to Instance as they are specified
+            in the Instance Template.
+            Full or partial URL and can be represented as examples below:
+            1. "https://www.googleapis.com/compute/v1/projects/your-project/global/instanceTemplates/temp"
+            2. "projects/your-project/global/instanceTemplates/temp"
+            3. "global/instanceTemplates/temp"
+        :param request_id: Unique request_id that you might add to achieve
+            full idempotence (for example when client call times out repeating the request
+            with the same request id will not create a new instance template again)
+            It should be in UUID format as defined in RFC 4122
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        client = self.get_compute_instance_client()
+        client.insert(
+            # Calling method insert() on client to create Instance.
+            # This method accepts request object as an argument and should be of type
+            # Union[google.cloud.compute_v1.types.InsertInstanceRequest, dict] to construct a request
+            # message.
+            # The request object should be represented using arguments:
+            #   instance_resource (google.cloud.compute_v1.types.Instance):
+            #       The body resource for this request.
+            #   request_id (str):
+            #       Optional, request ID to identify requests.
+            #   project (str):
+            #       Project ID for this request.
+            #   zone (str):
+            #       The name of the zone for this request.
+            #   source_instance_template (str):
+            #       Optional, link to Instance Template, that can be used to create new Instance.
+            request={
+                "instance_resource": body,
+                "request_id": request_id,
+                "project": project_id,
+                "zone": zone,
+                "source_instance_template": source_instance_template,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_instance(
+        self,
+        resource_id: str,
+        zone: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | None = None,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Instance:
+        """
+        Retrieves Instance by project_id and resource_id.
+        Must be called with keyword arguments rather than positional.
+
+        :param resource_id: Name of the Instance
+        :param zone: Google Cloud zone where the Instance exists
+        :param project_id: Google Cloud project ID where the Compute Engine Instance exists.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        :return: Instance representation as object according to
+            https://cloud.google.com/compute/docs/reference/rest/v1/instances
+        :rtype: object
+        """
+        client = self.get_compute_instance_client()
+        instance_obj = client.get(
+            # Calling method get() on client to get the specified Instance.
+            # This method accepts request object as an argument and should be of type
+            # Union[google.cloud.compute_v1.types.GetInstanceRequest, dict] to construct a request
+            # message.
+            # The request object should be represented using arguments:
+            #   instance (str):
+            #       The name of the Instance.
+            #   project (str):
+            #       Project ID for this request.
+            #   zone (str):
+            #       The name of the zone for this request.
+            request={
+                "instance": resource_id,
+                "project": project_id,
+                "zone": zone,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return instance_obj
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_instance(
+        self,
+        resource_id: str,
+        zone: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        request_id: str | None = None,
+        retry: Retry | None = None,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> None:
+        """
+        Deletes Instance.
+        Deleting an Instance is permanent and cannot be undone.
+        It is not possible to delete Instances that are already in use by a managed instance group.
+        Must be called with keyword arguments rather than positional.
+
+        :param resource_id: Name of the Compute Engine Instance Template resource.
+        :param request_id: Unique request_id that you might add to achieve
+            full idempotence (for example when client call times out repeating the request
+            with the same request id will not create a new instance template again)
+            It should be in UUID format as defined in RFC 4122
+        :param project_id: Google Cloud project ID where the Compute Engine Instance Template exists.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param zone: Google Cloud zone where the Instance exists
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        client = self.get_compute_instance_client()
+        client.delete(
+            # Calling method delete() on client to delete Instance.
+            # This method accepts request object as an argument and should be of type
+            # Union[google.cloud.compute_v1.types.DeleteInstanceRequest, dict] to construct a request
+            # message.
+            # The request object should be represented using arguments:
+            #   instance (str):
+            #       Name of the Instance resource to delete.
+            #   project (str):
+            #       Project ID for this request.
+            #   request_id (str):
+            #       An optional request ID to identify requests.
+            #   zone (str):
+            #       The name of the zone for this request.
+            request={
+                "instance": resource_id,
+                "project": project_id,
+                "request_id": request_id,
+                "zone": zone,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def start_instance(self, zone: str, resource_id: str, project_id: str) -> None:
@@ -155,86 +504,167 @@ class ComputeEngineHook(GoogleBaseHook):
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_instance_template(self, resource_id: str, project_id: str) -> dict:
-        """
-        Retrieves instance template by project_id and resource_id.
-        Must be called with keyword arguments rather than positional.
-
-        :param resource_id: Name of the instance template
-        :param project_id: Optional, Google Cloud project ID where the
-            Compute Engine Instance exists. If set to None or missing,
-            the default project_id from the Google Cloud connection is used.
-        :return: Instance template representation as object according to
-            https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
-        """
-        response = (
-            self.get_conn()
-            .instanceTemplates()
-            .get(project=project_id, instanceTemplate=resource_id)
-            .execute(num_retries=self.num_retries)
-        )
-        return response
-
-    @GoogleBaseHook.fallback_to_default_project_id
-    def insert_instance_template(
+    def insert_instance_group_manager(
         self,
         body: dict,
+        zone: str,
         project_id: str = PROVIDE_PROJECT_ID,
         request_id: str | None = None,
+        retry: Retry | None = None,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Inserts instance template using body specified
+        Creates an Instance Group Managers using the body specified.
+        After the group is created, instances in the group are created using the specified Instance Template.
         Must be called with keyword arguments rather than positional.
 
-        :param body: Instance template representation as object according to
-            https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
-        :param request_id: Optional, unique request_id that you might add to achieve
+        :param body: Instance Group Manager representation as an object.
+        :param request_id: Unique request_id that you might add to achieve
             full idempotence (for example when client call times out repeating the request
-            with the same request id will not create a new instance template again)
+            with the same request id will not create a new Instance Group Managers again)
             It should be in UUID format as defined in RFC 4122
-        :param project_id: Optional, Google Cloud project ID where the
-            Compute Engine Instance exists. If set to None or missing,
-            the default project_id from the Google Cloud connection is used.
-        :return: None
+        :param project_id: Google Cloud project ID where the Compute Engine Instance Group Managers exists.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param zone: Google Cloud zone where the Instance exists
+        :param retry: A retry object used to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
         """
-        response = (
-            self.get_conn()
-            .instanceTemplates()
-            .insert(project=project_id, body=body, requestId=request_id)
-            .execute(num_retries=self.num_retries)
+        client = self.get_compute_instance_group_managers_client()
+        client.insert(
+            # Calling method insert() on client to create the specified Instance Group Managers.
+            # This method accepts request object as an argument and should be of type
+            # Union[google.cloud.compute_v1.types.InsertInstanceGroupManagerRequest, dict] to construct
+            # a request message.
+            # The request object should be represented using arguments:
+            #   instance_group_manager_resource (google.cloud.compute_v1.types.InstanceGroupManager):
+            #       The body resource for this request.
+            #   project (str):
+            #       Project ID for this request.
+            #   zone (str):
+            #       The name of the zone where you want to create the managed instance group.
+            #   request_id (str):
+            #       An optional request ID to identify requests.
+            request={
+                "instance_group_manager_resource": body,
+                "project": project_id,
+                "zone": zone,
+                "request_id": request_id,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
-        try:
-            operation_name = response["name"]
-        except KeyError:
-            raise AirflowException(f"Wrong response '{response}' returned - it should contain 'name' field")
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_instance_group_manager(
         self,
-        zone: str,
         resource_id: str,
+        zone: str,
         project_id: str = PROVIDE_PROJECT_ID,
-    ) -> dict:
+        retry: Retry | None = None,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> InstanceGroupManager:
         """
         Retrieves Instance Group Manager by project_id, zone and resource_id.
         Must be called with keyword arguments rather than positional.
 
-        :param zone: Google Cloud zone where the Instance Group Manager exists
-        :param resource_id: Name of the Instance Group Manager
-        :param project_id: Optional, Google Cloud project ID where the
-            Compute Engine Instance exists. If set to None or missing,
-            the default project_id from the Google Cloud connection is used.
-        :return: Instance group manager representation as object according to
-            https://cloud.google.com/compute/docs/reference/rest/beta/instanceGroupManagers
+        :param resource_id: The name of the Managed Instance Group
+        :param zone: Google Cloud zone where the Instance Group Managers exists
+        :param project_id: Google Cloud project ID where the Compute Engine Instance Group Managers exists.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        :return: Instance Group Managers representation as object according to
+            https://cloud.google.com/compute/docs/reference/rest/v1/instanceGroupManagers
+        :rtype: object
         """
-        response = (
-            self.get_conn()
-            .instanceGroupManagers()
-            .get(project=project_id, zone=zone, instanceGroupManager=resource_id)
-            .execute(num_retries=self.num_retries)
+        client = self.get_compute_instance_group_managers_client()
+        instance_group_manager_obj = client.get(
+            # Calling method get() on client to get the specified Instance Group Manager.
+            # This method accepts request object as an argument and should be of type
+            # Union[google.cloud.compute_v1.types.GetInstanceGroupManagerRequest, dict] to construct a
+            # request message.
+            # The request object should be represented using arguments:
+            #   instance_group_manager (str):
+            #       The name of the Managed Instance Group.
+            #   project (str):
+            #       Project ID for this request.
+            #   zone (str):
+            #       The name of the zone for this request.
+            request={
+                "instance_group_manager": resource_id,
+                "project": project_id,
+                "zone": zone,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
-        return response
+        return instance_group_manager_obj
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_instance_group_manager(
+        self,
+        resource_id: str,
+        zone: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        request_id: str | None = None,
+        retry: Retry | None = None,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> None:
+        """
+        Deletes Instance Group Managers.
+        Deleting an Instance Group Manager is permanent and cannot be undone.
+        Must be called with keyword arguments rather than positional.
+
+        :param resource_id: Name of the Compute Engine Instance Group Managers resource.
+        :param request_id: Unique request_id that you might add to achieve
+            full idempotence (for example when client call times out repeating the request
+            with the same request id will not create a new instance template again)
+            It should be in UUID format as defined in RFC 4122
+        :param project_id: Google Cloud project ID where the Compute Engine Instance Group Managers exists.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param zone: Google Cloud zone where the Instance Group Managers exists
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        client = self.get_compute_instance_group_managers_client()
+        client.delete(
+            # Calling method delete() on client to delete Instance Group Managers.
+            # This method accepts request object as an argument and should be of type
+            # Union[google.cloud.compute_v1.types.DeleteInstanceGroupManagerRequest, dict] to construct a
+            # request message.
+            # The request object should be represented using arguments:
+            #   instance_group_manager (str):
+            #       Name of the Instance resource to delete.
+            #   project (str):
+            #       Project ID for this request.
+            #   request_id (str):
+            #       An optional request ID to identify requests.
+            #   zone (str):
+            #       The name of the zone for this request.
+            request={
+                "instance_group_manager": resource_id,
+                "project": project_id,
+                "request_id": request_id,
+                "zone": zone,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def patch_instance_group_manager(

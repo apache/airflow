@@ -22,6 +22,7 @@ from unittest import mock
 from unittest.mock import PropertyMock
 
 import pytest
+from google.api_core.retry import Retry
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook, GceOperationStatus
@@ -36,6 +37,471 @@ GCE_INSTANCE = "instance"
 GCE_INSTANCE_TEMPLATE = "instance-template"
 GCE_REQUEST_ID = "request_id"
 GCE_INSTANCE_GROUP_MANAGER = "instance_group_manager"
+
+PROJECT_ID = "project-id"
+RESOURCE_ID = "resource-id"
+BODY = {"body": "test"}
+ZONE = "zone"
+SOURCE_INSTANCE_TEMPLATE = "source-instance-template"
+TIMEOUT = 120
+RETRY = mock.MagicMock(Retry)
+METADATA = [("key", "value")]
+
+GCP_CONN_ID = "test-conn"
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3@google.com"]
+API_VERSION = "v1"
+
+BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
+COMPUTE_ENGINE_HOOK_PATH = "airflow.providers.google.cloud.hooks.compute.{}"
+
+
+class TestGcpComputeHookApiCall(unittest.TestCase):
+    def setUp(self):
+        with mock.patch(
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
+        ):
+            self.hook = ComputeEngineHook(
+                gcp_conn_id=GCP_CONN_ID,
+                api_version=API_VERSION,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
+
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_template_client"))
+    def test_insert_template_should_execute_successfully(self, mock_client):
+        self.hook.insert_instance_template(
+            project_id=PROJECT_ID,
+            body=BODY,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_client.return_value.insert.assert_called_once_with(
+            request=dict(
+                instance_template_resource=BODY,
+                project=PROJECT_ID,
+                request_id=None,
+            ),
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
+        new_callable=PropertyMock,
+        return_value="mocked-google",
+    )
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_template_client"))
+    def test_insert_template_should_not_throw_ex_when_project_id_none(self, mock_client, mocked_project_id):
+        self.hook.insert_instance_template(
+            body=BODY,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_client.return_value.insert.assert_called_once_with(
+            request=dict(
+                instance_template_resource=BODY,
+                request_id=None,
+                project="mocked-google",
+            ),
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_template_client"))
+    def test_delete_template_should_execute_successfully(self, mock_client):
+        self.hook.delete_instance_template(
+            project_id=PROJECT_ID,
+            resource_id=RESOURCE_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_client.return_value.delete.assert_called_once_with(
+            request=dict(
+                instance_template=RESOURCE_ID,
+                project=PROJECT_ID,
+                request_id=None,
+            ),
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
+        new_callable=PropertyMock,
+        return_value="mocked-google",
+    )
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_template_client"))
+    def test_delete_template_should_not_throw_ex_when_project_id_none(self, mock_client, mocked_project_id):
+        self.hook.delete_instance_template(
+            resource_id=RESOURCE_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_client.return_value.delete.assert_called_once_with(
+            request=dict(
+                instance_template=RESOURCE_ID,
+                project="mocked-google",
+                request_id=None,
+            ),
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_template_client"))
+    def test_get_template_should_execute_successfully(self, mock_client):
+        self.hook.get_instance_template(
+            project_id=PROJECT_ID,
+            resource_id=RESOURCE_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_client.return_value.get.assert_called_once_with(
+            request=dict(
+                instance_template=RESOURCE_ID,
+                project=PROJECT_ID,
+            ),
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
+        new_callable=PropertyMock,
+        return_value="mocked-google",
+    )
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_template_client"))
+    def test_get_template_should_not_throw_ex_when_project_id_none(self, mock_client, mocked_project_id):
+        self.hook.get_instance_template(
+            resource_id=RESOURCE_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_client.return_value.get.assert_called_once_with(
+            request=dict(
+                instance_template=RESOURCE_ID,
+                project="mocked-google",
+            ),
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client"))
+    def test_insert_instance_should_execute_successfully(self, mock_client):
+        self.hook.insert_instance(
+            project_id=PROJECT_ID,
+            body=BODY,
+            zone=ZONE,
+            source_instance_template=SOURCE_INSTANCE_TEMPLATE,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_client.return_value.insert.assert_called_once_with(
+            request=dict(
+                instance_resource=BODY,
+                project=PROJECT_ID,
+                request_id=None,
+                zone=ZONE,
+                source_instance_template=SOURCE_INSTANCE_TEMPLATE,
+            ),
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
+        new_callable=PropertyMock,
+        return_value="mocked-google",
+    )
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client"))
+    def test_insert_instance_should_not_throw_ex_when_project_id_none(self, mock_client, mocked_project_id):
+        self.hook.insert_instance(
+            body=BODY,
+            zone=ZONE,
+            source_instance_template=SOURCE_INSTANCE_TEMPLATE,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_client.return_value.insert.assert_called_once_with(
+            request=dict(
+                instance_resource=BODY,
+                project="mocked-google",
+                request_id=None,
+                zone=ZONE,
+                source_instance_template=SOURCE_INSTANCE_TEMPLATE,
+            ),
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client"))
+    def test_get_instance_should_execute_successfully(self, mock_client):
+        self.hook.get_instance(
+            resource_id=RESOURCE_ID,
+            zone=ZONE,
+            project_id=PROJECT_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_client.return_value.get.assert_called_once_with(
+            request=dict(
+                instance=RESOURCE_ID,
+                project=PROJECT_ID,
+                zone=ZONE,
+            ),
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
+        new_callable=PropertyMock,
+        return_value="mocked-google",
+    )
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client"))
+    def test_get_instance_should_not_throw_ex_when_project_id_none(self, mock_client, mocked_project_id):
+        self.hook.get_instance(
+            resource_id=RESOURCE_ID,
+            zone=ZONE,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_client.return_value.get.assert_called_once_with(
+            request=dict(
+                instance=RESOURCE_ID,
+                project="mocked-google",
+                zone=ZONE,
+            ),
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client"))
+    def test_delete_instance_should_execute_successfully(self, mock_client):
+        self.hook.delete_instance(
+            resource_id=RESOURCE_ID,
+            zone=ZONE,
+            project_id=PROJECT_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_client.return_value.delete.assert_called_once_with(
+            request=dict(
+                instance=RESOURCE_ID,
+                project=PROJECT_ID,
+                request_id=None,
+                zone=ZONE,
+            ),
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
+        new_callable=PropertyMock,
+        return_value="mocked-google",
+    )
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client"))
+    def test_delete_instance_should_not_throw_ex_when_project_id_none(self, mock_client, mocked_project_id):
+        self.hook.delete_instance(
+            resource_id=RESOURCE_ID,
+            zone=ZONE,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_client.return_value.delete.assert_called_once_with(
+            request=dict(
+                instance=RESOURCE_ID,
+                project="mocked-google",
+                request_id=None,
+                zone=ZONE,
+            ),
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
+    )
+    def test_insert_instance_group_manager_should_execute_successfully(self, mock_client):
+        self.hook.insert_instance_group_manager(
+            body=BODY,
+            zone=ZONE,
+            project_id=PROJECT_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_client.return_value.insert.assert_called_once_with(
+            request=dict(
+                instance_group_manager_resource=BODY,
+                project=PROJECT_ID,
+                request_id=None,
+                zone=ZONE,
+            ),
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
+        new_callable=PropertyMock,
+        return_value="mocked-google",
+    )
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
+    )
+    def test_insert_instance_group_manager_should_not_throw_ex_when_project_id_none(
+        self, mock_client, mocked_project_id
+    ):
+        self.hook.insert_instance_group_manager(
+            body=BODY,
+            zone=ZONE,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_client.return_value.insert.assert_called_once_with(
+            request=dict(
+                instance_group_manager_resource=BODY,
+                project="mocked-google",
+                request_id=None,
+                zone=ZONE,
+            ),
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
+    )
+    def test_get_instance_group_manager_should_execute_successfully(self, mock_client):
+        self.hook.get_instance_group_manager(
+            resource_id=RESOURCE_ID,
+            zone=ZONE,
+            project_id=PROJECT_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_client.return_value.get.assert_called_once_with(
+            request=dict(
+                instance_group_manager=RESOURCE_ID,
+                project=PROJECT_ID,
+                zone=ZONE,
+            ),
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
+        new_callable=PropertyMock,
+        return_value="mocked-google",
+    )
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
+    )
+    def test_get_instance_group_manager_should_not_throw_ex_when_project_id_none(
+        self, mock_client, mocked_project_id
+    ):
+        self.hook.get_instance_group_manager(
+            resource_id=RESOURCE_ID,
+            zone=ZONE,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_client.return_value.get.assert_called_once_with(
+            request=dict(
+                instance_group_manager=RESOURCE_ID,
+                project="mocked-google",
+                zone=ZONE,
+            ),
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
+    )
+    def test_delete_instance_group_manager_should_execute_successfully(self, mock_client):
+        self.hook.delete_instance_group_manager(
+            resource_id=RESOURCE_ID,
+            zone=ZONE,
+            project_id=PROJECT_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_client.return_value.delete.assert_called_once_with(
+            request=dict(
+                instance_group_manager=RESOURCE_ID,
+                project=PROJECT_ID,
+                zone=ZONE,
+                request_id=None,
+            ),
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
+        new_callable=PropertyMock,
+        return_value="mocked-google",
+    )
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
+    )
+    def test_delete_instance_group_manager_should_not_throw_ex_when_project_id_none(
+        self, mock_client, mocked_project_id
+    ):
+        self.hook.delete_instance_group_manager(
+            resource_id=RESOURCE_ID,
+            zone=ZONE,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_client.return_value.delete.assert_called_once_with(
+            request=dict(
+                instance_group_manager=RESOURCE_ID,
+                project="mocked-google",
+                zone=ZONE,
+                request_id=None,
+            ),
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
 
 
 class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
@@ -113,61 +579,6 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(
             project_id="example-project", operation_name="operation_id", zone="zone"
         )
-
-    @mock.patch("airflow.providers.google.cloud.hooks.compute.ComputeEngineHook.get_conn")
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._wait_for_operation_to_complete"
-    )
-    def test_get_instance_template_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
-        get_method = get_conn.return_value.instanceTemplates.return_value.get
-        execute_method = get_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
-        wait_for_operation_to_complete.return_value = None
-        res = self.gce_hook_no_project_id.get_instance_template(
-            resource_id=GCE_INSTANCE_TEMPLATE, project_id="example-project"
-        )
-        assert res is not None
-        get_method.assert_called_once_with(instanceTemplate="instance-template", project="example-project")
-        execute_method.assert_called_once_with(num_retries=5)
-        wait_for_operation_to_complete.assert_not_called()
-
-    @mock.patch("airflow.providers.google.cloud.hooks.compute.ComputeEngineHook.get_conn")
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._wait_for_operation_to_complete"
-    )
-    def test_insert_instance_template_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
-        insert_method = get_conn.return_value.instanceTemplates.return_value.insert
-        execute_method = insert_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
-        wait_for_operation_to_complete.return_value = None
-        res = self.gce_hook_no_project_id.insert_instance_template(
-            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST, body={}, request_id=GCE_REQUEST_ID
-        )
-        assert res is None
-        insert_method.assert_called_once_with(body={}, project="example-project", requestId="request_id")
-        execute_method.assert_called_once_with(num_retries=5)
-        wait_for_operation_to_complete.assert_called_once_with(
-            project_id="example-project", operation_name="operation_id"
-        )
-
-    @mock.patch("airflow.providers.google.cloud.hooks.compute.ComputeEngineHook.get_conn")
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._wait_for_operation_to_complete"
-    )
-    def test_get_instance_group_manager_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
-        get_method = get_conn.return_value.instanceGroupManagers.return_value.get
-        execute_method = get_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
-        wait_for_operation_to_complete.return_value = None
-        res = self.gce_hook_no_project_id.get_instance_group_manager(
-            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST, zone=GCE_ZONE, resource_id=GCE_INSTANCE_GROUP_MANAGER
-        )
-        assert res is not None
-        get_method.assert_called_once_with(
-            instanceGroupManager="instance_group_manager", project="example-project", zone="zone"
-        )
-        execute_method.assert_called_once_with(num_retries=5)
-        wait_for_operation_to_complete.assert_not_called()
 
     @mock.patch("airflow.providers.google.cloud.hooks.compute.ComputeEngineHook.get_conn")
     @mock.patch(
@@ -336,133 +747,6 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(
             project_id="new-project", operation_name="operation_id", zone="zone"
         )
-
-    @mock.patch(
-        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
-        new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
-    )
-    @mock.patch("airflow.providers.google.cloud.hooks.compute.ComputeEngineHook.get_conn")
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._wait_for_operation_to_complete"
-    )
-    def test_get_instance_template(self, wait_for_operation_to_complete, get_conn, mock_project_id):
-        get_method = get_conn.return_value.instanceTemplates.return_value.get
-        execute_method = get_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
-        wait_for_operation_to_complete.return_value = None
-        res = self.gce_hook.get_instance_template(
-            resource_id=GCE_INSTANCE_TEMPLATE, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST
-        )
-        assert res is not None
-        get_method.assert_called_once_with(instanceTemplate="instance-template", project="example-project")
-        execute_method.assert_called_once_with(num_retries=5)
-        wait_for_operation_to_complete.assert_not_called()
-
-    @mock.patch("airflow.providers.google.cloud.hooks.compute.ComputeEngineHook.get_conn")
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._wait_for_operation_to_complete"
-    )
-    def test_get_instance_template_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
-        get_method = get_conn.return_value.instanceTemplates.return_value.get
-        execute_method = get_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
-        wait_for_operation_to_complete.return_value = None
-        res = self.gce_hook.get_instance_template(project_id="new-project", resource_id=GCE_INSTANCE_TEMPLATE)
-        assert res is not None
-        get_method.assert_called_once_with(instanceTemplate="instance-template", project="new-project")
-        execute_method.assert_called_once_with(num_retries=5)
-        wait_for_operation_to_complete.assert_not_called()
-
-    @mock.patch(
-        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
-        new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
-    )
-    @mock.patch("airflow.providers.google.cloud.hooks.compute.ComputeEngineHook.get_conn")
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._wait_for_operation_to_complete"
-    )
-    def test_insert_instance_template(self, wait_for_operation_to_complete, get_conn, mock_project_id):
-        insert_method = get_conn.return_value.instanceTemplates.return_value.insert
-        execute_method = insert_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
-        wait_for_operation_to_complete.return_value = None
-        res = self.gce_hook.insert_instance_template(
-            body={},
-            request_id=GCE_REQUEST_ID,
-            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
-        )
-        assert res is None
-        insert_method.assert_called_once_with(body={}, project="example-project", requestId="request_id")
-        execute_method.assert_called_once_with(num_retries=5)
-        wait_for_operation_to_complete.assert_called_once_with(
-            project_id="example-project", operation_name="operation_id"
-        )
-
-    @mock.patch("airflow.providers.google.cloud.hooks.compute.ComputeEngineHook.get_conn")
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._wait_for_operation_to_complete"
-    )
-    def test_insert_instance_template_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
-        insert_method = get_conn.return_value.instanceTemplates.return_value.insert
-        execute_method = insert_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
-        wait_for_operation_to_complete.return_value = None
-        res = self.gce_hook.insert_instance_template(
-            project_id="new-project", body={}, request_id=GCE_REQUEST_ID
-        )
-        assert res is None
-        insert_method.assert_called_once_with(body={}, project="new-project", requestId="request_id")
-        execute_method.assert_called_once_with(num_retries=5)
-        wait_for_operation_to_complete.assert_called_once_with(
-            project_id="new-project", operation_name="operation_id"
-        )
-
-    @mock.patch(
-        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
-        new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
-    )
-    @mock.patch("airflow.providers.google.cloud.hooks.compute.ComputeEngineHook.get_conn")
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._wait_for_operation_to_complete"
-    )
-    def test_get_instance_group_manager(self, wait_for_operation_to_complete, get_conn, mock_project_id):
-        get_method = get_conn.return_value.instanceGroupManagers.return_value.get
-        execute_method = get_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
-        wait_for_operation_to_complete.return_value = None
-        res = self.gce_hook.get_instance_group_manager(
-            zone=GCE_ZONE,
-            resource_id=GCE_INSTANCE_GROUP_MANAGER,
-            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
-        )
-        assert res is not None
-        get_method.assert_called_once_with(
-            instanceGroupManager="instance_group_manager", project="example-project", zone="zone"
-        )
-        execute_method.assert_called_once_with(num_retries=5)
-        wait_for_operation_to_complete.assert_not_called()
-
-    @mock.patch("airflow.providers.google.cloud.hooks.compute.ComputeEngineHook.get_conn")
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._wait_for_operation_to_complete"
-    )
-    def test_get_instance_group_manager_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
-        get_method = get_conn.return_value.instanceGroupManagers.return_value.get
-        execute_method = get_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
-        wait_for_operation_to_complete.return_value = None
-        res = self.gce_hook.get_instance_group_manager(
-            project_id="new-project", zone=GCE_ZONE, resource_id=GCE_INSTANCE_GROUP_MANAGER
-        )
-        assert res is not None
-        get_method.assert_called_once_with(
-            instanceGroupManager="instance_group_manager", project="new-project", zone="zone"
-        )
-        execute_method.assert_called_once_with(num_retries=5)
-        wait_for_operation_to_complete.assert_not_called()
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",

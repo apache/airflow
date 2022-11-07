@@ -79,6 +79,7 @@ dependencies:
   - google-cloud-bigquery-datatransfer>=3.0.0
   - google-cloud-bigtable>=1.0.0,<2.0.0
   - google-cloud-build>=3.0.0
+  - google-cloud-compute>=0.1.0,<2.0.0
   - google-cloud-container>=2.2.0,<3.0.0
   - google-cloud-dataform>=0.2.0
   - google-cloud-datacatalog>=3.0.0
@@ -972,6 +973,9 @@ extra-links:
   - airflow.providers.google.cloud.links.bigquery.BigQueryDatasetLink
   - airflow.providers.google.cloud.links.bigquery.BigQueryTableLink
   - airflow.providers.google.cloud.links.bigquery_dts.BigQueryDataTransferConfigLink
+  - airflow.providers.google.cloud.links.compute.ComputeInstanceDetailsLink
+  - airflow.providers.google.cloud.links.compute.ComputeInstanceTemplateDetailsLink
+  - airflow.providers.google.cloud.links.compute.ComputeInstanceGroupManagerDetailsLink
   - airflow.providers.google.cloud.links.cloud_tasks.CloudTasksQueueLink
   - airflow.providers.google.cloud.links.cloud_tasks.CloudTasksLink
   - airflow.providers.google.cloud.links.datacatalog.DataCatalogEntryGroupLink
