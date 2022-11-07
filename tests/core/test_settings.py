@@ -52,12 +52,10 @@ SETTINGS_FILE_CUSTOM_POLICY = """
 from airflow.models.baseoperator import BaseOperator
 from airflow.exceptions import AirflowClusterPolicyViolation
 
-def task_must_have_owners(task: BaseOperator):
-    if not task.owner or task.owner.lower() == "airflow":
-        raise AirflowClusterPolicyViolation(
-            f'''Task must have non-None non-'airflow' owner.
-            Current value: {task.owner}'''
-        )
+
+def task_must_have_owner(task: BaseOperator):
+    if task.owner is None:
+        raise AirflowClusterPolicyViolation(f'Task must have a non-None owner. Current value: {task.owner}.')
 """
 
 
@@ -181,9 +179,9 @@ class TestLocalSettings:
             settings.import_local_settings()
 
             task_instance = MagicMock()
-            task_instance.owner = "airflow"
+            task_instance.owner = None
             with pytest.raises(AirflowClusterPolicyViolation):
-                settings.task_must_have_owners(task_instance)
+                settings.task_must_have_owner(task_instance)
 
 
 class TestUpdatedConfigNames:
