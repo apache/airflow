@@ -203,7 +203,10 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         self.hook.running_job_id = running_job_id
         self.hook.cancel_query()
 
-        calls = [mock.call(job_id=running_job_id), mock.call(running_job_id)]
+        calls = [
+            mock.call(job_id=running_job_id, project_id=PROJECT_ID, location=None),
+            mock.call(job_id=running_job_id, project_id=PROJECT_ID, location=None),
+        ]
         mock_poll_job_complete.assert_has_calls(calls)
         mock_client.assert_called_once_with(project_id=PROJECT_ID, location=None)
         mock_client.return_value.cancel_job.assert_called_once_with(job_id=running_job_id)
@@ -599,7 +602,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
 
         self.hook.running_job_id = JOB_ID
         self.hook.cancel_query()
-        poll_job_complete.assert_called_once_with(job_id=JOB_ID)
+        poll_job_complete.assert_called_once_with(job_id=JOB_ID, project_id=PROJECT_ID, location=None)
         mock_logger_info.has_call(mock.call("No running BigQuery jobs to cancel."))
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
