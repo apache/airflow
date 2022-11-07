@@ -631,5 +631,5 @@ class _suppress(AbstractContextManager):
         if caught_error:
             self.exception = excinst
             logger = logging.getLogger(__name__)
-            logger.error(str(excinst), exc_info=True)
+            logger.exception(excinst)
         return caught_error

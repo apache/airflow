@@ -51,7 +51,7 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
         try:
             return OSSHook(oss_conn_id=remote_conn_id)
         except Exception as e:
-            self.log.error(e, exc_info=True)
+            self.log.exception(e)
             self.log.error(
                 'Could not create an OSSHook with connection id "%s". '
                 "Please make sure that airflow[oss] is installed and "
