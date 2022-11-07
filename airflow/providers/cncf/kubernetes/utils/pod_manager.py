@@ -267,6 +267,13 @@ class PodManager(LoggingMixin):
                 time.sleep(1)
 
     def await_container_completion(self, pod: V1Pod, container_name: str) -> None:
+        """
+        Monitors a container of a pod until it reaches its final state
+
+        :param pod: pod spec that will be monitored
+        :param container_name: name of the container of the pod that will be monitored
+        :return:
+        """
         while self.container_is_running(pod=pod, container_name=container_name):
             time.sleep(1)
 
