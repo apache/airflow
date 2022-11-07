@@ -167,6 +167,9 @@ spec:
                 - health
             initialDelaySeconds: 10
             periodSeconds: 10
+{{- if .Values.pgbouncer.extraContainers }}
+{{- toYaml .Values.pgbouncer.extraContainers | nindent 8 }}
+{{- end }}
       volumes:
         - name: pgbouncer-config
           secret:

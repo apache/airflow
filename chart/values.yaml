@@ -1468,6 +1468,8 @@ pgbouncer:
     cert: ~
     key: ~
 
+  # Launch additional containers into pgbouncer pods.
+  extraContainers: []
   # Add extra PgBouncer ini configuration in the databases section:
   # https://www.pgbouncer.org/config.html#section-databases
   extraIniMetadata: ~

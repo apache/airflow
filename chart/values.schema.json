@@ -4367,6 +4367,14 @@
                         }
                     }
                 },
+                "extraContainers": {
+                    "description": "Launch additional containers into pgbouncer pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    }
+                },
                 "extraIniMetadata": {
                     "description": "Add extra metadata database specific PgBouncer ini configuration: https://www.pgbouncer.org/config.html#section-databases",
                     "type": [
