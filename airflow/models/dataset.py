@@ -116,6 +116,7 @@ class DagScheduleDatasetReference(Base):
             DagScheduleDatasetReference.dataset_id == foreign(DatasetDagRunQueue.dataset_id),
             DagScheduleDatasetReference.dag_id == foreign(DatasetDagRunQueue.target_dag_id),
         )""",
+        cascade="all, delete, delete-orphan",
     )
 
     __tablename__ = "dag_schedule_dataset_reference"
