@@ -24,6 +24,7 @@ import pendulum
 import pytest
 
 from airflow import settings
+from airflow.exceptions import AirflowException
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.empty import EmptyOperator
@@ -100,10 +101,12 @@ class TestSkipMixin:
         "branch_task_ids, expected_states",
         [
             (["task2"], {"task2": State.NONE, "task3": State.SKIPPED}),
+            (("task2",), {"task2": State.NONE, "task3": State.SKIPPED}),
             ("task2", {"task2": State.NONE, "task3": State.SKIPPED}),
             (None, {"task2": State.SKIPPED, "task3": State.SKIPPED}),
             ([], {"task2": State.SKIPPED, "task3": State.SKIPPED}),
         ],
+        ids=["list-of-task-ids", "tuple-of-task-ids", "str-task-id", "None", "empty-list"],
     )
     def test_skip_all_except(self, dag_maker, branch_task_ids, expected_states):
         with dag_maker(
@@ -129,3 +132,49 @@ class TestSkipMixin:
         executed_states = {"task2": get_state(ti2), "task3": get_state(ti3)}
 
         assert executed_states == expected_states
+
+    def test_raise_exception_on_not_accepted_branch_task_ids_type(self, dag_maker):
+        with dag_maker("dag_test_skip_all_except_wrong_type"):
+            task = EmptyOperator(task_id="task")
+        dag_maker.create_dagrun()
+        ti1 = TI(task, execution_date=DEFAULT_DATE)
+        error_message = (
+            r"'branch_task_ids' must be either None, a task ID, or an Iterable of IDs, but got 'int'\."
+        )
+        with pytest.raises(AirflowException, match=error_message):
+            SkipMixin().skip_all_except(ti=ti1, branch_task_ids=42)
+
+    def test_raise_exception_on_not_accepted_iterable_branch_task_ids_type(self, dag_maker):
+        with dag_maker("dag_test_skip_all_except_wrong_type"):
+            task = EmptyOperator(task_id="task")
+        dag_maker.create_dagrun()
+        ti1 = TI(task, execution_date=DEFAULT_DATE)
+        error_message = (
+            r"'branch_task_ids' expected all task IDs are strings. "
+            r"Invalid tasks found: \{\(42, 'int'\)\}\."
+        )
+        with pytest.raises(AirflowException, match=error_message):
+            SkipMixin().skip_all_except(ti=ti1, branch_task_ids=["task", 42])
+
+    @pytest.mark.parametrize(
+        "branch_task_ids",
+        [
+            pytest.param("task4", id="invalid-single-task"),
+            pytest.param(["task2", "task4"], id="invalid-any-task-in-list"),
+            pytest.param(["task5", "task4"], id="invalid-all-task-in-list"),
+        ],
+    )
+    def test_raise_exception_on_not_valid_branch_task_ids(self, dag_maker, branch_task_ids):
+        with dag_maker("dag_test_skip_all_except_wrong_type"):
+            task1 = EmptyOperator(task_id="task1")
+            task2 = EmptyOperator(task_id="task2")
+            task3 = EmptyOperator(task_id="task3")
+
+            task1 >> [task2, task3]
+        dag_maker.create_dagrun()
+
+        ti1 = TI(task1, execution_date=DEFAULT_DATE)
+
+        error_message = r"'branch_task_ids' must contain only valid task_ids. Invalid tasks found: .*"
+        with pytest.raises(AirflowException, match=error_message):
+            SkipMixin().skip_all_except(ti=ti1, branch_task_ids=branch_task_ids)
