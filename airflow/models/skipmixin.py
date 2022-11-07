@@ -20,7 +20,7 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Iterable, Sequence
 
-from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -155,16 +155,37 @@ class SkipMixin(LoggingMixin):
         self.log.info("Following branch %s", branch_task_ids)
         if isinstance(branch_task_ids, str):
             branch_task_id_set = {branch_task_ids}
+        elif isinstance(branch_task_ids, Iterable):
+            branch_task_id_set = set(branch_task_ids)
+            invalid_task_ids_type = {
+                (bti, type(bti).__name__) for bti in branch_task_ids if not isinstance(bti, str)
+            }
+            if invalid_task_ids_type:
+                raise AirflowException(
+                    f"'branch_task_ids' expected all task IDs are strings. "
+                    f"Invalid tasks found: {invalid_task_ids_type}."
+                )
         elif branch_task_ids is None:
             branch_task_id_set = set()
         else:
-            branch_task_id_set = set(branch_task_ids)
+            raise AirflowException(
+                "'branch_task_ids' must be either None, a task ID, or an Iterable of IDs, "
+                f"but got {type(branch_task_ids).__name__!r}."
+            )
 
         dag_run = ti.get_dagrun()
         task = ti.task
         dag = task.dag
         if TYPE_CHECKING:
             assert dag
+
+        valid_task_ids = set(dag.task_ids)
+        invalid_task_ids = branch_task_id_set - valid_task_ids
+        if invalid_task_ids:
+            raise AirflowException(
+                "'branch_task_ids' must contain only valid task_ids. "
+                f"Invalid tasks found: {invalid_task_ids}."
+            )
 
         downstream_tasks = _ensure_tasks(task.downstream_list)
 

@@ -208,21 +208,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
 
     def execute(self, context: Context) -> Any:
         branch = super().execute(context)
-        # TODO: The logic should be moved to SkipMixin to be available to all branch operators.
-        if isinstance(branch, str):
-            branches = {branch}
-        elif isinstance(branch, list):
-            branches = set(branch)
-        elif branch is None:
-            branches = set()
-        else:
-            raise AirflowException("Branch callable must return either None, a task ID, or a list of IDs")
-        valid_task_ids = set(context["dag"].task_ids)
-        invalid_task_ids = branches - valid_task_ids
-        if invalid_task_ids:
-            raise AirflowException(
-                f"Branch callable must return valid task_ids. Invalid tasks found: {invalid_task_ids}"
-            )
+        self.log.info("Branch callable return %s", branch)
         self.skip_all_except(context['ti'], branch)
         return branch
 
