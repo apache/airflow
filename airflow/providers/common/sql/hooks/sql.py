@@ -282,7 +282,7 @@ class DbApiHook(BaseHook):
             if not self.get_autocommit(conn):
                 conn.commit()
 
-        if handler is None:
+        if handler is not None:
             return None
         elif scalar_return_last:
             return results[-1]
