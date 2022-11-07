@@ -68,20 +68,32 @@ The grid view also provides visibility into your mapped tasks in the details pan
 
     In the above example, ``values`` received by ``sum_it`` is an aggregation of all values returned by each mapped instance of ``add_one``. However, since it is impossible to know how many instances of ``add_one`` we will have in advance, ``values`` is not a normal list, but a "lazy sequence" that retrieves each individual value only when asked. Therefore, if you run ``print(values)`` directly, you would get something like this::
 
-        _LazyXComAccess(dag_id='simple_mapping', run_id='test_run', task_id='add_one')
+        LazyXComAccess(dag_id='simple_mapping', run_id='test_run', task_id='add_one')
 
-    You can use normal sequence syntax on this object (e.g. ``values[0]``), or iterate through it normally with a ``for`` loop. ``list(values)`` will give you a "real" ``list``, but please be aware of the potential performance implications if the list is large.
+    You can use normal sequence syntax on this object (e.g. ``values[0]``), or iterate through it normally with a ``for`` loop. ``list(values)`` will give you a "real" ``list``, but since this would eagerly load values from *all* of the referenced upstream mapped tasks, you must be aware of the potential performance implications if the mapped number is large.
 
-    Note that the same also applies to when you push this proxy object into XCom. This, for example, would not
-    work with the default XCom backend:
+    Note that the same also applies to when you push this proxy object into XCom. Airflow tries to be smart and coerce the value automatically, but will emit a warning for this so you are aware of this. For example:
 
     .. code-block:: python
 
         @task
         def forward_values(values):
-            return values  # This is a lazy proxy and can't be pushed!
+            return values  # This is a lazy proxy!
 
-    You need to explicitly call ``list(values)`` instead, and accept the performance implications.
+    will emit a warning like this:
+
+    .. code-block:: text
+
+        Coercing mapped lazy proxy return value from task forward_values to list, which may degrade
+        performance. Review resource requirements for this operation, and call list() explicitly to suppress this message. See Dynamic Task Mapping documentation for more information about lazy proxy objects.
+
+    The message can be suppressed by modifying the task like this:
+
+    .. code-block:: python
+
+        @task
+        def forward_values(values):
+            return list(values)
 
 .. note:: A reduce task is not required.
 

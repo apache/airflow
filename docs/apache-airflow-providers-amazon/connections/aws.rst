@@ -118,7 +118,9 @@ If you are configuring the connection via a URI, ensure that all components of t
 Examples
 --------
 
-**Snippet for create Connection as URI**:
+Snippet to create Connection and convert to URI
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
   .. code-block:: python
 
     import os
@@ -146,14 +148,31 @@ Examples
     os.environ[env_key] = conn_uri
     print(conn.test_connection())
 
-**Using instance profile**:
+Using instance profile
+^^^^^^^^^^^^^^^^^^^^^^
+
+  This will use boto's default credential look-up chain (the profile named "default" from the ~/.boto/ config files,
+  and instance profile when running inside AWS)
+
+  **URI format example**
+
   .. code-block:: bash
 
     export AIRFLOW_CONN_AWS_DEFAULT=aws://
 
-  This will use boto's default credential look-up chain (the profile named "default" from the ~/.boto/ config files, and instance profile when running inside AWS)
 
-**With a AWS IAM key pair**:
+  **JSON format example**
+
+  .. code-block:: bash
+
+    export AIRFLOW_CONN_AWS_DEFAULT='{"conn_type": "aws"}'
+
+
+With a AWS IAM key pair
+^^^^^^^^^^^^^^^^^^^^^^^
+
+  **URI format example**
+
   .. code-block:: bash
 
     export AIRFLOW_CONN_AWS_DEFAULT=aws://AKIAIOSFODNN7EXAMPLE:wJalrXUtnFEMI%2FK7MDENG%2FbPxRfiCYEXAMPLEKEY@
@@ -161,6 +180,15 @@ Examples
   Note here, that the secret access key has been URL-encoded (changing ``/`` to ``%2F``), and also the
   trailing ``@`` (without which, it is treated as ``<host>:<port>`` and will not work)
 
+  **JSON format example**
+
+  .. code-block:: bash
+
+    export AIRFLOW_CONN_AWS_DEFAULT='{
+      "conn_type": "aws",
+      "login": "AKIAIOSFODNN7EXAMPLE",
+      "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    }'
 
 Examples for the **Extra** field
 --------------------------------

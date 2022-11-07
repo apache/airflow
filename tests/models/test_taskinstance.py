@@ -3485,7 +3485,7 @@ def test_ti_xcom_pull_on_mapped_operator_return_lazy_iterable(mock_deserialize_v
     joined = ti_2.xcom_pull("task_1", session=session)
     assert mock_deserialize_value.call_count == 0
 
-    assert repr(joined) == "_LazyXComAccess(dag_id='test_xcom', run_id='test', task_id='task_1')"
+    assert repr(joined) == "LazyXComAccess(dag_id='test_xcom', run_id='test', task_id='task_1')"
 
     # Only when we go through the iterable does deserialization happen.
     it = iter(joined)
