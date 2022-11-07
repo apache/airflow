@@ -394,7 +394,9 @@ def webserver(args):
             '--pid',
             pid_file,
             '--config',
-            'python:airflow.www.gunicorn_config',
+            'python:airflow.www.gunicorn_config'
+            if args.workerclass != 'gevent'
+            else 'python:airflow.www.gunicorn_config_gevent',
         ]
 
         if args.access_logfile:

@@ -18,26 +18,11 @@
 # under the License.
 from __future__ import annotations
 
-import setproctitle
+# DO NOT ADD MORE IMPORTS ABOVE THIS LINE!!!!  GEVENT MONKEY PATCHING SHOULD HAPPEN AS THE FIRST THING HERE #
+from gevent.monkey import patch_all
 
-from airflow import settings
-
-
-def post_worker_init(_):
-    """
-    Set process title.
-
-    This is used by airflow.cli.commands.webserver_command to track the status of the worker.
-    """
-    old_title = setproctitle.getproctitle()
-    setproctitle.setproctitle(settings.GUNICORN_WORKER_READY_PREFIX + old_title)
+patch_all()
+############################################
 
 
-def on_starting(server):
-    from airflow.providers_manager import ProvidersManager
-
-    # Load providers before forking workers
-    ProvidersManager().connection_form_widgets
-
-
-# IMPORTANT!!! MAKE SURE TO IMPORT ANY NEW FUNCTION YOU ADD HERE TO gunicorn_config_gevent.py
+from airflow.www.gunicorn_config import on_starting, post_worker_init  # noqa
