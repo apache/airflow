@@ -62,6 +62,31 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+def _task_id_to_pod_name(val: str) -> str:
+    """
+    Given a task_id, convert it to a pod name.
+    Adds a 0 if start or end char is invalid.
+    Replaces any other invalid char with `-`.
+
+    :param val: non-empty string, presumed to be a task id
+    :return valid kubernetes object name.
+    """
+    if not val:
+        raise ValueError("_task_id_to_pod_name requires non-empty string.")
+    val = val.lower()
+    if not re.match(r"[a-z0-9]", val[0]):
+        val = f"0{val}"
+    if not re.match(r"[a-z0-9]", val[-1]):
+        val = f"{val}0"
+    val = re.sub(r"[^a-z0-9\-.]", "-", val)
+    if len(val) > 253:
+        raise ValueError(
+            f"Pod name {val} is longer than 253 characters. "
+            "See https://kubernetes.io/docs/concepts/overview/working-with-objects/names/."
+        )
+    return val
+
+
 class PodReattachFailure(AirflowException):
     """When we expect to be able to find a pod but cannot."""
 
@@ -565,7 +590,7 @@ class KubernetesPodOperator(BaseOperator):
         pod = PodGenerator.reconcile_pods(pod_template, pod)
 
         if not pod.metadata.name:
-            pod.metadata.name = self.task_id
+            pod.metadata.name = _task_id_to_pod_name(self.task_id)
 
         if self.random_name_suffix:
             pod.metadata.name = PodGenerator.make_unique_pod_id(pod.metadata.name)
