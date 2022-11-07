@@ -271,7 +271,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_active": None,
             "is_subdag": False,
             "orientation": "LR",
-            "owners": ["airflow"],
+            "owners": [],
             "params": {
                 "foo": {
                     "__class": "airflow.models.param.Param",
@@ -319,7 +319,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_active": None,
             "is_subdag": False,
             "orientation": "LR",
-            "owners": ["airflow"],
+            "owners": [],
             "params": {},
             "schedule_interval": {
                 "__type": "TimeDelta",
@@ -360,7 +360,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_active": None,
             "is_subdag": False,
             "orientation": "LR",
-            "owners": ["airflow"],
+            "owners": [],
             "params": {},
             "schedule_interval": {
                 "__type": "TimeDelta",
@@ -404,7 +404,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_active": None,
             "is_subdag": False,
             "orientation": "LR",
-            "owners": ["airflow"],
+            "owners": [],
             "params": {
                 "foo": {
                     "__class": "airflow.models.param.Param",
@@ -458,7 +458,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_active": None,
             "is_subdag": False,
             "orientation": "LR",
-            "owners": ["airflow"],
+            "owners": [],
             "params": {
                 "foo": {
                     "__class": "airflow.models.param.Param",
