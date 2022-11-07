@@ -219,7 +219,7 @@ class MultiResourceUserMixin:
     def show(self, pk):
         pk = self._deserialize_pk_if_composite(pk)
         widgets = self._show(pk)
-        widgets['show'].template_args['actions'].pop('userinfoedit')
+        widgets['show'].template_args['actions'].pop('userinfoedit', None)
         return self.render_template(
             self.show_template,
             pk=pk,
