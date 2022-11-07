@@ -29,6 +29,7 @@ from airflow.decorators.branch_python import branch_task
 from airflow.decorators.external_python import external_python_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
+from airflow.decorators.sensor import sensor_task
 from airflow.decorators.task_group import task_group
 from airflow.kubernetes.secret import Secret
 from airflow.models.dag import dag
@@ -45,6 +46,7 @@ __all__ = [
     "external_python_task",
     "branch_task",
     "short_circuit_task",
+    "sensor_task",
 ]
 
 class TaskDecoratorCollection:
@@ -410,5 +412,40 @@ class TaskDecoratorCollection:
             of the target ConfigMap's Data field will represent the key-value
             pairs as environment variables. Extends env_from.
         """
+    @overload
+    def sensor(
+        self,
+        *,
+        poke_interval: float = ...,
+        timeout: float = ...,
+        soft_fail: bool = False,
+        mode: str = ...,
+        exponential_backoff: bool = False,
+        **kwargs,
+    ) -> TaskDecorator:
+        """
+        Wraps a Python function into a sensor operator.
+
+        :param poke_interval: Time in seconds that the job should wait in
+            between each try
+        :param timeout: Time, in seconds before the task times out and fails.
+        :param soft_fail: Set to true to mark the task as SKIPPED on failure
+        :param mode: How the sensor operates.
+            Options are: ``{ poke | reschedule }``, default is ``poke``.
+            When set to ``poke`` the sensor is taking up a worker slot for its
+            whole execution time and sleeps between pokes. Use this mode if the
+            expected runtime of the sensor is short or if a short poke interval
+            is required. Note that the sensor will hold onto a worker slot and
+            a pool slot for the duration of the sensor's runtime in this mode.
+            When set to ``reschedule`` the sensor task frees the worker slot when
+            the criteria is not yet met and it's rescheduled at a later time. Use
+            this mode if the time before the criteria is met is expected to be
+            quite long. The poke interval should be more than one minute to
+            prevent too much load on the scheduler.
+        :param exponential_backoff: allow progressive longer waits between
+            pokes by using exponential backoff algorithm
+        """
+    @overload
+    def sensor(self, python_callable: Optional[FParams, FReturn] = None) -> Task[FParams, FReturn]: ...
 
 task: TaskDecoratorCollection
