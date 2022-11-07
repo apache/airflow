@@ -40,7 +40,7 @@ class TestTaskSchema:
             "end_date": "2020-06-26T00:00:00+00:00",
             "execution_timeout": None,
             "extra_links": [],
-            "owner": "airflow",
+            "owner": None,
             "operator_name": "EmptyOperator",
             "params": {},
             "pool": "default_pool",
@@ -81,7 +81,7 @@ class TestTaskCollectionSchema:
                     "execution_timeout": None,
                     "extra_links": [],
                     "operator_name": "EmptyOperator",
-                    "owner": "airflow",
+                    "owner": None,
                     "params": {
                         "foo": {
                             "__class": "airflow.models.param.Param",

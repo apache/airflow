@@ -109,7 +109,7 @@ class TestGetTask(TestTaskEndpoint):
             "execution_timeout": None,
             "extra_links": [],
             "operator_name": "EmptyOperator",
-            "owner": "airflow",
+            "owner": None,
             "params": {
                 "foo": {
                     "__class": "airflow.models.param.Param",
@@ -151,7 +151,7 @@ class TestGetTask(TestTaskEndpoint):
             "extra_links": [],
             "is_mapped": True,
             "operator_name": "EmptyOperator",
-            "owner": "airflow",
+            "owner": None,
             "params": {},
             "pool": "default_pool",
             "pool_slots": 1.0,
@@ -196,7 +196,7 @@ class TestGetTask(TestTaskEndpoint):
             "execution_timeout": None,
             "extra_links": [],
             "operator_name": "EmptyOperator",
-            "owner": "airflow",
+            "owner": None,
             "params": {
                 "foo": {
                     "__class": "airflow.models.param.Param",
@@ -263,7 +263,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "execution_timeout": None,
                     "extra_links": [],
                     "operator_name": "EmptyOperator",
-                    "owner": "airflow",
+                    "owner": None,
                     "params": {
                         "foo": {
                             "__class": "airflow.models.param.Param",
@@ -300,7 +300,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "execution_timeout": None,
                     "extra_links": [],
                     "operator_name": "EmptyOperator",
-                    "owner": "airflow",
+                    "owner": None,
                     "params": {},
                     "pool": "default_pool",
                     "pool_slots": 1.0,
@@ -340,7 +340,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "extra_links": [],
                     "is_mapped": True,
                     "operator_name": "EmptyOperator",
-                    "owner": "airflow",
+                    "owner": None,
                     "params": {},
                     "pool": "default_pool",
                     "pool_slots": 1.0,
@@ -369,7 +369,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "execution_timeout": None,
                     "extra_links": [],
                     "operator_name": "EmptyOperator",
-                    "owner": "airflow",
+                    "owner": None,
                     "params": {},
                     "pool": "default_pool",
                     "pool_slots": 1.0,

@@ -1042,8 +1042,8 @@ export interface components {
        * @description When the event was dispatched for an object having execution_date, the value of this field.
        */
       execution_date?: string | null;
-      /** @description Name of the user who triggered these events a. */
-      owner?: string;
+      /** @description Name of the user who triggered these events. */
+      owner?: string | null;
       /** @description Other information that was not included in the other fields, e.g. the complete CLI command. */
       extra?: string | null;
     };
@@ -1371,7 +1371,7 @@ export interface components {
     Task: {
       class_ref?: components["schemas"]["ClassReference"];
       task_id?: string;
-      owner?: string;
+      owner?: string | null;
       /** Format: date-time */
       start_date?: string;
       /** Format: date-time */

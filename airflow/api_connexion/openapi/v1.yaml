@@ -2794,9 +2794,10 @@ components:
           readOnly: true
           nullable: true
         owner:
-          description: Name of the user who triggered these events a.
+          description: Name of the user who triggered these events.
           type: string
           readOnly: true
+          nullable: true
         extra:
           description: |
             Other information that was not included in the other fields, e.g. the complete CLI command.
@@ -3384,6 +3385,7 @@ components:
         owner:
           type: string
           readOnly: true
+          nullable: true
         start_date:
           type: string
           format: 'date-time'
