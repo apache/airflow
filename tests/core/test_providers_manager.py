@@ -123,6 +123,34 @@ class TestProviderManager:
         assert not self._caplog.records
         assert "sftp" in providers_manager.hooks
 
+    def test_already_registered_conn_type_in_provide(self):
+        with self._caplog.at_level(logging.WARNING):
+            providers_manager = ProvidersManager()
+            providers_manager._provider_dict["apache-airflow-providers-dummy"] = ProviderInfo(
+                version="0.0.1",
+                data={
+                    "connection-types": [
+                        {
+                            "hook-class-name": "airflow.providers.dummy.hooks.dummy.DummyHook",
+                            "connection-type": "dummy",
+                        },
+                        {
+                            "hook-class-name": "airflow.providers.dummy.hooks.dummy.DummyHook2",
+                            "connection-type": "dummy",
+                        },
+                    ],
+                },
+                package_or_source="package",
+            )
+            providers_manager._discover_hooks()
+            _ = providers_manager._hooks_lazy_dict["dummy"]
+        assert len(self._caplog.records) == 1
+        assert "The connection type 'dummy' is already registered" in self._caplog.records[0].message
+        assert (
+            "different class names: 'airflow.providers.dummy.hooks.dummy.DummyHook'"
+            " and 'airflow.providers.dummy.hooks.dummy.DummyHook2'."
+        ) in self._caplog.records[0].message
+
     def test_hooks(self):
         with pytest.warns(expected_warning=None) as warning_records:
             with self._caplog.at_level(logging.WARNING):
