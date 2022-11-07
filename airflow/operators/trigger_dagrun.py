@@ -117,11 +117,6 @@ class TriggerDagRunOperator(BaseOperator):
 
         self.execution_date = execution_date
 
-        try:
-            json.dumps(self.conf)
-        except TypeError:
-            raise AirflowException("conf parameter should be JSON Serializable")
-
     def execute(self, context: Context):
         if isinstance(self.execution_date, datetime.datetime):
             parsed_execution_date = self.execution_date
@@ -129,6 +124,11 @@ class TriggerDagRunOperator(BaseOperator):
             parsed_execution_date = timezone.parse(self.execution_date)
         else:
             parsed_execution_date = timezone.utcnow()
+
+        try:
+            json.dumps(self.conf)
+        except TypeError:
+            raise AirflowException("conf parameter should be JSON Serializable")
 
         if self.trigger_run_id:
             run_id = self.trigger_run_id

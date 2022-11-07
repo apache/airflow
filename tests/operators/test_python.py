@@ -1185,9 +1185,7 @@ class TestCurrentContext:
 
         with set_current_context(example_context):
             pass
-        with pytest.raises(
-            AirflowException,
-        ):
+        with pytest.raises(AirflowException):
             get_current_context()
 
     def test_nested_context(self):

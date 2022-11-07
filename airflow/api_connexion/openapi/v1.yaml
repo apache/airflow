@@ -2989,6 +2989,7 @@ components:
           nullable: true
         notification_sent:
           type: boolean
+      nullable: true
 
     Trigger:
       type: object

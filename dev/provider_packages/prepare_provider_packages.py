@@ -732,9 +732,7 @@ def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
     if verbose:
         console.print(f"Running command: '{' '.join(fetch_command)}'")
     try:
-        subprocess.check_call(
-            fetch_command,
-        )
+        subprocess.check_call(fetch_command)
     except subprocess.CalledProcessError as e:
         console.print(
             "[yellow]Error when fetching tags from remote. Your tags might not be refreshed. "

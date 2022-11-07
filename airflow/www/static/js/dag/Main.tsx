@@ -34,6 +34,7 @@ import { isEmpty, debounce } from 'lodash';
 import useSelection from 'src/dag/useSelection';
 import { useGridData } from 'src/api';
 import { hoverDelay } from 'src/utils';
+import useContentHeight from 'src/utils/useContentHeight';
 
 import Details from './details';
 import Grid from './grid';
@@ -71,13 +72,7 @@ const Main = () => {
     onToggle();
   };
 
-  useEffect(() => {
-    if (contentRef.current) {
-      const topOffset = contentRef.current.offsetTop;
-      const footerHeight = parseInt(getComputedStyle(document.getElementsByTagName('body')[0]).paddingBottom.replace('px', ''), 10) || 0;
-      contentRef.current.style.height = `${window.innerHeight - topOffset - footerHeight}px`;
-    }
-  }, []);
+  useContentHeight(contentRef);
 
   const resize = useCallback((e: MouseEvent) => {
     const gridEl = gridRef.current;

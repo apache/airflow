@@ -45,7 +45,7 @@ class RedshiftSQLHook(DbApiHook):
     supports_autocommit = True
 
     @staticmethod
-    def get_ui_field_behavior() -> dict:
+    def get_ui_field_behaviour() -> dict:
         """Returns custom field behavior"""
         return {
             "hidden_fields": [],
