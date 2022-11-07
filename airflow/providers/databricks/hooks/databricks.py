@@ -165,27 +165,27 @@ class DatabricksHook(BaseDatabricksHook):
         :return: A list of jobs.
         """
         has_more = True
-        jobs = []
+        all_jobs = []
 
         while has_more:
-            jsn = {
+            payload = {
                 "limit": limit,
                 "expand_tasks": expand_tasks,
                 "offset": offset,
             }
             if job_name:
-                jsn["name"] = job_name
-            response = self._do_api_call(LIST_JOBS_ENDPOINT, jsn)
-            jbs = response.get("jobs", [])
+                payload["name"] = job_name
+            response = self._do_api_call(LIST_JOBS_ENDPOINT, payload)
+            jobs = response.get("jobs", [])
             if job_name:
-                jobs += [j for j in jbs if j["settings"]["name"] == job_name]
+                all_jobs += [j for j in jobs if j["settings"]["name"] == job_name]
             else:
-                jobs += jbs
+                all_jobs += jobs
             has_more = response.get("has_more", False)
             if has_more:
-                offset += len(jbs)
+                offset += len(jobs)
 
-        return jobs
+        return all_jobs
 
     def find_job_id_by_name(self, job_name: str) -> int | None:
         """
