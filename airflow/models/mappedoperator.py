@@ -614,9 +614,8 @@ class MappedOperator(AbstractOperator):
         """Upstream dependencies that provide XComs used by this task for task mapping."""
         from airflow.models.xcom_arg import XComArg
 
-        for ref in XComArg.iter_xcom_args(self._get_specified_expand_input()):
-            for operator, _ in ref.iter_references():
-                yield operator
+        for operator, _ in XComArg.iter_xcom_references(self._get_specified_expand_input()):
+            yield operator
 
     @cache
     def get_parse_time_mapped_ti_count(self) -> int:

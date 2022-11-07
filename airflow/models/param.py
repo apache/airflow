@@ -21,7 +21,7 @@ import copy
 import json
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any, ItemsView, MutableMapping, ValuesView
+from typing import TYPE_CHECKING, Any, ItemsView, Iterable, MutableMapping, ValuesView
 
 from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
 from airflow.utils.context import Context
@@ -233,15 +233,17 @@ class ParamsDict(MutableMapping[str, Any]):
 
 
 class DagParam(ResolveMixin):
-    """
-    Class that represents a DAG run parameter & binds a simple Param object to a name within a DAG instance,
-    so that it can be resolved during the run time via ``{{ context }}`` dictionary. The ideal use case of
-    this class is to implicitly convert args passed to a method which is being decorated by ``@dag`` keyword.
+    """DAG run parameter reference.
 
-    It can be used to parameterize your dags. You can overwrite its value by setting it on conf
-    when you trigger your DagRun.
+    This binds a simple Param object to a name within a DAG instance, so that it
+    can be resolved during the runtime via the ``{{ context }}`` dictionary. The
+    ideal use case of this class is to implicitly convert args passed to a
+    method decorated by ``@dag``.
 
-    This can also be used in templates by accessing ``{{context.params}}`` dictionary.
+    It can be used to parameterize a DAG. You can overwrite its value by setting
+    it on conf when you trigger your DagRun.
+
+    This can also be used in templates by accessing ``{{ context.params }}``.
 
     **Example**:
 
@@ -258,6 +260,9 @@ class DagParam(ResolveMixin):
             current_dag.params[name] = default
         self._name = name
         self._default = default
+
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
+        return ()
 
     def resolve(self, context: Context) -> Any:
         """Pull DagParam value from DagRun context. This method is run during ``op.execute()``."""

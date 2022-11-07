@@ -32,6 +32,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.models.operator import Operator
     from airflow.models.xcom_arg import XComArg
 
 ExpandInput = Union["DictOfListsExpandInput", "ListOfDictsExpandInput"]
@@ -60,6 +61,9 @@ class MappedArgument(ResolveMixin):
         # TODO (AIP-42): Implement run-time task map length inspection.
         # This simply marks the value as un-expandable at parse-time.
         return None
+
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
+        yield from self._input.iter_references()
 
     @provide_session
     def resolve(self, context: Context, *, session: Session = NEW_SESSION) -> Any:
@@ -185,6 +189,13 @@ class DictOfListsExpandInput(NamedTuple):
                 return k, v
         raise IndexError(f"index {map_index} is over mapped length")
 
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
+        from airflow.models.xcom_arg import XComArg
+
+        for x in self.value.values():
+            if isinstance(x, XComArg):
+                yield from x.iter_references()
+
     def resolve(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
         data = {k: self._expand_mapped_field(k, v, context, session=session) for k, v in self.value.items()}
         literal_keys = {k for k, _ in self._iter_parse_time_resolved_kwargs()}
@@ -218,6 +229,16 @@ class ListOfDictsExpandInput(NamedTuple):
         if length is None:
             raise NotFullyPopulated({"expand_kwargs() argument"})
         return length
+
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
+        from airflow.models.xcom_arg import XComArg
+
+        if isinstance(self.value, XComArg):
+            yield from self.value.iter_references()
+        else:
+            for x in self.value:
+                if isinstance(x, XComArg):
+                    yield from x.iter_references()
 
     def resolve(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
         map_index = context["ti"].map_index
