@@ -38,12 +38,7 @@ import requests
 import tenacity
 from botocore.client import ClientMeta
 from botocore.config import Config
-from botocore.credentials import (
-    AssumeRoleWithWebIdentityCredentialFetcher,
-    DeferredRefreshableCredentials,
-    ReadOnlyCredentials,
-    RefreshableCredentials,
-)
+from botocore.credentials import ReadOnlyCredentials
 from dateutil.tz import tzlocal
 from slugify import slugify
 
@@ -151,14 +146,14 @@ class BaseSessionFactory(LoggingMixin):
         if self.conn.assume_role_method == "assume_role_with_web_identity":
             # Deferred credentials have no initial credentials
             credential_fetcher = self._get_web_identity_credential_fetcher()
-            credentials = DeferredRefreshableCredentials(
+            credentials = botocore.credentials.DeferredRefreshableCredentials(
                 method="assume-role-with-web-identity",
                 refresh_using=credential_fetcher.fetch_credentials,
                 time_fetcher=lambda: datetime.datetime.now(tz=tzlocal()),
             )
         else:
             # Refreshable credentials do have initial credentials
-            credentials = RefreshableCredentials.create_from_metadata(
+            credentials = botocore.credentials.RefreshableCredentials.create_from_metadata(
                 metadata=self._refresh_credentials(),
                 refresh_using=self._refresh_credentials,
                 method="sts-assume-role",
@@ -301,7 +296,9 @@ class BaseSessionFactory(LoggingMixin):
             raise ValueError("Invalid SAML Assertion")
         return saml_assertion
 
-    def _get_web_identity_credential_fetcher(self) -> AssumeRoleWithWebIdentityCredentialFetcher:
+    def _get_web_identity_credential_fetcher(
+        self,
+    ) -> botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher:
         base_session = self.basic_session._session or botocore.session.get_session()
         client_creator = base_session.create_client
         federation = self.extra_config.get("assume_role_with_web_identity_federation")
@@ -311,7 +308,7 @@ class BaseSessionFactory(LoggingMixin):
             raise AirflowException(
                 f'Unsupported federation: {federation}. Currently "google" only are supported.'
             )
-        return AssumeRoleWithWebIdentityCredentialFetcher(
+        return botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher(
             client_creator=client_creator,
             web_identity_token_loader=web_identity_token_loader,
             role_arn=self.role_arn,
