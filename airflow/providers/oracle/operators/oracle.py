@@ -73,8 +73,8 @@ class OracleStoredProcedureOperator(BaseOperator):
         reference to a specific Oracle database.
     :param parameters: (optional, templated) the parameters provided in the call
 
-    :xcom ORA: Oracle db exit code. Optional (if self.do_xcom_push is True).
-        Numeric exit code that Oracle throws in case of failure.
+    If *do_xcom_push* is *True*, the numeric exit code emitted by
+    the database is pused to XCom under key ``ORA`` in case of failure.
     """
 
     template_fields: Sequence[str] = (
