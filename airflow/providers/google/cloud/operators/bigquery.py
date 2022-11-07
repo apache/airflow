@@ -1135,7 +1135,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         super().on_kill()
         if self.hook is not None:
             self.log.info("Cancelling running query")
-            self.hook.cancel_query()
+            self.hook.cancel_job(self.hook.running_job_id)
 
 
 class BigQueryCreateEmptyTableOperator(BaseOperator):
