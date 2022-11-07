@@ -320,8 +320,8 @@ class DataformHook(GoogleBaseHook):
         client = self.get_dataform_client()
         name = f"projects/{project_id}/locations/{region}/repositories/{repository_id}"
         request = {
-            'name': name,
-            'force': force,
+            "name": name,
+            "force": force,
         }
 
         client.delete_repository(
@@ -357,7 +357,7 @@ class DataformHook(GoogleBaseHook):
         client = self.get_dataform_client()
         parent = f"projects/{project_id}/locations/{region}/repositories/{repository_id}"
 
-        request = {'parent': parent, 'workspace_id': workspace_id}
+        request = {"parent": parent, "workspace_id": workspace_id}
 
         workspace = client.create_workspace(
             request=request,

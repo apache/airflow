@@ -119,7 +119,7 @@ with models.DAG(
 
     # [START howto_operator_create_workflow_invocation]
     create_workflow_invocation = DataformCreateWorkflowInvocationOperator(
-        task_id='create-workflow-invocation',
+        task_id="create-workflow-invocation",
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
@@ -131,7 +131,7 @@ with models.DAG(
 
     # [START howto_operator_create_workflow_invocation_async]
     create_workflow_invocation_async = DataformCreateWorkflowInvocationOperator(
-        task_id='create-workflow-invocation-async',
+        task_id="create-workflow-invocation-async",
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
@@ -155,7 +155,7 @@ with models.DAG(
 
     # [START howto_operator_get_workflow_invocation]
     get_workflow_invocation = DataformGetWorkflowInvocationOperator(
-        task_id='get-workflow-invocation',
+        task_id="get-workflow-invocation",
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
@@ -166,7 +166,7 @@ with models.DAG(
     # [END howto_operator_get_workflow_invocation]
 
     create_workflow_invocation_for_cancel = DataformCreateWorkflowInvocationOperator(
-        task_id='create-workflow-invocation-for-cancel',
+        task_id="create-workflow-invocation-for-cancel",
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
@@ -178,7 +178,7 @@ with models.DAG(
 
     # [START howto_operator_cancel_workflow_invocation]
     cancel_workflow_invocation = DataformCancelWorkflowInvocationOperator(
-        task_id='cancel-workflow-invocation',
+        task_id="cancel-workflow-invocation",
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
@@ -212,7 +212,7 @@ with models.DAG(
 
     # [START howto_operator_delete_workspace]
     delete_workspace = DataformDeleteWorkspaceOperator(
-        task_id='delete-workspace',
+        task_id="delete-workspace",
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
@@ -224,7 +224,7 @@ with models.DAG(
 
     # [START howto_operator_delete_repository]
     delete_repository = DataformDeleteRepositoryOperator(
-        task_id='delete-repository',
+        task_id="delete-repository",
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,

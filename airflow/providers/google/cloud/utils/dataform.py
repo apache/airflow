@@ -61,12 +61,12 @@ def make_initialization_workspace_flow(
         provided then workspace_id will be used.
     """
     make_definitions_directory = DataformMakeDirectoryOperator(
-        task_id='make-definitions-directory',
+        task_id="make-definitions-directory",
         project_id=project_id,
         region=region,
         repository_id=repository_id,
         workspace_id=workspace_id,
-        directory_path='definitions',
+        directory_path="definitions",
     )
 
     first_view_content = b"""
@@ -89,12 +89,12 @@ def make_initialization_workspace_flow(
         SELECT 1 as test
     """
     make_first_view_file = DataformWriteFileOperator(
-        task_id='write-first-view',
+        task_id="write-first-view",
         project_id=project_id,
         region=region,
         repository_id=repository_id,
         workspace_id=workspace_id,
-        filepath='definitions/first_view.sqlx',
+        filepath="definitions/first_view.sqlx",
         contents=first_view_content,
     )
 
@@ -113,7 +113,7 @@ def make_initialization_workspace_flow(
         region=region,
         repository_id=repository_id,
         workspace_id=workspace_id,
-        filepath='definitions/second_view.sqlx',
+        filepath="definitions/second_view.sqlx",
         contents=second_view_content,
     )
 

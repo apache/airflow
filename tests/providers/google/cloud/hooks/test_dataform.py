@@ -186,8 +186,8 @@ class TestDataflowHook(unittest.TestCase):
 
         mock_client.return_value.create_workspace.assert_called_once_with(
             request={
-                'parent': parent,
-                'workspace_id': WORKSPACE_ID,
+                "parent": parent,
+                "workspace_id": WORKSPACE_ID,
             },
             retry=DEFAULT,
             timeout=None,
