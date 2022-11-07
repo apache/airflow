@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-11-06T23:57:19Z
+# This constraints file was automatically generated on 2022-11-07T05:44:25Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -78,7 +78,6 @@ apache-airflow-providers-atlassian-jira==1.0.0
 apache-airflow-providers-celery==3.0.0
 apache-airflow-providers-cloudant==3.0.0
 apache-airflow-providers-cncf-kubernetes==4.4.0
-apache-airflow-providers-common-sql==1.2.0
 apache-airflow-providers-databricks==3.3.0
 apache-airflow-providers-datadog==3.0.0
 apache-airflow-providers-dbt-cloud==2.2.0
@@ -88,19 +87,15 @@ apache-airflow-providers-docker==3.2.0
 apache-airflow-providers-elasticsearch==4.2.1
 apache-airflow-providers-exasol==4.0.1
 apache-airflow-providers-facebook==3.0.1
-apache-airflow-providers-ftp==3.1.0
 apache-airflow-providers-github==2.1.0
 apache-airflow-providers-google==8.4.0
 apache-airflow-providers-grpc==3.0.0
 apache-airflow-providers-hashicorp==3.1.0
-apache-airflow-providers-http==4.0.0
-apache-airflow-providers-imap==3.0.0
 apache-airflow-providers-influxdb==2.0.0
 apache-airflow-providers-jdbc==3.2.1
 apache-airflow-providers-jenkins==3.0.0
 apache-airflow-providers-microsoft-azure==4.3.0
 apache-airflow-providers-microsoft-mssql==3.2.1
-apache-airflow-providers-microsoft-psrp==2.0.0
 apache-airflow-providers-microsoft-winrm==3.0.0
 apache-airflow-providers-mongo==3.0.0
 apache-airflow-providers-mysql==3.2.1
@@ -124,7 +119,6 @@ apache-airflow-providers-sftp==4.1.0
 apache-airflow-providers-singularity==3.0.0
 apache-airflow-providers-slack==6.0.0
 apache-airflow-providers-snowflake==3.3.0
-apache-airflow-providers-sqlite==3.2.1
 apache-airflow-providers-ssh==3.2.0
 apache-airflow-providers-tableau==3.0.1
 apache-airflow-providers-tabular==1.0.1
