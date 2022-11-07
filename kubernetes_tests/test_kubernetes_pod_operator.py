@@ -77,7 +77,7 @@ def get_kubeconfig_path():
 
 def get_label():
     test = os.environ.get("PYTEST_CURRENT_TEST")
-    test = test.split(" ")[0]  # if invoked from setup, will have suffix ' (setup)', e.g.
+    test = test.split(" ", 1)[0]  # if invoked from setup, will have suffix ' (setup)', e.g.
     label = "".join(filter(str.isalnum, test)).lower()
     return label[-63:]
 
