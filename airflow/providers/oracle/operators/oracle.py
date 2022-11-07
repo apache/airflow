@@ -17,10 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import re
 import warnings
 from typing import TYPE_CHECKING, Sequence
+
 import oracledb
-import re
 
 from airflow.models import BaseOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
@@ -98,13 +99,11 @@ class OracleStoredProcedureOperator(BaseOperator):
     def execute(self, context: Context):
         self.log.info("Executing: %s", self.procedure)
         hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
-        ti=context.get("task_instance")
+        ti = context.get("task_instance")
         try:
             return hook.callproc(self.procedure, autocommit=True, parameters=self.parameters)
         except oracledb.DatabaseError as e:
             code_match = re.search("^ORA-(\\d+):.+", str(e))
-            if code_match is not None:
-                if self.do_xcom_push:
-                    if ti is not None:
-                        ti.xcom_push(key="ORA", value=code_match.group(1))
+            if code_match and self.do_xcom_push and ti:
+                ti.xcom_push(key="ORA", value=code_match.group(1))
             raise
