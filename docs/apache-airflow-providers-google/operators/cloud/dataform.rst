@@ -155,7 +155,7 @@ Deletes workspace. Example of usage can be seen below:
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_delete_repository]
-    :end-before: [END howto_operator_create_workspace]
+    :end-before: [END howto_operator_delete_repository]
 
 Remove file
 -----------

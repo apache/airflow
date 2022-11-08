@@ -100,7 +100,7 @@ class DataformRepositoryLink(BaseGoogleLink):
 
 
 class DataformWorkspaceLink(BaseGoogleLink):
-    """Helper class for constructing Datafrom workspace link."""
+    """Helper class for constructing Dataform workspace link."""
 
     name = "Dataform Workspace"
     key = "dataform_workspace"

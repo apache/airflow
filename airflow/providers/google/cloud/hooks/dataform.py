@@ -429,7 +429,7 @@ class DataformHook(GoogleBaseHook):
         :param repository_id: Required. The ID of the Dataform repository where workspace located.
         :param workspace_id: Required. The ID of the Dataform workspace where files should be created.
         :param filepath: Required. Path to file including name of the file relative to workspace root.
-        :param contents: Required. Content of the file to be writed.
+        :param contents: Required. Content of the file to be written.
         :param retry: Designation of what errors, if any, should be retried.
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.

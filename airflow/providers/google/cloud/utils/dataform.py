@@ -44,21 +44,11 @@ def make_initialization_workspace_flow(
 ) -> tuple:
     """
     Creates flow which simulates the initialization of the default project.
-    As a result project with the layout listed below will be created.
-    - definitions/
-      |-first_view.sqlx
-      |-second_view.sqlx
-    - includes/
-    - .gitignore
-    - dataform.json
-    - package.json
-    - package-lock.json
     :param project_id: Required. The ID of the Google Cloud project where workspace located.
     :param region: Required. The ID of the Google Cloud region where workspace located.
     :param repository_id: Required. The ID of the Dataform repository where workspace located.
     :param workspace_id: Required. The ID of the Dataform workspace which requires initialization.
-    :param package_name: Name of the package. This value will be used in package.json. If value is not
-        provided then workspace_id will be used.
+    :param package_name: Name of the package. If value is not provided then workspace_id will be used.
     """
     make_definitions_directory = DataformMakeDirectoryOperator(
         task_id="make-definitions-directory",
