@@ -63,7 +63,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     # used when running the python file generated from the code
     # below the decorator.
     template_fields: Sequence[str] = tuple(
-        {"op_args", "op_kwargs"} | set(KubernetesPodOperator.template_fields) - {"cmds", "arguments"}
+        {"op_args", "op_kwargs", *KubernetesPodOperator.template_fields} - {"cmds", "arguments"}
     )
 
     # since we won't mutate the arguments, we should just do the shallow copy
