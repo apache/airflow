@@ -164,7 +164,7 @@ const separateGraphs = ({ edges, nodes }: DatasetDependencies): DatasetDependenc
     if (!isDownstream) {
       const connectedNodes = nodes.filter((n) => n.id === edge.source || n.id === edge.target);
 
-      // check if the node is already connected to a separated graph
+      // check if one of the nodes is already connected to a separated graph
       const nodesInUse = separatedGraphs
         .findIndex((g) => g.nodes.some((n) => connectedNodes.some((nn) => nn.id === n.id)));
 
