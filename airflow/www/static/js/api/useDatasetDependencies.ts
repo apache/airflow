@@ -169,7 +169,7 @@ const separateGraphs = ({ edges, nodes }: DatasetDependencies): DatasetDependenc
         .findIndex((g) => g.nodes.some((n) => connectedNodes.some((nn) => nn.id === n.id)));
 
       if (nodesInUse > -1) {
-        // if the node is in use, merge the graphs
+        // if one of the nodes is already in use, merge the graphs
         const { nodes: existingNodes, edges: existingEdges } = separatedGraphs[nodesInUse];
         separatedGraphs[nodesInUse] = { nodes: unionBy(existingNodes, connectedNodes, 'id'), edges: [...existingEdges, edge] };
       } else {
