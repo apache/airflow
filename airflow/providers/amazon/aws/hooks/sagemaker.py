@@ -673,9 +673,8 @@ class SageMakerHook(AwsBaseHook):
             non_terminal_states = self.non_terminal_states
 
         sec = 0
-        running = True
 
-        while running:
+        while True:
             time.sleep(check_interval)
             sec += check_interval
 
@@ -688,19 +687,16 @@ class SageMakerHook(AwsBaseHook):
             except ClientError:
                 raise AirflowException("AWS request failed, check logs for more info")
 
-            if status in non_terminal_states:
-                running = True
-            elif status in self.failed_states:
+            if status in self.failed_states:
                 raise AirflowException(f"SageMaker job failed because {response['FailureReason']}")
-            else:
-                running = False
+            elif status not in non_terminal_states:
+                break
 
             if max_ingestion_time and sec > max_ingestion_time:
                 # ensure that the job gets killed if the max ingestion time is exceeded
                 raise AirflowException(f"SageMaker job took more than {max_ingestion_time} seconds")
 
         self.log.info("SageMaker Job completed")
-        response = describe_function(job_name)
         return response
 
     def check_training_status_with_log(
