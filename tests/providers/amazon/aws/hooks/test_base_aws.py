@@ -313,13 +313,37 @@ class TestAwsBaseHook:
         We are only looking for the keys appended by the AwsBaseHook. A user_agent string
         is a number of key/value pairs such as: `BOTO3/1.25.4 AIRFLOW/2.5.0.DEV0 AMPP/6.0.0`.
         """
-        expected_user_agent_tag_keys = ["Airflow", "AmPP"]
+        expected_user_agent_tag_keys = ["Airflow", "AmPP", "Caller"]
 
         result_user_agent_tags = client_meta.config.user_agent.split(" ")
         result_user_agent_tag_keys = [tag.split("/")[0].lower() for tag in result_user_agent_tags]
 
         for key in expected_user_agent_tag_keys:
             assert key.lower() in result_user_agent_tag_keys
+
+    @staticmethod
+    def fetch_tags() -> dict[str:str]:
+        """Helper method which creates an AwsBaseHook and returns the user agent string split into a dict."""
+        user_agent_string = AwsBaseHook(client_type="s3").get_client_type().meta.config.user_agent
+        # Split the list of {Key}/{Value} into a dict
+        return dict(tag.split("/") for tag in user_agent_string.split(" "))
+
+    @pytest.mark.parametrize("found_classes", [["RandomOperator"], ["BaseSensorOperator", "TestSensor"]])
+    @mock.patch.object(AwsBaseHook, "_find_class_name")
+    def test_user_agent_caller_target_function_found(self, mock_class_name, found_classes):
+        mock_class_name.side_effect = found_classes
+
+        user_agent_tags = self.fetch_tags()
+
+        assert mock_class_name.call_count == len(found_classes)
+        assert user_agent_tags["Caller"] == found_classes[-1]
+
+    def test_user_agent_caller_target_function_not_found(self):
+        default_caller_name = "Unknown"
+
+        user_agent_tags = self.fetch_tags()
+
+        assert user_agent_tags["Caller"] == default_caller_name
 
     @mock.patch.object(AwsBaseHook, "get_connection")
     @mock_sts

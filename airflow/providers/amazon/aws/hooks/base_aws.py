@@ -25,6 +25,7 @@ This module contains Base AWS Hook.
 from __future__ import annotations
 
 import datetime
+import inspect
 import json
 import logging
 import warnings
@@ -413,16 +414,50 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         self._verify = verify
 
     @classmethod
-    def get_provider_version(cls) -> str:
+    def _get_provider_version(cls) -> str:
+        """Checks the Providers Manager for the package version."""
         manager = ProvidersManager()
         provider_name = manager.hooks[cls.conn_type].package_name  # type: ignore[union-attr]
         provider = manager.providers[provider_name]
         return provider.version
 
-    def generate_user_agent_extra_field(self, existing_user_agent_extra: str) -> str:
+    @staticmethod
+    def _find_class_name(target_function_name: str) -> str:
+        """
+        Given a frame off the stack, return the name of the class which made the call.
+        Note: This method may raise a ValueError or an IndexError, but the calling
+        method is catching and handling those.
+        """
+        stack = inspect.stack()
+        # Find the index of the most recent frame which called the provided function name.
+        target_frame_index = [frame.function for frame in stack].index(target_function_name)
+        # Pull that frame off the stack.
+        target_frame = stack[target_frame_index][0]
+        # Get the local variables for that frame.
+        frame_variables = target_frame.f_locals["self"]
+        # Get the class object for that frame.
+        frame_class_object = frame_variables.__class__
+        # Return the name of the class object.
+        return frame_class_object.__name__
+
+    def _get_caller(self, target_function_name: str = "execute") -> str:
+        """Given a function name, walk the stack and return the name of the class which called it last."""
+        try:
+            caller = self._find_class_name(target_function_name)
+            if caller == "BaseSensorOperator":
+                # If the result is a BaseSensorOperator, then look for whatever last called "poke".
+                return self._get_caller("poke")
+            return caller
+        except Exception:
+            # While it is generally considered poor form to catch "Exception", under
+            # no condition should an error here ever cause an issue for the user.
+            return "Unknown"
+
+    def _generate_user_agent_extra_field(self, existing_user_agent_extra: str) -> str:
         user_agent_extra_values = [
             f"Airflow/{airflow_version}",
-            f"AmPP/{self.get_provider_version()}",
+            f"AmPP/{self._get_provider_version()}",
+            f"Caller/{self._get_caller()}",
             existing_user_agent_extra or "",
         ]
         return " ".join(user_agent_extra_values).strip()
@@ -480,7 +515,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         # ignore[union-attr] is required for this block to appease MyPy
         # because the user_agent_extra field is generated at runtime.
         user_agent_config = Config(
-            user_agent_extra=self.generate_user_agent_extra_field(
+            user_agent_extra=self._generate_user_agent_extra_field(
                 existing_user_agent_extra=config.user_agent_extra  # type: ignore[union-attr]
             )
         )
