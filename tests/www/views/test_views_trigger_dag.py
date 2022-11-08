@@ -23,6 +23,8 @@ import json
 import pytest
 
 from airflow.models import DagBag, DagRun
+from airflow.models.param import Param
+from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -196,6 +198,40 @@ def test_trigger_dag_params_conf(admin_client, request_conf, expected_conf):
     check_content_in_response(
         f'<textarea class="form-control" name="conf" id="json">{expected_dag_conf}</textarea>',
         resp,
+    )
+
+
+def test_trigger_dag_params_render(admin_client, dag_maker, session, app, monkeypatch):
+    """
+    Test that textarea in Trigger DAG UI is pre-populated
+    with param value set in DAG.
+    """
+    account = {"name": "account_name_1", "country": "usa"}
+    expected_conf = {"accounts": [account]}
+    expected_dag_conf = json.dumps(expected_conf, indent=4).replace('"', "&#34;")
+    DAG_ID = "params_dag"
+    param = Param(
+        [account],
+        schema={
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "default": account,
+                "properties": {"name": {"type": "string"}, "country": {"type": "string"}},
+                "required": ["name", "country"],
+            },
+        },
+    )
+    with monkeypatch.context() as m:
+        with dag_maker(dag_id=DAG_ID, serialized=True, session=session, params={"accounts": param}):
+            EmptyOperator(task_id="task1")
+
+        m.setattr(app, "dag_bag", dag_maker.dagbag)
+        resp = admin_client.get(f"trigger?dag_id={DAG_ID}")
+
+    check_content_in_response(
+        f'<textarea class="form-control" name="conf" id="json">{expected_dag_conf}</textarea>', resp
     )
 
 
