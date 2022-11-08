@@ -59,9 +59,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
 
     # This allows for jinja template rendering of the template_fields passed
     # to the KubernetesPodOperator.
-    # cmds and arguments are specifically excluded as these are explicitly
-    # used when running the python file generated from the code
-    # below the decorator.
+    # `cmds` and `arguments` are used internally by the operator
     template_fields: Sequence[str] = tuple(
         {"op_args", "op_kwargs", *KubernetesPodOperator.template_fields} - {"cmds", "arguments"}
     )
