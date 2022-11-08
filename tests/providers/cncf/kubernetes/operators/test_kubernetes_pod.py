@@ -28,7 +28,11 @@ from kubernetes.client import ApiClient, models as k8s
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.models.xcom import XCom
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator, _suppress
+from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
+    KubernetesPodOperator,
+    _suppress,
+    _task_id_to_pod_name,
+)
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
@@ -897,9 +901,64 @@ class TestKubernetesPodOperator:
         mock_patch_already_checked.assert_called_once()
         mock_delete_pod.assert_not_called()
 
+    def test_task_id_as_name(self):
+        k = KubernetesPodOperator(
+            task_id=".hi.-_09HI",
+            random_name_suffix=False,
+        )
+        pod = k.build_pod_request_obj({})
+        assert pod.metadata.name == "0.hi.--09hi"
+
+    def test_task_id_as_name_with_suffix(self):
+        k = KubernetesPodOperator(
+            task_id=".hi.-_09HI",
+            random_name_suffix=True,
+        )
+        pod = k.build_pod_request_obj({})
+        expected = "0.hi.--09hi"
+        assert pod.metadata.name.startswith(expected)
+        assert re.match(rf"{expected}-[a-z0-9-]+", pod.metadata.name) is not None
+
+    def test_task_id_as_name_with_suffix_very_long(self):
+        k = KubernetesPodOperator(
+            task_id="a" * 250,
+            random_name_suffix=True,
+        )
+        pod = k.build_pod_request_obj({})
+        assert re.match(r"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-[a-z0-9-]+", pod.metadata.name) is not None
+
+    def test_task_id_as_name_dag_id_is_ignored(self):
+        dag = DAG(dag_id="this_is_a_dag_name", start_date=pendulum.now())
+        k = KubernetesPodOperator(
+            task_id="a_very_reasonable_task_name",
+            dag=dag,
+        )
+        pod = k.build_pod_request_obj({})
+        assert re.match(r"a-very-reasonable-task-name-[a-z0-9-]+", pod.metadata.name) is not None
+
 
 def test__suppress(caplog):
     with _suppress(ValueError):
         raise ValueError("failure")
 
     assert "ValueError: failure" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "val, expected",
+    [
+        ("task-id", "task-id"),  # no problem
+        ("task_id", "task-id"),  # underscores
+        ("task.id", "task.id"),  # dots ok
+        (".task.id", "0.task.id"),  # leading dot invalid
+        ("-90Abc*&", "0-90abc--0"),  # invalid ends
+        ("90AçLbˆˆç˙ßß˜˜˙c*a", "90a-lb---------c-a"),  # weird unicode
+    ],
+)
+def test_task_id_to_pod_name(val, expected):
+    assert _task_id_to_pod_name(val) == expected
+
+
+def test_task_id_to_pod_name_long():
+    with pytest.raises(ValueError, match="longer than 253"):
+        _task_id_to_pod_name("0" * 254)

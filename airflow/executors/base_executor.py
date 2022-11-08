@@ -363,7 +363,7 @@ class BaseExecutor(LoggingMixin):
         if len(command) > 3 and "--help" not in command:
             dag_id: str | None = None
             task_id: str | None = None
-            for arg in command[4:]:
+            for arg in command[3:]:
                 if not arg.startswith("--"):
                     if dag_id is None:
                         dag_id = arg
