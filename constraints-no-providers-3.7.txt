@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-11-07T21:40:05Z
+# This constraints file was automatically generated on 2022-11-08T12:54:33Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -89,7 +89,7 @@ fsspec==2022.10.0
 future==0.18.2
 gcloud-aio-auth==4.0.1
 gevent==22.10.2
-google-auth==2.14.0
+google-auth==2.14.1
 graphviz==0.20.1
 greenlet==2.0.1
 gssapi==1.8.2
