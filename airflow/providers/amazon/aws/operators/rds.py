@@ -32,6 +32,63 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+class NewRdsBaseOperator(BaseOperator):
+    """
+    Base operator for interacting with boto3 RDS client
+    It accepts all the parameters that boto3.Client("rds") does
+    Parameters should be passed as dict via rds_client_kwargs
+    """
+    rds_client_callable: str = None
+
+    template_fields: Sequence[str] = ("rds_client_kwargs")
+
+    def __init__(self, *args, rds_client_kwargs: dict | None = None, result_handler: callable | None = None, **kwargs):
+        self.rds_client_kwargs = rds_client_kwargs or {}
+        self.result_handler = result_handler or (lambda x: x)
+        super().__init__(*args, **kwargs)
+
+    def execute(self, context):
+        target_function = getattr(self.hook.conn, self.rds_client_callable)
+        result = target_function(
+            **self.rds_client_kwargs
+        )
+        result = self.result_handler(result)
+        if not isinstance(result, str):
+            return json.dumps(result, default=str)
+        return result
+
+
+class RdsDescribeDbInstanceSnapshotsOperator(NewRdsBaseOperator):
+    """
+    Describes RDS Snapshots for given RDS instance
+    """
+    rds_client_callable: str = "describe_db_snapshots"
+
+
+class RdsDescribeDbInstancesOperator(NewRdsBaseOperator):
+    """
+    Describes RDS Instances for given RDS instance
+    """
+
+    rds_client_callable: str = "describe_db_instances"
+
+
+class RdsRestoreDbInstanceFromSnapshotOperator(NewRdsBaseOperator):
+    """
+    Restores snapshot into new RDS instance
+    """
+
+    rds_client_callable: str = "restore_db_instance_from_db_snapshot"
+
+
+class RdsDeleteDbInstanceOperator(NewRdsBaseOperator):
+    """
+    Destoys RDS Instance
+    """
+
+    rds_client_callable: str = "delete_db_instance"
+
+
 class RdsBaseOperator(BaseOperator):
     """Base operator that implements common functions for all operators"""
 
