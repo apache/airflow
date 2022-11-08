@@ -2843,18 +2843,6 @@ def _escape(s: str) -> str:
     return e
 
 
-def _bq_cast(string_field: str, bq_type: str) -> None | int | float | bool | str:
-    """
-    Helper method that casts a BigQuery row to the appropriate data types.
-    This is useful because BigQuery returns all fields as strings.
-    """
-    warnings.warn(
-        "This function is deprecated and will be Remove in future. Please use `bq_cast` function",
-        DeprecationWarning,
-    )
-    return bq_cast(string_field=string_field, bq_type=bq_type)
-
-
 def bq_cast(string_field: str, bq_type: str) -> None | int | float | bool | str:
     """
     Helper method that casts a BigQuery row to the appropriate data types.
