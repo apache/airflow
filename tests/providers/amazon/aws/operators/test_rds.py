@@ -383,10 +383,37 @@ class TestRdsDeleteDbSnapshotOperator:
             dag=self.dag,
         )
         _patch_hook_get_connection(instance_snapshot_operator.hook)
-        instance_snapshot_operator.execute(None)
+        with patch.object(instance_snapshot_operator.hook, "wait_for_db_snapshot_state") as mock_wait:
+            instance_snapshot_operator.execute(None)
+        mock_wait.assert_called_once_with(DB_INSTANCE_SNAPSHOT, target_state="deleted")
 
         with pytest.raises(self.hook.conn.exceptions.ClientError):
-            self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_CLUSTER_SNAPSHOT)
+            self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT)
+
+    @mock_rds
+    def test_delete_db_instance_snapshot_no_wait(self):
+        """
+        Check that the operator does not wait for the DB instance snapshot delete operation to complete when
+        wait_for_completion=False
+        """
+        _create_db_instance(self.hook)
+        _create_db_instance_snapshot(self.hook)
+
+        instance_snapshot_operator = RdsDeleteDbSnapshotOperator(
+            task_id="test_delete_db_instance_snapshot_no_wait",
+            db_type="instance",
+            db_snapshot_identifier=DB_INSTANCE_SNAPSHOT,
+            aws_conn_id=AWS_CONN,
+            dag=self.dag,
+            wait_for_completion=False,
+        )
+        _patch_hook_get_connection(instance_snapshot_operator.hook)
+        with patch.object(instance_snapshot_operator.hook, "wait_for_db_snapshot_state") as mock_wait:
+            instance_snapshot_operator.execute(None)
+        mock_wait.assert_not_called()
+
+        with pytest.raises(self.hook.conn.exceptions.ClientError):
+            self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT)
 
     @mock_rds
     def test_delete_db_cluster_snapshot(self):
@@ -401,7 +428,34 @@ class TestRdsDeleteDbSnapshotOperator:
             dag=self.dag,
         )
         _patch_hook_get_connection(cluster_snapshot_operator.hook)
-        cluster_snapshot_operator.execute(None)
+        with patch.object(cluster_snapshot_operator.hook, "wait_for_db_cluster_snapshot_state") as mock_wait:
+            cluster_snapshot_operator.execute(None)
+        mock_wait.assert_called_once_with(DB_CLUSTER_SNAPSHOT, target_state="deleted")
+
+        with pytest.raises(self.hook.conn.exceptions.ClientError):
+            self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT)
+
+    @mock_rds
+    def test_delete_db_cluster_snapshot_no_wait(self):
+        """
+        Check that the operator does not wait for the DB cluster snapshot delete operation to complete when
+        wait_for_completion=False
+        """
+        _create_db_cluster(self.hook)
+        _create_db_cluster_snapshot(self.hook)
+
+        cluster_snapshot_operator = RdsDeleteDbSnapshotOperator(
+            task_id="test_delete_db_cluster_snapshot_no_wait",
+            db_type="cluster",
+            db_snapshot_identifier=DB_CLUSTER_SNAPSHOT,
+            aws_conn_id=AWS_CONN,
+            dag=self.dag,
+            wait_for_completion=False,
+        )
+        _patch_hook_get_connection(cluster_snapshot_operator.hook)
+        with patch.object(cluster_snapshot_operator.hook, "wait_for_db_cluster_snapshot_state") as mock_wait:
+            cluster_snapshot_operator.execute(None)
+        mock_wait.assert_not_called()
 
         with pytest.raises(self.hook.conn.exceptions.ClientError):
             self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT)
