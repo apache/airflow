@@ -723,12 +723,12 @@ class TestWebserverService:
         "ports, expected_ports",
         [
             (
-                [{"name": "webserver-nodeport", "nodePort": "31000", "port": "8080"}],
-                [{"name": "webserver-nodeport", "nodePort": 31000, "port": 8080}],
+                [{"nodePort": "31000", "port": "8080"}],
+                [{"nodePort": 31000, "port": 8080}],
             ),
             (
-                [{"name": "webserver-nodeport", "port": "8080"}],
-                [{"name": "webserver-nodeport", "port": 8080}],
+                [{"port": "8080"}],
+                [{"port": 8080}],
             ),
         ],
     )
