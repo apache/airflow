@@ -574,7 +574,7 @@ class TestBranchOperator(unittest.TestCase):
         self.dag.clear()
         with pytest.raises(AirflowException) as ctx:
             branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        assert "Branch callable must return either None, a task ID, or a list of IDs" == str(ctx.value)
+        assert "must be either None, a task ID, or an Iterable of IDs" in str(ctx.value)
 
     def test_raise_exception_on_invalid_task_id(self):
         branch_op = BranchPythonOperator(
@@ -583,9 +583,7 @@ class TestBranchOperator(unittest.TestCase):
         self.dag.clear()
         with pytest.raises(AirflowException) as ctx:
             branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        assert """Branch callable must return valid task_ids. Invalid tasks found: {'some_task_id'}""" == str(
-            ctx.value
-        )
+        assert "Invalid tasks found: {'some_task_id'}" in str(ctx.value)
 
 
 class TestShortCircuitOperator:

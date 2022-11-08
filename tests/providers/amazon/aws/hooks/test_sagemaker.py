@@ -327,16 +327,15 @@ class TestSageMakerHook:
                 DESCRIBE_TRAINING_INPROGRESS_RETURN,
                 DESCRIBE_TRAINING_STOPPING_RETURN,
                 DESCRIBE_TRAINING_COMPLETED_RETURN,
-                DESCRIBE_TRAINING_COMPLETED_RETURN,
             ],
         }
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
         hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id_1")
         hook.create_training_job(
-            create_training_params, wait_for_completion=True, print_log=False, check_interval=1
+            create_training_params, wait_for_completion=True, print_log=False, check_interval=0
         )
-        assert mock_session.describe_training_job.call_count == 4
+        assert mock_session.describe_training_job.call_count == 3
 
     @mock.patch.object(SageMakerHook, "check_training_config")
     @mock.patch.object(SageMakerHook, "get_conn")
@@ -360,7 +359,7 @@ class TestSageMakerHook:
                 create_training_params,
                 wait_for_completion=True,
                 print_log=False,
-                check_interval=1,
+                check_interval=0,
             )
         assert mock_session.describe_training_job.call_count == 3
 
@@ -616,7 +615,7 @@ class TestSageMakerHook:
         mock_log_client.return_value = mock_log_session
         hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id_1")
         hook.create_training_job(
-            create_training_params, wait_for_completion=True, print_log=True, check_interval=1
+            create_training_params, wait_for_completion=True, print_log=True, check_interval=0
         )
         assert mock_describe.call_count == 3
         assert mock_session.describe_training_job.call_count == 1
