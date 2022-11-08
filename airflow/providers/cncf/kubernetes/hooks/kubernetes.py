@@ -352,7 +352,7 @@ class KubernetesHook(BaseHook):
 
     def get_xcom_sidecar_container_image(self):
         """Returns the xcom sidecar image that defined in the connection"""
-        return self._get_field("xcom_sidecar_container_image") or None
+        return self._get_field("xcom_sidecar_container_image")
 
     def get_pod_log_stream(
         self,
