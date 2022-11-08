@@ -944,7 +944,7 @@ class SageMakerHook(AwsBaseHook):
         Query processing job by name
 
         This method is deprecated.
-        Please use :method:`airflow.providers.amazon.aws.hooks.sagemaker.count_processing_jobs_by_name`.
+        Please use `airflow.providers.amazon.aws.hooks.sagemaker.count_processing_jobs_by_name`.
         """
         warnings.warn(
             "This method is deprecated. "
