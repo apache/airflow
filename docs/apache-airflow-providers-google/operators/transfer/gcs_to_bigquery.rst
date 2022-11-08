@@ -19,7 +19,7 @@
 Google Cloud Storage Transfer Operator to BigQuery
 ==================================================
 
-`Google Cloud Storage (GCS) <https://cloud.google.com/storage/>`__ is a managed service for 
+`Google Cloud Storage (GCS) <https://cloud.google.com/storage/>`__ is a managed service for
 storing unstructured data.
 `Google Cloud BigQuery <https://cloud.google.com/bigquery>`__ is Google Cloud's serverless
 data warehouse offering.
@@ -44,20 +44,30 @@ Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.transfers.gcs_to_bigquery.GCSToBigQueryOperator`
 to define values dynamically.
 
-You may load multiple objects from a single bucket using the ``source_objects`` parameter. 
-You may also define a schema, as well as additional settings such as the compression format. 
+You may load multiple objects from a single bucket using the ``source_objects`` parameter.
+You may also define a schema, as well as additional settings such as the compression format.
 For more information, please refer to the links above.
 
 Transferring files
 ------------------
 
-The following Operator transfers one or more files from GCS into a BigQuery table. 
+The following Operator transfers one or more files from GCS into a BigQuery table.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_bigquery.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_bigquery]
     :end-before: [END howto_operator_gcs_to_bigquery]
+
+.. _howto/operator:GCSToBigQueryOperator:
+
+Also you can use GCSToBigQueryOperator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_bigquery_async.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcs_to_bigquery_async]
+    :end-before: [END howto_operator_gcs_to_bigquery_async]
 
 
 Reference
