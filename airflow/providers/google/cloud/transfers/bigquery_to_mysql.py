@@ -48,7 +48,7 @@ class BigQueryToMySqlOperator(BaseOperator):
         to MySQL
 
     **Example**: ::
-    
+
        # [START howto_operator_bigquery_to_mysql]
        transfer_data = BigQueryToMySqlOperator(
             task_id='task_id',

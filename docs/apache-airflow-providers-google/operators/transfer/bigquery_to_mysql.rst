@@ -42,8 +42,8 @@ Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.transfers.bigquery_to_mysql.BigQueryToMySqlOperator`
 to define values dynamically.
 
-You may use the parameter ``selected_fields`` to limit the fields to be copied (all fields by default), 
-as well as the parameter ``replace`` to overwrite the destination table instead of appending to it. 
+You may use the parameter ``selected_fields`` to limit the fields to be copied (all fields by default),
+as well as the parameter ``replace`` to overwrite the destination table instead of appending to it.
 For more information, please refer to the links above.
 
 Transferring data

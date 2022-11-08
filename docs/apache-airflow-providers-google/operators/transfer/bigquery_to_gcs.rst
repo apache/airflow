@@ -21,7 +21,7 @@ Google Cloud BigQuery Transfer Operator to Google Cloud Storage
 
 `Google Cloud BigQuery <https://cloud.google.com/bigquery>`__ is Google Cloud's serverless
 data warehouse offering.
-`Google Cloud Storage (GCS) <https://cloud.google.com/storage/>`__ is a managed service for 
+`Google Cloud Storage (GCS) <https://cloud.google.com/storage/>`__ is a managed service for
 storing unstructured data.
 This operator can be used to export data from BigQuery tables into files in a
 Cloud Storage bucket.
