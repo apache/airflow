@@ -22,7 +22,7 @@ from unittest.mock import patch
 import pytest
 from moto import mock_rds
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 
 
@@ -204,6 +204,10 @@ class TestRdsHook:
         state_actual = rds_hook.get_db_snapshot_state(db_snapshot_id)
         assert state_actual == state_expected
 
+    def test_get_db_snapshot_state_not_found(self, rds_hook: RdsHook):
+        with pytest.raises(AirflowNotFoundException):
+            rds_hook.get_db_snapshot_state("does_not_exist")
+
     def test_wait_for_db_snapshot_state_boto_waiters(self, rds_hook: RdsHook, db_snapshot_id: str):
         """Checks that the DB snapshot waiter uses AWS boto waiters where possible"""
         for state in ("available", "deleted", "completed"):
@@ -235,6 +239,10 @@ class TestRdsHook:
         state_expected = response["DBClusterSnapshots"][0]["Status"]
         state_actual = rds_hook.get_db_cluster_snapshot_state(db_cluster_snapshot_id)
         assert state_actual == state_expected
+
+    def test_get_db_cluster_snapshot_state_not_found(self, rds_hook: RdsHook):
+        with pytest.raises(AirflowNotFoundException):
+            rds_hook.get_db_cluster_snapshot_state("does_not_exist")
 
     def test_wait_for_db_cluster_snapshot_state_boto_waiters(
         self, rds_hook: RdsHook, db_cluster_snapshot_id: str
@@ -279,6 +287,10 @@ class TestRdsHook:
         state_actual = rds_hook.get_export_task_state(export_task_id)
         assert state_actual == state_expected
 
+    def test_get_export_task_state_not_found(self, rds_hook: RdsHook):
+        with pytest.raises(AirflowNotFoundException):
+            rds_hook.get_export_task_state("does_not_exist")
+
     def test_wait_for_export_task_state(self, rds_hook: RdsHook, export_task_id: str):
         """
         Checks that the export task waiter uses custom wait logic (no boto waiters exist for this resource)
@@ -296,6 +308,10 @@ class TestRdsHook:
         state_expected = response["EventSubscriptionsList"][0]["Status"]
         state_actual = rds_hook.get_event_subscription_state(event_subscription_name)
         assert state_actual == state_expected
+
+    def test_get_event_subscription_state_not_found(self, rds_hook: RdsHook):
+        with pytest.raises(AirflowNotFoundException):
+            rds_hook.get_event_subscription_state("does_not_exist")
 
     def test_wait_for_event_subscription_state(self, rds_hook: RdsHook, event_subscription_name: str):
         """

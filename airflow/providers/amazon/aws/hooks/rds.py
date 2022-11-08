@@ -195,8 +195,10 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         """
         try:
             response = self.conn.describe_event_subscriptions(SubscriptionName=subscription_name)
-        except self.conn.exceptions.SubscriptionNotFoundFault as e:
-            raise AirflowNotFoundException(e)
+        except self.conn.exceptions.ClientError as e:
+            if e.response["Error"]["Code"] == "SubscriptionNotFoundFault":
+                raise AirflowNotFoundException(e)
+            raise e
         return response["EventSubscriptionsList"][0]["Status"].lower()
 
     def wait_for_event_subscription_state(
