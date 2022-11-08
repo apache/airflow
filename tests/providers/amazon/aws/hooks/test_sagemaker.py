@@ -712,6 +712,42 @@ class TestSageMakerHook:
         assert ex.response["ResponseMetadata"]["HTTPStatusCode"] == 404
 
     @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_start_pipeline_returns_arn(self, mock_conn):
+        mock_conn().start_pipeline_execution.return_value = {"PipelineExecutionArn": "hellotest"}
+
+        hook = SageMakerHook(aws_conn_id="aws_default")
+        params_dict = {"one": "1", "two": "2"}
+        arn = hook.start_pipeline(pipeline_name="test_name", pipeline_params=params_dict)
+
+        assert arn == "hellotest"
+
+        kwargs_passed = mock_conn().start_pipeline_execution.call_args.kwargs
+        assert kwargs_passed["PipelineName"] == "test_name"
+
+        # check conversion to the weird format for passing parameters (list of tuples)
+        assert len(kwargs_passed["PipelineParameters"]) == 2
+        for transformed_param in kwargs_passed["PipelineParameters"]:
+            assert "Name" in transformed_param.keys()
+            assert "Value" in transformed_param.keys()
+            # Name contains the key
+            assert transformed_param["Name"] in params_dict.keys()
+            # Value contains the value associated with the key in Name
+            assert transformed_param["Value"] == params_dict[transformed_param["Name"]]
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_start_pipeline_waits_for_completion(self, mock_conn):
+        mock_conn().describe_pipeline_execution.side_effect = [
+            {"PipelineExecutionStatus": "Executing"},
+            {"PipelineExecutionStatus": "Executing"},
+            {"PipelineExecutionStatus": "Succeeded"},
+        ]
+
+        hook = SageMakerHook(aws_conn_id="aws_default")
+        hook.start_pipeline(pipeline_name="test_name", wait_for_completion=True, check_interval=0)
+
+        assert mock_conn().describe_pipeline_execution.call_count == 3
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
     def test_stop_pipeline_returns_status(self, mock_conn):
         mock_conn().describe_pipeline_execution.return_value = {"PipelineExecutionStatus": "Stopping"}
 

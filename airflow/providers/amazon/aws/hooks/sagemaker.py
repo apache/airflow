@@ -998,6 +998,51 @@ class SageMakerHook(AwsBaseHook):
     def describe_pipeline_exec(self, pipeline_exec_arn: str):
         return self.conn.describe_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
 
+    def start_pipeline(
+        self,
+        pipeline_name: str,
+        display_name: str = "airflow-triggered-execution",
+        pipeline_params: dict = None,
+        wait_for_completion: bool = False,
+        check_interval: int = 30,
+    ) -> str:
+        """
+        Start a new execution for a SageMaker pipeline
+
+        :param pipeline_name: Name of the pipeline to start (this is _not_ the ARN).
+        :param display_name: The name this pipeline execution will have in the UI. Doesn't need to be unique.
+        :param pipeline_params: optional parameters for the pipeline.
+            All parameters supplied need to already be present in the pipeline definition.
+        :param wait_for_completion: will only return once the pipeline is complete if true
+        :param check_interval: how long to wait between checks for pipeline status when waiting for completion
+
+        :return: the ARN of the pipeline execution launched.
+        """
+        if pipeline_params is None:
+            pipeline_params = {}
+        formatted_params = [{"Name": kvp[0], "Value": kvp[1]} for kvp in pipeline_params.items()]
+
+        try:
+            res = self.conn.start_pipeline_execution(
+                PipelineName=pipeline_name,
+                PipelineExecutionDisplayName=display_name,
+                PipelineParameters=formatted_params,
+            )
+        except ClientError as ce:
+            self.log.error("Failed to start pipeline execution, error: %s", ce)
+            raise
+
+        arn = res["PipelineExecutionArn"]
+        if wait_for_completion:
+            self.check_status(
+                arn,
+                "PipelineExecutionStatus",
+                self.describe_pipeline_exec,
+                check_interval,
+                non_terminal_states=self.pipeline_non_terminal_states,
+            )
+        return arn
+
     def stop_pipeline(
         self,
         pipeline_exec_arn: str,
@@ -1021,9 +1066,8 @@ class SageMakerHook(AwsBaseHook):
         :return: Status of the pipeline execution after the operation.
             One of 'Executing'|'Stopping'|'Stopped'|'Failed'|'Succeeded'.
         """
-        conn = self.conn
         try:
-            conn.stop_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
+            self.conn.stop_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
         except ClientError as ce:
             # we have to rely on the message to catch the right error here, because its type
             # (ValidationException) is shared with other kinds of error (for instance, badly formatted ARN)

@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerDeleteModelOperator,
     SageMakerModelOperator,
+    SageMakerStartPipelineOperator,
     SageMakerStopPipelineOperator,
 )
 
@@ -69,6 +70,30 @@ class TestSageMakerDeleteModelOperator(unittest.TestCase):
         )
         op.execute(None)
         delete_model.assert_called_once_with(model_name="model_name")
+
+
+class TestSageMakerStartPipelineOperator:
+    @mock.patch.object(SageMakerHook, "start_pipeline")
+    def test_execute(self, start_pipeline):
+        op = SageMakerStartPipelineOperator(
+            task_id="test_sagemaker_operator",
+            config={},
+            pipeline_name="my_pipeline",
+            display_name="test_disp_name",
+            pipeline_params={"is_a_test": "yes"},
+            wait_for_completion=True,
+            check_interval=12,
+        )
+
+        op.execute(None)
+
+        start_pipeline.assert_called_once_with(
+            pipeline_name="my_pipeline",
+            display_name="test_disp_name",
+            pipeline_params={"is_a_test": "yes"},
+            wait_for_completion=True,
+            check_interval=12,
+        )
 
 
 class TestSageMakerStopPipelineOperator:

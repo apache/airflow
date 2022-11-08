@@ -103,7 +103,7 @@ class SageMakerBaseOperator(BaseOperator):
         """
         self.integer_fields = []
 
-    def execute(self, context: Context) -> None | dict:
+    def execute(self, context: Context):
         raise NotImplementedError("Please implement execute() in sub class!")
 
     @cached_property
@@ -747,6 +747,56 @@ class SageMakerDeleteModelOperator(SageMakerBaseOperator):
         sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         sagemaker_hook.delete_model(model_name=self.config["ModelName"])
         self.log.info("Model %s deleted successfully.", self.config["ModelName"])
+
+
+class SageMakerStartPipelineOperator(SageMakerBaseOperator):
+    """
+    Starts a SageMaker pipeline execution.
+
+    :param config: The configuration to start the pipeline execution.
+    :param aws_conn_id: The AWS connection ID to use.
+    :param pipeline_name: Name of the pipeline to start.
+    :param display_name: The name this pipeline execution will have in the UI. Doesn't need to be unique.
+    :param pipeline_params: Optional parameters for the pipeline.
+        All parameters supplied need to already be present in the pipeline definition.
+    :param wait_for_completion: If true, this operator will only complete once the pipeline is complete.
+    :param check_interval: How long to wait between checks for pipeline status when waiting for completion.
+
+    :return Str: Returns The ARN of the pipeline execution created in Amazon SageMaker.
+    """
+
+    def __init__(
+        self,
+        *,
+        config: dict,
+        aws_conn_id: str = DEFAULT_CONN_ID,
+        pipeline_name: str,
+        display_name: str = "airflow-triggered-execution",
+        pipeline_params: dict = None,
+        wait_for_completion: bool = False,
+        check_interval: int = CHECK_INTERVAL_SECOND,
+        **kwargs,
+    ):
+        super().__init__(config=config, **kwargs)
+        self.aws_conn_id = aws_conn_id
+        self.pipeline_name = pipeline_name
+        self.display_name = display_name
+        self.pipeline_params = pipeline_params
+        self.wait_for_completion = wait_for_completion
+        self.check_interval = check_interval
+
+    def execute(self, _: Context) -> str:
+        arn = self.hook.start_pipeline(
+            pipeline_name=self.pipeline_name,
+            display_name=self.display_name,
+            pipeline_params=self.pipeline_params,
+            wait_for_completion=self.wait_for_completion,
+            check_interval=self.check_interval,
+        )
+        self.log.info(
+            "Starting a new execution for pipeline %s, running with ARN %s", self.pipeline_name, arn
+        )
+        return arn
 
 
 class SageMakerStopPipelineOperator(SageMakerBaseOperator):
