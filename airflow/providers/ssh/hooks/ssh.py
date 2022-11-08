@@ -492,14 +492,14 @@ class SSHHook(BaseHook):
             readq, _, _ = select([channel], [], [], timeout)
             for recv in readq:
                 if recv.recv_ready():
-                    line = stdout.channel.recv(len(recv.in_buffer))
-                    agg_stdout += line
-                    for line in line.decode("utf-8", "replace").strip("\n").splitlines():
+                    output = stdout.channel.recv(len(recv.in_buffer))
+                    agg_stdout += output
+                    for line in output.decode("utf-8", "replace").strip("\n").splitlines():
                         self.log.info(line)
                 if recv.recv_stderr_ready():
-                    line = stderr.channel.recv_stderr(len(recv.in_stderr_buffer))
-                    agg_stderr += line
-                    for line in line.decode("utf-8", "replace").strip("\n").splitlines():
+                    output = stderr.channel.recv_stderr(len(recv.in_stderr_buffer))
+                    agg_stderr += output
+                    for line in output.decode("utf-8", "replace").strip("\n").splitlines():
                         self.log.warning(line)
             if (
                 stdout.channel.exit_status_ready()
