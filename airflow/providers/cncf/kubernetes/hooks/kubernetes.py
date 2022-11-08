@@ -30,6 +30,10 @@ from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keep
 from airflow.utils import yaml
 
 
+def warn_provider_deprecation(message, *, provider_version=None, min_airflow_version=None, category=DeprecationWarning, **kwargs):
+    warnings.warn(message, category=DeprecationWarning, **kwargs)
+
+
 def _load_body_to_dict(body):
     try:
         body_dict = yaml.safe_load(body)
@@ -323,13 +327,13 @@ class KubernetesHook(BaseHook):
         """
         namespace = self._get_namespace()
         if self.conn_id and not namespace:
-            warnings.warn(
+            warn_provider_deprecation(
                 "Airflow connection defined but namespace is not set; returning 'default'.  In "
                 "cncf.kubernetes provider version 6.0 we will return None when namespace is "
                 "not defined in the connection so that it's clear whether user intends 'default' or "
                 "whether namespace is unset (which is required in order to apply precedence logic in "
                 "KubernetesPodOperator).",
-                DeprecationWarning,
+                provider_version=(6, 0),
             )
             return "default"
         return namespace
