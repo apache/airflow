@@ -738,7 +738,7 @@ class TestWebserverService:
                 "webserver": {
                     "service": {
                         "type": "NodePort",
-                        "ports": (ports),
+                        "ports": ports,
                     }
                 },
             },
