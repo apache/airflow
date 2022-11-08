@@ -168,7 +168,7 @@ class DatabricksHook(BaseDatabricksHook):
         all_jobs = []
 
         while has_more:
-            payload = {
+            payload: dict[str, Any] = {
                 "limit": limit,
                 "expand_tasks": expand_tasks,
                 "offset": offset,
