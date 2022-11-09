@@ -160,8 +160,6 @@ with DAG(
     pause_cluster = RedshiftPauseClusterOperator(
         task_id="pause_cluster",
         cluster_identifier=redshift_cluster_identifier,
-        attempts=30,
-        attempt_interval=15,
     )
     # [END howto_operator_redshift_pause_cluster]
 
@@ -177,8 +175,6 @@ with DAG(
     resume_cluster = RedshiftResumeClusterOperator(
         task_id="resume_cluster",
         cluster_identifier=redshift_cluster_identifier,
-        attempts=30,
-        attempt_interval=15,
     )
     # [END howto_operator_redshift_resume_cluster]
 

@@ -225,8 +225,6 @@ class TestResumeClusterOperator:
             task_id="task_test",
             cluster_identifier="test_cluster",
             aws_conn_id="aws_conn_test",
-            attempts=5,
-            attempt_interval=10,
         )
         redshift_operator.execute(None)
         assert mock_conn.resume_cluster.call_count == 3
@@ -244,12 +242,10 @@ class TestResumeClusterOperator:
             task_id="task_test",
             cluster_identifier="test_cluster",
             aws_conn_id="aws_conn_test",
-            attempts=5,
-            attempt_interval=10,
         )
         with pytest.raises(returned_exception):
             redshift_operator.execute(None)
-        assert mock_conn.resume_cluster.call_count == 5
+        assert mock_conn.resume_cluster.call_count == 10
 
 
 class TestPauseClusterOperator:
@@ -282,8 +278,6 @@ class TestPauseClusterOperator:
             task_id="task_test",
             cluster_identifier="test_cluster",
             aws_conn_id="aws_conn_test",
-            attempts=5,
-            attempt_interval=10,
         )
 
         redshift_operator.execute(None)
@@ -302,12 +296,10 @@ class TestPauseClusterOperator:
             task_id="task_test",
             cluster_identifier="test_cluster",
             aws_conn_id="aws_conn_test",
-            attempts=5,
-            attempt_interval=10,
         )
         with pytest.raises(returned_exception):
             redshift_operator.execute(None)
-        assert mock_conn.pause_cluster.call_count == 5
+        assert mock_conn.pause_cluster.call_count == 10
 
 
 class TestDeleteClusterOperator:
