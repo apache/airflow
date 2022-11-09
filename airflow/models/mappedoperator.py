@@ -305,6 +305,9 @@ class MappedOperator(AbstractOperator):
     def __attrs_post_init__(self):
         from airflow.models.xcom_arg import XComArg
 
+        if next(self.iter_mapped_task_groups(), None) is not None:
+            raise NotImplementedError("creating mapped operator in a mapped task group is not yet supported")
+
         if self.task_group:
             self.task_group.add(self)
         if self.dag:
