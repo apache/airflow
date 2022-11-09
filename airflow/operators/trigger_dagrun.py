@@ -157,7 +157,7 @@ class TriggerDagRunOperator(BaseOperator):
                 dag = dag_bag.get_dag(self.trigger_dag_id)
                 dag.clear(start_date=parsed_execution_date, end_date=parsed_execution_date)
 
-                # Enforce run_id filter in case it is passed as an argument
+                # Enforce run_id filter in case it is passed
                 # else use the execution_date (as used in dag.clear)
                 if self.trigger_run_id:
                     dag_run = DagRun.find(dag_id=dag.dag_id, run_id=run_id)[0]
