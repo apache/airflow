@@ -51,7 +51,7 @@ class SageMakerBaseOperator(BaseOperator):
     ui_color: str = "#ededed"
     integer_fields: list[list[Any]] = []
 
-    def __init__(self, *, config: dict, aws_conn_id: str, **kwargs):
+    def __init__(self, *, config: dict, aws_conn_id: str = DEFAULT_CONN_ID, **kwargs):
         super().__init__(**kwargs)
         self.config = config
         self.aws_conn_id = aws_conn_id
