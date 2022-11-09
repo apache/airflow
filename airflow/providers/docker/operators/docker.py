@@ -335,7 +335,7 @@ class DockerOperator(BaseOperator):
                 privileged=self.privileged,
                 device_requests=self.device_requests,
                 log_config=LogConfig(config=docker_log_config),
-                ipc_mode=self.ipc_mode
+                ipc_mode=self.ipc_mode,
             ),
             image=self.image,
             user=self.user,
