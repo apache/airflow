@@ -48,6 +48,7 @@ class DruidHook(BaseHook):
         druid_ingest_conn_id: str = "druid_ingest_default",
         timeout: int = 1,
         max_ingestion_time: int | None = None,
+        use_ssl: bool = False,
     ) -> None:
 
         super().__init__()
@@ -55,6 +56,7 @@ class DruidHook(BaseHook):
         self.timeout = timeout
         self.max_ingestion_time = max_ingestion_time
         self.header = {"content-type": "application/json"}
+        self.use_ssl = use_ssl
 
         if self.timeout < 1:
             raise ValueError("Druid timeout should be equal or greater than 1")
@@ -64,9 +66,9 @@ class DruidHook(BaseHook):
         conn = self.get_connection(self.druid_ingest_conn_id)
         host = conn.host
         port = conn.port
-        conn_type = conn.conn_type or "http"
+        schema = conn.schema or "http"
         endpoint = conn.extra_dejson.get("endpoint", "")
-        return f"{conn_type}://{host}:{port}/{endpoint}"
+        return f"{schema}://{host}:{port}/{endpoint}"
 
     def get_auth(self) -> requests.auth.HTTPBasicAuth | None:
         """
@@ -82,12 +84,30 @@ class DruidHook(BaseHook):
         else:
             return None
 
+    def get_ssl_path(self) -> str | None:
+        """Get ssl path defined in extras from druid connection"""
+        conn = self.get_connection(self.druid_ingest_conn_id)
+        ssl_path = conn.extra_dejson.get("ssl_path", None)
+        return ssl_path
+
     def submit_indexing_job(self, json_index_spec: dict[str, Any] | str) -> None:
         """Submit Druid ingestion job"""
         url = self.get_conn_url()
 
         self.log.info("Druid ingestion spec: %s", json_index_spec)
-        req_index = requests.post(url, data=json_index_spec, headers=self.header, auth=self.get_auth())
+
+        """Enable SSL Certification if needed."""
+        if not self.use_ssl:
+            req_index = requests.post(url, data=json_index_spec, headers=self.header, auth=self.get_auth())
+        else:
+            req_index = requests.post(
+                url,
+                data=json_index_spec,
+                headers=self.header,
+                auth=self.get_auth(),
+                verify=self.get_ssl_path(),
+            )
+
         if req_index.status_code != 200:
             raise AirflowException(f"Did not get 200 when submitting the Druid job to {url}")
 
