@@ -415,6 +415,28 @@ class TestKubernetesPodOperator:
         )
         mock_find.assert_called_once_with("default", context=context)
 
+    @patch(HOOK_CLASS)
+    def test_xcom_sidecar_container_image_default(self, hook_mock):
+        hook_mock.return_value.get_xcom_sidecar_container_image.return_value = None
+        k = KubernetesPodOperator(
+            name="test",
+            task_id="task",
+            do_xcom_push=True,
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[1].image == "alpine"
+
+    @patch(HOOK_CLASS)
+    def test_xcom_sidecar_container_image_custom(self, hook_mock):
+        hook_mock.return_value.get_xcom_sidecar_container_image.return_value = "private.repo/alpine:3.13"
+        k = KubernetesPodOperator(
+            name="test",
+            task_id="task",
+            do_xcom_push=True,
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[1].image == "private.repo/alpine:3.13"
+
     def test_image_pull_policy_correctly_set(self):
         k = KubernetesPodOperator(
             task_id="task",
