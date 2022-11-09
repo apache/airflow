@@ -3240,12 +3240,12 @@
                     ]
                 },
                 "securityContexts": {
-                    "description": "Security context definition for the createUserJob. If not set, the values from global `securityContexts` will be used.",
+                    "description": "Security context definition for the  create user job. If not set, the values from global `securityContexts` will be used.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {
                         "pod": {
-                            "description": "Pod security context definition for the createUserJob.",
+                            "description": "Pod security context definition for the  create user job.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                             "default": {},
@@ -3259,7 +3259,7 @@
                             ]
                         },
                         "container": {
-                            "description": "Container security context definition for the createUserJob.",
+                            "description": "Container security context definition for the  create user job.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                             "default": {},
