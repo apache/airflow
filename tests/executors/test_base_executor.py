@@ -125,3 +125,10 @@ def test_trigger_running_tasks(dag_maker, change_state_attempt):
         assert len(executor.execute_async.mock_calls) == len(dagrun.task_instances) + 1
     else:
         assert len(executor.execute_async.mock_calls) == len(dagrun.task_instances)
+
+
+def test_validate_airflow_tasks_run_command(dag_maker):
+    dagrun = setup_dagrun(dag_maker)
+    tis = dagrun.task_instances
+    dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(tis[0].command_as_list())
+    assert dag_id == dagrun.dag_id and task_id == tis[0].task_id

@@ -80,7 +80,7 @@ class TestSageMakerTuningSensor(unittest.TestCase):
             DESCRIBE_TUNING_COMPLETED_RESPONSE,
         ]
         sensor = SageMakerTuningSensor(
-            task_id="test_task", poke_interval=2, aws_conn_id="aws_test", job_name="test_job_name"
+            task_id="test_task", poke_interval=0, aws_conn_id="aws_test", job_name="test_job_name"
         )
 
         sensor.execute(None)

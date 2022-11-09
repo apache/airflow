@@ -1261,12 +1261,12 @@ class DAG(LoggingMixin):
         return self.get_concurrency_reached()
 
     @provide_session
-    def get_is_active(self, session=NEW_SESSION) -> None | None:
+    def get_is_active(self, session=NEW_SESSION) -> None:
         """Returns a boolean indicating whether this DAG is active"""
         return session.query(DagModel.is_active).filter(DagModel.dag_id == self.dag_id).scalar()
 
     @provide_session
-    def get_is_paused(self, session=NEW_SESSION) -> None | None:
+    def get_is_paused(self, session=NEW_SESSION) -> None:
         """Returns a boolean indicating whether this DAG is paused"""
         return session.query(DagModel.is_paused).filter(DagModel.dag_id == self.dag_id).scalar()
 
@@ -2396,6 +2396,7 @@ class DAG(LoggingMixin):
         run_backwards=False,
         run_at_least_once=False,
         continue_on_failures=False,
+        disable_retry=False,
     ):
         """
         Runs the DAG.
@@ -2446,6 +2447,7 @@ class DAG(LoggingMixin):
             run_backwards=run_backwards,
             run_at_least_once=run_at_least_once,
             continue_on_failures=continue_on_failures,
+            disable_retry=disable_retry,
         )
         job.run()
 

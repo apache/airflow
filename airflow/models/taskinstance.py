@@ -30,20 +30,9 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import partial
 from types import TracebackType
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Collection,
-    ContextManager,
-    Generator,
-    Iterable,
-    NamedTuple,
-    Tuple,
-)
+from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, NamedTuple, Tuple
 from urllib.parse import quote
 
-import attr
 import dill
 import jinja2
 import lazy_object_proxy
@@ -69,8 +58,6 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
-from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
 from sqlalchemy.sql.expression import ColumnOperators
@@ -101,7 +88,7 @@ from airflow.models.param import process_params
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.xcom import XCOM_RETURN_KEY, XCom
+from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComAccess, XCom
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
 from airflow.stats import Stats
@@ -289,91 +276,6 @@ def clear_task_instances(
                 dr.last_scheduling_decision = None
                 dr.start_date = None
     session.flush()
-
-
-class _LazyXComAccessIterator(collections.abc.Iterator):
-    __slots__ = ['_cm', '_it']
-
-    def __init__(self, cm: ContextManager[Query]):
-        self._cm = cm
-        self._it = None
-
-    def __del__(self):
-        if self._it:
-            self._cm.__exit__(None, None, None)
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if not self._it:
-            self._it = iter(self._cm.__enter__())
-        return XCom.deserialize_value(next(self._it))
-
-
-@attr.define
-class _LazyXComAccess(collections.abc.Sequence):
-    """Wrapper to lazily pull XCom with a sequence-like interface.
-
-    Note that since the session bound to the parent query may have died when we
-    actually access the sequence's content, we must create a new session
-    for every function call with ``with_session()``.
-    """
-
-    dag_id: str
-    run_id: str
-    task_id: str
-    _query: Query = attr.ib(repr=False)
-    _len: int | None = attr.ib(init=False, repr=False, default=None)
-
-    @classmethod
-    def build_from_single_xcom(cls, first: XCom, query: Query) -> _LazyXComAccess:
-        return cls(
-            dag_id=first.dag_id,
-            run_id=first.run_id,
-            task_id=first.task_id,
-            query=query.with_entities(XCom.value)
-            .filter(
-                XCom.run_id == first.run_id,
-                XCom.task_id == first.task_id,
-                XCom.dag_id == first.dag_id,
-                XCom.map_index >= 0,
-            )
-            .order_by(None)
-            .order_by(XCom.map_index.asc()),
-        )
-
-    def __len__(self):
-        if self._len is None:
-            with self._get_bound_query() as query:
-                self._len = query.count()
-        return self._len
-
-    def __iter__(self):
-        return _LazyXComAccessIterator(self._get_bound_query())
-
-    def __getitem__(self, key):
-        if not isinstance(key, int):
-            raise ValueError("only support index access for now")
-        try:
-            with self._get_bound_query() as query:
-                r = query.offset(key).limit(1).one()
-        except NoResultFound:
-            raise IndexError(key) from None
-        return XCom.deserialize_value(r)
-
-    @contextlib.contextmanager
-    def _get_bound_query(self) -> Generator[Query, None, None]:
-        # Do we have a valid session already?
-        if self._query.session and self._query.session.is_active:
-            yield self._query
-            return
-
-        session = settings.Session()
-        try:
-            yield self._query.with_session(session)
-        finally:
-            session.close()
 
 
 class TaskInstanceKey(NamedTuple):
@@ -2439,7 +2341,7 @@ class TaskInstance(Base, LoggingMixin):
             if map_indexes is not None or first.map_index < 0:
                 return XCom.deserialize_value(first)
 
-            return _LazyXComAccess.build_from_single_xcom(first, query)
+            return LazyXComAccess.build_from_single_xcom(first, query)
 
         # At this point either task_ids or map_indexes is explicitly multi-value.
 
