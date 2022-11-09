@@ -692,6 +692,7 @@ class LazyXComAccess(collections.abc.Sequence):
     run_id: str
     task_id: str
     _query: Query = attr.ib(repr=False)
+    _slice: slice | None = attr.ib(repr=False, default=None)
     _len: int | None = attr.ib(init=False, repr=False, default=None)
 
     @classmethod
@@ -707,41 +708,83 @@ class LazyXComAccess(collections.abc.Sequence):
                 XCom.dag_id == first.dag_id,
                 XCom.map_index >= 0,
             )
-            .order_by(None)
-            .order_by(XCom.map_index.asc()),
+            .order_by(None),  # XCom has default ordering but we don't want that.
         )
 
-    def __len__(self):
+    def __len__(self) -> int:
         if self._len is None:
             with self._get_bound_query() as query:
                 self._len = query.count()
         return self._len
 
-    def __iter__(self):
+    def __iter__(self) -> _LazyXComAccessIterator:
         return _LazyXComAccessIterator(self._get_bound_query())
 
-    def __getitem__(self, key):
-        if not isinstance(key, int):
-            raise ValueError("only support index access for now")
-        try:
-            with self._get_bound_query() as query:
-                r = query.offset(key).limit(1).one()
-        except NoResultFound:
-            raise IndexError(key) from None
-        return XCom.deserialize_value(r)
+    def __getitem__(self, key: Any) -> Any:
+        if isinstance(key, int):
+            try:
+                with self._get_bound_query(key, 1) as query:
+                    r = query.one()
+            except NoResultFound:
+                raise IndexError(key) from None
+            return XCom.deserialize_value(r)
+        elif isinstance(key, slice):
+            if self._slice is not None:
+                raise ValueError("LazyXComAccess does not support repeated slicing")
+            return attr.evolve(self, slice=key)
+        raise TypeError(f"LazyXComAccess indices must be integers or slices, not {type(key).__name__}")
+
+    def _analyze_slice(self) -> tuple[int, int | None, bool]:
+        if self._slice is None:
+            return 0, None, False
+        if self._slice.start is None:
+            start = 0
+        elif isinstance(self._slice.start, int) and self._slice.start >= 0:
+            start = self._slice.start
+        else:
+            raise TypeError("LazyXComAccess slice start must be None or a non-negative integer")
+        if self._slice.stop is None:
+            stop = None
+        elif isinstance(self._slice.stop, int) and self._slice.stop >= start:
+            stop = self._slice.stop
+        else:
+            raise TypeError("LazyXComAccess slice stop must be None or an integer no smaller than start")
+        if self._slice.step is None or self._slice.step == 1:
+            rev = False
+        elif self._slice.step == -1:
+            rev = True
+        else:
+            raise TypeError("LazyXComAccess slice step must be None or 1 or -1")
+        return start, stop, rev
 
     @contextlib.contextmanager
-    def _get_bound_query(self) -> Generator[Query, None, None]:
-        # Do we have a valid session already?
-        if self._query.session and self._query.session.is_active:
-            yield self._query
-            return
+    def _get_bound_query(self, offset: int = 0, limit: int | None = None) -> Generator[Query, None, None]:
+        start, stop, rev = self._analyze_slice()
+        offset += start
+        if stop is not None:
+            if limit is None:
+                limit = stop - offset
+            else:
+                limit = max(0, min(limit, stop - offset))
 
-        session = settings.Session()
+        query = self._query.offset(offset).limit(limit)
+        if rev:
+            query.order_by(XCom.map_index.desc())
+        else:
+            query.order_by(XCom.map_index.asc())
+
+        session: Session | None
+        if query.session and query.session.is_active:
+            session = None
+        else:
+            session = settings.Session()
+            query = query.with_session(session)
+
         try:
-            yield self._query.with_session(session)
+            yield query
         finally:
-            session.close()
+            if session is not None:
+                session.close()
 
 
 def _patch_outdated_serializer(clazz: type[BaseXCom], params: Iterable[str]) -> None:
