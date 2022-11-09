@@ -704,3 +704,17 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
         assert {} == jmespath.search("spec.containers[0].resources", docs[0])
+
+    def test_workers_host_aliases(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}],
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert "127.0.0.2" == jmespath.search("spec.hostAliases[0].ip", docs[0])
+        assert "test.hostname" == jmespath.search("spec.hostAliases[0].hostnames[0]", docs[0])
