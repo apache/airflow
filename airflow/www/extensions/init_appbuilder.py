@@ -215,12 +215,24 @@ class AirflowAppBuilder:
         else:
             self.post_init()
         self._init_extension(app)
+        self._swap_url_filter()
 
     def _init_extension(self, app):
         app.appbuilder = self
         if not hasattr(app, "extensions"):
             app.extensions = {}
         app.extensions["appbuilder"] = self
+
+    def _swap_url_filter(self):
+        """
+        Use our url filtering util function so there is consistency between
+        FAB and Airflow routes
+        """
+        from flask_appbuilder.security import views as fab_sec_views
+
+        from airflow.www.views import get_safe_url
+
+        fab_sec_views.get_safe_redirect = get_safe_url
 
     def post_init(self):
         for baseview in self.baseviews:
