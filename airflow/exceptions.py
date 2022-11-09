@@ -353,3 +353,14 @@ class AirflowProviderDeprecationWarning(DeprecationWarning):
 
     deprecated_provider_since: str | None = None
     "Indicates the provider version that started raising this deprecation warning"
+
+
+def warn_provider_deprecation(
+    message,
+    *,
+    provider_version=None,
+    min_airflow_version=None,
+    category=AirflowProviderDeprecationWarning,
+    **kwargs,
+):
+    warnings.warn(message, category=category, **kwargs)

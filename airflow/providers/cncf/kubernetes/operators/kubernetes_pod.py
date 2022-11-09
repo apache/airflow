@@ -20,7 +20,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import warnings
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -43,7 +42,7 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_volume,
     convert_volume_mount,
 )
-from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, warn_provider_deprecation
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore[attr-defined]
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodLaunchFailedException,
@@ -370,7 +369,9 @@ class KubernetesPodOperator(BaseOperator):
         return PodManager(kube_client=self.client)
 
     def get_hook(self):
-        warnings.warn("get_hook is deprecated. Please use hook instead.", DeprecationWarning, stacklevel=2)
+        warn_provider_deprecation(
+            "get_hook is deprecated. Please use hook instead.", provider_version=(5, 0), stacklevel=2
+        )
         return self.hook
 
     @cached_property

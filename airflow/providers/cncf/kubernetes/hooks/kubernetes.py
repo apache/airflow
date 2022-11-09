@@ -30,7 +30,11 @@ from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keep
 from airflow.utils import yaml
 
 
-def warn_provider_deprecation(message, *, provider_version=None, min_airflow_version=None, category=DeprecationWarning, **kwargs):
+# todo: remove-on-min-airflow-version=2.5
+# when removing, import this from airflow.exceptions
+def warn_provider_deprecation(
+    message, *, provider_version=None, min_airflow_version=None, category=DeprecationWarning, **kwargs
+):
     warnings.warn(message, category=DeprecationWarning, **kwargs)
 
 

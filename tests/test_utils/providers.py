@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
+
 import semver
 
 
@@ -48,11 +50,15 @@ def get_provider_version(provider_name):
     return semver.VersionInfo.parse(info.version)
 
 
-def get_provider_min_airflow_version(provider_name):
-    from airflow.providers_manager import ProvidersManager
+def get_provider_min_airflow_version(provider_name, data=None):
+    if not data:  # this is a performance speedup when we have the provider data already
+        from airflow.providers_manager import ProvidersManager
 
-    p = ProvidersManager()
-    deps = p.providers[provider_name].data["dependencies"]
-    airflow_dep = [x for x in deps if x.startswith("apache-airflow")][0]
-    min_airflow_version = tuple(map(int, airflow_dep.split(">=")[1].split(".")))
-    return min_airflow_version
+        p = ProvidersManager()
+        data = p.providers[provider_name].data
+    deps = data["dependencies"]
+    with suppress(Exception):
+        airflow_dep = [x for x in deps if x.startswith("apache-airflow")][0]
+        min_airflow_version = tuple(map(int, airflow_dep.split(">=")[1].split(".")))
+        return min_airflow_version
+    return 0, 0, 0
