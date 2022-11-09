@@ -124,6 +124,28 @@ class EmrHook(AwsBaseHook):
 
         return response
 
+    def add_job_flow_steps(
+        self, job_flow_id: str, steps: list[dict] | str | None = None, wait_for_completion: bool = False
+    ):
+        response = self.get_conn().add_job_flow_steps(JobFlowId=job_flow_id, Steps=steps)
+
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+            raise AirflowException(f"Adding steps failed: {response}")
+
+        self.log.info("Steps %s added to JobFlow", response["StepIds"])
+        if wait_for_completion:
+            waiter = self.get_conn().get_waiter("step_complete")
+            for step_id in response["StepIds"]:
+                waiter.wait(
+                    ClusterId=job_flow_id,
+                    StepId=step_id,
+                    WaiterConfig={
+                        "Delay": 5,
+                        "MaxAttempts": 100,
+                    },
+                )
+        return response["StepIds"]
+
     def test_connection(self):
         """
         Return failed state for test Amazon Elastic MapReduce Connection (untestable).

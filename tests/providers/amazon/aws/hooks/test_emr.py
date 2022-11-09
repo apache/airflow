@@ -44,6 +44,91 @@ class TestEmrHook:
         assert client.list_clusters()["Clusters"][0]["Id"] == cluster["JobFlowId"]
 
     @mock_emr
+    def test_add_job_flow_steps_one_step(self):
+        boto3.client("emr", region_name="us-east-1")
+
+        hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default", region_name="us-east-1")
+        cluster = hook.create_job_flow(
+            {"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": False}}
+        )
+        steps = [
+            {
+                "ActionOnFailure": "test_step",
+                "HadoopJarStep": {
+                    "Args": ["test args"],
+                    "Jar": "test.jar",
+                },
+                "Name": "step_1",
+            }
+        ]
+        response = hook.add_job_flow_steps(job_flow_id=cluster["JobFlowId"], steps=steps)
+
+        assert len(response) == 1
+
+    @mock_emr
+    def test_add_job_flow_steps_multiple_steps(self):
+        boto3.client("emr", region_name="us-east-1")
+
+        hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default", region_name="us-east-1")
+        cluster = hook.create_job_flow(
+            {"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": False}}
+        )
+
+        steps = [
+            {
+                "ActionOnFailure": "test_step",
+                "HadoopJarStep": {
+                    "Args": ["test args"],
+                    "Jar": "test.jar",
+                },
+                "Name": "step_1",
+            },
+            {
+                "ActionOnFailure": "test_step",
+                "HadoopJarStep": {
+                    "Args": ["test args"],
+                    "Jar": "test.jar",
+                },
+                "Name": "step_2",
+            },
+        ]
+        response = hook.add_job_flow_steps(job_flow_id=cluster["JobFlowId"], steps=steps)
+        assert len(response) == 2
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.conn")
+    def test_add_job_flow_steps_wait_for_completion(self, mock_conn):
+        boto3.client("emr", region_name="us-east-1")
+
+        hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default", region_name="us-east-1")
+        mock_conn.run_job_flow.return_value = {
+            "JobFlowId": "job_flow_id",
+            "ClusterArn": "cluster_arn",
+        }
+        mock_conn.add_job_flow_steps.return_value = {
+            "StepIds": [
+                "step_id",
+            ],
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+
+        hook.create_job_flow({"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": False}})
+
+        steps = [
+            {
+                "ActionOnFailure": "test_step",
+                "HadoopJarStep": {
+                    "Args": ["test args"],
+                    "Jar": "test.jar",
+                },
+                "Name": "step_1",
+            }
+        ]
+
+        hook.add_job_flow_steps(job_flow_id="job_flow_id", steps=steps, wait_for_completion=True)
+
+        mock_conn.get_waiter.assert_called_once_with("step_complete")
+
+    @mock_emr
     def test_create_job_flow_extra_args(self):
         """
         Test that we can add extra arguments to the launch call.

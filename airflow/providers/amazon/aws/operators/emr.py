@@ -22,8 +22,6 @@ import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 from uuid import uuid4
 
-import boto3
-
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
@@ -88,8 +86,6 @@ class EmrAddStepsOperator(BaseOperator):
     def execute(self, context: Context) -> list[str]:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
 
-        emr = emr_hook.get_conn()
-
         job_flow_id = self.job_flow_id or emr_hook.get_cluster_id_by_name(
             str(self.job_flow_name), self.cluster_states
         )
@@ -116,23 +112,7 @@ class EmrAddStepsOperator(BaseOperator):
         if isinstance(steps, str):
             steps = ast.literal_eval(steps)
 
-        response = emr.add_job_flow_steps(JobFlowId=job_flow_id, Steps=steps)
-
-        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
-            raise AirflowException(f"Adding steps failed: {response}")
-
-        self.log.info("Steps %s added to JobFlow", response["StepIds"])
-        if self.wait_for_completion:
-            for step_id in response["StepIds"]:
-                boto3.client("emr").get_waiter("step_complete").wait(
-                    ClusterId=self.job_flow_id,
-                    StepId=step_id,
-                    WaiterConfig={
-                        "Delay": 5,
-                        "MaxAttempts": 100,
-                    },
-                )
-        return response["StepIds"]
+        return emr_hook.add_job_flow_steps(job_flow_id=job_flow_id, steps=steps, wait_for_completion=True)
 
 
 class EmrEksCreateClusterOperator(BaseOperator):
