@@ -937,7 +937,7 @@ class DagFileProcessorManager(LoggingMixin):
         :return: None
         """
         self._file_paths = new_file_paths
-        self._file_path_queue = collections.deque([x for x in self._file_path_queue if x in new_file_paths])
+        self._file_path_queue = collections.deque(x for x in self._file_path_queue if x in new_file_paths)
         # Stop processors that are working on deleted files
         filtered_processors = {}
         for file_path, processor in self._processors.items():
