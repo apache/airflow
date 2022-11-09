@@ -62,6 +62,31 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+def _task_id_to_pod_name(val: str) -> str:
+    """
+    Given a task_id, convert it to a pod name.
+    Adds a 0 if start or end char is invalid.
+    Replaces any other invalid char with `-`.
+
+    :param val: non-empty string, presumed to be a task id
+    :return valid kubernetes object name.
+    """
+    if not val:
+        raise ValueError("_task_id_to_pod_name requires non-empty string.")
+    val = val.lower()
+    if not re.match(r"[a-z0-9]", val[0]):
+        val = f"0{val}"
+    if not re.match(r"[a-z0-9]", val[-1]):
+        val = f"{val}0"
+    val = re.sub(r"[^a-z0-9\-.]", "-", val)
+    if len(val) > 253:
+        raise ValueError(
+            f"Pod name {val} is longer than 253 characters. "
+            "See https://kubernetes.io/docs/concepts/overview/working-with-objects/names/."
+        )
+    return val
+
+
 class PodReattachFailure(AirflowException):
     """When we expect to be able to find a pod but cannot."""
 
@@ -112,7 +137,7 @@ class KubernetesPodOperator(BaseOperator):
     :param annotations: non-identifying metadata you can attach to the Pod.
         Can be a large range of data, and can include characters
         that are not permitted by labels.
-    :param container_resources: resources for the launched pod.
+    :param container_resources: resources for the launched pod. (templated)
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
@@ -160,6 +185,7 @@ class KubernetesPodOperator(BaseOperator):
         "config_file",
         "pod_template_file",
         "namespace",
+        "container_resources",
     )
     template_fields_renderers = {"env_vars": "py"}
 
@@ -293,6 +319,11 @@ class KubernetesPodOperator(BaseOperator):
         if id(content) not in seen_oids and isinstance(content, k8s.V1EnvVar):
             seen_oids.add(id(content))
             self._do_render_template_fields(content, ("value", "name"), context, jinja_env, seen_oids)
+            return
+
+        if id(content) not in seen_oids and isinstance(content, k8s.V1ResourceRequirements):
+            seen_oids.add(id(content))
+            self._do_render_template_fields(content, ("limits", "requests"), context, jinja_env, seen_oids)
             return
 
         super()._render_nested_template_fields(content, context, jinja_env, seen_oids)
@@ -565,7 +596,7 @@ class KubernetesPodOperator(BaseOperator):
         pod = PodGenerator.reconcile_pods(pod_template, pod)
 
         if not pod.metadata.name:
-            pod.metadata.name = self.task_id
+            pod.metadata.name = _task_id_to_pod_name(self.task_id)
 
         if self.random_name_suffix:
             pod.metadata.name = PodGenerator.make_unique_pod_id(pod.metadata.name)
@@ -582,7 +613,9 @@ class KubernetesPodOperator(BaseOperator):
             pod = secret.attach_to_pod(pod)
         if self.do_xcom_push:
             self.log.debug("Adding xcom sidecar to task %s", self.task_id)
-            pod = xcom_sidecar.add_xcom_sidecar(pod)
+            pod = xcom_sidecar.add_xcom_sidecar(
+                pod, sidecar_container_image=self.hook.get_xcom_sidecar_container_image()
+            )
 
         labels = self._get_ti_pod_labels(context)
         self.log.info("Building pod %s with labels: %s", pod.metadata.name, labels)
@@ -631,5 +664,5 @@ class _suppress(AbstractContextManager):
         if caught_error:
             self.exception = excinst
             logger = logging.getLogger(__name__)
-            logger.error(str(excinst), exc_info=True)
+            logger.exception(excinst)
         return caught_error

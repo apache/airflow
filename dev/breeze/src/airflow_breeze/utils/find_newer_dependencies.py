@@ -90,9 +90,11 @@ def find_newer_dependencies(
     for package, constrained_version in constrained_packages.items():
         constraint_string += f' "{package}=={constrained_version}"'
     get_console().print("[info]Use the following pip install command (see the doc above for details)\n")
+    # !!! MAKE SURE YOU SYNCHRONIZE THE LIST BETWEEN: Dockerfile, Dockerfile.ci, find_newer_dependencies.py
     get_console().print(
         'pip install ".[devel_all]" --upgrade --upgrade-strategy eager '
-        '"dill<0.3.3" "pyarrow>=6.0.0" "protobuf<4.21.0"' + constraint_string,
+        '"dill<0.3.3" "pyarrow>=6.0.0" "protobuf<4.21.0" '
+        '"authlib>=1.0.0" "gcloud_aio_auth>=4.0.0" "adal>=1.2.7"' + constraint_string,
         markup=False,
         soft_wrap=True,
     )

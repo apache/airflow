@@ -91,6 +91,9 @@ class KubernetesHook(BaseHook):
             "cluster_context": StringField(lazy_gettext("Cluster context"), widget=BS3TextFieldWidget()),
             "disable_verify_ssl": BooleanField(lazy_gettext("Disable SSL")),
             "disable_tcp_keepalive": BooleanField(lazy_gettext("Disable TCP keepalive")),
+            "xcom_sidecar_container_image": StringField(
+                lazy_gettext("XCom sidecar image"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @staticmethod
@@ -251,7 +254,6 @@ class KubernetesHook(BaseHook):
     ):
         """
         Creates custom resource definition object in Kubernetes
-
         :param group: api group
         :param version: api version
         :param plural: api plural
@@ -260,26 +262,32 @@ class KubernetesHook(BaseHook):
         """
         api = client.CustomObjectsApi(self.api_client)
         namespace = namespace or self._get_namespace() or self.DEFAULT_NAMESPACE
+
         if isinstance(body, str):
             body_dict = _load_body_to_dict(body)
         else:
             body_dict = body
-        try:
-            api.delete_namespaced_custom_object(
-                group=group,
-                version=version,
-                namespace=namespace,
-                plural=plural,
-                name=body_dict["metadata"]["name"],
-            )
-            self.log.warning("Deleted custom resource with the same name.")
-        except client.rest.ApiException:
-            self.log.info("Custom resource %s not found.", body_dict["metadata"]["name"])
+
+        # Attribute "name" is not mandatory if "generateName" is used instead
+        if "name" in body_dict["metadata"]:
+            try:
+                api.delete_namespaced_custom_object(
+                    group=group,
+                    version=version,
+                    namespace=namespace,
+                    plural=plural,
+                    name=body_dict["metadata"]["name"],
+                )
+
+                self.log.warning("Deleted SparkApplication with the same name")
+            except client.rest.ApiException:
+                self.log.info("SparkApplication %s not found", body_dict["metadata"]["name"])
 
         try:
             response = api.create_namespaced_custom_object(
                 group=group, version=version, namespace=namespace, plural=plural, body=body_dict
             )
+
             self.log.debug("Response: %s", response)
             return response
         except client.rest.ApiException as e:
@@ -335,6 +343,10 @@ class KubernetesHook(BaseHook):
         if self.conn_id:
             return self._get_field("namespace")
         return None
+
+    def get_xcom_sidecar_container_image(self):
+        """Returns the xcom sidecar image that defined in the connection"""
+        return self._get_field("xcom_sidecar_container_image")
 
     def get_pod_log_stream(
         self,
