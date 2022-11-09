@@ -229,6 +229,7 @@ class AirflowAppBuilder:
         FAB and Airflow routes
         """
         from flask_appbuilder.security import views as fab_sec_views
+
         from airflow.www.views import get_safe_url
 
         fab_sec_views.get_safe_redirect = get_safe_url
