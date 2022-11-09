@@ -137,7 +137,7 @@ class KubernetesPodOperator(BaseOperator):
     :param annotations: non-identifying metadata you can attach to the Pod.
         Can be a large range of data, and can include characters
         that are not permitted by labels.
-    :param container_resources: resources for the launched pod.
+    :param container_resources: resources for the launched pod. (templated)
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
@@ -185,6 +185,7 @@ class KubernetesPodOperator(BaseOperator):
         "config_file",
         "pod_template_file",
         "namespace",
+        "container_resources",
     )
     template_fields_renderers = {"env_vars": "py"}
 
@@ -318,6 +319,11 @@ class KubernetesPodOperator(BaseOperator):
         if id(content) not in seen_oids and isinstance(content, k8s.V1EnvVar):
             seen_oids.add(id(content))
             self._do_render_template_fields(content, ("value", "name"), context, jinja_env, seen_oids)
+            return
+
+        if id(content) not in seen_oids and isinstance(content, k8s.V1ResourceRequirements):
+            seen_oids.add(id(content))
+            self._do_render_template_fields(content, ("limits", "requests"), context, jinja_env, seen_oids)
             return
 
         super()._render_nested_template_fields(content, context, jinja_env, seen_oids)
