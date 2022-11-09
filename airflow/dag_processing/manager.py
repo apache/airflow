@@ -713,7 +713,7 @@ class DagFileProcessorManager(LoggingMixin):
                 # Since we are already going to use that filepath to run callback,
                 # there is no need to have same file path again in the queue
                 self._file_path_queue = collections.deque(
-                    [file_path for file_path in self._file_path_queue if file_path != request.full_filepath]
+                    file_path for file_path in self._file_path_queue if file_path != request.full_filepath
                 )
             self._file_path_queue.appendleft(request.full_filepath)
 
