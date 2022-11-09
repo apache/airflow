@@ -62,6 +62,8 @@ class TestKubernetesHook:
             ("disable_verify_ssl_empty", {"disable_verify_ssl": ""}),
             ("disable_tcp_keepalive", {"disable_tcp_keepalive": True}),
             ("disable_tcp_keepalive_empty", {"disable_tcp_keepalive": ""}),
+            ("sidecar_container_image", {"xcom_sidecar_container_image": "private.repo.com/alpine:3.16"}),
+            ("sidecar_container_image_empty", {"xcom_sidecar_container_image": ""}),
         ]:
             db.merge_conn(Connection(conn_type="kubernetes", conn_id=conn_id, extra=json.dumps(extra)))
 
@@ -315,6 +317,17 @@ class TestKubernetesHook:
                 "in the connection, then None is returned. To do so, remove get_namespace "
                 "and rename _get_namespace to get_namespace."
             )
+
+    @pytest.mark.parametrize(
+        "conn_id, expected",
+        (
+            pytest.param("sidecar_container_image", "private.repo.com/alpine:3.16", id="sidecar-with-image"),
+            pytest.param("sidecar_container_image_empty", None, id="sidecar-without-image"),
+        ),
+    )
+    def test_get_xcom_sidecar_container_image(self, conn_id, expected):
+        hook = KubernetesHook(conn_id=conn_id)
+        assert hook.get_xcom_sidecar_container_image() == expected
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")

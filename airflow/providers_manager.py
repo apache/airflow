@@ -564,6 +564,15 @@ class ProvidersManager(LoggingMixin):
                 if already_registered:
                     if already_registered.package_name != package_name:
                         already_registered_warning_connection_types.add(connection_type)
+                    else:
+                        log.warning(
+                            "The connection type '%s' is already registered in the"
+                            " package '%s' with different class names: '%s' and '%s'. ",
+                            connection_type,
+                            package_name,
+                            already_registered.hook_class_name,
+                            hook_class_name,
+                        )
                 else:
                     self._hook_provider_dict[connection_type] = HookClassProvider(
                         hook_class_name=hook_class_name, package_name=package_name

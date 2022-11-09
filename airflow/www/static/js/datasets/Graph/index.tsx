@@ -41,7 +41,12 @@ const Graph = ({
   const { data, isLoading } = useDatasetDependencies();
 
   if (isLoading && !data) return <Spinner />;
-  if (!data) return null;
+  if (!data || !data.fullGraph || !data.subGraphs) return null;
+  const graph = selectedUri ? data.subGraphs.find((g) => g.children.some((n) => n.id === `dataset:${selectedUri}`)) : data.fullGraph;
+  if (!graph) return null;
+  const {
+    edges, children, width: graphWidth, height: graphHeight,
+  } = graph;
 
   const initialTransform = {
     scaleX: 1,
@@ -53,10 +58,10 @@ const Graph = ({
   };
 
   const selectedEdges = selectedUri
-    ? data.edges?.filter(({ sources, targets }) => (
+    ? edges?.filter(({ sources, targets }) => (
       sources[0].includes(selectedUri) || targets[0].includes(selectedUri)))
     : [];
-  const highlightedNodes = data?.children
+  const highlightedNodes = children
     .filter((n) => (
       selectedEdges.some(({ sources, targets }) => (
         sources[0] === n.id || targets[0] === n.id))));
@@ -81,15 +86,15 @@ const Graph = ({
             style={{ cursor: zoom.isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
           >
             <g transform={zoom.toString()}>
-              <g height={data.height} width={data.width}>
-                {data.edges.map((edge) => (
+              <g height={graphHeight} width={graphWidth}>
+                {edges.map((edge) => (
                   <Edge
                     key={edge.id}
                     edge={edge}
                     isSelected={selectedEdges.some((e) => e.id === edge.id)}
                   />
                 ))}
-                {data.children.map((node) => (
+                {children.map((node) => (
                   <Node
                     key={node.id}
                     node={node}
@@ -105,8 +110,8 @@ const Graph = ({
                 <Legend
                   zoom={zoom}
                   center={() => zoom.translateTo({
-                    x: (width - (data.width ?? 0)) / 2,
-                    y: (height - (data.height ?? 0)) / 2,
+                    x: (width - (graphWidth ?? 0)) / 2,
+                    y: (height - (graphHeight ?? 0)) / 2,
                   })}
                 />
               </foreignObject>
