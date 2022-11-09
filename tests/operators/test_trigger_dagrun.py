@@ -139,7 +139,7 @@ class TestDagRunOperator:
             execution_date=custom_execution_date,
             dag=self.dag,
         )
-        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         with create_session() as session:
             dagrun = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
