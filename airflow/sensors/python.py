@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Mapping, Sequence
 
-from airflow.sensors.base import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator, PokeReturnValue
 from airflow.utils.context import Context, context_merge
 from airflow.utils.operator_helpers import determine_kwargs
 
@@ -65,10 +65,10 @@ class PythonSensor(BaseSensorOperator):
         self.op_kwargs = op_kwargs or {}
         self.templates_dict = templates_dict
 
-    def poke(self, context: Context) -> bool:
+    def poke(self, context: Context) -> PokeReturnValue:
         context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
         self.op_kwargs = determine_kwargs(self.python_callable, self.op_args, context)
 
         self.log.info("Poking callable: %s", str(self.python_callable))
         return_value = self.python_callable(*self.op_args, **self.op_kwargs)
-        return bool(return_value)
+        return PokeReturnValue(bool(return_value))

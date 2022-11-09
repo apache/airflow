@@ -257,7 +257,7 @@ class ComputeEngineSSHHook(SSHHook):
                     raise
             self.log.info("Failed to connect. Waiting %ds to retry", time_to_wait)
             time.sleep(time_to_wait)
-        raise AirflowException("Caa not connect to instance")
+        raise AirflowException("Can not connect to instance")
 
     def _authorize_compute_engine_instance_metadata(self, pubkey):
         self.log.info("Appending SSH public key to instance metadata")
