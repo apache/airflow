@@ -68,6 +68,10 @@ Disable TCP keepalive
   TCP keepalive is a feature (enabled by default) that tries to keep long-running connections
   alive. Set this parameter to True to disable this feature.
 
+Xcom sidecar image
+  Define the ``image`` used by the ``PodDefaults.SIDECAR_CONTAINER`` (defaults to ``"alpine"``) to allow private
+  repositories, as well as custom image overrides.
+
 Example storing connection in env var using URI format:
 
 .. code-block:: bash
