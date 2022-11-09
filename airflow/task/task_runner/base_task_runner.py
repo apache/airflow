@@ -115,13 +115,12 @@ class BaseTaskRunner(LoggingMixin):
                 line.rstrip('\n'),
             )
 
-    def run_command(self, run_with=None):
+    def run_command(self, run_with=None) -> subprocess.Popen:
         """
         Run the task command.
 
         :param run_with: list of tokens to run the task command with e.g. ``['bash', '-c']``
         :return: the process that was run
-        :rtype: subprocess.Popen
         """
         run_with = run_with or []
         full_cmd = run_with + self._command
@@ -169,7 +168,6 @@ class BaseTaskRunner(LoggingMixin):
         """
         :return: The return code associated with running the task instance or
             None if the task is not yet done.
-        :rtype: int
         """
         raise NotImplementedError()
 

@@ -127,7 +127,6 @@ class OSSHook(BaseHook):
         :param key: the path of the object
         :param bucket_name: the name of the bucket
         :return: True if it exists and False if not.
-        :rtype: bool
         """
         try:
             return self.get_bucket(bucket_name).object_exists(key)
@@ -142,7 +141,6 @@ class OSSHook(BaseHook):
 
         :param bucket_name: the name of the bucket
         :return: the bucket object to the bucket name.
-        :rtype: oss2.api.Bucket
         """
         auth = self.get_credential()
         assert self.region is not None
@@ -198,7 +196,6 @@ class OSSHook(BaseHook):
         :param local_file: local path + file name to save.
         :param bucket_name: the name of the bucket
         :return: the file name.
-        :rtype: str
         """
         try:
             self.get_bucket(bucket_name).get_object_to_file(key, local_file)

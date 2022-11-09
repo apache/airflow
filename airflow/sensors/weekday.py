@@ -76,6 +76,11 @@ class DayOfWeekSensor(BaseSensorOperator):
         If ``False``, uses system's day of the week. Useful when you
         don't want to run anything on weekdays on the system.
     :param use_task_execution_day: deprecated parameter, same effect as `use_task_logical_date`
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/operator:DayOfWeekSensor`
+
     """
 
     def __init__(

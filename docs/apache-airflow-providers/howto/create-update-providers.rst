@@ -328,8 +328,8 @@ this (note the ``if ti_key is not None:`` condition).
     def get_link(
         self,
         operator: BaseOperator,
-        dttm: Optional[datetime] = None,
-        ti_key: Optional["TaskInstanceKey"] = None,
+        dttm: datetime | None = None,
+        ti_key: "TaskInstanceKey" | None = None,
     ):
         if ti_key is not None:
             job_ids = XCom.get_value(key="job_id", ti_key=ti_key)

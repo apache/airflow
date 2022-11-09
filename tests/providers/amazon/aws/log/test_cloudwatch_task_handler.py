@@ -22,6 +22,8 @@ from datetime import datetime as dt
 from unittest import mock
 from unittest.mock import call
 
+import boto3
+import moto
 import pytest
 from watchtower import CloudWatchLogHandler
 
@@ -34,13 +36,6 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
 
-try:
-    import boto3
-    import moto
-    from moto import mock_logs
-except ImportError:
-    mock_logs = None
-
 
 def get_time_str(time_in_milliseconds):
     dt_time = dt.utcfromtimestamp(time_in_milliseconds / 1000.0)
@@ -49,11 +44,10 @@ def get_time_str(time_in_milliseconds):
 
 @pytest.fixture(autouse=True, scope="module")
 def logmock():
-    with mock_logs():
+    with moto.mock_logs():
         yield
 
 
-@pytest.mark.skipif(mock_logs is None, reason="Skipping test because moto.mock_logs is not available")
 class TestCloudwatchTaskHandler:
     @conf_vars({("logging", "remote_log_conn_id"): "aws_default"})
     @pytest.fixture(autouse=True)

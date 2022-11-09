@@ -127,6 +127,7 @@ def dag_backfill(args, dag=None):
                     rerun_failed_tasks=args.rerun_failed_tasks,
                     run_backwards=args.run_backwards,
                     continue_on_failures=args.continue_on_failures,
+                    disable_retry=args.disable_retry,
                 )
             except ValueError as vr:
                 print(str(vr))
@@ -449,7 +450,7 @@ def dag_list_dag_runs(args, dag=None, session=NEW_SESSION):
 @provide_session
 @cli_utils.action_cli
 def dag_test(args, dag=None, session=None):
-    """Execute one single DagRun for a given DAG and execution date, using the DebugExecutor."""
+    """Execute one single DagRun for a given DAG and execution date."""
     run_conf = None
     if args.conf:
         try:

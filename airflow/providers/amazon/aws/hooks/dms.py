@@ -43,12 +43,11 @@ class DmsHook(AwsBaseHook):
         kwargs["client_type"] = "dms"
         super().__init__(*args, **kwargs)
 
-    def describe_replication_tasks(self, **kwargs):
+    def describe_replication_tasks(self, **kwargs) -> tuple[str | None, list]:
         """
         Describe replication tasks
 
         :return: Marker and list of replication tasks
-        :rtype: (Optional[str], list)
         """
         dms_client = self.get_conn()
         response = dms_client.describe_replication_tasks(**kwargs)

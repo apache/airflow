@@ -117,6 +117,7 @@ with DAG(
             "awsvpcConfiguration": {
                 "subnets": test_context[SUBNETS_KEY],
                 "securityGroups": test_context[SECURITY_GROUPS_KEY],
+                "assignPublicIp": "ENABLED",
             },
         },
     )

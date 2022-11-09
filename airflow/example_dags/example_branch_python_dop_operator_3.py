@@ -29,13 +29,12 @@ from airflow.operators.empty import EmptyOperator
 
 
 @task.branch()
-def should_run(**kwargs):
+def should_run(**kwargs) -> str:
     """
     Determine which empty_task should be run based on if the execution date minute is even or odd.
 
     :param dict kwargs: Context
     :return: Id of the task to run
-    :rtype: str
     """
     print(
         f"------------- exec dttm = {kwargs['execution_date']} and minute = {kwargs['execution_date'].minute}"

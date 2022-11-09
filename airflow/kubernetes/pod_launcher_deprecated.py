@@ -141,7 +141,6 @@ class PodLauncher(LoggingMixin):
 
         :param pod: pod spec that will be monitored
         :param get_logs: whether to read the logs locally
-        :return:  Tuple[State, Optional[str]]
         """
         if get_logs:
             read_logs_since_sec = None
@@ -182,7 +181,6 @@ class PodLauncher(LoggingMixin):
 
         :param line: k8s log line
         :return: timestamp and log message
-        :rtype: Tuple[str, str]
         """
         split_at = line.find(' ')
         if split_at == -1:

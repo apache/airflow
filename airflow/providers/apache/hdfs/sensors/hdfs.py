@@ -98,7 +98,6 @@ class HdfsSensor(BaseSensorOperator):
         :param ignored_ext: list of ignored extensions
         :param ignore_copying: shall we ignore ?
         :return: list of dicts which were not removed
-        :rtype: list[dict]
         """
         if ignore_copying:
             regex_builder = r"^.*\.(%s$)$" % "$|".join(ignored_ext)

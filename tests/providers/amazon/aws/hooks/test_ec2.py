@@ -17,15 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
+import pytest
 from moto import mock_ec2
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 
 
-class TestEC2Hook(unittest.TestCase):
+class TestEC2Hook:
     def test_init(self):
         ec2_hook = EC2Hook(
             aws_conn_id="aws_conn_test",
@@ -36,6 +35,27 @@ class TestEC2Hook(unittest.TestCase):
         ec2_hook.get_connection = lambda _: None
         assert ec2_hook.aws_conn_id == "aws_conn_test"
         assert ec2_hook.region_name == "region-test"
+
+    @classmethod
+    def _create_instances(cls, hook: EC2Hook, max_count=1, min_count=1):
+        """Create Instances and return all instance ids."""
+        conn = hook.get_conn()
+        try:
+            ec2_client = conn.meta.client
+        except AttributeError:
+            ec2_client = conn
+
+        # We need existed AMI Image ID otherwise `moto` will raise DeprecationWarning.
+        images = ec2_client.describe_images()["Images"]
+        response = ec2_client.run_instances(
+            MaxCount=max_count, MinCount=min_count, ImageId=images[0]["ImageId"]
+        )
+        return [instance["InstanceId"] for instance in response["Instances"]]
+
+    @classmethod
+    def _create_instance(cls, hook: EC2Hook):
+        """Create Instance and return instance id."""
+        return cls._create_instances(hook)[0]
 
     @mock_ec2
     def test_get_conn_returns_boto3_resource(self):
@@ -52,11 +72,7 @@ class TestEC2Hook(unittest.TestCase):
     @mock_ec2
     def test_get_instance(self):
         ec2_hook = EC2Hook()
-        created_instances = ec2_hook.conn.create_instances(
-            MaxCount=1,
-            MinCount=1,
-        )
-        created_instance_id = created_instances[0].instance_id
+        created_instance_id = self._create_instance(ec2_hook)
         # test get_instance method
         existing_instance = ec2_hook.get_instance(instance_id=created_instance_id)
         assert created_instance_id == existing_instance.instance_id
@@ -64,12 +80,7 @@ class TestEC2Hook(unittest.TestCase):
     @mock_ec2
     def test_get_instance_state(self):
         ec2_hook = EC2Hook()
-        created_instances = ec2_hook.conn.create_instances(
-            MaxCount=1,
-            MinCount=1,
-        )
-
-        created_instance_id = created_instances[0].instance_id
+        created_instance_id = self._create_instance(ec2_hook)
         all_instances = list(ec2_hook.conn.instances.all())
         created_instance_state = all_instances[0].state["Name"]
         # test get_instance_state method
@@ -79,12 +90,7 @@ class TestEC2Hook(unittest.TestCase):
     @mock_ec2
     def test_client_type_get_instance_state(self):
         ec2_hook = EC2Hook(api_type="client_type")
-        created_instances = ec2_hook.conn.run_instances(
-            MaxCount=1,
-            MinCount=1,
-        )
-
-        created_instance_id = created_instances["Instances"][0]["InstanceId"]
+        created_instance_id = self._create_instance(ec2_hook)
         all_instances = ec2_hook.get_instances()
         created_instance_state = all_instances[0]["State"]["Name"]
 
@@ -94,12 +100,7 @@ class TestEC2Hook(unittest.TestCase):
     @mock_ec2
     def test_client_type_start_instances(self):
         ec2_hook = EC2Hook(api_type="client_type")
-        created_instances = ec2_hook.conn.run_instances(
-            MaxCount=1,
-            MinCount=1,
-        )
-
-        created_instance_id = created_instances["Instances"][0]["InstanceId"]
+        created_instance_id = self._create_instance(ec2_hook)
         response = ec2_hook.start_instances(instance_ids=[created_instance_id])
 
         assert response["StartingInstances"][0]["InstanceId"] == created_instance_id
@@ -108,12 +109,7 @@ class TestEC2Hook(unittest.TestCase):
     @mock_ec2
     def test_client_type_stop_instances(self):
         ec2_hook = EC2Hook(api_type="client_type")
-        created_instances = ec2_hook.conn.run_instances(
-            MaxCount=1,
-            MinCount=1,
-        )
-
-        created_instance_id = created_instances["Instances"][0]["InstanceId"]
+        created_instance_id = self._create_instance(ec2_hook)
         response = ec2_hook.stop_instances(instance_ids=[created_instance_id])
 
         assert response["StoppingInstances"][0]["InstanceId"] == created_instance_id
@@ -122,12 +118,7 @@ class TestEC2Hook(unittest.TestCase):
     @mock_ec2
     def test_client_type_terminate_instances(self):
         ec2_hook = EC2Hook(api_type="client_type")
-        created_instances = ec2_hook.conn.run_instances(
-            MaxCount=1,
-            MinCount=1,
-        )
-
-        created_instance_id = created_instances["Instances"][0]["InstanceId"]
+        created_instance_id = self._create_instance(ec2_hook)
         response = ec2_hook.terminate_instances(instance_ids=[created_instance_id])
 
         assert response["TerminatingInstances"][0]["InstanceId"] == created_instance_id
@@ -136,12 +127,7 @@ class TestEC2Hook(unittest.TestCase):
     @mock_ec2
     def test_client_type_describe_instances(self):
         ec2_hook = EC2Hook(api_type="client_type")
-        created_instances = ec2_hook.conn.run_instances(
-            MaxCount=1,
-            MinCount=1,
-        )
-
-        created_instance_id = created_instances["Instances"][0]["InstanceId"]
+        created_instance_id = self._create_instance(ec2_hook)
 
         # Without filter
         response = ec2_hook.describe_instances(instance_ids=[created_instance_id])
@@ -168,13 +154,8 @@ class TestEC2Hook(unittest.TestCase):
     @mock_ec2
     def test_client_type_get_instances(self):
         ec2_hook = EC2Hook(api_type="client_type")
-        created_instances = ec2_hook.conn.run_instances(
-            MaxCount=2,
-            MinCount=2,
-        )
-
-        created_instance_id_1 = created_instances["Instances"][0]["InstanceId"]
-        created_instance_id_2 = created_instances["Instances"][1]["InstanceId"]
+        created_instances = self._create_instances(ec2_hook, max_count=2, min_count=2)
+        created_instance_id_1, created_instance_id_2 = created_instances
 
         # Without filter
         response = ec2_hook.get_instances(instance_ids=[created_instance_id_1, created_instance_id_2])
@@ -210,13 +191,8 @@ class TestEC2Hook(unittest.TestCase):
     @mock_ec2
     def test_client_type_get_instance_ids(self):
         ec2_hook = EC2Hook(api_type="client_type")
-        created_instances = ec2_hook.conn.run_instances(
-            MaxCount=2,
-            MinCount=2,
-        )
-
-        created_instance_id_1 = created_instances["Instances"][0]["InstanceId"]
-        created_instance_id_2 = created_instances["Instances"][1]["InstanceId"]
+        created_instances = self._create_instances(ec2_hook, max_count=2, min_count=2)
+        created_instance_id_1, created_instance_id_2 = created_instances
 
         # Without filter
         response = ec2_hook.get_instance_ids()
@@ -244,12 +220,12 @@ class TestEC2Hook(unittest.TestCase):
         ec2_hook = EC2Hook()
 
         # Try calling a method which is only supported by client_type API
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             ec2_hook.get_instances()
 
         # Explicitly provide resource_type as api_type
         ec2_hook = EC2Hook(api_type="resource_type")
 
         # Try calling a method which is only supported by client_type API
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             ec2_hook.describe_instances()

@@ -230,7 +230,6 @@ def load_variables(file_path: str) -> dict[str, str]:
     ``JSON``, `YAML` and ``.env`` files are supported.
 
     :param file_path: The location of the file that will be processed.
-    :rtype: Dict[str, List[str]]
     """
     log.debug("Loading variables from a text file")
 
@@ -260,7 +259,6 @@ def load_connections_dict(file_path: str) -> dict[str, Any]:
     ``JSON``, `YAML` and ``.env`` files are supported.
 
     :return: A dictionary where the key contains a connection ID and the value contains the connection.
-    :rtype: Dict[str, airflow.models.connection.Connection]
     """
     log.debug("Loading connection")
 

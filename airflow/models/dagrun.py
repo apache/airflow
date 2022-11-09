@@ -281,7 +281,7 @@ class DagRun(Base, LoggingMixin):
         state: DagRunState,
         session: Session,
         max_number: int | None = None,
-    ):
+    ) -> list[DagRun]:
         """
         Return the next DagRuns that the scheduler should attempt to schedule.
 
@@ -289,7 +289,6 @@ class DagRun(Base, LoggingMixin):
         query, you should ensure that any scheduling decisions are made in a single transaction -- as soon as
         the transaction is committed it will be unlocked.
 
-        :rtype: list[airflow.models.DagRun]
         """
         from airflow.models.dag import DagModel
 
@@ -1136,7 +1135,6 @@ class DagRun(Base, LoggingMixin):
         :param execution_date: execution date
         :return: DagRun corresponding to the given dag_id and execution date
             if one exists. None otherwise.
-        :rtype: airflow.models.DagRun
         """
         warnings.warn(
             "This method is deprecated. Please use SQLAlchemy directly",

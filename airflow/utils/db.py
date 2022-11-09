@@ -911,7 +911,6 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
     Check unique conn_id in connection table
 
     :param session:  session of the sqlalchemy
-    :rtype: str
     """
     from airflow.models.connection import Connection
 
@@ -928,6 +927,36 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
             'before upgrading the database.\n'
             f'Duplicated conn_id: {[dup.conn_id for dup in dups]}'
         )
+
+
+def check_username_duplicates(session: Session) -> Iterable[str]:
+    """
+    Check unique username in User & RegisterUser table
+
+    :param session:  session of the sqlalchemy
+    :rtype: str
+    """
+    from airflow.www.fab_security.sqla.models import RegisterUser, User
+
+    for model in [User, RegisterUser]:
+        dups = []
+        try:
+            dups = (
+                session.query(model.username)  # type: ignore[attr-defined]
+                .group_by(model.username)  # type: ignore[attr-defined]
+                .having(func.count() > 1)
+                .all()
+            )
+        except (exc.OperationalError, exc.ProgrammingError):
+            # fallback if tables hasn't been created yet
+            session.rollback()
+        if dups:
+            yield (
+                f'Seems you have mixed case usernames in {model.__table__.name} table.\n'  # type: ignore
+                'You have to rename or delete those mixed case usernames '
+                'before upgrading the database.\n'
+                f'usernames with mixed cases: {[dup.username for dup in dups]}'
+            )
 
 
 def reflect_tables(tables: list[Base | str] | None, session):
@@ -974,15 +1003,14 @@ def check_table_for_duplicates(
                 return
             yield from check_table_for_duplicates(
                 table_name=task_fail.name,
-                uniqueness=['dag_id', 'task_id', 'execution_date'],
+                uniqueness=["dag_id", "task_id", "execution_date"],
                 session=session,
-                version='2.3',
+                version="2.3",
             )
 
     :param table_name: table name to check
     :param uniqueness: uniqueness constraint to evaluate against
     :param session:  session of the sqlalchemy
-    :rtype: str
     """
     minimal_table_obj = table(table_name, *[column(x) for x in uniqueness])
     try:
@@ -1024,7 +1052,6 @@ def check_conn_type_null(session: Session) -> Iterable[str]:
     Check nullable conn_type column in Connection table
 
     :param session:  session of the sqlalchemy
-    :rtype: str
     """
     from airflow.models.connection import Connection
 
@@ -1395,15 +1422,13 @@ def check_bad_references(session: Session) -> Iterable[str]:
 
 @provide_session
 def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
-    """
-    :session: session of the sqlalchemy
-    :rtype: list[str]
-    """
+    """:session: session of the sqlalchemy"""
     check_functions: tuple[Callable[..., Iterable[str]], ...] = (
         check_conn_id_duplicates,
         check_conn_type_null,
         check_run_id_null,
         check_bad_references,
+        check_username_duplicates,
     )
     for check_fn in check_functions:
         log.debug("running check function %s", check_fn.__name__)
@@ -1444,14 +1469,13 @@ def _revision_greater(config, this_rev, base_rev):
         return False
 
 
-def _revisions_above_min_for_offline(config, revisions):
+def _revisions_above_min_for_offline(config, revisions) -> None:
     """
     Checks that all supplied revision ids are above the minimum revision for the dialect.
 
     :param config: Alembic config
     :param revisions: list of Alembic revision ids
     :return: None
-    :rtype: None
     """
     dbname = settings.engine.dialect.name
     if dbname == 'sqlite':
@@ -1488,7 +1512,6 @@ def upgradedb(
     :param show_sql_only: if True, migration statements will be printed but not executed.
     :param session: sqlalchemy session with connection to Airflow metadata database
     :return: None
-    :rtype: None
     """
     if from_revision and not show_sql_only:
         raise AirflowException("`from_revision` only supported with `sql_only=True`.")
@@ -1692,7 +1715,7 @@ def drop_flask_models(connection):
     :param connection: SQLAlchemy Connection
     :return: None
     """
-    from flask_appbuilder.models.sqla import Base
+    from airflow.www.fab_security.sqla.models import Base
 
     Base.metadata.drop_all(connection)
 

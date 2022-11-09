@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Removed deprecated classes path tableau_job_status and tableau_refresh_workbook (#27288).``
+
 3.0.1
 .....
 

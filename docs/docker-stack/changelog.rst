@@ -55,6 +55,14 @@ here so that users affected can find the reason for the changes.
 |              |                     |                                         | on 17 Jan 2022         |                                              |
 +--------------+---------------------+-----------------------------------------+------------------------+----------------------------------------------+
 
+Airflow 2.5
+~~~~~~~~~~~
+
+* 2.5.0
+
+  * The docker CLI binary is now added to the images by default (available on PATH). Version 20.10.9 is used.
+
+
 Airflow 2.4
 ~~~~~~~~~~~
 

@@ -21,16 +21,11 @@ from unittest import mock
 
 import boto3
 import pytest
+from moto import mock_emr
 
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
 
-try:
-    from moto import mock_emr
-except ImportError:
-    mock_emr = None
 
-
-@pytest.mark.skipif(mock_emr is None, reason="moto package not present")
 class TestEmrHook:
     @mock_emr
     def test_get_conn_returns_a_boto3_connection(self):
@@ -41,8 +36,10 @@ class TestEmrHook:
     def test_create_job_flow_uses_the_emr_config_to_create_a_cluster(self):
         client = boto3.client("emr", region_name="us-east-1")
 
-        hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default")
-        cluster = hook.create_job_flow({"Name": "test_cluster"})
+        hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default", region_name="us-east-1")
+        cluster = hook.create_job_flow(
+            {"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": False}}
+        )
 
         assert client.list_clusters()["Clusters"][0]["Id"] == cluster["JobFlowId"]
 

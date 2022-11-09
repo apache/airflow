@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import unittest
-from typing import Any, Dict
+from typing import Any
 from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
@@ -28,7 +28,7 @@ from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
-API_RESPONSE = {}  # type: Dict[Any, Any]
+API_RESPONSE: dict[Any, Any] = {}
 PROJECT_ID = "test-project"
 LOCATION = "asia-east2"
 FULL_LOCATION_PATH = "projects/test-project/locations/asia-east2"

@@ -27,7 +27,7 @@
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -219,7 +219,7 @@ class CreateHyperparameterTuningJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = None  # type: Optional[HyperparameterTuningJobHook]
+        self.hook: HyperparameterTuningJobHook | None = None
 
     def execute(self, context: Context):
         self.log.info("Creating Hyperparameter Tuning job")

@@ -21,6 +21,7 @@ import logging
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
@@ -37,14 +38,13 @@ CORE_TASK_RUNNERS = {
 }
 
 
-def get_task_runner(local_task_job):
+def get_task_runner(local_task_job) -> BaseTaskRunner:
     """
     Get the task runner that can be used to run the given job.
 
     :param local_task_job: The LocalTaskJob associated with the TaskInstance
         that needs to be executed.
     :return: The task runner to use to run the task.
-    :rtype: airflow.task.task_runner.base_task_runner.BaseTaskRunner
     """
     if _TASK_RUNNER_NAME in CORE_TASK_RUNNERS:
         log.debug("Loading core task runner: %s", _TASK_RUNNER_NAME)

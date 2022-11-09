@@ -30,20 +30,9 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import partial
 from types import TracebackType
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Collection,
-    ContextManager,
-    Generator,
-    Iterable,
-    NamedTuple,
-    Tuple,
-)
+from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, NamedTuple, Tuple
 from urllib.parse import quote
 
-import attr
 import dill
 import jinja2
 import lazy_object_proxy
@@ -69,8 +58,6 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
-from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
 from sqlalchemy.sql.expression import ColumnOperators
@@ -101,7 +88,7 @@ from airflow.models.param import process_params
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.xcom import XCOM_RETURN_KEY, XCom
+from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComAccess, XCom
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
 from airflow.stats import Stats
@@ -289,91 +276,6 @@ def clear_task_instances(
                 dr.last_scheduling_decision = None
                 dr.start_date = None
     session.flush()
-
-
-class _LazyXComAccessIterator(collections.abc.Iterator):
-    __slots__ = ['_cm', '_it']
-
-    def __init__(self, cm: ContextManager[Query]):
-        self._cm = cm
-        self._it = None
-
-    def __del__(self):
-        if self._it:
-            self._cm.__exit__(None, None, None)
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if not self._it:
-            self._it = iter(self._cm.__enter__())
-        return XCom.deserialize_value(next(self._it))
-
-
-@attr.define
-class _LazyXComAccess(collections.abc.Sequence):
-    """Wrapper to lazily pull XCom with a sequence-like interface.
-
-    Note that since the session bound to the parent query may have died when we
-    actually access the sequence's content, we must create a new session
-    for every function call with ``with_session()``.
-    """
-
-    dag_id: str
-    run_id: str
-    task_id: str
-    _query: Query = attr.ib(repr=False)
-    _len: int | None = attr.ib(init=False, repr=False, default=None)
-
-    @classmethod
-    def build_from_single_xcom(cls, first: XCom, query: Query) -> _LazyXComAccess:
-        return cls(
-            dag_id=first.dag_id,
-            run_id=first.run_id,
-            task_id=first.task_id,
-            query=query.with_entities(XCom.value)
-            .filter(
-                XCom.run_id == first.run_id,
-                XCom.task_id == first.task_id,
-                XCom.dag_id == first.dag_id,
-                XCom.map_index >= 0,
-            )
-            .order_by(None)
-            .order_by(XCom.map_index.asc()),
-        )
-
-    def __len__(self):
-        if self._len is None:
-            with self._get_bound_query() as query:
-                self._len = query.count()
-        return self._len
-
-    def __iter__(self):
-        return _LazyXComAccessIterator(self._get_bound_query())
-
-    def __getitem__(self, key):
-        if not isinstance(key, int):
-            raise ValueError("only support index access for now")
-        try:
-            with self._get_bound_query() as query:
-                r = query.offset(key).limit(1).one()
-        except NoResultFound:
-            raise IndexError(key) from None
-        return XCom.deserialize_value(r)
-
-    @contextlib.contextmanager
-    def _get_bound_query(self) -> Generator[Query, None, None]:
-        # Do we have a valid session already?
-        if self._query.session and self._query.session.is_active:
-            yield self._query
-            return
-
-        session = settings.Session()
-        try:
-            yield self._query.with_session(session)
-        finally:
-            session.close()
 
 
 class TaskInstanceKey(NamedTuple):
@@ -744,7 +646,6 @@ class TaskInstance(Base, LoggingMixin):
         :param pool: the Airflow pool that the task should run in
         :param cfg_path: the Path to the configuration file
         :return: shell command that can be used to run the task instance
-        :rtype: list[str]
         """
         cmd = ["airflow", "tasks", "run", dag_id, task_id, run_id]
         if mark_success:
@@ -1283,7 +1184,6 @@ class TaskInstance(Base, LoggingMixin):
         :param external_executor_id: The identifier of the celery executor
         :param session: SQLAlchemy ORM Session
         :return: whether the state was changed to running or not
-        :rtype: bool
         """
         task = self.task
         self.refresh_from_task(task, pool_override=pool)
@@ -2441,7 +2341,7 @@ class TaskInstance(Base, LoggingMixin):
             if map_indexes is not None or first.map_index < 0:
                 return XCom.deserialize_value(first)
 
-            return _LazyXComAccess.build_from_single_xcom(first, query)
+            return LazyXComAccess.build_from_single_xcom(first, query)
 
         # At this point either task_ids or map_indexes is explicitly multi-value.
 
@@ -2558,6 +2458,67 @@ class TaskInstance(Base, LoggingMixin):
         if len(filters) == 1:
             return filters[0]
         return or_(*filters)
+
+    @Sentry.enrich_errors
+    @provide_session
+    def schedule_downstream_tasks(self, session=None):
+        """
+        The mini-scheduler for scheduling downstream tasks of this task instance
+        :meta: private
+        """
+        from sqlalchemy.exc import OperationalError
+
+        from airflow.models import DagRun
+
+        try:
+            # Re-select the row with a lock
+            dag_run = with_row_locks(
+                session.query(DagRun).filter_by(
+                    dag_id=self.dag_id,
+                    run_id=self.run_id,
+                ),
+                session=session,
+            ).one()
+
+            task = self.task
+            if TYPE_CHECKING:
+                assert task.dag
+
+            # Get a partial DAG with just the specific tasks we want to examine.
+            # In order for dep checks to work correctly, we include ourself (so
+            # TriggerRuleDep can check the state of the task we just executed).
+            partial_dag = task.dag.partial_subset(
+                task.downstream_task_ids,
+                include_downstream=True,
+                include_upstream=False,
+                include_direct_upstream=True,
+            )
+
+            dag_run.dag = partial_dag
+            info = dag_run.task_instance_scheduling_decisions(session)
+
+            skippable_task_ids = {
+                task_id for task_id in partial_dag.task_ids if task_id not in task.downstream_task_ids
+            }
+
+            schedulable_tis = [ti for ti in info.schedulable_tis if ti.task_id not in skippable_task_ids]
+            for schedulable_ti in schedulable_tis:
+                if not hasattr(schedulable_ti, "task"):
+                    schedulable_ti.task = task.dag.get_task(schedulable_ti.task_id)
+
+            num = dag_run.schedule_tis(schedulable_tis, session=session)
+            self.log.info("%d downstream tasks scheduled from follow-on schedule check", num)
+
+            session.flush()
+
+        except OperationalError as e:
+            # Any kind of DB error here is _non fatal_ as this block is just an optimisation.
+            self.log.info(
+                "Skipping mini scheduling run due to exception: %s",
+                e.statement,
+                exc_info=True,
+            )
+            session.rollback()
 
 
 # State of the task instance.

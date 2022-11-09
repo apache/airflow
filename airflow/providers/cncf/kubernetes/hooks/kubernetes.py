@@ -72,6 +72,8 @@ class KubernetesHook(BaseHook):
     conn_type = "kubernetes"
     hook_name = "Kubernetes Cluster Connection"
 
+    DEFAULT_NAMESPACE = "default"
+
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
@@ -89,6 +91,9 @@ class KubernetesHook(BaseHook):
             "cluster_context": StringField(lazy_gettext("Cluster context"), widget=BS3TextFieldWidget()),
             "disable_verify_ssl": BooleanField(lazy_gettext("Disable SSL")),
             "disable_tcp_keepalive": BooleanField(lazy_gettext("Disable TCP keepalive")),
+            "xcom_sidecar_container_image": StringField(
+                lazy_gettext("XCom sidecar image"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @staticmethod
@@ -149,17 +154,6 @@ class KubernetesHook(BaseHook):
             return self.conn_extras[field_name] or None
         prefixed_name = f"extra__kubernetes__{field_name}"
         return self.conn_extras.get(prefixed_name) or None
-
-    @staticmethod
-    def _deprecation_warning_core_param(deprecation_warnings):
-        settings_list_str = "".join([f"\n\t{k}={v!r}" for k, v in deprecation_warnings])
-        warnings.warn(
-            f"\nApplying core Airflow settings from section [kubernetes] with the following keys:"
-            f"{settings_list_str}\n"
-            "In a future release, KubernetesPodOperator will no longer consider core\n"
-            "Airflow settings; define an Airflow connection instead.",
-            DeprecationWarning,
-        )
 
     def get_conn(self) -> client.ApiClient:
         """Returns kubernetes api session for use with requests"""
@@ -260,7 +254,6 @@ class KubernetesHook(BaseHook):
     ):
         """
         Creates custom resource definition object in Kubernetes
-
         :param group: api group
         :param version: api version
         :param plural: api plural
@@ -268,28 +261,33 @@ class KubernetesHook(BaseHook):
         :param namespace: kubernetes namespace
         """
         api = client.CustomObjectsApi(self.api_client)
-        if namespace is None:
-            namespace = self.get_namespace()
+        namespace = namespace or self._get_namespace() or self.DEFAULT_NAMESPACE
+
         if isinstance(body, str):
             body_dict = _load_body_to_dict(body)
         else:
             body_dict = body
-        try:
-            api.delete_namespaced_custom_object(
-                group=group,
-                version=version,
-                namespace=namespace,
-                plural=plural,
-                name=body_dict["metadata"]["name"],
-            )
-            self.log.warning("Deleted SparkApplication with the same name.")
-        except client.rest.ApiException:
-            self.log.info("SparkApp %s not found.", body_dict["metadata"]["name"])
+
+        # Attribute "name" is not mandatory if "generateName" is used instead
+        if "name" in body_dict["metadata"]:
+            try:
+                api.delete_namespaced_custom_object(
+                    group=group,
+                    version=version,
+                    namespace=namespace,
+                    plural=plural,
+                    name=body_dict["metadata"]["name"],
+                )
+
+                self.log.warning("Deleted SparkApplication with the same name")
+            except client.rest.ApiException:
+                self.log.info("SparkApplication %s not found", body_dict["metadata"]["name"])
 
         try:
             response = api.create_namespaced_custom_object(
                 group=group, version=version, namespace=namespace, plural=plural, body=body_dict
             )
+
             self.log.debug("Response: %s", response)
             return response
         except client.rest.ApiException as e:
@@ -308,8 +306,7 @@ class KubernetesHook(BaseHook):
         :param namespace: kubernetes namespace
         """
         api = client.CustomObjectsApi(self.api_client)
-        if namespace is None:
-            namespace = self.get_namespace()
+        namespace = namespace or self._get_namespace() or self.DEFAULT_NAMESPACE
         try:
             response = api.get_namespaced_custom_object(
                 group=group, version=version, namespace=namespace, plural=plural, name=name
@@ -319,10 +316,37 @@ class KubernetesHook(BaseHook):
             raise AirflowException(f"Exception when calling -> get_custom_object: {e}\n")
 
     def get_namespace(self) -> str | None:
-        """Returns the namespace that defined in the connection"""
+        """
+        Returns the namespace defined in the connection or 'default'.
+
+        TODO: in provider version 6.0, return None when namespace not defined in connection
+        """
+        namespace = self._get_namespace()
+        if self.conn_id and not namespace:
+            warnings.warn(
+                "Airflow connection defined but namespace is not set; returning 'default'.  In "
+                "cncf.kubernetes provider version 6.0 we will return None when namespace is "
+                "not defined in the connection so that it's clear whether user intends 'default' or "
+                "whether namespace is unset (which is required in order to apply precedence logic in "
+                "KubernetesPodOperator).",
+                DeprecationWarning,
+            )
+            return "default"
+        return namespace
+
+    def _get_namespace(self) -> str | None:
+        """
+        Returns the namespace that defined in the connection
+
+        TODO: in provider version 6.0, get rid of this method and make it the behavior of get_namespace.
+        """
         if self.conn_id:
-            return self._get_field("namespace") or "default"
+            return self._get_field("namespace")
         return None
+
+    def get_xcom_sidecar_container_image(self):
+        """Returns the xcom sidecar image that defined in the connection"""
+        return self._get_field("xcom_sidecar_container_image")
 
     def get_pod_log_stream(
         self,
@@ -344,7 +368,7 @@ class KubernetesHook(BaseHook):
                 self.core_v1_client.read_namespaced_pod_log,
                 name=pod_name,
                 container=container,
-                namespace=namespace if namespace else self.get_namespace(),
+                namespace=namespace or self._get_namespace() or self.DEFAULT_NAMESPACE,
             ),
         )
 
@@ -365,7 +389,7 @@ class KubernetesHook(BaseHook):
             name=pod_name,
             container=container,
             _preload_content=False,
-            namespace=namespace if namespace else self.get_namespace(),
+            namespace=namespace or self._get_namespace() or self.DEFAULT_NAMESPACE,
         )
 
 

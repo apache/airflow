@@ -151,7 +151,6 @@ class SchedulerJob(BaseJob):
         # Check what SQL backend we use
         sql_conn: str = conf.get_mandatory_value('database', 'sql_alchemy_conn').lower()
         self.using_sqlite = sql_conn.startswith('sqlite')
-        self.using_mysql = sql_conn.startswith('mysql')
         # Dag Processor agent - not used in Dag Processor standalone mode.
         self.processor_agent: DagFileProcessorAgent | None = None
 
@@ -200,7 +199,6 @@ class SchedulerJob(BaseJob):
 
         ``grace_multiplier`` is accepted for compatibility with the parent class.
 
-        :rtype: boolean
         """
         if grace_multiplier is not None:
             # Accept the same behaviour as superclass
@@ -220,7 +218,6 @@ class SchedulerJob(BaseJob):
         :param states: List of states to query for
         :return: A map from (dag_id, task_id) to # of task instances and
          a map from (dag_id, task_id) to # of task instances in the given state list
-        :rtype: tuple[dict[str, int], dict[tuple[str, str], int]]
         """
         ti_concurrency_query: list[tuple[str, str, int]] = (
             session.query(TI.task_id, TI.dag_id, func.count('*'))
@@ -814,7 +811,6 @@ class SchedulerJob(BaseJob):
 
         .. image:: ../docs/apache-airflow/img/scheduler_loop.jpg
 
-        :rtype: None
         """
         if not self.processor_agent and not self._standalone_dag_processor:
             raise ValueError("Processor agent is not started.")
@@ -930,7 +926,6 @@ class SchedulerJob(BaseJob):
           See docs of _critical_section_enqueue_task_instances for more.
 
         :return: Number of TIs enqueued in this iteration
-        :rtype: int
         """
         # Put a check in place to make sure we don't commit unexpectedly
         with prohibit_commit(session) as guard:
@@ -1376,7 +1371,6 @@ class SchedulerJob(BaseJob):
         enqueued by a SchedulerJob that is no longer running.
 
         :return: the number of TIs reset
-        :rtype: int
         """
         self.log.info("Resetting orphaned tasks for active dag runs")
         timeout = conf.getint('scheduler', 'scheduler_health_check_threshold')

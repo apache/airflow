@@ -21,10 +21,11 @@ from __future__ import annotations
 import logging
 import random
 import time
-from typing import Callable, Dict, List
+from typing import Callable
 
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
+from httplib2 import Response
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.version import version as airflow_version
@@ -34,7 +35,9 @@ log = logging.getLogger(__name__)
 _AIRFLOW_VERSION = "v" + airflow_version.replace(".", "-").replace("+", "-")
 
 
-def _poll_with_exponential_delay(request, execute_num_retries, max_n, is_done_func, is_error_func):
+def _poll_with_exponential_delay(
+    request, execute_num_retries, max_n, is_done_func, is_error_func
+) -> Response:
     """
     Execute request with exponential delay.
 
@@ -48,7 +51,6 @@ def _poll_with_exponential_delay(request, execute_num_retries, max_n, is_done_fu
     :param is_done_func: callable to determine if operation is done.
     :param is_error_func: callable to determine if operation is failed.
     :return: response
-    :rtype: httplib2.Response
     """
     for i in range(0, max_n):
         try:
@@ -115,7 +117,6 @@ class MLEngineHook(GoogleBaseHook):
             we by default reuse the existing MLEngine job.
         :return: The MLEngine job object if the job successfully reach a
             terminal state (which might be FAILED or CANCELLED state).
-        :rtype: dict
         """
         hook = self.get_conn()
 
@@ -161,7 +162,6 @@ class MLEngineHook(GoogleBaseHook):
         :param job_id: A unique id for the want-to-be cancelled Google MLEngine training job.
 
         :return: Empty dict if cancelled successfully
-        :rtype: dict
         :raises: googleapiclient.errors.HttpError
         """
         hook = self.get_conn()
@@ -189,7 +189,6 @@ class MLEngineHook(GoogleBaseHook):
             project_id from the Google Cloud connection is used. (templated)
         :param job_id: A unique id for the Google MLEngine job. (templated)
         :return: MLEngine job object if succeed.
-        :rtype: dict
         :raises: googleapiclient.errors.HttpError
         """
         hook = self.get_conn()
@@ -247,7 +246,6 @@ class MLEngineHook(GoogleBaseHook):
             (templated)
         :return: If the version was created successfully, returns the operation.
             Otherwise raises an error .
-        :rtype: dict
         """
         hook = self.get_conn()
         parent_name = f"projects/{project_id}/models/{model_name}"
@@ -283,7 +281,6 @@ class MLEngineHook(GoogleBaseHook):
             or missing, the default project_id from the Google Cloud connection is used. (templated)
         :return: If successful, return an instance of Version.
             Otherwise raises an error.
-        :rtype: dict
         :raises: googleapiclient.errors.HttpError
         """
         hook = self.get_conn()
@@ -313,11 +310,10 @@ class MLEngineHook(GoogleBaseHook):
         :param project_id: The Google Cloud project name to which MLEngine model belongs. If set to None or
             missing, the default project_id from the Google Cloud connection is used. (templated)
         :return: return an list of instance of Version.
-        :rtype: List[Dict]
         :raises: googleapiclient.errors.HttpError
         """
         hook = self.get_conn()
-        result = []  # type: List[Dict]
+        result: list[dict] = []
         full_parent_name = f"projects/{project_id}/models/{model_name}"
 
         request = hook.projects().models().versions().list(parent=full_parent_name, pageSize=100)
@@ -351,7 +347,6 @@ class MLEngineHook(GoogleBaseHook):
             model belongs.
         :return: If the version was deleted successfully, returns the operation.
             Otherwise raises an error.
-        :rtype: Dict
         """
         hook = self.get_conn()
         full_name = f"projects/{project_id}/models/{model_name}/versions/{version_name}"
@@ -381,7 +376,6 @@ class MLEngineHook(GoogleBaseHook):
             missing, the default project_id from the Google Cloud connection is used. (templated)
         :return: If the version was created successfully, returns the instance of Model.
             Otherwise raises an error.
-        :rtype: Dict
         :raises: googleapiclient.errors.HttpError
         """
         hook = self.get_conn()
@@ -431,7 +425,6 @@ class MLEngineHook(GoogleBaseHook):
             or missing, the default project_id from the Google Cloud connection is used. (templated)
         :return: If the model exists, returns the instance of Model.
             Otherwise return None.
-        :rtype: Dict
         :raises: googleapiclient.errors.HttpError
         """
         hook = self.get_conn()

@@ -120,7 +120,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                         "command": ["bash", "-cx"],
                         "env": [],
                         "envFrom": [],
-                        "resources": {},
                         "name": "base",
                         "ports": [],
                         "volumeMounts": [],
@@ -342,8 +341,8 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         self.expected_pod["spec"]["schedulerName"] = scheduler_name
         assert self.expected_pod == actual_pod
 
-    def test_pod_node_selectors(self):
-        node_selectors = {"beta.kubernetes.io/os": "linux"}
+    def test_pod_node_selector(self):
+        node_selector = {"beta.kubernetes.io/os": "linux"}
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
@@ -354,12 +353,12 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
             do_xcom_push=False,
-            node_selectors=node_selectors,
+            node_selector=node_selector,
         )
         context = create_context(k)
         k.execute(context)
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        self.expected_pod["spec"]["nodeSelector"] = node_selectors
+        self.expected_pod["spec"]["nodeSelector"] = node_selector
         assert self.expected_pod == actual_pod
 
     def test_pod_resources(self):
@@ -922,6 +921,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         # todo: This isn't really a system test
         await_xcom_sidecar_container_start_mock.return_value = None
         hook_mock.return_value.is_in_cluster = False
+        hook_mock.return_value.get_xcom_sidecar_container_image.return_value = None
         extract_xcom_mock.return_value = "{}"
         path = sys.path[0] + "/tests/kubernetes/pod.yaml"
         k = KubernetesPodOperator(
@@ -1150,3 +1150,26 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             with pytest.raises(AirflowException):
                 k.execute(context)
             create_mock.assert_called_once()
+
+    def test_using_resources(self):
+        exception_message = (
+            "Specifying resources for the launched pod with 'resources' is deprecated. "
+            "Use 'container_resources' instead."
+        )
+        with pytest.raises(AirflowException, match=exception_message):
+            resources = k8s.V1ResourceRequirements(
+                requests={"memory": "64Mi", "cpu": "250m", "ephemeral-storage": "1Gi"},
+                limits={"memory": "64Mi", "cpu": 0.25, "nvidia.com/gpu": None, "ephemeral-storage": "2Gi"},
+            )
+            KubernetesPodOperator(
+                namespace="default",
+                image="ubuntu:16.04",
+                cmds=["bash", "-cx"],
+                arguments=["echo 10"],
+                labels=self.labels,
+                name="test-" + str(random.randint(0, 1000000)),
+                task_id="task" + self.get_current_task_name(),
+                in_cluster=False,
+                do_xcom_push=False,
+                resources=resources,
+            )

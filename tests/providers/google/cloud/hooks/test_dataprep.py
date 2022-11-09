@@ -18,31 +18,32 @@
 from __future__ import annotations
 
 import json
-import unittest
+import os
 from unittest import mock
 from unittest.mock import patch
 
 import pytest
+from pytest import param
 from requests import HTTPError
 from tenacity import RetryError
 
-from airflow.providers.google.cloud.hooks import dataprep
+from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook
 
 JOB_ID = 1234567
 RECIPE_ID = 1234567
 TOKEN = "1111"
-EXTRA = {"extra__dataprep__token": TOKEN}
+EXTRA = {"token": TOKEN}
 EMBED = ""
 INCLUDE_DELETED = False
 DATA = json.dumps({"wrangledDataset": {"id": RECIPE_ID}})
 URL = "https://api.clouddataprep.com/v4/jobGroups"
 
 
-class TestGoogleDataprepHook(unittest.TestCase):
-    def setUp(self):
+class TestGoogleDataprepHook:
+    def setup(self):
         with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
             conn.return_value.extra_dejson = EXTRA
-            self.hook = dataprep.GoogleDataprepHook(dataprep_conn_id="dataprep_default")
+            self.hook = GoogleDataprepHook(dataprep_conn_id="dataprep_default")
 
     @patch("airflow.providers.google.cloud.hooks.dataprep.requests.get")
     def test_get_jobs_for_job_group_should_be_called_once_with_params(self, mock_get_request):
@@ -204,3 +205,16 @@ class TestGoogleDataprepHook(unittest.TestCase):
             self.hook.run_job_group(body_request=DATA)
         assert "HTTPError" in str(ctx.value)
         assert mock_get_request.call_count == 5
+
+    @pytest.mark.parametrize(
+        "uri",
+        [
+            param("a://?extra__dataprep__token=abc&extra__dataprep__base_url=abc", id="prefix"),
+            param("a://?token=abc&base_url=abc", id="no-prefix"),
+        ],
+    )
+    def test_conn_extra_backcompat_prefix(self, uri):
+        with patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}):
+            hook = GoogleDataprepHook("my_conn")
+            assert hook._token == "abc"
+            assert hook._base_url == "abc"

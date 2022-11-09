@@ -52,12 +52,10 @@ operators:
   - integration-name: Tableau
     python-modules:
       - airflow.providers.tableau.operators.tableau
-      - airflow.providers.tableau.operators.tableau_refresh_workbook
 
 sensors:
   - integration-name: Tableau
     python-modules:
-      - airflow.providers.tableau.sensors.tableau_job_status
       - airflow.providers.tableau.sensors.tableau
 
 hooks:

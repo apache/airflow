@@ -180,7 +180,6 @@ repos:
           - --target-version=py38
           - --target-version=py39
           - --target-version=py310
-          - --skip-string-normalization
         alias: black
         additional_dependencies: [black==22.3.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -375,7 +374,7 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
       - id: update-providers-dependencies
         name: Update cross-dependencies for providers packages
-        entry: ./scripts/ci/pre_commit/pre_commit_build_providers_dependencies.py
+        entry: ./scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
         language: python
         files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$|^airflow/providers/.*/provider.yaml$
         pass_filenames: false

@@ -78,7 +78,7 @@ class BaseDatabricksHook(BaseHook):
     :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     """
 
-    conn_name_attr = "databricks_conn_id"
+    conn_name_attr: str = "databricks_conn_id"
     default_conn_name = "databricks_default"
     conn_type = "databricks"
 
@@ -376,7 +376,6 @@ class BaseDatabricksHook(BaseHook):
 
         :param aad_token: dict with properties of AAD token
         :return: true if token is valid, false otherwise
-        :rtype: bool
         """
         now = int(time.time())
         if aad_token["expires_on"] > (now + TOKEN_REFRESH_LEAD_TIME):
@@ -483,7 +482,6 @@ class BaseDatabricksHook(BaseHook):
         :return: If the api call returns a OK status code,
             this function returns the response in JSON. Otherwise,
             we throw an AirflowException.
-        :rtype: dict
         """
         method, endpoint = endpoint_info
 

@@ -339,7 +339,6 @@ def _get_scopes(scopes: str | None = None) -> Sequence[str]:
 
     :param scopes: A comma-separated string containing OAuth2 scopes
     :return: Returns the scope defined in the connection configuration, or the default scope
-    :rtype: Sequence[str]
     """
     return [s.strip() for s in scopes.split(",")] if scopes else _DEFAULT_SCOPES
 
@@ -356,7 +355,6 @@ def _get_target_principal_and_delegates(
         account
 
     :return: Returns the tuple of target_principal and delegates
-    :rtype: Tuple[Optional[str], Optional[Sequence[str]]]
     """
     if not impersonation_chain:
         return None, None
@@ -374,7 +372,6 @@ def _get_project_id_from_service_account_email(service_account_email: str) -> st
     :param service_account_email: email of the service account.
 
     :return: Returns the project_id of the provided service account.
-    :rtype: str
     """
     try:
         return service_account_email.split("@")[1].split(".")[0]

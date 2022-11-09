@@ -25,7 +25,7 @@
 # undefined attribute errors from Mypy. Hopefully there will be a mechanism to
 # declare "these are defined, but don't error if others are accessed" someday.
 
-from typing import Any, Collection, Container, Iterable, Mapping, Optional, Set, Tuple, Union, overload
+from typing import Any, Container, Iterable, Mapping, Union, overload
 
 from pendulum import DateTime
 
@@ -38,7 +38,7 @@ from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
 from airflow.typing_compat import TypedDict
 
-KNOWN_CONTEXT_KEYS: Set[str]
+KNOWN_CONTEXT_KEYS: set[str]
 
 class _VariableAccessors(TypedDict):
     json: Any
@@ -66,24 +66,24 @@ class Context(TypedDict, total=False):
     inlets: list
     logical_date: DateTime
     macros: Any
-    next_ds: Optional[str]
-    next_ds_nodash: Optional[str]
-    next_execution_date: Optional[DateTime]
+    next_ds: str | None
+    next_ds_nodash: str | None
+    next_execution_date: DateTime | None
     outlets: list
     params: ParamsDict
-    prev_data_interval_start_success: Optional[DateTime]
-    prev_data_interval_end_success: Optional[DateTime]
-    prev_ds: Optional[str]
-    prev_ds_nodash: Optional[str]
-    prev_execution_date: Optional[DateTime]
-    prev_execution_date_success: Optional[DateTime]
-    prev_start_date_success: Optional[DateTime]
+    prev_data_interval_start_success: DateTime | None
+    prev_data_interval_end_success: DateTime | None
+    prev_ds: str | None
+    prev_ds_nodash: str | None
+    prev_execution_date: DateTime | None
+    prev_execution_date_success: DateTime | None
+    prev_start_date_success: DateTime | None
     run_id: str
     task: BaseOperator
     task_instance: TaskInstance
     task_instance_key_str: str
     test_mode: bool
-    templates_dict: Optional[Mapping[str, Any]]
+    templates_dict: Mapping[str, Any] | None
     ti: TaskInstance
     tomorrow_ds: str
     tomorrow_ds_nodash: str
@@ -91,7 +91,7 @@ class Context(TypedDict, total=False):
     ts: str
     ts_nodash: str
     ts_nodash_with_tz: str
-    try_number: Optional[int]
+    try_number: int | None
     var: _VariableAccessors
     yesterday_ds: str
     yesterday_ds_nodash: str
@@ -101,7 +101,7 @@ class AirflowContextDeprecationWarning(DeprecationWarning): ...
 @overload
 def context_merge(context: Context, additions: Mapping[str, Any], **kwargs: Any) -> None: ...
 @overload
-def context_merge(context: Context, additions: Iterable[Tuple[str, Any]], **kwargs: Any) -> None: ...
+def context_merge(context: Context, additions: Iterable[tuple[str, Any]], **kwargs: Any) -> None: ...
 @overload
 def context_merge(context: Context, **kwargs: Any) -> None: ...
 def context_update_for_unmapped(context: Context, task: BaseOperator) -> None: ...

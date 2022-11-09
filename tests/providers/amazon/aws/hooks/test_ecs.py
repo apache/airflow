@@ -26,11 +26,6 @@ from botocore.exceptions import ClientError
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook, EcsTaskLogFetcher, should_retry, should_retry_eni
 
-try:
-    from moto import mock_ecs
-except ImportError:
-    mock_ecs = None
-
 DEFAULT_CONN_ID: str = "aws_default"
 REGION: str = "us-east-1"
 
@@ -41,7 +36,6 @@ def mock_conn():
         yield _conn
 
 
-@pytest.mark.skipif(mock_ecs is None, reason="mock_ecs package not present")
 class TestEksHooks:
     def test_hook(self) -> None:
         hook = EcsHook(region_name=REGION)

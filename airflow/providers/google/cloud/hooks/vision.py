@@ -82,7 +82,6 @@ class NameDeterminer:
         :param location: Location
         :param project_id: The id of Google Cloud Vision project.
         :return: The same entity or entity with new name
-        :rtype: str
         :raises: AirflowException
         """
         entity = deepcopy(entity)
@@ -142,7 +141,6 @@ class CloudVisionHook(GoogleBaseHook):
         Retrieves connection to Cloud Vision.
 
         :return: Google Cloud Vision client object.
-        :rtype: google.cloud.vision_v1.ProductSearchClient
         """
         if not self._client:
             self._client = ProductSearchClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
@@ -154,7 +152,6 @@ class CloudVisionHook(GoogleBaseHook):
         Creates ImageAnnotatorClient.
 
         :return: Google Image Annotator client object.
-        :rtype: google.cloud.vision_v1.ImageAnnotatorClient
         """
         return ImageAnnotatorClient(credentials=self.get_credentials())
 
@@ -424,7 +421,7 @@ class CloudVisionHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-    ) -> dict:
+    ) -> None:
         """
         For the documentation see:
         :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDeleteReferenceImageOperator`
@@ -435,7 +432,7 @@ class CloudVisionHook(GoogleBaseHook):
             project=project_id, location=location, product=product_id, reference_image=reference_image_id
         )
 
-        response = client.delete_reference_image(
+        client.delete_reference_image(
             name=name,
             retry=retry,
             timeout=timeout,
@@ -443,7 +440,6 @@ class CloudVisionHook(GoogleBaseHook):
         )
 
         self.log.info("ReferenceImage with the name [%s] deleted.", name)
-        return MessageToDict(response)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def add_product_to_product_set(

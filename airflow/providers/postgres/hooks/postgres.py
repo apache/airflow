@@ -18,9 +18,10 @@
 from __future__ import annotations
 
 import os
+import warnings
 from contextlib import closing
 from copy import deepcopy
-from typing import Iterable, Union
+from typing import Any, Iterable, Union
 
 import psycopg2
 import psycopg2.extensions
@@ -67,10 +68,38 @@ class PostgresHook(DbApiHook):
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:
+        if "schema" in kwargs:
+            warnings.warn(
+                'The "schema" arg has been renamed to "database" as it contained the database name.'
+                'Please use "database" to set the database name.',
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            kwargs["database"] = kwargs["schema"]
         super().__init__(*args, **kwargs)
         self.connection: Connection | None = kwargs.pop("connection", None)
         self.conn: connection = None
-        self.schema: str | None = kwargs.pop("schema", None)
+        self.database: str | None = kwargs.pop("database", None)
+
+    @property
+    def schema(self):
+        warnings.warn(
+            'The "schema" variable has been renamed to "database" as it contained the database name.'
+            'Please use "database" to get the database name.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.database
+
+    @schema.setter
+    def schema(self, value):
+        warnings.warn(
+            'The "schema" variable has been renamed to "database" as it contained the database name.'
+            'Please use "database" to set the database name.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.database = value
 
     def _get_cursor(self, raw_cursor: str) -> CursorType:
         _cursor = raw_cursor.lower()
@@ -95,7 +124,7 @@ class PostgresHook(DbApiHook):
             host=conn.host,
             user=conn.login,
             password=conn.password,
-            dbname=self.schema or conn.schema,
+            dbname=self.database or conn.schema,
             port=conn.port,
         )
         raw_cursor = conn.extra_dejson.get("cursor", False)
@@ -143,7 +172,9 @@ class PostgresHook(DbApiHook):
         Extract the URI from the connection.
         :return: the extracted uri.
         """
-        uri = super().get_uri().replace("postgres://", "postgresql://")
+        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn.schema = self.database or conn.schema
+        uri = conn.get_uri().replace("postgres://", "postgresql://")
         return uri
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
@@ -155,7 +186,7 @@ class PostgresHook(DbApiHook):
         self.copy_expert(f"COPY {table} TO STDOUT", tmp_file)
 
     @staticmethod
-    def _serialize_cell(cell: object, conn: connection | None = None) -> object:
+    def _serialize_cell(cell: object, conn: connection | None = None) -> Any:
         """
         Postgresql will adapt all arguments to the execute() method internally,
         hence we return cell without any conversion.
@@ -166,7 +197,6 @@ class PostgresHook(DbApiHook):
         :param cell: The cell to insert into the table
         :param conn: The database connection
         :return: The cell
-        :rtype: object
         """
         return cell
 
@@ -197,7 +227,7 @@ class PostgresHook(DbApiHook):
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html#Redshift.Client.get_cluster_credentials
             cluster_creds = redshift_client.get_cluster_credentials(
                 DbUser=login,
-                DbName=self.schema or conn.schema,
+                DbName=self.database or conn.schema,
                 ClusterIdentifier=cluster_identifier,
                 AutoCreate=False,
             )
@@ -217,7 +247,6 @@ class PostgresHook(DbApiHook):
         :param table: Name of the target table
         :param schema: Name of the target schema, public by default
         :return: Primary key columns list
-        :rtype: List[str]
         """
         sql = """
             select kcu.column_name
@@ -248,7 +277,6 @@ class PostgresHook(DbApiHook):
         :param replace_index: the column or list of column names to act as
             index for the ON CONFLICT clause
         :return: The generated INSERT or REPLACE SQL statement
-        :rtype: str
         """
         placeholders = [
             "%s",

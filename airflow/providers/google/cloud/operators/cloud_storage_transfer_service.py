@@ -115,7 +115,6 @@ class TransferJobPreprocessor:
         reformats schedule information.
 
         :return: Preprocessed body
-        :rtype: dict
         """
         self._inject_aws_credentials()
         self._reformat_schedule()

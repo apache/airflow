@@ -90,7 +90,6 @@ class LivyHook(HttpHook, LoggingMixin):
 
         :param headers: additional headers to be passed through as a dictionary
         :return: requests session
-        :rtype: requests.Session
         """
         tmp_headers = self._def_headers.copy()  # setting default headers
         if headers:
@@ -115,7 +114,6 @@ class LivyHook(HttpHook, LoggingMixin):
         :param retry_args: Arguments which define the retry behaviour.
             See Tenacity documentation at https://github.com/jd/tenacity
         :return: http response
-        :rtype: requests.Response
         """
         if method not in ("GET", "POST", "PUT", "DELETE", "HEAD"):
             raise ValueError(f"Invalid http method '{method}'")
@@ -140,12 +138,11 @@ class LivyHook(HttpHook, LoggingMixin):
             self.method = back_method
         return result
 
-    def post_batch(self, *args: Any, **kwargs: Any) -> Any:
+    def post_batch(self, *args: Any, **kwargs: Any) -> int:
         """
         Perform request to submit batch
 
         :return: batch session id
-        :rtype: int
         """
         batch_submit_body = json.dumps(self.build_post_batch_body(*args, **kwargs))
 
@@ -174,13 +171,12 @@ class LivyHook(HttpHook, LoggingMixin):
 
         return batch_id
 
-    def get_batch(self, session_id: int | str) -> Any:
+    def get_batch(self, session_id: int | str) -> dict:
         """
         Fetch info about the specified batch
 
         :param session_id: identifier of the batch sessions
         :return: response body
-        :rtype: dict
         """
         self._validate_session_id(session_id)
 
@@ -205,7 +201,6 @@ class LivyHook(HttpHook, LoggingMixin):
         :param retry_args: Arguments which define the retry behaviour.
             See Tenacity documentation at https://github.com/jd/tenacity
         :return: batch state
-        :rtype: BatchState
         """
         self._validate_session_id(session_id)
 
@@ -227,13 +222,12 @@ class LivyHook(HttpHook, LoggingMixin):
             raise AirflowException(f"Unable to get state for batch with id: {session_id}")
         return BatchState(jresp["state"])
 
-    def delete_batch(self, session_id: int | str) -> Any:
+    def delete_batch(self, session_id: int | str) -> dict:
         """
         Delete the specified batch
 
         :param session_id: identifier of the batch sessions
         :return: response body
-        :rtype: dict
         """
         self._validate_session_id(session_id)
 
@@ -252,7 +246,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
         return response.json()
 
-    def get_batch_logs(self, session_id: int | str, log_start_position, log_batch_size) -> Any:
+    def get_batch_logs(self, session_id: int | str, log_start_position, log_batch_size) -> dict:
         """
         Gets the session logs for a specified batch.
         :param session_id: identifier of the batch sessions
@@ -260,7 +254,6 @@ class LivyHook(HttpHook, LoggingMixin):
         :param log_batch_size: Number of lines to pull in one batch
 
         :return: response body
-        :rtype: dict
         """
         self._validate_session_id(session_id)
         log_params = {"from": log_start_position, "size": log_batch_size}
@@ -277,13 +270,12 @@ class LivyHook(HttpHook, LoggingMixin):
             )
         return response.json()
 
-    def dump_batch_logs(self, session_id: int | str) -> Any:
+    def dump_batch_logs(self, session_id: int | str) -> None:
         """
         Dumps the session logs for a specified batch
 
         :param session_id: identifier of the batch sessions
         :return: response body
-        :rtype: dict
         """
         self.log.info("Fetching the logs for batch session with id: %d", session_id)
         log_start_line = 0
@@ -312,26 +304,24 @@ class LivyHook(HttpHook, LoggingMixin):
             raise TypeError("'session_id' must be an integer")
 
     @staticmethod
-    def _parse_post_response(response: dict[Any, Any]) -> Any:
+    def _parse_post_response(response: dict[Any, Any]) -> int | None:
         """
         Parse batch response for batch id
 
         :param response: response body
         :return: session id
-        :rtype: int
         """
         return response.get("id")
 
     @staticmethod
-    def _parse_request_response(response: dict[Any, Any], parameter) -> Any:
+    def _parse_request_response(response: dict[Any, Any], parameter):
         """
         Parse batch response for batch id
 
         :param response: response body
         :return: value of parameter
-        :rtype: Union[int, list]
         """
-        return response.get(parameter)
+        return response.get(parameter, [])
 
     @staticmethod
     def build_post_batch_body(
@@ -351,7 +341,7 @@ class LivyHook(HttpHook, LoggingMixin):
         queue: str | None = None,
         proxy_user: str | None = None,
         conf: dict[Any, Any] | None = None,
-    ) -> Any:
+    ) -> dict:
         """
         Build the post batch request body.
         For more information about the format refer to
@@ -373,7 +363,6 @@ class LivyHook(HttpHook, LoggingMixin):
         :param name: The name of this session string.
         :param conf: Spark configuration properties.
         :return: request body
-        :rtype: dict
         """
         body: dict[str, Any] = {"file": file}
 
@@ -417,7 +406,6 @@ class LivyHook(HttpHook, LoggingMixin):
 
         :param size: size value
         :return: true if valid format
-        :rtype: bool
         """
         if size and not (isinstance(size, str) and re.match(r"^\d+[kmgt]b?$", size, re.IGNORECASE)):
             raise ValueError(f"Invalid java size format for string'{size}'")
@@ -430,7 +418,6 @@ class LivyHook(HttpHook, LoggingMixin):
 
         :param vals: list to validate
         :return: true if valid
-        :rtype: bool
         """
         if (
             vals is None
@@ -447,7 +434,6 @@ class LivyHook(HttpHook, LoggingMixin):
 
         :param conf: configuration variable
         :return: true if valid
-        :rtype: bool
         """
         if conf:
             if not isinstance(conf, dict):

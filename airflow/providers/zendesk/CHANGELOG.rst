@@ -72,7 +72,7 @@ Misc
 .....
 
 Misc
-~~~
+~~~~
 ``ZendeskHook`` moved from using ``zdesk`` to ``zenpy`` package.
 
 Breaking changes
