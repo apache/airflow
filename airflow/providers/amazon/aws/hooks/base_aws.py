@@ -28,6 +28,8 @@ import datetime
 import inspect
 import json
 import logging
+import os
+import uuid
 import warnings
 from copy import deepcopy
 from functools import wraps
@@ -453,11 +455,21 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             # no condition should an error here ever cause an issue for the user.
             return "Unknown"
 
+    @staticmethod
+    def _generate_dag_key():
+        dag_id = os.getenv("AIRFLOW_CTX_DAG_ID", "default_dag_id")
+        # The Object Identifier (OID) namespace is used to salt the dag_id value.
+        # That salted value is used to generate a SHA-1 hash which, by definition,
+        # can not (reasonably) be reversed.  No personal data can be inferred or
+        # extracted from the resulting UUID.
+        return str(uuid.uuid5(uuid.NAMESPACE_OID, dag_id))
+
     def _generate_user_agent_extra_field(self, existing_user_agent_extra: str) -> str:
         user_agent_extra_values = [
             f"Airflow/{airflow_version}",
             f"AmPP/{self._get_provider_version()}",
             f"Caller/{self._get_caller()}",
+            f"DagRunKey/{self._generate_dag_key()}",
             existing_user_agent_extra or "",
         ]
         return " ".join(user_agent_extra_values).strip()

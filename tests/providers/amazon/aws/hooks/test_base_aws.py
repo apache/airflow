@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from base64 import b64encode
 from datetime import datetime, timedelta, timezone
 from unittest import mock
@@ -313,7 +314,7 @@ class TestAwsBaseHook:
         We are only looking for the keys appended by the AwsBaseHook. A user_agent string
         is a number of key/value pairs such as: `BOTO3/1.25.4 AIRFLOW/2.5.0.DEV0 AMPP/6.0.0`.
         """
-        expected_user_agent_tag_keys = ["Airflow", "AmPP", "Caller"]
+        expected_user_agent_tag_keys = ["Airflow", "AmPP", "Caller", "DagRunKey"]
 
         result_user_agent_tags = client_meta.config.user_agent.split(" ")
         result_user_agent_tag_keys = [tag.split("/")[0].lower() for tag in result_user_agent_tags]
@@ -344,6 +345,14 @@ class TestAwsBaseHook:
         user_agent_tags = self.fetch_tags()
 
         assert user_agent_tags["Caller"] == default_caller_name
+
+    @mock.patch.object(AwsBaseHook, "_get_caller", return_value="Test")
+    def test_user_agent_dag_run_key_is_hashed(self, _):
+        uuid5_template = r"^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$"
+
+        dag_run_key = self.fetch_tags()["DagRunKey"]
+
+        assert re.match(uuid5_template, dag_run_key)
 
     @mock.patch.object(AwsBaseHook, "get_connection")
     @mock_sts
