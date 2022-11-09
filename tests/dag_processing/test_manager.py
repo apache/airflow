@@ -301,7 +301,7 @@ class TestDagFileProcessorManager:
         )
 
         manager.set_file_paths(dag_files)
-        assert manager._file_path_queue == collections.deque([])
+        assert manager._file_path_queue == collections.deque()
         manager.prepare_file_path_queue()
         assert manager._file_path_queue == collections.deque(
             ["file_1.py", "file_2.py", "file_3.py", "file_4.py"]
@@ -330,7 +330,7 @@ class TestDagFileProcessorManager:
         )
 
         manager.set_file_paths(dag_files)
-        assert manager._file_path_queue == collections.deque([])
+        assert manager._file_path_queue == collections.deque()
         manager.prepare_file_path_queue()
 
         expected_order = collections.deque(dag_files)
@@ -368,7 +368,7 @@ class TestDagFileProcessorManager:
         )
 
         manager.set_file_paths(dag_files)
-        assert manager._file_path_queue == collections.deque([])
+        assert manager._file_path_queue == collections.deque()
         manager.prepare_file_path_queue()
         assert manager._file_path_queue == collections.deque(
             ["file_4.py", "file_1.py", "file_3.py", "file_2.py"]
@@ -471,10 +471,10 @@ class TestDagFileProcessorManager:
         }
         with freeze_time(freezed_base_time):
             manager.set_file_paths(dag_files)
-            assert manager._file_path_queue == collections.deque([])
+            assert manager._file_path_queue == collections.deque()
             # File Path Queue will be empty as the "modified time" < "last finish time"
             manager.prepare_file_path_queue()
-            assert manager._file_path_queue == collections.deque([])
+            assert manager._file_path_queue == collections.deque()
 
         # Simulate the DAG modification by using modified_time which is greater
         # than the last_parse_time but still less than now - min_file_process_interval
@@ -482,7 +482,7 @@ class TestDagFileProcessorManager:
         file_1_new_mtime_ts = file_1_new_mtime.timestamp()
         with freeze_time(freezed_base_time):
             manager.set_file_paths(dag_files)
-            assert manager._file_path_queue == collections.deque([])
+            assert manager._file_path_queue == collections.deque()
             # File Path Queue will be empty as the "modified time" < "last finish time"
             mock_getmtime.side_effect = [file_1_new_mtime_ts]
             manager.prepare_file_path_queue()
