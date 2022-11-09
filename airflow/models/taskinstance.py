@@ -2506,8 +2506,10 @@ class TaskInstance(Base, LoggingMixin):
                 if not hasattr(schedulable_ti, "task"):
                     schedulable_ti.task = task.dag.get_task(schedulable_ti.task_id)
 
-            num = dag_run.schedule_tis(schedulable_tis)
+            num = dag_run.schedule_tis(schedulable_tis, session=session)
             self.log.info("%d downstream tasks scheduled from follow-on schedule check", num)
+            
+            session.flush()
 
         except OperationalError as e:
             # Any kind of DB error here is _non fatal_ as this block is just an optimisation.

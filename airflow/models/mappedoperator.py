@@ -620,19 +620,18 @@ class MappedOperator(AbstractOperator):
         try:
             total_length = self._get_specified_expand_input().get_total_map_length(run_id, session=session)
         except NotFullyPopulated as e:
-            if self.dag and self.dag.partial:
-                # partial dags comes from the mini scheduler. It's
-                # likely that the upstream tasks are not yet done,
-                # so we ignore this exception.
-                total_length = None
-            else:
+            total_length = None
+            # partial dags comes from the mini scheduler. It's
+            # possible that the upstream tasks are not yet done,
+            # but we don't have upstream of upstreams in partial dags, 
+            # so we ignore this exception.
+            if not self.dag or not self.dag.partial:
                 self.log.error(
                     "Cannot expand %r for run %s; missing upstream values: %s",
                     self,
                     run_id,
                     sorted(e.missing),
                 )
-                total_length = None
 
         state: TaskInstanceState | None = None
         unmapped_ti: TaskInstance | None = (
