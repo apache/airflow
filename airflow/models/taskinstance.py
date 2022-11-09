@@ -2508,7 +2508,7 @@ class TaskInstance(Base, LoggingMixin):
 
             num = dag_run.schedule_tis(schedulable_tis, session=session)
             self.log.info("%d downstream tasks scheduled from follow-on schedule check", num)
-            
+
             session.flush()
 
         except OperationalError as e:

@@ -623,7 +623,7 @@ class MappedOperator(AbstractOperator):
             total_length = None
             # partial dags comes from the mini scheduler. It's
             # possible that the upstream tasks are not yet done,
-            # but we don't have upstream of upstreams in partial dags, 
+            # but we don't have upstream of upstreams in partial dags,
             # so we ignore this exception.
             if not self.dag or not self.dag.partial:
                 self.log.error(
