@@ -151,7 +151,6 @@ class SchedulerJob(BaseJob):
         # Check what SQL backend we use
         sql_conn: str = conf.get_mandatory_value('database', 'sql_alchemy_conn').lower()
         self.using_sqlite = sql_conn.startswith('sqlite')
-        self.using_mysql = sql_conn.startswith('mysql')
         # Dag Processor agent - not used in Dag Processor standalone mode.
         self.processor_agent: DagFileProcessorAgent | None = None
 
