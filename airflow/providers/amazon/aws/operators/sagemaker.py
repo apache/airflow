@@ -762,7 +762,7 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
     :param wait_for_completion: If true, this operator will only complete once the pipeline is complete.
     :param check_interval: How long to wait between checks for pipeline status when waiting for completion.
 
-    :return Str: Returns The ARN of the pipeline execution created in Amazon SageMaker.
+    :return str: Returns The ARN of the pipeline execution created in Amazon SageMaker.
     """
 
     def __init__(
@@ -777,8 +777,7 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
         check_interval: int = CHECK_INTERVAL_SECOND,
         **kwargs,
     ):
-        super().__init__(config=config, **kwargs)
-        self.aws_conn_id = aws_conn_id
+        super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
         self.pipeline_name = pipeline_name
         self.display_name = display_name
         self.pipeline_params = pipeline_params
@@ -810,7 +809,7 @@ class SageMakerStopPipelineOperator(SageMakerBaseOperator):
     :param check_interval: How long to wait between checks for pipeline status when waiting for completion.
     :param fail_if_not_running: raises an exception if the pipeline stopped or succeeded before this was run
 
-    :return Str: Returns the status of the pipeline execution after the operation has been done.
+    :return str: Returns the status of the pipeline execution after the operation has been done.
     """
 
     def __init__(
@@ -824,8 +823,7 @@ class SageMakerStopPipelineOperator(SageMakerBaseOperator):
         fail_if_not_running: bool = False,
         **kwargs,
     ):
-        super().__init__(config=config, **kwargs)
-        self.aws_conn_id = aws_conn_id
+        super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
         self.pipeline_exec_arn = pipeline_exec_arn
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
