@@ -620,13 +620,18 @@ class MappedOperator(AbstractOperator):
         try:
             total_length = self._get_specified_expand_input().get_total_map_length(run_id, session=session)
         except NotFullyPopulated as e:
-            self.log.info(
-                "Cannot expand %r for run %s; missing upstream values: %s",
-                self,
-                run_id,
-                sorted(e.missing),
-            )
             total_length = None
+            # partial dags comes from the mini scheduler. It's
+            # possible that the upstream tasks are not yet done,
+            # but we don't have upstream of upstreams in partial dags,
+            # so we ignore this exception.
+            if not self.dag or not self.dag.partial:
+                self.log.error(
+                    "Cannot expand %r for run %s; missing upstream values: %s",
+                    self,
+                    run_id,
+                    sorted(e.missing),
+                )
 
         state: TaskInstanceState | None = None
         unmapped_ti: TaskInstance | None = (
@@ -647,10 +652,15 @@ class MappedOperator(AbstractOperator):
             # The unmapped task instance still exists and is unfinished, i.e. we
             # haven't tried to run it before.
             if total_length is None:
-                # If the map length cannot be calculated (due to unavailable
-                # upstream sources), fail the unmapped task.
-                unmapped_ti.state = TaskInstanceState.UPSTREAM_FAILED
-                indexes_to_map: Iterable[int] = ()
+                if self.dag and self.dag.partial:
+                    # If the DAG is partial, it's likely that the upstream tasks
+                    # are not done yet, so we do nothing
+                    indexes_to_map: Iterable[int] = ()
+                else:
+                    # If the map length cannot be calculated (due to unavailable
+                    # upstream sources), fail the unmapped task.
+                    unmapped_ti.state = TaskInstanceState.UPSTREAM_FAILED
+                    indexes_to_map = ()
             elif total_length < 1:
                 # If the upstream maps this to a zero-length value, simply mark
                 # the unmapped task instance as SKIPPED (if needed).

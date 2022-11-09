@@ -739,7 +739,6 @@ class TestLocalTaskJob:
         ti2_l.refresh_from_db()
         assert ti2_k.state == State.SUCCESS
         assert ti2_l.state == State.NONE
-        assert "0 downstream tasks scheduled from follow-on schedule" in caplog.text
 
         failed_deps = list(ti2_l.get_failed_dep_statuses())
         assert len(failed_deps) == 1

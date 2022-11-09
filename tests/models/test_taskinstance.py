@@ -3613,3 +3613,86 @@ def test_expand_non_templated_field(dag_maker, session):
 
     echo_task = dag.get_task("echo")
     assert "get_extra_env" in echo_task.upstream_task_ids
+
+
+def test_mapped_task_does_not_error_in_mini_scheduler_if_upstreams_are_not_done(dag_maker, caplog, session):
+    """
+    This tests that when scheduling child tasks of a task and there's a mapped downstream task,
+    if the mapped downstream task has upstreams that are not yet done, the mapped downstream task is
+    not marked as `upstream_failed'
+    """
+    with dag_maker() as dag:
+
+        @dag.task
+        def second_task():
+            return [0, 1, 2]
+
+        @dag.task
+        def first_task():
+            print(2)
+
+        @dag.task
+        def middle_task(id):
+            return id
+
+        middle = middle_task.expand(id=second_task())
+
+        @dag.task
+        def last_task():
+            print(3)
+
+        [first_task(), middle] >> last_task()
+
+    dag_run = dag_maker.create_dagrun()
+    first_ti = dag_run.get_task_instance(task_id="first_task")
+    second_ti = dag_run.get_task_instance(task_id="second_task")
+    first_ti.state = State.SUCCESS
+    second_ti.state = State.RUNNING
+    session.merge(first_ti)
+    session.merge(second_ti)
+    session.commit()
+    first_ti.schedule_downstream_tasks(session=session)
+    middle_ti = dag_run.get_task_instance(task_id="middle_task")
+    assert middle_ti.state != State.UPSTREAM_FAILED
+    assert "0 downstream tasks scheduled from follow-on schedule" in caplog.text
+
+
+def test_mapped_task_expands_in_mini_scheduler_if_upstreams_are_done(dag_maker, caplog, session):
+    """Test that mini scheduler expands mapped task"""
+    with dag_maker() as dag:
+
+        @dag.task
+        def second_task():
+            return [0, 1, 2]
+
+        @dag.task
+        def first_task():
+            print(2)
+
+        @dag.task
+        def middle_task(id):
+            return id
+
+        middle = middle_task.expand(id=second_task())
+
+        @dag.task
+        def last_task():
+            print(3)
+
+        [first_task(), middle] >> last_task()
+
+    dr = dag_maker.create_dagrun()
+
+    first_ti = dr.get_task_instance(task_id="first_task")
+    first_ti.state = State.SUCCESS
+    session.merge(first_ti)
+    session.commit()
+    second_task = dag.get_task("second_task")
+    second_ti = dr.get_task_instance(task_id="second_task")
+    second_ti.refresh_from_task(second_task)
+    second_ti.run()
+    second_ti.schedule_downstream_tasks(session=session)
+    for i in range(3):
+        middle_ti = dr.get_task_instance(task_id="middle_task", map_index=i)
+        assert middle_ti.state == State.SCHEDULED
+    assert "3 downstream tasks scheduled from follow-on schedule" in caplog.text
