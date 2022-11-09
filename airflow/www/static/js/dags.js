@@ -17,11 +17,13 @@
  * under the License.
  */
 
-/* global document, window, $, d3, STATE_COLOR, isoDateToTimeEl */
+/* global document, window, $, d3, STATE_COLOR, isoDateToTimeEl, autoRefreshInterval,
+ localStorage */
 
 import { getMetaValue } from './utils';
 import tiTooltip from './task_instances';
 import { approxTimeFromNow, formatDateTime } from './datetime_utils';
+import { openDatasetModal, getDatasetTooltipInfo } from './datasetUtils';
 
 const DAGS_INDEX = getMetaValue('dags_index');
 const ENTER_KEY_CODE = 13;
@@ -37,6 +39,17 @@ const lastDagRunsUrl = getMetaValue('last_dag_runs_url');
 const dagStatsUrl = getMetaValue('dag_stats_url');
 const taskStatsUrl = getMetaValue('task_stats_url');
 const gridUrl = getMetaValue('grid_url');
+const datasetsUrl = getMetaValue('datasets_url');
+
+const nextDatasets = {};
+let nextDatasetsError;
+
+const DAG_RUN = 'dag-run';
+const TASK_INSTANCE = 'task-instance';
+
+// auto refresh interval in milliseconds
+// (x2 the interval in tree/graph view since this page can take longer to refresh )
+const refreshIntervalMs = 2000;
 
 $('#tags_filter').select2({
   placeholder: 'Filter DAGs by tag',
@@ -84,12 +97,9 @@ $('#page_size').on('change', function onPageSizeChange() {
   window.location = `${DAGS_INDEX}?page_size=${pSize}`;
 });
 
-const encodedDagIds = new URLSearchParams();
-
 $.each($('[id^=toggle]'), function toggleId() {
   const $input = $(this);
   const dagId = $input.data('dag-id');
-  encodedDagIds.append('dag_ids', dagId);
 
   $input.on('change', () => {
     const isPaused = $input.is(':checked');
@@ -108,21 +118,26 @@ $.each($('[id^=toggle]'), function toggleId() {
 
 $('.typeahead').typeahead({
   source(query, callback) {
-    return $.ajax(autocompleteUrl,
+    return $.ajax(
+      autocompleteUrl,
       {
         data: {
           query: encodeURIComponent(query),
           status: statusFilter,
         },
         success: callback,
-      });
+      },
+    );
   },
   autoSelect: false,
   afterSelect(value) {
-    const dagId = value.trim();
-    if (dagId) {
-      const query = new URLSearchParams(window.location.search);
-      window.location = `${gridUrl.replace('__DAG_ID__', dagId)}?${query}`;
+    const query = new URLSearchParams(window.location.search);
+    query.set('search', value.name);
+    if (value.type === 'owner') {
+      window.location = `${DAGS_INDEX}?${query}`;
+    }
+    if (value.type === 'dag') {
+      window.location = `${gridUrl.replace('__DAG_ID__', value.name)}?${query}`;
     }
   },
 });
@@ -160,6 +175,7 @@ function lastDagRunsHandler(error, json) {
     // Show last run as a link to the graph view
     g.selectAll('a')
       .attr('href', `${graphUrl}?dag_id=${encodeURIComponent(dagId)}&execution_date=${encodeURIComponent(executionDate)}`)
+      .html('')
       .insert(isoDateToTimeEl.bind(null, executionDate, { title: false }));
 
     // Only show the tooltip when we have a last run and add the json to a custom data- attribute
@@ -176,78 +192,8 @@ d3.selectAll('.js-last-run-tooltip')
     d3.select(this).attr('data-original-title', tiTooltip(lastRunData));
   });
 
-function drawDagStatsForDag(dagId, states) {
-  const g = d3.select(`svg#dag-run-${dagId.replace(/\./g, '__dot__')}`)
-    .attr('height', diameter + (strokeWidthHover * 2))
-    .attr('width', '120px')
-    .selectAll('g')
-    .data(states)
-    .enter()
-    .append('g')
-    .attr('transform', (d, i) => {
-      const x = (i * (diameter + circleMargin)) + (diameter / 2 + circleMargin);
-      const y = (diameter / 2) + strokeWidthHover;
-      return `translate(${x},${y})`;
-    });
-
-  g.append('svg:a')
-    .attr('href', (d) => `${dagRunUrl}?_flt_3_dag_id=${dagId}&_flt_3_state=${d.state}`)
-    .append('circle')
-    .attr('id', (d) => `run-${dagId.replace(/\./g, '_')}${d.state || 'none'}`)
-    .attr('class', 'has-svg-tooltip')
-    .attr('stroke-width', (d) => {
-      if (d.count > 0) return strokeWidth;
-
-      return 1;
-    })
-    .attr('stroke', (d) => {
-      if (d.count > 0) return STATE_COLOR[d.state];
-
-      return 'gainsboro';
-    })
-    .attr('fill', '#fff')
-    .attr('r', diameter / 2)
-    .attr('title', (d) => d.state)
-    .on('mouseover', (d) => {
-      if (d.count > 0) {
-        d3.select(this).transition().duration(400)
-          .attr('fill', '#e2e2e2')
-          .style('stroke-width', strokeWidthHover);
-      }
-    })
-    .on('mouseout', (d) => {
-      if (d.count > 0) {
-        d3.select(this).transition().duration(400)
-          .attr('fill', '#fff')
-          .style('stroke-width', strokeWidth);
-      }
-    })
-    .style('opacity', 0)
-    .transition()
-    .duration(300)
-    .delay((d, i) => i * 50)
-    .style('opacity', 1);
-  d3.select('.js-loading-dag-stats').remove();
-
-  g.append('text')
-    .attr('fill', '#51504f')
-    .attr('text-anchor', 'middle')
-    .attr('vertical-align', 'middle')
-    .attr('font-size', 9)
-    .attr('y', 3)
-    .style('pointer-events', 'none')
-    .text((d) => (d.count > 0 ? d.count : ''));
-}
-
-function dagStatsHandler(error, json) {
-  Object.keys(json).forEach((dagId) => {
-    const states = json[dagId];
-    drawDagStatsForDag(dagId, states);
-  });
-}
-
-function drawTaskStatsForDag(dagId, states) {
-  const g = d3.select(`svg#task-run-${dagId.replace(/\./g, '__dot__')}`)
+function drawDagStats(selector, dagId, states) {
+  const g = d3.select(`svg#${selector}-${dagId.replace(/\./g, '__dot__')}`)
     .attr('height', diameter + (strokeWidthHover * 2))
     .attr('width', (states.length * (diameter + circleMargin)) + circleMargin)
     .selectAll('g')
@@ -261,33 +207,41 @@ function drawTaskStatsForDag(dagId, states) {
     });
 
   g.append('svg:a')
-    .attr('href', (d) => `${taskInstanceUrl}?_flt_3_dag_id=${dagId}&_flt_3_state=${d.state}`)
+    .attr('href', (d) => {
+      const params = new URLSearchParams();
+      params.append('_flt_3_dag_id', dagId);
+      /* eslint no-unused-expressions: ["error", { "allowTernary": true }] */
+      d.state ? params.append('_flt_3_state', d.state) : params.append('_flt_8_state', '');
+      switch (selector) {
+        case DAG_RUN: return `${dagRunUrl}?${params.toString()}`;
+        case TASK_INSTANCE: return `${taskInstanceUrl}?${params.toString()}`;
+        default: return '';
+      }
+    })
     .append('circle')
-    .attr('id', (d) => `task-${dagId.replace(/\./g, '_')}${d.state || 'none'}`)
+    .attr('id', (d) => `${selector}-${dagId.replace(/\./g, '_')}-${d.state || 'none'}`)
     .attr('class', 'has-svg-tooltip')
     .attr('stroke-width', (d) => {
       if (d.count > 0) return strokeWidth;
-
       return 1;
     })
     .attr('stroke', (d) => {
       if (d.count > 0) return STATE_COLOR[d.state];
-
       return 'gainsboro';
     })
     .attr('fill', '#fff')
     .attr('r', diameter / 2)
     .attr('title', (d) => d.state || 'none')
-    .on('mouseover', function mouseOver(d) {
+    .on('mouseover', (d) => {
       if (d.count > 0) {
-        d3.select(this).transition().duration(400)
+        d3.select(d3.event.currentTarget).transition().duration(400)
           .attr('fill', '#e2e2e2')
           .style('stroke-width', strokeWidthHover);
       }
     })
-    .on('mouseout', function mouseOut(d) {
+    .on('mouseout', (d) => {
       if (d.count > 0) {
-        d3.select(this).transition().duration(400)
+        d3.select(d3.event.currentTarget).transition().duration(400)
           .attr('fill', '#fff')
           .style('stroke-width', strokeWidth);
       }
@@ -297,7 +251,8 @@ function drawTaskStatsForDag(dagId, states) {
     .duration(300)
     .delay((d, i) => i * 50)
     .style('opacity', 1);
-  d3.select('.js-loading-task-stats').remove();
+
+  d3.select(`.js-loading-${selector}-stats`).remove();
 
   g.append('text')
     .attr('fill', '#51504f')
@@ -309,31 +264,48 @@ function drawTaskStatsForDag(dagId, states) {
     .text((d) => (d.count > 0 ? d.count : ''));
 }
 
-function taskStatsHandler(error, json) {
+function dagStatsHandler(selector, json) {
   Object.keys(json).forEach((dagId) => {
     const states = json[dagId];
-    drawTaskStatsForDag(dagId, states);
+    drawDagStats(selector, dagId, states);
   });
 }
 
-if (encodedDagIds.has('dag_ids')) {
-  // dags on page fetch stats
-  d3.json(blockedUrl)
-    .header('X-CSRFToken', csrfToken)
-    .post(encodedDagIds, blockedHandler);
-  d3.json(lastDagRunsUrl)
-    .header('X-CSRFToken', csrfToken)
-    .post(encodedDagIds, lastDagRunsHandler);
-  d3.json(dagStatsUrl)
-    .header('X-CSRFToken', csrfToken)
-    .post(encodedDagIds, dagStatsHandler);
-  d3.json(taskStatsUrl)
-    .header('X-CSRFToken', csrfToken)
-    .post(encodedDagIds, taskStatsHandler);
-} else {
-  // no dags, hide the loading dots
-  $('.js-loading-task-stats').remove();
-  $('.js-loading-dag-stats').remove();
+function getDagIds({ activeDagsOnly = false } = {}) {
+  let dagIds = $('[id^=toggle]');
+  if (activeDagsOnly) {
+    dagIds = dagIds.filter(':checked');
+  }
+  dagIds = dagIds.map(function () {
+    return $(this).data('dag-id');
+  }).get();
+  return dagIds;
+}
+
+function getDagStats() {
+  const dagIds = getDagIds();
+  const params = new URLSearchParams();
+  dagIds.forEach((dagId) => {
+    params.append('dag_ids', dagId);
+  });
+  if (params.has('dag_ids')) {
+    d3.json(blockedUrl)
+      .header('X-CSRFToken', csrfToken)
+      .post(params, blockedHandler);
+    d3.json(lastDagRunsUrl)
+      .header('X-CSRFToken', csrfToken)
+      .post(params, lastDagRunsHandler);
+    d3.json(dagStatsUrl)
+      .header('X-CSRFToken', csrfToken)
+      .post(params, (error, json) => dagStatsHandler(DAG_RUN, json));
+    d3.json(taskStatsUrl)
+      .header('X-CSRFToken', csrfToken)
+      .post(params, (error, json) => dagStatsHandler(TASK_INSTANCE, json));
+  } else {
+    // no dags, hide the loading dots
+    $(`.js-loading-${DAG_RUN}-stats`).remove();
+    $(`.js-loading-${TASK_INSTANCE}-stats`).remove();
+  }
 }
 
 function showSvgTooltip(text, circ) {
@@ -351,7 +323,107 @@ function hideSvgTooltip() {
   $('#svg-tooltip').css('display', 'none');
 }
 
+function refreshDagStats(selector, dagId, states) {
+  d3.select(`svg#${selector}-${dagId.replace(/\./g, '__dot__')}`)
+    .selectAll('circle')
+    .data(states)
+    .attr('stroke-width', (d) => {
+      if (d.count > 0) return strokeWidth;
+      return 1;
+    })
+    .attr('stroke', (d) => {
+      if (d.count > 0) return STATE_COLOR[d.state];
+      return 'gainsboro';
+    });
+
+  d3.select(`svg#${selector}-${dagId.replace(/\./g, '__dot__')}`)
+    .selectAll('text')
+    .data(states)
+    .text((d) => {
+      if (d.count > 0) {
+        return d.count;
+      }
+      return '';
+    });
+}
+
+let refreshInterval;
+
+function checkActiveRuns(json) {
+  // filter latest dag runs and check if there are still running dags
+  const activeRuns = Object.keys(json).filter((dagId) => {
+    const dagRuns = json[dagId].filter(({ state }) => state === 'running' || state === 'queued').filter((r) => r.count > 0);
+    return (dagRuns.length > 0);
+  });
+  if (activeRuns.length === 0) {
+    // in case there are no active runs increase the interval for auto refresh
+    $('#auto_refresh').prop('checked', false);
+    clearInterval(refreshInterval);
+  }
+}
+
+function refreshDagStatsHandler(selector, json) {
+  if (selector === DAG_RUN) checkActiveRuns(json);
+  Object.keys(json).forEach((dagId) => {
+    const states = json[dagId];
+    refreshDagStats(selector, dagId, states);
+  });
+}
+
+function handleRefresh({ activeDagsOnly = false } = {}) {
+  const dagIds = getDagIds({ activeDagsOnly });
+  const params = new URLSearchParams();
+  dagIds.forEach((dagId) => {
+    params.append('dag_ids', dagId);
+  });
+  $('#loading-dots').css('display', 'inline-block');
+  if (params.has('dag_ids')) {
+    d3.json(lastDagRunsUrl)
+      .header('X-CSRFToken', csrfToken)
+      .post(params, lastDagRunsHandler);
+    d3.json(dagStatsUrl)
+      .header('X-CSRFToken', csrfToken)
+      .post(params, (error, json) => refreshDagStatsHandler(DAG_RUN, json));
+    d3.json(taskStatsUrl)
+      .header('X-CSRFToken', csrfToken)
+      .post(params, (error, json) => refreshDagStatsHandler(TASK_INSTANCE, json));
+  }
+  setTimeout(() => {
+    $('#loading-dots').css('display', 'none');
+  }, refreshIntervalMs);
+}
+
+function startOrStopRefresh() {
+  if ($('#auto_refresh').is(':checked')) {
+    refreshInterval = setInterval(() => {
+      handleRefresh({ activeDagsOnly: true });
+    }, autoRefreshInterval * refreshIntervalMs);
+  } else {
+    clearInterval(refreshInterval);
+  }
+}
+
+function initAutoRefresh() {
+  const isDisabled = localStorage.getItem('dagsDisableAutoRefresh');
+  $('#auto_refresh').prop('checked', !(isDisabled));
+  startOrStopRefresh();
+  d3.select('#refresh_button').on('click', () => handleRefresh());
+}
+
+// pause autorefresh when the page is not active
+const handleVisibilityChange = () => {
+  if (document.hidden) {
+    clearInterval(refreshInterval);
+  } else {
+    initAutoRefresh();
+  }
+};
+
+document.addEventListener('visibilitychange', handleVisibilityChange);
+
 $(window).on('load', () => {
+  initAutoRefresh();
+
   $('body').on('mouseover', '.has-svg-tooltip', (e) => {
     const elem = e.target;
     const text = elem.getAttribute('title');
@@ -362,6 +434,8 @@ $(window).on('load', () => {
   $('body').on('mouseout', '.has-svg-tooltip', () => {
     hideSvgTooltip();
   });
+
+  getDagStats();
 });
 
 $('.js-next-run-tooltip').each((i, run) => {
@@ -377,5 +451,48 @@ $('.js-next-run-tooltip').each((i, run) => {
       newTitle += `End: ${formatDateTime(intervalEnd)}`;
       return newTitle;
     });
+  });
+});
+
+$('#auto_refresh').change(() => {
+  if ($('#auto_refresh').is(':checked')) {
+    // Run an initial refresh before starting interval if manually turned on
+    handleRefresh({ activeDagsOnly: true });
+    localStorage.removeItem('dagsDisableAutoRefresh');
+  } else {
+    localStorage.setItem('dagsDisableAutoRefresh', 'true');
+    $('#loading-dots').css('display', 'none');
+  }
+  startOrStopRefresh();
+});
+
+$('.next-dataset-triggered').on('click', (e) => {
+  const dagId = $(e.target).data('dag-id');
+  const summary = $(e.target).data('summary');
+  const singleDatasetUri = $(e.target).data('uri');
+
+  // If there are multiple datasets, open a modal, otherwise link directly to the dataset
+  if (!singleDatasetUri) {
+    if (dagId) openDatasetModal(dagId, summary, nextDatasets[dagId], nextDatasetsError);
+  } else {
+    window.location.href = `${datasetsUrl}?uri=${encodeURIComponent(singleDatasetUri)}`;
+  }
+});
+
+$('.js-dataset-triggered').each((i, cell) => {
+  $(cell).on('mouseover', () => {
+    const run = $(cell).children();
+    const dagId = $(run).data('dag-id');
+    const singleDatasetUri = $(run).data('uri');
+
+    const setNextDatasets = (datasets, error) => {
+      nextDatasets[dagId] = datasets;
+      nextDatasetsError = error;
+    };
+
+    // Only update the tooltip info if there are multiple datasets
+    if (!singleDatasetUri) {
+      getDatasetTooltipInfo(dagId, run, setNextDatasets);
+    }
   });
 });

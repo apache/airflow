@@ -55,12 +55,21 @@ You can find the following images there (Assuming Airflow version :subst-code:`|
 * :subst-code:`apache/airflow:|airflow-version|`           - the versioned Airflow image with default Python version (3.7 currently)
 * :subst-code:`apache/airflow:|airflow-version|-pythonX.Y` - the versioned Airflow image with specific Python version
 
-Those are "reference" images. They contain the most common set of extras, dependencies and providers that are
+Those are "reference" regular images. They contain the most common set of extras, dependencies and providers that are
 often used by the users and they are good to "try-things-out" when you want to just take Airflow for a spin,
+
+You can also use "slim" images that contain only core airflow and are about half the size of the "regular" images
+but you need to add all the :doc:`apache-airflow:extra-packages-ref` and providers that you need separately
+via :ref:`Building the image <build:build_image>`.
+
+* :subst-code:`apache/airflow:slim-latest`              - the latest released Airflow image with default Python version (3.7 currently)
+* :subst-code:`apache/airflow:slim-latest-pythonX.Y`    - the latest released Airflow image with specific Python version
+* :subst-code:`apache/airflow:slim-|airflow-version|`           - the versioned Airflow image with default Python version (3.7 currently)
+* :subst-code:`apache/airflow:slim-|airflow-version|-pythonX.Y` - the versioned Airflow image with specific Python version
 
 The Apache Airflow image provided as convenience package is optimized for size, and
 it provides just a bare minimal set of the extras and dependencies installed and in most cases
-you want to either extend or customize the image. You can see all possible extras in :doc:`extra-packages-ref`.
+you want to either extend or customize the image. You can see all possible extras in :doc:`apache-airflow:extra-packages-ref`.
 The set of extras used in Airflow Production image are available in the
 `Dockerfile <https://github.com/apache/airflow/blob/2c6c7fdb2308de98e142618836bdf414df9768c8/Dockerfile#L37>`_.
 
@@ -79,7 +88,7 @@ Usage
 =====
 
 The :envvar:`AIRFLOW_HOME` is set by default to ``/opt/airflow/`` - this means that DAGs
-are in default in the ``/opt/airflow/dags`` folder and logs are in the ``/opt/airflow/logs``
+are by default in the ``/opt/airflow/dags`` folder and logs are in the ``/opt/airflow/logs``
 
 The working directory is ``/opt/airflow`` by default.
 
@@ -89,6 +98,6 @@ If no :envvar:`AIRFLOW__DATABASE__SQL_ALCHEMY_CONN` variable is set then SQLite 
 For example commands that start Airflow see: :ref:`entrypoint:commands`.
 
 Airflow requires many components to function as it is a distributed application. You may therefore also be interested
-in launching Airflow in the Docker Compose environment, see: :doc:`apache-airflow:start/index`.
+in launching Airflow in the Docker Compose environment, see: :doc:`apache-airflow:howto/docker-compose/index`.
 
 You can use this image in :doc:`Helm Chart <helm-chart:index>` as well.

@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from unittest import mock
 
@@ -31,7 +32,7 @@ from tests.test_utils.db import clear_db_pools
 def google_openid_app():
     confs = {
         ("api", "auth_backends"): "airflow.providers.google.common.auth_backend.google_openid",
-        ('api', 'enable_experimental_api'): 'true',
+        ("api", "enable_experimental_api"): "true",
     }
     with conf_vars(confs):
         return create_app(testing=True)

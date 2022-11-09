@@ -22,6 +22,11 @@ description: |
   `PostgreSQL <https://www.postgresql.org/>`__
 
 versions:
+  - 5.2.2
+  - 5.2.1
+  - 5.2.0
+  - 5.1.0
+  - 5.0.0
   - 4.1.0
   - 4.0.1
   - 4.0.0
@@ -35,8 +40,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
-  - apache-airflow>=2.1.0
+dependencies:
+  - apache-airflow>=2.3.0
+  - apache-airflow-providers-common-sql>=1.3.0
+  - psycopg2>=2.8.0
 
 integrations:
   - integration-name: PostgreSQL
@@ -56,9 +63,11 @@ hooks:
     python-modules:
       - airflow.providers.postgres.hooks.postgres
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.postgres.hooks.postgres.PostgresHook
-
 connection-types:
   - hook-class-name: airflow.providers.postgres.hooks.postgres.PostgresHook
     connection-type: postgres
+
+additional-extras:
+  - name: amazon
+    dependencies:
+      - apache-airflow-providers-amazon>=2.6.0

@@ -15,8 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """Useful tools for running commands."""
+from __future__ import annotations
+
 import contextlib
 import os
+import re
 import shlex
 import stat
 import subprocess
@@ -24,24 +27,38 @@ import sys
 from distutils.version import StrictVersion
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Mapping, Optional, Union
+from threading import Thread
+from typing import Mapping, Union
 
-from airflow_breeze.utils.console import console
+from rich.markup import escape
+
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY
+from airflow_breeze.utils.ci_group import ci_group
+from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
+
+RunCommandResult = Union[subprocess.CompletedProcess, subprocess.CalledProcessError]
+
+OPTION_MATCHER = re.compile(r"^[A-Z_]*=.*$")
 
 
 def run_command(
-    cmd: List[str],
+    cmd: list[str],
+    title: str | None = None,
     *,
     check: bool = True,
-    verbose: bool = False,
-    dry_run: bool = False,
     no_output_dump_on_exception: bool = False,
-    env: Optional[Mapping[str, str]] = None,
-    cwd: Optional[Path] = None,
-    input: Optional[str] = None,
+    env: Mapping[str, str] | None = None,
+    cwd: Path | None = None,
+    input: str | None = None,
+    output: Output | None = None,
+    output_outside_the_group: bool = False,
+    verbose_override: bool | None = None,
+    dry_run_override: bool | None = None,
     **kwargs,
-) -> Union[subprocess.CompletedProcess, subprocess.CalledProcessError]:
+) -> RunCommandResult:
     """
     Runs command passed as list of strings with some extra functionality over POpen (kwargs from PoPen can
     be used in this command even if not explicitly specified).
@@ -54,51 +71,125 @@ def run_command(
     needed to run the command.
 
     :param cmd: command to run
+    :param title: optional title for the command (otherwise likely title is automatically determined)
     :param check: whether to check status value and run exception (same as POpem)
-    :param verbose: print commands when running
-    :param dry_run: do not execute "the" command - just print what would happen
     :param no_output_dump_on_exception: whether to suppress printing logs from output when command fails
     :param env: mapping of environment variables to set for the run command
     :param cwd: working directory to set for the command
     :param input: input string to pass to stdin of the process
+    :param output: redirects stderr/stdout to Output if set to Output class.
+    :param output_outside_the_group: if this is set to True, then output of the command will be done
+        outside the "CI folded group" in CI - so that it is immediately visible without unfolding.
+    :param verbose_override: override verbose parameter with the one specified if not None.
+    :param dry_run_override: override dry_run parameter with the one specified if not None.
     :param kwargs: kwargs passed to POpen
     """
+
+    def exclude_command(_index: int, _arg: str) -> bool:
+        if _index == 0:
+            # First argument is always passed
+            return False
+        if _arg.startswith("-"):
+            return True
+        if len(_arg) == 0:
+            return True
+        if _arg.startswith("/"):
+            # Skip any absolute paths
+            return True
+        if _arg == "never":
+            return True
+        if OPTION_MATCHER.match(_arg):
+            return True
+        return False
+
+    def shorten_command(_index: int, _argument: str) -> str:
+        if _argument.startswith("/"):
+            _argument = _argument.split("/")[-1]
+        return shlex.quote(_argument)
+
+    if not title:
+        shortened_command = [
+            shorten_command(index, argument)
+            for index, argument in enumerate(cmd)
+            if not exclude_command(index, argument)
+        ]
+        # Heuristics to get a (possibly) short but explanatory title showing what the command does
+        # If title is not provided explicitly
+        title = "<" + " ".join(shortened_command[:5]) + ">"  # max 4 args
     workdir: str = str(cwd) if cwd else os.getcwd()
-    if verbose or dry_run:
-        command_to_print = ' '.join(shlex.quote(c) for c in cmd)
-        # if we pass environment variables to execute, then
-        env_to_print = ' '.join(f'{key}="{val}"' for (key, val) in env.items()) if env else ''
-        if env_to_print:
-            env_to_print += ' '
-        console.print(f"\n[bright_blue]Working directory {workdir} [/]\n")
-        # Soft wrap allows to copy&paste and run resulting output as it has no hard EOL
-        console.print(f"\n[bright_blue]{env_to_print}{command_to_print}[/]\n", soft_wrap=True)
-        if dry_run:
-            return subprocess.CompletedProcess(cmd, returncode=0)
-    try:
-        cmd_env = os.environ.copy()
-        if env:
-            cmd_env.update(env)
+    cmd_env = os.environ.copy()
+    cmd_env.setdefault("HOME", str(Path.home()))
+    if env:
+        cmd_env.update(env)
+    if output:
+        if "capture_output" not in kwargs or not kwargs["capture_output"]:
+            kwargs["stdout"] = output.file
+            kwargs["stderr"] = subprocess.STDOUT
+    command_to_print = " ".join(shlex.quote(c) for c in cmd)
+    env_to_print = get_environments_to_print(env)
+    if not get_verbose(verbose_override) and not get_dry_run(dry_run_override):
         return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
-    except subprocess.CalledProcessError as ex:
-        if not no_output_dump_on_exception:
+    with ci_group(title=f"Running command: {title}", message_type=None):
+        get_console(output=output).print(f"\n[info]Working directory {workdir}\n")
+        if input:
+            get_console(output=output).print("[info]Input:")
+            get_console(output=output).print(input)
+            get_console(output=output).print()
+        # Soft wrap allows to copy&paste and run resulting output as it has no hard EOL
+        get_console(output=output).print(
+            f"\n[info]{env_to_print}{escape(command_to_print)}[/]\n", soft_wrap=True
+        )
+        if get_dry_run(dry_run_override):
+            return subprocess.CompletedProcess(cmd, returncode=0, stdout="", stderr="")
+        try:
+            if output_outside_the_group:
+                get_console().print("::endgroup::")
+            return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
+        except subprocess.CalledProcessError as ex:
+            if no_output_dump_on_exception:
+                if check:
+                    raise
+                return ex
             if ex.stdout:
-                console.print("[blue]========================= OUTPUT start ============================[/]")
-                console.print(ex.stdout)
-                console.print("[blue]========================= OUTPUT end ==============================[/]")
+                get_console(output=output).print(
+                    "[info]========================= OUTPUT start ============================[/]"
+                )
+                get_console(output=output).print(ex.stdout)
+                get_console(output=output).print(
+                    "[info]========================= OUTPUT end ==============================[/]"
+                )
             if ex.stderr:
-                console.print("[red]========================= STDERR start ============================[/]")
-                console.print(ex.stderr)
-                console.print("[red]========================= STDERR end ==============================[/]")
-        if check:
-            raise
-        return ex
+                get_console(output=output).print(
+                    "[error]========================= STDERR start ============================[/]"
+                )
+                get_console(output=output).print(ex.stderr)
+                get_console(output=output).print(
+                    "[error]========================= STDERR end ==============================[/]"
+                )
+            return ex
 
 
-def assert_pre_commit_installed(verbose: bool):
+def get_environments_to_print(env: Mapping[str, str] | None):
+    if not env:
+        return ""
+    system_env: dict[str, str] = {}
+    my_env: dict[str, str] = {}
+    for key, val in env.items():
+        if os.environ.get(key) == val:
+            system_env[key] = val
+        else:
+            my_env[key] = val
+    env_to_print = "".join(f'{key}="{val}" \\\n' for (key, val) in sorted(system_env.items()))
+    env_to_print += r"""\
+"""
+    env_to_print += "".join(f'{key}="{val}" \\\n' for (key, val) in sorted(my_env.items()))
+    return env_to_print
+
+
+def assert_pre_commit_installed():
     """
     Check if pre-commit is installed in the right version.
-    :param verbose: print commands when running
+
     :return: True is the pre-commit is installed in the right version.
     """
     # Local import to make autocomplete work
@@ -108,10 +199,9 @@ def assert_pre_commit_installed(verbose: bool):
     min_pre_commit_version = pre_commit_config["minimum_pre_commit_version"]
 
     python_executable = sys.executable
-    console.print(f"[bright_blue]Checking pre-commit installed for {python_executable}[/]")
+    get_console().print(f"[info]Checking pre-commit installed for {python_executable}[/]")
     command_result = run_command(
         [python_executable, "-m", "pre_commit", "--version"],
-        verbose=verbose,
         capture_output=True,
         text=True,
         check=False,
@@ -120,29 +210,28 @@ def assert_pre_commit_installed(verbose: bool):
         if command_result.stdout:
             pre_commit_version = command_result.stdout.split(" ")[-1].strip()
             if StrictVersion(pre_commit_version) >= StrictVersion(min_pre_commit_version):
-                console.print(
-                    f"\n[green]Package pre_commit is installed. "
+                get_console().print(
+                    f"\n[success]Package pre_commit is installed. "
                     f"Good version {pre_commit_version} (>= {min_pre_commit_version})[/]\n"
                 )
             else:
-                console.print(
-                    f"\n[red]Package name pre_commit version is wrong. It should be"
+                get_console().print(
+                    f"\n[error]Package name pre_commit version is wrong. It should be"
                     f"aat least {min_pre_commit_version} and is {pre_commit_version}.[/]\n\n"
                 )
                 sys.exit(1)
         else:
-            console.print(
-                "\n[bright_yellow]Could not determine version of pre-commit. "
-                "You might need to update it![/]\n"
+            get_console().print(
+                "\n[warning]Could not determine version of pre-commit. You might need to update it![/]\n"
             )
     else:
-        console.print("\n[red]Error checking for pre-commit-installation:[/]\n")
-        console.print(command_result.stderr)
-        console.print("\nMake sure to run:\n      breeze self-upgrade\n\n")
+        get_console().print("\n[error]Error checking for pre-commit-installation:[/]\n")
+        get_console().print(command_result.stderr)
+        get_console().print("\nMake sure to run:\n      breeze setup self-upgrade\n\n")
         sys.exit(1)
 
 
-def get_filesystem_type(filepath):
+def get_filesystem_type(filepath: str):
     """
     Determine the type of filesystem used - we might want to use different parameters if tmpfs is used.
     :param filepath: path to check
@@ -152,8 +241,8 @@ def get_filesystem_type(filepath):
     import psutil
 
     root_type = "unknown"
-    for part in psutil.disk_partitions():
-        if part.mountpoint == '/':
+    for part in psutil.disk_partitions(all=True):
+        if part.mountpoint == "/":
             root_type = part.fstype
             continue
         if filepath.startswith(part.mountpoint):
@@ -164,18 +253,15 @@ def get_filesystem_type(filepath):
 
 def instruct_build_image(python: str):
     """Print instructions to the user that they should build the image"""
-    console.print(f'[bright_yellow]\nThe CI image for ' f'python version {python} may be outdated[/]\n')
-    print(f"\n[yellow]Please run at the earliest convenience:[/]\n\nbreeze build-image --python {python}\n\n")
+    get_console().print(f"[warning]\nThe CI image for Python version {python} may be outdated[/]\n")
+    get_console().print(
+        f"\n[info]Please run at the earliest "
+        f"convenience:[/]\n\nbreeze ci-image build --python {python}\n\n"
+    )
 
 
 @contextlib.contextmanager
 def working_directory(source_path: Path):
-    """
-    # Equivalent of pushd and popd in bash script.
-    # https://stackoverflow.com/a/42441759/3101838
-    :param source_path:
-    :return:
-    """
     prev_cwd = Path.cwd()
     os.chdir(source_path)
     try:
@@ -206,23 +292,24 @@ def change_directory_permission(directory_to_fix: Path):
 @working_directory(AIRFLOW_SOURCES_ROOT)
 def fix_group_permissions():
     """Fixes permissions of all the files and directories that have group-write access."""
-    console.print("[bright_blue]Fixing group permissions[/]")
-    files_to_fix_result = run_command(['git', 'ls-files', './'], capture_output=True, text=True)
+    if get_verbose():
+        get_console().print("[info]Fixing group permissions[/]")
+    files_to_fix_result = run_command(["git", "ls-files", "./"], capture_output=True, text=True)
     if files_to_fix_result.returncode == 0:
-        files_to_fix = files_to_fix_result.stdout.strip().split('\n')
+        files_to_fix = files_to_fix_result.stdout.strip().split("\n")
         for file_to_fix in files_to_fix:
             change_file_permission(Path(file_to_fix))
     directories_to_fix_result = run_command(
-        ['git', 'ls-tree', '-r', '-d', '--name-only', 'HEAD'], capture_output=True, text=True
+        ["git", "ls-tree", "-r", "-d", "--name-only", "HEAD"], capture_output=True, text=True
     )
     if directories_to_fix_result.returncode == 0:
-        directories_to_fix = directories_to_fix_result.stdout.strip().split('\n')
+        directories_to_fix = directories_to_fix_result.stdout.strip().split("\n")
         for directory_to_fix in directories_to_fix:
             change_directory_permission(Path(directory_to_fix))
 
 
 def is_repo_rebased(repo: str, branch: str):
-    """Returns True if the local branch contains latest remote SHA (i.e. if it is rebased)"""
+    """Returns True if the local branch contains the latest remote SHA (i.e. if it is rebased)"""
     # We import it locally so that click autocomplete works
     import requests
 
@@ -230,79 +317,36 @@ def is_repo_rebased(repo: str, branch: str):
     headers_dict = {"Accept": "application/vnd.github.VERSION.sha"}
     latest_sha = requests.get(gh_url, headers=headers_dict).text.strip()
     rebased = False
-    command_result = run_command(['git', 'log', '--format=format:%H'], capture_output=True, text=True)
-    output = command_result.stdout.strip().splitlines() if command_result is not None else "missing"
-    if latest_sha in output:
+    command_result = run_command(["git", "log", "--format=format:%H"], capture_output=True, text=True)
+    commit_list = command_result.stdout.strip().splitlines() if command_result is not None else "missing"
+    if latest_sha in commit_list:
         rebased = True
     return rebased
 
 
-def check_if_buildx_plugin_installed(verbose: bool) -> bool:
+def check_if_buildx_plugin_installed() -> bool:
     """
     Checks if buildx plugin is locally available.
-    :param verbose: print commands when running
+
     :return True if the buildx plugin is installed.
     """
-    is_buildx_available = False
-    check_buildx = ['docker', 'buildx', 'version']
+    check_buildx = ["docker", "buildx", "version"]
     docker_buildx_version_result = run_command(
         check_buildx,
-        verbose=verbose,
         no_output_dump_on_exception=True,
         capture_output=True,
         text=True,
+        check=False,
     )
-    if (
-        docker_buildx_version_result
-        and docker_buildx_version_result.returncode == 0
-        and docker_buildx_version_result.stdout != ''
-    ):
-        is_buildx_available = True
-    return is_buildx_available
-
-
-def prepare_build_command(prepare_buildx_cache: bool, verbose: bool) -> List[str]:
-    """
-    Prepare build command for docker build. Depending on whether we have buildx plugin installed or not,
-    and whether we run cache preparation, there might be different results:
-
-    * if buildx plugin is installed - `docker buildx` command is returned - using regular or cache builder
-      depending on whether we build regular image or cache
-    * if no buildx plugin is installed, and we do not prepare cache, regular docker `build` command is used.
-    * if no buildx plugin is installed, and we prepare cache - we fail. Cache can only be done with buildx
-    :param prepare_buildx_cache: whether we are preparing buildx cache.
-    :param verbose: print commands when running
-    :return: command to use as docker build command
-    """
-    build_command_param = []
-    is_buildx_available = check_if_buildx_plugin_installed(verbose=verbose)
-    if is_buildx_available:
-        if prepare_buildx_cache:
-            build_command_param.extend(["buildx", "build", "--builder", "airflow_cache", "--progress=tty"])
-            cmd = ['docker', 'buildx', 'inspect', 'airflow_cache']
-            buildx_command_result = run_command(cmd, verbose=True, text=True)
-            if buildx_command_result and buildx_command_result.returncode != 0:
-                next_cmd = ['docker', 'buildx', 'create', '--name', 'airflow_cache']
-                run_command(next_cmd, verbose=True, text=True, check=False)
-        else:
-            build_command_param.extend(["buildx", "build", "--builder", "default", "--progress=tty"])
-    else:
-        if prepare_buildx_cache:
-            console.print(
-                '\n[red] Buildx cli plugin is not available and you need it to prepare buildx cache. \n'
-            )
-            console.print(
-                '[red] Please install it following https://docs.docker.com/buildx/working-with-buildx/ \n'
-            )
-            sys.exit(1)
-        build_command_param.append("build")
-    return build_command_param
+    if docker_buildx_version_result.returncode == 0:
+        return True
+    return False
 
 
 @lru_cache(maxsize=None)
 def commit_sha():
     """Returns commit SHA of current repo. Cached for various usages."""
-    command_result = run_command(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True, check=False)
+    command_result = run_command(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False)
     if command_result.stdout:
         return command_result.stdout.strip()
     else:
@@ -315,3 +359,75 @@ def filter_out_none(**kwargs) -> dict:
         if kwargs[key] is None:
             kwargs.pop(key)
     return kwargs
+
+
+def check_if_image_exists(image: str) -> bool:
+    cmd_result = run_command(
+        ["docker", "inspect", image],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+    return cmd_result.returncode == 0
+
+
+def get_ci_image_for_pre_commits() -> str:
+    github_repository = os.environ.get("GITHUB_REPOSITORY", APACHE_AIRFLOW_GITHUB_REPOSITORY)
+    python_version = "3.7"
+    airflow_image = f"ghcr.io/{github_repository}/{AIRFLOW_BRANCH}/ci/python{python_version}"
+    skip_image_pre_commits = os.environ.get("SKIP_IMAGE_PRE_COMMITS", "false")
+    if skip_image_pre_commits[0].lower() == "t":
+        get_console().print(
+            f"[info]Skipping image check as SKIP_IMAGE_PRE_COMMITS is set to {skip_image_pre_commits}[/]"
+        )
+        sys.exit(0)
+    if not check_if_image_exists(
+        image=airflow_image,
+    ):
+        get_console().print(f"[red]The image {airflow_image} is not available.[/]\n")
+        get_console().print(
+            f"\n[yellow]Please run this to fix it:[/]\n\n"
+            f"breeze ci-image build --python {python_version}\n\n"
+        )
+        sys.exit(1)
+    return airflow_image
+
+
+def _run_compile_internally(command_to_execute: list[str]):
+    env = os.environ.copy()
+    compile_www_assets_result = run_command(
+        command_to_execute,
+        check=False,
+        no_output_dump_on_exception=True,
+        text=True,
+        env=env,
+    )
+    return compile_www_assets_result
+
+
+def run_compile_www_assets(
+    dev: bool,
+    run_in_background: bool,
+):
+    if dev:
+        get_console().print("\n[warning] The command below will run forever until you press Ctrl-C[/]\n")
+        get_console().print(
+            "\n[info]If you want to see output of the compilation command,\n"
+            "[info]cancel it, go to airflow/www folder and run 'yarn dev'.\n"
+            "[info]However, it requires you to have local yarn installation.\n"
+        )
+    command_to_execute = [
+        sys.executable,
+        "-m",
+        "pre_commit",
+        "run",
+        "--hook-stage",
+        "manual",
+        "compile-www-assets-dev" if dev else "compile-www-assets",
+        "--all-files",
+    ]
+    if run_in_background:
+        thread = Thread(daemon=True, target=_run_compile_internally, args=(command_to_execute,))
+        thread.start()
+    else:
+        return _run_compile_internally(command_to_execute)

@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
@@ -36,8 +38,8 @@ class AzureCosmosInsertDocumentOperator(BaseOperator):
         :ref:`Azure CosmosDB connection<howto/connection:azure_cosmos>`.
     """
 
-    template_fields: Sequence[str] = ('database_name', 'collection_name')
-    ui_color = '#e4f0e8'
+    template_fields: Sequence[str] = ("database_name", "collection_name")
+    ui_color = "#e4f0e8"
 
     def __init__(
         self,
@@ -45,7 +47,7 @@ class AzureCosmosInsertDocumentOperator(BaseOperator):
         database_name: str,
         collection_name: str,
         document: dict,
-        azure_cosmos_conn_id: str = 'azure_cosmos_default',
+        azure_cosmos_conn_id: str = "azure_cosmos_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -54,7 +56,7 @@ class AzureCosmosInsertDocumentOperator(BaseOperator):
         self.document = document
         self.azure_cosmos_conn_id = azure_cosmos_conn_id
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         # Create the hook
         hook = AzureCosmosDBHook(azure_cosmos_conn_id=self.azure_cosmos_conn_id)
 

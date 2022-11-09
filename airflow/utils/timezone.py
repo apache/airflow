@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import datetime as dt
-from typing import Optional, Union, overload
+from typing import overload
 
 import pendulum
 from dateutil.relativedelta import relativedelta
@@ -91,7 +92,7 @@ def convert_to_utc(value: dt.datetime) -> DateTime:
     ...
 
 
-def convert_to_utc(value: Optional[dt.datetime]) -> Optional[DateTime]:
+def convert_to_utc(value: dt.datetime | None) -> DateTime | None:
     """
     Returns the datetime with the default timezone added if timezone
     information was not associated
@@ -109,21 +110,21 @@ def convert_to_utc(value: Optional[dt.datetime]) -> Optional[DateTime]:
 
 
 @overload
-def make_aware(value: None, timezone: Optional[dt.tzinfo] = None) -> None:
+def make_aware(value: None, timezone: dt.tzinfo | None = None) -> None:
     ...
 
 
 @overload
-def make_aware(value: DateTime, timezone: Optional[dt.tzinfo] = None) -> DateTime:
+def make_aware(value: DateTime, timezone: dt.tzinfo | None = None) -> DateTime:
     ...
 
 
 @overload
-def make_aware(value: dt.datetime, timezone: Optional[dt.tzinfo] = None) -> dt.datetime:
+def make_aware(value: dt.datetime, timezone: dt.tzinfo | None = None) -> dt.datetime:
     ...
 
 
-def make_aware(value: Optional[dt.datetime], timezone: Optional[dt.tzinfo] = None) -> Optional[dt.datetime]:
+def make_aware(value: dt.datetime | None, timezone: dt.tzinfo | None = None) -> dt.datetime | None:
     """
     Make a naive datetime.datetime in a given time zone aware.
 
@@ -206,31 +207,38 @@ def parse(string: str, timezone=None) -> DateTime:
 
 
 @overload
-def coerce_datetime(v: None) -> None:
+def coerce_datetime(v: None, tz: dt.tzinfo | None = None) -> None:
     ...
 
 
 @overload
-def coerce_datetime(v: DateTime) -> DateTime:
+def coerce_datetime(v: DateTime, tz: dt.tzinfo | None = None) -> DateTime:
     ...
 
 
 @overload
-def coerce_datetime(v: dt.datetime) -> DateTime:
+def coerce_datetime(v: dt.datetime, tz: dt.tzinfo | None = None) -> DateTime:
     ...
 
 
-def coerce_datetime(v: Optional[dt.datetime]) -> Optional[DateTime]:
-    """Convert whatever is passed in to an timezone-aware ``pendulum.DateTime``."""
+def coerce_datetime(v: dt.datetime | None, tz: dt.tzinfo | None = None) -> DateTime | None:
+    """Convert ``v`` into a timezone-aware ``pendulum.DateTime``.
+
+    * If ``v`` is *None*, *None* is returned.
+    * If ``v`` is a naive datetime, it is converted to an aware Pendulum DateTime.
+    * If ``v`` is an aware datetime, it is converted to a Pendulum DateTime.
+      Note that ``tz`` is **not** taken into account in this case; the datetime
+      will maintain its original tzinfo!
+    """
     if v is None:
         return None
     if isinstance(v, DateTime):
-        return v if v.tzinfo else make_aware(v)
-    # Only dt.datetime is left here
-    return pendulum.instance(v if v.tzinfo else make_aware(v))
+        return v if v.tzinfo else make_aware(v, tz)
+    # Only dt.datetime is left here.
+    return pendulum.instance(v if v.tzinfo else make_aware(v, tz))
 
 
-def td_format(td_object: Union[None, dt.timedelta, float, int]) -> Optional[str]:
+def td_format(td_object: None | dt.timedelta | float | int) -> str | None:
     """
     Format a timedelta object or float/int into a readable string for time duration.
     For example timedelta(seconds=3752) would become `1h:2M:32s`.

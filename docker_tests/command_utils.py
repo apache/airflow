@@ -14,13 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import shlex
 import subprocess
-from typing import List
 
 
-def run_command(cmd: List[str], *, print_output_on_error: bool = True, return_output: bool = False, **kwargs):
+def run_command(cmd: list[str], *, print_output_on_error: bool = True, return_output: bool = False, **kwargs):
     print(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
     try:
         if return_output:

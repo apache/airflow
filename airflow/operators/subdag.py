@@ -19,16 +19,16 @@
 This module is deprecated. Please use :mod:`airflow.utils.task_group`.
 The module which provides a way to nest your DAGs and so your levels of complexity.
 """
+from __future__ import annotations
 
 import warnings
 from datetime import datetime
 from enum import Enum
-from typing import Dict, Optional, Tuple
 
 from sqlalchemy.orm.session import Session
 
 from airflow.api.common.experimental.get_task_instance import get_task_instance
-from airflow.exceptions import AirflowException, TaskInstanceNotFound
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskInstanceNotFound
 from airflow.models import DagRun
 from airflow.models.dag import DAG, DagContext
 from airflow.models.pool import Pool
@@ -69,7 +69,7 @@ class SubDagOperator(BaseSensorOperator):
     ui_color = '#555'
     ui_fgcolor = '#fff'
 
-    subdag: "DAG"
+    subdag: DAG
 
     @provide_session
     def __init__(
@@ -77,8 +77,8 @@ class SubDagOperator(BaseSensorOperator):
         *,
         subdag: DAG,
         session: Session = NEW_SESSION,
-        conf: Optional[Dict] = None,
-        propagate_skipped_state: Optional[SkippedStatePropagationOptions] = None,
+        conf: dict | None = None,
+        propagate_skipped_state: SkippedStatePropagationOptions | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -91,7 +91,7 @@ class SubDagOperator(BaseSensorOperator):
 
         warnings.warn(
             """This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`.""",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=4,
         )
 
@@ -115,14 +115,9 @@ class SubDagOperator(BaseSensorOperator):
                 pool = session.query(Pool).filter(Pool.slots == 1).filter(Pool.pool == self.pool).first()
                 if pool and any(t.pool == self.pool for t in self.subdag.tasks):
                     raise AirflowException(
-                        'SubDagOperator {sd} and subdag task{plural} {t} both '
-                        'use pool {p}, but the pool only has 1 slot. The '
-                        'subdag tasks will never run.'.format(
-                            sd=self.task_id,
-                            plural=len(conflicts) > 1,
-                            t=', '.join(t.task_id for t in conflicts),
-                            p=self.pool,
-                        )
+                        f"SubDagOperator {self.task_id} and subdag task{'s' if len(conflicts) > 1 else ''} "
+                        f"{', '.join(t.task_id for t in conflicts)} both use pool {self.pool}, "
+                        f"but the pool only has 1 slot. The subdag tasks will never run."
                     )
 
     def _get_dagrun(self, execution_date):
@@ -162,7 +157,7 @@ class SubDagOperator(BaseSensorOperator):
 
         if dag_run is None:
             if context['data_interval_start'] is None or context['data_interval_end'] is None:
-                data_interval: Optional[Tuple[datetime, datetime]] = None
+                data_interval: tuple[datetime, datetime] | None = None
             else:
                 data_interval = (context['data_interval_start'], context['data_interval_end'])
             dag_run = self.subdag.create_dagrun(

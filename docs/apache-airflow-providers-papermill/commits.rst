@@ -28,6 +28,33 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.0.0
+.....
+
+Latest change: 2022-06-08
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`04f98cf92d <https://github.com/apache/airflow/commit/04f98cf92d4469832b937251d539998614399d38>`_  2022-06-08   ``Fix langauge override in papermill operator (#24301)``
+`717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
+`027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
+`b4d50d3be1 <https://github.com/apache/airflow/commit/b4d50d3be1c9917182f231135b8312eb284f0f7f>`_  2022-06-05   ``Migrate Papermill example DAGs to new design #22456 (#24146)``
+`6962d8a355 <https://github.com/apache/airflow/commit/6962d8a3556999af2eec459c944417ddd6d2cfb3>`_  2022-05-27   ``Add support to specify language name in PapermillOperator (#23916)``
+=================================================================================================  ===========  ==================================================================================
+
+2.2.3
+.....
+
+Latest change: 2022-03-22
+
+=================================================================================================  ===========  ==============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================
+`d7dbfb7e26 <https://github.com/apache/airflow/commit/d7dbfb7e26a50130d3550e781dc71a5fbcaeb3d2>`_  2022-03-22   ``Add documentation for bugfix release of Providers (#22383)``
+=================================================================================================  ===========  ==============================================================
+
 2.2.2
 .....
 

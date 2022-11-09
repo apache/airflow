@@ -17,6 +17,8 @@
 """
 Example Airflow DAG that shows how to use Google Dataprep.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -27,8 +29,8 @@ from airflow.providers.google.cloud.operators.dataprep import (
     DataprepRunJobGroupOperator,
 )
 
-DATAPREP_JOB_ID = int(os.environ.get('DATAPREP_JOB_ID', 12345677))
-DATAPREP_JOB_RECIPE_ID = int(os.environ.get('DATAPREP_JOB_RECIPE_ID', 12345677))
+DATAPREP_JOB_ID = int(os.environ.get("DATAPREP_JOB_ID", 12345677))
+DATAPREP_JOB_RECIPE_ID = int(os.environ.get("DATAPREP_JOB_RECIPE_ID", 12345677))
 DATAPREP_BUCKET = os.environ.get("DATAPREP_BUCKET", "gs://INVALID BUCKET NAME/name@email.com")
 
 DATA = {
@@ -52,7 +54,6 @@ DATA = {
 
 with models.DAG(
     "example_dataprep",
-    schedule_interval='@once',
     start_date=datetime(2021, 1, 1),  # Override to match your needs
     catchup=False,
 ) as dag:

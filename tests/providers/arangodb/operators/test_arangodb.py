@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -22,11 +23,11 @@ from airflow.providers.arangodb.operators.arangodb import AQLOperator
 
 
 class TestAQLOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.arangodb.operators.arangodb.ArangoDBHook')
+    @mock.patch("airflow.providers.arangodb.operators.arangodb.ArangoDBHook")
     def test_arangodb_operator_test(self, mock_hook):
 
         arangodb_query = "FOR doc IN students RETURN doc"
-        op = AQLOperator(task_id='basic_aql_task', query=arangodb_query)
+        op = AQLOperator(task_id="basic_aql_task", query=arangodb_query)
         op.execute(mock.MagicMock())
-        mock_hook.assert_called_once_with(arangodb_conn_id='arangodb_default')
+        mock_hook.assert_called_once_with(arangodb_conn_id="arangodb_default")
         mock_hook.return_value.query.assert_called_once_with(arangodb_query)

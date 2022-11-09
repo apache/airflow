@@ -18,33 +18,36 @@
 
 set -euo pipefail
 rm -rf docker-context-files/*.whl
-rm -rf docker-context-files/*.tgz
+rm -rf docker-context-files/*.tar.gz
 export ANSWER="yes"
 export CI="true"
+export GITHUB_TOKEN=""
 
-breeze build-image \
-     --build-multiple-images \
-     --push-image \
+breeze setup self-upgrade --use-current-airflow-sources
+
+breeze ci-image build \
+     --builder airflow_cache \
+     --run-in-parallel \
      --prepare-buildx-cache \
+     --force-build \
      --platform linux/amd64,linux/arm64 \
      --verbose
 
 rm -fv ./dist/* ./docker-context-files/*
 
-breeze prepare-provider-packages \
+breeze release-management prepare-provider-packages \
     --package-list-file ./scripts/ci/installed_providers.txt \
     --package-format wheel \
     --version-suffix-for-pypi dev0
 
-breeze prepare-airflow-package --package-format wheel --version-suffix-for-pypi dev0
+breeze release-management prepare-airflow-package --package-format wheel --version-suffix-for-pypi dev0
 
 mv -v ./dist/*.whl ./docker-context-files
 
-breeze build-prod-image \
-     --build-multiple-images \
-     --airflow-is-in-context \
+breeze prod-image build \
+     --builder airflow_cache \
+     --run-in-parallel \
      --install-packages-from-context \
      --prepare-buildx-cache \
-     --disable-airflow-repo-cache \
      --platform linux/amd64,linux/arm64 \
      --verbose

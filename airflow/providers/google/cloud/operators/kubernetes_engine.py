@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains Google Kubernetes Engine operators."""
+from __future__ import annotations
 
 import os
 import tempfile
 import warnings
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Generator, Sequence
 
 from google.cloud.container_v1.types import Cluster
 
@@ -29,6 +30,10 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
+from airflow.providers.google.cloud.links.kubernetes_engine import (
+    KubernetesEngineClusterLink,
+    KubernetesEnginePodLink,
+)
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.process_utils import execute_in_subprocess, patch_environ
 
@@ -76,12 +81,12 @@ class GKEDeleteClusterOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'gcp_conn_id',
-        'name',
-        'location',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "gcp_conn_id",
+        "name",
+        "location",
+        "api_version",
+        "impersonation_chain",
     )
 
     def __init__(
@@ -89,10 +94,10 @@ class GKEDeleteClusterOperator(BaseOperator):
         *,
         name: str,
         location: str,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v2',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v2",
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -107,10 +112,10 @@ class GKEDeleteClusterOperator(BaseOperator):
 
     def _check_input(self) -> None:
         if not all([self.project_id, self.name, self.location]):
-            self.log.error('One of (project_id, name, location) is missing or incorrect')
-            raise AirflowException('Operator has incorrect or missing input.')
+            self.log.error("One of (project_id, name, location) is missing or incorrect")
+            raise AirflowException("Operator has incorrect or missing input.")
 
-    def execute(self, context: 'Context') -> Optional[str]:
+    def execute(self, context: Context) -> str | None:
         hook = GKEHook(
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
@@ -172,23 +177,24 @@ class GKECreateClusterOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'gcp_conn_id',
-        'location',
-        'api_version',
-        'body',
-        'impersonation_chain',
+        "project_id",
+        "gcp_conn_id",
+        "location",
+        "api_version",
+        "body",
+        "impersonation_chain",
     )
+    operator_extra_links = (KubernetesEngineClusterLink(),)
 
     def __init__(
         self,
         *,
         location: str,
-        body: Optional[Union[Dict, Cluster]],
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v2',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        body: dict | Cluster | None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v2",
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -232,13 +238,14 @@ class GKECreateClusterOperator(BaseOperator):
             self.log.error("Only one of body['initial_node_count']) and body['node_pools'] may be specified")
             raise AirflowException("Operator has incorrect or missing input.")
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         hook = GKEHook(
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
         create_op = hook.create_cluster(cluster=self.body, project_id=self.project_id)
+        KubernetesEngineClusterLink.persist(context=context, task_instance=self, cluster=self.body)
         return create_op
 
 
@@ -289,8 +296,9 @@ class GKEStartPodOperator(KubernetesPodOperator):
     """
 
     template_fields: Sequence[str] = tuple(
-        {'project_id', 'location', 'cluster_name'} | set(KubernetesPodOperator.template_fields)
+        {"project_id", "location", "cluster_name"} | set(KubernetesPodOperator.template_fields)
     )
+    operator_extra_links = (KubernetesEnginePodLink(),)
 
     def __init__(
         self,
@@ -298,11 +306,11 @@ class GKEStartPodOperator(KubernetesPodOperator):
         location: str,
         cluster_name: str,
         use_internal_ip: bool = False,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
         regional: bool = False,
-        is_delete_operator_pod: Optional[bool] = None,
+        is_delete_operator_pod: bool | None = None,
         **kwargs,
     ) -> None:
         if is_delete_operator_pod is None:
@@ -336,11 +344,22 @@ class GKEStartPodOperator(KubernetesPodOperator):
         if self.config_file:
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
 
-    def execute(self, context: 'Context') -> Optional[str]:
-        hook = GoogleBaseHook(gcp_conn_id=self.gcp_conn_id)
-        self.project_id = self.project_id or hook.project_id
+    @staticmethod
+    @contextmanager
+    def get_gke_config_file(
+        gcp_conn_id,
+        project_id: str | None,
+        cluster_name: str,
+        impersonation_chain: str | Sequence[str] | None,
+        regional: bool,
+        location: str,
+        use_internal_ip: bool,
+    ) -> Generator[str, None, None]:
 
-        if not self.project_id:
+        hook = GoogleBaseHook(gcp_conn_id=gcp_conn_id)
+        project_id = project_id or hook.project_id
+
+        if not project_id:
             raise AirflowException(
                 "The project id must be passed either as "
                 "keyword project_id parameter or as project_id extra "
@@ -363,15 +382,15 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 "container",
                 "clusters",
                 "get-credentials",
-                self.cluster_name,
+                cluster_name,
                 "--project",
-                self.project_id,
+                project_id,
             ]
-            if self.impersonation_chain:
-                if isinstance(self.impersonation_chain, str):
-                    impersonation_account = self.impersonation_chain
-                elif len(self.impersonation_chain) == 1:
-                    impersonation_account = self.impersonation_chain[0]
+            if impersonation_chain:
+                if isinstance(impersonation_chain, str):
+                    impersonation_account = impersonation_chain
+                elif len(impersonation_chain) == 1:
+                    impersonation_account = impersonation_chain[0]
                 else:
                     raise AirflowException(
                         "Chained list of accounts is not supported, please specify only one service account"
@@ -379,19 +398,35 @@ class GKEStartPodOperator(KubernetesPodOperator):
 
                 cmd.extend(
                     [
-                        '--impersonate-service-account',
+                        "--impersonate-service-account",
                         impersonation_account,
                     ]
                 )
-            if self.regional:
-                cmd.append('--region')
+            if regional:
+                cmd.append("--region")
             else:
-                cmd.append('--zone')
-            cmd.append(self.location)
-            if self.use_internal_ip:
-                cmd.append('--internal-ip')
+                cmd.append("--zone")
+            cmd.append(location)
+            if use_internal_ip:
+                cmd.append("--internal-ip")
             execute_in_subprocess(cmd)
 
             # Tell `KubernetesPodOperator` where the config file is located
-            self.config_file = os.environ[KUBE_CONFIG_ENV_VAR]
-            return super().execute(context)
+            yield os.environ[KUBE_CONFIG_ENV_VAR]
+
+    def execute(self, context: Context) -> str | None:
+
+        with GKEStartPodOperator.get_gke_config_file(
+            gcp_conn_id=self.gcp_conn_id,
+            project_id=self.project_id,
+            cluster_name=self.cluster_name,
+            impersonation_chain=self.impersonation_chain,
+            regional=self.regional,
+            location=self.location,
+            use_internal_ip=self.use_internal_ip,
+        ) as config_file:
+            self.config_file = config_file
+            result = super().execute(context)
+            if not self.is_delete_operator_pod:
+                KubernetesEnginePodLink.persist(context=context, task_instance=self)
+            return result

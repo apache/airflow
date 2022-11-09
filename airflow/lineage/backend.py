@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Sends lineage metadata to a backend"""
-from typing import TYPE_CHECKING, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
@@ -27,10 +29,10 @@ class LineageBackend:
 
     def send_lineage(
         self,
-        operator: 'BaseOperator',
-        inlets: Optional[list] = None,
-        outlets: Optional[list] = None,
-        context: Optional[dict] = None,
+        operator: BaseOperator,
+        inlets: list | None = None,
+        outlets: list | None = None,
+        context: dict | None = None,
     ):
         """
         Sends lineage metadata to a backend

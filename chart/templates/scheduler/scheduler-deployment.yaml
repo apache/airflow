@@ -20,17 +20,21 @@
 #################################
 
 # Are we using a local executor?
-{{- $local := eq .Values.executor "LocalExecutor" }}
+{{- $local := contains "Local" .Values.executor }}
 # Is persistence enabled on the _workers_?
 # This is important because in $local mode, the scheduler assumes the role of the worker
 {{- $persistence := .Values.workers.persistence.enabled }}
 # If we're using a StatefulSet
 {{- $stateful := and $local $persistence }}
+# We can skip DAGs mounts on scheduler if dagProcessor is enabled, except with $local mode
+{{- $localOrDagProcessorDisabled := or (not .Values.dagProcessor.enabled) $local }}
 # If we're using elasticsearch logging
 {{- $elasticsearch := .Values.elasticsearch.enabled }}
 {{- $nodeSelector := or .Values.scheduler.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.scheduler.affinity .Values.affinity }}
 {{- $tolerations := or .Values.scheduler.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.scheduler.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $revisionHistoryLimit := or .Values.scheduler.revisionHistoryLimit .Values.revisionHistoryLimit }}
 {{- $securityContext := include "airflowSecurityContext" (list . .Values.scheduler) }}
 
 kind: {{ if $stateful }}StatefulSet{{ else }}Deployment{{ end }}
@@ -43,6 +47,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
+    executor: {{ .Values.executor }}
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
@@ -51,6 +56,9 @@ spec:
   serviceName: {{ .Release.Name }}-scheduler
 {{- end }}
   replicas: {{ .Values.scheduler.replicas }}
+  {{- if $revisionHistoryLimit }}
+  revisionHistoryLimit: {{ $revisionHistoryLimit }}
+  {{- end }}
   {{- if and $stateful .Values.scheduler.updateStrategy }}
   updateStrategy:
     {{- toYaml .Values.scheduler.updateStrategy | nindent 4 }}
@@ -70,8 +78,8 @@ spec:
         tier: airflow
         component: scheduler
         release: {{ .Release.Name }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 8 }}
+{{- if or (.Values.labels) (.Values.scheduler.labels) }}
+{{- mustMerge .Values.scheduler.labels .Values.labels | toYaml | nindent 8 }}
 {{- end }}
       annotations:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
@@ -110,6 +118,8 @@ spec:
 {{- end }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
+      topologySpreadConstraints:
+{{ toYaml $topologySpreadConstraints | indent 8 }}
       restartPolicy: Always
       terminationGracePeriodSeconds: 10
       serviceAccountName: {{ include "scheduler.serviceAccountName" . }}
@@ -137,8 +147,11 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+{{- if .Values.scheduler.waitForMigrations.env }}
+{{ tpl (toYaml .Values.scheduler.waitForMigrations.env) $ | indent 12 }}
+{{- end }}
         {{- end }}
-        {{- if .Values.dags.gitSync.enabled }}
+        {{- if and $localOrDagProcessorDisabled .Values.dags.gitSync.enabled }}
         {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
         {{- end }}
         {{- if .Values.scheduler.extraInitContainers }}
@@ -160,6 +173,7 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+          {{- include "container_extra_envs" (list . .Values.scheduler.env) | indent 10 }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.scheduler.livenessProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.scheduler.livenessProbe.timeoutSeconds }}
@@ -199,13 +213,13 @@ spec:
               subPath: airflow_local_settings.py
               readOnly: true
             {{- end }}
-            {{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
-            {{- include "airflow_dags_mount" . | nindent 12 }}
-            {{- end }}
+{{- if and $localOrDagProcessorDisabled (or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled) }}
+{{- include "airflow_dags_mount" . | nindent 12 }}
+{{- end }}
 {{- if .Values.scheduler.extraVolumeMounts }}
 {{ toYaml .Values.scheduler.extraVolumeMounts | indent 12 }}
 {{- end }}
-{{- if .Values.dags.gitSync.enabled }}
+{{- if and $localOrDagProcessorDisabled .Values.dags.gitSync.enabled }}
         {{- include "git_sync_container" . | indent 8 }}
 {{- end }}
         {{- if .Values.scheduler.logGroomerSidecar.enabled }}
@@ -236,6 +250,7 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+{{- if $localOrDagProcessorDisabled }}
         {{- if .Values.dags.persistence.enabled }}
         - name: dags
           persistentVolumeClaim:
@@ -243,10 +258,11 @@ spec:
         {{- else if .Values.dags.gitSync.enabled }}
         - name: dags
           emptyDir: {}
-        {{- end }}
-        {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
+        {{- if .Values.dags.gitSync.sshKeySecret }}
         {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
+        {{- end}}
+{{- end }}
 {{- if .Values.scheduler.extraVolumes }}
 {{ toYaml .Values.scheduler.extraVolumes | indent 8 }}
 {{- end }}
@@ -261,6 +277,10 @@ spec:
   volumeClaimTemplates:
     - metadata:
         name: logs
+        {{- if .Values.workers.persistence.annotations }}
+        annotations:
+          {{- toYaml .Values.workers.persistence.annotations | nindent 10 }}
+        {{- end }}
       spec:
       {{- if .Values.workers.persistence.storageClassName }}
         storageClassName: {{ .Values.workers.persistence.storageClassName }}

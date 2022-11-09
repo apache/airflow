@@ -22,6 +22,9 @@ description: |
     Hashicorp including `Hashicorp Vault <https://www.vaultproject.io/>`__
 
 versions:
+  - 3.1.0
+  - 3.0.1
+  - 3.0.0
   - 2.2.0
   - 2.1.4
   - 2.1.3
@@ -33,8 +36,9 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
-  - apache-airflow>=2.1.0
+dependencies:
+  - apache-airflow>=2.3.0
+  - hvac>=0.10
 
 integrations:
   - integration-name: Hashicorp Vault
@@ -46,9 +50,6 @@ hooks:
   - integration-name: Hashicorp Vault
     python-modules:
       - airflow.providers.hashicorp.hooks.vault
-
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.hashicorp.hooks.vault.VaultHook
 
 connection-types:
   - hook-class-name: airflow.providers.hashicorp.hooks.vault.VaultHook

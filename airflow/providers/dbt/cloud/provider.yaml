@@ -22,11 +22,16 @@ description: |
     `dbt Cloud <https://www.getdbt.com/product/what-is-dbt/>`__
 
 versions:
+  - 2.2.0
+  - 2.1.0
+  - 2.0.1
+  - 2.0.0
   - 1.0.2
   - 1.0.1
 
-additional-dependencies:
-  - apache-airflow>=2.1.0
+dependencies:
+  - apache-airflow>=2.3.0
+  - apache-airflow-providers-http
 
 integrations:
   - integration-name: dbt Cloud
@@ -50,9 +55,6 @@ hooks:
   - integration-name: dbt Cloud
     python-modules:
       - airflow.providers.dbt.cloud.hooks.dbt
-
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook
 
 connection-types:
   - hook-class-name: airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook

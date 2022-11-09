@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict
+from __future__ import annotations
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -152,7 +152,7 @@ class Resources:
         }
 
     @classmethod
-    def from_dict(cls, resources_dict: Dict):
+    def from_dict(cls, resources_dict: dict):
         """Create resources from resources dict"""
         cpus = resources_dict['cpus']['qty']
         ram = resources_dict['ram']['qty']

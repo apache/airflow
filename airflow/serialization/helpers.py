@@ -14,14 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Serialized DAG and BaseOperator"""
-from typing import Any, Union
+from __future__ import annotations
+
+from typing import Any
 
 from airflow.settings import json
 
 
-def serialize_template_field(template_field: Any) -> Union[str, dict, list, int, float]:
+def serialize_template_field(template_field: Any) -> str | dict | list | int | float:
     """
     Return a serializable representation of the templated_field.
     If a templated_field contains a Class or Instance for recursive templating, store them

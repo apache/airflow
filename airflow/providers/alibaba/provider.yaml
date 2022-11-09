@@ -22,13 +22,17 @@ description: |
     Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com//>`__).
 
 versions:
+  - 2.1.0
+  - 2.0.1
+  - 2.0.0
   - 1.1.1
   - 1.1.0
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
-  - apache-airflow>=2.1.0
+dependencies:
+  - apache-airflow>=2.3.0
+  - oss2>=2.14.0
 
 integrations:
   - integration-name: Alibaba Cloud OSS
@@ -53,8 +57,6 @@ hooks:
     python-modules:
       - airflow.providers.alibaba.cloud.hooks.oss
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.alibaba.cloud.hooks.oss.OSSHook
 
 connection-types:
   - hook-class-name: airflow.providers.alibaba.cloud.hooks.oss.OSSHook

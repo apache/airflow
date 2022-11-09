@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import re
 from unittest import TestCase, mock
@@ -27,19 +28,19 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.google.cloud.secrets.secret_manager import CloudSecretManagerBackend
 
-CREDENTIALS = 'test-creds'
-KEY_FILE = 'test-file.json'
-PROJECT_ID = 'test-project-id'
-OVERRIDDEN_PROJECT_ID = 'overridden-test-project-id'
+CREDENTIALS = "test-creds"
+KEY_FILE = "test-file.json"
+PROJECT_ID = "test-project-id"
+OVERRIDDEN_PROJECT_ID = "overridden-test-project-id"
 CONNECTIONS_PREFIX = "test-connections"
 VARIABLES_PREFIX = "test-variables"
-SEP = '-'
-CONN_ID = 'test-postgres'
-CONN_URI = 'postgresql://airflow:airflow@host:5432/airflow'
-VAR_KEY = 'hello'
-VAR_VALUE = 'world'
-CONFIG_KEY = 'sql_alchemy_conn'
-CONFIG_VALUE = 'postgresql://airflow:airflow@host:5432/airflow'
+SEP = "-"
+CONN_ID = "test-postgres"
+CONN_URI = "postgresql://airflow:airflow@host:5432/airflow"
+VAR_KEY = "hello"
+VAR_VALUE = "world"
+CONFIG_KEY = "sql_alchemy_conn"
+CONFIG_VALUE = "postgresql://airflow:airflow@host:5432/airflow"
 
 MODULE_NAME = "airflow.providers.google.cloud.secrets.secret_manager"
 CLIENT_MODULE_NAME = "airflow.providers.google.cloud._internal_client.secret_manager_client"
@@ -109,12 +110,11 @@ class TestCloudSecretManagerBackend(TestCase):
 
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(MODULE_NAME + ".CloudSecretManagerBackend.get_conn_value")
-    def test_get_connections(self, mock_get_value, mock_get_creds):
+    def test_get_connection(self, mock_get_value, mock_get_creds):
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
         mock_get_value.return_value = CONN_URI
-        conns = CloudSecretManagerBackend().get_connections(conn_id=CONN_ID)
-        assert isinstance(conns, list)
-        assert isinstance(conns[0], Connection)
+        conn = CloudSecretManagerBackend().get_connection(conn_id=CONN_ID)
+        assert isinstance(conn, Connection)
 
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(CLIENT_MODULE_NAME + ".SecretManagerServiceClient")
@@ -123,13 +123,13 @@ class TestCloudSecretManagerBackend(TestCase):
         mock_client = mock.MagicMock()
         mock_client_callable.return_value = mock_client
         # The requested secret id or secret version does not exist
-        mock_client.access_secret_version.side_effect = NotFound('test-msg')
+        mock_client.access_secret_version.side_effect = NotFound("test-msg")
 
         secrets_manager_backend = CloudSecretManagerBackend(connections_prefix=CONNECTIONS_PREFIX)
         secret_id = secrets_manager_backend.build_path(CONNECTIONS_PREFIX, CONN_ID, SEP)
         with self.assertLogs(secrets_manager_backend.client.log, level="ERROR") as log_output:
             assert secrets_manager_backend.get_conn_uri(conn_id=CONN_ID) is None
-            assert [] == secrets_manager_backend.get_connections(conn_id=CONN_ID)
+            assert secrets_manager_backend.get_connection(conn_id=CONN_ID) is None
             assert re.search(
                 f"Google Cloud API Call Error \\(NotFound\\): Secret ID {secret_id} not found",
                 log_output.output[0],
@@ -198,7 +198,7 @@ class TestCloudSecretManagerBackend(TestCase):
         mock_client = mock.MagicMock()
         mock_client_callable.return_value = mock_client
         # The requested secret id or secret version does not exist
-        mock_client.access_secret_version.side_effect = NotFound('test-msg')
+        mock_client.access_secret_version.side_effect = NotFound("test-msg")
 
         secrets_manager_backend = CloudSecretManagerBackend(variables_prefix=VARIABLES_PREFIX)
         secret_id = secrets_manager_backend.build_path(VARIABLES_PREFIX, VAR_KEY, SEP)
@@ -216,9 +216,9 @@ class TestCloudSecretManagerBackend(TestCase):
         mock_client = mock.MagicMock()
         mock_client_callable.return_value = mock_client
 
-        with mock.patch(MODULE_NAME + '.CloudSecretManagerBackend._get_secret') as mock_get_secret:
+        with mock.patch(MODULE_NAME + ".CloudSecretManagerBackend._get_secret") as mock_get_secret:
             with mock.patch(
-                MODULE_NAME + '.CloudSecretManagerBackend._is_valid_prefix_and_sep'
+                MODULE_NAME + ".CloudSecretManagerBackend._is_valid_prefix_and_sep"
             ) as mock_is_valid_prefix_sep:
                 secrets_manager_backend = CloudSecretManagerBackend(connections_prefix=None)
 
@@ -233,7 +233,7 @@ class TestCloudSecretManagerBackend(TestCase):
         mock_client = mock.MagicMock()
         mock_client_callable.return_value = mock_client
 
-        with mock.patch(MODULE_NAME + '.CloudSecretManagerBackend._get_secret') as mock_get_secret:
+        with mock.patch(MODULE_NAME + ".CloudSecretManagerBackend._get_secret") as mock_get_secret:
             secrets_manager_backend = CloudSecretManagerBackend(variables_prefix=None)
 
             assert secrets_manager_backend.get_variable(VAR_KEY) is None
@@ -246,7 +246,7 @@ class TestCloudSecretManagerBackend(TestCase):
         mock_client = mock.MagicMock()
         mock_client_callable.return_value = mock_client
 
-        with mock.patch(MODULE_NAME + '.CloudSecretManagerBackend._get_secret') as mock_get_secret:
+        with mock.patch(MODULE_NAME + ".CloudSecretManagerBackend._get_secret") as mock_get_secret:
             secrets_manager_backend = CloudSecretManagerBackend(config_prefix=None)
 
             assert secrets_manager_backend.get_config(CONFIG_KEY) is None

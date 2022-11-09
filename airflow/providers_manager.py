@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Manages all providers."""
+from __future__ import annotations
+
 import fnmatch
 import functools
 import json
@@ -27,26 +29,9 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from functools import wraps
 from time import perf_counter
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    MutableMapping,
-    NamedTuple,
-    Optional,
-    Set,
-    Type,
-    TypeVar,
-    Union,
-    cast,
-)
-
-import jsonschema
-from packaging import version as packaging_version
+from typing import TYPE_CHECKING, Any, Callable, MutableMapping, NamedTuple, TypeVar, cast
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.hooks.base import BaseHook
 from airflow.typing_compat import Literal
 from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
@@ -63,6 +48,37 @@ else:
 MIN_PROVIDER_VERSIONS = {
     "apache-airflow-providers-celery": "2.1.0",
 }
+
+
+def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: str):
+    """
+    If the given field_behaviors dict contains a placeholders node, and there
+    are placeholders for extra fields (i.e. anything other than the built-in conn
+    attrs), and if those extra fields are unprefixed, then add the prefix.
+
+    The reason we need to do this is, all custom conn fields live in the same dictionary,
+    so we need to namespace them with a prefix internally.  But for user convenience,
+    and consistency between the `get_ui_field_behaviour` method and the extra dict itself,
+    we allow users to supply the unprefixed name.
+    """
+    conn_attrs = {'host', 'schema', 'login', 'password', 'port', 'extra'}
+
+    def ensure_prefix(field):
+        if field not in conn_attrs and not field.startswith('extra__'):
+            return f"extra__{conn_type}__{field}"
+        else:
+            return field
+
+    if 'placeholders' in field_behaviors:
+        placeholders = field_behaviors['placeholders']
+        field_behaviors['placeholders'] = {ensure_prefix(k): v for k, v in placeholders.items()}
+
+    return field_behaviors
+
+
+if TYPE_CHECKING:
+    from airflow.decorators.base import TaskDecorator
+    from airflow.hooks.base import BaseHook
 
 
 class LazyDictWithCache(MutableMapping):
@@ -110,6 +126,8 @@ class LazyDictWithCache(MutableMapping):
 
 def _create_provider_info_schema_validator():
     """Creates JSON schema validator from the provider_info.schema.json"""
+    import jsonschema
+
     with resource_files("airflow").joinpath("provider_info.schema.json").open("rb") as f:
         schema = json.load(f)
     cls = jsonschema.validators.validator_for(schema)
@@ -119,6 +137,8 @@ def _create_provider_info_schema_validator():
 
 def _create_customized_form_field_behaviours_schema_validator():
     """Creates JSON schema validator from the customized_form_field_behaviours.schema.json"""
+    import jsonschema
+
     with resource_files("airflow").joinpath("customized_form_field_behaviours.schema.json").open("rb") as f:
         schema = json.load(f)
     cls = jsonschema.validators.validator_for(schema)
@@ -152,8 +172,8 @@ class ProviderInfo:
     """
 
     version: str
-    data: Dict
-    package_or_source: Union[Literal['source'], Literal['package']]
+    data: dict
+    package_or_source: Literal['source'] | Literal['package']
 
     def __post_init__(self):
         if self.package_or_source not in ('source', 'package'):
@@ -232,14 +252,12 @@ def log_import_warning(class_name, e, provider_package):
 # where they have optional features. We are going to add tests in our CI to catch all such cases and will
 # fix them, but until now all "known unhandled optional feature errors" from community providers
 # should be added here
-KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS = [
-    ("apache-airflow-providers-google", "ModuleNotFoundError: No module named 'paramiko'")
-]
+KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS = [("apache-airflow-providers-google", "No module named 'paramiko'")]
 
 
 def _sanity_check(
     provider_package: str, class_name: str, provider_info: ProviderInfo
-) -> Optional[Type[BaseHook]]:
+) -> type[BaseHook] | None:
     """
     Performs coherence check on provider classes.
     For apache-airflow providers - it checks if it starts with appropriate package. For all providers
@@ -269,7 +287,7 @@ def _sanity_check(
             # (we always have all providers from sources until we split providers to separate repo)
             log_debug_import_from_sources(class_name, e, provider_package)
             return None
-        if "ModuleNotFoundError: No module named 'airflow.providers." in e.msg:
+        if "No module named 'airflow.providers." in e.msg:
             # handle cases where another provider is missing. This can only happen if
             # there is an optional feature, so we log debug and print information about it
             log_optional_feature_disabled(class_name, e, provider_package)
@@ -278,7 +296,7 @@ def _sanity_check(
             # Until we convert all providers to use AirflowOptionalProviderFeatureException
             # we assume any problem with importing another "provider" is because this is an
             # optional feature, so we log debug and print information about it
-            if known_error[0] == provider_package and known_error[1] == e.msg:
+            if known_error[0] == provider_package and known_error[1] in e.msg:
                 log_optional_feature_disabled(class_name, e, provider_package)
                 return None
         # But when we have no idea - we print warning to logs
@@ -337,25 +355,25 @@ class ProvidersManager(LoggingMixin):
     def __init__(self):
         """Initializes the manager."""
         super().__init__()
-        self._initialized_cache: Dict[str, bool] = {}
+        self._initialized_cache: dict[str, bool] = {}
         # Keeps dict of providers keyed by module name
-        self._provider_dict: Dict[str, ProviderInfo] = {}
+        self._provider_dict: dict[str, ProviderInfo] = {}
         # Keeps dict of hooks keyed by connection type
-        self._hooks_dict: Dict[str, HookInfo] = {}
+        self._hooks_dict: dict[str, HookInfo] = {}
 
-        self._taskflow_decorators: Dict[str, Callable] = LazyDictWithCache()
+        self._taskflow_decorators: dict[str, Callable] = LazyDictWithCache()
         # keeps mapping between connection_types and hook class, package they come from
-        self._hook_provider_dict: Dict[str, HookClassProvider] = {}
+        self._hook_provider_dict: dict[str, HookClassProvider] = {}
         # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
-        self._hooks_lazy_dict: LazyDictWithCache[str, Union[HookInfo, Callable]] = LazyDictWithCache()
+        self._hooks_lazy_dict: LazyDictWithCache[str, HookInfo | Callable] = LazyDictWithCache()
         # Keeps methods that should be used to add custom widgets tuple of keyed by name of the extra field
-        self._connection_form_widgets: Dict[str, ConnectionFormWidgetInfo] = {}
+        self._connection_form_widgets: dict[str, ConnectionFormWidgetInfo] = {}
         # Customizations for javascript fields are kept here
-        self._field_behaviours: Dict[str, Dict] = {}
-        self._extra_link_class_name_set: Set[str] = set()
-        self._logging_class_name_set: Set[str] = set()
-        self._secrets_backend_class_name_set: Set[str] = set()
-        self._api_auth_backend_module_names: Set[str] = set()
+        self._field_behaviours: dict[str, dict] = {}
+        self._extra_link_class_name_set: set[str] = set()
+        self._logging_class_name_set: set[str] = set()
+        self._secrets_backend_class_name_set: set[str] = set()
+        self._api_auth_backend_module_names: set[str] = set()
         self._provider_schema_validator = _create_provider_info_schema_validator()
         self._customized_form_fields_schema_validator = (
             _create_customized_form_field_behaviours_schema_validator()
@@ -374,14 +392,19 @@ class ProvidersManager(LoggingMixin):
         self._provider_dict = OrderedDict(sorted(self._provider_dict.items()))
 
     def _verify_all_providers_all_compatible(self):
+        from packaging import version as packaging_version
+
         for provider_id, info in self._provider_dict.items():
             min_version = MIN_PROVIDER_VERSIONS.get(provider_id)
             if min_version:
                 if packaging_version.parse(min_version) > packaging_version.parse(info.version):
                     log.warning(
-                        f"The package {provider_id} is not compatible with this version of Airflow. "
-                        f"The package has version {info.version} but the minimum supported version "
-                        f"of the package is {min_version}"
+                        "The package %s is not compatible with this version of Airflow. "
+                        "The package has version %s but the minimum supported version "
+                        "of the package is %s",
+                        provider_id,
+                        info.version,
+                        min_version,
                     )
 
     @provider_info_cache("hooks")
@@ -513,8 +536,8 @@ class ProvidersManager(LoggingMixin):
 
     def _discover_hooks_from_connection_types(
         self,
-        hook_class_names_registered: Set[str],
-        already_registered_warning_connection_types: Set[str],
+        hook_class_names_registered: set[str],
+        already_registered_warning_connection_types: set[str],
         package_name: str,
         provider: ProviderInfo,
     ):
@@ -541,6 +564,15 @@ class ProvidersManager(LoggingMixin):
                 if already_registered:
                     if already_registered.package_name != package_name:
                         already_registered_warning_connection_types.add(connection_type)
+                    else:
+                        log.warning(
+                            "The connection type '%s' is already registered in the"
+                            " package '%s' with different class names: '%s' and '%s'. ",
+                            connection_type,
+                            package_name,
+                            already_registered.hook_class_name,
+                            hook_class_name,
+                        )
                 else:
                     self._hook_provider_dict[connection_type] = HookClassProvider(
                         hook_class_name=hook_class_name, package_name=package_name
@@ -556,8 +588,8 @@ class ProvidersManager(LoggingMixin):
 
     def _discover_hooks_from_hook_class_names(
         self,
-        hook_class_names_registered: Set[str],
-        already_registered_warning_connection_types: Set[str],
+        hook_class_names_registered: set[str],
+        already_registered_warning_connection_types: set[str],
         package_name: str,
         provider: ProviderInfo,
         provider_uses_connection_types: bool,
@@ -631,8 +663,8 @@ class ProvidersManager(LoggingMixin):
     def _discover_hooks(self) -> None:
         """Retrieves all connections defined in the providers via Hooks"""
         for package_name, provider in self._provider_dict.items():
-            duplicated_connection_types: Set[str] = set()
-            hook_class_names_registered: Set[str] = set()
+            duplicated_connection_types: set[str] = set()
+            hook_class_names_registered: set[str] = set()
             provider_uses_connection_types = self._discover_hooks_from_connection_types(
                 hook_class_names_registered, duplicated_connection_types, package_name, provider
             )
@@ -650,8 +682,14 @@ class ProvidersManager(LoggingMixin):
         """Force-import all hooks and initialize the connections/fields"""
         # Retrieve all hooks to make sure that all of them are imported
         _ = list(self._hooks_lazy_dict.values())
-        self._connection_form_widgets = OrderedDict(sorted(self._connection_form_widgets.items()))
         self._field_behaviours = OrderedDict(sorted(self._field_behaviours.items()))
+
+        # Widgets for connection forms are currently used in two places:
+        # 1. In the UI Connections, expected same order that it defined in Hook.
+        # 2. cli command - `airflow providers widgets` and expected that it in alphabetical order.
+        # It is not possible to recover original ordering after sorting,
+        # that the main reason why original sorting moved to cli part:
+        # self._connection_form_widgets = OrderedDict(sorted(self._connection_form_widgets.items()))
 
     def _discover_taskflow_decorators(self) -> None:
         for name, info in self._provider_dict.items():
@@ -691,11 +729,11 @@ class ProvidersManager(LoggingMixin):
 
     def _import_hook(
         self,
-        connection_type: Optional[str],
+        connection_type: str | None,
         provider_info: ProviderInfo,
-        hook_class_name: Optional[str] = None,
-        package_name: Optional[str] = None,
-    ) -> Optional[HookInfo]:
+        hook_class_name: str | None = None,
+        package_name: str | None = None,
+    ) -> HookInfo | None:
         """
         Imports hook and retrieves hook information. Either connection_type (for lazy loading)
         or hook_class_name must be set - but not both). Only needs package_name if hook_class_name is
@@ -738,6 +776,7 @@ class ProvidersManager(LoggingMixin):
             # hierarchy and we add it only from the parent hook that provides those!
             if 'get_connection_form_widgets' in hook_class.__dict__:
                 widgets = hook_class.get_connection_form_widgets()
+
                 if widgets:
                     for widget in widgets.values():
                         if widget.field_class not in allowed_field_classes:
@@ -797,7 +836,7 @@ class ProvidersManager(LoggingMixin):
             connection_testable=hasattr(hook_class, 'test_connection'),
         )
 
-    def _add_widgets(self, package_name: str, hook_class: type, widgets: Dict[str, Any]):
+    def _add_widgets(self, package_name: str, hook_class: type, widgets: dict[str, Any]):
         conn_type = hook_class.conn_type  # type: ignore
         for field_identifier, field in widgets.items():
             if field_identifier.startswith('extra__'):
@@ -816,10 +855,15 @@ class ProvidersManager(LoggingMixin):
                 hook_class.__name__, package_name, field, field_identifier
             )
 
-    def _add_customized_fields(self, package_name: str, hook_class: type, customized_fields: Dict):
+    def _add_customized_fields(self, package_name: str, hook_class: type, customized_fields: dict):
         try:
             connection_type = getattr(hook_class, "conn_type")
+
             self._customized_form_fields_schema_validator.validate(customized_fields)
+
+            if connection_type:
+                customized_fields = _ensure_prefix_for_placeholders(customized_fields, connection_type)
+
             if connection_type in self._field_behaviours:
                 log.warning(
                     "The connection_type %s from package %s and class %s has already been added "
@@ -871,13 +915,13 @@ class ProvidersManager(LoggingMixin):
                         self._api_auth_backend_module_names.add(auth_backend_module_name)
 
     @property
-    def providers(self) -> Dict[str, ProviderInfo]:
+    def providers(self) -> dict[str, ProviderInfo]:
         """Returns information about available providers."""
         self.initialize_providers_list()
         return self._provider_dict
 
     @property
-    def hooks(self) -> MutableMapping[str, Optional[HookInfo]]:
+    def hooks(self) -> MutableMapping[str, HookInfo | None]:
         """
         Returns dictionary of connection_type-to-hook mapping. Note that the dict can contain
         None values if a hook discovered cannot be imported!
@@ -887,44 +931,47 @@ class ProvidersManager(LoggingMixin):
         return self._hooks_lazy_dict
 
     @property
-    def taskflow_decorators(self) -> Dict[str, Callable]:
+    def taskflow_decorators(self) -> dict[str, TaskDecorator]:
         self.initialize_providers_taskflow_decorator()
         return self._taskflow_decorators
 
     @property
-    def extra_links_class_names(self) -> List[str]:
+    def extra_links_class_names(self) -> list[str]:
         """Returns set of extra link class names."""
         self.initialize_providers_extra_links()
         return sorted(self._extra_link_class_name_set)
 
     @property
-    def connection_form_widgets(self) -> Dict[str, ConnectionFormWidgetInfo]:
-        """Returns widgets for connection forms."""
+    def connection_form_widgets(self) -> dict[str, ConnectionFormWidgetInfo]:
+        """
+        Returns widgets for connection forms.
+        Dictionary keys in the same order that it defined in Hook.
+        """
         self.initialize_providers_hooks()
         self._import_info_from_all_hooks()
         return self._connection_form_widgets
 
     @property
-    def field_behaviours(self) -> Dict[str, Dict]:
+    def field_behaviours(self) -> dict[str, dict]:
         """Returns dictionary with field behaviours for connection types."""
         self.initialize_providers_hooks()
         self._import_info_from_all_hooks()
         return self._field_behaviours
 
     @property
-    def logging_class_names(self) -> List[str]:
+    def logging_class_names(self) -> list[str]:
         """Returns set of log task handlers class names."""
         self.initialize_providers_logging()
         return sorted(self._logging_class_name_set)
 
     @property
-    def secrets_backend_class_names(self) -> List[str]:
+    def secrets_backend_class_names(self) -> list[str]:
         """Returns set of secret backend class names."""
         self.initialize_providers_secrets_backends()
         return sorted(self._secrets_backend_class_name_set)
 
     @property
-    def auth_backend_module_names(self) -> List[str]:
+    def auth_backend_module_names(self) -> list[str]:
         """Returns set of API auth backend class names."""
         self.initialize_providers_auth_backends()
         return sorted(self._api_auth_backend_module_names)

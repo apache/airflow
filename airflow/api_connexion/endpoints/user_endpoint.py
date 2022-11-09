@@ -14,10 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List, Optional
+from __future__ import annotations
+
+from http import HTTPStatus
 
 from connexion import NoContent
-from flask import current_app, request
+from flask import request
 from marshmallow import ValidationError
 from sqlalchemy import asc, desc, func
 from werkzeug.security import generate_password_hash
@@ -33,13 +35,14 @@ from airflow.api_connexion.schemas.user_schema import (
 )
 from airflow.api_connexion.types import APIResponse, UpdateMask
 from airflow.security import permissions
+from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.www.fab_security.sqla.models import Role, User
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_USER)])
 def get_user(*, username: str) -> APIResponse:
     """Get a user"""
-    ab_security_manager = current_app.appbuilder.sm
+    ab_security_manager = get_airflow_app().appbuilder.sm
     user = ab_security_manager.find_user(username=username)
     if not user:
         raise NotFound(title="User not found", detail=f"The User with username `{username}` was not found")
@@ -48,9 +51,9 @@ def get_user(*, username: str) -> APIResponse:
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_USER)])
 @format_parameters({"limit": check_limit})
-def get_users(*, limit: int, order_by: str = "id", offset: Optional[str] = None) -> APIResponse:
+def get_users(*, limit: int, order_by: str = "id", offset: str | None = None) -> APIResponse:
     """Get users"""
-    appbuilder = current_app.appbuilder
+    appbuilder = get_airflow_app().appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(User.id)).scalar()
     direction = desc if order_by.startswith("-") else asc
@@ -86,7 +89,7 @@ def post_user() -> APIResponse:
     except ValidationError as e:
         raise BadRequest(detail=str(e.messages))
 
-    security_manager = current_app.appbuilder.sm
+    security_manager = get_airflow_app().appbuilder.sm
     username = data["username"]
     email = data["email"]
 
@@ -129,7 +132,7 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
     except ValidationError as e:
         raise BadRequest(detail=str(e.messages))
 
-    security_manager = current_app.appbuilder.sm
+    security_manager = get_airflow_app().appbuilder.sm
 
     user = security_manager.find_user(username=username)
     if user is None:
@@ -162,7 +165,7 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
             raise BadRequest(detail=detail)
         data = masked_data
 
-    roles_to_update: Optional[List[Role]]
+    roles_to_update: list[Role] | None
     if "roles" in data:
         roles_to_update = []
         missing_role_names = []
@@ -193,7 +196,7 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER)])
 def delete_user(*, username: str) -> APIResponse:
     """Delete a user"""
-    security_manager = current_app.appbuilder.sm
+    security_manager = get_airflow_app().appbuilder.sm
 
     user = security_manager.find_user(username=username)
     if user is None:
@@ -204,4 +207,4 @@ def delete_user(*, username: str) -> APIResponse:
     security_manager.get_session.delete(user)
     security_manager.get_session.commit()
 
-    return NoContent, 204
+    return NoContent, HTTPStatus.NO_CONTENT

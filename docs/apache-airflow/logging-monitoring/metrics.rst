@@ -92,6 +92,7 @@ Name                                        Description
 ``zombies_killed``                          Zombie tasks killed
 ``scheduler_heartbeat``                     Scheduler heartbeats
 ``dag_processing.processes``                Number of currently running DAG parsing processes
+``dag_processing.processor_timeouts``       Number of file processors that have been killed due to taking too long
 ``dag_processing.manager_stalls``           Number of stalled ``DagFileProcessorManager``
 ``dag_file_refresh_error``                  Number of failures loading any DAG files
 ``scheduler.tasks.killed_externally``       Number of tasks killed externally
@@ -100,6 +101,7 @@ Name                                        Description
 ``scheduler.critical_section_busy``         Count of times a scheduler process tried to get a lock on the critical
                                             section (needed to send tasks to the executor) and found it locked by
                                             another process.
+``sla_missed``                              Number of SLA misses
 ``sla_callback_notification_failure``       Number of failed SLA miss callback notification attempts
 ``sla_email_notification_failure``          Number of failed SLA miss email notification attempts
 ``ti.start.<dag_id>.<task_id>``             Number of started task in a given dag. Similar to <job_name>_start but for task
@@ -129,7 +131,6 @@ Name                                                Description
 ``dag_processing.import_errors``                    Number of errors from trying to parse DAG files
 ``dag_processing.total_parse_time``                 Seconds taken to scan and import all DAG files once
 ``dag_processing.last_run.seconds_ago.<dag_file>``  Seconds since ``<dag_file>`` was last processed
-``dag_processing.processor_timeouts``               Number of file processors that have been killed due to taking too long
 ``scheduler.tasks.running``                         Number of tasks running in executor
 ``scheduler.tasks.starving``                        Number of tasks that cannot be scheduled because of no open slot in pool
 ``scheduler.tasks.executable``                      Number of tasks that are ready for execution (set to queued)
@@ -142,11 +143,6 @@ Name                                                Description
 ``pool.queued_slots.<pool_name>``                   Number of queued slots in the pool
 ``pool.running_slots.<pool_name>``                  Number of running slots in the pool
 ``pool.starving_tasks.<pool_name>``                 Number of starving tasks in the pool
-``smart_sensor_operator.poked_tasks``               Number of tasks poked by the smart sensor in the previous poking loop
-``smart_sensor_operator.poked_success``             Number of newly succeeded tasks poked by the smart sensor in the previous poking loop
-``smart_sensor_operator.poked_exception``           Number of exceptions in the previous smart sensor poking loop
-``smart_sensor_operator.exception_failures``        Number of failures caused by exception in the previous smart sensor poking loop
-``smart_sensor_operator.infra_failures``            Number of infrastructure failures in the previous smart sensor poking loop
 ``triggers.running``                                Number of triggers currently running (per triggerer)
 =================================================== ========================================================================
 
@@ -159,12 +155,12 @@ Name                                                Description
 ``dagrun.dependency-check.<dag_id>``                Milliseconds taken to check DAG dependencies
 ``dag.<dag_id>.<task_id>.duration``                 Milliseconds taken to finish a task
 ``dag_processing.last_duration.<dag_file>``         Milliseconds taken to load the given DAG file
-``dagrun.duration.success.<dag_id>``                Milliseconds taken for a DagRun to reach success state
+``dagrun.duration.success.<dag_id>``                Seconds taken for a DagRun to reach success state
 ``dagrun.duration.failed.<dag_id>``                 Milliseconds taken for a DagRun to reach failed state
-``dagrun.schedule_delay.<dag_id>``                  Milliseconds of delay between the scheduled DagRun
+``dagrun.schedule_delay.<dag_id>``                  Seconds of delay between the scheduled DagRun
                                                     start date and the actual DagRun start date
 ``scheduler.critical_section_duration``             Milliseconds spent in the critical section of scheduler loop --
                                                     only a single scheduler can enter this loop at a time
-``dagrun.<dag_id>.first_task_scheduling_delay``     Milliseconds elapsed between first task start_date and dagrun expected start
+``dagrun.<dag_id>.first_task_scheduling_delay``     Seconds elapsed between first task start_date and dagrun expected start
 ``collect_db_dags``                                 Milliseconds taken for fetching all Serialized Dags from DB
 =================================================== ========================================================================

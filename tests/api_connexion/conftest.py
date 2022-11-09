@@ -14,9 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+import warnings
 
 import pytest
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.www import app
 from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
@@ -34,7 +38,7 @@ def minimal_app_for_api():
     )
     def factory():
         with conf_vars({("api", "auth_backends"): "tests.test_utils.remote_user_api_auth_backend"}):
-            return app.create_app(testing=True, config={'WTF_CSRF_ENABLED': False})  # type:ignore
+            return app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
 
     return factory()
 
@@ -51,5 +55,13 @@ def session():
 def dagbag():
     from airflow.models import DagBag
 
-    DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
+    with warnings.catch_warnings():
+        # This explicitly shows off SubDagOperator, no point to warn about that.
+        warnings.filterwarnings(
+            "ignore",
+            category=RemovedInAirflow3Warning,
+            message=r".+Please use.+TaskGroup.+",
+            module=r".+example_subdag_operator$",
+        )
+        DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
     return DagBag(include_examples=True, read_dags_from_db=True)

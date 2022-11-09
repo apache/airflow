@@ -18,6 +18,8 @@
 """
 This is an example dag for using a Kubernetes Executor Configuration.
 """
+from __future__ import annotations
+
 import logging
 import os
 
@@ -30,8 +32,8 @@ from airflow.example_dags.libs.helper import print_stuff
 
 log = logging.getLogger(__name__)
 
-worker_container_repository = conf.get('kubernetes', 'worker_container_repository')
-worker_container_tag = conf.get('kubernetes', 'worker_container_tag')
+worker_container_repository = conf.get('kubernetes_executor', 'worker_container_repository')
+worker_container_tag = conf.get('kubernetes_executor', 'worker_container_tag')
 
 try:
     from kubernetes.client import models as k8s
@@ -46,7 +48,7 @@ except ImportError:
 if k8s:
     with DAG(
         dag_id='example_kubernetes_executor',
-        schedule_interval=None,
+        schedule=None,
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
         tags=['example3'],

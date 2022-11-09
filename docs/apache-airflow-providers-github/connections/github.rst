@@ -18,9 +18,9 @@
 
 .. _howto/connection:github:
 
-Github Connection
+GitHub Connection
 ====================
-The Github connection type provides connection to a Github or Github Enterprise.
+The GitHub connection type provides connection to a GitHub or GitHub Enterprise.
 
 Configuring the Connection
 --------------------------
@@ -30,7 +30,7 @@ Access Token (required)
         - GitHub Enterprise - Create token - https://docs.github.com/en/enterprise-cloud@latest/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token/
 
 Host (optional)
-    Specify the Github Enterprise Url (as string) that can be used for Github Enterprise
+    Specify the GitHub Enterprise Url (as string) that can be used for GitHub Enterprise
     connection.
 
     The following Url should be in following format:

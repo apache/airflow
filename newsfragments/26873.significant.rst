@@ -1,0 +1,3 @@
+Airflow config section ``kubernetes`` renamed to ``kubernetes_executor``
+
+KubernetesPodOperator no longer considers any core kubernetes config params, so this section now only applies to kubernetes executor. Renaming it reduces potential for confusion.

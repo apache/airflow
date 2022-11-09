@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains AWS Glue Catalog Hook"""
-import warnings
-from typing import Optional, Set
+from __future__ import annotations
 
+from botocore.exceptions import ClientError
+
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
@@ -35,16 +36,16 @@ class GlueCatalogHook(AwsBaseHook):
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(client_type='glue', *args, **kwargs)
+        super().__init__(client_type="glue", *args, **kwargs)
 
     def get_partitions(
         self,
         database_name: str,
         table_name: str,
-        expression: str = '',
-        page_size: Optional[int] = None,
-        max_items: Optional[int] = None,
-    ) -> Set[tuple]:
+        expression: str = "",
+        page_size: int | None = None,
+        max_items: int | None = None,
+    ) -> set[tuple]:
         """
         Retrieves the partition values for a table.
 
@@ -60,19 +61,19 @@ class GlueCatalogHook(AwsBaseHook):
             ``{('2018-01-01','1'), ('2018-01-01','2')}``
         """
         config = {
-            'PageSize': page_size,
-            'MaxItems': max_items,
+            "PageSize": page_size,
+            "MaxItems": max_items,
         }
 
-        paginator = self.get_conn().get_paginator('get_partitions')
+        paginator = self.get_conn().get_paginator("get_partitions")
         response = paginator.paginate(
             DatabaseName=database_name, TableName=table_name, Expression=expression, PaginationConfig=config
         )
 
         partitions = set()
         for page in response:
-            for partition in page['Partitions']:
-                partitions.add(tuple(partition['Values']))
+            for partition in page["Partitions"]:
+                partitions.add(tuple(partition["Values"]))
 
         return partitions
 
@@ -84,7 +85,6 @@ class GlueCatalogHook(AwsBaseHook):
         :param table_name: Name of hive table @partition belongs to
         :expression: Expression that matches the partitions to check for
             (eg `a = 'b' AND c = 'd'`)
-        :rtype: bool
 
         >>> hook = GlueCatalogHook()
         >>> t = 'static_babynames_partitioned'
@@ -101,7 +101,6 @@ class GlueCatalogHook(AwsBaseHook):
 
         :param database_name: Name of hive database (schema) @table belongs to
         :param table_name: Name of hive table
-        :rtype: dict
 
         >>> hook = GlueCatalogHook()
         >>> r = hook.get_table('db', 'table_foo')
@@ -109,7 +108,7 @@ class GlueCatalogHook(AwsBaseHook):
         """
         result = self.get_conn().get_table(DatabaseName=database_name, Name=table_name)
 
-        return result['Table']
+        return result["Table"]
 
     def get_table_location(self, database_name: str, table_name: str) -> str:
         """
@@ -121,20 +120,55 @@ class GlueCatalogHook(AwsBaseHook):
         """
         table = self.get_table(database_name, table_name)
 
-        return table['StorageDescriptor']['Location']
+        return table["StorageDescriptor"]["Location"]
+
+    def get_partition(self, database_name: str, table_name: str, partition_values: list[str]) -> dict:
+        """
+        Gets a Partition
+
+        :param database_name: Database name
+        :param table_name: Database's Table name
+        :param partition_values: List of utf-8 strings that define the partition
+            Please see official AWS documentation for further information.
+            https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api-catalog-partitions.html#aws-glue-api-catalog-partitions-GetPartition
 
 
-class AwsGlueCatalogHook(GlueCatalogHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.glue_catalog.GlueCatalogHook`.
-    """
+        :raises: AirflowException
 
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.hooks.glue_catalog.GlueCatalogHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
+        >>> hook = GlueCatalogHook()
+        >>> partition = hook.get_partition('db', 'table', ['string'])
+        >>> partition['Values']
+        """
+        try:
+            response = self.get_conn().get_partition(
+                DatabaseName=database_name, TableName=table_name, PartitionValues=partition_values
+            )
+            return response["Partition"]
+        except ClientError as e:
+            self.log.error("Client error: %s", e)
+            raise AirflowException("AWS request failed, check logs for more info")
+
+    def create_partition(self, database_name: str, table_name: str, partition_input: dict) -> dict:
+        """
+        Creates a new Partition
+
+        :param database_name: Database name
+        :param table_name: Database's Table name
+        :param partition_input: Definition of how the partition is created
+            Please see official AWS documentation for further information.
+            https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api-catalog-partitions.html#aws-glue-api-catalog-partitions-CreatePartition
+
+
+        :raises: AirflowException
+
+        >>> hook = GlueCatalogHook()
+        >>> partition_input = {"Values": []}
+        >>> hook.create_partition(database_name="db", table_name="table", partition_input=partition_input)
+        """
+        try:
+            return self.get_conn().create_partition(
+                DatabaseName=database_name, TableName=table_name, PartitionInput=partition_input
+            )
+        except ClientError as e:
+            self.log.error("Client error: %s", e)
+            raise AirflowException("AWS request failed, check logs for more info")

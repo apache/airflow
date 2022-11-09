@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-
-AWS Batch Operators
-===================
+=========
+AWS Batch
+=========
 
 `AWS Batch <https://aws.amazon.com/batch/>`__ enables you to run batch computing workloads on the AWS Cloud.
 Batch computing is a common way for developers, scientists, and engineers to access large amounts of compute
@@ -29,37 +29,83 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
-.. _howto/sensor:BatchSensor:
-
-AWS Batch Sensor
-""""""""""""""""
-
-To wait on the state of an AWS Batch Job until it reaches a terminal state you can
-use :class:`~airflow.providers.amazon.aws.sensors.batch.BatchSensor`.
-
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_batch.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_sensor_batch]
-    :end-before: [END howto_sensor_batch]
+Operators
+---------
 
 .. _howto/operator:BatchOperator:
 
-AWS Batch Operator
-""""""""""""""""""
+Submit a new AWS Batch job
+==========================
 
-To submit a new AWS Batch Job and monitor it until it reaches a terminal state you can
+To submit a new AWS Batch job and monitor it until it reaches a terminal state you can
 use :class:`~airflow.providers.amazon.aws.operators.batch.BatchOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_batch.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_batch.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_batch]
     :end-before: [END howto_operator_batch]
 
+.. _howto/operator:BatchCreateComputeEnvironmentOperator:
+
+Create an AWS Batch compute environment
+=======================================
+
+To create a new AWS Batch compute environment you can
+use :class:`~airflow.providers.amazon.aws.operators.batch.BatchCreateComputeEnvironmentOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_batch.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_batch_create_compute_environment]
+    :end-before: [END howto_operator_batch_create_compute_environment]
+
+Sensors
+-------
+
+.. _howto/sensor:BatchSensor:
+
+Wait on an AWS Batch job state
+==============================
+
+To wait on the state of an AWS Batch Job until it reaches a terminal state you can
+use :class:`~airflow.providers.amazon.aws.sensors.batch.BatchSensor`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_batch.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_batch]
+    :end-before: [END howto_sensor_batch]
+
+.. _howto/sensor:BatchComputeEnvironmentSensor:
+
+Wait on an AWS Batch compute environment status
+===============================================
+
+To wait on the status of an AWS Batch compute environment until it reaches a terminal status you can
+use :class:`~airflow.providers.amazon.aws.sensors.batch.BatchComputeEnvironmentSensor`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_batch.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_batch_compute_environment]
+    :end-before: [END howto_sensor_batch_compute_environment]
+
+.. _howto/sensor:BatchJobQueueSensor:
+
+Wait on an AWS Batch job queue status
+=====================================
+
+To wait on the status of an AWS Batch job queue until it reaches a terminal status you can
+use :class:`~airflow.providers.amazon.aws.sensors.batch.BatchJobQueueSensor`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_batch.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_batch_job_queue]
+    :end-before: [END howto_sensor_batch_job_queue]
+
 Reference
 ---------
 
-For further information, look at:
-
-* `Boto3 Library Documentation for Batch <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html>`__
+* `AWS boto3 library documentation for Batch <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html>`__

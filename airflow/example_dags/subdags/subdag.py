@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Helper function to generate a DAG and operators given some arguments."""
+from __future__ import annotations
 
 # [START subdag]
 import pendulum
@@ -25,7 +25,7 @@ from airflow import DAG
 from airflow.operators.empty import EmptyOperator
 
 
-def subdag(parent_dag_name, child_dag_name, args):
+def subdag(parent_dag_name, child_dag_name, args) -> DAG:
     """
     Generate a DAG to be used as a subdag.
 
@@ -33,14 +33,13 @@ def subdag(parent_dag_name, child_dag_name, args):
     :param str child_dag_name: Id of the child DAG
     :param dict args: Default arguments to provide to the subdag
     :return: DAG to use as a subdag
-    :rtype: airflow.models.DAG
     """
     dag_subdag = DAG(
         dag_id=f'{parent_dag_name}.{child_dag_name}',
         default_args=args,
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
-        schedule_interval="@daily",
+        schedule="@daily",
     )
 
     for i in range(5):

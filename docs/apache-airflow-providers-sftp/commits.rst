@@ -28,14 +28,59 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.1.0
+.....
+
+Latest change: 2022-09-27
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`5f073e38dd <https://github.com/apache/airflow/commit/5f073e38dd46217b64dbc16d7b1055d89e8c3459>`_  2022-09-27   ``SFTPOperator - add support for list of file paths (#26666)``
+`06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+=================================================================================================  ===========  ====================================================================================
+
+4.0.0
+.....
+
+Latest change: 2022-07-17
+
+=================================================================================================  ===========  ===========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================
+`abb0341135 <https://github.com/apache/airflow/commit/abb034113540b708e87379665a1b5caadb8748bc>`_  2022-07-17   ``Add documentation for follow-up release for june providers (#25111)``
+`d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
+`acaa0635c8 <https://github.com/apache/airflow/commit/acaa0635c8477c98ab78da9f6d86e6f1bad2737d>`_  2022-07-08   ``Automatically detect if non-lazy logging interpolation is used (#24910)``
+`0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
+`510a6bab45 <https://github.com/apache/airflow/commit/510a6bab4595cce8bd5b1447db957309d70f35d9>`_  2022-06-28   ``Remove 'hook-class-names' from provider.yaml (#24702)``
+`f3aacebe50 <https://github.com/apache/airflow/commit/f3aacebe502c4ea5dc2b7d29373539296fa037eb>`_  2022-06-20   ``Convert sftp hook to use paramiko instead of pysftp (#24512)``
+`ad297c9177 <https://github.com/apache/airflow/commit/ad297c91777277e2b76dd7b7f0e3e3fc5c32e07c>`_  2022-06-17   ``Update 'actual_file_to_check' with rendered 'path' (#24451)``
+=================================================================================================  ===========  ===========================================================================
+
+3.0.0
+.....
+
+Latest change: 2022-06-09
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`dcdcf3a2b8 <https://github.com/apache/airflow/commit/dcdcf3a2b8054fa727efb4cd79d38d2c9c7e1bd5>`_  2022-06-09   ``Update release notes for RC2 release of Providers for May 2022 (#24307)``
+`717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
+`e656e1de55 <https://github.com/apache/airflow/commit/e656e1de55094e8369cab80b9b1669b1d1225f54>`_  2022-06-06   ``Adding fnmatch type regex to SFTPSensor (#24084)``
+`027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
+=================================================================================================  ===========  ==================================================================================
+
 2.6.0
 .....
 
-Latest change: 2022-03-29
+Latest change: 2022-04-07
 
 =================================================================================================  ===========  =============================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================
+`56ab82ed7a <https://github.com/apache/airflow/commit/56ab82ed7a5c179d024722ccc697b740b2b93b6a>`_  2022-04-07   ``Prepare mid-April provider documentation. (#22819)``
 `a6609d5268 <https://github.com/apache/airflow/commit/a6609d5268ebe55bcb150a828d249153582aa936>`_  2022-03-29   ``add newer_than parameter to SFTP sensor (#21655) (#22377)``
 =================================================================================================  ===========  =============================================================
 

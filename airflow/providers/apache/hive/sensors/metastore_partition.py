@@ -15,9 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.sensors.sql import SqlSensor
+from airflow.providers.common.sql.sensors.sql import SqlSensor
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -40,9 +42,8 @@ class MetastorePartitionSensor(SqlSensor):
     :param mysql_conn_id: a reference to the MySQL conn_id for the metastore
     """
 
-    template_fields: Sequence[str] = ('partition_name', 'table', 'schema')
-    ui_color = '#8da7be'
-    poke_context_fields = ('partition_name', 'table', 'schema', 'mysql_conn_id')
+    template_fields: Sequence[str] = ("partition_name", "table", "schema")
+    ui_color = "#8da7be"
 
     def __init__(
         self,
@@ -66,11 +67,11 @@ class MetastorePartitionSensor(SqlSensor):
         # constructor below and apply_defaults will no longer throw an exception.
         super().__init__(**kwargs)
 
-    def poke(self, context: "Context") -> Any:
+    def poke(self, context: Context) -> Any:
         if self.first_poke:
             self.first_poke = False
-            if '.' in self.table:
-                self.schema, self.table = self.table.split('.')
+            if "." in self.table:
+                self.schema, self.table = self.table.split(".")
             self.sql = """
             SELECT 'X'
             FROM PARTITIONS A0

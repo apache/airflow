@@ -16,16 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 """Standard task runner"""
+from __future__ import annotations
+
 import logging
 import os
-from typing import Optional
 
 import psutil
 from setproctitle import setproctitle
 
 from airflow.settings import CAN_FORK
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
-from airflow.utils.process_utils import reap_process_group
+from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
+from airflow.utils.process_utils import reap_process_group, set_new_process_group
 
 
 class StandardTaskRunner(BaseTaskRunner):
@@ -42,9 +44,10 @@ class StandardTaskRunner(BaseTaskRunner):
         else:
             self.process = self._start_by_exec()
 
-    def _start_by_exec(self):
+    def _start_by_exec(self) -> psutil.Process:
         subprocess = self.run_command()
-        return psutil.Process(subprocess.pid)
+        self.process = psutil.Process(subprocess.pid)
+        return self.process
 
     def _start_by_fork(self):
         pid = os.fork()
@@ -53,7 +56,7 @@ class StandardTaskRunner(BaseTaskRunner):
             return psutil.Process(pid)
         else:
             # Start a new process group
-            os.setpgid(0, 0)
+            set_new_process_group()
             import signal
 
             signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -85,7 +88,12 @@ class StandardTaskRunner(BaseTaskRunner):
             setproctitle(proc_title.format(args))
             return_code = 0
             try:
-                args.func(args, dag=self.dag)
+                with _airflow_parsing_context_manager(
+                    dag_id=self._task_instance.dag_id,
+                    task_id=self._task_instance.task_id,
+                ):
+                    args.func(args, dag=self.dag)
+                    return_code = 0
             except Exception as exc:
                 return_code = 1
 
@@ -124,7 +132,7 @@ class StandardTaskRunner(BaseTaskRunner):
             # deleted at os._exit()
             os._exit(return_code)
 
-    def return_code(self, timeout: int = 0) -> Optional[int]:
+    def return_code(self, timeout: int = 0) -> int | None:
         # We call this multiple times, but we can only wait on the process once
         if self._rc is not None or not self.process:
             return self._rc

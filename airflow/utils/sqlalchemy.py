@@ -15,48 +15,54 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
+import copy
 import datetime
 import json
 import logging
-from typing import Any, Dict, Iterable, Tuple
+from typing import Any, Iterable
 
 import pendulum
 from dateutil import relativedelta
-from sqlalchemy import and_, event, false, nullsfirst, or_, tuple_
+from sqlalchemy import TIMESTAMP, PickleType, and_, event, false, nullsfirst, or_, true, tuple_
+from sqlalchemy.dialects import mssql, mysql
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql import ColumnElement
 from sqlalchemy.sql.expression import ColumnOperators
-from sqlalchemy.types import JSON, DateTime, Text, TypeDecorator, TypeEngine, UnicodeText
+from sqlalchemy.types import JSON, Text, TypeDecorator, TypeEngine, UnicodeText
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.serialization.enums import Encoding
 
 log = logging.getLogger(__name__)
 
 utc = pendulum.tz.timezone('UTC')
 
-using_mysql = conf.get('database', 'sql_alchemy_conn').lower().startswith('mysql')
+using_mysql = conf.get_mandatory_value('database', 'sql_alchemy_conn').lower().startswith('mysql')
 
 
 class UtcDateTime(TypeDecorator):
     """
-    Almost equivalent to :class:`~sqlalchemy.types.DateTime` with
+    Almost equivalent to :class:`~sqlalchemy.types.TIMESTAMP` with
     ``timezone=True`` option, but it differs from that by:
 
     - Never silently take naive :class:`~datetime.datetime`, instead it
       always raise :exc:`ValueError` unless time zone aware value.
     - :class:`~datetime.datetime` value's :attr:`~datetime.datetime.tzinfo`
       is always converted to UTC.
-    - Unlike SQLAlchemy's built-in :class:`~sqlalchemy.types.DateTime`,
+    - Unlike SQLAlchemy's built-in :class:`~sqlalchemy.types.TIMESTAMP`,
       it never return naive :class:`~datetime.datetime`, but time zone
       aware value, even with SQLite or MySQL.
-    - Always returns DateTime in UTC
+    - Always returns TIMESTAMP in UTC
 
     """
 
-    impl = DateTime(timezone=True)
+    impl = TIMESTAMP(timezone=True)
+
+    cache_ok = True
 
     def process_bind_param(self, value, dialect):
         if value is not None:
@@ -92,6 +98,13 @@ class UtcDateTime(TypeDecorator):
 
         return value
 
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'mssql':
+            return mssql.DATETIME2(precision=6)
+        elif dialect.name == 'mysql':
+            return mysql.TIMESTAMP(fsp=6)
+        return super().load_dialect_impl(dialect)
+
 
 class ExtendedJSON(TypeDecorator):
     """
@@ -101,11 +114,13 @@ class ExtendedJSON(TypeDecorator):
 
     impl = Text
 
+    cache_ok = True
+
     def db_supports_json(self):
         """Checks if the database supports JSON (i.e. is NOT MSSQL)"""
         return not conf.get("database", "sql_alchemy_conn").startswith("mssql")
 
-    def load_dialect_impl(self, dialect) -> "TypeEngine":
+    def load_dialect_impl(self, dialect) -> TypeEngine:
         if self.db_supports_json():
             return dialect.type_descriptor(JSON)
         return dialect.type_descriptor(UnicodeText)
@@ -117,7 +132,7 @@ class ExtendedJSON(TypeDecorator):
             return None
 
         # First, encode it into our custom JSON-targeted dict format
-        value = BaseSerialization._serialize(value)
+        value = BaseSerialization.serialize(value)
 
         # Then, if the database does not have native JSON support, encode it again as a string
         if not self.db_supports_json():
@@ -135,13 +150,78 @@ class ExtendedJSON(TypeDecorator):
         if not self.db_supports_json():
             value = json.loads(value)
 
-        return BaseSerialization._deserialize(value)
+        return BaseSerialization.deserialize(value)
+
+
+class ExecutorConfigType(PickleType):
+    """
+    Adds special handling for K8s executor config. If we unpickle a k8s object that was
+    pickled under an earlier k8s library version, then the unpickled object may throw an error
+    when to_dict is called.  To be more tolerant of version changes we convert to JSON using
+    Airflow's serializer before pickling.
+    """
+
+    cache_ok = True
+
+    def bind_processor(self, dialect):
+
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        super_process = super().bind_processor(dialect)
+
+        def process(value):
+            val_copy = copy.copy(value)
+            if isinstance(val_copy, dict) and 'pod_override' in val_copy:
+                val_copy['pod_override'] = BaseSerialization.serialize(val_copy['pod_override'])
+            return super_process(val_copy)
+
+        return process
+
+    def result_processor(self, dialect, coltype):
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        super_process = super().result_processor(dialect, coltype)
+
+        def process(value):
+            value = super_process(value)  # unpickle
+
+            if isinstance(value, dict) and 'pod_override' in value:
+                pod_override = value['pod_override']
+
+                # If pod_override was serialized with Airflow's BaseSerialization, deserialize it
+                if isinstance(pod_override, dict) and pod_override.get(Encoding.TYPE):
+                    value['pod_override'] = BaseSerialization.deserialize(pod_override)
+            return value
+
+        return process
+
+    def compare_values(self, x, y):
+        """
+        The TaskInstance.executor_config attribute is a pickled object that may contain
+        kubernetes objects.  If the installed library version has changed since the
+        object was originally pickled, due to the underlying ``__eq__`` method on these
+        objects (which converts them to JSON), we may encounter attribute errors. In this
+        case we should replace the stored object.
+
+        From https://github.com/apache/airflow/pull/24356 we use our serializer to store
+        k8s objects, but there could still be raw pickled k8s objects in the database,
+        stored from earlier version, so we still compare them defensively here.
+        """
+        if self.comparator:
+            return self.comparator(x, y)
+        else:
+            try:
+                return x == y
+            except AttributeError:
+                return False
 
 
 class Interval(TypeDecorator):
     """Base class representing a time interval."""
 
     impl = Text
+
+    cache_ok = True
 
     attr_keys = {
         datetime.timedelta: ('days', 'seconds', 'microseconds'),
@@ -180,7 +260,7 @@ class Interval(TypeDecorator):
         return data
 
 
-def skip_locked(session: Session) -> Dict[str, Any]:
+def skip_locked(session: Session) -> dict[str, Any]:
     """
     Return kargs for passing to `with_for_update()` suitable for the current DB engine version.
 
@@ -200,7 +280,7 @@ def skip_locked(session: Session) -> Dict[str, Any]:
         return {}
 
 
-def nowait(session: Session) -> Dict[str, Any]:
+def nowait(session: Session) -> dict[str, Any]:
     """
     Return kwargs for passing to `with_for_update()` suitable for the current DB engine version.
 
@@ -220,7 +300,7 @@ def nowait(session: Session) -> Dict[str, Any]:
         return {}
 
 
-def nulls_first(col, session: Session) -> Dict[str, Any]:
+def nulls_first(col, session: Session) -> dict[str, Any]:
     """
     Adds a nullsfirst construct to the column ordering. Currently only Postgres supports it.
     In MySQL & Sqlite NULL values are considered lower than any non-NULL value, therefore, NULL values
@@ -325,7 +405,7 @@ def is_lock_not_available_error(error: OperationalError):
 
 
 def tuple_in_condition(
-    columns: Tuple[ColumnElement, ...],
+    columns: tuple[ColumnElement, ...],
     collection: Iterable[Any],
 ) -> ColumnOperators:
     """Generates a tuple-in-collection operator to use in ``.filter()``.
@@ -342,3 +422,21 @@ def tuple_in_condition(
     if not clauses:
         return false()
     return or_(*clauses)
+
+
+def tuple_not_in_condition(
+    columns: tuple[ColumnElement, ...],
+    collection: Iterable[Any],
+) -> ColumnOperators:
+    """Generates a tuple-not-in-collection operator to use in ``.filter()``.
+
+    This is similar to ``tuple_in_condition`` except generating ``NOT IN``.
+
+    :meta private:
+    """
+    if settings.engine.dialect.name != "mssql":
+        return tuple_(*columns).not_in(collection)
+    clauses = [or_(*(c != v for c, v in zip(columns, values))) for values in collection]
+    if not clauses:
+        return true()
+    return and_(*clauses)

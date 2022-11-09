@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 from contextlib import suppress
 
@@ -27,8 +29,8 @@ DOCS_DIR = os.path.join(ROOT_PROJECT_DIR, "docs")
 AIRFLOW_DIR = os.path.join(ROOT_PROJECT_DIR, "airflow")
 
 ALL_PROVIDER_YAMLS = load_package_data()
-AIRFLOW_SITE_DIR: str = os.environ.get('AIRFLOW_SITE_DIRECTORY') or ''
-PROCESS_TIMEOUT = 8 * 60  # 400 seconds
+AIRFLOW_SITE_DIR: str = os.environ.get("AIRFLOW_SITE_DIRECTORY") or ""
+PROCESS_TIMEOUT = 15 * 60
 
 CONSOLE_WIDTH = 180
 

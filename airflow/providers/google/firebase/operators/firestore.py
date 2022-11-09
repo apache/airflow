@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -62,12 +63,12 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
     def __init__(
         self,
         *,
-        body: Dict,
+        body: dict,
         database_id: str = "(default)",
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -83,7 +84,7 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
         if not self.body:
             raise AirflowException("The required parameter 'body' is missing")
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudFirestoreHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,

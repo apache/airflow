@@ -14,19 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Scheduler command"""
+from __future__ import annotations
+
 import signal
 from multiprocessing import Process
-from typing import Optional
 
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
 
 from airflow import settings
+from airflow.configuration import conf
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import process_subdir, setup_locations, setup_logging, sigint_handler, sigquit_handler
+from airflow.utils.scheduler_health import serve_health_check
 
 
 def _create_scheduler_job(args):
@@ -41,12 +43,16 @@ def _create_scheduler_job(args):
 def _run_scheduler_job(args):
     skip_serve_logs = args.skip_serve_logs
     job = _create_scheduler_job(args)
-    sub_proc = _serve_logs(skip_serve_logs)
+    logs_sub_proc = _serve_logs(skip_serve_logs)
+    enable_health_check = conf.getboolean('scheduler', 'ENABLE_HEALTH_CHECK')
+    health_sub_proc = _serve_health_check(enable_health_check)
     try:
         job.run()
     finally:
-        if sub_proc:
-            sub_proc.terminate()
+        if logs_sub_proc:
+            logs_sub_proc.terminate()
+        if health_sub_proc:
+            health_sub_proc.terminate()
 
 
 @cli_utils.action_cli
@@ -59,12 +65,16 @@ def scheduler(args):
             "scheduler", args.pid, args.stdout, args.stderr, args.log_file
         )
         handle = setup_logging(log_file)
-        with open(stdout, 'w+') as stdout_handle, open(stderr, 'w+') as stderr_handle:
+        with open(stdout, 'a') as stdout_handle, open(stderr, 'a') as stderr_handle:
+            stdout_handle.truncate(0)
+            stderr_handle.truncate(0)
+
             ctx = daemon.DaemonContext(
                 pidfile=TimeoutPIDLockFile(pid, -1),
                 files_preserve=[handle],
                 stdout=stdout_handle,
                 stderr=stderr_handle,
+                umask=int(settings.DAEMON_UMASK, 8),
             )
             with ctx:
                 _run_scheduler_job(args=args)
@@ -75,7 +85,7 @@ def scheduler(args):
         _run_scheduler_job(args=args)
 
 
-def _serve_logs(skip_serve_logs: bool = False) -> Optional[Process]:
+def _serve_logs(skip_serve_logs: bool = False) -> Process | None:
     """Starts serve_logs sub-process"""
     from airflow.configuration import conf
     from airflow.utils.serve_logs import serve_logs
@@ -85,4 +95,13 @@ def _serve_logs(skip_serve_logs: bool = False) -> Optional[Process]:
             sub_proc = Process(target=serve_logs)
             sub_proc.start()
             return sub_proc
+    return None
+
+
+def _serve_health_check(enable_health_check: bool = False) -> Process | None:
+    """Starts serve_health_check sub-process"""
+    if enable_health_check:
+        sub_proc = Process(target=serve_health_check)
+        sub_proc.start()
+        return sub_proc
     return None

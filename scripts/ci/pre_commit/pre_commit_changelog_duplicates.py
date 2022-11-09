@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,6 +19,7 @@
 """
 Make sure there aren't duplicate entries in changelogs
 """
+from __future__ import annotations
 
 import re
 import sys

@@ -15,41 +15,46 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import decimal
 import json
-import unittest
 from datetime import date, datetime
 
 import numpy as np
-import parameterized
+import pendulum
 import pytest
 
 from airflow.utils import json as utils_json
 
 
-class TestAirflowJsonEncoder(unittest.TestCase):
+class TestAirflowJsonEncoder:
     def test_encode_datetime(self):
-        obj = datetime.strptime('2017-05-21 00:00:00', '%Y-%m-%d %H:%M:%S')
-        assert json.dumps(obj, cls=utils_json.AirflowJsonEncoder) == '"2017-05-21T00:00:00Z"'
+        obj = datetime.strptime("2017-05-21 00:00:00", "%Y-%m-%d %H:%M:%S")
+        assert json.dumps(obj, cls=utils_json.AirflowJsonEncoder) == '"2017-05-21T00:00:00+00:00"'
+
+    def test_encode_pendulum(self):
+        obj = pendulum.datetime(2017, 5, 21, tz="Asia/Kolkata")
+        assert json.dumps(obj, cls=utils_json.AirflowJsonEncoder) == '"2017-05-21T00:00:00+05:30"'
 
     def test_encode_date(self):
         assert json.dumps(date(2017, 5, 21), cls=utils_json.AirflowJsonEncoder) == '"2017-05-21"'
 
-    @parameterized.parameterized.expand(
+    @pytest.mark.parametrize(
+        "expr, expected",
         [("1", "1"), ("52e4", "520000"), ("2e0", "2"), ("12e-2", "0.12"), ("12.34", "12.34")],
     )
     def test_encode_decimal(self, expr, expected):
         assert json.dumps(decimal.Decimal(expr), cls=utils_json.AirflowJsonEncoder) == expected
 
     def test_encode_numpy_int(self):
-        assert json.dumps(np.int32(5), cls=utils_json.AirflowJsonEncoder) == '5'
+        assert json.dumps(np.int32(5), cls=utils_json.AirflowJsonEncoder) == "5"
 
     def test_encode_numpy_bool(self):
-        assert json.dumps(np.bool_(True), cls=utils_json.AirflowJsonEncoder) == 'true'
+        assert json.dumps(np.bool_(True), cls=utils_json.AirflowJsonEncoder) == "true"
 
     def test_encode_numpy_float(self):
-        assert json.dumps(np.float16(3.76953125), cls=utils_json.AirflowJsonEncoder) == '3.76953125'
+        assert json.dumps(np.float16(3.76953125), cls=utils_json.AirflowJsonEncoder) == "3.76953125"
 
     def test_encode_k8s_v1pod(self):
         from kubernetes.client import models as k8s

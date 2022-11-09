@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Example DAG demonstrating the usage of the BashOperator."""
+from __future__ import annotations
 
 import datetime
 
@@ -28,7 +28,7 @@ from airflow.operators.empty import EmptyOperator
 
 with DAG(
     dag_id='example_bash_operator',
-    schedule_interval='0 0 * * *',
+    schedule='0 0 * * *',
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     dagrun_timeout=datetime.timedelta(minutes=60),
@@ -58,7 +58,7 @@ with DAG(
     # [START howto_operator_bash_template]
     also_run_this = BashOperator(
         task_id='also_run_this',
-        bash_command='echo "run_id={{ run_id }} | dag_run={{ dag_run }}"',
+        bash_command='echo "ti_key={{ task_instance_key_str }}"',
     )
     # [END howto_operator_bash_template]
     also_run_this >> run_this_last
@@ -73,4 +73,4 @@ this_will_skip = BashOperator(
 this_will_skip >> run_this_last
 
 if __name__ == "__main__":
-    dag.cli()
+    dag.test()

@@ -14,8 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -30,6 +32,7 @@ from docker_tests.docker_tests_utils import (
     run_bash_in_docker,
     run_python_in_docker,
 )
+from setup import PREINSTALLED_PROVIDERS
 
 INSTALLED_PROVIDER_PATH = SOURCE_ROOT / "scripts" / "ci" / "installed_providers.txt"
 
@@ -74,8 +77,11 @@ class TestCommands:
 
 class TestPythonPackages:
     def test_required_providers_are_installed(self):
-        lines = (d.strip() for d in INSTALLED_PROVIDER_PATH.read_text().splitlines())
-        lines = (d for d in lines)
+        if os.environ.get("TEST_SLIM_IMAGE"):
+            lines = PREINSTALLED_PROVIDERS
+        else:
+            lines = (d.strip() for d in INSTALLED_PROVIDER_PATH.read_text().splitlines())
+            lines = (d for d in lines)
         packages_to_install = {f"apache-airflow-providers-{d.replace('.', '-')}" for d in lines}
         assert len(packages_to_install) != 0
 
@@ -83,7 +89,7 @@ class TestPythonPackages:
             "airflow providers list --output json", stderr=subprocess.DEVNULL, return_output=True
         )
         providers = json.loads(output)
-        packages_installed = {d['package_name'] for d in providers}
+        packages_installed = {d["package_name"] for d in providers}
         assert len(packages_installed) != 0
 
         assert packages_to_install == packages_installed, (
@@ -102,16 +108,16 @@ class TestPythonPackages:
         "amazon": ["boto3", "botocore", "watchtower"],
         "async": ["gevent", "eventlet", "greenlet"],
         "azure": [
-            'azure.batch',
-            'azure.cosmos',
-            'azure.datalake.store',
-            'azure.identity',
-            'azure.keyvault.secrets',
-            'azure.kusto.data',
-            'azure.mgmt.containerinstance',
-            'azure.mgmt.datalake.store',
-            'azure.mgmt.resource',
-            'azure.storage',
+            "azure.batch",
+            "azure.cosmos",
+            "azure.datalake.store",
+            "azure.identity",
+            "azure.keyvault.secrets",
+            "azure.kusto.data",
+            "azure.mgmt.containerinstance",
+            "azure.mgmt.datalake.store",
+            "azure.mgmt.resource",
+            "azure.storage",
         ],
         "celery": ["celery", "flower", "vine"],
         "cncf.kubernetes": ["kubernetes", "cryptography"],
@@ -119,35 +125,35 @@ class TestPythonPackages:
         "docker": ["docker"],
         "elasticsearch": ["elasticsearch", "es.elastic", "elasticsearch_dsl"],
         "google": [
-            'OpenSSL',
-            'google.ads',
-            'googleapiclient',
-            'google.auth',
-            'google_auth_httplib2',
-            'google.cloud.automl',
-            'google.cloud.bigquery_datatransfer',
-            'google.cloud.bigtable',
-            'google.cloud.container',
-            'google.cloud.datacatalog',
-            'google.cloud.dataproc',
-            'google.cloud.dlp',
-            'google.cloud.kms',
-            'google.cloud.language',
-            'google.cloud.logging',
-            'google.cloud.memcache',
-            'google.cloud.monitoring',
-            'google.cloud.oslogin',
-            'google.cloud.pubsub',
-            'google.cloud.redis',
-            'google.cloud.secretmanager',
-            'google.cloud.spanner',
-            'google.cloud.speech',
-            'google.cloud.storage',
-            'google.cloud.tasks',
-            'google.cloud.texttospeech',
-            'google.cloud.translate',
-            'google.cloud.videointelligence',
-            'google.cloud.vision',
+            "OpenSSL",
+            "google.ads",
+            "googleapiclient",
+            "google.auth",
+            "google_auth_httplib2",
+            "google.cloud.automl",
+            "google.cloud.bigquery_datatransfer",
+            "google.cloud.bigtable",
+            "google.cloud.container",
+            "google.cloud.datacatalog",
+            "google.cloud.dataproc",
+            "google.cloud.dlp",
+            "google.cloud.kms",
+            "google.cloud.language",
+            "google.cloud.logging",
+            "google.cloud.memcache",
+            "google.cloud.monitoring",
+            "google.cloud.oslogin",
+            "google.cloud.pubsub",
+            "google.cloud.redis",
+            "google.cloud.secretmanager",
+            "google.cloud.spanner",
+            "google.cloud.speech",
+            "google.cloud.storage",
+            "google.cloud.tasks",
+            "google.cloud.texttospeech",
+            "google.cloud.translate",
+            "google.cloud.videointelligence",
+            "google.cloud.vision",
         ],
         "grpc": ["grpc", "google.auth", "google_auth_httplib2"],
         "hashicorp": ["hvac"],
@@ -157,12 +163,13 @@ class TestPythonPackages:
         "pyodbc": ["pyodbc"],
         "redis": ["redis"],
         "sendgrid": ["sendgrid"],
-        "sftp/ssh": ["paramiko", "pysftp", "sshtunnel"],
+        "sftp/ssh": ["paramiko", "sshtunnel"],
         "slack": ["slack_sdk"],
         "statsd": ["statsd"],
         "virtualenv": ["virtualenv"],
     }
 
+    @pytest.mark.skipif(os.environ.get("TEST_SLIM_IMAGE") == "true", reason="Skipped with slim image")
     @pytest.mark.parametrize("package_name,import_names", PACKAGE_IMPORTS.items())
     def test_check_dependencies_imports(self, package_name, import_names):
         run_python_in_docker(f"import {','.join(import_names)}")
@@ -187,7 +194,7 @@ class TestExecuteAsRoot:
 
     def test_run_custom_python_packages_as_root(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
-            (Path(tmp_dir) / "__init__.py").write_text('')
+            (Path(tmp_dir) / "__init__.py").write_text("")
             (Path(tmp_dir) / "awesome.py").write_text('print("Awesome")')
 
             run_command(

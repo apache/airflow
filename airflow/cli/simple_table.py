@@ -14,9 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import inspect
 import json
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable
 
 from rich.box import ASCII_DOUBLE_HEAD
 from rich.console import Console
@@ -40,17 +42,17 @@ class AirflowConsole(Console):
         # If show header in tables
         self.show_header = show_header
 
-    def print_as_json(self, data: Dict):
+    def print_as_json(self, data: dict):
         """Renders dict as json text representation"""
         json_content = json.dumps(data)
         self.print(Syntax(json_content, "json", theme="ansi_dark"), soft_wrap=True)
 
-    def print_as_yaml(self, data: Dict):
+    def print_as_yaml(self, data: dict):
         """Renders dict as yaml text representation"""
         yaml_content = yaml.dump(data)
         self.print(Syntax(yaml_content, "yaml", theme="ansi_dark"), soft_wrap=True)
 
-    def print_as_table(self, data: List[Dict]):
+    def print_as_table(self, data: list[dict]):
         """Renders list of dictionaries as table"""
         if not data:
             self.print("No data found")
@@ -64,7 +66,7 @@ class AirflowConsole(Console):
             table.add_row(*(str(d) for d in row.values()))
         self.print(table)
 
-    def print_as_plain_table(self, data: List[Dict]):
+    def print_as_plain_table(self, data: list[dict]):
         """Renders list of dictionaries as a simple table than can be easily piped"""
         if not data:
             self.print("No data found")
@@ -73,7 +75,7 @@ class AirflowConsole(Console):
         output = tabulate(rows, tablefmt="plain", headers=list(data[0].keys()))
         print(output)
 
-    def _normalize_data(self, value: Any, output: str) -> Optional[Union[list, str, dict]]:
+    def _normalize_data(self, value: Any, output: str) -> list | str | dict | None:
         if isinstance(value, (tuple, list)):
             if output == "table":
                 return ",".join(str(self._normalize_data(x, output)) for x in value)
@@ -86,9 +88,9 @@ class AirflowConsole(Console):
             return None
         return str(value)
 
-    def print_as(self, data: List[Union[Dict, Any]], output: str, mapper: Optional[Callable] = None):
+    def print_as(self, data: list[dict | Any], output: str, mapper: Callable | None = None):
         """Prints provided using format specified by output argument"""
-        output_to_renderer: Dict[str, Callable[[Any], None]] = {
+        output_to_renderer: dict[str, Callable[[Any], None]] = {
             "json": self.print_as_json,
             "yaml": self.print_as_yaml,
             "table": self.print_as_table,
@@ -104,7 +106,7 @@ class AirflowConsole(Console):
             raise ValueError("To tabulate non-dictionary data you need to provide `mapper` function")
 
         if mapper:
-            dict_data: List[Dict] = [mapper(d) for d in data]
+            dict_data: list[dict] = [mapper(d) for d in data]
         else:
             dict_data = data
         dict_data = [{k: self._normalize_data(v, output) for k, v in d.items()} for d in dict_data]

@@ -28,14 +28,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.0.0
+.....
+
+Latest change: 2022-06-07
+
+=================================================================================================  ===========  =======================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================================
+`717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
+`027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
+`5bd64183f9 <https://github.com/apache/airflow/commit/5bd64183f95e11f47d6b7bc54a4c0d0f74ab5ea6>`_  2022-06-03   ``Migrate Jenkins example DAGs to new design #22451 (#24138)``
+`75c60923e0 <https://github.com/apache/airflow/commit/75c60923e01375ffc5f71c4f2f7968f489e2ca2f>`_  2022-05-12   ``Prepare provider documentation 2022.05.11 (#23631)``
+`8b6b0848a3 <https://github.com/apache/airflow/commit/8b6b0848a3cacf9999477d6af4d2a87463f03026>`_  2022-04-23   ``Use new Breese for building, pulling and verifying the images. (#23104)``
+`e5dd6fdcfd <https://github.com/apache/airflow/commit/e5dd6fdcfd2f53ed90e29070711c121de447b404>`_  2022-04-12   ``Bug Fix for 'apache-airflow-providers-jenkins' 'JenkinsJobTriggerOperator' (#22802)``
+=================================================================================================  ===========  =======================================================================================
+
 2.1.0
 .....
 
-Latest change: 2022-04-04
+Latest change: 2022-04-07
 
 =================================================================================================  ===========  ==============================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================
+`56ab82ed7a <https://github.com/apache/airflow/commit/56ab82ed7a5c179d024722ccc697b740b2b93b6a>`_  2022-04-07   ``Prepare mid-April provider documentation. (#22819)``
 `c30ab6945e <https://github.com/apache/airflow/commit/c30ab6945ea0715889d32e38e943c899a32d5862>`_  2022-04-04   ``extra condition to check returned object not None (#22608)``
 `4e24b22379 <https://github.com/apache/airflow/commit/4e24b22379e131fe1007e911b93f52e1b6afcf3f>`_  2022-03-24   ``Add 'JenkinsBuildSensor' (#22421)``
 =================================================================================================  ===========  ==============================================================

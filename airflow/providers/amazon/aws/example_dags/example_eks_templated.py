@@ -14,9 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# mypy ignore arg types (for templated fields)
-# type: ignore[arg-type]
+from __future__ import annotations
 
 from datetime import datetime
 
@@ -30,6 +28,10 @@ from airflow.providers.amazon.aws.operators.eks import (
     EksPodOperator,
 )
 from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksNodegroupStateSensor
+
+# mypy ignore arg types (for templated fields)
+# type: ignore[arg-type]
+
 
 # Example Jinja Template format, substitute your values:
 """
@@ -48,10 +50,9 @@ from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksN
 """
 
 with DAG(
-    dag_id='example_eks_templated',
-    schedule_interval=None,
+    dag_id="example_eks_templated",
     start_date=datetime(2021, 1, 1),
-    tags=['example', 'templated'],
+    tags=["example", "templated"],
     catchup=False,
     # render_template_as_native_obj=True is what converts the Jinja to Python objects, instead of a string.
     render_template_as_native_obj=True,
@@ -62,21 +63,22 @@ with DAG(
 
     # Create an Amazon EKS Cluster control plane without attaching a compute service.
     create_cluster = EksCreateClusterOperator(
-        task_id='create_eks_cluster',
+        task_id="create_eks_cluster",
         cluster_name=CLUSTER_NAME,
         compute=None,
         cluster_role_arn="{{ dag_run.conf['cluster_role_arn'] }}",
-        resources_vpc_config="{{ dag_run.conf['resources_vpc_config'] }}",
+        # This only works with render_template_as_native_obj flag (this dag has it set)
+        resources_vpc_config="{{ dag_run.conf['resources_vpc_config'] }}",  # type: ignore[arg-type]
     )
 
     await_create_cluster = EksClusterStateSensor(
-        task_id='wait_for_create_cluster',
+        task_id="wait_for_create_cluster",
         cluster_name=CLUSTER_NAME,
         target_state=ClusterStates.ACTIVE,
     )
 
     create_nodegroup = EksCreateNodegroupOperator(
-        task_id='create_eks_nodegroup',
+        task_id="create_eks_nodegroup",
         cluster_name=CLUSTER_NAME,
         nodegroup_name=NODEGROUP_NAME,
         nodegroup_subnets="{{ dag_run.conf['nodegroup_subnets'] }}",
@@ -84,7 +86,7 @@ with DAG(
     )
 
     await_create_nodegroup = EksNodegroupStateSensor(
-        task_id='wait_for_create_nodegroup',
+        task_id="wait_for_create_nodegroup",
         cluster_name=CLUSTER_NAME,
         nodegroup_name=NODEGROUP_NAME,
         target_state=NodegroupStates.ACTIVE,
@@ -103,25 +105,25 @@ with DAG(
     )
 
     delete_nodegroup = EksDeleteNodegroupOperator(
-        task_id='delete_eks_nodegroup',
+        task_id="delete_eks_nodegroup",
         cluster_name=CLUSTER_NAME,
         nodegroup_name=NODEGROUP_NAME,
     )
 
     await_delete_nodegroup = EksNodegroupStateSensor(
-        task_id='wait_for_delete_nodegroup',
+        task_id="wait_for_delete_nodegroup",
         cluster_name=CLUSTER_NAME,
         nodegroup_name=NODEGROUP_NAME,
         target_state=NodegroupStates.NONEXISTENT,
     )
 
     delete_cluster = EksDeleteClusterOperator(
-        task_id='delete_eks_cluster',
+        task_id="delete_eks_cluster",
         cluster_name=CLUSTER_NAME,
     )
 
     await_delete_cluster = EksClusterStateSensor(
-        task_id='wait_for_delete_cluster',
+        task_id="wait_for_delete_cluster",
         cluster_name=CLUSTER_NAME,
         target_state=ClusterStates.NONEXISTENT,
     )

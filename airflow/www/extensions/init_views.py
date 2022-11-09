@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import logging
 import warnings
@@ -24,8 +25,8 @@ from flask import Flask, request
 
 from airflow.api_connexion.exceptions import common_error_handler
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.security import permissions
-from airflow.www.views import lazy_add_provider_discovered_options_to_connection_form
 
 log = logging.getLogger(__name__)
 
@@ -42,8 +43,13 @@ def init_flash_views(app):
 
 def init_appbuilder_views(app):
     """Initialize Web UI views"""
-    appbuilder = app.appbuilder
+    from airflow.models import import_all_models
+
+    import_all_models()
+
     from airflow.www import views
+
+    appbuilder = app.appbuilder
 
     # Remove the session from scoped_session registry to avoid
     # reusing a session with a disconnected connection
@@ -132,7 +138,9 @@ def init_plugins(app):
             log.debug("Adding view %s without menu", str(type(view["view"])))
             appbuilder.add_view_no_menu(view["view"])
 
-    for menu_link in sorted(plugins_manager.flask_appbuilder_menu_links, key=lambda x: x["name"]):
+    for menu_link in sorted(
+        plugins_manager.flask_appbuilder_menu_links, key=lambda x: (x.get("category", ""), x["name"])
+    ):
         log.debug("Adding menu link %s to %s", menu_link["name"], menu_link["href"])
         appbuilder.add_link(**menu_link)
 
@@ -143,6 +151,8 @@ def init_plugins(app):
 
 def init_connection_form():
     """Initializes connection form"""
+    from airflow.www.views import lazy_add_provider_discovered_options_to_connection_form
+
     lazy_add_provider_discovered_options_to_connection_form()
 
 
@@ -159,11 +169,13 @@ def set_cors_headers_on_response(response):
     allow_headers = conf.get('api', 'access_control_allow_headers')
     allow_methods = conf.get('api', 'access_control_allow_methods')
     allow_origins = conf.get('api', 'access_control_allow_origins')
-    if allow_headers is not None:
+    if allow_headers:
         response.headers['Access-Control-Allow-Headers'] = allow_headers
-    if allow_methods is not None:
+    if allow_methods:
         response.headers['Access-Control-Allow-Methods'] = allow_methods
-    if allow_origins is not None:
+    if allow_origins == '*':
+        response.headers['Access-Control-Allow-Origin'] = '*'
+    elif allow_origins:
         allowed_origins = allow_origins.split(' ')
         origin = request.environ.get('HTTP_ORIGIN', allowed_origins[0])
         if origin in allowed_origins:
@@ -178,8 +190,7 @@ def init_api_connexion(app: Flask) -> None:
     from airflow.www import views
 
     @app.errorhandler(404)
-    @app.errorhandler(405)
-    def _handle_api_error(ex):
+    def _handle_api_not_found(ex):
         if request.path.startswith(base_path):
             # 404 errors are never handled on the blueprint level
             # unless raised from a view func so actual 404 errors,
@@ -188,6 +199,13 @@ def init_api_connexion(app: Flask) -> None:
             return common_error_handler(ex)
         else:
             return views.not_found(ex)
+
+    @app.errorhandler(405)
+    def _handle_method_not_allowed(ex):
+        if request.path.startswith(base_path):
+            return common_error_handler(ex)
+        else:
+            return views.method_not_allowed(ex)
 
     spec_dir = path.join(ROOT_APP_DIR, 'api_connexion', 'openapi')
     connexion_app = App(__name__, specification_dir=spec_dir, skip_error_handlers=True)
@@ -212,7 +230,7 @@ def init_api_experimental(app):
         "The experimental REST API is deprecated. Please migrate to the stable REST API. "
         "Please note that the experimental API do not have access control. "
         "The authenticated user has full access.",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
     )
     app.register_blueprint(endpoints.api_experimental, url_prefix='/api/experimental')
     app.extensions['csrf'].exempt(endpoints.api_experimental)

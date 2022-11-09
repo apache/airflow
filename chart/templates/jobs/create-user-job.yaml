@@ -22,6 +22,7 @@
 {{- $nodeSelector := or .Values.createUserJob.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.createUserJob.affinity .Values.affinity }}
 {{- $tolerations := or .Values.createUserJob.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.createUserJob.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "airflowSecurityContext" (list . .Values.createUserJob) }}
 apiVersion: batch/v1
 kind: Job
@@ -53,8 +54,8 @@ spec:
         tier: airflow
         component: create-user-job
         release: {{ .Release.Name }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 8 }}
+{{- if or (.Values.labels) (.Values.createUserJob.labels) }}
+{{- mustMerge .Values.createUserJob.labels .Values.labels | toYaml | nindent 8 }}
 {{- end }}
       {{- if or .Values.airflowPodAnnotations .Values.createUserJob.annotations }}
       annotations:
@@ -74,6 +75,8 @@ spec:
 {{ toYaml $affinity | indent 8 }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
+      topologySpreadConstraints:
+{{ toYaml $topologySpreadConstraints | indent 8 }}
       serviceAccountName: {{ include "createUserJob.serviceAccountName" . }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
@@ -94,6 +97,7 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+          {{- include "container_extra_envs" (list . .Values.createUserJob.env) | indent 10 }}
           resources:
 {{ toYaml .Values.createUserJob.resources | indent 12 }}
           volumeMounts:

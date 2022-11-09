@@ -17,12 +17,13 @@
 """
 Utilities to check - with MD5 - whether files have been modified since the last successful build.
 """
+from __future__ import annotations
+
 import hashlib
 from pathlib import Path
-from typing import List, Tuple
 
 from airflow_breeze.global_constants import FILES_FOR_REBUILD_CHECK
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
 
@@ -60,7 +61,7 @@ def generate_md5(filename, file_size: int = 65536):
 
 def calculate_md5_checksum_for_files(
     md5sum_cache_dir: Path, update: bool = False
-) -> Tuple[List[str], List[str]]:
+) -> tuple[list[str], list[str]]:
     """
     Calculates checksums for all interesting files and stores the hashes in the md5sum_cache_dir.
     Optionally modifies the hashes.
@@ -76,8 +77,8 @@ def calculate_md5_checksum_for_files(
         md5_checksum = generate_md5(file_to_get_md5)
         sub_dir_name = file_to_get_md5.parts[-2]
         actual_file_name = file_to_get_md5.parts[-1]
-        cache_file_name = Path(md5sum_cache_dir, sub_dir_name + '-' + actual_file_name + '.md5sum')
-        file_content = md5_checksum + '  ' + str(file_to_get_md5) + '\n'
+        cache_file_name = Path(md5sum_cache_dir, sub_dir_name + "-" + actual_file_name + ".md5sum")
+        file_content = md5_checksum + "  " + str(file_to_get_md5) + "\n"
         is_modified = check_md5checksum_in_cache_modified(file_content, cache_file_name, update=update)
         if is_modified:
             modified_files.append(calculate_md5_file)
@@ -91,20 +92,25 @@ def md5sum_check_if_build_is_needed(md5sum_cache_dir: Path) -> bool:
     Checks if build is needed based on whether important files were modified.
 
     :param md5sum_cache_dir: directory where cached md5 sums are stored
+
     :return: True if build is needed.
     """
     build_needed = False
     modified_files, not_modified_files = calculate_md5_checksum_for_files(md5sum_cache_dir, update=False)
     if len(modified_files) > 0:
-        console.print(
-            '[bright_yellow]The following files are modified since last time image was built: [/]\n\n'
+        get_console().print(
+            f"[warning]The following important files are modified in {AIRFLOW_SOURCES_ROOT} "
+            f"since last time image was built: [/]\n\n"
         )
         for file in modified_files:
-            console.print(f" * [bright_blue]{file}[/]")
-        console.print('\n[bright_yellow]Likely CI image needs rebuild[/]\n')
+            get_console().print(f" * [info]{file}[/]")
+        get_console().print("\n[warning]Likely CI image needs rebuild[/]\n")
         build_needed = True
     else:
-        console.print('Docker image build is not needed for CI build as no important files are changed!')
+        get_console().print(
+            "[info]Docker image build is not needed for CI build as no important files are changed! "
+            "You can add --force-build to force it[/]"
+        )
     return build_needed
 
 

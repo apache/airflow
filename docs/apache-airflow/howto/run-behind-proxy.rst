@@ -33,7 +33,7 @@ To do so, you need to set the following setting in your ``airflow.cfg``::
 
     base_url = http://my_host/myorg/airflow
 
-Additionally if you use Celery Executor, you can get Flower in ``/myorg/flower`` with::
+Additionally if you use Celery Executor, and you enable flower, you can get Flower in ``/myorg/flower`` with::
 
     flower_url_prefix = /myorg/flower
 

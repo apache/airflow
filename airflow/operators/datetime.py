@@ -14,11 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
-from typing import Iterable, Union
+import warnings
+from typing import Iterable
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.operators.branch import BaseBranchOperator
 from airflow.utils import timezone
 from airflow.utils.context import Context
@@ -39,17 +41,18 @@ class BranchDateTimeOperator(BaseBranchOperator):
         ``datetime.datetime.now()`` falls below target_lower or above ``target_upper``.
     :param target_lower: target lower bound.
     :param target_upper: target upper bound.
-    :param use_task_execution_date: If ``True``, uses task's execution day to compare with targets.
+    :param use_task_logical_date: If ``True``, uses task's logical date to compare with targets.
         Execution date is useful for backfilling. If ``False``, uses system's date.
     """
 
     def __init__(
         self,
         *,
-        follow_task_ids_if_true: Union[str, Iterable[str]],
-        follow_task_ids_if_false: Union[str, Iterable[str]],
-        target_lower: Union[datetime.datetime, datetime.time, None],
-        target_upper: Union[datetime.datetime, datetime.time, None],
+        follow_task_ids_if_true: str | Iterable[str],
+        follow_task_ids_if_false: str | Iterable[str],
+        target_lower: datetime.datetime | datetime.time | None,
+        target_upper: datetime.datetime | datetime.time | None,
+        use_task_logical_date: bool = False,
         use_task_execution_date: bool = False,
         **kwargs,
     ) -> None:
@@ -64,15 +67,24 @@ class BranchDateTimeOperator(BaseBranchOperator):
         self.target_upper = target_upper
         self.follow_task_ids_if_true = follow_task_ids_if_true
         self.follow_task_ids_if_false = follow_task_ids_if_false
-        self.use_task_execution_date = use_task_execution_date
+        self.use_task_logical_date = use_task_logical_date
+        if use_task_execution_date:
+            self.use_task_logical_date = use_task_execution_date
+            warnings.warn(
+                "Parameter ``use_task_execution_date`` is deprecated. Use ``use_task_logical_date``.",
+                RemovedInAirflow3Warning,
+                stacklevel=2,
+            )
 
-    def choose_branch(self, context: Context) -> Union[str, Iterable[str]]:
-        if self.use_task_execution_date is True:
-            now = timezone.make_naive(context["logical_date"], self.dag.timezone)
+    def choose_branch(self, context: Context) -> str | Iterable[str]:
+        if self.use_task_logical_date:
+            now = context["logical_date"]
         else:
-            now = timezone.make_naive(timezone.utcnow(), self.dag.timezone)
-
+            now = timezone.coerce_datetime(timezone.utcnow())
         lower, upper = target_times_as_dates(now, self.target_lower, self.target_upper)
+        lower = timezone.coerce_datetime(lower, self.dag.timezone)
+        upper = timezone.coerce_datetime(upper, self.dag.timezone)
+
         if upper is not None and upper < now:
             return self.follow_task_ids_if_false
 
@@ -84,8 +96,8 @@ class BranchDateTimeOperator(BaseBranchOperator):
 
 def target_times_as_dates(
     base_date: datetime.datetime,
-    lower: Union[datetime.datetime, datetime.time, None],
-    upper: Union[datetime.datetime, datetime.time, None],
+    lower: datetime.datetime | datetime.time | None,
+    upper: datetime.datetime | datetime.time | None,
 ):
     """Ensures upper and lower time targets are datetimes by combining them with base_date"""
     if isinstance(lower, datetime.datetime) and isinstance(upper, datetime.datetime):

@@ -23,6 +23,9 @@ description: |
   and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
 versions:
+  - 3.1.0
+  - 3.0.1
+  - 3.0.0
   - 2.2.3
   - 2.2.2
   - 2.2.1
@@ -33,8 +36,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
-  - apache-airflow>=2.1.0
+dependencies:
+  - apache-airflow>=2.3.0
+  - snakebite-py3
+  - hdfs[avro,dataframe,kerberos]>=2.0.4
 
 integrations:
   - integration-name: Hadoop Distributed File System (HDFS)
@@ -66,9 +71,6 @@ hooks:
     python-modules:
       - airflow.providers.apache.hdfs.hooks.webhdfs
 
-hook-class-names:
-  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook
 
 connection-types:
   - hook-class-name: airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook

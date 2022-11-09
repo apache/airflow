@@ -17,7 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Renderer DAG (tasks and dependencies) to the graphviz object."""
-from typing import Any, Dict, List, Optional
+from __future__ import annotations
+
+from typing import Any
 
 import graphviz
 
@@ -25,11 +27,12 @@ from airflow import AirflowException
 from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskmixin import DependencyMixin
 from airflow.serialization.serialized_objects import DagDependency
+from airflow.utils.dag_edges import dag_edges
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
-from airflow.www.views import dag_edges
 
 
 def _refine_color(color: str):
@@ -49,7 +52,9 @@ def _refine_color(color: str):
 
 
 def _draw_task(
-    task: BaseOperator, parent_graph: graphviz.Digraph, states_by_task_id: Optional[Dict[Any, Any]]
+    task: MappedOperator | BaseOperator,
+    parent_graph: graphviz.Digraph,
+    states_by_task_id: dict[Any, Any] | None,
 ) -> None:
     """Draw a single task on the given parent_graph"""
     if states_by_task_id:
@@ -73,7 +78,7 @@ def _draw_task(
 
 
 def _draw_task_group(
-    task_group: TaskGroup, parent_graph: graphviz.Digraph, states_by_task_id: Optional[Dict[str, str]]
+    task_group: TaskGroup, parent_graph: graphviz.Digraph, states_by_task_id: dict[str, str] | None
 ) -> None:
     """Draw the given task_group and its children on the given parent_graph"""
     # Draw joins
@@ -111,10 +116,10 @@ def _draw_task_group(
 
 
 def _draw_nodes(
-    node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: Optional[Dict[str, str]]
+    node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: dict[str, str] | None
 ) -> None:
     """Draw the node and its children on the given parent_graph recursively."""
-    if isinstance(node, BaseOperator):
+    if isinstance(node, BaseOperator) or isinstance(node, MappedOperator):
         _draw_task(node, parent_graph, states_by_task_id)
     else:
         if not isinstance(node, TaskGroup):
@@ -136,13 +141,12 @@ def _draw_nodes(
                 _draw_task_group(node, sub, states_by_task_id)
 
 
-def render_dag_dependencies(deps: Dict[str, List['DagDependency']]) -> graphviz.Digraph:
+def render_dag_dependencies(deps: dict[str, list[DagDependency]]) -> graphviz.Digraph:
     """
     Renders the DAG dependency to the DOT object.
 
     :param deps: List of DAG dependencies
     :return: Graphviz object
-    :rtype: graphviz.Digraph
     """
     dot = graphviz.Digraph(graph_attr={"rankdir": "LR"})
 
@@ -162,7 +166,7 @@ def render_dag_dependencies(deps: Dict[str, List['DagDependency']]) -> graphviz.
     return dot
 
 
-def render_dag(dag: DAG, tis: Optional[List[TaskInstance]] = None) -> graphviz.Digraph:
+def render_dag(dag: DAG, tis: list[TaskInstance] | None = None) -> graphviz.Digraph:
     """
     Renders the DAG object to the DOT object.
 
@@ -171,7 +175,6 @@ def render_dag(dag: DAG, tis: Optional[List[TaskInstance]] = None) -> graphviz.D
     :param dag: DAG that will be rendered.
     :param tis: List of task instances
     :return: Graphviz object
-    :rtype: graphviz.Digraph
     """
     dot = graphviz.Digraph(
         dag.dag_id,

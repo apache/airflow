@@ -15,16 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Sequence, Union
+from __future__ import annotations
 
-from airflow.models import BaseOperator
-from airflow.providers.jdbc.hooks.jdbc import JdbcHook
+import warnings
+from typing import Sequence
 
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 
-class JdbcOperator(BaseOperator):
+class JdbcOperator(SQLExecuteQueryOperator):
     """
     Executes sql code in a database using jdbc driver.
 
@@ -43,28 +42,16 @@ class JdbcOperator(BaseOperator):
     :param parameters: (optional) the parameters to render the SQL query with.
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'sql'}
-    ui_color = '#ededed'
+    template_fields: Sequence[str] = ("sql",)
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "sql"}
+    ui_color = "#ededed"
 
-    def __init__(
-        self,
-        *,
-        sql: Union[str, List[str]],
-        jdbc_conn_id: str = 'jdbc_default',
-        autocommit: bool = False,
-        parameters: Optional[Union[Mapping, Iterable]] = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.parameters = parameters
-        self.sql = sql
-        self.jdbc_conn_id = jdbc_conn_id
-        self.autocommit = autocommit
-        self.hook = None
-
-    def execute(self, context: 'Context') -> None:
-        self.log.info('Executing: %s', self.sql)
-        hook = JdbcHook(jdbc_conn_id=self.jdbc_conn_id)
-        hook.run(self.sql, self.autocommit, parameters=self.parameters)
+    def __init__(self, *, jdbc_conn_id: str = "jdbc_default", **kwargs) -> None:
+        super().__init__(conn_id=jdbc_conn_id, **kwargs)
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )

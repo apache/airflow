@@ -15,23 +15,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.executors.sequential_executor import SequentialExecutor
 
 
-class TestSequentialExecutor(unittest.TestCase):
-    @mock.patch('airflow.executors.sequential_executor.SequentialExecutor.sync')
-    @mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')
-    @mock.patch('airflow.executors.base_executor.Stats.gauge')
+class TestSequentialExecutor:
+    @mock.patch("airflow.executors.sequential_executor.SequentialExecutor.sync")
+    @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
+    @mock.patch("airflow.executors.base_executor.Stats.gauge")
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
         executor = SequentialExecutor()
         executor.heartbeat()
         calls = [
-            mock.call('executor.open_slots', mock.ANY),
-            mock.call('executor.queued_tasks', mock.ANY),
-            mock.call('executor.running_tasks', mock.ANY),
+            mock.call("executor.open_slots", mock.ANY),
+            mock.call("executor.queued_tasks", mock.ANY),
+            mock.call("executor.running_tasks", mock.ANY),
         ]
         mock_stats_gauge.assert_has_calls(calls)

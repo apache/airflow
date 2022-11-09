@@ -15,50 +15,49 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
+import ast
 import json
 import os
 import sys
-import unittest
 from argparse import Namespace
 from contextlib import contextmanager
 from datetime import datetime
+from pathlib import Path
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
+import airflow
 from airflow import settings
 from airflow.exceptions import AirflowException
-from airflow.utils import cli, cli_action_loggers
+from airflow.models.log import Log
+from airflow.utils import cli, cli_action_loggers, timezone
+from airflow.utils.cli import _search_for_dag_file
+
+repo_root = Path(airflow.__file__).parent.parent
 
 
-class TestCliUtil(unittest.TestCase):
+class TestCliUtil:
     def test_metrics_build(self):
-        func_name = 'test'
-        exec_date = datetime.utcnow()
-        namespace = Namespace(dag_id='foo', task_id='bar', subcommand='test', execution_date=exec_date)
+        func_name = "test"
+        exec_date = timezone.utcnow()
+        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date)
         metrics = cli._build_metrics(func_name, namespace)
 
         expected = {
-            'user': os.environ.get('USER'),
-            'sub_command': 'test',
-            'dag_id': 'foo',
-            'task_id': 'bar',
-            'execution_date': exec_date,
+            "user": os.environ.get("USER"),
+            "sub_command": "test",
+            "dag_id": "foo",
+            "task_id": "bar",
+            "execution_date": exec_date,
         }
         for k, v in expected.items():
             assert v == metrics.get(k)
 
-        assert metrics.get('start_datetime') <= datetime.utcnow()
-        assert metrics.get('full_command')
-
-        log_dao = metrics.get('log')
-        assert log_dao
-        assert log_dao.dag_id == metrics.get('dag_id')
-        assert log_dao.task_id == metrics.get('task_id')
-        assert log_dao.execution_date == metrics.get('execution_date')
-        assert log_dao.owner == metrics.get('user')
+        assert metrics.get("start_datetime") <= datetime.utcnow()
+        assert metrics.get("full_command")
 
     def test_fail_function(self):
         """
@@ -78,7 +77,7 @@ class TestCliUtil(unittest.TestCase):
             success_func(Namespace())
 
     def test_process_subdir_path_with_placeholder(self):
-        assert os.path.join(settings.DAGS_FOLDER, 'abc') == cli.process_subdir('DAGS_FOLDER/abc')
+        assert os.path.join(settings.DAGS_FOLDER, "abc") == cli.process_subdir("DAGS_FOLDER/abc")
 
     def test_get_dags(self):
         dags = cli.get_dags(None, "example_subdag_operator")
@@ -90,7 +89,8 @@ class TestCliUtil(unittest.TestCase):
         with pytest.raises(AirflowException):
             cli.get_dags(None, "foobar", True)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        ["given_command", "expected_masked_command"],
         [
             (
                 "airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin --password test",
@@ -120,26 +120,36 @@ class TestCliUtil(unittest.TestCase):
                 "airflow celery flower -p 8888",
                 "airflow celery flower -p 8888",
             ),
-        ]
+        ],
     )
-    def test_cli_create_user_supplied_password_is_masked(self, given_command, expected_masked_command):
+    def test_cli_create_user_supplied_password_is_masked(
+        self, given_command, expected_masked_command, session
+    ):
         # '-p' value which is not password, like 'airflow scheduler -p'
         # or 'airflow celery flower -p 8888', should not be masked
         args = given_command.split()
 
         expected_command = expected_masked_command.split()
 
-        exec_date = datetime.utcnow()
-        namespace = Namespace(dag_id='foo', task_id='bar', subcommand='test', execution_date=exec_date)
-        with mock.patch.object(sys, "argv", args):
+        exec_date = timezone.utcnow()
+        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date)
+        with mock.patch.object(sys, "argv", args), mock.patch(
+            "airflow.utils.session.create_session"
+        ) as mock_create_session:
             metrics = cli._build_metrics(args[1], namespace)
+            # Make it so the default_action_log doesn't actually commit the txn, by giving it a nexted txn
+            # instead
+            mock_create_session.return_value = session.begin_nested()
+            mock_create_session.return_value.bulk_insert_mappings = session.bulk_insert_mappings
+            cli_action_loggers.default_action_log(**metrics)
 
-        assert metrics.get('start_datetime') <= datetime.utcnow()
+            log = session.query(Log).order_by(Log.dttm.desc()).first()
 
-        log = metrics.get('log')
-        command = json.loads(log.extra).get('full_command')  # type: str
+        assert metrics.get("start_datetime") <= datetime.utcnow()
+
+        command: str = json.loads(log.extra).get("full_command")
         # Replace single quotes to double quotes to avoid json decode error
-        command = json.loads(command.replace("'", '"'))
+        command = ast.literal_eval(command)
         assert command == expected_command
 
     def test_setup_locations_relative_pid_path(self):
@@ -184,3 +194,19 @@ def fail_func(_):
 @cli.action_cli(check_db=False)
 def success_func(_):
     pass
+
+
+def test__search_for_dags_file():
+    dags_folder = settings.DAGS_FOLDER
+    assert _search_for_dag_file("") is None
+    assert _search_for_dag_file(None) is None
+    # if it's a file, and one can be find in subdir, should return full path
+    assert _search_for_dag_file("any/hi/test_dags_folder.py") == str(
+        Path(dags_folder) / "test_dags_folder.py"
+    )
+    # if a folder, even if exists, should return dags folder
+    existing_folder = Path(settings.DAGS_FOLDER, "subdir1")
+    assert existing_folder.exists()
+    assert _search_for_dag_file(existing_folder.as_posix()) is None
+    # when multiple files found, default to the dags folder
+    assert _search_for_dag_file("any/hi/__init__.py") is None

@@ -15,17 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import sys
+from __future__ import annotations
+
 from datetime import datetime
 
 import watchtower
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
+from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -42,9 +40,9 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     :param filename_template: template for file name (local storage) or log stream name (remote)
     """
 
-    def __init__(self, base_log_folder: str, log_group_arn: str, filename_template: str):
+    def __init__(self, base_log_folder: str, log_group_arn: str, filename_template: str | None = None):
         super().__init__(base_log_folder, filename_template)
-        split_arn = log_group_arn.split(':')
+        split_arn = log_group_arn.split(":")
 
         self.handler = None
         self.log_group = split_arn[6]
@@ -54,30 +52,19 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     @cached_property
     def hook(self):
         """Returns AwsLogsHook."""
-        remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
-        try:
-            from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
-
-            return AwsLogsHook(aws_conn_id=remote_conn_id, region_name=self.region_name)
-        except Exception as e:
-            self.log.error(
-                'Could not create an AwsLogsHook with connection id "%s". '
-                'Please make sure that apache-airflow[aws] is installed and '
-                'the Cloudwatch logs connection exists. Exception: "%s"',
-                remote_conn_id,
-                e,
-            )
-            return None
+        return AwsLogsHook(
+            aws_conn_id=conf.get("logging", "REMOTE_LOG_CONN_ID"), region_name=self.region_name
+        )
 
     def _render_filename(self, ti, try_number):
         # Replace unsupported log group name characters
-        return super()._render_filename(ti, try_number).replace(':', '_')
+        return super()._render_filename(ti, try_number).replace(":", "_")
 
     def set_context(self, ti):
         super().set_context(ti)
         self.handler = watchtower.CloudWatchLogHandler(
-            log_group=self.log_group,
-            stream_name=self._render_filename(ti, ti.try_number),
+            log_group_name=self.log_group,
+            log_stream_name=self._render_filename(ti, ti.try_number),
             boto3_client=self.hook.get_conn(),
         )
 
@@ -98,9 +85,9 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     def _read(self, task_instance, try_number, metadata=None):
         stream_name = self._render_filename(task_instance, try_number)
         return (
-            f'*** Reading remote log from Cloudwatch log_group: {self.log_group} '
-            f'log_stream: {stream_name}.\n{self.get_cloudwatch_logs(stream_name=stream_name)}\n',
-            {'end_of_log': True},
+            f"*** Reading remote log from Cloudwatch log_group: {self.log_group} "
+            f"log_stream: {stream_name}.\n{self.get_cloudwatch_logs(stream_name=stream_name)}\n",
+            {"end_of_log": True},
         )
 
     def get_cloudwatch_logs(self, stream_name: str) -> str:
@@ -111,20 +98,19 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         :return: string of all logs from the given log stream
         """
         try:
-            events = list(
-                self.hook.get_log_events(
-                    log_group=self.log_group, log_stream_name=stream_name, start_from_head=True
-                )
+            events = self.hook.get_log_events(
+                log_group=self.log_group,
+                log_stream_name=stream_name,
+                start_from_head=True,
             )
-
-            return '\n'.join(self._event_to_str(event) for event in events)
+            return "\n".join(self._event_to_str(event) for event in events)
         except Exception:
-            msg = f'Could not read remote logs from log_group: {self.log_group} log_stream: {stream_name}.'
+            msg = f"Could not read remote logs from log_group: {self.log_group} log_stream: {stream_name}."
             self.log.exception(msg)
             return msg
 
     def _event_to_str(self, event: dict) -> str:
-        event_dt = datetime.utcfromtimestamp(event['timestamp'] / 1000.0)
-        formatted_event_dt = event_dt.strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]
-        message = event['message']
-        return f'[{formatted_event_dt}] {message}'
+        event_dt = datetime.utcfromtimestamp(event["timestamp"] / 1000.0)
+        formatted_event_dt = event_dt.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
+        message = event["message"]
+        return f"[{formatted_event_dt}] {message}"

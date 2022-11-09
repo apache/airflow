@@ -14,19 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-import socket
 from functools import wraps
-from typing import Callable, Optional, Sequence, Tuple, TypeVar, cast
+from typing import Callable, Sequence, TypeVar, cast
 
 from flask import current_app, flash, g, redirect, render_template, request, url_for
 
 from airflow.configuration import conf
+from airflow.utils.net import get_hostname
 
 T = TypeVar("T", bound=Callable)
 
 
-def has_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Callable[[T], T]:
+def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable[[T], T]:
     """Factory for decorator that checks current user's permissions against required permissions."""
 
     def requires_access_decorator(func: T):
@@ -37,7 +38,10 @@ def has_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Calla
             appbuilder = current_app.appbuilder
 
             dag_id = (
-                request.args.get("dag_id") or request.form.get("dag_id") or (request.json or {}).get("dag_id")
+                request.args.get("dag_id")
+                or request.form.get("dag_id")
+                or (request.is_json and request.json.get("dag_id"))
+                or None
             )
             if appbuilder.sm.check_authorization(permissions, dag_id):
                 return func(*args, **kwargs)
@@ -45,7 +49,7 @@ def has_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Calla
                 return (
                     render_template(
                         'airflow/no_roles_permissions.html',
-                        hostname=socket.getfqdn()
+                        hostname=get_hostname()
                         if conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
                         else 'redact',
                         logout_url=appbuilder.get_url_for_logout,

@@ -16,10 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains operator for uploading local file(s) to GCS."""
+from __future__ import annotations
+
 import os
-import warnings
 from glob import glob
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -44,8 +45,6 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         (e.g. /path/to/directory/) (templated)
     :param bucket: The bucket to upload to. (templated)
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param mime_type: The mime-type string
     :param delegate_to: The account to impersonate, if any
     :param gzip: Allows for file to be compressed and uploaded as gzip
@@ -60,10 +59,10 @@ class LocalFilesystemToGCSOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'src',
-        'dst',
-        'bucket',
-        'impersonation_chain',
+        "src",
+        "dst",
+        "bucket",
+        "impersonation_chain",
     )
 
     def __init__(
@@ -72,24 +71,14 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         src,
         dst,
         bucket,
-        gcp_conn_id='google_cloud_default',
-        google_cloud_storage_conn_id=None,
-        mime_type='application/octet-stream',
+        gcp_conn_id="google_cloud_default",
+        mime_type="application/octet-stream",
         delegate_to=None,
         gzip=False,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
-
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
 
         self.src = src
         self.dst = dst
@@ -100,7 +89,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         self.gzip = gzip
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """Uploads a file or list of files to Google Cloud Storage"""
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,

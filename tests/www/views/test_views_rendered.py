@@ -15,12 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from unittest import mock
 from urllib.parse import quote_plus
 
 import pytest
 
-from airflow.models import DAG, RenderedTaskInstanceFields
+from airflow.models import DAG, RenderedTaskInstanceFields, Variable
 from airflow.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
@@ -38,16 +40,16 @@ def dag():
     return DAG(
         "testdag",
         start_date=DEFAULT_DATE,
-        user_defined_filters={"hello": lambda name: f'Hello {name}'},
-        user_defined_macros={"fullname": lambda fname, lname: f'{fname} {lname}'},
+        user_defined_filters={"hello": lambda name: f"Hello {name}"},
+        user_defined_macros={"fullname": lambda fname, lname: f"{fname} {lname}"},
     )
 
 
 @pytest.fixture()
 def task1(dag):
     return BashOperator(
-        task_id='task1',
-        bash_command='{{ task_instance_key_str }}',
+        task_id="task1",
+        bash_command="{{ task_instance_key_str }}",
         dag=dag,
     )
 
@@ -55,8 +57,17 @@ def task1(dag):
 @pytest.fixture()
 def task2(dag):
     return BashOperator(
-        task_id='task2',
+        task_id="task2",
         bash_command='echo {{ fullname("Apache", "Airflow") | hello }}',
+        dag=dag,
+    )
+
+
+@pytest.fixture()
+def task_secret(dag):
+    return BashOperator(
+        task_id="task_secret",
+        bash_command="echo {{ var.value.my_secret }} && echo {{ var.value.spam }}",
         dag=dag,
     )
 
@@ -73,7 +84,7 @@ def init_blank_db():
 
 
 @pytest.fixture(autouse=True)
-def reset_db(dag, task1, task2):
+def reset_db(dag, task1, task2, task_secret):
     yield
     clear_db_dags()
     clear_db_runs()
@@ -81,7 +92,7 @@ def reset_db(dag, task1, task2):
 
 
 @pytest.fixture()
-def create_dag_run(dag, task1, task2):
+def create_dag_run(dag, task1, task2, task_secret):
     def _create_dag_run(*, execution_date, session):
         dag_run = dag.create_dagrun(
             state=DagRunState.RUNNING,
@@ -94,6 +105,8 @@ def create_dag_run(dag, task1, task2):
         ti1.state = TaskInstanceState.SUCCESS
         ti2 = dag_run.get_task_instance(task2.task_id, session=session)
         ti2.state = TaskInstanceState.SCHEDULED
+        ti3 = dag_run.get_task_instance(task_secret.task_id, session=session)
+        ti3.state = TaskInstanceState.QUEUED
         session.flush()
         return dag_run
 
@@ -112,7 +125,7 @@ def test_rendered_template_view(admin_client, create_dag_run, task1):
     """
     Test that the Rendered View contains the values from RenderedTaskInstanceFields
     """
-    assert task1.bash_command == '{{ task_instance_key_str }}'
+    assert task1.bash_command == "{{ task_instance_key_str }}"
 
     with create_session() as session:
         dag_run = create_dag_run(execution_date=DEFAULT_DATE, session=session)
@@ -121,7 +134,7 @@ def test_rendered_template_view(admin_client, create_dag_run, task1):
         ti.refresh_from_task(task1)
         session.add(RenderedTaskInstanceFields(ti))
 
-    url = f'rendered-templates?task_id=task1&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}'
+    url = f"rendered-templates?task_id=task1&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}"
 
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response("testdag__task1__20200301", resp)
@@ -133,12 +146,12 @@ def test_rendered_template_view_for_unexecuted_tis(admin_client, create_dag_run,
     Test that the Rendered View is able to show rendered values
     even for TIs that have not yet executed
     """
-    assert task1.bash_command == '{{ task_instance_key_str }}'
+    assert task1.bash_command == "{{ task_instance_key_str }}"
 
     with create_session() as session:
         create_dag_run(execution_date=DEFAULT_DATE, session=session)
 
-    url = f'rendered-templates?task_id=task1&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}'
+    url = f"rendered-templates?task_id=task1&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}"
 
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response("testdag__task1__20200301", resp)
@@ -151,7 +164,7 @@ def test_user_defined_filter_and_macros_raise_error(admin_client, create_dag_run
     with create_session() as session:
         create_dag_run(execution_date=DEFAULT_DATE, session=session)
 
-    url = f'rendered-templates?task_id=task2&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}'
+    url = f"rendered-templates?task_id=task2&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}"
 
     resp = admin_client.get(url, follow_redirects=True)
     assert resp.status_code == 200
@@ -168,3 +181,29 @@ def test_user_defined_filter_and_macros_raise_error(admin_client, create_dag_run
     # MarkupSafe changed the exception detail from 'no filter named' to
     # 'No filter named' in 2.0 (I think), so we normalize for comparison.
     assert "originalerror: no filter named &#39;hello&#39;" in resp_html.lower()
+
+
+@pytest.mark.usefixtures("patch_app")
+def test_rendered_template_secret(admin_client, create_dag_run, task_secret):
+    """Test that the Rendered View masks values retrieved from secret variables."""
+    Variable.set("my_secret", "foo")
+    Variable.set("spam", "egg")
+
+    assert task_secret.bash_command == "echo {{ var.value.my_secret }} && echo {{ var.value.spam }}"
+
+    with create_session() as session:
+        dag_run = create_dag_run(execution_date=DEFAULT_DATE, session=session)
+        ti = dag_run.get_task_instance(task_secret.task_id, session=session)
+        assert ti is not None, "task instance not found"
+        ti.refresh_from_task(task_secret)
+        assert ti.state == TaskInstanceState.QUEUED
+
+    date = quote_plus(str(DEFAULT_DATE))
+    url = f"rendered-templates?task_id=task_secret&dag_id=testdag&execution_date={date}"
+
+    resp = admin_client.get(url, follow_redirects=True)
+    check_content_in_response(
+        'echo</span> *** <span class="o">&amp;&amp;</span> <span class="nb">echo</span> egg', resp
+    )
+    ti.refresh_from_task(task_secret)
+    assert ti.state == TaskInstanceState.QUEUED

@@ -50,8 +50,15 @@ Example DAG
 Use the :class:`~airflow.providers.papermill.operators.papermill.PapermillOperator`
 to execute a jupyter notebook:
 
-.. exampleinclude:: /../../airflow/providers/papermill/example_dags/example_papermill.py
+.. exampleinclude:: /../../tests/system/providers/papermill/example_papermill.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_papermill]
     :end-before: [END howto_operator_papermill]
+
+Example DAG to Verify the message in the notebook:
+
+.. exampleinclude:: /../../tests/system/providers/papermill/example_papermill_verify.py
+    :language: python
+    :start-after: [START howto_verify_operator_papermill]
+    :end-before: [END howto_verify_operator_papermill]

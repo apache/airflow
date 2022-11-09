@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from unittest.mock import MagicMock, Mock, patch
@@ -44,7 +45,7 @@ class TestCloudSql(unittest.TestCase):
             audio=AUDIO,
             task_id="id",
             impersonation_chain=IMPERSONATION_CHAIN,
-        ).execute(context={"task_instance": Mock()})
+        ).execute(context=MagicMock())
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,

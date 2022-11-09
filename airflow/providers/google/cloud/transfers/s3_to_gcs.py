@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import warnings
+from __future__ import annotations
+
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -26,7 +27,7 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gc
 try:
     from airflow.providers.amazon.aws.operators.s3 import S3ListOperator
 except ImportError:
-    from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator
+    from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -57,8 +58,6 @@ class S3ToGCSOperator(S3ListOperator):
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param dest_gcs_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param dest_gcs: The destination Google Cloud Storage bucket and prefix
         where you want to store the files. (templated)
     :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
@@ -85,11 +84,11 @@ class S3ToGCSOperator(S3ListOperator):
            task_id="s3_to_gcs_example",
            bucket="my-s3-bucket",
            prefix="data/customers-201804",
-           dest_gcs_conn_id="google_cloud_default",
+           gcp_conn_id="google_cloud_default",
            dest_gcs="gs://my.gcs.bucket/some/customers/",
            replace=False,
            gzip=True,
-           dag=my - dag,
+           dag=my_dag,
        )
 
     Note that ``bucket``, ``prefix``, ``delimiter`` and ``dest_gcs`` are
@@ -97,43 +96,32 @@ class S3ToGCSOperator(S3ListOperator):
     """
 
     template_fields: Sequence[str] = (
-        'bucket',
-        'prefix',
-        'delimiter',
-        'dest_gcs',
-        'google_impersonation_chain',
+        "bucket",
+        "prefix",
+        "delimiter",
+        "dest_gcs",
+        "google_impersonation_chain",
     )
-    ui_color = '#e09411'
+    ui_color = "#e09411"
 
     def __init__(
         self,
         *,
         bucket,
-        prefix='',
-        delimiter='',
-        aws_conn_id='aws_default',
+        prefix="",
+        delimiter="",
+        aws_conn_id="aws_default",
         verify=None,
-        gcp_conn_id='google_cloud_default',
-        dest_gcs_conn_id=None,
+        gcp_conn_id="google_cloud_default",
         dest_gcs=None,
         delegate_to=None,
         replace=False,
         gzip=False,
-        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
 
         super().__init__(bucket=bucket, prefix=prefix, delimiter=delimiter, aws_conn_id=aws_conn_id, **kwargs)
-
-        if dest_gcs_conn_id:
-            warnings.warn(
-                "The dest_gcs_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = dest_gcs_conn_id
-
         self.gcp_conn_id = gcp_conn_id
         self.dest_gcs = dest_gcs
         self.delegate_to = delegate_to
@@ -145,15 +133,15 @@ class S3ToGCSOperator(S3ListOperator):
     def _check_inputs(self) -> None:
         if self.dest_gcs and not gcs_object_is_directory(self.dest_gcs):
             self.log.info(
-                'Destination Google Cloud Storage path is not a valid '
+                "Destination Google Cloud Storage path is not a valid "
                 '"directory", define a path that ends with a slash "/" or '
-                'leave it empty for the root of the bucket.'
+                "leave it empty for the root of the bucket."
             )
             raise AirflowException(
                 'The destination Google Cloud Storage path must end with a slash "/" or be empty.'
             )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self._check_inputs()
         # use the super method to list all the files in an S3 bucket/key
         files = super().execute(context)
@@ -187,9 +175,9 @@ class S3ToGCSOperator(S3ListOperator):
 
             files = list(set(files) - set(existing_files))
             if len(files) > 0:
-                self.log.info('%s files are going to be synced: %s.', len(files), files)
+                self.log.info("%s files are going to be synced: %s.", len(files), files)
             else:
-                self.log.info('There are no new files to sync. Have a nice day!')
+                self.log.info("There are no new files to sync. Have a nice day!")
 
         if files:
             hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
@@ -198,7 +186,7 @@ class S3ToGCSOperator(S3ListOperator):
                 # GCS hook builds its own in-memory file so we have to create
                 # and pass the path
                 file_object = hook.get_key(file, self.bucket)
-                with NamedTemporaryFile(mode='wb', delete=True) as f:
+                with NamedTemporaryFile(mode="wb", delete=True) as f:
                     file_object.download_fileobj(f)
                     f.flush()
 
@@ -219,6 +207,6 @@ class S3ToGCSOperator(S3ListOperator):
 
             self.log.info("All done, uploaded %d files to Google Cloud Storage", len(files))
         else:
-            self.log.info('In sync, no files needed to be uploaded to Google Cloud Storage')
+            self.log.info("In sync, no files needed to be uploaded to Google Cloud Storage")
 
         return files

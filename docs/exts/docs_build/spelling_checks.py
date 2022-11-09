@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 import re
 from functools import total_ordering
-from typing import Dict, List, NamedTuple, Optional
+from typing import NamedTuple
 
 from rich.console import Console
 
@@ -35,11 +36,11 @@ console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WI
 class SpellingError(NamedTuple):
     """Spelling errors found when building docs."""
 
-    file_path: Optional[str]
-    line_no: Optional[int]
-    spelling: Optional[str]
-    suggestion: Optional[str]
-    context_line: Optional[str]
+    file_path: str | None
+    line_no: int | None
+    spelling: str | None
+    suggestion: str | None
+    context_line: str | None
     message: str
 
     def __eq__(self, other):
@@ -63,12 +64,12 @@ class SpellingError(NamedTuple):
         return not self == other
 
     def __lt__(self, other):
-        file_path_a = self.file_path or ''
-        file_path_b = other.file_path or ''
+        file_path_a = self.file_path or ""
+        file_path_b = other.file_path or ""
         line_no_a = self.line_no or 0
         line_no_b = other.line_no or 0
-        context_line_a = self.context_line or ''
-        context_line_b = other.context_line or ''
+        context_line_a = self.context_line or ""
+        context_line_b = other.context_line or ""
         left = (file_path_a, line_no_a, context_line_a, self.spelling, self.message)
         right = (
             file_path_b,
@@ -80,7 +81,7 @@ class SpellingError(NamedTuple):
         return left < right
 
 
-def parse_spelling_warnings(warning_text: str, docs_dir: str) -> List[SpellingError]:
+def parse_spelling_warnings(warning_text: str, docs_dir: str) -> list[SpellingError]:
     """
     Parses warnings from Sphinx.
 
@@ -101,7 +102,7 @@ def parse_spelling_warnings(warning_text: str, docs_dir: str) -> List[SpellingEr
                 sphinx_spelling_errors.append(
                     SpellingError(
                         file_path=os.path.join(docs_dir, warning_parts[0]),
-                        line_no=int(warning_parts[1]) if warning_parts[1] not in ('None', '') else None,
+                        line_no=int(warning_parts[1]) if warning_parts[1] not in ("None", "") else None,
                         spelling=warning_parts[2],
                         suggestion=warning_parts[3] if warning_parts[3] else None,
                         context_line=warning_parts[4],
@@ -134,7 +135,7 @@ def parse_spelling_warnings(warning_text: str, docs_dir: str) -> List[SpellingEr
     return sphinx_spelling_errors
 
 
-def display_spelling_error_summary(spelling_errors: Dict[str, List[SpellingError]]) -> None:
+def display_spelling_error_summary(spelling_errors: dict[str, list[SpellingError]]) -> None:
     """Displays summary of Spelling errors"""
     console.print()
     console.print("[red]" + "#" * 30 + " Start spelling errors summary " + "#" * 30 + "[/]")
@@ -142,9 +143,9 @@ def display_spelling_error_summary(spelling_errors: Dict[str, List[SpellingError
 
     for package_name, errors in sorted(spelling_errors.items()):
         if package_name:
-            console.print("=" * 30, f" [blue]{package_name}[/] ", "=" * 30)
+            console.print("=" * 30, f" [info]{package_name}[/] ", "=" * 30)
         else:
-            console.print("=" * 30, " [blue]General[/] ", "=" * 30)
+            console.print("=" * 30, " [info]General[/] ", "=" * 30)
 
         for warning_no, error in enumerate(sorted(errors), 1):
             console.print("-" * 30, f"Error {warning_no:3}", "-" * 30)

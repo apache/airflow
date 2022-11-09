@@ -25,9 +25,7 @@ Python interpreter from loading this file.
 To access a DAG in this folder, use the following code inside a unit test.
 
 ```python
-TEST_DAG_FOLDER = os.path.join(
-    os.path.dirname(os.path.realpath(__file__)), "dags_corrupted"
-)
+TEST_DAG_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), "dags_corrupted")
 
 dagbag = DagBag(dag_folder=TEST_DAG_FOLDER)
 dag = dagbag.get_dag(dag_id)

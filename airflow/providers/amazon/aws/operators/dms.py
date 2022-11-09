@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-
-from typing import TYPE_CHECKING, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
@@ -49,13 +49,13 @@ class DmsCreateTaskOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'replication_task_id',
-        'source_endpoint_arn',
-        'target_endpoint_arn',
-        'replication_instance_arn',
-        'table_mappings',
-        'migration_type',
-        'create_task_kwargs',
+        "replication_task_id",
+        "source_endpoint_arn",
+        "target_endpoint_arn",
+        "replication_instance_arn",
+        "table_mappings",
+        "migration_type",
+        "create_task_kwargs",
     )
     template_ext: Sequence[str] = ()
     template_fields_renderers = {
@@ -71,9 +71,9 @@ class DmsCreateTaskOperator(BaseOperator):
         target_endpoint_arn: str,
         replication_instance_arn: str,
         table_mappings: dict,
-        migration_type: str = 'full-load',
-        create_task_kwargs: Optional[dict] = None,
-        aws_conn_id: str = 'aws_default',
+        migration_type: str = "full-load",
+        create_task_kwargs: dict | None = None,
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -86,7 +86,7 @@ class DmsCreateTaskOperator(BaseOperator):
         self.create_task_kwargs = create_task_kwargs or {}
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """
         Creates AWS DMS replication task from Airflow
 
@@ -124,22 +124,22 @@ class DmsDeleteTaskOperator(BaseOperator):
         maintained on each worker node).
     """
 
-    template_fields: Sequence[str] = ('replication_task_arn',)
+    template_fields: Sequence[str] = ("replication_task_arn",)
     template_ext: Sequence[str] = ()
-    template_fields_renderers: Dict[str, str] = {}
+    template_fields_renderers: dict[str, str] = {}
 
     def __init__(
         self,
         *,
-        replication_task_arn: Optional[str] = None,
-        aws_conn_id: str = 'aws_default',
+        replication_task_arn: str | None = None,
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.replication_task_arn = replication_task_arn
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """
         Deletes AWS DMS replication task from Airflow
 
@@ -154,6 +154,10 @@ class DmsDescribeTasksOperator(BaseOperator):
     """
     Describes AWS DMS replication tasks.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DmsDescribeTasksOperator`
+
     :param describe_tasks_kwargs: Describe tasks command arguments
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
@@ -162,27 +166,26 @@ class DmsDescribeTasksOperator(BaseOperator):
         maintained on each worker node).
     """
 
-    template_fields: Sequence[str] = ('describe_tasks_kwargs',)
+    template_fields: Sequence[str] = ("describe_tasks_kwargs",)
     template_ext: Sequence[str] = ()
-    template_fields_renderers: Dict[str, str] = {'describe_tasks_kwargs': 'json'}
+    template_fields_renderers: dict[str, str] = {"describe_tasks_kwargs": "json"}
 
     def __init__(
         self,
         *,
-        describe_tasks_kwargs: Optional[dict] = None,
-        aws_conn_id: str = 'aws_default',
+        describe_tasks_kwargs: dict | None = None,
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.describe_tasks_kwargs = describe_tasks_kwargs or {}
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context) -> tuple[str | None, list]:
         """
         Describes AWS DMS replication tasks from Airflow
 
         :return: Marker and list of replication tasks
-        :rtype: (Optional[str], list)
         """
         dms_hook = DmsHook(aws_conn_id=self.aws_conn_id)
         return dms_hook.describe_replication_tasks(**self.describe_tasks_kwargs)
@@ -208,20 +211,20 @@ class DmsStartTaskOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'replication_task_arn',
-        'start_replication_task_type',
-        'start_task_kwargs',
+        "replication_task_arn",
+        "start_replication_task_type",
+        "start_task_kwargs",
     )
     template_ext: Sequence[str] = ()
-    template_fields_renderers = {'start_task_kwargs': 'json'}
+    template_fields_renderers = {"start_task_kwargs": "json"}
 
     def __init__(
         self,
         *,
         replication_task_arn: str,
-        start_replication_task_type: str = 'start-replication',
-        start_task_kwargs: Optional[dict] = None,
-        aws_conn_id: str = 'aws_default',
+        start_replication_task_type: str = "start-replication",
+        start_task_kwargs: dict | None = None,
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -230,7 +233,7 @@ class DmsStartTaskOperator(BaseOperator):
         self.start_task_kwargs = start_task_kwargs or {}
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """
         Starts AWS DMS replication task from Airflow
 
@@ -250,6 +253,10 @@ class DmsStopTaskOperator(BaseOperator):
     """
     Stops AWS DMS replication task.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DmsStopTaskOperator`
+
     :param replication_task_arn: Replication task ARN
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
@@ -258,22 +265,22 @@ class DmsStopTaskOperator(BaseOperator):
         maintained on each worker node).
     """
 
-    template_fields: Sequence[str] = ('replication_task_arn',)
+    template_fields: Sequence[str] = ("replication_task_arn",)
     template_ext: Sequence[str] = ()
-    template_fields_renderers: Dict[str, str] = {}
+    template_fields_renderers: dict[str, str] = {}
 
     def __init__(
         self,
         *,
-        replication_task_arn: Optional[str] = None,
-        aws_conn_id: str = 'aws_default',
+        replication_task_arn: str | None = None,
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.replication_task_arn = replication_task_arn
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """
         Stops AWS DMS replication task from Airflow
 

@@ -14,13 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime as dt
-import unittest
 
 import pytest
 from marshmallow import ValidationError
-from parameterized import parameterized
 
 from airflow.api_connexion.schemas.task_instance_schema import (
     clear_task_instance_form,
@@ -91,6 +90,8 @@ class TestTaskInstanceSchema:
             "unixname": getuser(),
             "dag_run_id": None,
             "rendered_fields": {},
+            "trigger": None,
+            "triggerer_job": None,
         }
         assert serialized_ti == expected_json
 
@@ -141,43 +142,65 @@ class TestTaskInstanceSchema:
             "unixname": getuser(),
             "dag_run_id": None,
             "rendered_fields": {"partitions": "data/ds=2022-02-17"},
+            "trigger": None,
+            "triggerer_job": None,
         }
         assert serialized_ti == expected_json
 
 
-class TestClearTaskInstanceFormSchema(unittest.TestCase):
-    @parameterized.expand(
+class TestClearTaskInstanceFormSchema:
+    @pytest.mark.parametrize(
+        "payload",
         [
             (
-                [
-                    {
-                        "dry_run": False,
-                        "reset_dag_runs": True,
-                        "only_failed": True,
-                        "only_running": True,
-                    }
-                ]
+                {
+                    "dry_run": False,
+                    "reset_dag_runs": True,
+                    "only_failed": True,
+                    "only_running": True,
+                }
             ),
             (
-                [
-                    {
-                        "dry_run": False,
-                        "reset_dag_runs": True,
-                        "end_date": "2020-01-01T00:00:00+00:00",
-                        "start_date": "2020-01-02T00:00:00+00:00",
-                    }
-                ]
+                {
+                    "dry_run": False,
+                    "reset_dag_runs": True,
+                    "end_date": "2020-01-01T00:00:00+00:00",
+                    "start_date": "2020-01-02T00:00:00+00:00",
+                }
             ),
             (
-                [
-                    {
-                        "dry_run": False,
-                        "reset_dag_runs": True,
-                        "task_ids": [],
-                    }
-                ]
+                {
+                    "dry_run": False,
+                    "reset_dag_runs": True,
+                    "task_ids": [],
+                }
             ),
-        ]
+            (
+                {
+                    "dry_run": False,
+                    "reset_dag_runs": True,
+                    "dag_run_id": "scheduled__2022-06-19T00:00:00+00:00",
+                    "start_date": "2022-08-03T00:00:00+00:00",
+                }
+            ),
+            (
+                {
+                    "dry_run": False,
+                    "reset_dag_runs": True,
+                    "dag_run_id": "scheduled__2022-06-19T00:00:00+00:00",
+                    "end_date": "2022-08-03T00:00:00+00:00",
+                }
+            ),
+            (
+                {
+                    "dry_run": False,
+                    "reset_dag_runs": True,
+                    "dag_run_id": "scheduled__2022-06-19T00:00:00+00:00",
+                    "end_date": "2022-08-04T00:00:00+00:00",
+                    "start_date": "2022-08-03T00:00:00+00:00",
+                }
+            ),
+        ],
     )
     def test_validation_error(self, payload):
         with pytest.raises(ValidationError):
@@ -199,25 +222,26 @@ class TestSetTaskInstanceStateFormSchema:
     def test_success(self):
         result = set_task_instance_state_form.load(self.current_input)
         expected_result = {
-            'dry_run': True,
-            'execution_date': dt.datetime(2020, 1, 1, 0, 0, tzinfo=dt.timezone(dt.timedelta(0), '+0000')),
-            'include_downstream': True,
-            'include_future': True,
-            'include_past': True,
-            'include_upstream': True,
-            'new_state': 'failed',
-            'task_id': 'print_the_context',
+            "dry_run": True,
+            "execution_date": dt.datetime(2020, 1, 1, 0, 0, tzinfo=dt.timezone(dt.timedelta(0), "+0000")),
+            "include_downstream": True,
+            "include_future": True,
+            "include_past": True,
+            "include_upstream": True,
+            "new_state": "failed",
+            "task_id": "print_the_context",
         }
         assert expected_result == result
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "override_data",
         [
-            ({"task_id": None},),
-            ({"include_future": "foo"},),
-            ({"execution_date": "NOW"},),
-            ({"new_state": "INVALID_STATE"},),
-            ({"execution_date": "2020-01-01T00:00:00+00:00", "dag_run_id": "some-run-id"},),
-        ]
+            {"task_id": None},
+            {"include_future": "foo"},
+            {"execution_date": "NOW"},
+            {"new_state": "INVALID_STATE"},
+            {"execution_date": "2020-01-01T00:00:00+00:00", "dag_run_id": "some-run-id"},
+        ],
     )
     def test_validation_error(self, override_data):
         self.current_input.update(override_data)

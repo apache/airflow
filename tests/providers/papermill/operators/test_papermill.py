@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import unittest
 from unittest.mock import patch
 
@@ -26,11 +28,12 @@ DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 
 
 class TestPapermillOperator(unittest.TestCase):
-    @patch('airflow.providers.papermill.operators.papermill.pm')
+    @patch("airflow.providers.papermill.operators.papermill.pm")
     def test_execute(self, mock_papermill):
         in_nb = "/tmp/does_not_exist"
         out_nb = "/tmp/will_not_exist"
         kernel_name = "python3"
+        language_name = "python"
         parameters = {"msg": "hello_world", "train": 1}
 
         op = PapermillOperator(
@@ -39,10 +42,10 @@ class TestPapermillOperator(unittest.TestCase):
             parameters=parameters,
             task_id="papermill_operator_test",
             kernel_name=kernel_name,
+            language_name=language_name,
             dag=None,
         )
 
-        op.pre_execute(context={})  # Make sure to have the inlets
         op.execute(context={})
 
         mock_papermill.execute_notebook.assert_called_once_with(
@@ -50,13 +53,14 @@ class TestPapermillOperator(unittest.TestCase):
             out_nb,
             parameters=parameters,
             kernel_name=kernel_name,
+            language=language_name,
             progress_bar=False,
             report_mode=True,
         )
 
     def test_render_template(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        dag = DAG('test_render_template', default_args=args)
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        dag = DAG("test_render_template", default_args=args)
 
         operator = PapermillOperator(
             task_id="render_dag_test",
@@ -64,6 +68,7 @@ class TestPapermillOperator(unittest.TestCase):
             output_nb="/tmp/out-{{ dag.dag_id }}.ipynb",
             parameters={"msgs": "dag id is {{ dag.dag_id }}!"},
             kernel_name="python3",
+            language_name="python",
             dag=dag,
         )
 
@@ -71,7 +76,8 @@ class TestPapermillOperator(unittest.TestCase):
         ti.dag_run = DagRun(execution_date=DEFAULT_DATE)
         ti.render_templates()
 
-        assert "/tmp/test_render_template.ipynb" == getattr(operator, 'input_nb')
-        assert '/tmp/out-test_render_template.ipynb' == getattr(operator, 'output_nb')
-        assert {"msgs": "dag id is test_render_template!"} == getattr(operator, 'parameters')
-        assert "python3" == getattr(operator, 'kernel_name')
+        assert "/tmp/test_render_template.ipynb" == operator.input_nb
+        assert "/tmp/out-test_render_template.ipynb" == operator.output_nb
+        assert {"msgs": "dag id is test_render_template!"} == operator.parameters
+        assert "python3" == operator.kernel_name
+        assert "python" == operator.language_name

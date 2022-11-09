@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 # Licensed to Cloudera, Inc. under one
 # or more contributor license agreements.  See the NOTICE file
@@ -35,12 +36,11 @@
 """Various security-related utils."""
 import re
 import socket
-from typing import List, Optional
 
 from airflow.utils.net import get_hostname
 
 
-def get_components(principal) -> Optional[List[str]]:
+def get_components(principal) -> list[str] | None:
     """
     Returns components retrieved from the kerberos principal.
     -> (short name, instance (FQDN), realm)

@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from sqlalchemy import Column, Index, Integer, String, Text, text
+from sqlalchemy import Column, Index, Integer, String, Text
 
 from airflow.models.base import Base, StringID
 from airflow.utils import timezone
@@ -32,13 +33,16 @@ class Log(Base):
     dttm = Column(UtcDateTime)
     dag_id = Column(StringID())
     task_id = Column(StringID())
-    map_index = Column(Integer, server_default=text('NULL'))
+    map_index = Column(Integer)
     event = Column(String(30))
     execution_date = Column(UtcDateTime)
     owner = Column(String(500))
     extra = Column(Text)
 
-    __table_args__ = (Index('idx_log_dag', dag_id),)
+    __table_args__ = (
+        Index('idx_log_dag', dag_id),
+        Index('idx_log_event', event),
+    )
 
     def __init__(self, event, task_instance=None, owner=None, extra=None, **kwargs):
         self.dttm = timezone.utcnow()
@@ -52,7 +56,8 @@ class Log(Base):
             self.task_id = task_instance.task_id
             self.execution_date = task_instance.execution_date
             self.map_index = task_instance.map_index
-            task_owner = task_instance.task.owner
+            if getattr(task_instance, 'task', None):
+                task_owner = task_instance.task.owner
 
         if 'task_id' in kwargs:
             self.task_id = kwargs['task_id']

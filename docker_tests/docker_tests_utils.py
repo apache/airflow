@@ -14,12 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 
 from docker_tests.command_utils import run_command
 
-docker_image = os.environ.get('DOCKER_IMAGE')
+docker_image = os.environ.get("DOCKER_IMAGE")
 
 if not docker_image:
     raise Exception("The DOCKER_IMAGE environment variable is required")
@@ -83,11 +84,11 @@ In case 2) - Follow the steps below:
 
 CI image:
 
-     ./breeze build-image --upgrade-to-newer-dependencies --python 3.6
+     breeze ci-image build --upgrade-to-newer-dependencies --python 3.7
 
 Production image:
 
-     ./breeze build-image --production-image --upgrade-to-newer-dependencies --python 3.6
+     breeze ci-image build --production-image --upgrade-to-newer-dependencies --python 3.7
 
 * You will see error messages there telling which requirements are conflicting and which packages caused the
   conflict. Add the limitation that caused the conflict to EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS

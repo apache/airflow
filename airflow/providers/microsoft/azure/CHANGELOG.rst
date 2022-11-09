@@ -16,8 +16,128 @@
     under the License.
 
 
+.. NOTE TO CONTRIBUTORS:
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+   and you want to add an explanation to the users on how they are supposed to deal with them.
+   The changelog is updated and maintained semi-automatically by release manager.
+
 Changelog
 ---------
+
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.3+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+* In AzureFileShareHook, if both ``extra__azure_fileshare__foo`` and ``foo`` existed in connection extra
+  dict, the prefixed version would be used; now, the non-prefixed version will be preferred.
+* ``Remove deprecated classes (#27417)``
+
+4.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add DataFlow operations to Azure DataFactory hook (#26345)``
+* ``Add network_profile param in AzureContainerInstancesOperator (#26117)``
+* ``Add Azure synapse operator (#26038)``
+* ``Auto tail file logs in Web UI (#26169)``
+* ``Implement Azure Service Bus Topic Create, Delete Operators (#25436)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AzureBatchOperator false negative task status (#25844)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+
+4.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'test_connection' method to AzureContainerInstanceHook (#25362)``
+* ``Add test_connection to Azure Batch hook (#25235)``
+* ``Bump typing-extensions and mypy for ParamSpec (#25088)``
+* ``Implement Azure Service Bus (Update and Receive) Subscription Operator (#25029)``
+* ``Set default wasb Azure http logging level to warning; fixes #16224 (#18896)``
+
+4.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'test_connection' method to AzureCosmosDBHook (#25018)``
+* ``Add test_connection method to AzureFileShareHook (#24843)``
+* ``Add test_connection method to Azure WasbHook (#24771)``
+* ``Implement Azure service bus subscription Operators (#24625)``
+* ``Implement Azure Service Bus Queue Operators (#24038)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update providers to use functools compat for ''cached_property'' (#24582)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+Features
+~~~~~~~~
+
+* ``Pass connection extra parameters to wasb BlobServiceClient (#24154)``
+
+
+Misc
+~~~~
+
+* ``Apply per-run log templates to log handlers (#24153)``
+* ``Migrate Microsoft example DAGs to new design #22452 - azure (#24141)``
+* ``Add typing to Azure Cosmos Client Hook (#23941)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Clean up f-strings in logging calls (#23597)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
+
+3.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``wasb hook: user defaultAzureCredentials instead of managedIdentity (#23394)``
+
+Misc
+~~~~
+
+* ``Replace usage of 'DummyOperator' with 'EmptyOperator' (#22974)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump pre-commit hook versions (#22887)``
+   * ``Fix new MyPy errors in main (#22884)``
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
 
 3.8.0
 .....

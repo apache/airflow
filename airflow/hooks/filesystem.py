@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 from airflow.hooks.base import BaseHook
 
@@ -33,13 +33,13 @@ class FSHook(BaseHook):
     Extra: {"path": "/tmp"}
     """
 
-    def __init__(self, conn_id='fs_default'):
+    def __init__(self, conn_id: str = 'fs_default'):
         super().__init__()
         conn = self.get_connection(conn_id)
         self.basepath = conn.extra_dejson.get('path', '')
         self.conn = conn
 
-    def get_conn(self):
+    def get_conn(self) -> None:
         pass
 
     def get_path(self) -> str:

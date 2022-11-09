@@ -48,3 +48,9 @@ the connection metadata is structured as follows:
      - Neo4j user password
    * - Port: int
      - Neo4j port
+
+.. exampleinclude:: /../../tests/system/providers/neo4j/example_neo4j.py
+    :language: python
+    :dedent: 4
+    :start-after: [START run_query_neo4j_operator]
+    :end-before: [END run_query_neo4j_operator]

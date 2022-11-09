@@ -108,7 +108,7 @@ raise an exception. The following is a sample file.
   .. code-block:: text
 
     mysql_conn_id=mysql://log:password@13.1.21.1:3306/mysqldbrd
-    google_custom_key=google-cloud-platform://?extra__google_cloud_platform__key_path=%2Fkeys%2Fkey.json
+    google_custom_key=google-cloud-platform://?key_path=%2Fkeys%2Fkey.json
 
 Storing and Retrieving Variables
 """"""""""""""""""""""""""""""""

@@ -129,7 +129,7 @@ function startairflow_if_requested() {
         echo
         echo "Starting Airflow"
         echo
-        export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
+        export AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
 
         . "$( dirname "${BASH_SOURCE[0]}" )/configure_environment.sh"
@@ -183,6 +183,6 @@ startairflow_if_requested
 
 if [[ -n ${DISABLED_INTEGRATIONS=} && (${VERBOSE=} == "true" || ${VERBOSE} == "True") ]]; then
     echo
-    echo "${COLOR_BLUE}Those integrations are disabled: ${DISABLED_INTEGRATIONS}"
+    echo "${COLOR_BLUE}Those integrations are disabled: ${DISABLED_INTEGRATIONS}${COLOR_RESET}"
     echo
 fi

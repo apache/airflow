@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -23,88 +24,144 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTransformOperator
 
-role = 'arn:aws:iam:role/test-role'
+EXPECTED_INTEGER_FIELDS: list[list[str]] = [
+    ["Transform", "TransformResources", "InstanceCount"],
+    ["Transform", "MaxConcurrentTransforms"],
+    ["Transform", "MaxPayloadInMB"],
+]
 
-bucket = 'test-bucket'
-
-key = 'test/data'
-data_url = f's3://{bucket}/{key}'
-
-job_name = 'test-job-name'
-
-model_name = 'test-model-name'
-
-image = 'test-image'
-
-output_url = f's3://{bucket}/test/output'
-
-create_transform_params = {
-    'TransformJobName': job_name,
-    'ModelName': model_name,
-    'MaxConcurrentTransforms': '12',
-    'MaxPayloadInMB': '6',
-    'BatchStrategy': 'MultiRecord',
-    'TransformInput': {'DataSource': {'S3DataSource': {'S3DataType': 'S3Prefix', 'S3Uri': data_url}}},
-    'TransformOutput': {
-        'S3OutputPath': output_url,
-    },
-    'TransformResources': {'InstanceType': 'ml.m4.xlarge', 'InstanceCount': '3'},
+CREATE_TRANSFORM_PARAMS: dict = {
+    "TransformJobName": "job_name",
+    "ModelName": "model_name",
+    "MaxConcurrentTransforms": "12",
+    "MaxPayloadInMB": "6",
+    "BatchStrategy": "MultiRecord",
+    "TransformInput": {"DataSource": {"S3DataSource": {"S3DataType": "S3Prefix", "S3Uri": "s3_uri"}}},
+    "TransformOutput": {"S3OutputPath": "output_path"},
+    "TransformResources": {"InstanceType": "ml.m4.xlarge", "InstanceCount": "3"},
 }
 
-create_model_params = {
-    'ModelName': model_name,
-    'PrimaryContainer': {
-        'Image': image,
-        'ModelDataUrl': output_url,
-    },
-    'ExecutionRoleArn': role,
+CREATE_MODEL_PARAMS: dict = {
+    "ModelName": "model_name",
+    "PrimaryContainer": {"Image": "test_image", "ModelDataUrl": "output_path"},
+    "ExecutionRoleArn": "arn:aws:iam:role/test-role",
 }
 
-config = {'Model': create_model_params, 'Transform': create_transform_params}
+CONFIG: dict = {"Model": CREATE_MODEL_PARAMS, "Transform": CREATE_TRANSFORM_PARAMS}
 
 
 class TestSageMakerTransformOperator(unittest.TestCase):
     def setUp(self):
         self.sagemaker = SageMakerTransformOperator(
-            task_id='test_sagemaker_operator',
-            aws_conn_id='sagemaker_test_id',
-            config=config,
+            task_id="test_sagemaker_operator",
+            aws_conn_id="sagemaker_test_id",
+            config=CONFIG,
             wait_for_completion=False,
             check_interval=5,
         )
 
-    def test_parse_config_integers(self):
-        self.sagemaker.parse_config_integers()
-        test_config = self.sagemaker.config['Transform']
-        assert test_config['TransformResources']['InstanceCount'] == int(
-            test_config['TransformResources']['InstanceCount']
-        )
-        assert test_config['MaxConcurrentTransforms'] == int(test_config['MaxConcurrentTransforms'])
-        assert test_config['MaxPayloadInMB'] == int(test_config['MaxPayloadInMB'])
-
-    @mock.patch.object(SageMakerHook, 'get_conn')
-    @mock.patch.object(SageMakerHook, 'create_model')
-    @mock.patch.object(SageMakerHook, 'create_transform_job')
-    def test_execute(self, mock_transform, mock_model, mock_client):
+    @mock.patch.object(SageMakerHook, "get_conn")
+    @mock.patch.object(SageMakerHook, "create_model")
+    @mock.patch.object(SageMakerHook, "create_transform_job")
+    @mock.patch.object(sagemaker, "serialize", return_value="")
+    def test_integer_fields(self, serialize, mock_transform, mock_model, mock_client):
         mock_transform.return_value = {
-            'TransformJobArn': 'testarn',
-            'ResponseMetadata': {'HTTPStatusCode': 200},
+            "TransformJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
         }
         self.sagemaker.execute(None)
-        mock_model.assert_called_once_with(create_model_params)
+        assert self.sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
+        for (key1, key2, *key3) in EXPECTED_INTEGER_FIELDS:
+            if key3:
+                (key3,) = key3
+                assert self.sagemaker.config[key1][key2][key3] == int(self.sagemaker.config[key1][key2][key3])
+            else:
+                self.sagemaker.config[key1][key2] == int(self.sagemaker.config[key1][key2])
+
+    @mock.patch.object(SageMakerHook, "get_conn")
+    @mock.patch.object(SageMakerHook, "create_model")
+    @mock.patch.object(SageMakerHook, "create_transform_job")
+    @mock.patch.object(sagemaker, "serialize", return_value="")
+    def test_execute(self, serialize, mock_transform, mock_model, mock_client):
+        mock_transform.return_value = {
+            "TransformJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        self.sagemaker.execute(None)
+        mock_model.assert_called_once_with(CREATE_MODEL_PARAMS)
         mock_transform.assert_called_once_with(
-            create_transform_params, wait_for_completion=False, check_interval=5, max_ingestion_time=None
+            CREATE_TRANSFORM_PARAMS, wait_for_completion=False, check_interval=5, max_ingestion_time=None
         )
 
-    @mock.patch.object(SageMakerHook, 'get_conn')
-    @mock.patch.object(SageMakerHook, 'create_model')
-    @mock.patch.object(SageMakerHook, 'create_transform_job')
+    @mock.patch.object(SageMakerHook, "get_conn")
+    @mock.patch.object(SageMakerHook, "create_model")
+    @mock.patch.object(SageMakerHook, "create_transform_job")
     def test_execute_with_failure(self, mock_transform, mock_model, mock_client):
         mock_transform.return_value = {
-            'TransformJobArn': 'testarn',
-            'ResponseMetadata': {'HTTPStatusCode': 404},
+            "TransformJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 404},
         }
         with pytest.raises(AirflowException):
             self.sagemaker.execute(None)
+
+    @mock.patch.object(SageMakerHook, "get_conn")
+    @mock.patch.object(SageMakerHook, "create_transform_job")
+    @mock.patch.object(sagemaker, "serialize", return_value="")
+    def test_execute_with_check_if_job_exists(self, serialize, mock_transform, mock_client):
+        mock_transform.return_value = {
+            "TransformJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        self.sagemaker._check_if_transform_job_exists = mock.MagicMock()
+        self.sagemaker.execute(None)
+        self.sagemaker._check_if_transform_job_exists.assert_called_once()
+        mock_transform.assert_called_once_with(
+            CREATE_TRANSFORM_PARAMS,
+            wait_for_completion=False,
+            check_interval=5,
+            max_ingestion_time=None,
+        )
+
+    @mock.patch.object(SageMakerHook, "get_conn")
+    @mock.patch.object(SageMakerHook, "create_transform_job")
+    @mock.patch.object(sagemaker, "serialize", return_value="")
+    def test_execute_without_check_if_job_exists(self, serialize, mock_transform, mock_client):
+        mock_transform.return_value = {
+            "TransformJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        self.sagemaker.check_if_job_exists = False
+        self.sagemaker._check_if_transform_job_exists = mock.MagicMock()
+        self.sagemaker.execute(None)
+        self.sagemaker._check_if_transform_job_exists.assert_not_called()
+        mock_transform.assert_called_once_with(
+            CREATE_TRANSFORM_PARAMS,
+            wait_for_completion=False,
+            check_interval=5,
+            max_ingestion_time=None,
+        )
+
+    @mock.patch.object(SageMakerHook, "get_conn")
+    @mock.patch.object(SageMakerHook, "list_transform_jobs")
+    def test_check_if_job_exists_increment(self, mock_list_transform_jobs, mock_client):
+        self.sagemaker.check_if_job_exists = True
+        self.sagemaker.action_if_job_exists = "increment"
+        mock_list_transform_jobs.return_value = [{"TransformJobName": "job_name"}]
+        self.sagemaker._check_if_transform_job_exists()
+
+        expected_config = CONFIG.copy()
+        # Expect to see TransformJobName suffixed with "-2" because we return one existing job
+        expected_config["Transform"]["TransformJobName"] = "job_name-2"
+        assert self.sagemaker.config == expected_config
+
+    @mock.patch.object(SageMakerHook, "get_conn")
+    @mock.patch.object(SageMakerHook, "list_transform_jobs")
+    def test_check_if_job_exists_fail(self, mock_list_transform_jobs, mock_client):
+        self.sagemaker.check_if_job_exists = True
+        self.sagemaker.action_if_job_exists = "fail"
+        mock_list_transform_jobs.return_value = [{"TransformJobName": "job_name"}]
+        with pytest.raises(AirflowException):
+            self.sagemaker._check_if_transform_job_exists()

@@ -20,7 +20,7 @@
 Set up a Database Backend
 =========================
 
-Airflow was built to interact with its metadata using `SqlAlchemy <https://docs.sqlalchemy.org/en/13/>`__.
+Airflow was built to interact with its metadata using `SqlAlchemy <https://docs.sqlalchemy.org/en/14/>`__.
 
 The document below describes the database engine configurations, the necessary changes to their configuration to be used with Airflow, as well as changes to the Airflow configurations to connect to these databases.
 
@@ -40,12 +40,21 @@ Airflow supports the following database engine versions, so make sure which vers
 If you plan on running more than one scheduler, you have to meet additional requirements.
 For details, see :ref:`Scheduler HA Database Requirements <scheduler:ha:db_requirements>`.
 
+.. warning::
+
+  Despite big similarities between MariaDB and MySQL, we DO NOT support MariaDB as a backend for Airflow.
+  There are known problems (for example index handling) between MariaDB and MySQL and we do not test
+  our migration scripts nor application execution on Maria DB. We know there were people who used
+  MariaDB for Airflow and that cause a lot of operational headache for them so we strongly discourage
+  attempts of using MariaDB as a backend and users cannot expect any community support for it
+  because the number of users who tried to use MariaDB for Airflow is very small.
+
 Database URI
 ------------
 
 Airflow uses SQLAlchemy to connect to the database, which requires you to configure the Database URL.
 You can do this in option ``sql_alchemy_conn`` in section ``[database]``. It is also common to configure
-this option with ``AIRFLOW__DATABE__SQL_ALCHEMY_CONN`` environment variable.
+this option with ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`` environment variable.
 
 .. note::
     For more information on setting the configuration, see :doc:`/howto/set-config`.
@@ -70,7 +79,7 @@ it only works with Sequential Executor) and it should NEVER be used for producti
 There is a minimum version of sqlite3 required to run Airflow 2.0+ - minimum version is 3.15.0. Some of the
 older systems have an earlier version of sqlite installed by default and for those system you need to manually
 upgrade SQLite to use version newer than 3.15.0. Note, that this is not a ``python library`` version, it's the
-SQLite system-level application that needs to be upgraded. There are different ways how SQLIte might be
+SQLite system-level application that needs to be upgraded. There are different ways how SQLite might be
 installed, you can find some information about that at the `official website of SQLite
 <https://www.sqlite.org/index.html>`_ and in the documentation specific to distribution of your Operating
 System.
@@ -86,7 +95,7 @@ You can make sure which version is used by the interpreter by running this check
 .. code-block:: bash
 
     root@b8a8e73caa2c:/opt/airflow# python
-    Python 3.6.12 (default, Nov 25 2020, 03:59:00)
+    Python 3.8.10 (default, Mar 15 2022, 12:22:08)
     [GCC 8.3.0] on linux
     Type "help", "copyright", "credits" or "license" for more information.
     >>> import sqlite3
@@ -109,7 +118,7 @@ An example URI for the sqlite database:
 AmazonLinux SQLite can only be upgraded to v3.7 using the source repos. Airflow requires v3.15 or higher. Use the
 following instructions to setup the base image (or AMI) with latest SQLite3
 
-Pre-requisite: You will need ``wget``, ``tar``, ``gzip``,`` gcc``, ``make``, and ``expect`` to get the upgrade process working.
+Pre-requisite: You will need ``wget``, ``tar``, ``gzip``, ``gcc``, ``make``, and ``expect`` to get the upgrade process working.
 
 .. code-block:: bash
 
@@ -298,6 +307,10 @@ and setup of the SqlAlchemy connection.
 
 In addition, you also should pay particular attention to MySQL's encoding. Although the ``utf8mb4`` character set is more and more popular for MySQL (actually, ``utf8mb4`` becomes default character set in MySQL8.0), using the ``utf8mb4`` encoding requires additional setting in Airflow 2+ (See more details in `#7570 <https://github.com/apache/airflow/pull/7570>`__.). If you use ``utf8mb4`` as character set, you should also set ``sql_engine_collation_for_ids=utf8mb3_bin``.
 
+.. note::
+
+   In strict mode, MySQL doesn't allow ``0000-00-00`` as a valid date. Then you might get errors like ``"Invalid default value for 'end_date'"`` in some cases (some Airflow tables use ``0000-00-00 00:00:00`` as timestamp field default value). To avoid this error, you could disable ``NO_ZERO_DATE`` mode on you MySQL server. Read https://stackoverflow.com/questions/9192027/invalid-default-value-for-create-date-timestamp-field for how to disable it. See `SQL Mode - NO_ZERO_DATE <https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_no_zero_date>`__ for more information.
+
 Setting up a MsSQL Database
 ---------------------------
 
@@ -316,7 +329,7 @@ You can read more about transaction isolation and snapshot features at
    CREATE LOGIN airflow_user WITH PASSWORD='airflow_pass123%';
    USE airflow;
    CREATE USER airflow_user FROM LOGIN airflow_user;
-   GRANT ALL PRIVILEGES ON DATABASE airflow TO airflow_user;
+   GRANT ALL PRIVILEGES ON DATABASE::airflow TO airflow_user;
 
 
 We recommend using the ``mssql+pyodbc`` driver and specifying it in your SqlAlchemy connection string.
@@ -337,14 +350,14 @@ Official Docker image we have ODBC driver installed, so you need to specify the 
 Other configuration options
 ---------------------------
 
-There are more configuration options for configuring SQLAlchemy behavior. For details, see :ref:`reference documentation <config:core>` for ``sqlalchemy_*`` option in ``[core]`` section.
+There are more configuration options for configuring SQLAlchemy behavior. For details, see :ref:`reference documentation <config:database>` for ``sqlalchemy_*`` option in ``[database]`` section.
 
 For instance, you can specify a database schema where Airflow will create its required tables. If you want Airflow to install its tables in the ``airflow`` schema of a PostgreSQL database, specify these environment variables:
 
 .. code-block:: bash
 
-    export AIRFLOW__CORE__SQL_ALCHEMY_CONN="postgresql://postgres@localhost:5432/my_database?options=-csearch_path%3Dairflow"
-    export AIRFLOW__CORE__SQL_ALCHEMY_SCHEMA="airflow"
+    export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN="postgresql://postgres@localhost:5432/my_database?options=-csearch_path%3Dairflow"
+    export AIRFLOW__DATABASE__SQL_ALCHEMY_SCHEMA="airflow"
 
 Note the ``search_path`` at the end of the ``SQL_ALCHEMY_CONN`` database URL.
 

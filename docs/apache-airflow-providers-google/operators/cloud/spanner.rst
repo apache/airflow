@@ -41,7 +41,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_spanner.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/spanner/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_deploy]
@@ -80,7 +80,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_spanner.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/spanner/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_delete]
@@ -120,7 +120,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_spanner.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/spanner/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_deploy]
@@ -164,13 +164,13 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_spanner.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/spanner/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_update]
     :end-before: [END howto_operator_spanner_database_update]
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_spanner.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/spanner/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_update_idempotent]
@@ -207,7 +207,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_spanner.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/spanner/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_query]
@@ -246,7 +246,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_spanner.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/spanner/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_delete]

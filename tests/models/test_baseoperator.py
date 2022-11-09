@@ -15,6 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+import copy
 import logging
 import uuid
 from datetime import date, datetime, timedelta
@@ -22,28 +25,20 @@ from typing import Any, NamedTuple
 from unittest import mock
 
 import jinja2
-import pendulum
 import pytest
 
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.lineage.entities import File
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator, BaseOperatorMeta, chain, cross_downstream
-from airflow.models.mappedoperator import MappedOperator
-from airflow.models.taskinstance import TaskInstance
-from airflow.models.taskmap import TaskMap
-from airflow.models.xcom import XCOM_RETURN_KEY
-from airflow.models.xcom_arg import XComArg
 from airflow.utils.context import Context
 from airflow.utils.edgemodifier import Label
-from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.config import conf_vars
-from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.mock_operators import DeprecatedOperator, MockOperator
 
 
@@ -70,7 +65,7 @@ class ClassWithCustomAttributes:
 # Objects with circular references (for testing purpose)
 object1 = ClassWithCustomAttributes(attr="{{ foo }}_1", template_fields=["ref"])
 object2 = ClassWithCustomAttributes(attr="{{ foo }}_2", ref=object1, template_fields=["ref"])
-setattr(object1, 'ref', object2)
+setattr(object1, "ref", object2)
 
 
 # Essentially similar to airflow.models.baseoperator.BaseOperator
@@ -102,16 +97,16 @@ class TestBaseOperator:
             DummySubClass(test_sub_param=True)
 
     def test_default_args(self):
-        default_args = {'test_param': True}
+        default_args = {"test_param": True}
         dummy_class = DummyClass(default_args=default_args)
         assert dummy_class.test_param
 
-        default_args = {'test_param': True, 'test_sub_param': True}
+        default_args = {"test_param": True, "test_sub_param": True}
         dummy_subclass = DummySubClass(default_args=default_args)
         assert dummy_class.test_param
         assert dummy_subclass.test_sub_param
 
-        default_args = {'test_param': True}
+        default_args = {"test_param": True}
         dummy_subclass = DummySubClass(default_args=default_args, test_sub_param=True)
         assert dummy_class.test_param
         assert dummy_subclass.test_sub_param
@@ -119,12 +114,23 @@ class TestBaseOperator:
         with pytest.raises(AirflowException, match="missing keyword argument 'test_sub_param'"):
             DummySubClass(default_args=default_args)
 
+    def test_execution_timeout_type(self):
+        with pytest.raises(
+            ValueError, match="execution_timeout must be timedelta object but passed as type: <class 'str'>"
+        ):
+            BaseOperator(task_id="test", execution_timeout="1")
+
+        with pytest.raises(
+            ValueError, match="execution_timeout must be timedelta object but passed as type: <class 'int'>"
+        ):
+            BaseOperator(task_id="test", execution_timeout=1)
+
     def test_incorrect_default_args(self):
-        default_args = {'test_param': True, 'extra_param': True}
+        default_args = {"test_param": True, "extra_param": True}
         dummy_class = DummyClass(default_args=default_args)
         assert dummy_class.test_param
 
-        default_args = {'random_params': True}
+        default_args = {"random_params": True}
         with pytest.raises(AirflowException, match="missing keyword argument 'test_param'"):
             DummyClass(default_args=default_args)
 
@@ -137,12 +143,12 @@ class TestBaseOperator:
         """
         Tests that Operators reject illegal arguments
         """
-        msg = r'Invalid arguments were passed to BaseOperator \(task_id: test_illegal_args\)'
-        with conf_vars({('operators', 'allow_illegal_arguments'): 'True'}):
-            with pytest.warns(PendingDeprecationWarning, match=msg):
+        msg = r"Invalid arguments were passed to BaseOperator \(task_id: test_illegal_args\)"
+        with conf_vars({("operators", "allow_illegal_arguments"): "True"}):
+            with pytest.warns(RemovedInAirflow3Warning, match=msg):
                 BaseOperator(
-                    task_id='test_illegal_args',
-                    illegal_argument_1234='hello?',
+                    task_id="test_illegal_args",
+                    illegal_argument_1234="hello?",
                 )
 
     def test_illegal_args_forbidden(self):
@@ -150,11 +156,11 @@ class TestBaseOperator:
         Tests that operators raise exceptions on illegal arguments when
         illegal arguments are not allowed.
         """
-        msg = r'Invalid arguments were passed to BaseOperator \(task_id: test_illegal_args\)'
+        msg = r"Invalid arguments were passed to BaseOperator \(task_id: test_illegal_args\)"
         with pytest.raises(AirflowException, match=msg):
             BaseOperator(
-                task_id='test_illegal_args',
-                illegal_argument_1234='hello?',
+                task_id="test_illegal_args",
+                illegal_argument_1234="hello?",
             )
 
     @pytest.mark.parametrize(
@@ -236,7 +242,7 @@ class TestBaseOperator:
         [
             ("{{ foo }}", {"foo": "bar"}, "bar"),
             ("{{ foo }}", {"foo": ["bar1", "bar2"]}, ["bar1", "bar2"]),
-            (["{{ foo }}", "{{ foo | length}}"], {"foo": ["bar1", "bar2"]}, [['bar1', 'bar2'], 2]),
+            (["{{ foo }}", "{{ foo | length}}"], {"foo": ["bar1", "bar2"]}, [["bar1", "bar2"], 2]),
             (("{{ foo }}_1", "{{ foo }}_2"), {"foo": "bar"}, ("bar_1", "bar_2")),
             ("{{ ds }}", {"ds": date(2018, 12, 6)}, date(2018, 12, 6)),
             (datetime(2018, 12, 6, 10, 55), {"foo": "bar"}, datetime(2018, 12, 6, 10, 55)),
@@ -245,7 +251,7 @@ class TestBaseOperator:
             (
                 ("{{ foo }}", "{{ foo.isoformat() }}"),
                 {"foo": datetime(2018, 12, 6, 10, 55)},
-                (datetime(2018, 12, 6, 10, 55), '2018-12-06T10:55:00'),
+                (datetime(2018, 12, 6, 10, 55), "2018-12-06T10:55:00"),
             ),
             (None, {}, None),
             ([], {}, []),
@@ -261,9 +267,9 @@ class TestBaseOperator:
         assert result == expected_output
 
     def test_mapped_dag_slas_disabled_classic(self):
-        with pytest.raises(AirflowException, match='SLAs are unsupported with mapped tasks'):
+        with pytest.raises(AirflowException, match="SLAs are unsupported with mapped tasks"):
             with DAG(
-                'test-dag', start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))
+                "test-dag", start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))
             ) as dag:
 
                 @dag.task
@@ -280,12 +286,12 @@ class TestBaseOperator:
                     def execute(self, context):
                         print(self.x)
 
-                MyOp.partial(task_id='hi').expand(x=task1)
+                MyOp.partial(task_id="hi").expand(x=task1)
 
     def test_mapped_dag_slas_disabled_taskflow(self):
-        with pytest.raises(AirflowException, match='SLAs are unsupported with mapped tasks'):
+        with pytest.raises(AirflowException, match="SLAs are unsupported with mapped tasks"):
             with DAG(
-                'test-dag', start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))
+                "test-dag", start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))
             ) as dag:
 
                 @dag.task
@@ -379,13 +385,13 @@ class TestBaseOperator:
         assert task.resources.ram.qty == 1024
 
     def test_default_email_on_actions(self):
-        test_task = BaseOperator(task_id='test_default_email_on_actions')
+        test_task = BaseOperator(task_id="test_default_email_on_actions")
         assert test_task.email_on_retry is True
         assert test_task.email_on_failure is True
 
     def test_email_on_actions(self):
         test_task = BaseOperator(
-            task_id='test_default_email_on_actions', email_on_retry=False, email_on_failure=True
+            task_id="test_default_email_on_actions", email_on_retry=False, email_on_failure=True
         )
         assert test_task.email_on_retry is False
         assert test_task.email_on_failure is True
@@ -417,11 +423,11 @@ class TestBaseOperator:
             }
 
     def test_chain(self):
-        dag = DAG(dag_id='test_chain', start_date=datetime.now())
+        dag = DAG(dag_id="test_chain", start_date=datetime.now())
 
         # Begin test for classic operators with `EdgeModifiers`
         [label1, label2] = [Label(label=f"label{i}") for i in range(1, 3)]
-        [op1, op2, op3, op4, op5, op6] = [BaseOperator(task_id=f't{i}', dag=dag) for i in range(1, 7)]
+        [op1, op2, op3, op4, op5, op6] = [BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 7)]
         chain(op1, [label1, label2], [op2, op3], [op4, op5], op6)
 
         assert {op2, op3} == set(op1.get_direct_relatives(upstream=False))
@@ -458,12 +464,12 @@ class TestBaseOperator:
 
         # Begin test for `TaskGroups`
         [tg1, tg2] = [TaskGroup(group_id=f"tg{i}", dag=dag) for i in range(1, 3)]
-        [op1, op2] = [BaseOperator(task_id=f'task{i}', dag=dag) for i in range(1, 3)]
+        [op1, op2] = [BaseOperator(task_id=f"task{i}", dag=dag) for i in range(1, 3)]
         [tgop1, tgop2] = [
-            BaseOperator(task_id=f'task_group_task{i}', task_group=tg1, dag=dag) for i in range(1, 3)
+            BaseOperator(task_id=f"task_group_task{i}", task_group=tg1, dag=dag) for i in range(1, 3)
         ]
         [tgop3, tgop4] = [
-            BaseOperator(task_id=f'task_group_task{i}', task_group=tg2, dag=dag) for i in range(1, 3)
+            BaseOperator(task_id=f"task_group_task{i}", task_group=tg2, dag=dag) for i in range(1, 3)
         ]
         chain(op1, tg1, tg2, op2)
 
@@ -474,8 +480,8 @@ class TestBaseOperator:
         assert [op2] == tgop4.get_direct_relatives(upstream=False)
 
     def test_chain_not_support_type(self):
-        dag = DAG(dag_id='test_chain', start_date=datetime.now())
-        [op1, op2] = [BaseOperator(task_id=f't{i}', dag=dag) for i in range(1, 3)]
+        dag = DAG(dag_id="test_chain", start_date=datetime.now())
+        [op1, op2] = [BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 3)]
         with pytest.raises(TypeError):
             chain([op1, op2], 1)
 
@@ -499,9 +505,9 @@ class TestBaseOperator:
             chain([tg1, tg2], 1)
 
     def test_chain_different_length_iterable(self):
-        dag = DAG(dag_id='test_chain', start_date=datetime.now())
+        dag = DAG(dag_id="test_chain", start_date=datetime.now())
         [label1, label2] = [Label(label=f"label{i}") for i in range(1, 3)]
-        [op1, op2, op3, op4, op5] = [BaseOperator(task_id=f't{i}', dag=dag) for i in range(1, 6)]
+        [op1, op2, op3, op4, op5] = [BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 6)]
 
         with pytest.raises(AirflowException):
             chain([op1, op2], [op3, op4, op5])
@@ -605,7 +611,7 @@ class TestBaseOperator:
         naive_datetime = DEFAULT_DATE.replace(tzinfo=None)
 
         op_no_dag = BaseOperator(
-            task_id='test_task_naive_datetime', start_date=naive_datetime, end_date=naive_datetime
+            task_id="test_task_naive_datetime", start_date=naive_datetime, end_date=naive_datetime
         )
 
         assert op_no_dag.start_date.tzinfo
@@ -640,7 +646,7 @@ class TestBaseOperator:
         assert op2 in op4.upstream_list
 
     def test_set_xcomargs_dependencies_works_when_set_after_init(self):
-        with DAG(dag_id='xcomargs_test', default_args={"start_date": datetime.today()}):
+        with DAG(dag_id="xcomargs_test", default_args={"start_date": datetime.today()}):
             op1 = BaseOperator(task_id="op1")
             op2 = MockOperator(task_id="op2")
             op2.arg1 = op1.output  # value is set after init
@@ -679,6 +685,16 @@ class TestBaseOperator:
         op = BaseOperator(task_id="test_task", weight_rule="upstream")
         assert WeightRule.UPSTREAM == op.weight_rule
 
+    # ensure the default logging config is used for this test, no matter what ran before
+    @pytest.mark.usefixtures("reset_logging_config")
+    def test_logging_propogated_by_default(self, caplog):
+        """Test that when set_context hasn't been called that log records are emitted"""
+        BaseOperator(task_id="test").log.warning("test")
+        # This looks like "how could it fail" but this actually checks that the handler called `emit`. Testing
+        # the other case (that when we have set_context it goes to the file is harder to achieve without
+        # leaking a lot of state)
+        assert caplog.messages == ["test"]
+
 
 def test_init_subclass_args():
     class InitSubclassOp(BaseOperator):
@@ -709,7 +725,7 @@ def test_init_subclass_args():
 def test_operator_retries_invalid(dag_maker):
     with pytest.raises(AirflowException) as ctx:
         with dag_maker():
-            BaseOperator(task_id='test_illegal_args', retries='foo')
+            BaseOperator(task_id="test_illegal_args", retries="foo")
     assert str(ctx.value) == "'retries' type must be int, not str"
 
 
@@ -735,251 +751,118 @@ def test_operator_retries(caplog, dag_maker, retries, expected):
     with caplog.at_level(logging.WARNING):
         with dag_maker():
             BaseOperator(
-                task_id='test_illegal_args',
+                task_id="test_illegal_args",
                 retries=retries,
             )
     assert caplog.record_tuples == expected
 
 
-def test_task_mapping_with_dag():
-    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
-        task1 = BaseOperator(task_id="op1")
-        literal = ['a', 'b', 'c']
-        mapped = MockOperator.partial(task_id='task_2').expand(arg2=literal)
-        finish = MockOperator(task_id="finish")
+def test_default_retry_delay(dag_maker):
+    with dag_maker(dag_id="test_default_retry_delay"):
+        task1 = BaseOperator(task_id="test_no_explicit_retry_delay")
 
-        task1 >> mapped >> finish
-
-    assert task1.downstream_list == [mapped]
-    assert mapped in dag.tasks
-    assert mapped.task_group == dag.task_group
-    # At parse time there should only be three tasks!
-    assert len(dag.tasks) == 3
-
-    assert finish.upstream_list == [mapped]
-    assert mapped.downstream_list == [finish]
+        assert task1.retry_delay == timedelta(seconds=300)
 
 
-def test_task_mapping_without_dag_context():
-    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
-        task1 = BaseOperator(task_id="op1")
-    literal = ['a', 'b', 'c']
-    mapped = MockOperator.partial(task_id='task_2').expand(arg2=literal)
+def test_dag_level_retry_delay(dag_maker):
+    with dag_maker(dag_id="test_dag_level_retry_delay", default_args={"retry_delay": timedelta(seconds=100)}):
+        task1 = BaseOperator(task_id="test_no_explicit_retry_delay")
 
-    task1 >> mapped
-
-    assert isinstance(mapped, MappedOperator)
-    assert mapped in dag.tasks
-    assert task1.downstream_list == [mapped]
-    assert mapped in dag.tasks
-    # At parse time there should only be two tasks!
-    assert len(dag.tasks) == 2
+        assert task1.retry_delay == timedelta(seconds=100)
 
 
-def test_task_mapping_default_args():
-    default_args = {'start_date': DEFAULT_DATE.now(), 'owner': 'test'}
-    with DAG("test-dag", start_date=DEFAULT_DATE, default_args=default_args):
-        task1 = BaseOperator(task_id="op1")
-        literal = ['a', 'b', 'c']
-        mapped = MockOperator.partial(task_id='task_2').expand(arg2=literal)
+def test_task_level_retry_delay(dag_maker):
+    with dag_maker(
+        dag_id="test_task_level_retry_delay", default_args={"retry_delay": timedelta(seconds=100)}
+    ):
+        task1 = BaseOperator(task_id="test_no_explicit_retry_delay", retry_delay=timedelta(seconds=200))
 
-        task1 >> mapped
-
-    assert mapped.partial_kwargs['owner'] == 'test'
-    assert mapped.start_date == pendulum.instance(default_args['start_date'])
+        assert task1.retry_delay == timedelta(seconds=200)
 
 
-def test_map_unknown_arg_raises():
-    with pytest.raises(TypeError, match=r"argument 'file'"):
-        BaseOperator.partial(task_id='a').expand(file=[1, 2, {'a': 'b'}])
+def test_deepcopy():
+    # Test bug when copying an operator attached to a DAG
+    with DAG("dag0", start_date=DEFAULT_DATE) as dag:
 
+        @dag.task
+        def task0():
+            pass
 
-def test_map_xcom_arg():
-    """Test that dependencies are correct when mapping with an XComArg"""
-    with DAG("test-dag", start_date=DEFAULT_DATE):
-        task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
-        finish = MockOperator(task_id="finish")
-
-        mapped >> finish
-
-    assert task1.downstream_list == [mapped]
-
-
-def test_partial_on_instance() -> None:
-    """`.partial` on an instance should fail -- it's only designed to be called on classes"""
-    with pytest.raises(TypeError):
-        MockOperator(
-            task_id='a',
-        ).partial()
-
-
-def test_partial_on_class() -> None:
-    # Test that we accept args for superclasses too
-    op = MockOperator.partial(task_id='a', arg1="a", trigger_rule=TriggerRule.ONE_FAILED)
-    assert op.kwargs["arg1"] == "a"
-    assert op.kwargs["trigger_rule"] == TriggerRule.ONE_FAILED
-
-
-def test_partial_on_class_invalid_ctor_args() -> None:
-    """Test that when we pass invalid args to partial().
-
-    I.e. if an arg is not known on the class or any of its parent classes we error at parse time
-    """
-    with pytest.raises(TypeError, match=r"arguments 'foo', 'bar'"):
-        MockOperator.partial(task_id='a', foo='bar', bar=2)
+        MockOperator(task_id="task1", arg1=task0())
+    copy.deepcopy(dag)
 
 
 @pytest.mark.parametrize(
-    ["num_existing_tis", "expected"],
-    (
-        pytest.param(0, [(0, None), (1, None), (2, None)], id='only-unmapped-ti-exists'),
-        pytest.param(
-            3,
-            [(0, 'success'), (1, 'success'), (2, 'success')],
-            id='all-tis-exist',
+    ("task", "context", "expected_exception", "expected_rendering", "expected_log", "not_expected_log"),
+    [
+        # Simple success case.
+        (
+            MockOperator(task_id="op1", arg1="{{ foo }}"),
+            dict(foo="footemplated"),
+            None,
+            dict(arg1="footemplated"),
+            None,
+            "Exception rendering Jinja template",
         ),
-        pytest.param(
-            5,
-            [
-                (0, 'success'),
-                (1, 'success'),
-                (2, 'success'),
-                (3, TaskInstanceState.REMOVED),
-                (4, TaskInstanceState.REMOVED),
-            ],
-            id="tis-to-be-removed",
+        # Jinja syntax error.
+        (
+            MockOperator(task_id="op1", arg1="{{ foo"),
+            dict(),
+            jinja2.TemplateSyntaxError,
+            None,
+            "Exception rendering Jinja template for task 'op1', field 'arg1'. Template: '{{ foo'",
+            None,
         ),
-    ),
+        # Type error
+        (
+            MockOperator(task_id="op1", arg1="{{ foo + 1 }}"),
+            dict(foo="footemplated"),
+            TypeError,
+            None,
+            "Exception rendering Jinja template for task 'op1', field 'arg1'. Template: '{{ foo + 1 }}'",
+            None,
+        ),
+    ],
 )
-def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expected):
-    literal = [1, 2, {'a': 'b'}]
-    with dag_maker(session=session):
-        task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
+def test_render_template_fields_logging(
+    caplog, monkeypatch, task, context, expected_exception, expected_rendering, expected_log, not_expected_log
+):
+    """Verify if operator attributes are correctly templated."""
+    # Trigger templating and verify results
+    def _do_render():
+        task.render_template_fields(context=context)
 
-    dr = dag_maker.create_dagrun()
-
-    session.add(
-        TaskMap(
-            dag_id=dr.dag_id,
-            task_id=task1.task_id,
-            run_id=dr.run_id,
-            map_index=-1,
-            length=len(literal),
-            keys=None,
-        )
-    )
-
-    if num_existing_tis:
-        # Remove the map_index=-1 TI when we're creating other TIs
-        session.query(TaskInstance).filter(
-            TaskInstance.dag_id == mapped.dag_id,
-            TaskInstance.task_id == mapped.task_id,
-            TaskInstance.run_id == dr.run_id,
-        ).delete()
-
-    for index in range(num_existing_tis):
-        # Give the existing TIs a state to make sure we don't change them
-        ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
-        session.add(ti)
-    session.flush()
-
-    mapped.expand_mapped_task(dr.run_id, session=session)
-
-    indices = (
-        session.query(TaskInstance.map_index, TaskInstance.state)
-        .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
-        .order_by(TaskInstance.map_index)
-        .all()
-    )
-
-    assert indices == expected
+    logger = logging.getLogger("airflow.task")
+    monkeypatch.setattr(logger, "propagate", True)
+    if expected_exception:
+        with pytest.raises(expected_exception):
+            _do_render()
+    else:
+        _do_render()
+        for k, v in expected_rendering.items():
+            assert getattr(task, k) == v
+    if expected_log:
+        assert expected_log in caplog.text
+    if not_expected_log:
+        assert not_expected_log not in caplog.text
 
 
-def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
-    with dag_maker(session=session):
-        task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
+def test_find_mapped_dependants_in_another_group(dag_maker):
+    from airflow.utils.task_group import TaskGroup
 
-    dr = dag_maker.create_dagrun()
+    @task_decorator
+    def gen(x):
+        return list(range(x))
 
-    expand_mapped_task(mapped, dr.run_id, task1.task_id, length=0, session=session)
+    @task_decorator
+    def add(x, y):
+        return x + y
 
-    indices = (
-        session.query(TaskInstance.map_index, TaskInstance.state)
-        .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
-        .order_by(TaskInstance.map_index)
-        .all()
-    )
+    with dag_maker():
+        with TaskGroup(group_id="g1"):
+            gen_result = gen(3)
+        with TaskGroup(group_id="g2"):
+            add_result = add.partial(y=1).expand(x=gen_result)
 
-    assert indices == [(-1, TaskInstanceState.SKIPPED)]
-
-
-def test_mapped_task_applies_default_args_classic(dag_maker):
-    with dag_maker(default_args={"execution_timeout": timedelta(minutes=30)}) as dag:
-        MockOperator(task_id="simple", arg1=None, arg2=0)
-        MockOperator.partial(task_id="mapped").expand(arg1=[1], arg2=[2, 3])
-
-    assert dag.get_task("simple").execution_timeout == timedelta(minutes=30)
-    assert dag.get_task("mapped").execution_timeout == timedelta(minutes=30)
-
-
-def test_mapped_task_applies_default_args_taskflow(dag_maker):
-    with dag_maker(default_args={"execution_timeout": timedelta(minutes=30)}) as dag:
-
-        @dag.task
-        def simple(arg):
-            pass
-
-        @dag.task
-        def mapped(arg):
-            pass
-
-        simple(arg=0)
-        mapped.expand(arg=[1, 2])
-
-    assert dag.get_task("simple").execution_timeout == timedelta(minutes=30)
-    assert dag.get_task("mapped").execution_timeout == timedelta(minutes=30)
-
-
-def test_mapped_render_template_fields_validating_operator(dag_maker, session):
-    class MyOperator(MockOperator):
-        def __init__(self, value, arg1, **kwargs):
-            assert isinstance(value, str), "value should have been resolved before unmapping"
-            assert isinstance(arg1, str), "value should have been resolved before unmapping"
-            super().__init__(arg1=arg1, **kwargs)
-            self.value = value
-
-    with dag_maker(session=session):
-        task1 = BaseOperator(task_id="op1")
-        xcom_arg = XComArg(task1)
-        mapped = MyOperator.partial(task_id='a', arg2='{{ ti.task_id }}').expand(
-            value=xcom_arg, arg1=xcom_arg
-        )
-
-    dr = dag_maker.create_dagrun()
-    ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
-
-    ti.xcom_push(key=XCOM_RETURN_KEY, value=['{{ ds }}'], session=session)
-
-    session.add(
-        TaskMap(
-            dag_id=dr.dag_id,
-            task_id=task1.task_id,
-            run_id=dr.run_id,
-            map_index=-1,
-            length=1,
-            keys=None,
-        )
-    )
-    session.flush()
-
-    mapped_ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session)
-    mapped_ti.map_index = 0
-    op = mapped.render_template_fields(context=mapped_ti.get_template_context(session=session))
-    assert isinstance(op, MyOperator)
-
-    assert op.value == "{{ ds }}", "Should not be templated!"
-    assert op.arg1 == "{{ ds }}"
-    assert op.arg2 == "a"
+    dependants = list(gen_result.operator.iter_mapped_dependants())
+    assert dependants == [add_result.operator]

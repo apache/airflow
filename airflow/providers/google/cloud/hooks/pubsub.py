@@ -23,18 +23,12 @@ This module contains a Google Pub/Sub Hook.
     MessageStoragePolicy
     ReceivedMessage
 """
-import sys
+from __future__ import annotations
+
 import warnings
 from base64 import b64decode
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Sequence
 from uuid import uuid4
-
-from airflow.providers.google.common.consts import CLIENT_INFO
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -52,6 +46,8 @@ from google.cloud.pubsub_v1.types import (
 )
 from googleapiclient.errors import HttpError
 
+from airflow.compat.functools import cached_property
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 from airflow.version import version
 
@@ -71,8 +67,8 @@ class PubSubHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -86,10 +82,9 @@ class PubSubHook(GoogleBaseHook):
         Retrieves connection to Google Cloud Pub/Sub.
 
         :return: Google Cloud Pub/Sub client object.
-        :rtype: google.cloud.pubsub_v1.PublisherClient
         """
         if not self._client:
-            self._client = PublisherClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
+            self._client = PublisherClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     @cached_property
@@ -98,15 +93,14 @@ class PubSubHook(GoogleBaseHook):
         Creates SubscriberClient.
 
         :return: Google Cloud Pub/Sub client object.
-        :rtype: google.cloud.pubsub_v1.SubscriberClient
         """
-        return SubscriberClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
+        return SubscriberClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def publish(
         self,
         topic: str,
-        messages: List[dict],
+        messages: list[dict],
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> None:
         """
@@ -129,11 +123,11 @@ class PubSubHook(GoogleBaseHook):
         try:
             for message in messages:
                 future = publisher.publish(
-                    topic=topic_path, data=message.get("data", b''), **message.get('attributes', {})
+                    topic=topic_path, data=message.get("data", b""), **message.get("attributes", {})
                 )
                 future.result()
         except GoogleAPICallError as e:
-            raise PubSubException(f'Error publishing to topic {topic_path}', e)
+            raise PubSubException(f"Error publishing to topic {topic_path}", e)
 
         self.log.info("Published %d messages to topic (path) %s", len(messages), topic_path)
 
@@ -173,12 +167,12 @@ class PubSubHook(GoogleBaseHook):
         topic: str,
         project_id: str = PROVIDE_PROJECT_ID,
         fail_if_exists: bool = False,
-        labels: Optional[Dict[str, str]] = None,
-        message_storage_policy: Union[Dict, MessageStoragePolicy] = None,
-        kms_key_name: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        labels: dict[str, str] | None = None,
+        message_storage_policy: dict | MessageStoragePolicy = None,
+        kms_key_name: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Creates a Pub/Sub topic, if it does not already exist.
@@ -195,7 +189,7 @@ class PubSubHook(GoogleBaseHook):
             of Google Cloud regions where messages published to
             the topic may be stored. If not present, then no constraints
             are in effect.
-            Union[Dict, google.cloud.pubsub_v1.types.MessageStoragePolicy]
+            Union[dict, google.cloud.pubsub_v1.types.MessageStoragePolicy]
         :param kms_key_name: The resource name of the Cloud KMS CryptoKey
             to be used to protect access to messages published on this topic.
             The expected format is
@@ -212,7 +206,7 @@ class PubSubHook(GoogleBaseHook):
 
         # Add airflow-version label to the topic
         labels = labels or {}
-        labels['airflow-version'] = 'v' + version.replace('.', '-').replace('+', '-')
+        labels["airflow-version"] = "v" + version.replace(".", "-").replace("+", "-")
 
         self.log.info("Creating topic (path) %s", topic_path)
         try:
@@ -229,11 +223,11 @@ class PubSubHook(GoogleBaseHook):
                 metadata=metadata,
             )
         except AlreadyExists:
-            self.log.warning('Topic already exists: %s', topic)
+            self.log.warning("Topic already exists: %s", topic)
             if fail_if_exists:
-                raise PubSubException(f'Topic already exists: {topic}')
+                raise PubSubException(f"Topic already exists: {topic}")
         except GoogleAPICallError as e:
-            raise PubSubException(f'Error creating topic {topic}', e)
+            raise PubSubException(f"Error creating topic {topic}", e)
 
         self.log.info("Created topic (path) %s", topic_path)
 
@@ -243,9 +237,9 @@ class PubSubHook(GoogleBaseHook):
         topic: str,
         project_id: str = PROVIDE_PROJECT_ID,
         fail_if_not_exists: bool = False,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Deletes a Pub/Sub topic if it exists.
@@ -273,11 +267,11 @@ class PubSubHook(GoogleBaseHook):
                 request={"topic": topic_path}, retry=retry, timeout=timeout, metadata=metadata or ()
             )
         except NotFound:
-            self.log.warning('Topic does not exist: %s', topic_path)
+            self.log.warning("Topic does not exist: %s", topic_path)
             if fail_if_not_exists:
-                raise PubSubException(f'Topic does not exist: {topic_path}')
+                raise PubSubException(f"Topic does not exist: {topic_path}")
         except GoogleAPICallError as e:
-            raise PubSubException(f'Error deleting topic {topic}', e)
+            raise PubSubException(f"Error deleting topic {topic}", e)
         self.log.info("Deleted topic (path) %s", topic_path)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -285,22 +279,22 @@ class PubSubHook(GoogleBaseHook):
         self,
         topic: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        subscription: Optional[str] = None,
-        subscription_project_id: Optional[str] = None,
+        subscription: str | None = None,
+        subscription_project_id: str | None = None,
         ack_deadline_secs: int = 10,
         fail_if_exists: bool = False,
-        push_config: Optional[Union[dict, PushConfig]] = None,
-        retain_acked_messages: Optional[bool] = None,
-        message_retention_duration: Optional[Union[dict, Duration]] = None,
-        labels: Optional[Dict[str, str]] = None,
+        push_config: dict | PushConfig | None = None,
+        retain_acked_messages: bool | None = None,
+        message_retention_duration: dict | Duration | None = None,
+        labels: dict[str, str] | None = None,
         enable_message_ordering: bool = False,
-        expiration_policy: Optional[Union[dict, ExpirationPolicy]] = None,
-        filter_: Optional[str] = None,
-        dead_letter_policy: Optional[Union[dict, DeadLetterPolicy]] = None,
-        retry_policy: Optional[Union[dict, RetryPolicy]] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        expiration_policy: dict | ExpirationPolicy | None = None,
+        filter_: str | None = None,
+        dead_letter_policy: dict | DeadLetterPolicy | None = None,
+        retry_policy: dict | RetryPolicy | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> str:
         """
         Creates a Pub/Sub subscription, if it does not already exist.
@@ -339,7 +333,7 @@ class PubSubHook(GoogleBaseHook):
             in which they are received by the Pub/Sub system. Otherwise, they may be
             delivered in any order.
         :param expiration_policy: A policy that specifies the conditions for this
-            subscription’s expiration. A subscription is considered active as long as any
+            subscription's expiration. A subscription is considered active as long as any
             connected subscriber is successfully consuming messages from the subscription or
             is issuing operations on the subscription. If expiration_policy is not set,
             a default policy with ttl of 31 days will be used. The minimum allowed value for
@@ -363,18 +357,17 @@ class PubSubHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :return: subscription name which will be the system-generated value if
             the ``subscription`` parameter is not supplied
-        :rtype: str
         """
         subscriber = self.subscriber_client
 
         if not subscription:
-            subscription = f'sub-{uuid4()}'
+            subscription = f"sub-{uuid4()}"
         if not subscription_project_id:
             subscription_project_id = project_id
 
         # Add airflow-version label to the subscription
         labels = labels or {}
-        labels['airflow-version'] = 'v' + version.replace('.', '-').replace('+', '-')
+        labels["airflow-version"] = "v" + version.replace(".", "-").replace("+", "-")
 
         subscription_path = f"projects/{subscription_project_id}/subscriptions/{subscription}"
         topic_path = f"projects/{project_id}/topics/{topic}"
@@ -401,11 +394,11 @@ class PubSubHook(GoogleBaseHook):
                 metadata=metadata,
             )
         except AlreadyExists:
-            self.log.warning('Subscription already exists: %s', subscription_path)
+            self.log.warning("Subscription already exists: %s", subscription_path)
             if fail_if_exists:
-                raise PubSubException(f'Subscription already exists: {subscription_path}')
+                raise PubSubException(f"Subscription already exists: {subscription_path}")
         except GoogleAPICallError as e:
-            raise PubSubException(f'Error creating subscription {subscription_path}', e)
+            raise PubSubException(f"Error creating subscription {subscription_path}", e)
 
         self.log.info("Created subscription (path) %s for topic (path) %s", subscription_path, topic_path)
         return subscription
@@ -416,9 +409,9 @@ class PubSubHook(GoogleBaseHook):
         subscription: str,
         project_id: str = PROVIDE_PROJECT_ID,
         fail_if_not_exists: bool = False,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Deletes a Pub/Sub subscription, if it exists.
@@ -450,11 +443,11 @@ class PubSubHook(GoogleBaseHook):
             )
 
         except NotFound:
-            self.log.warning('Subscription does not exist: %s', subscription_path)
+            self.log.warning("Subscription does not exist: %s", subscription_path)
             if fail_if_not_exists:
-                raise PubSubException(f'Subscription does not exist: {subscription_path}')
+                raise PubSubException(f"Subscription does not exist: {subscription_path}")
         except GoogleAPICallError as e:
-            raise PubSubException(f'Error deleting subscription {subscription_path}', e)
+            raise PubSubException(f"Error deleting subscription {subscription_path}", e)
 
         self.log.info("Deleted subscription (path) %s", subscription_path)
 
@@ -465,10 +458,10 @@ class PubSubHook(GoogleBaseHook):
         max_messages: int,
         project_id: str = PROVIDE_PROJECT_ID,
         return_immediately: bool = False,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
-    ) -> List[ReceivedMessage]:
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> list[ReceivedMessage]:
         """
         Pulls up to ``max_messages`` messages from Pub/Sub subscription.
 
@@ -509,22 +502,22 @@ class PubSubHook(GoogleBaseHook):
                 timeout=timeout,
                 metadata=metadata,
             )
-            result = getattr(response, 'received_messages', [])
+            result = getattr(response, "received_messages", [])
             self.log.info("Pulled %d messages from subscription (path) %s", len(result), subscription_path)
             return result
         except (HttpError, GoogleAPICallError) as e:
-            raise PubSubException(f'Error pulling messages from subscription {subscription_path}', e)
+            raise PubSubException(f"Error pulling messages from subscription {subscription_path}", e)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def acknowledge(
         self,
         subscription: str,
         project_id: str,
-        ack_ids: Optional[List[str]] = None,
-        messages: Optional[List[ReceivedMessage]] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        ack_ids: list[str] | None = None,
+        messages: list[ReceivedMessage] | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Acknowledges the messages associated with the ``ack_ids`` from Pub/Sub subscription.
@@ -566,7 +559,7 @@ class PubSubHook(GoogleBaseHook):
             )
         except (HttpError, GoogleAPICallError) as e:
             raise PubSubException(
-                f'Error acknowledging {len(ack_ids)} messages pulled from subscription {subscription_path}',
+                f"Error acknowledging {len(ack_ids)} messages pulled from subscription {subscription_path}",
                 e,
             )
 

@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import logging
 from functools import wraps
 from typing import Callable, TypeVar, cast
@@ -70,7 +72,8 @@ def add_deprecation_headers(response: Response):
     return response
 
 
-api_experimental.after_request(add_deprecation_headers)
+# This API is deprecated. We do not care too much about typing here
+api_experimental.after_request(add_deprecation_headers)  # type: ignore[arg-type]
 
 
 @api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['POST'])

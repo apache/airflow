@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Providers sub-commands"""
+from __future__ import annotations
+
 import re
 
 from airflow.cli.simple_table import AirflowConsole
@@ -82,7 +84,7 @@ def hooks_list(args):
 def connection_form_widget_list(args):
     """Lists all custom connection form fields at the command line"""
     AirflowConsole().print_as(
-        data=list(ProvidersManager().connection_form_widgets.items()),
+        data=list(sorted(ProvidersManager().connection_form_widgets.items())),
         output=args.output,
         mapper=lambda x: {
             "connection_parameter_name": x[0],

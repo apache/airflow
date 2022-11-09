@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import unittest
 from unittest import mock
 
@@ -49,7 +51,7 @@ RUN_NAME = "projects/123abc/locations/321cba/transferConfig/1a2b3c/runs/123"
 class BigQueryCreateDataTransferOperatorTestCase(unittest.TestCase):
     @mock.patch(
         "airflow.providers.google.cloud.operators.bigquery_dts.BiqQueryDataTransferServiceHook",
-        **{'return_value.create_transfer_config.return_value': TransferConfig(name=TRANSFER_CONFIG_NAME)},
+        **{"return_value.create_transfer_config.return_value": TransferConfig(name=TRANSFER_CONFIG_NAME)},
     )
     def test_execute(self, mock_hook):
         op = BigQueryCreateDataTransferOperator(
@@ -57,7 +59,7 @@ class BigQueryCreateDataTransferOperatorTestCase(unittest.TestCase):
         )
         ti = mock.MagicMock()
 
-        op.execute({'ti': ti})
+        op.execute({"ti": ti})
 
         mock_hook.return_value.create_transfer_config.assert_called_once_with(
             authorization_code=None,
@@ -67,7 +69,7 @@ class BigQueryCreateDataTransferOperatorTestCase(unittest.TestCase):
             retry=DEFAULT,
             timeout=None,
         )
-        ti.xcom_push.assert_called_with(execution_date=None, key='transfer_config_id', value='1a2b3c')
+        ti.xcom_push.assert_called_with(execution_date=None, key="transfer_config_id", value="1a2b3c")
 
 
 class BigQueryDeleteDataTransferConfigOperatorTestCase(unittest.TestCase):
@@ -90,7 +92,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperatorTestCase(unittest.Test
     @mock.patch(
         "airflow.providers.google.cloud.operators.bigquery_dts.BiqQueryDataTransferServiceHook",
         **{
-            'return_value.start_manual_transfer_runs.return_value': StartManualTransferRunsResponse(
+            "return_value.start_manual_transfer_runs.return_value": StartManualTransferRunsResponse(
                 runs=[TransferRun(name=RUN_NAME)]
             )
         },
@@ -101,7 +103,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperatorTestCase(unittest.Test
         )
         ti = mock.MagicMock()
 
-        op.execute({'ti': ti})
+        op.execute({"ti": ti})
 
         mock_hook.return_value.start_manual_transfer_runs.assert_called_once_with(
             transfer_config_id=TRANSFER_CONFIG_ID,
@@ -112,4 +114,4 @@ class BigQueryDataTransferServiceStartTransferRunsOperatorTestCase(unittest.Test
             retry=DEFAULT,
             timeout=None,
         )
-        ti.xcom_push.assert_called_with(execution_date=None, key='run_id', value='123')
+        ti.xcom_push.assert_called_with(execution_date=None, key="run_id", value="123")

@@ -22,6 +22,7 @@ description: |
     `Papermill <https://github.com/nteract/papermill>`__
 
 versions:
+  - 3.0.0
   - 2.2.3
   - 2.2.2
   - 2.2.1
@@ -33,8 +34,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
-  - apache-airflow>=2.1.0
+dependencies:
+  - apache-airflow>=2.3.0
+  - papermill[all]>=1.2.1
+  - scrapbook[all]
 
 integrations:
   - integration-name: Papermill

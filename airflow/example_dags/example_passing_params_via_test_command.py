@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Example DAG demonstrating the usage of the params arguments in templated arguments."""
+from __future__ import annotations
 
 import datetime
 import os
@@ -59,7 +59,7 @@ def print_env_vars(test_mode=None):
 
 with DAG(
     "example_passing_params_via_test_command",
-    schedule_interval='*/1 * * * *',
+    schedule='*/1 * * * *',
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     dagrun_timeout=datetime.timedelta(minutes=4),

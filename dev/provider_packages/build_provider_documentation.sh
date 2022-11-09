@@ -28,8 +28,8 @@ do
     provider_filters+=("--package-filter" "apache-airflow-providers-${provider//./-}")
 done
 
-./breeze build-docs -- \
+.breeze build-docs \
     --for-production \
-    --package-filter apache-airflow-providers \
+    --clean-build \
     "${provider_filters[@]}"
 cd "${AIRFLOW_SITE_DIRECTORY}"

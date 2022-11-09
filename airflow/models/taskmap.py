@@ -15,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Table to store information about mapped task instances (AIP-42)."""
+from __future__ import annotations
 
 import collections.abc
 import enum
-from typing import TYPE_CHECKING, Any, Collection, List, Optional
+from typing import TYPE_CHECKING, Any, Collection
 
 from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String
 
@@ -82,7 +82,7 @@ class TaskMap(Base):
         run_id: str,
         map_index: int,
         length: int,
-        keys: Optional[List[Any]],
+        keys: list[Any] | None,
     ) -> None:
         self.dag_id = dag_id
         self.task_id = task_id
@@ -92,7 +92,7 @@ class TaskMap(Base):
         self.keys = keys
 
     @classmethod
-    def from_task_instance_xcom(cls, ti: "TaskInstance", value: Collection) -> "TaskMap":
+    def from_task_instance_xcom(cls, ti: TaskInstance, value: Collection) -> TaskMap:
         if ti.run_id is None:
             raise ValueError("cannot record task map for unrun task instance")
         return cls(

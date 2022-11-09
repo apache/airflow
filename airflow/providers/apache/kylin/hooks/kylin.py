@@ -15,8 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import Optional
+from __future__ import annotations
 
 from kylinpy import exceptions, kylinpy
 
@@ -35,9 +34,9 @@ class KylinHook(BaseHook):
 
     def __init__(
         self,
-        kylin_conn_id: str = 'kylin_default',
-        project: Optional[str] = None,
-        dsn: Optional[str] = None,
+        kylin_conn_id: str = "kylin_default",
+        project: str | None = None,
+        dsn: str | None = None,
     ):
         super().__init__()
         self.kylin_conn_id = kylin_conn_id
@@ -48,16 +47,15 @@ class KylinHook(BaseHook):
         conn = self.get_connection(self.kylin_conn_id)
         if self.dsn:
             return kylinpy.create_kylin(self.dsn)
-        else:
-            self.project = self.project if self.project else conn.schema
-            return kylinpy.Kylin(
-                conn.host,
-                username=conn.login,
-                password=conn.password,
-                port=conn.port,
-                project=self.project,
-                **conn.extra_dejson,
-            )
+        self.project = self.project or conn.schema
+        return kylinpy.Kylin(
+            conn.host,
+            username=conn.login,
+            password=conn.password,
+            port=conn.port,
+            project=self.project,
+            **conn.extra_dejson,
+        )
 
     def cube_run(self, datasource_name, op, **op_args):
         """
@@ -70,8 +68,7 @@ class KylinHook(BaseHook):
         """
         cube_source = self.get_conn().get_datasource(datasource_name)
         try:
-            response = cube_source.invoke_command(op, **op_args)
-            return response
+            return cube_source.invoke_command(op, **op_args)
         except exceptions.KylinError as err:
             raise AirflowException(f"Cube operation {op} error , Message: {err}")
 

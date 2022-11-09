@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Example DAG demonstrating the usage of the BranchPythonOperator."""
+from __future__ import annotations
 
 import random
 
@@ -32,7 +32,7 @@ with DAG(
     dag_id='example_branch_operator',
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
-    schedule_interval="@daily",
+    schedule="@daily",
     tags=['example', 'example2'],
 ) as dag:
     run_this_first = EmptyOperator(

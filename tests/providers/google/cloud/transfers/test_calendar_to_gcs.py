@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from unittest import mock
 
@@ -22,15 +23,15 @@ from airflow.providers.google.cloud.transfers.calendar_to_gcs import GoogleCalen
 API_VERSION = "v3"
 CALENDAR_ID = "1234567890"
 EVENT = {
-    'summary': 'Calendar Test Event',
-    'description': 'A chance to test creating an event from airflow.',
-    'start': {
-        'dateTime': '2021-12-28T09:00:00-07:00',
-        'timeZone': 'America/Los_Angeles',
+    "summary": "Calendar Test Event",
+    "description": "A chance to test creating an event from airflow.",
+    "start": {
+        "dateTime": "2021-12-28T09:00:00-07:00",
+        "timeZone": "America/Los_Angeles",
     },
-    'end': {
-        'dateTime': '2021-12-28T17:00:00-07:00',
-        'timeZone': 'America/Los_Angeles',
+    "end": {
+        "dateTime": "2021-12-28T17:00:00-07:00",
+        "timeZone": "America/Los_Angeles",
     },
 }
 BUCKET = "destination_bucket"

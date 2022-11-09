@@ -15,21 +15,25 @@
     specific language governing permissions and limitations
     under the License.
 
-Amazon S3 to FTP Transfer Operator
-==================================
+================
+Amazon S3 to FTP
+================
 
-Use the S3ToFTPOperator transfer to copy data from an Amazon Simple Storage Service (S3) file into a remote file
+Use the ``S3ToFTPOperator`` transfer to copy data from an Amazon Simple Storage Service (S3) file into a remote file
 using FTP protocol.
 
 Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
+------------------
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+Operators
+---------
+
 .. _howto/operator:S3ToFTPOperator:
 
-Amazon S3 To FTP
-^^^^^^^^^^^^^^^^
+Amazon S3 To FTP transfer operator
+==================================
 
 This operator copies data from Amazon S3 to a FTP server.
 
@@ -45,6 +49,6 @@ Example usage:
     :end-before: [END howto_transfer_s3_to_ftp]
 
 Reference
-^^^^^^^^^
+---------
 
-* `AWS boto3 Library Documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__
+* `AWS boto3 library documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__

@@ -22,6 +22,7 @@ description: |
     `Zendesk <https://www.zendesk.com/>`__
 
 versions:
+  - 4.0.0
   - 3.0.3
   - 3.0.2
   - 3.0.1
@@ -31,8 +32,9 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
-  - apache-airflow>=2.1.0
+dependencies:
+  - apache-airflow>=2.3.0
+  - zenpy>=2.0.24
 
 integrations:
   - integration-name: Zendesk

@@ -14,10 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import jmespath
 import pytest
-from parameterized import parameterized
 
 from tests.charts.helm_template_generator import render_chart
 
@@ -31,7 +31,8 @@ class TestAirflowCommon:
     as it requires extra test setup.
     """
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "dag_values, expected_mount",
         [
             (
                 {"gitSync": {"enabled": True}},
@@ -69,7 +70,7 @@ class TestAirflowCommon:
                     "readOnly": False,
                 },
             ),
-        ]
+        ],
     )
     def test_dags_mount(self, dag_values, expected_mount):
         docs = render_chart(
@@ -93,12 +94,14 @@ class TestAirflowCommon:
         Test Annotations are correctly applied on all pods created Scheduler, Webserver & Worker
         deployments.
         """
-        release_name = "TEST-BASIC"
+        release_name = "test-basic"
         k8s_objects = render_chart(
             name=release_name,
             values={
                 "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
                 "cleanup": {"enabled": True},
+                "flower": {"enabled": True},
+                "dagProcessor": {"enabled": True},
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
@@ -106,14 +109,15 @@ class TestAirflowCommon:
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/flower/flower-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
                 "templates/cleanup/cleanup-cronjob.yaml",
             ],
         )
 
-        assert 6 == len(k8s_objects)
+        assert 7 == len(k8s_objects)
 
         for k8s_object in k8s_objects:
-            if k8s_object['kind'] == 'CronJob':
+            if k8s_object["kind"] == "CronJob":
                 annotations = k8s_object["spec"]["jobTemplate"]["spec"]["template"]["metadata"]["annotations"]
             else:
                 annotations = k8s_object["spec"]["template"]["metadata"]["annotations"]
@@ -121,14 +125,16 @@ class TestAirflowCommon:
             assert "test-annotation/safe-to-evict" in annotations
             assert "true" in annotations["test-annotation/safe-to-evict"]
 
-    def test_global_affinity_tolerations_and_node_selector(self):
+    def test_global_affinity_tolerations_topology_spread_constraints_and_node_selector(self):
         """
-        Test affinity, tolerations, and node selector are correctly applied on all pods created
+        Test affinity, tolerations, etc are correctly applied on all pods created
         """
         k8s_objects = render_chart(
             values={
                 "cleanup": {"enabled": True},
+                "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
+                "dagProcessor": {"enabled": True},
                 "affinity": {
                     "nodeAffinity": {
                         "requiredDuringSchedulingIgnoredDuringExecution": {
@@ -145,6 +151,14 @@ class TestAirflowCommon:
                 "tolerations": [
                     {"key": "static-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
                 ],
+                "topologySpreadConstraints": [
+                    {
+                        "maxSkew": 1,
+                        "topologyKey": "foo",
+                        "whenUnsatisfiable": "ScheduleAnyway",
+                        "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                    }
+                ],
                 "nodeSelector": {"type": "user-node"},
             },
             show_only=[
@@ -157,12 +171,13 @@ class TestAirflowCommon:
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/statsd/statsd-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
             ],
         )
 
-        assert 11 == len(k8s_objects)
+        assert 12 == len(k8s_objects)
 
         for k8s_object in k8s_objects:
             if k8s_object["kind"] == "CronJob":
@@ -180,6 +195,7 @@ class TestAirflowCommon:
             )
             assert "user-node" == jmespath.search("nodeSelector.type", podSpec)
             assert "static-pods" == jmespath.search("tolerations[0].key", podSpec)
+            assert "foo" == jmespath.search("topologySpreadConstraints[0].topologyKey", podSpec)
 
     @pytest.mark.parametrize(
         "use_default_image,expected_image",
@@ -206,6 +222,7 @@ class TestAirflowCommon:
                 "templates/workers/worker-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
             ],
         )
 
@@ -226,7 +243,6 @@ class TestAirflowCommon:
                     "AIRFLOW__CORE__SQL_ALCHEMY_CONN": False,
                     "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": False,
                     "AIRFLOW__WEBSERVER__SECRET_KEY": False,
-                    "AIRFLOW__CELERY__RESULT_BACKEND": False,
                     "AIRFLOW__ELASTICSEARCH__HOST": False,
                 },
             },
@@ -235,18 +251,18 @@ class TestAirflowCommon:
                 "templates/workers/worker-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
             ],
         )
         expected_vars = [
-            'AIRFLOW__CORE__FERNET_KEY',
-            'AIRFLOW_CONN_AIRFLOW_DB',
-            'AIRFLOW__CELERY__CELERY_RESULT_BACKEND',
-            'AIRFLOW__CELERY__BROKER_URL',
+            "AIRFLOW__CORE__FERNET_KEY",
+            "AIRFLOW_CONN_AIRFLOW_DB",
+            "AIRFLOW__CELERY__BROKER_URL",
         ]
-        expected_vars_in_worker = ['DUMB_INIT_SETSID'] + expected_vars
+        expected_vars_in_worker = ["DUMB_INIT_SETSID"] + expected_vars
         for doc in docs:
-            component = doc['metadata']['labels']['component']
-            variables = expected_vars_in_worker if component == 'worker' else expected_vars
+            component = doc["metadata"]["labels"]["component"]
+            variables = expected_vars_in_worker if component == "worker" else expected_vars
             assert variables == jmespath.search(
                 "spec.template.spec.containers[0].env[*].name", doc
             ), f"Wrong vars in {component}"
@@ -259,37 +275,39 @@ class TestAirflowCommon:
                 "templates/workers/worker-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
             ],
         )
         expected_vars = [
-            'AIRFLOW__CORE__FERNET_KEY',
-            'AIRFLOW__CORE__SQL_ALCHEMY_CONN',
-            'AIRFLOW__DATABASE__SQL_ALCHEMY_CONN',
-            'AIRFLOW_CONN_AIRFLOW_DB',
-            'AIRFLOW__WEBSERVER__SECRET_KEY',
-            'AIRFLOW__CELERY__CELERY_RESULT_BACKEND',
-            'AIRFLOW__CELERY__RESULT_BACKEND',
-            'AIRFLOW__CELERY__BROKER_URL',
+            "AIRFLOW__CORE__FERNET_KEY",
+            "AIRFLOW__CORE__SQL_ALCHEMY_CONN",
+            "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
+            "AIRFLOW_CONN_AIRFLOW_DB",
+            "AIRFLOW__WEBSERVER__SECRET_KEY",
+            "AIRFLOW__CELERY__BROKER_URL",
         ]
-        expected_vars_in_worker = ['DUMB_INIT_SETSID'] + expected_vars
+        expected_vars_in_worker = ["DUMB_INIT_SETSID"] + expected_vars
         for doc in docs:
-            component = doc['metadata']['labels']['component']
-            variables = expected_vars_in_worker if component == 'worker' else expected_vars
+            component = doc["metadata"]["labels"]["component"]
+            variables = expected_vars_in_worker if component == "worker" else expected_vars
             assert variables == jmespath.search(
                 "spec.template.spec.containers[0].env[*].name", doc
             ), f"Wrong vars in {component}"
 
     def test_have_all_config_mounts_on_init_containers(self):
         docs = render_chart(
-            values={},
+            values={
+                "dagProcessor": {"enabled": True},
+            },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
             ],
         )
-        assert 4 == len(docs)
+        assert 5 == len(docs)
         expected_mount = {
             "subPath": "airflow.cfg",
             "name": "config",
@@ -302,11 +320,12 @@ class TestAirflowCommon:
     def test_priority_class_name(self):
         docs = render_chart(
             values={
-                "flower": {"priorityClassName": "low-priority-flower"},
-                "pgbouncer": {"priorityClassName": "low-priority-pgbouncer"},
+                "flower": {"enabled": True, "priorityClassName": "low-priority-flower"},
+                "pgbouncer": {"enabled": True, "priorityClassName": "low-priority-pgbouncer"},
                 "scheduler": {"priorityClassName": "low-priority-scheduler"},
                 "statsd": {"priorityClassName": "low-priority-statsd"},
                 "triggerer": {"priorityClassName": "low-priority-triggerer"},
+                "dagProcessor": {"priorityClassName": "low-priority-dag-processor"},
                 "webserver": {"priorityClassName": "low-priority-webserver"},
                 "workers": {"priorityClassName": "low-priority-worker"},
             },
@@ -316,13 +335,15 @@ class TestAirflowCommon:
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/statsd/statsd-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
             ],
         )
 
+        assert 7 == len(docs)
         for doc in docs:
-            component = doc['metadata']['labels']['component']
-            priority = doc['spec']['template']['spec']['priorityClassName']
+            component = doc["metadata"]["labels"]["component"]
+            priority = doc["spec"]["template"]["spec"]["priorityClassName"]
 
             assert priority == f"low-priority-{component}"

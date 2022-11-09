@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,12 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
-import subprocess
 import sys
 from pathlib import Path
-
-from rich import print
 
 if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(
@@ -28,33 +27,36 @@ if __name__ not in ("__main__", "__mp_main__"):
         f"To run this script, run the ./{__file__} command"
     )
 
-AIRFLOW_SOURCES = Path(__file__).parents[3].absolute()
-GITHUB_REPOSITORY = os.environ.get('GITHUB_REPOSITORY', "apache/airflow")
-AIRFLOW_CI_IMAGE = f"ghcr.io/{GITHUB_REPOSITORY}/main/ci/python3.7"
 
-if __name__ == '__main__':
-    if subprocess.call(args=["docker", "inspect", AIRFLOW_CI_IMAGE], stdout=subprocess.DEVNULL) != 0:
-        print(f'[red]The image {AIRFLOW_CI_IMAGE} is not available.[/]\n')
-        print("\n[yellow]Please run at the earliest convenience:[/]\n\nbreeze build-image --python 3.7\n\n")
-        sys.exit(1)
-    return_code = subprocess.call(
-        args=[
+AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
+GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY", "apache/airflow")
+os.environ["SKIP_GROUP_OUTPUT"] = "true"
+
+if __name__ == "__main__":
+    sys.path.insert(0, str(AIRFLOW_SOURCES / "dev" / "breeze" / "src"))
+    from airflow_breeze.global_constants import MOUNT_SELECTED
+    from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags
+    from airflow_breeze.utils.path_utils import create_mypy_volume_if_needed
+    from airflow_breeze.utils.run_utils import get_ci_image_for_pre_commits, run_command
+
+    airflow_image = get_ci_image_for_pre_commits()
+    create_mypy_volume_if_needed()
+    cmd_result = run_command(
+        [
             "docker",
             "run",
             "-t",
-            "-v",
-            f"{AIRFLOW_SOURCES}:/opt/airflow/",
+            *get_extra_docker_flags(MOUNT_SELECTED, include_mypy_volume=True),
             "-e",
             "SKIP_ENVIRONMENT_INITIALIZATION=true",
-            "-e",
-            "PRINT_INFO_FROM_SCRIPTS=false",
             "-e",
             "BACKEND=sqlite",
             "--pull",
             "never",
-            AIRFLOW_CI_IMAGE,
+            airflow_image,
             "/opt/airflow/scripts/in_container/run_mypy.sh",
             *sys.argv[1:],
         ],
+        check=False,
     )
-    sys.exit(return_code)
+    sys.exit(cmd_result.returncode)

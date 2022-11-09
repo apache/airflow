@@ -15,11 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 import unittest
 
 import freezegun
+import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
@@ -52,18 +54,18 @@ class TestBranchDateTimeOperator(unittest.TestCase):
 
     def setUp(self):
         self.dag = DAG(
-            'branch_datetime_operator_test',
-            default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
-            schedule_interval=INTERVAL,
+            "branch_datetime_operator_test",
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            schedule=INTERVAL,
         )
 
-        self.branch_1 = EmptyOperator(task_id='branch_1', dag=self.dag)
-        self.branch_2 = EmptyOperator(task_id='branch_2', dag=self.dag)
+        self.branch_1 = EmptyOperator(task_id="branch_1", dag=self.dag)
+        self.branch_2 = EmptyOperator(task_id="branch_2", dag=self.dag)
 
         self.branch_op = BranchDateTimeOperator(
-            task_id='datetime_branch',
-            follow_task_ids_if_true='branch_1',
-            follow_task_ids_if_false='branch_2',
+            task_id="datetime_branch",
+            follow_task_ids_if_true="branch_1",
+            follow_task_ids_if_false="branch_2",
             target_upper=datetime.datetime(2020, 7, 7, 11, 0, 0),
             target_lower=datetime.datetime(2020, 7, 7, 10, 0, 0),
             dag=self.dag,
@@ -74,7 +76,7 @@ class TestBranchDateTimeOperator(unittest.TestCase):
         self.dag.clear()
 
         self.dr = self.dag.create_dagrun(
-            run_id='manual__', start_date=DEFAULT_DATE, execution_date=DEFAULT_DATE, state=State.RUNNING
+            run_id="manual__", start_date=DEFAULT_DATE, execution_date=DEFAULT_DATE, state=State.RUNNING
         )
 
     def tearDown(self):
@@ -91,7 +93,7 @@ class TestBranchDateTimeOperator(unittest.TestCase):
             try:
                 expected_state = task_ids_to_states[ti.task_id]
             except KeyError:
-                raise ValueError(f'Invalid task id {ti.task_id} found!')
+                raise ValueError(f"Invalid task id {ti.task_id} found!")
             else:
                 self.assertEqual(
                     ti.state,
@@ -103,9 +105,9 @@ class TestBranchDateTimeOperator(unittest.TestCase):
         """Check if BranchDateTimeOperator raises exception on missing target"""
         with self.assertRaises(AirflowException):
             BranchDateTimeOperator(
-                task_id='datetime_branch',
-                follow_task_ids_if_true='branch_1',
-                follow_task_ids_if_false='branch_2',
+                task_id="datetime_branch",
+                follow_task_ids_if_true="branch_1",
+                follow_task_ids_if_false="branch_2",
                 target_upper=None,
                 target_lower=None,
                 dag=self.dag,
@@ -122,9 +124,9 @@ class TestBranchDateTimeOperator(unittest.TestCase):
 
                 self._assert_task_ids_match_states(
                     {
-                        'datetime_branch': State.SUCCESS,
-                        'branch_1': State.NONE,
-                        'branch_2': State.SKIPPED,
+                        "datetime_branch": State.SUCCESS,
+                        "branch_1": State.NONE,
+                        "branch_2": State.SKIPPED,
                     }
                 )
 
@@ -146,9 +148,9 @@ class TestBranchDateTimeOperator(unittest.TestCase):
 
                         self._assert_task_ids_match_states(
                             {
-                                'datetime_branch': State.SUCCESS,
-                                'branch_1': State.SKIPPED,
-                                'branch_2': State.NONE,
+                                "datetime_branch": State.SUCCESS,
+                                "branch_1": State.SKIPPED,
+                                "branch_2": State.NONE,
                             }
                         )
 
@@ -164,9 +166,9 @@ class TestBranchDateTimeOperator(unittest.TestCase):
 
                 self._assert_task_ids_match_states(
                     {
-                        'datetime_branch': State.SUCCESS,
-                        'branch_1': State.NONE,
-                        'branch_2': State.SKIPPED,
+                        "datetime_branch": State.SUCCESS,
+                        "branch_1": State.NONE,
+                        "branch_2": State.SKIPPED,
                     }
                 )
 
@@ -182,9 +184,9 @@ class TestBranchDateTimeOperator(unittest.TestCase):
 
                 self._assert_task_ids_match_states(
                     {
-                        'datetime_branch': State.SUCCESS,
-                        'branch_1': State.NONE,
-                        'branch_2': State.SKIPPED,
+                        "datetime_branch": State.SUCCESS,
+                        "branch_1": State.NONE,
+                        "branch_2": State.SKIPPED,
                     }
                 )
 
@@ -200,9 +202,9 @@ class TestBranchDateTimeOperator(unittest.TestCase):
 
                 self._assert_task_ids_match_states(
                     {
-                        'datetime_branch': State.SUCCESS,
-                        'branch_1': State.SKIPPED,
-                        'branch_2': State.NONE,
+                        "datetime_branch": State.SUCCESS,
+                        "branch_1": State.SKIPPED,
+                        "branch_2": State.NONE,
                     }
                 )
 
@@ -218,19 +220,19 @@ class TestBranchDateTimeOperator(unittest.TestCase):
 
                 self._assert_task_ids_match_states(
                     {
-                        'datetime_branch': State.SUCCESS,
-                        'branch_1': State.SKIPPED,
-                        'branch_2': State.NONE,
+                        "datetime_branch": State.SUCCESS,
+                        "branch_1": State.SKIPPED,
+                        "branch_2": State.NONE,
                     }
                 )
 
     @freezegun.freeze_time("2020-12-01 09:00:00")
-    def test_branch_datetime_operator_use_task_execution_date(self):
+    def test_branch_datetime_operator_use_task_logical_date(self):
         """Check if BranchDateTimeOperator uses task execution date"""
         in_between_date = timezone.datetime(2020, 7, 7, 10, 30, 0)
-        self.branch_op.use_task_execution_date = True
+        self.branch_op.use_task_logical_date = True
         self.dr = self.dag.create_dagrun(
-            run_id='manual_exec_date__',
+            run_id="manual_exec_date__",
             start_date=in_between_date,
             execution_date=in_between_date,
             state=State.RUNNING,
@@ -244,8 +246,24 @@ class TestBranchDateTimeOperator(unittest.TestCase):
 
                 self._assert_task_ids_match_states(
                     {
-                        'datetime_branch': State.SUCCESS,
-                        'branch_1': State.NONE,
-                        'branch_2': State.SKIPPED,
+                        "datetime_branch": State.SUCCESS,
+                        "branch_1": State.NONE,
+                        "branch_2": State.SKIPPED,
                     }
                 )
+
+    def test_deprecation_warning(self):
+        warning_message = (
+            """Parameter ``use_task_execution_date`` is deprecated. Use ``use_task_logical_date``."""
+        )
+        with pytest.warns(DeprecationWarning) as warnings:
+            BranchDateTimeOperator(
+                task_id="warning",
+                follow_task_ids_if_true="branch_1",
+                follow_task_ids_if_false="branch_2",
+                target_upper=timezone.datetime(2020, 7, 7, 10, 30, 0),
+                target_lower=timezone.datetime(2020, 7, 7, 10, 30, 0),
+                use_task_execution_date=True,
+                dag=self.dag,
+            )
+        assert warning_message == str(warnings[0].message)

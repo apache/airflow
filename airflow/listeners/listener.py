@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import logging
 from types import ModuleType
 from typing import TYPE_CHECKING
@@ -46,7 +48,7 @@ class ListenerManager:
         return len(self.pm.get_plugins()) > 0
 
     @property
-    def hook(self) -> "_HookRelay":
+    def hook(self) -> _HookRelay:
         """Returns hook, on which plugin methods specified in spec can be called."""
         return self.pm.hook
 

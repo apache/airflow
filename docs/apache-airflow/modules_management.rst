@@ -382,16 +382,16 @@ look like following:
 
     .
     ├── airflow_operators
-    │   ├── __init__.py
+    │   ├── __init__.py
     ├── airflow_operators.egg-info
-    │   ├── PKG-INFO
-    │   ├── SOURCES.txt
-    │   ├── dependency_links.txt
-    │   └── top_level.txt
+    │   ├── PKG-INFO
+    │   ├── SOURCES.txt
+    │   ├── dependency_links.txt
+    │   └── top_level.txt
     ├── build
-    │   └── bdist.macosx-10.15-x86_64
+    │   └── bdist.macosx-10.15-x86_64
     ├── dist
-    │   └── airflow_operators-0.0.0-py3-none-any.whl
+    │   └── airflow_operators-0.0.0-py3-none-any.whl
     └── setup.py
 
 

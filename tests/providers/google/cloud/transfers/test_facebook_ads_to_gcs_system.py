@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import os
 from contextlib import contextmanager
@@ -27,11 +29,11 @@ from airflow.utils.process_utils import patch_environ
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
-CREDENTIALS_DIR = os.environ.get('CREDENTIALS_DIR', '/files/airflow-breeze-config/keys')
-FACEBOOK_KEY = 'facebook.json'
+CREDENTIALS_DIR = os.environ.get("CREDENTIALS_DIR", "/files/airflow-breeze-config/keys")
+FACEBOOK_KEY = "facebook.json"
 FACEBOOK_CREDENTIALS_PATH = os.path.join(CREDENTIALS_DIR, FACEBOOK_KEY)
-CONNECTION_TYPE = os.environ.get('CONNECTION_TYPE', 'facebook_social')
-FACEBOOK_CONNECTION_ID = os.environ.get('FACEBOOK_CONNECTION_ID', 'facebook_default')
+CONNECTION_TYPE = os.environ.get("CONNECTION_TYPE", "facebook_social")
+FACEBOOK_CONNECTION_ID = os.environ.get("FACEBOOK_CONNECTION_ID", "facebook_default")
 CONFIG_REQUIRED_FIELDS = ["app_id", "app_secret", "access_token", "account_id"]
 
 

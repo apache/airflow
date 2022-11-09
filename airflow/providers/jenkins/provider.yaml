@@ -22,6 +22,7 @@ description: |
     `Jenkins <https://jenkins.io/>`__
 
 versions:
+  - 3.0.0
   - 2.1.0
   - 2.0.7
   - 2.0.6
@@ -35,8 +36,9 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
-  - apache-airflow>=2.1.0
+dependencies:
+  - apache-airflow>=2.3.0
+  - python-jenkins>=1.0.0
 
 integrations:
   - integration-name: Jenkins
@@ -57,9 +59,6 @@ sensors:
   - integration-name: Jenkins
     python-modules:
       - 'airflow.providers.jenkins.sensors.jenkins'
-
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.jenkins.hooks.jenkins.JenkinsHook
 
 connection-types:
   - hook-class-name: airflow.providers.jenkins.hooks.jenkins.JenkinsHook

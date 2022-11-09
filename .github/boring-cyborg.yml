@@ -39,6 +39,16 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-apache-*/**/*
     - tests/providers/apache/**/*
 
+  provider:Common-sql:
+    - airflow/providers/common/sql/**/*
+    - docs/apache-airflow-providers-common-sql/**/*
+    - tests/providers/common/sql/**/*
+
+  provider:Databricks:
+    - airflow/providers/databricks/**/*
+    - docs/apache-airflow-providers-databricks/**/*
+    - tests/providers/databricks/**/*
+
   provider:Snowflake:
     - airflow/providers/snowflake/**/*
     - docs/apache-airflow-providers-snowflake/**/*
@@ -77,10 +87,8 @@ labelPRBasedOnFilePath:
     - scripts/**/*
     - dev/**/*
     - .github/**/*
-    - breeze
     - Dockerfile.ci
     - BREEZE.rst
-    - breeze-complete
     - CONTRIBUTING.*
     - LOCAL_VIRTUALENV.rst
     - STATIC_CODE_CHECKS.rst
@@ -119,12 +127,10 @@ labelPRBasedOnFilePath:
     - airflow/www/.eslintrc
     - airflow/www/.stylelintignore
     - airflow/www/.stylelintrc
-    - airflow/www/compile_assets.sh
     - airflow/www/package.json
     - airflow/www/webpack.config.js
     - airflow/www/yarn.lock
     - docs/apache-airflow/ui.rst
-    - airflow/ui/**/*
 
   area:CLI:
     - airflow/cli/**/*.py
@@ -190,6 +196,9 @@ labelPRBasedOnFilePath:
     - docs/docker-stack/**/*
     - docker_tests/**/*
 
+  area:system-tests:
+    - tests/system/**/*
+
 # Various Flags to control behaviour of the "Labeler"
 labelerFlags:
   # If this flag is changed to 'false', labels would only be added when the PR is first created
@@ -216,7 +225,7 @@ firstPRWelcomeComment: >
   Consider adding an example DAG that shows how users should use it.
 
   - Consider using [Breeze environment](https://github.com/apache/airflow/blob/main/BREEZE.rst) for testing
-  locally, it’s a heavy docker but it ships with a working Airflow and a lot of integrations.
+  locally, it's a heavy docker but it ships with a working Airflow and a lot of integrations.
 
   - Be patient and persistent. It might take some time to get a review or get the final approval from
   Committers.
@@ -245,7 +254,4 @@ firstIssueWelcomeComment: >
 
 checkUpToDate:
   targetBranch: main
-  files:
-    - airflow/migrations/*
-    - airflow/migrations/**/*
-    - airflow/alembic.ini
+  files: []

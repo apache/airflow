@@ -16,8 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Drive sensors."""
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from airflow.sensors.base import BaseSensorOperator
@@ -49,22 +50,22 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = (
-        'folder_id',
-        'file_name',
-        'drive_id',
-        'impersonation_chain',
+        "folder_id",
+        "file_name",
+        "drive_id",
+        "impersonation_chain",
     )
-    ui_color = '#f0eee4'
+    ui_color = "#f0eee4"
 
     def __init__(
         self,
         *,
         folder_id: str,
         file_name: str,
-        drive_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        drive_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
 
@@ -76,8 +77,8 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: 'Context') -> bool:
-        self.log.info('Sensor is checking for the file %s in the folder %s', self.file_name, self.folder_id)
+    def poke(self, context: Context) -> bool:
+        self.log.info("Sensor is checking for the file %s in the folder %s", self.file_name, self.folder_id)
         hook = GoogleDriveHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

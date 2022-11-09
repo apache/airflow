@@ -36,7 +36,7 @@
             },
             "sensitive": {
               "type": "boolean",
-              "description": "When true, this option is sensitive and can be specified using AIRFLOW__{section}___{name}__SECRET or AIRFLOW__{section}___{name}__CMD environment variables. See: airflow.configuration.AirflowConfigParser.sensitive_config_values"
+              "description": "When true, this option is sensitive and can be specified using AIRFLOW__{section}___{name}__SECRET or AIRFLOW__{section}___{name}_CMD environment variables. See: airflow.configuration.AirflowConfigParser.sensitive_config_values"
             }
           },
           "required": [

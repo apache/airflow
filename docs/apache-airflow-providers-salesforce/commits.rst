@@ -28,6 +28,72 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.1.0
+.....
+
+Latest change: 2022-07-26
+
+=================================================================================================  ===========  =======================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================
+`c8af0592c0 <https://github.com/apache/airflow/commit/c8af0592c08017ee48f69f608ad4a6529ee14292>`_  2022-07-26   ``Improve taskflow type hints with ParamSpec (#25173)``
+=================================================================================================  ===========  =======================================================
+
+5.0.0
+.....
+
+Latest change: 2022-07-13
+
+=================================================================================================  ===========  =============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================================
+`d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
+`3f9414d0fd <https://github.com/apache/airflow/commit/3f9414d0fd67a2c508e105651de1105955f307bf>`_  2022-07-08   ``Correct parameter typing in 'SalesforceBulkOperator' (#24927)``
+`b6a2759417 <https://github.com/apache/airflow/commit/b6a27594174c888af31d3fc71ea5f8b589883a12>`_  2022-07-05   ``Add support for Salesforce bulk api (#24473)``
+`9c995523f2 <https://github.com/apache/airflow/commit/9c995523f28150de3153d7cb16d605a43dbed09d>`_  2022-07-03   ``Remove Tableau from Salesforce provider (#23747)``
+`0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
+`510a6bab45 <https://github.com/apache/airflow/commit/510a6bab4595cce8bd5b1447db957309d70f35d9>`_  2022-06-28   ``Remove 'hook-class-names' from provider.yaml (#24702)``
+`9c59831ee7 <https://github.com/apache/airflow/commit/9c59831ee78f14de96421c74986933c494407afa>`_  2022-06-21   ``Update providers to use functools compat for ''cached_property'' (#24582)``
+=================================================================================================  ===========  =============================================================================
+
+4.0.0
+.....
+
+Latest change: 2022-06-09
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`dcdcf3a2b8 <https://github.com/apache/airflow/commit/dcdcf3a2b8054fa727efb4cd79d38d2c9c7e1bd5>`_  2022-06-09   ``Update release notes for RC2 release of Providers for May 2022 (#24307)``
+`717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
+`027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
+`fdf518573f <https://github.com/apache/airflow/commit/fdf518573fa45f6208f6a9111323bd35ed2a2fad>`_  2022-06-03   ``Migrate Salesforce example DAGs to new design #22463 (#24127)``
+=================================================================================================  ===========  ==================================================================================
+
+3.4.4
+.....
+
+Latest change: 2022-05-12
+
+=================================================================================================  ===========  ======================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================
+`75c60923e0 <https://github.com/apache/airflow/commit/75c60923e01375ffc5f71c4f2f7968f489e2ca2f>`_  2022-05-12   ``Prepare provider documentation 2022.05.11 (#23631)``
+`9132baf192 <https://github.com/apache/airflow/commit/9132baf1920eca9a56f786eb8c674efad4f5582e>`_  2022-04-29   ``Organize Tableau classes (#23353)``
+=================================================================================================  ===========  ======================================================
+
+3.4.3
+.....
+
+Latest change: 2022-03-22
+
+=================================================================================================  ===========  ==============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================
+`d7dbfb7e26 <https://github.com/apache/airflow/commit/d7dbfb7e26a50130d3550e781dc71a5fbcaeb3d2>`_  2022-03-22   ``Add documentation for bugfix release of Providers (#22383)``
+=================================================================================================  ===========  ==============================================================
+
 3.4.2
 .....
 

@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import unittest
 from unittest import mock
 
@@ -31,12 +33,12 @@ from airflow.providers.google.cloud.operators.spanner import (
     SpannerUpdateDatabaseInstanceOperator,
 )
 
-PROJECT_ID = 'project-id'
-INSTANCE_ID = 'instance-id'
-DB_ID = 'db1'
-CONFIG_NAME = 'projects/project-id/instanceConfigs/eur3'
-NODE_COUNT = '1'
-DISPLAY_NAME = 'Test Instance'
+PROJECT_ID = "project-id"
+INSTANCE_ID = "instance-id"
+DB_ID = "db1"
+CONFIG_NAME = "projects/project-id/instanceConfigs/eur3"
+NODE_COUNT = "1"
+DISPLAY_NAME = "Test Instance"
 INSERT_QUERY = "INSERT my_table1 (id, name) VALUES (1, 'One')"
 INSERT_QUERY_2 = "INSERT my_table2 (id, name) VALUES (1, 'One')"
 CREATE_QUERY = "CREATE TABLE my_table1 (id INT64, name STRING(100))"
@@ -56,7 +58,8 @@ class TestCloudSpanner(unittest.TestCase):
             display_name=DISPLAY_NAME,
             task_id="id",
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -81,7 +84,8 @@ class TestCloudSpanner(unittest.TestCase):
             display_name=DISPLAY_NAME,
             task_id="id",
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -107,7 +111,8 @@ class TestCloudSpanner(unittest.TestCase):
             display_name=DISPLAY_NAME,
             task_id="id",
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -132,7 +137,8 @@ class TestCloudSpanner(unittest.TestCase):
             display_name=DISPLAY_NAME,
             task_id="id",
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -158,7 +164,8 @@ class TestCloudSpanner(unittest.TestCase):
             display_name=DISPLAY_NAME,
             task_id="id",
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -251,7 +258,8 @@ class TestCloudSpanner(unittest.TestCase):
             query=INSERT_QUERY,
             task_id="id",
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -267,7 +275,8 @@ class TestCloudSpanner(unittest.TestCase):
         op = SpannerQueryDatabaseInstanceOperator(
             instance_id=INSTANCE_ID, database_id=DB_ID, query=INSERT_QUERY, task_id="id"
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -311,7 +320,8 @@ class TestCloudSpanner(unittest.TestCase):
             query=INSERT_QUERY,
             task_id="id",
         )
-        op.execute(None)
+        context = mock.MagicMock()
+        op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -330,7 +340,8 @@ class TestCloudSpanner(unittest.TestCase):
             query=[INSERT_QUERY, INSERT_QUERY_2],
             task_id="id",
         )
-        op.execute(None)
+        context = mock.MagicMock()
+        op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -352,7 +363,8 @@ class TestCloudSpanner(unittest.TestCase):
             ddl_statements=DDL_STATEMENTS,
             task_id="id",
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -369,7 +381,8 @@ class TestCloudSpanner(unittest.TestCase):
         op = SpannerDeployDatabaseInstanceOperator(
             instance_id=INSTANCE_ID, database_id=DB_ID, ddl_statements=DDL_STATEMENTS, task_id="id"
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -390,7 +403,8 @@ class TestCloudSpanner(unittest.TestCase):
             ddl_statements=DDL_STATEMENTS,
             task_id="id",
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -401,9 +415,9 @@ class TestCloudSpanner(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, 'project_id'),
-            (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, 'instance_id'),
-            (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, 'database_id'),
+            ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, "project_id"),
+            (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, "instance_id"),
+            (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, "database_id"),
         ]
     )
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
@@ -432,7 +446,8 @@ class TestCloudSpanner(unittest.TestCase):
             ddl_statements=DDL_STATEMENTS,
             task_id="id",
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -452,7 +467,8 @@ class TestCloudSpanner(unittest.TestCase):
         op = SpannerUpdateDatabaseInstanceOperator(
             instance_id=INSTANCE_ID, database_id=DB_ID, ddl_statements=DDL_STATEMENTS, task_id="id"
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -468,9 +484,9 @@ class TestCloudSpanner(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, 'project_id'),
-            (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, 'instance_id'),
-            (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, 'database_id'),
+            ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, "project_id"),
+            (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, "instance_id"),
+            (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, "database_id"),
         ]
     )
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
@@ -557,9 +573,9 @@ class TestCloudSpanner(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, 'project_id'),
-            (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, 'instance_id'),
-            (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, 'database_id'),
+            ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, "project_id"),
+            (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, "instance_id"),
+            (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, "database_id"),
         ]
     )
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")

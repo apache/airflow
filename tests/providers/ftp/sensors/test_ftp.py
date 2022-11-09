@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from ftplib import error_perm
@@ -27,7 +28,7 @@ from airflow.providers.ftp.sensors.ftp import FTPSensor
 
 
 class TestFTPSensor(unittest.TestCase):
-    @mock.patch('airflow.providers.ftp.sensors.ftp.FTPHook', spec=FTPHook)
+    @mock.patch("airflow.providers.ftp.sensors.ftp.FTPHook", spec=FTPHook)
     def test_poke(self, mock_hook):
         op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp", task_id="test_task")
 
@@ -43,7 +44,7 @@ class TestFTPSensor(unittest.TestCase):
         assert not op.poke(None)
         assert op.poke(None)
 
-    @mock.patch('airflow.providers.ftp.sensors.ftp.FTPHook', spec=FTPHook)
+    @mock.patch("airflow.providers.ftp.sensors.ftp.FTPHook", spec=FTPHook)
     def test_poke_fails_due_error(self, mock_hook):
         op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp", task_id="test_task")
 
@@ -56,7 +57,7 @@ class TestFTPSensor(unittest.TestCase):
 
         assert "530" in str(ctx.value)
 
-    @mock.patch('airflow.providers.ftp.sensors.ftp.FTPHook', spec=FTPHook)
+    @mock.patch("airflow.providers.ftp.sensors.ftp.FTPHook", spec=FTPHook)
     def test_poke_fail_on_transient_error(self, mock_hook):
         op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp", task_id="test_task")
 
@@ -69,7 +70,7 @@ class TestFTPSensor(unittest.TestCase):
 
         assert "434" in str(ctx.value)
 
-    @mock.patch('airflow.providers.ftp.sensors.ftp.FTPHook', spec=FTPHook)
+    @mock.patch("airflow.providers.ftp.sensors.ftp.FTPHook", spec=FTPHook)
     def test_poke_ignore_transient_error(self, mock_hook):
         op = FTPSensor(
             path="foobar.json", ftp_conn_id="bob_ftp", task_id="test_task", fail_on_transient_errors=False

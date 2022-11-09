@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import json
 
 from airflow.providers.apache.druid.operators.druid import DruidOperator
@@ -86,13 +87,13 @@ def test_init_with_timeout_and_max_ingestion_time():
     )
 
     expected_values = {
-        'task_id': 'spark_submit_job',
-        'timeout': 60,
-        'max_ingestion_time': 180,
+        "task_id": "spark_submit_job",
+        "timeout": 60,
+        "max_ingestion_time": 180,
     }
-    assert expected_values['task_id'] == operator.task_id
-    assert expected_values['timeout'] == operator.timeout
-    assert expected_values['max_ingestion_time'] == operator.max_ingestion_time
+    assert expected_values["task_id"] == operator.task_id
+    assert expected_values["timeout"] == operator.timeout
+    assert expected_values["max_ingestion_time"] == operator.max_ingestion_time
 
 
 def test_init_default_timeout():

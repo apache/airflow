@@ -22,6 +22,7 @@ description: |
   `Apache Pig <https://pig.apache.org/>`__
 
 versions:
+  - 3.0.0
   - 2.0.4
   - 2.0.3
   - 2.0.2
@@ -30,8 +31,8 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
-  - apache-airflow>=2.1.0
+dependencies:
+  - apache-airflow>=2.3.0
 
 integrations:
   - integration-name: Apache Pig
@@ -50,10 +51,6 @@ hooks:
   - integration-name: Apache Pig
     python-modules:
       - airflow.providers.apache.pig.hooks.pig
-
-hook-class-names:
-  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.apache.pig.hooks.pig.PigCliHook
 
 connection-types:
   - connection-type: pig_cli

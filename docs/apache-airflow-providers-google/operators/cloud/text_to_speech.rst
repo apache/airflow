@@ -42,14 +42,14 @@ The ``input``, ``voice`` and ``audio_config`` arguments need to be dicts or obje
 
 for more information, see: https://googleapis.github.io/google-cloud-python/latest/texttospeech/gapic/v1/api.html#google.cloud.texttospeech_v1.TextToSpeechClient.synthesize_speech
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_text_to_speech.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/text_to_speech/example_text_to_speech.py
       :language: python
       :start-after: [START howto_operator_text_to_speech_api_arguments]
       :end-before: [END howto_operator_text_to_speech_api_arguments]
 
 The ``filename`` argument is a simple string argument:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_text_to_speech.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/text_to_speech/example_text_to_speech.py
       :language: python
       :start-after: [START howto_operator_text_to_speech_gcp_filename]
       :end-before: [END howto_operator_text_to_speech_gcp_filename]
@@ -57,7 +57,7 @@ The ``filename`` argument is a simple string argument:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_text_to_speech.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/text_to_speech/example_text_to_speech.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_text_to_speech_synthesize]

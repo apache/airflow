@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Any, Dict, Tuple
+from typing import Any
 
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -27,7 +28,7 @@ class SuccessTrigger(BaseTrigger):
     Should only be used for testing.
     """
 
-    def serialize(self) -> Tuple[str, Dict[str, Any]]:
+    def serialize(self) -> tuple[str, dict[str, Any]]:
         return ("airflow.triggers.testing.SuccessTrigger", {})
 
     async def run(self):
@@ -41,7 +42,7 @@ class FailureTrigger(BaseTrigger):
     Should only be used for testing.
     """
 
-    def serialize(self) -> Tuple[str, Dict[str, Any]]:
+    def serialize(self) -> tuple[str, dict[str, Any]]:
         return ("airflow.triggers.testing.FailureTrigger", {})
 
     async def run(self):

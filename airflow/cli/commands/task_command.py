@@ -16,14 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """Task sub-commands"""
+from __future__ import annotations
+
 import datetime
 import importlib
 import json
 import logging
 import os
 import textwrap
-from contextlib import contextmanager, redirect_stderr, redirect_stdout
-from typing import Dict, List, Optional, Tuple, Union
+from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
+from typing import Generator, Union
 
 from pendulum.parsing.exceptions import ParserError
 from sqlalchemy.orm.exc import NoResultFound
@@ -52,6 +54,7 @@ from airflow.utils.cli import (
 )
 from airflow.utils.dates import timezone
 from airflow.utils.log.logging_mixin import StreamLogWriter
+from airflow.utils.log.secrets_masker import RedactedIO
 from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
@@ -73,10 +76,10 @@ def _generate_temporary_run_id() -> str:
 def _get_dag_run(
     *,
     dag: DAG,
-    exec_date_or_run_id: str,
     create_if_necessary: CreateIfNecessary,
+    exec_date_or_run_id: str | None = None,
     session: Session,
-) -> Tuple[DagRun, bool]:
+) -> tuple[DagRun, bool]:
     """Try to retrieve a DAG run from a string representing either a run ID or logical date.
 
     This checks DAG runs like this:
@@ -90,33 +93,35 @@ def _get_dag_run(
        the logical date; otherwise use it as a run ID and set the logical date
        to the current time.
     """
-    dag_run = dag.get_dagrun(run_id=exec_date_or_run_id, session=session)
-    if dag_run:
-        return dag_run, False
-
-    try:
-        execution_date: Optional[datetime.datetime] = timezone.parse(exec_date_or_run_id)
-    except (ParserError, TypeError):
-        execution_date = None
-
-    try:
-        dag_run = (
-            session.query(DagRun)
-            .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date == execution_date)
-            .one()
-        )
-    except NoResultFound:
-        if not create_if_necessary:
-            raise DagRunNotFound(
-                f"DagRun for {dag.dag_id} with run_id or execution_date of {exec_date_or_run_id!r} not found"
-            ) from None
-    else:
-        return dag_run, False
+    if not exec_date_or_run_id and not create_if_necessary:
+        raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
+    execution_date: datetime.datetime | None = None
+    if exec_date_or_run_id:
+        dag_run = dag.get_dagrun(run_id=exec_date_or_run_id, session=session)
+        if dag_run:
+            return dag_run, False
+        with suppress(ParserError, TypeError):
+            execution_date = timezone.parse(exec_date_or_run_id)
+        try:
+            dag_run = (
+                session.query(DagRun)
+                .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date == execution_date)
+                .one()
+            )
+        except NoResultFound:
+            if not create_if_necessary:
+                raise DagRunNotFound(
+                    f"DagRun for {dag.dag_id} with run_id or execution_date "
+                    f"of {exec_date_or_run_id!r} not found"
+                ) from None
+        else:
+            return dag_run, False
 
     if execution_date is not None:
         dag_run_execution_date = execution_date
     else:
         dag_run_execution_date = timezone.utcnow()
+
     if create_if_necessary == "memory":
         dag_run = DagRun(dag.dag_id, run_id=exec_date_or_run_id, execution_date=dag_run_execution_date)
         return dag_run, True
@@ -134,13 +139,16 @@ def _get_dag_run(
 @provide_session
 def _get_ti(
     task: BaseOperator,
-    exec_date_or_run_id: str,
     map_index: int,
     *,
+    exec_date_or_run_id: str | None = None,
+    pool: str | None = None,
     create_if_necessary: CreateIfNecessary = False,
     session: Session = NEW_SESSION,
-) -> Tuple[TaskInstance, bool]:
+) -> tuple[TaskInstance, bool]:
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way"""
+    if not exec_date_or_run_id and not create_if_necessary:
+        raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
     if task.is_mapped:
         if map_index < 0:
             raise RuntimeError("No map_index passed to mapped task")
@@ -165,7 +173,7 @@ def _get_ti(
         ti.dag_run = dag_run
     else:
         ti = ti_or_none
-    ti.refresh_from_task(task)
+    ti.refresh_from_task(task, pool_override=pool)
     return ti, dr_created
 
 
@@ -257,18 +265,17 @@ def _run_raw_task(args, ti: TaskInstance) -> None:
         mark_success=args.mark_success,
         job_id=args.job_id,
         pool=args.pool,
-        error_file=args.error_file,
     )
 
 
-def _extract_external_executor_id(args) -> Optional[str]:
+def _extract_external_executor_id(args) -> str | None:
     if hasattr(args, "external_executor_id"):
         return getattr(args, "external_executor_id")
     return os.environ.get("external_executor_id", None)
 
 
 @contextmanager
-def _capture_task_logs(ti):
+def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
     """Manage logging context for a task run
 
     - Replace the root logger configuration with the airflow.task configuration
@@ -356,12 +363,12 @@ def task_run(args, dag=None):
         print(f'Loading pickle id: {args.pickle}')
         dag = get_dag_by_pickle(args.pickle)
     elif not dag:
-        dag = get_dag(args.subdir, args.dag_id)
+        dag = get_dag(args.subdir, args.dag_id, include_examples=False)
     else:
         # Use DAG from parameter
         pass
     task = dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.execution_date_or_run_id, args.map_index)
+    ti, _ = _get_ti(task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, pool=args.pool)
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
@@ -389,7 +396,7 @@ def task_failed_deps(args):
     """
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.execution_date_or_run_id, args.map_index)
+    ti, _ = _get_ti(task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id)
 
     dep_context = DepContext(deps=SCHEDULER_QUEUED_DEPS)
     failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
@@ -412,7 +419,7 @@ def task_state(args):
     """
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.execution_date_or_run_id, args.map_index)
+    ti, _ = _get_ti(task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id)
     print(ti.current_state())
 
 
@@ -428,7 +435,7 @@ def task_list(args, dag=None):
         print("\n".join(tasks))
 
 
-SUPPORTED_DEBUGGER_MODULES: List[str] = [
+SUPPORTED_DEBUGGER_MODULES: list[str] = [
     "pudb",
     "web_pdb",
     "ipdb",
@@ -485,7 +492,7 @@ def task_states_for_dag_run(args, session=None):
 
     has_mapped_instances = any(ti.map_index >= 0 for ti in dag_run.task_instances)
 
-    def format_task_instance(ti: TaskInstance) -> Dict[str, str]:
+    def format_task_instance(ti: TaskInstance) -> dict[str, str]:
         data = {
             "dag_id": ti.dag_id,
             "execution_date": dag_run.execution_date.isoformat(),
@@ -535,13 +542,16 @@ def task_test(args, dag=None):
     if task.params:
         task.params.validate()
 
-    ti, dr_created = _get_ti(task, args.execution_date_or_run_id, args.map_index, create_if_necessary="db")
+    ti, dr_created = _get_ti(
+        task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="db"
+    )
 
     try:
-        if args.dry_run:
-            ti.dry_run()
-        else:
-            ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
+        with redirect_stdout(RedactedIO()):
+            if args.dry_run:
+                ti.dry_run()
+            else:
+                ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
     except Exception:
         if args.post_mortem:
             debugger = _guess_debugger()
@@ -564,7 +574,9 @@ def task_render(args):
     """Renders and displays templated fields for a given task"""
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.execution_date_or_run_id, args.map_index, create_if_necessary="memory")
+    ti, _ = _get_ti(
+        task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="memory"
+    )
     ti.render_templates()
     for attr in task.__class__.template_fields:
         print(

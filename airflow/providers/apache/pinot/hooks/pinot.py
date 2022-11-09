@@ -15,17 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 import subprocess
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Iterable, Mapping
 
 from pinotdb import connect
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class PinotAdminHook(BaseHook):
@@ -102,24 +103,24 @@ class PinotAdminHook(BaseHook):
 
     def create_segment(
         self,
-        generator_config_file: Optional[str] = None,
-        data_dir: Optional[str] = None,
-        segment_format: Optional[str] = None,
-        out_dir: Optional[str] = None,
-        overwrite: Optional[str] = None,
-        table_name: Optional[str] = None,
-        segment_name: Optional[str] = None,
-        time_column_name: Optional[str] = None,
-        schema_file: Optional[str] = None,
-        reader_config_file: Optional[str] = None,
-        enable_star_tree_index: Optional[str] = None,
-        star_tree_index_spec_file: Optional[str] = None,
-        hll_size: Optional[str] = None,
-        hll_columns: Optional[str] = None,
-        hll_suffix: Optional[str] = None,
-        num_threads: Optional[str] = None,
-        post_creation_verification: Optional[str] = None,
-        retry: Optional[str] = None,
+        generator_config_file: str | None = None,
+        data_dir: str | None = None,
+        segment_format: str | None = None,
+        out_dir: str | None = None,
+        overwrite: str | None = None,
+        table_name: str | None = None,
+        segment_name: str | None = None,
+        time_column_name: str | None = None,
+        schema_file: str | None = None,
+        reader_config_file: str | None = None,
+        enable_star_tree_index: str | None = None,
+        star_tree_index_spec_file: str | None = None,
+        hll_size: str | None = None,
+        hll_columns: str | None = None,
+        hll_suffix: str | None = None,
+        num_threads: str | None = None,
+        post_creation_verification: str | None = None,
+        retry: str | None = None,
     ) -> Any:
         """Create Pinot segment by run CreateSegment command"""
         cmd = ["CreateSegment"]
@@ -180,7 +181,7 @@ class PinotAdminHook(BaseHook):
 
         self.run_cli(cmd)
 
-    def upload_segment(self, segment_dir: str, table_name: Optional[str] = None) -> Any:
+    def upload_segment(self, segment_dir: str, table_name: str | None = None) -> Any:
         """
         Upload Segment with run UploadSegment command
 
@@ -196,16 +197,14 @@ class PinotAdminHook(BaseHook):
             cmd += ["-tableName", table_name]
         self.run_cli(cmd)
 
-    def run_cli(self, cmd: List[str], verbose: bool = True) -> str:
+    def run_cli(self, cmd: list[str], verbose: bool = True) -> str:
         """
         Run command with pinot-admin.sh
 
         :param cmd: List of command going to be run by pinot-admin.sh script
         :param verbose:
         """
-        command = [self.cmd_path]
-        command.extend(cmd)
-
+        command = [self.cmd_path, *cmd]
         env = None
         if self.pinot_admin_system_exit:
             env = os.environ.copy()
@@ -220,7 +219,7 @@ class PinotAdminHook(BaseHook):
         ) as sub_process:
             stdout = ""
             if sub_process.stdout:
-                for line in iter(sub_process.stdout.readline, b''):
+                for line in iter(sub_process.stdout.readline, b""):
                     stdout += line.decode("utf-8")
                     if verbose:
                         self.log.info(line.decode("utf-8").strip())
@@ -246,8 +245,8 @@ class PinotDbApiHook(DbApiHook):
     https://docs.pinot.apache.org/users/api/querying-pinot-using-standard-sql
     """
 
-    conn_name_attr = 'pinot_broker_conn_id'
-    default_conn_name = 'pinot_broker_default'
+    conn_name_attr = "pinot_broker_conn_id"
+    default_conn_name = "pinot_broker_default"
     supports_autocommit = False
 
     def get_conn(self) -> Any:
@@ -257,10 +256,10 @@ class PinotDbApiHook(DbApiHook):
         pinot_broker_conn = connect(
             host=conn.host,
             port=conn.port,
-            path=conn.extra_dejson.get('endpoint', '/query/sql'),
-            scheme=conn.extra_dejson.get('schema', 'http'),
+            path=conn.extra_dejson.get("endpoint", "/query/sql"),
+            scheme=conn.extra_dejson.get("schema", "http"),
         )
-        self.log.info('Get the connection to pinot broker on %s', conn.host)
+        self.log.info("Get the connection to pinot broker on %s", conn.host)
         return pinot_broker_conn
 
     def get_uri(self) -> str:
@@ -272,12 +271,14 @@ class PinotDbApiHook(DbApiHook):
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         host = conn.host
         if conn.port is not None:
-            host += f':{conn.port}'
-        conn_type = 'http' if not conn.conn_type else conn.conn_type
-        endpoint = conn.extra_dejson.get('endpoint', 'query/sql')
-        return f'{conn_type}://{host}/{endpoint}'
+            host += f":{conn.port}"
+        conn_type = conn.conn_type or "http"
+        endpoint = conn.extra_dejson.get("endpoint", "query/sql")
+        return f"{conn_type}://{host}/{endpoint}"
 
-    def get_records(self, sql: str, parameters: Optional[Union[Dict[str, Any], Iterable[Any]]] = None) -> Any:
+    def get_records(
+        self, sql: str | list[str], parameters: Iterable | Mapping | None = None, **kwargs
+    ) -> Any:
         """
         Executes the sql and returns a set of records.
 
@@ -289,7 +290,7 @@ class PinotDbApiHook(DbApiHook):
             cur.execute(sql)
             return cur.fetchall()
 
-    def get_first(self, sql: str, parameters: Optional[Union[Dict[str, Any], Iterable[Any]]] = None) -> Any:
+    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping | None = None) -> Any:
         """
         Executes the sql and returns the first resulting row.
 
@@ -308,7 +309,7 @@ class PinotDbApiHook(DbApiHook):
         self,
         table: str,
         rows: str,
-        target_fields: Optional[str] = None,
+        target_fields: str | None = None,
         commit_every: int = 1000,
         replace: bool = False,
         **kwargs: Any,

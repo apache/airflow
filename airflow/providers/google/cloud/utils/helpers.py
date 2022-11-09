@@ -14,11 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains helper functions for Google Cloud operators."""
-from typing import Optional
+from __future__ import annotations
 
 
-def normalize_directory_path(source_object: Optional[str]) -> Optional[str]:
+def normalize_directory_path(source_object: str | None) -> str | None:
     """Makes sure dir path ends with a slash"""
     return source_object + "/" if source_object and not source_object.endswith("/") else source_object

@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-
-Amazon Simple Notification Service (SNS) Operators
-==================================================
+========================================
+Amazon Simple Notification Service (SNS)
+========================================
 
 `Amazon Simple Notification Service (Amazon SNS) <https://aws.amazon.com/sns/>`__  is a managed
 service that provides message delivery from publishers to subscribers (also known as producers
@@ -27,33 +27,29 @@ SNS topic and receive published messages using a supported endpoint type, such a
 Data Firehose, Amazon SQS, AWS Lambda, HTTP, email, mobile push notifications, and mobile text
 messages (SMS).
 
-Airflow provides an operator to publish messages to an SNS Topic.
-
 Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
+------------------
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: _partials/prerequisite_tasks.rst
 
+Operators
+---------
 
 .. _howto/operator:SnsPublishOperator:
 
-Publish A Message To An Existing SNS Topic
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Publish a message to an existing SNS topic
+==========================================
 
 To publish a message to an Amazon SNS Topic you can use
 :class:`~airflow.providers.amazon.aws.operators.sns.SnsPublishOperator`.
 
-
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sns.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sns.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sns_publish_operator]
     :end-before: [END howto_operator_sns_publish_operator]
 
-
 Reference
-^^^^^^^^^
+---------
 
-For further information, look at:
-
-* `Boto3 Library Documentation for SNS <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sns.html>`__
+* `AWS boto3 library documentation for SNS <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sns.html>`__

@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Speech to Text operator."""
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -26,6 +28,7 @@ from google.protobuf.json_format import MessageToDict
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook, RecognitionAudio
+from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -72,17 +75,18 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
         "impersonation_chain",
     )
     # [END gcp_speech_to_text_synthesize_template_fields]
+    operator_extra_links = (FileDetailsLink(),)
 
     def __init__(
         self,
         *,
         audio: RecognitionAudio,
         config: RecognitionConfig,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.audio = audio
@@ -101,11 +105,20 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
         if self.config == "":
             raise AirflowException("The required parameter 'config' is empty")
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudSpeechToTextHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
+
+        FileDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            # Slice from: "gs://{BUCKET_NAME}/{FILE_NAME}" to: "{BUCKET_NAME}/{FILE_NAME}"
+            uri=self.audio["uri"][5:],
+            project_id=self.project_id or hook.project_id,
+        )
+
         response = hook.recognize_speech(
             config=self.config, audio=self.audio, retry=self.retry, timeout=self.timeout
         )

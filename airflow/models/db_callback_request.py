@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from importlib import import_module
 
@@ -36,11 +37,12 @@ class DbCallbackRequest(Base):
     priority_weight = Column(Integer(), nullable=False)
     callback_data = Column(ExtendedJSON, nullable=False)
     callback_type = Column(String(20), nullable=False)
-    dag_directory = Column(String(1000), nullable=True)
+    processor_subdir = Column(String(2000), nullable=True)
 
     def __init__(self, priority_weight: int, callback: CallbackRequest):
         self.created_at = timezone.utcnow()
         self.priority_weight = priority_weight
+        self.processor_subdir = callback.processor_subdir
         self.callback_data = callback.to_json()
         self.callback_type = callback.__class__.__name__
 
