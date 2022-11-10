@@ -18,18 +18,35 @@
 from __future__ import annotations
 
 import abc
+import enum
 import logging
 import re
 import sys
 from io import IOBase
 from logging import Handler, Logger, StreamHandler
-from typing import IO
+from typing import IO, cast
 
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
 
-# Private: A sentinel object
-DISABLE_PROPOGATE = object()
+
+# Private: A sentinel objects
+class SetContextPropagate(enum.Enum):
+    """:meta private:"""
+
+    # If a `set_context` function wants to _keep_ propagation set on it's logger it needs to return this
+    # special value.
+    MAINTAIN_PROPAGATE = object()
+    # Don't use this one anymore!
+    DISABLE_PROPAGATE = object()
+
+
+def __getattr__(name):
+    if name in ("DISABLE_PROPOGATE", "DISABLE_PROPAGATE"):
+        # Compat for spelling on off chance someone is using this directly
+        # And old object that isn't needed anymore
+        return SetContextPropagate.DISABLE_PROPAGATE
+    raise AttributeError(f"module {__name__} has no attribute {name}")
 
 
 def remove_escape_codes(text: str) -> str:
@@ -183,13 +200,23 @@ def set_context(logger, value):
     :param value: value to set
     """
     while logger:
+        orig_propagate = logger.propagate
         for handler in logger.handlers:
             # Not all handlers need to have context passed in so we ignore
             # the error when handlers do not have set_context defined.
-            set_context = getattr(handler, "set_context", None)
-            if set_context and set_context(value) is DISABLE_PROPOGATE:
-                logger.propagate = False
-        if logger.propagate is True:
+
+            # Don't use getatrr so we have type checking. And we don't care if handler is actually a
+            # FileTaskHandler, it just needs to have a set_context function!
+            if hasattr(handler, "set_context"):
+                from airflow.utils.log.file_task_handler import FileTaskHandler
+
+                flag = cast(FileTaskHandler, handler).set_context(value)
+                # By default we disable propagate once we have configured the logger, unless that handler
+                # explicitly asks us to keep it on.
+                if flag is not SetContextPropagate.MAINTAIN_PROPAGATE:
+                    logger.propagate = False
+        if orig_propagate is True:
+            # If we were set to propagate before we turned if off, then keep passing set_context up
             logger = logger.parent
         else:
             break

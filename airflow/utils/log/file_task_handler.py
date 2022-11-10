@@ -29,13 +29,13 @@ from airflow.configuration import AirflowConfigException, conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
-from airflow.utils.log.logging_mixin import DISABLE_PROPOGATE
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
+    from airflow.utils.log.logging_mixin import SetContextPropagate
 
 
 class FileTaskHandler(logging.Handler):
@@ -62,7 +62,7 @@ class FileTaskHandler(logging.Handler):
                 stacklevel=(2 if type(self) == FileTaskHandler else 3),
             )
 
-    def set_context(self, ti: TaskInstance):
+    def set_context(self, ti: TaskInstance) -> None | SetContextPropagate:
         """
         Provide task_instance context to airflow task handler.
 
@@ -73,8 +73,7 @@ class FileTaskHandler(logging.Handler):
         if self.formatter:
             self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
-
-        return DISABLE_PROPOGATE
+        return None
 
     def emit(self, record):
         if self.handler:
