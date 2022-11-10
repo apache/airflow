@@ -42,15 +42,13 @@ class RedshiftSQLOperator(SQLExecuteQueryOperator):
 
     template_fields: Sequence[str] = (
         "sql",
-        "redshift_conn_id",
         "conn_id",
     )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "postgresql"}
 
     def __init__(self, *, redshift_conn_id: str = "redshift_default", **kwargs) -> None:
-        self.redshift_conn_id = redshift_conn_id
-        super().__init__(conn_id=self.redshift_conn_id, **kwargs)
+        super().__init__(conn_id=redshift_conn_id, **kwargs)
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.""",
