@@ -224,7 +224,8 @@ class ExternalTaskSensor(BaseSensorOperator):
         if self.failed_states:
             count_failed = self.get_count(dttm_filter, session, self.failed_states)
 
-        if count_failed == len(dttm_filter):
+        # Fail if anything in the list has failed.
+        if count_failed > 0:
             if self.external_task_ids:
                 if self.soft_fail:
                     raise AirflowSkipException(

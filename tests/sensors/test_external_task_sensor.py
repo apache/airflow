@@ -418,6 +418,30 @@ exit 0
         with pytest.raises(AirflowSensorTimeout):
             task_with_failure.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+        # Test to ensure that if one task in a chain of tasks fails, the
+        # ExternalTaskSensor will also report a failure and return without
+        # waiting for a timeout.
+        task_chain_with_failure = ExternalTaskSensor(
+            task_id="task_chain_with_failure",
+            external_dag_id=dag_external_id,
+            external_task_id="task_external_with_failure",
+            execution_date_fn=lambda dt: [dt + timedelta(seconds=i) for i in range(3)],
+            allowed_states=["success"],
+            failed_states=["failed"],
+            retries=0,
+            timeout=5,
+            poke_interval=1,
+            dag=dag,
+        )
+
+        # We need to test for an AirflowException explicitly since
+        # AirflowSensorTimeout is a subclass that will be raised if this does
+        # not execute properly.
+        try:
+            task_chain_with_failure.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        except AirflowException as ex:
+            assert type(ex) == AirflowException
+
     def test_external_task_sensor_delta(self):
         self.add_time_sensor()
         op = ExternalTaskSensor(
