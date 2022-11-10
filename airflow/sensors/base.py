@@ -99,8 +99,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         pokes by using exponential backoff algorithm
     """
 
-    ui_color: str = '#e6f1f2'
-    valid_modes = ['poke', 'reschedule']  # type: Iterable[str]
+    ui_color: str = "#e6f1f2"
+    valid_modes = ["poke", "reschedule"]  # type: Iterable[str]
 
     # Adds one additional dependency for all sensor operators that checks if a
     # sensor task instance can be rescheduled.
@@ -110,9 +110,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self,
         *,
         poke_interval: float = 60,
-        timeout: float = conf.getfloat('sensors', 'default_timeout'),
+        timeout: float = conf.getfloat("sensors", "default_timeout"),
         soft_fail: bool = False,
-        mode: str = 'poke',
+        mode: str = "poke",
         exponential_backoff: bool = False,
         **kwargs,
     ) -> None:
@@ -151,7 +151,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         Function that the sensors defined while deriving this class should
         override.
         """
-        raise AirflowException('Override me.')
+        raise AirflowException("Override me.")
 
     def execute(self, context: Context) -> Any:
         started_at: datetime.datetime | float
@@ -160,9 +160,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
             # If reschedule, use the start date of the first try (first try can be either the very
             # first execution of the task, or the first execution after the task was cleared.)
-            first_try_number = context['ti'].max_tries - self.retries + 1
+            first_try_number = context["ti"].max_tries - self.retries + 1
             task_reschedules = TaskReschedule.find_for_task_instance(
-                context['ti'], try_number=first_try_number
+                context["ti"], try_number=first_try_number
             )
             if not task_reschedules:
                 start_date = timezone.utcnow()
@@ -241,15 +241,15 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         # Sensors in `poke` mode can block execution of DAGs when running
         # with single process executor, thus we change the mode to`reschedule`
         # to allow parallel task being scheduled and executed
-        if conf.get('core', 'executor') == "DebugExecutor":
+        if conf.get("core", "executor") == "DebugExecutor":
             self.log.warning("DebugExecutor changes sensor mode to 'reschedule'.")
-            task.mode = 'reschedule'
+            task.mode = "reschedule"
         return task
 
     @property
     def reschedule(self):
         """Define mode rescheduled sensors."""
-        return self.mode == 'reschedule'
+        return self.mode == "reschedule"
 
     @classmethod
     def get_serialized_fields(cls):
@@ -269,10 +269,10 @@ def poke_mode_only(cls):
 
     def decorate(cls_type):
         def mode_getter(_):
-            return 'poke'
+            return "poke"
 
         def mode_setter(_, value):
-            if value != 'poke':
+            if value != "poke":
                 raise ValueError("cannot set mode to 'poke'.")
 
         if not issubclass(cls_type, BaseSensorOperator):

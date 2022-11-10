@@ -42,13 +42,13 @@ class GenericTransfer(BaseOperator):
     :param insert_args: extra params for `insert_rows` method.
     """
 
-    template_fields: Sequence[str] = ('sql', 'destination_table', 'preoperator')
+    template_fields: Sequence[str] = ("sql", "destination_table", "preoperator")
     template_ext: Sequence[str] = (
-        '.sql',
-        '.hql',
+        ".sql",
+        ".hql",
     )
     template_fields_renderers = {"preoperator": "sql"}
-    ui_color = '#b0f07c'
+    ui_color = "#b0f07c"
 
     def __init__(
         self,
@@ -75,7 +75,7 @@ class GenericTransfer(BaseOperator):
 
         self.log.info("Extracting data from %s", self.source_conn_id)
         self.log.info("Executing: \n %s", self.sql)
-        get_records = getattr(source_hook, 'get_records', None)
+        get_records = getattr(source_hook, "get_records", None)
         if not callable(get_records):
             raise RuntimeError(
                 f"Hook for connection {self.source_conn_id!r} "
@@ -85,7 +85,7 @@ class GenericTransfer(BaseOperator):
             results = get_records(self.sql)
 
         if self.preoperator:
-            run = getattr(destination_hook, 'run', None)
+            run = getattr(destination_hook, "run", None)
             if not callable(run):
                 raise RuntimeError(
                     f"Hook for connection {self.destination_conn_id!r} "
@@ -95,7 +95,7 @@ class GenericTransfer(BaseOperator):
             self.log.info(self.preoperator)
             run(self.preoperator)
 
-        insert_rows = getattr(destination_hook, 'insert_rows', None)
+        insert_rows = getattr(destination_hook, "insert_rows", None)
         if not callable(insert_rows):
             raise RuntimeError(
                 f"Hook for connection {self.destination_conn_id!r} "

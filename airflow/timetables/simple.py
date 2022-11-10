@@ -146,9 +146,9 @@ class DatasetTriggeredTimetable(NullTimetable):
             return DataInterval(logical_date, logical_date)
 
         start = min(
-            events, key=operator.attrgetter('source_dag_run.data_interval_start')
+            events, key=operator.attrgetter("source_dag_run.data_interval_start")
         ).source_dag_run.data_interval_start
         end = max(
-            events, key=operator.attrgetter('source_dag_run.data_interval_end')
+            events, key=operator.attrgetter("source_dag_run.data_interval_end")
         ).source_dag_run.data_interval_end
         return DataInterval(start, end)

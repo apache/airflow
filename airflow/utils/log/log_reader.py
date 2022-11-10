@@ -73,29 +73,29 @@ class TaskLogReader:
         else:
             try_numbers = [try_number]
         for current_try_number in try_numbers:
-            metadata.pop('end_of_log', None)
-            metadata.pop('max_offset', None)
-            metadata.pop('offset', None)
-            metadata.pop('log_pos', None)
-            while 'end_of_log' not in metadata or (
-                not metadata['end_of_log'] and ti.state not in State.running
+            metadata.pop("end_of_log", None)
+            metadata.pop("max_offset", None)
+            metadata.pop("offset", None)
+            metadata.pop("log_pos", None)
+            while "end_of_log" not in metadata or (
+                not metadata["end_of_log"] and ti.state not in State.running
             ):
                 logs, metadata = self.read_log_chunks(ti, current_try_number, metadata)
                 for host, log in logs[0]:
-                    yield "\n".join([host or '', log]) + "\n"
+                    yield "\n".join([host or "", log]) + "\n"
 
     @cached_property
     def log_handler(self):
         """Log handler, which is configured to read logs."""
-        logger = logging.getLogger('airflow.task')
-        task_log_reader = conf.get('logging', 'task_log_reader')
+        logger = logging.getLogger("airflow.task")
+        task_log_reader = conf.get("logging", "task_log_reader")
         handler = next((handler for handler in logger.handlers if handler.name == task_log_reader), None)
         return handler
 
     @property
     def supports_read(self):
         """Checks if a read operation is supported by a current log handler."""
-        return hasattr(self.log_handler, 'read')
+        return hasattr(self.log_handler, "read")
 
     @property
     def supports_external_link(self) -> bool:
