@@ -2576,7 +2576,7 @@ class SimpleTaskInstance:
             val = new_dict[key]
             if not val or isinstance(val, str):
                 continue
-            new_dict.update({key: val.isoformat()})
+            new_dict[key] = val.isoformat()
         executor_config = new_dict["executor_config"]
         new_dict["executor_config"] = ExecutorConfigType.serialize_pod_override(executor_config)
         return new_dict
