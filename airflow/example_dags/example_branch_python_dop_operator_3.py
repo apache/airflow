@@ -39,22 +39,22 @@ def should_run(**kwargs) -> str:
     print(
         f"------------- exec dttm = {kwargs['execution_date']} and minute = {kwargs['execution_date'].minute}"
     )
-    if kwargs['execution_date'].minute % 2 == 0:
+    if kwargs["execution_date"].minute % 2 == 0:
         return "empty_task_1"
     else:
         return "empty_task_2"
 
 
 with DAG(
-    dag_id='example_branch_dop_operator_v3',
-    schedule='*/1 * * * *',
+    dag_id="example_branch_dop_operator_v3",
+    schedule="*/1 * * * *",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
-    default_args={'depends_on_past': True},
-    tags=['example'],
+    default_args={"depends_on_past": True},
+    tags=["example"],
 ) as dag:
     cond = should_run()
 
-    empty_task_1 = EmptyOperator(task_id='empty_task_1')
-    empty_task_2 = EmptyOperator(task_id='empty_task_2')
+    empty_task_1 = EmptyOperator(task_id="empty_task_1")
+    empty_task_2 = EmptyOperator(task_id="empty_task_2")
     cond >> [empty_task_1, empty_task_2]

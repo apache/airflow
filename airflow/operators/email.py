@@ -41,10 +41,10 @@ class EmailOperator(BaseOperator):
     :param custom_headers: additional headers to add to the MIME message.
     """
 
-    template_fields: Sequence[str] = ('to', 'subject', 'html_content', 'files')
+    template_fields: Sequence[str] = ("to", "subject", "html_content", "files")
     template_fields_renderers = {"html_content": "html"}
-    template_ext: Sequence[str] = ('.html',)
-    ui_color = '#e6faf9'
+    template_ext: Sequence[str] = (".html",)
+    ui_color = "#e6faf9"
 
     def __init__(
         self,
@@ -55,8 +55,8 @@ class EmailOperator(BaseOperator):
         files: list | None = None,
         cc: list[str] | str | None = None,
         bcc: list[str] | str | None = None,
-        mime_subtype: str = 'mixed',
-        mime_charset: str = 'utf-8',
+        mime_subtype: str = "mixed",
+        mime_charset: str = "utf-8",
         conn_id: str | None = None,
         custom_headers: dict[str, Any] | None = None,
         **kwargs,

@@ -32,11 +32,11 @@ from airflow import settings
 from airflow.models import DagBag
 
 # revision identifiers, used by Alembic.
-revision = 'cc1e65623dc7'
-down_revision = '127d2bf2dfa7'
+revision = "cc1e65623dc7"
+down_revision = "127d2bf2dfa7"
 branch_labels = None
 depends_on = None
-airflow_version = '1.8.2'
+airflow_version = "1.8.2"
 
 Base = declarative_base()
 BATCH_SIZE = 5000
@@ -55,7 +55,7 @@ class TaskInstance(Base):  # type: ignore
 
 
 def upgrade():
-    op.add_column('task_instance', sa.Column('max_tries', sa.Integer, server_default="-1"))
+    op.add_column("task_instance", sa.Column("max_tries", sa.Integer, server_default="-1"))
     # Check if table task_instance exist before data migration. This check is
     # needed for database that does not create table until migration finishes.
     # Checking task_instance table exists prevent the error of querying
@@ -64,7 +64,7 @@ def upgrade():
     inspector = inspect(connection)
     tables = inspector.get_table_names()
 
-    if 'task_instance' in tables:
+    if "task_instance" in tables:
         # Get current session
         sessionmaker = sa.orm.sessionmaker()
         session = sessionmaker(bind=connection)
@@ -101,7 +101,7 @@ def upgrade():
 def downgrade():
     engine = settings.engine
     connection = op.get_bind()
-    if engine.dialect.has_table(connection, 'task_instance'):
+    if engine.dialect.has_table(connection, "task_instance"):
         sessionmaker = sa.orm.sessionmaker()
         session = sessionmaker(bind=connection)
         dagbag = DagBag(settings.DAGS_FOLDER)
@@ -123,4 +123,4 @@ def downgrade():
                 session.merge(ti)
             session.commit()
         session.commit()
-    op.drop_column('task_instance', 'max_tries')
+    op.drop_column("task_instance", "max_tries")

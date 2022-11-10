@@ -30,11 +30,11 @@ from airflow.security import permissions
 from airflow.www.app import cached_app
 
 # revision identifiers, used by Alembic.
-revision = '2c6edca13270'
-down_revision = '849da589634d'
+revision = "2c6edca13270"
+down_revision = "849da589634d"
 branch_labels = None
 depends_on = None
-airflow_version = '2.0.0'
+airflow_version = "2.0.0"
 
 
 mapping = {
@@ -288,7 +288,7 @@ mapping = {
 
 def remap_permissions():
     """Apply Map Airflow permissions."""
-    appbuilder = cached_app(config={'FAB_UPDATE_PERMS': False}).appbuilder
+    appbuilder = cached_app(config={"FAB_UPDATE_PERMS": False}).appbuilder
     for old, new in mapping.items():
         (old_resource_name, old_action_name) = old
         old_permission = appbuilder.sm.get_permission(old_action_name, old_resource_name)
@@ -313,7 +313,7 @@ def remap_permissions():
 
 def undo_remap_permissions():
     """Unapply Map Airflow permissions"""
-    appbuilder = cached_app(config={'FAB_UPDATE_PERMS': False}).appbuilder
+    appbuilder = cached_app(config={"FAB_UPDATE_PERMS": False}).appbuilder
     for old, new in mapping.items():
         (new_resource_name, new_action_name) = new[0]
         new_permission = appbuilder.sm.get_permission(new_action_name, new_resource_name)

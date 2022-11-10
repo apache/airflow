@@ -61,7 +61,7 @@ def get_tasks(*, dag_id: str, order_by: str = "task_id") -> APIResponse:
     tasks = dag.tasks
 
     try:
-        tasks = sorted(tasks, key=attrgetter(order_by.lstrip('-')), reverse=(order_by[0:1] == '-'))
+        tasks = sorted(tasks, key=attrgetter(order_by.lstrip("-")), reverse=(order_by[0:1] == "-"))
     except AttributeError as err:
         raise BadRequest(detail=str(err))
     task_collection = TaskCollection(tasks=tasks, total_entries=len(tasks))

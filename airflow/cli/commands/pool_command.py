@@ -126,6 +126,6 @@ def pool_export_helper(filepath):
     pools = api_client.get_pools()
     for pool in pools:
         pool_dict[pool[0]] = {"slots": pool[1], "description": pool[2]}
-    with open(filepath, 'w') as poolfile:
+    with open(filepath, "w") as poolfile:
         poolfile.write(json.dumps(pool_dict, sort_keys=True, indent=4))
     return pools
