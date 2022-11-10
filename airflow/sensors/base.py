@@ -97,9 +97,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         prevent too much load on the scheduler.
     :param exponential_backoff: allow progressive longer waits between
         pokes by using exponential backoff algorithm
-    :param max_wait: maximum wait interval between pokes, can be set as
-        ``timedelta`` or ``float`` seconds, which will be converted into
-        ``timedelta``.
+    :param max_wait: maximum wait interval between pokes, can be ``timedelta`` or ``float`` seconds
     """
 
     ui_color: str = "#e6f1f2"
