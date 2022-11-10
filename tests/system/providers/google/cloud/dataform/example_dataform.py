@@ -36,8 +36,11 @@ from airflow.providers.google.cloud.operators.dataform import (
     DataformDeleteWorkspaceOperator,
     DataformGetCompilationResultOperator,
     DataformGetWorkflowInvocationOperator,
+    DataformInstallNpmPackagesOperator,
+    DataformMakeDirectoryOperator,
     DataformRemoveDirectoryOperator,
     DataformRemoveFileOperator,
+    DataformWriteFileOperator,
 )
 from airflow.providers.google.cloud.sensors.dataform import DataformWorkflowInvocationStateSensor
 from airflow.providers.google.cloud.utils.dataform import make_initialization_workspace_flow
@@ -86,8 +89,19 @@ with models.DAG(
         repository_id=REPOSITORY_ID,
         workspace_id=WORKSPACE_ID,
         package_name=f"dataform_package_{ENV_ID}",
+        without_installation=True,
     )
     # [END howto_initialize_workspace]
+
+    # [START howto_operator_install_npm_packages]
+    install_npm_packages = DataformInstallNpmPackagesOperator(
+        task_id="install-npm-packages",
+        project_id=PROJECT_ID,
+        region=REGION,
+        repository_id=REPOSITORY_ID,
+        workspace_id=WORKSPACE_ID,
+    )
+    # [END howto_operator_install_npm_packages]
 
     # [START howto_operator_create_compilation_result]
     create_compilation_result = DataformCreateCompilationResultOperator(
@@ -188,25 +202,51 @@ with models.DAG(
     )
     # [END howto_operator_cancel_workflow_invocation]
 
-    # [START howto_operator_remove_file]
-    remove_file = DataformRemoveFileOperator(
-        task_id="remove-file",
+    # [START howto_operator_make_directory]
+    make_test_directory = DataformMakeDirectoryOperator(
+        task_id="make-test-directory",
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
         workspace_id=WORKSPACE_ID,
-        filepath="package-lock.json",
+        directory_path="test",
+    )
+    # [END howto_operator_make_directory]
+
+    # [START howto_operator_write_file]
+    test_file_content = b"""
+    test test for test file
+    """
+    write_test_file = DataformWriteFileOperator(
+        task_id="make-test-file",
+        project_id=PROJECT_ID,
+        region=REGION,
+        repository_id=REPOSITORY_ID,
+        workspace_id=WORKSPACE_ID,
+        filepath="test/test.txt",
+        contents=test_file_content,
+    )
+    # [END howto_operator_write_file]
+
+    # [START howto_operator_remove_file]
+    remove_test_file = DataformRemoveFileOperator(
+        task_id="remove-test-file",
+        project_id=PROJECT_ID,
+        region=REGION,
+        repository_id=REPOSITORY_ID,
+        workspace_id=WORKSPACE_ID,
+        filepath="test/test.txt",
     )
     # [END howto_operator_remove_file]
 
     # [START howto_operator_remove_directory]
-    remove_directory = DataformRemoveDirectoryOperator(
-        task_id="remove-directory",
+    remove_test_directory = DataformRemoveDirectoryOperator(
+        task_id="remove-test-directory",
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
         workspace_id=WORKSPACE_ID,
-        directory_path="definitions",
+        directory_path="test",
     )
     # [END howto_operator_remove_directory]
 
@@ -236,6 +276,7 @@ with models.DAG(
     (make_repository >> make_workspace >> first_initialization_step)
     (
         last_initialization_step
+        >> install_npm_packages
         >> create_compilation_result
         >> get_compilation_result
         >> create_workflow_invocation
@@ -244,8 +285,10 @@ with models.DAG(
         >> is_workflow_invocation_done
         >> create_workflow_invocation_for_cancel
         >> cancel_workflow_invocation
-        >> remove_file
-        >> remove_directory
+        >> make_test_directory
+        >> write_test_file
+        >> remove_test_file
+        >> remove_test_directory
         >> delete_workspace
         >> delete_repository
     )

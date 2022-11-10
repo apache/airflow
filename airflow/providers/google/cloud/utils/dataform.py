@@ -41,6 +41,7 @@ def make_initialization_workspace_flow(
     repository_id: str,
     workspace_id: str,
     package_name: str | None = None,
+    without_installation: bool = False,
 ) -> tuple:
     """
     Creates flow which simulates the initialization of the default project.
@@ -49,6 +50,7 @@ def make_initialization_workspace_flow(
     :param repository_id: Required. The ID of the Dataform repository where workspace located.
     :param workspace_id: Required. The ID of the Dataform workspace which requires initialization.
     :param package_name: Name of the package. If value is not provided then workspace_id will be used.
+    :param without_installation: Defines should installation of npm packages be added to flow.
     """
     make_definitions_directory = DataformMakeDirectoryOperator(
         task_id="make-definitions-directory",
@@ -62,7 +64,7 @@ def make_initialization_workspace_flow(
     first_view_content = b"""
         -- This is an example SQLX file to help you learn the basics of Dataform.
         -- Visit https://cloud.google.com/dataform/docs/how-to for more information on how to configure
-            your SQL workflow.
+        --   your SQL workflow.
 
         -- You can delete this file, then commit and push your changes to your repository when you are ready.
 
@@ -93,7 +95,7 @@ def make_initialization_workspace_flow(
 
         -- Use the ref() function to manage dependencies.
         -- Learn more about ref() and other built in functions
-            here: https://cloud.google.com/dataform/docs/dataform-core
+        --  here: https://cloud.google.com/dataform/docs/dataform-core
 
         SELECT test from ${ref("first_view")}
     """
@@ -170,14 +172,6 @@ def make_initialization_workspace_flow(
         contents=package_json_content,
     )
 
-    install_npm_packages = DataformInstallNpmPackagesOperator(
-        task_id="install-npm-packages",
-        project_id=project_id,
-        region=region,
-        repository_id=repository_id,
-        workspace_id=workspace_id,
-    )
-
     (
         make_definitions_directory
         >> make_first_view_file
@@ -185,9 +179,19 @@ def make_initialization_workspace_flow(
         >> make_gitignore_file
         >> make_dataform_config_file
         >> make_package_json_file
-        >> install_npm_packages
-        >> make_includes_directory
     )
+
+    if without_installation:
+        make_package_json_file >> make_includes_directory
+    else:
+        install_npm_packages = DataformInstallNpmPackagesOperator(
+            task_id="install-npm-packages",
+            project_id=project_id,
+            region=region,
+            repository_id=repository_id,
+            workspace_id=workspace_id,
+        )
+        make_package_json_file >> install_npm_packages >> make_includes_directory
 
     return make_definitions_directory, make_includes_directory
 

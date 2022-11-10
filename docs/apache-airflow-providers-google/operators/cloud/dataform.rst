@@ -192,3 +192,39 @@ Creates default projects structure for provided workspace. Before it can be done
     :dedent: 0
     :start-after: [START howto_initialize_workspace]
     :end-before: [END howto_initialize_workspace]
+
+Write file to workspace
+-----------------------
+Writes file with given content to specified workspace.
+
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformWriteFileOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_write_file]
+    :end-before: [END howto_operator_write_file]
+
+Make directory in workspace
+---------------------------
+Make directory with given path in specified workspace.
+
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformMakeDirectoryOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_make_directory]
+    :end-before: [END howto_operator_make_directory]
+
+Install NPM packages
+--------------------
+Installs npm packages for specified workspace
+
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformInstallNpmPackagesOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_install_npm_packages]
+    :end-before: [END howto_operator_install_npm_packages]
