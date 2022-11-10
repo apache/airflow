@@ -2572,12 +2572,13 @@ class SimpleTaskInstance:
 
     def as_dict(self):
         new_dict = dict(self.__dict__)
-        for key in new_dict:
-            if key in ["start_date", "end_date"]:
-                val = new_dict[key]
-                if not val or isinstance(val, str):
-                    continue
-                new_dict.update({key: val.isoformat()})
+        for key in ["start_date", "end_date"]:
+            val = new_dict[key]
+            if not val or isinstance(val, str):
+                continue
+            new_dict.update({key: val.isoformat()})
+        executor_config = new_dict["executor_config"]
+        new_dict["executor_config"] = ExecutorConfigType.serialize_pod_override(executor_config)
         return new_dict
 
     @classmethod
@@ -2610,6 +2611,8 @@ class SimpleTaskInstance:
             start_date = timezone.parse(start_date_str)
         if end_date_str:
             end_date = timezone.parse(end_date_str)
+        executor_config = obj_dict["executor_config"]
+        obj_dict["executor_config"] = ExecutorConfigType.deserialize_pod_override(executor_config)
         return cls(**obj_dict, start_date=start_date, end_date=end_date, key=ti_key)
 
 

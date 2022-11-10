@@ -163,35 +163,43 @@ class ExecutorConfigType(PickleType):
 
     cache_ok = True
 
+    @staticmethod
+    def serialize_pod_override(val):
+
+        if isinstance(val, dict) and "pod_override" in val:
+            from airflow.serialization.serialized_objects import BaseSerialization
+
+            val["pod_override"] = BaseSerialization.serialize(val["pod_override"])
+        return val
+
+    @staticmethod
+    def deserialize_pod_override(val):
+        if isinstance(val, dict) and "pod_override" in val:
+            pod_override = val["pod_override"]
+
+            # If pod_override was serialized with Airflow's BaseSerialization, deserialize it
+            if isinstance(pod_override, dict) and pod_override.get(Encoding.TYPE):
+                from airflow.serialization.serialized_objects import BaseSerialization
+
+                val["pod_override"] = BaseSerialization.deserialize(pod_override)
+        return val
+
     def bind_processor(self, dialect):
-
-        from airflow.serialization.serialized_objects import BaseSerialization
-
         super_process = super().bind_processor(dialect)
 
         def process(value):
             val_copy = copy.copy(value)
-            if isinstance(val_copy, dict) and "pod_override" in val_copy:
-                val_copy["pod_override"] = BaseSerialization.serialize(val_copy["pod_override"])
+            val_copy = self.serialize_pod_override(val_copy)
             return super_process(val_copy)
 
         return process
 
     def result_processor(self, dialect, coltype):
-        from airflow.serialization.serialized_objects import BaseSerialization
-
         super_process = super().result_processor(dialect, coltype)
 
         def process(value):
             value = super_process(value)  # unpickle
-
-            if isinstance(value, dict) and "pod_override" in value:
-                pod_override = value["pod_override"]
-
-                # If pod_override was serialized with Airflow's BaseSerialization, deserialize it
-                if isinstance(pod_override, dict) and pod_override.get(Encoding.TYPE):
-                    value["pod_override"] = BaseSerialization.deserialize(pod_override)
-            return value
+            return self.deserialize_pod_override(value)
 
         return process
 
