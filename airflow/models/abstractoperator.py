@@ -18,10 +18,12 @@
 from __future__ import annotations
 
 import datetime
+import functools
 import inspect
+import operator
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
-from airflow.compat.functools import cached_property
+from airflow.compat.functools import cache, cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.taskmixin import DAGNode
@@ -30,6 +32,7 @@ from airflow.utils.helpers import render_template_as_native, render_template_to_
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
@@ -63,6 +66,10 @@ DEFAULT_TRIGGER_RULE: TriggerRule = TriggerRule.ALL_SUCCESS
 DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta | None = conf.gettimedelta(
     "core", "default_task_execution_timeout"
 )
+
+
+class NotMapped(Exception):
+    """Raise if a task is neither mapped nor has any parent mapped groups."""
 
 
 class AbstractOperator(LoggingMixin, DAGNode):
@@ -276,6 +283,14 @@ class AbstractOperator(LoggingMixin, DAGNode):
             if any(p.node_id == self.node_id for p in downstream.iter_mapped_dependencies())
         )
 
+    def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
+        """Return mapped task groups this task belongs to."""
+        parent = self.task_group
+        while parent is not None:
+            if isinstance(parent, MappedTaskGroup):
+                yield parent
+            parent = parent.task_group
+
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
         """Get the "normal" operator from current abstract operator.
 
@@ -369,6 +384,43 @@ class AbstractOperator(LoggingMixin, DAGNode):
         if old_signature:
             return link.get_link(self.unmap(None), ti.dag_run.logical_date)  # type: ignore[misc]
         return link.get_link(self.unmap(None), ti_key=ti.key)
+
+    @cache
+    def get_parse_time_mapped_ti_count(self) -> int:
+        """Number of mapped task instances that can be created on DAG run creation.
+
+        This only considers literal mapped arguments, and would return *None*
+        when any non-literal values are used for mapping.
+
+        :raise NotFullyPopulated: If non-literal mapped arguments are encountered.
+        :raise NotMapped: If the operator is neither mapped, nor has any parent
+            mapped task groups.
+        :return: Total number of mapped TIs this task should have.
+        """
+        mapped_task_groups = list(self.iter_mapped_task_groups())
+        if not mapped_task_groups:
+            raise NotMapped
+        counts = (g.get_parse_time_mapped_ti_count() for g in mapped_task_groups)
+        return functools.reduce(operator.mul, counts)
+
+    def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
+        """Number of mapped TaskInstances that can be created at run time.
+
+        This considers both literal and non-literal mapped arguments, and the
+        result is therefore available when all depended tasks have finished. The
+        return value should be identical to ``parse_time_mapped_ti_count`` if
+        all mapped arguments are literal.
+
+        :raise NotFullyPopulated: If upstream tasks are not all complete yet.
+        :raise NotMapped: If the operator is neither mapped, nor has any parent
+            mapped task groups.
+        :return: Total number of mapped TIs this task should have.
+        """
+        mapped_task_groups = list(self.iter_mapped_task_groups())
+        if not mapped_task_groups:
+            raise NotMapped
+        counts = (g.get_mapped_ti_count(run_id, session=session) for g in mapped_task_groups)
+        return functools.reduce(operator.mul, counts)
 
     def render_template_fields(
         self,
