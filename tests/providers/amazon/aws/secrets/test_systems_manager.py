@@ -16,16 +16,36 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+import json
+from unittest import mock
 
+import pytest
 from moto import mock_ssm
 
 from airflow.configuration import initialize_secrets_backends
 from airflow.providers.amazon.aws.secrets.systems_manager import SystemsManagerParameterStoreBackend
 from tests.test_utils.config import conf_vars
 
+URI_CONNECTION = pytest.param(
+    "postgres://my-login:my-pass@my-host:5432/my-schema?param1=val1&param2=val2", id="uri-connection"
+)
+JSON_CONNECTION = pytest.param(
+    json.dumps(
+        {
+            "conn_type": "postgres",
+            "login": "my-login",
+            "password": "my-pass",
+            "host": "my-host",
+            "port": 5432,
+            "schema": "my-schema",
+            "extra": {"param1": "val1", "param2": "val2"},
+        }
+    ),
+    id="json-connection",
+)
 
-class TestSsmSecrets(TestCase):
+
+class TestSsmSecrets:
     @mock.patch(
         "airflow.providers.amazon.aws.secrets.systems_manager."
         "SystemsManagerParameterStoreBackend.get_conn_value"
@@ -36,18 +56,50 @@ class TestSsmSecrets(TestCase):
         assert conn.host == "host"
 
     @mock_ssm
-    def test_get_conn_value(self):
+    @pytest.mark.parametrize("ssm_value", [JSON_CONNECTION, URI_CONNECTION])
+    def test_get_conn_value(self, ssm_value):
         param = {
             "Name": "/airflow/connections/test_postgres",
             "Type": "String",
-            "Value": "postgresql://airflow:airflow@host:5432/airflow",
+            "Value": ssm_value,
         }
 
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
 
-        returned_uri = ssm_backend.get_conn_value(conn_id="test_postgres")
-        assert "postgresql://airflow:airflow@host:5432/airflow" == returned_uri
+        returned_conn_value = ssm_backend.get_conn_value(conn_id="test_postgres")
+        assert ssm_value == returned_conn_value
+
+        test_conn = ssm_backend.get_connection(conn_id="test_postgres")
+        assert test_conn.conn_id == "test_postgres"
+        assert test_conn.conn_type == "postgres"
+        assert test_conn.login == "my-login"
+        assert test_conn.password == "my-pass"
+        assert test_conn.host == "my-host"
+        assert test_conn.port == 5432
+        assert test_conn.schema == "my-schema"
+        assert test_conn.extra_dejson == {"param1": "val1", "param2": "val2"}
+
+    @mock_ssm
+    @pytest.mark.parametrize("ssm_value", [JSON_CONNECTION, URI_CONNECTION])
+    def test_deprecated_get_conn_uri(self, ssm_value):
+        param = {
+            "Name": "/airflow/connections/test_postgres",
+            "Type": "String",
+            "Value": ssm_value,
+        }
+
+        ssm_backend = SystemsManagerParameterStoreBackend()
+        ssm_backend.client.put_parameter(**param)
+
+        warning_message = (
+            r"Method `.*\.get_conn_uri` is deprecated and will be removed in a future release\. "
+            r"Please use method `get_conn_value` instead\."
+        )
+        with pytest.warns(DeprecationWarning, match=warning_message):
+            returned_uri = ssm_backend.get_conn_uri(conn_id="test_postgres")
+
+        assert returned_uri == "postgres://my-login:my-pass@my-host:5432/my-schema?param1=val1&param2=val2"
 
     @mock_ssm
     def test_get_conn_value_non_existent_key(self):
