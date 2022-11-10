@@ -1,4 +1,4 @@
-The helm chart is now using a newer version of bitnami/postgresql (from 10.5.3 to 12.0.1)
+The helm chart is now using a newer version of bitnami/postgresql (from 10.5.3 to 12.1.1)
 
 This version of the chart uses different variable names for setting usernames and passwords in the postgres database.
 ```postgresql.auth.enablePostgresUser``` is used to determine if the "postgres" admin account will be created.
