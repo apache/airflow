@@ -133,7 +133,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             return max_wait
         if isinstance(max_wait, (int, float)) and max_wait >= 0:
             return timedelta(seconds=max_wait)
-        raise AirflowException("The max_wait must be timedelta object or a non-negative number")
+        raise AirflowException("Operator arg `max_wait` must be timedelta object or a non-negative number")
 
     def _validate_input_values(self) -> None:
         if not isinstance(self.poke_interval, (int, float)) or self.poke_interval < 0:
