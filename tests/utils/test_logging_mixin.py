@@ -17,10 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+import sys
 import warnings
 from unittest import mock
 
-from airflow.utils.log.logging_mixin import StreamLogWriter, set_context
+import pytest
+
+from airflow.utils.log.logging_mixin import SetContextPropagate, StreamLogWriter, set_context
 
 
 class TestLoggingMixin:
@@ -105,3 +109,50 @@ class TestStreamLogWriter:
         assert not log.closed
         # has no specific effect
         log.close()
+
+
+@pytest.mark.parametrize(["maintain_propagate"], [[SetContextPropagate.MAINTAIN_PROPAGATE], [None]])
+def test_set_context_propagation(maintain_propagate):
+    # Test the behaviour of set_context and logger propagation and the MAINTAIN_PROPAGATE return
+    class CustomHandler(logging.Handler):
+        def set_context(self, context):
+            return maintain_propagate
+
+    parent_handler = logging.NullHandler()
+    parent_handler.handle = mock.MagicMock(name="parent_handler.handle")
+
+    handler = CustomHandler()
+    handler.handle = mock.MagicMock(name="handler.handle")
+
+    parent_logger = logging.getLogger(__name__)
+    parent_logger.addHandler(parent_handler)
+
+    child_logger = parent_logger.getChild("child")
+    child_logger.propagate = True
+    child_logger.addHandler(handler)
+
+    # Before settting_context, ensure logs make it to the parent
+    line = sys._getframe().f_lineno + 1
+    record = child_logger.makeRecord(
+        child_logger.name, logging.INFO, __file__, line, "test message", [], None
+    )
+    child_logger.handle(record)
+
+    handler.handle.assert_called_once_with(record)
+    # Should call the parent handler too in the default/unconfigured case
+    parent_handler.handle.assert_called_once_with(record)
+
+    parent_handler.handle.reset_mock()
+    handler.handle.reset_mock()
+
+    # Ensure that once we've called set_context on the handler we disable propagation to parent loggers by
+    # default!
+    set_context(child_logger, {})
+
+    child_logger.handle(record)
+
+    handler.handle.assert_called_once_with(record)
+    if maintain_propagate is SetContextPropagate.MAINTAIN_PROPAGATE:
+        parent_handler.handle.assert_called_once_with(record)
+    else:
+        parent_handler.handle.assert_not_called()
