@@ -1666,8 +1666,10 @@ cleanup:
 postgresql:
   enabled: true
   auth:
-    username: postgres
-    password: postgres
+    enablePostgresUser: true
+    postgresPassword: postgres
+    username: ~
+    password: ~
 
 # Config settings to go into the mounted airflow.cfg
 #
