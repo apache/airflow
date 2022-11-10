@@ -72,6 +72,7 @@ class TestAzureBatchHook(unittest.TestCase):
         pool = hook.configure_pool(
             pool_id='mypool',
             vm_size="test_vm_size",
+            vm_node_agent_sku_id=self.test_vm_sku,
             target_dedicated_nodes=1,
             vm_publisher="test.vm.publisher",
             vm_offer="test.vm.offer",
@@ -84,6 +85,7 @@ class TestAzureBatchHook(unittest.TestCase):
         pool = hook.configure_pool(
             pool_id='mypool',
             vm_size="test_vm_size",
+            vm_node_agent_sku_id=self.test_vm_sku,
             target_dedicated_nodes=1,
             vm_publisher="test.vm.publisher",
             vm_offer="test.vm.offer",
@@ -102,6 +104,7 @@ class TestAzureBatchHook(unittest.TestCase):
             pool = hook.configure_pool(
                 pool_id='mypool',
                 vm_size="test_vm_size",
+                vm_node_agent_sku_id=self.test_vm_sku,
                 use_latest_image_and_sku=True,
                 vm_publisher="test.vm.publisher",
                 vm_offer="test.vm.offer",
@@ -116,6 +119,7 @@ class TestAzureBatchHook(unittest.TestCase):
         pool = hook.configure_pool(
             pool_id='mypool',
             vm_size="test_vm_size",
+            vm_node_agent_sku_id=self.test_vm_sku,
             target_dedicated_nodes=1,
             vm_publisher="test.vm.publisher",
             vm_offer="test.vm.offer",
@@ -131,6 +135,7 @@ class TestAzureBatchHook(unittest.TestCase):
         pool = hook.configure_pool(
             pool_id='mypool',
             vm_size="test_vm_size",
+            vm_node_agent_sku_id=self.test_vm_sku,
             target_dedicated_nodes=1,
             vm_publisher="test.vm.publisher",
             vm_offer="test.vm.offer",
