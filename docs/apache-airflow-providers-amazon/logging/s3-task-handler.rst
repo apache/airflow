@@ -45,8 +45,8 @@ In the above example, Airflow will try to use ``S3Hook(aws_conn_id='my_s3_conn')
 
 You can also use `LocalStack <https://localstack.cloud/>`_ to emulate Amazon S3 locally.
 To configure it, you must additionally set the endpoint url to point to your local stack.
-You can do this via the Connection Extra ``host`` field.
-For example, ``{"host": "http://localstack:4572"}``
+You can do this via the Connection Extra ``endpoint_url`` field.
+For example, ``{"endpoint_url": "http://localstack:4572"}``
 
 Enabling remote logging for Amazon S3 with AWS IRSA
 '''''''''''''''''''''''''''''''''''''''''''''''''''
