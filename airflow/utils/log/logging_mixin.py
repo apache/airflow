@@ -200,6 +200,7 @@ def set_context(logger, value):
     :param value: value to set
     """
     while logger:
+        orig_propagate = logger.propagate
         for handler in logger.handlers:
             # Not all handlers need to have context passed in so we ignore
             # the error when handlers do not have set_context defined.
@@ -214,7 +215,8 @@ def set_context(logger, value):
                 # explicitly asks us to keep it on.
                 if flag is not SetContextPropagate.MAINTAIN_PROPAGATE:
                     logger.propagate = False
-        if logger.propagate is True:
+        if orig_propagate is True:
+            # If we were set to propagate before we turned if off, then keep passing set_context up
             logger = logger.parent
         else:
             break

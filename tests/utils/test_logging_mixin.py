@@ -27,23 +27,54 @@ import pytest
 from airflow.utils.log.logging_mixin import SetContextPropagate, StreamLogWriter, set_context
 
 
+@pytest.fixture
+def logger():
+    parent = logging.getLogger(__name__)
+    parent.propagate = False
+    yield parent
+
+    parent.propagate = True
+
+
+@pytest.fixture
+def child_logger(logger):
+    yield logger.getChild("child")
+
+
+@pytest.fixture
+def parent_child_handlers(child_logger):
+    parent_handler = logging.NullHandler()
+    parent_handler.handle = mock.MagicMock(name="parent_handler.handle")
+
+    child_handler = logging.NullHandler()
+    child_handler.handle = mock.MagicMock(name="handler.handle")
+
+    logger = child_logger.parent
+    logger.addHandler(parent_handler)
+
+    child_logger.addHandler(child_handler),
+    child_logger.propagate = True
+
+    yield parent_handler, child_handler
+
+    logger.removeHandler(parent_handler)
+    child_logger.removeHandler(child_handler)
+
+
 class TestLoggingMixin:
     def setup_method(self):
         warnings.filterwarnings(action="always")
 
-    def test_set_context(self):
-        handler1 = mock.MagicMock()
-        handler2 = mock.MagicMock()
-        parent = mock.MagicMock()
+    def test_set_context(self, child_logger, parent_child_handlers):
+        handler1, handler2 = parent_child_handlers
+        handler1.set_context = mock.MagicMock()
+        handler2.set_context = mock.MagicMock()
+
+        parent = logging.getLogger(__name__)
         parent.propagate = False
-        parent.handlers = [
-            handler1,
-        ]
-        log = mock.MagicMock()
-        log.handlers = [
-            handler2,
-        ]
-        log.parent = parent
+        parent.addHandler(handler1)
+        log = parent.getChild("child")
+        log.addHandler(handler2),
         log.propagate = True
 
         value = "test"
@@ -112,24 +143,11 @@ class TestStreamLogWriter:
 
 
 @pytest.mark.parametrize(["maintain_propagate"], [[SetContextPropagate.MAINTAIN_PROPAGATE], [None]])
-def test_set_context_propagation(maintain_propagate):
+def test_set_context_propagation(parent_child_handlers, child_logger, maintain_propagate):
     # Test the behaviour of set_context and logger propagation and the MAINTAIN_PROPAGATE return
-    class CustomHandler(logging.Handler):
-        def set_context(self, context):
-            return maintain_propagate
 
-    parent_handler = logging.NullHandler()
-    parent_handler.handle = mock.MagicMock(name="parent_handler.handle")
-
-    handler = CustomHandler()
-    handler.handle = mock.MagicMock(name="handler.handle")
-
-    parent_logger = logging.getLogger(__name__)
-    parent_logger.addHandler(parent_handler)
-
-    child_logger = parent_logger.getChild("child")
-    child_logger.propagate = True
-    child_logger.addHandler(handler)
+    parent_handler, handler = parent_child_handlers
+    handler.set_context = mock.MagicMock(return_value=maintain_propagate)
 
     # Before settting_context, ensure logs make it to the parent
     line = sys._getframe().f_lineno + 1
