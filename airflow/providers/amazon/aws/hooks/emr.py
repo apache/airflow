@@ -126,7 +126,14 @@ class EmrHook(AwsBaseHook):
 
     def add_job_flow_steps(
         self, job_flow_id: str, steps: list[dict] | str | None = None, wait_for_completion: bool = False
-    ):
+    ) -> list[str]:
+        """
+        Add new steps to a running cluster.
+
+        :param job_flow_id: The id of the job flow to which the steps are being added
+        :param steps: A list of the steps to be executed by the job flow
+        :param wait_for_completion: If True, wait for the steps to be completed. Default is False
+        """
         response = self.get_conn().add_job_flow_steps(JobFlowId=job_flow_id, Steps=steps)
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
