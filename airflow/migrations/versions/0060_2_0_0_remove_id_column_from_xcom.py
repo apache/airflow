@@ -30,11 +30,11 @@ from alembic import op
 from sqlalchemy import Column, Integer, inspect
 
 # revision identifiers, used by Alembic.
-revision = 'bbf4a7ad0465'
-down_revision = 'cf5dc11e79ad'
+revision = "bbf4a7ad0465"
+down_revision = "cf5dc11e79ad"
 branch_labels = None
 depends_on = None
-airflow_version = '2.0.0'
+airflow_version = "2.0.0"
 
 
 def get_table_constraints(conn, table_name) -> dict[tuple[str, str], list[str]]:
@@ -72,9 +72,9 @@ def drop_column_constraints(operator, column_name, constraint_dict):
     for constraint, columns in constraint_dict.items():
         if column_name in columns:
             if constraint[1].lower().startswith("primary"):
-                operator.drop_constraint(constraint[0], type_='primary')
+                operator.drop_constraint(constraint[0], type_="primary")
             elif constraint[1].lower().startswith("unique"):
-                operator.drop_constraint(constraint[0], type_='unique')
+                operator.drop_constraint(constraint[0], type_="unique")
 
 
 def create_constraints(operator, column_name, constraint_dict):
@@ -97,25 +97,25 @@ def upgrade():
     conn = op.get_bind()
     inspector = inspect(conn)
 
-    with op.batch_alter_table('xcom') as bop:
-        xcom_columns = [col.get('name') for col in inspector.get_columns("xcom")]
+    with op.batch_alter_table("xcom") as bop:
+        xcom_columns = [col.get("name") for col in inspector.get_columns("xcom")]
         if "id" in xcom_columns:
-            if conn.dialect.name == 'mssql':
+            if conn.dialect.name == "mssql":
                 constraint_dict = get_table_constraints(conn, "xcom")
-                drop_column_constraints(bop, 'id', constraint_dict)
-            bop.drop_column('id')
-            bop.drop_index('idx_xcom_dag_task_date')
+                drop_column_constraints(bop, "id", constraint_dict)
+            bop.drop_column("id")
+            bop.drop_index("idx_xcom_dag_task_date")
             # mssql doesn't allow primary keys with nullable columns
-            if conn.dialect.name != 'mssql':
-                bop.create_primary_key('pk_xcom', ['dag_id', 'task_id', 'key', 'execution_date'])
+            if conn.dialect.name != "mssql":
+                bop.create_primary_key("pk_xcom", ["dag_id", "task_id", "key", "execution_date"])
 
 
 def downgrade():
     """Unapply Remove id column from xcom"""
     conn = op.get_bind()
-    with op.batch_alter_table('xcom') as bop:
-        if conn.dialect.name != 'mssql':
-            bop.drop_constraint('pk_xcom', type_='primary')
-        bop.add_column(Column('id', Integer, nullable=False))
-        bop.create_primary_key('id', ['id'])
-        bop.create_index('idx_xcom_dag_task_date', ['dag_id', 'task_id', 'key', 'execution_date'])
+    with op.batch_alter_table("xcom") as bop:
+        if conn.dialect.name != "mssql":
+            bop.drop_constraint("pk_xcom", type_="primary")
+        bop.add_column(Column("id", Integer, nullable=False))
+        bop.create_primary_key("id", ["id"])
+        bop.create_index("idx_xcom_dag_task_date", ["dag_id", "task_id", "key", "execution_date"])

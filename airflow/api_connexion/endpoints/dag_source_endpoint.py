@@ -39,10 +39,10 @@ def get_dag_source(*, file_token: str) -> Response:
     except (BadSignature, FileNotFoundError):
         raise NotFound("Dag source not found")
 
-    return_type = request.accept_mimetypes.best_match(['text/plain', 'application/json'])
-    if return_type == 'text/plain':
-        return Response(dag_source, headers={'Content-Type': return_type})
-    if return_type == 'application/json':
+    return_type = request.accept_mimetypes.best_match(["text/plain", "application/json"])
+    if return_type == "text/plain":
+        return Response(dag_source, headers={"Content-Type": return_type})
+    if return_type == "application/json":
         content = dag_source_schema.dumps(dict(content=dag_source))
-        return Response(content, headers={'Content-Type': return_type})
+        return Response(content, headers={"Content-Type": return_type})
     return Response("Not Allowed Accept Header", status=HTTPStatus.NOT_ACCEPTABLE)

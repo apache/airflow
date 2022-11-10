@@ -36,7 +36,7 @@ def check_and_get_dag(dag_id: str, task_id: str | None = None) -> DagModel:
         error_message = f"Dag id {dag_id} not found"
         raise DagNotFound(error_message)
     if task_id and not dag.has_task(task_id):
-        error_message = f'Task {task_id} not found in dag {dag_id}'
+        error_message = f"Task {task_id} not found in dag {dag_id}"
         raise TaskNotFound(error_message)
     return dag
 
@@ -45,6 +45,6 @@ def check_and_get_dagrun(dag: DagModel, execution_date: datetime) -> DagRun:
     """Get DagRun object and check that it exists"""
     dagrun = dag.get_dagrun(execution_date=execution_date)
     if not dagrun:
-        error_message = f'Dag Run for date {execution_date} not found in dag {dag.dag_id}'
+        error_message = f"Dag Run for date {execution_date} not found in dag {dag.dag_id}"
         raise DagRunNotFound(error_message)
     return dagrun

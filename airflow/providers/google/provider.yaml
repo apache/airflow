@@ -609,6 +609,9 @@ sensors:
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.sensors.datafusion
+  - integration-name: Google Dataprep
+    python-modules:
+      - airflow.providers.google.cloud.sensors.dataprep
   - integration-name: Google Dataplex
     python-modules:
       - airflow.providers.google.cloud.sensors.dataplex
@@ -985,6 +988,8 @@ extra-links:
   - airflow.providers.google.cloud.links.dataproc.DataprocListLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDetailedLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreLink
+  - airflow.providers.google.cloud.links.dataprep.DataprepFlowLink
+  - airflow.providers.google.cloud.links.dataprep.DataprepJobGroupLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIModelLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIModelListLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIModelExportLink
