@@ -22,7 +22,6 @@ import functools
 import hashlib
 import time
 from datetime import timedelta
-from numbers import Number
 from typing import Any, Callable, Iterable
 
 from airflow import settings
@@ -71,14 +70,6 @@ class PokeReturnValue:
 
     def __bool__(self) -> bool:
         return self.is_done
-
-
-def coerce_timedelta(value: float | timedelta, *, key: str) -> timedelta:
-    if isinstance(value, timedelta):
-        return value
-    if isinstance(value, Number):
-        return timedelta(seconds=value)
-    raise ValueError(f"{key} should be timedelta object or a number of seconds")
 
 
 class BaseSensorOperator(BaseOperator, SkipMixin):
@@ -135,8 +126,16 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self.timeout = timeout
         self.mode = mode
         self.exponential_backoff = exponential_backoff
-        self.max_wait = max_wait if max_wait is None else coerce_timedelta(max_wait, key="max_retry_delay")
+        self.max_wait = self._coerce_max_wait(max_wait)
         self._validate_input_values()
+
+    @staticmethod
+    def _coerce_max_wait(max_wait: float | timedelta | None) -> timedelta | None:
+        if max_wait is None or isinstance(max_wait, timedelta):
+            return max_wait
+        if isinstance(max_wait, (int, float)) and max_wait >= 0:
+            return timedelta(seconds=max_wait)
+        raise AirflowException("The max_wait must be timedelta object or a non-negative number")
 
     def _validate_input_values(self) -> None:
         if not isinstance(self.poke_interval, (int, float)) or self.poke_interval < 0:

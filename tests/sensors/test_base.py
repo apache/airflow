@@ -528,20 +528,8 @@ class TestBaseSensor:
             def run_duration():
                 return (timezone.utcnow - started_at).total_seconds()
 
-            interval1 = sensor._get_next_poke_interval(started_at, run_duration, 1)
-            interval2 = sensor._get_next_poke_interval(started_at, run_duration, 2)
-            interval3 = sensor._get_next_poke_interval(started_at, run_duration, 3)
-            interval4 = sensor._get_next_poke_interval(started_at, run_duration, 4)
-
-            assert interval1 >= 0
-            assert interval1 <= sensor.poke_interval
-            assert interval2 >= sensor.poke_interval
-            assert interval2 > interval1
-            assert interval2 <= sensor.max_wait.total_seconds()
-            assert interval3 >= interval2
-            assert interval3 <= sensor.max_wait.total_seconds()
-            assert interval4 >= interval3
-            assert interval4 <= sensor.max_wait.total_seconds()
+            for idx, expected in enumerate([2, 6, 13, 30, 30, 30, 30, 30]):
+                assert sensor._get_next_poke_interval(started_at, run_duration, idx) == expected
 
     @pytest.mark.backend("mysql")
     def test_reschedule_poke_interval_too_long_on_mysql(self, make_sensor):
