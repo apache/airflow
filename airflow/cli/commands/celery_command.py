@@ -42,7 +42,7 @@ def flower(args):
     """Starts Flower, Celery monitoring tool"""
     options = [
         "flower",
-        conf.get('celery', 'BROKER_URL'),
+        conf.get("celery", "BROKER_URL"),
         f"--address={args.hostname}",
         f"--port={args.port}",
     ]
@@ -124,7 +124,7 @@ def worker(args):
         log=args.log_file,
     )
 
-    if hasattr(celery_app.backend, 'ResultSession'):
+    if hasattr(celery_app.backend, "ResultSession"):
         # Pre-create the database tables now, otherwise SQLA via Celery has a
         # race condition where one of the subprocesses can die with "Table
         # already exists" error, because SQLA checks for which tables exist,
@@ -141,31 +141,31 @@ def worker(args):
             pass
 
     # backwards-compatible: https://github.com/apache/airflow/pull/21506#pullrequestreview-879893763
-    celery_log_level = conf.get('logging', 'CELERY_LOGGING_LEVEL')
+    celery_log_level = conf.get("logging", "CELERY_LOGGING_LEVEL")
     if not celery_log_level:
-        celery_log_level = conf.get('logging', 'LOGGING_LEVEL')
+        celery_log_level = conf.get("logging", "LOGGING_LEVEL")
     # Setup Celery worker
     options = [
-        'worker',
-        '-O',
-        'fair',
-        '--queues',
+        "worker",
+        "-O",
+        "fair",
+        "--queues",
         args.queues,
-        '--concurrency',
+        "--concurrency",
         args.concurrency,
-        '--hostname',
+        "--hostname",
         args.celery_hostname,
-        '--loglevel',
+        "--loglevel",
         celery_log_level,
-        '--pidfile',
+        "--pidfile",
         pid_file_path,
     ]
     if autoscale:
-        options.extend(['--autoscale', autoscale])
+        options.extend(["--autoscale", autoscale])
     if args.without_mingle:
-        options.append('--without-mingle')
+        options.append("--without-mingle")
     if args.without_gossip:
-        options.append('--without-gossip')
+        options.append("--without-gossip")
 
     if conf.has_option("celery", "pool"):
         pool = conf.get("celery", "pool")
@@ -175,17 +175,17 @@ def worker(args):
         # https://eventlet.net/doc/patching.html#monkey-patch
         # Otherwise task instances hang on the workers and are never
         # executed.
-        maybe_patch_concurrency(['-P', pool])
+        maybe_patch_concurrency(["-P", pool])
 
     if args.daemon:
         # Run Celery worker as daemon
         handle = setup_logging(log_file)
 
-        with open(stdout, 'a') as stdout_handle, open(stderr, 'a') as stderr_handle:
+        with open(stdout, "a") as stdout_handle, open(stderr, "a") as stderr_handle:
             if args.umask:
                 umask = args.umask
             else:
-                umask = conf.get('celery', 'worker_umask', fallback=settings.DAEMON_UMASK)
+                umask = conf.get("celery", "worker_umask", fallback=settings.DAEMON_UMASK)
 
             stdout_handle.truncate(0)
             stderr_handle.truncate(0)

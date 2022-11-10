@@ -24,7 +24,7 @@ Secrets framework provides means of getting connection objects from various sour
 """
 from __future__ import annotations
 
-__all__ = ['BaseSecretsBackend', 'DEFAULT_SECRETS_SEARCH_PATH']
+__all__ = ["BaseSecretsBackend", "DEFAULT_SECRETS_SEARCH_PATH"]
 
 from airflow.secrets.base_secrets import BaseSecretsBackend
 

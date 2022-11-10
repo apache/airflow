@@ -192,7 +192,7 @@ def get_mapped_task_instances(
     )
 
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
-    if base_query.with_entities(func.count('*')).scalar() == 0:
+    if base_query.with_entities(func.count("*")).scalar() == 0:
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
         if not dag:
             error_message = f"DAG {dag_id} not found"
@@ -219,7 +219,7 @@ def get_mapped_task_instances(
     query = _apply_array_filter(query, key=TI.queue, values=queue)
 
     # Count elements before joining extra columns
-    total_entries = query.with_entities(func.count('*')).scalar()
+    total_entries = query.with_entities(func.count("*")).scalar()
 
     # Add SLA miss
     query = (
@@ -237,11 +237,11 @@ def get_mapped_task_instances(
     )
 
     if order_by:
-        if order_by == 'state':
+        if order_by == "state":
             query = query.order_by(TI.state.asc(), TI.map_index.asc())
-        elif order_by == '-state':
+        elif order_by == "-state":
             query = query.order_by(TI.state.desc(), TI.map_index.asc())
-        elif order_by == '-map_index':
+        elif order_by == "-map_index":
             query = query.order_by(TI.map_index.desc())
         else:
             raise BadRequest(detail=f"Ordering with '{order_by}' is not supported")
@@ -338,7 +338,7 @@ def get_task_instances(
     base_query = _apply_array_filter(base_query, key=TI.queue, values=queue)
 
     # Count elements before joining extra columns
-    total_entries = base_query.with_entities(func.count('*')).scalar()
+    total_entries = base_query.with_entities(func.count("*")).scalar()
     # Add join
     query = (
         base_query.join(
@@ -374,7 +374,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
         data = task_instance_batch_form.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
-    states = _convert_state(data['state'])
+    states = _convert_state(data["state"])
     base_query = session.query(TI).join(TI.dag_run)
 
     base_query = _apply_array_filter(base_query, key=TI.dag_id, values=data["dag_ids"])
@@ -399,7 +399,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     base_query = _apply_array_filter(base_query, key=TI.queue, values=data["queue"])
 
     # Count elements before joining extra columns
-    total_entries = base_query.with_entities(func.count('*')).scalar()
+    total_entries = base_query.with_entities(func.count("*")).scalar()
     # Add join
     base_query = base_query.join(
         SlaMiss,
@@ -438,28 +438,28 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
     if not dag:
         error_message = f"Dag id {dag_id} not found"
         raise NotFound(error_message)
-    reset_dag_runs = data.pop('reset_dag_runs')
-    dry_run = data.pop('dry_run')
+    reset_dag_runs = data.pop("reset_dag_runs")
+    dry_run = data.pop("dry_run")
     # We always pass dry_run here, otherwise this would try to confirm on the terminal!
-    dag_run_id = data.pop('dag_run_id', None)
-    future = data.pop('include_future', False)
-    past = data.pop('include_past', False)
-    downstream = data.pop('include_downstream', False)
-    upstream = data.pop('include_upstream', False)
+    dag_run_id = data.pop("dag_run_id", None)
+    future = data.pop("include_future", False)
+    past = data.pop("include_past", False)
+    downstream = data.pop("include_downstream", False)
+    upstream = data.pop("include_upstream", False)
     if dag_run_id is not None:
         dag_run: DR | None = (
             session.query(DR).filter(DR.dag_id == dag_id, DR.run_id == dag_run_id).one_or_none()
         )
         if dag_run is None:
-            error_message = f'Dag Run id {dag_run_id} not found in dag {dag_id}'
+            error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
             raise NotFound(error_message)
-        data['start_date'] = dag_run.logical_date
-        data['end_date'] = dag_run.logical_date
+        data["start_date"] = dag_run.logical_date
+        data["end_date"] = dag_run.logical_date
     if past:
-        data['start_date'] = None
+        data["start_date"] = None
     if future:
-        data['end_date'] = None
-    task_ids = data.pop('task_ids', None)
+        data["end_date"] = None
+    task_ids = data.pop("task_ids", None)
     if task_ids is not None:
         task_id = [task[0] if isinstance(task, tuple) else task for task in task_ids]
         dag = dag.partial_subset(
@@ -506,15 +506,15 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
     if not dag:
         raise NotFound(error_message)
 
-    task_id = data['task_id']
+    task_id = data["task_id"]
     task = dag.task_dict.get(task_id)
 
     if not task:
         error_message = f"Task ID {task_id} not found"
         raise NotFound(error_message)
 
-    execution_date = data.get('execution_date')
-    run_id = data.get('dag_run_id')
+    execution_date = data.get("execution_date")
+    run_id = data.get("dag_run_id")
     if (
         execution_date
         and (
@@ -529,7 +529,7 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
         )
 
     if run_id and not session.query(TI).get(
-        {'task_id': task_id, 'dag_id': dag_id, 'run_id': run_id, 'map_index': -1}
+        {"task_id": task_id, "dag_id": dag_id, "run_id": run_id, "map_index": -1}
     ):
         error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {run_id!r}"
         raise NotFound(detail=error_message)
@@ -575,7 +575,7 @@ def patch_task_instance(
         raise NotFound("Task not found", detail=f"Task {task_id!r} not found in DAG {dag_id!r}")
 
     ti: TI | None = session.query(TI).get(
-        {'task_id': task_id, 'dag_id': dag_id, 'run_id': dag_run_id, 'map_index': map_index}
+        {"task_id": task_id, "dag_id": dag_id, "run_id": dag_run_id, "map_index": map_index}
     )
 
     if not ti:

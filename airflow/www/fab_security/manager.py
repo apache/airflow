@@ -866,7 +866,7 @@ class BaseSecurityManager:
         Upon successful authentication when using the database session backend,
         we need to rotate the session id
         """
-        if conf.get('webserver', 'SESSION_BACKEND') == 'database':
+        if conf.get("webserver", "SESSION_BACKEND") == "database":
             session.sid = str(uuid4())
 
     def auth_user_db(self, username, password):

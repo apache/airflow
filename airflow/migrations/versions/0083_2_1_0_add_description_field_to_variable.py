@@ -28,20 +28,20 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = 'e165e7455d70'
-down_revision = '90d1635d7b86'
+revision = "e165e7455d70"
+down_revision = "90d1635d7b86"
 branch_labels = None
 depends_on = None
-airflow_version = '2.1.0'
+airflow_version = "2.1.0"
 
 
 def upgrade():
     """Apply Add description field to ``Variable`` model"""
-    with op.batch_alter_table('variable', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('description', sa.Text(), nullable=True))
+    with op.batch_alter_table("variable", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("description", sa.Text(), nullable=True))
 
 
 def downgrade():
     """Unapply Add description field to ``Variable`` model"""
-    with op.batch_alter_table('variable', schema=None) as batch_op:
-        batch_op.drop_column('description')
+    with op.batch_alter_table("variable", schema=None) as batch_op:
+        batch_op.drop_column("description")

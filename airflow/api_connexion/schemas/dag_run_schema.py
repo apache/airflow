@@ -61,7 +61,7 @@ class DAGRunSchema(SQLAlchemySchema):
         model = DagRun
         dateformat = "iso"
 
-    run_id = auto_field(data_key='dag_run_id')
+    run_id = auto_field(data_key="dag_run_id")
     dag_id = auto_field(dump_only=True)
     execution_date = auto_field(data_key="logical_date", validate=validate_istimezone)
     start_date = auto_field(dump_only=True)
@@ -147,7 +147,7 @@ class DagRunsBatchFormSchema(Schema):
     class Meta:
         """Meta"""
 
-        datetimeformat = 'iso'
+        datetimeformat = "iso"
         strict = True
 
     order_by = fields.String()
