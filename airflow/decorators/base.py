@@ -55,13 +55,9 @@ from airflow.models.expandinput import (
     ListOfDictsExpandInput,
     OperatorExpandArgument,
     OperatorExpandKwargsArgument,
+    is_mappable,
 )
-from airflow.models.mappedoperator import (
-    MappedOperator,
-    ValidationSource,
-    ensure_xcomarg_return_value,
-    get_mappable_types,
-)
+from airflow.models.mappedoperator import MappedOperator, ValidationSource, ensure_xcomarg_return_value
 from airflow.models.pool import Pool
 from airflow.models.xcom_arg import XComArg
 from airflow.typing_compat import ParamSpec, Protocol
@@ -100,7 +96,7 @@ class ExpandableFactory(Protocol):
         kwargs_left = kwargs.copy()
         for arg_name in self._mappable_function_argument_names:
             value = kwargs_left.pop(arg_name, NOTSET)
-            if func != "expand" or value is NOTSET or isinstance(value, get_mappable_types()):
+            if func != "expand" or value is NOTSET or is_mappable(value):
                 continue
             tname = type(value).__name__
             raise ValueError(f"expand() got an unexpected type {tname!r} for keyword argument {arg_name!r}")

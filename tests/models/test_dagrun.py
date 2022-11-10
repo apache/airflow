@@ -28,7 +28,7 @@ from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
-from airflow.decorators import task
+from airflow.decorators import task, task_group
 from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance as TI, clear_task_instances
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskmap import TaskMap
@@ -1670,7 +1670,7 @@ def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_m
 
 
 @pytest.mark.need_serialized_dag
-def test_mapped_mixed__literal_not_expanded_at_create(dag_maker, session):
+def test_mapped_mixed_literal_not_expanded_at_create(dag_maker, session):
     literal = [1, 2, 3, 4]
     with dag_maker(session=session):
         task = BaseOperator(task_id="task_1")
@@ -1688,6 +1688,43 @@ def test_mapped_mixed__literal_not_expanded_at_create(dag_maker, session):
     # Verify_integrity shouldn't change the result now that the TIs exist
     dr.verify_integrity(session=session)
     assert query.all() == [(-1, None)]
+
+
+def test_mapped_task_group_expands_at_create(dag_maker, session):
+    literal = [[1, 2], [3, 4]]
+
+    with dag_maker(session=session):
+
+        @task_group
+        def tg(x):
+            # Normal operator in mapped task group, expands to 2 tis.
+            MockOperator(task_id="t1")
+            # Mapped operator expands *again* against mapped task group arguments to 4 tis.
+            MockOperator.partial(task_id="t2").expand(arg1=literal)
+            # Normal operator referencing mapped task group arguments does not further expand, only 2 tis.
+            MockOperator(task_id="t3", arg1=x)
+            # It can expand *again* (since each item in x is a list) but this is not done at parse time.
+            MockOperator.partial(task_id="t4").expand(arg1=x)
+
+        tg.expand(x=literal)
+
+    dr = dag_maker.create_dagrun()
+    query = (
+        session.query(TI.task_id, TI.map_index, TI.state)
+        .filter_by(dag_id=dr.dag_id, run_id=dr.run_id)
+        .order_by(TI.task_id, TI.map_index)
+    )
+    assert query.all() == [
+        ("tg.t1", 0, None),
+        ("tg.t1", 1, None),
+        ("tg.t2", 0, None),
+        ("tg.t2", 1, None),
+        ("tg.t2", 2, None),
+        ("tg.t2", 3, None),
+        ("tg.t3", 0, None),
+        ("tg.t3", 1, None),
+        ("tg.t4", -1, None),
+    ]
 
 
 def test_ti_scheduling_mapped_zero_length(dag_maker, session):

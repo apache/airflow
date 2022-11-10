@@ -31,7 +31,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm.session import Session
 
 from airflow import settings
-from airflow.compat.functools import cache, cached_property
+from airflow.compat.functools import cache
 from airflow.exceptions import AirflowException, UnmappableOperator
 from airflow.models.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
@@ -44,6 +44,7 @@ from airflow.models.abstractoperator import (
     DEFAULT_TRIGGER_RULE,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
+    NotMapped,
     TaskStateChangeCallback,
 )
 from airflow.models.expandinput import (
@@ -53,7 +54,7 @@ from airflow.models.expandinput import (
     NotFullyPopulated,
     OperatorExpandArgument,
     OperatorExpandKwargsArgument,
-    get_mappable_types,
+    is_mappable,
 )
 from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
@@ -96,7 +97,7 @@ def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, valu
                 continue
             if value is NOTSET:
                 continue
-            if isinstance(value, get_mappable_types()):
+            if is_mappable(value):
                 continue
             type_name = type(value).__name__
             error = f"{op.__name__}.expand() got an unexpected type {type_name!r} for keyword argument {name}"
@@ -734,34 +735,22 @@ class MappedOperator(AbstractOperator):
             for operator, _ in ref.iter_references():
                 yield operator
 
-    @cached_property
-    def parse_time_mapped_ti_count(self) -> int | None:
-        """Number of mapped TaskInstances that can be created at DagRun create time.
-
-        This only considers literal mapped arguments, and would return *None*
-        when any non-literal values are used for mapping.
-
-        :return: None if non-literal mapped arg encountered, or the total
-            number of mapped TIs this task should have.
-        """
-        return self._get_specified_expand_input().get_parse_time_mapped_ti_count()
-
     @cache
-    def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int | None:
-        """Number of mapped TaskInstances that can be created at run time.
-
-        This considers both literal and non-literal mapped arguments, and the
-        result is therefore available when all depended tasks have finished. The
-        return value should be identical to ``parse_time_mapped_ti_count`` if
-        all mapped arguments are literal.
-
-        :return: None if upstream tasks are not complete yet, or the total
-            number of mapped TIs this task should have.
-        """
+    def get_parse_time_mapped_ti_count(self) -> int:
+        current_count = self._get_specified_expand_input().get_parse_time_mapped_ti_count()
         try:
-            return self._get_specified_expand_input().get_total_map_length(run_id, session=session)
-        except NotFullyPopulated:
-            return None
+            parent_count = super().get_parse_time_mapped_ti_count()
+        except NotMapped:
+            return current_count
+        return parent_count * current_count
+
+    def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
+        current_count = self._get_specified_expand_input().get_total_map_length(run_id, session=session)
+        try:
+            parent_count = super().get_mapped_ti_count(run_id, session=session)
+        except NotMapped:
+            return current_count
+        return parent_count * current_count
 
     def render_template_fields(
         self,
