@@ -509,6 +509,40 @@ class TestBaseSensor:
             assert interval2 >= sensor.poke_interval
             assert interval2 > interval1
 
+    def test_sensor_with_exponential_backoff_on_and_max_wait(self):
+
+        sensor = DummySensor(
+            task_id=SENSOR_OP,
+            return_value=None,
+            poke_interval=10,
+            timeout=60,
+            exponential_backoff=True,
+            max_wait=timedelta(seconds=30),
+        )
+
+        with patch("airflow.utils.timezone.utcnow") as mock_utctime:
+            mock_utctime.return_value = DEFAULT_DATE
+
+            started_at = timezone.utcnow() - timedelta(seconds=10)
+
+            def run_duration():
+                return (timezone.utcnow - started_at).total_seconds()
+
+            interval1 = sensor._get_next_poke_interval(started_at, run_duration, 1)
+            interval2 = sensor._get_next_poke_interval(started_at, run_duration, 2)
+            interval3 = sensor._get_next_poke_interval(started_at, run_duration, 3)
+            interval4 = sensor._get_next_poke_interval(started_at, run_duration, 4)
+
+            assert interval1 >= 0
+            assert interval1 <= sensor.poke_interval
+            assert interval2 >= sensor.poke_interval
+            assert interval2 > interval1
+            assert interval2 <= sensor.max_wait.total_seconds()
+            assert interval3 >= interval2
+            assert interval3 <= sensor.max_wait.total_seconds()
+            assert interval4 >= interval3
+            assert interval4 <= sensor.max_wait.total_seconds()
+
     @pytest.mark.backend("mysql")
     def test_reschedule_poke_interval_too_long_on_mysql(self, make_sensor):
         with pytest.raises(AirflowException) as ctx:

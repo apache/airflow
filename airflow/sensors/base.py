@@ -22,6 +22,7 @@ import functools
 import hashlib
 import time
 from datetime import timedelta
+from numbers import Number
 from typing import Any, Callable, Iterable
 
 from airflow import settings
@@ -72,6 +73,14 @@ class PokeReturnValue:
         return self.is_done
 
 
+def coerce_timedelta(value: float | timedelta, *, key: str) -> timedelta:
+    if isinstance(value, timedelta):
+        return value
+    if isinstance(value, Number):
+        return timedelta(seconds=value)
+    raise ValueError(f"{key} should be timedelta object or a number of seconds")
+
+
 class BaseSensorOperator(BaseOperator, SkipMixin):
     """
     Sensor operators are derived from this class and inherit these attributes.
@@ -97,6 +106,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         prevent too much load on the scheduler.
     :param exponential_backoff: allow progressive longer waits between
         pokes by using exponential backoff algorithm
+    :param max_wait: maximum wait interval between pokes, can be set as
+        ``timedelta`` or ``float`` seconds, which will be converted into
+        ``timedelta``.
     """
 
     ui_color: str = "#e6f1f2"
@@ -114,6 +126,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         soft_fail: bool = False,
         mode: str = "poke",
         exponential_backoff: bool = False,
+        max_wait: timedelta | float | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -122,6 +135,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self.timeout = timeout
         self.mode = mode
         self.exponential_backoff = exponential_backoff
+        self.max_wait = max_wait if max_wait is None else coerce_timedelta(max_wait, key="max_retry_delay")
         self._validate_input_values()
 
     def _validate_input_values(self) -> None:
@@ -233,6 +247,10 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
         delay_backoff_in_seconds = min(modded_hash, timedelta.max.total_seconds() - 1)
         new_interval = min(self.timeout - int(run_duration()), delay_backoff_in_seconds)
+
+        if self.max_wait:
+            new_interval = min(self.max_wait.total_seconds(), new_interval)
+
         self.log.info("new %s interval is %s", self.mode, new_interval)
         return new_interval
 
