@@ -49,7 +49,7 @@ class DummySentry:
 
 
 Sentry: DummySentry = DummySentry()
-if conf.getboolean("sentry", 'sentry_on', fallback=False):
+if conf.getboolean("sentry", "sentry_on", fallback=False):
     import sentry_sdk
 
     # Verify blinker installation
@@ -107,7 +107,7 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
                         ", ".join(unsupported_options),
                     )
 
-                sentry_config_opts['before_send'] = conf.getimport('sentry', 'before_send', fallback=None)
+                sentry_config_opts["before_send"] = conf.getimport("sentry", "before_send", fallback=None)
 
             if dsn:
                 sentry_sdk.init(dsn=dsn, integrations=integrations, **sentry_config_opts)
@@ -161,14 +161,14 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
                 # tags and breadcrumbs to a specific Task Instance
 
                 try:
-                    session = kwargs.get('session', args[session_args_idx])
+                    session = kwargs.get("session", args[session_args_idx])
                 except IndexError:
                     session = None
 
                 with sentry_sdk.push_scope():
                     try:
                         # Is a LocalTaskJob get the task instance
-                        if hasattr(_self, 'task_instance'):
+                        if hasattr(_self, "task_instance"):
                             task_instance = _self.task_instance
                         else:
                             task_instance = _self

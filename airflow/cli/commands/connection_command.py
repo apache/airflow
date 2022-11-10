@@ -42,19 +42,19 @@ from airflow.utils.session import create_session
 
 def _connection_mapper(conn: Connection) -> dict[str, Any]:
     return {
-        'id': conn.id,
-        'conn_id': conn.conn_id,
-        'conn_type': conn.conn_type,
-        'description': conn.description,
-        'host': conn.host,
-        'schema': conn.schema,
-        'login': conn.login,
-        'password': conn.password,
-        'port': conn.port,
-        'is_encrypted': conn.is_encrypted,
-        'is_extra_encrypted': conn.is_encrypted,
-        'extra_dejson': conn.extra_dejson,
-        'get_uri': conn.get_uri(),
+        "id": conn.id,
+        "conn_id": conn.conn_id,
+        "conn_type": conn.conn_type,
+        "description": conn.description,
+        "host": conn.host,
+        "schema": conn.schema,
+        "login": conn.login,
+        "password": conn.password,
+        "port": conn.port,
+        "is_encrypted": conn.is_encrypted,
+        "is_extra_encrypted": conn.is_encrypted,
+        "extra_dejson": conn.extra_dejson,
+        "get_uri": conn.get_uri(),
     }
 
 
@@ -102,13 +102,13 @@ def _connection_to_dict(conn: Connection) -> dict:
 
 
 def _format_connections(conns: list[Connection], file_format: str, serialization_format: str) -> str:
-    if serialization_format == 'json':
+    if serialization_format == "json":
         serializer_func = lambda x: json.dumps(_connection_to_dict(x))
-    elif serialization_format == 'uri':
+    elif serialization_format == "uri":
         serializer_func = Connection.get_uri
     else:
         raise SystemExit(f"Received unexpected value for `--serialization-format`: {serialization_format!r}")
-    if file_format == '.env':
+    if file_format == ".env":
         connections_env = ""
         for conn in conns:
             connections_env += f"{conn.conn_id}={serializer_func(conn)}\n"
@@ -118,29 +118,29 @@ def _format_connections(conns: list[Connection], file_format: str, serialization
     for conn in conns:
         connections_dict[conn.conn_id] = _connection_to_dict(conn)
 
-    if file_format == '.yaml':
+    if file_format == ".yaml":
         return yaml.dump(connections_dict)
 
-    if file_format == '.json':
+    if file_format == ".json":
         return json.dumps(connections_dict, indent=2)
 
     return json.dumps(connections_dict)
 
 
 def _is_stdout(fileio: io.TextIOWrapper) -> bool:
-    return fileio.name == '<stdout>'
+    return fileio.name == "<stdout>"
 
 
 def _valid_uri(uri: str) -> bool:
     """Check if a URI is valid, by checking if both scheme and netloc are available"""
     uri_parts = urlparse(uri)
-    return uri_parts.scheme != '' and uri_parts.netloc != ''
+    return uri_parts.scheme != "" and uri_parts.netloc != ""
 
 
 @cache
 def _get_connection_types():
     """Returns connection types available."""
-    _connection_types = ['fs', 'mesos_framework-id', 'email', 'generic']
+    _connection_types = ["fs", "mesos_framework-id", "email", "generic"]
     providers_manager = ProvidersManager()
     for connection_type, provider_info in providers_manager.hooks.items():
         if provider_info:
@@ -154,12 +154,12 @@ def _valid_conn_type(conn_type: str) -> bool:
 
 def connections_export(args):
     """Exports all connections to a file"""
-    file_formats = ['.yaml', '.json', '.env']
+    file_formats = [".yaml", ".json", ".env"]
     if args.format:
         warnings.warn("Option `--format` is deprecated.  Use `--file-format` instead.", DeprecationWarning)
     if args.format and args.file_format:
-        raise SystemExit('Option `--format` is deprecated.  Use `--file-format` instead.')
-    default_format = '.json'
+        raise SystemExit("Option `--format` is deprecated.  Use `--file-format` instead.")
+    default_format = ".json"
     provided_file_format = None
     if args.format or args.file_format:
         provided_file_format = f".{(args.format or args.file_format).lower()}"
@@ -177,7 +177,7 @@ def connections_export(args):
                 f"Unsupported file format. The file must have the extension {', '.join(file_formats)}."
             )
 
-    if args.serialization_format and not filetype == '.env':
+    if args.serialization_format and not filetype == ".env":
         raise SystemExit("Option `--serialization-format` may only be used with file type `env`.")
 
     with create_session() as session:
@@ -186,7 +186,7 @@ def connections_export(args):
     msg = _format_connections(
         conns=connections,
         file_format=filetype,
-        serialization_format=args.serialization_format or 'uri',
+        serialization_format=args.serialization_format or "uri",
     )
 
     with args.file as f:
@@ -198,7 +198,7 @@ def connections_export(args):
         print(f"Connections successfully exported to {args.file.name}.")
 
 
-alternative_conn_specs = ['conn_type', 'conn_host', 'conn_login', 'conn_password', 'conn_schema', 'conn_port']
+alternative_conn_specs = ["conn_type", "conn_host", "conn_login", "conn_password", "conn_schema", "conn_port"]
 
 
 @cli_utils.action_cli
@@ -209,23 +209,23 @@ def connections_add(args):
     has_type = bool(args.conn_type)
 
     if not has_type and not (has_json or has_uri):
-        raise SystemExit('Must supply either conn-uri or conn-json if not supplying conn-type')
+        raise SystemExit("Must supply either conn-uri or conn-json if not supplying conn-type")
 
     if has_json and has_uri:
-        raise SystemExit('Cannot supply both conn-uri and conn-json')
+        raise SystemExit("Cannot supply both conn-uri and conn-json")
 
     if has_type and not (args.conn_type in _get_connection_types()):
-        warnings.warn(f'The type provided to --conn-type is invalid: {args.conn_type}')
+        warnings.warn(f"The type provided to --conn-type is invalid: {args.conn_type}")
         warnings.warn(
-            f'Supported --conn-types are:{_get_connection_types()}.'
-            'Hence overriding the conn-type with generic'
+            f"Supported --conn-types are:{_get_connection_types()}."
+            "Hence overriding the conn-type with generic"
         )
-        args.conn_type = 'generic'
+        args.conn_type = "generic"
 
     if has_uri or has_json:
         invalid_args = []
         if has_uri and not _valid_uri(args.conn_uri):
-            raise SystemExit(f'The URI provided to --conn-uri is invalid: {args.conn_uri}')
+            raise SystemExit(f"The URI provided to --conn-uri is invalid: {args.conn_uri}")
 
         for arg in alternative_conn_specs:
             if getattr(args, arg) is not None:
@@ -247,7 +247,7 @@ def connections_add(args):
     elif args.conn_json:
         new_conn = Connection.from_json(conn_id=args.conn_id, value=args.conn_json)
         if not new_conn.conn_type:
-            raise SystemExit('conn-json is invalid; must supply conn-type')
+            raise SystemExit("conn-json is invalid; must supply conn-type")
     else:
         new_conn = Connection(
             conn_id=args.conn_id,
@@ -265,7 +265,7 @@ def connections_add(args):
     with create_session() as session:
         if not session.query(Connection).filter(Connection.conn_id == new_conn.conn_id).first():
             session.add(new_conn)
-            msg = 'Successfully added `conn_id`={conn_id} : {uri}'
+            msg = "Successfully added `conn_id`={conn_id} : {uri}"
             msg = msg.format(
                 conn_id=new_conn.conn_id,
                 uri=args.conn_uri
@@ -274,16 +274,16 @@ def connections_add(args):
                         new_conn.conn_type,
                         f"{new_conn.login or ''}:{'******' if new_conn.password else ''}"
                         f"@{new_conn.host or ''}:{new_conn.port or ''}",
-                        new_conn.schema or '',
-                        '',
-                        '',
-                        '',
+                        new_conn.schema or "",
+                        "",
+                        "",
+                        "",
                     )
                 ),
             )
             print(msg)
         else:
-            msg = f'A connection with `conn_id`={new_conn.conn_id} already exists.'
+            msg = f"A connection with `conn_id`={new_conn.conn_id} already exists."
             raise SystemExit(msg)
 
 
@@ -294,9 +294,9 @@ def connections_delete(args):
         try:
             to_delete = session.query(Connection).filter(Connection.conn_id == args.conn_id).one()
         except exc.NoResultFound:
-            raise SystemExit(f'Did not find a connection with `conn_id`={args.conn_id}')
+            raise SystemExit(f"Did not find a connection with `conn_id`={args.conn_id}")
         except exc.MultipleResultsFound:
-            raise SystemExit(f'Found more than one connection with `conn_id`={args.conn_id}')
+            raise SystemExit(f"Found more than one connection with `conn_id`={args.conn_id}")
         else:
             session.delete(to_delete)
             print(f"Successfully deleted connection with `conn_id`={to_delete.conn_id}")
@@ -317,9 +317,9 @@ def _import_helper(file_path):
     with create_session() as session:
         for conn_id, conn in connections_dict.items():
             if session.query(Connection).filter(Connection.conn_id == conn_id).first():
-                print(f'Could not import connection {conn_id}: connection already exists.')
+                print(f"Could not import connection {conn_id}: connection already exists.")
                 continue
 
             session.add(conn)
             session.commit()
-            print(f'Imported connection {conn_id}')
+            print(f"Imported connection {conn_id}")

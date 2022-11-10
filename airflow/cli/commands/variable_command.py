@@ -94,7 +94,7 @@ def _import_helper(filepath):
             try:
                 Variable.set(k, v, serialize_json=not isinstance(v, str))
             except Exception as e:
-                print(f'Variable import failed: {repr(e)}')
+                print(f"Variable import failed: {repr(e)}")
                 fail_count += 1
             else:
                 suc_count += 1
@@ -117,6 +117,6 @@ def _variable_export_helper(filepath):
                 val = var.val
             var_dict[var.key] = val
 
-    with open(filepath, 'w') as varfile:
+    with open(filepath, "w") as varfile:
         varfile.write(json.dumps(var_dict, sort_keys=True, indent=4))
     print(f"{len(var_dict)} variables successfully exported to {filepath}")

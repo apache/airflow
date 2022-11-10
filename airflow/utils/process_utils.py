@@ -47,7 +47,7 @@ log = logging.getLogger(__name__)
 
 # When killing processes, time to wait after issuing a SIGTERM before issuing a
 # SIGKILL.
-DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint('core', 'KILLED_TASK_CLEANUP_TIME')
+DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint("core", "KILLED_TASK_CLEANUP_TIME")
 
 
 def reap_process_group(
@@ -183,7 +183,7 @@ def execute_in_subprocess_with_kwargs(cmd: list[str], **kwargs) -> None:
         log.info("Output:")
         if proc.stdout:
             with proc.stdout:
-                for line in iter(proc.stdout.readline, b''):
+                for line in iter(proc.stdout.readline, b""):
                     log.info("%s", line.decode().rstrip())
 
         exit_code = proc.wait()

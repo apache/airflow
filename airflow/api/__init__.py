@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 
 def load_auth():
     """Loads authentication backends"""
-    auth_backends = 'airflow.api.auth.backend.default'
+    auth_backends = "airflow.api.auth.backend.default"
     try:
         auth_backends = conf.get("api", "auth_backends")
     except AirflowConfigException:

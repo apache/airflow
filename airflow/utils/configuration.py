@@ -42,7 +42,7 @@ def tmp_configuration_copy(chmod=0o600, include_env=True, include_cmds=True):
     )
     temp_fd, cfg_path = mkstemp()
 
-    with os.fdopen(temp_fd, 'w') as temp_file:
+    with os.fdopen(temp_fd, "w") as temp_file:
         # Set the permissions before we write anything to it.
         if chmod is not None and not IS_WINDOWS:
             os.fchmod(temp_fd, chmod)

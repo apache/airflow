@@ -30,21 +30,21 @@ from alembic import op
 from airflow.models.base import COLLATION_ARGS
 
 # revision identifiers, used by Alembic.
-revision = 'b25a55525161'
-down_revision = 'bbf4a7ad0465'
+revision = "b25a55525161"
+down_revision = "bbf4a7ad0465"
 branch_labels = None
 depends_on = None
-airflow_version = '2.0.0'
+airflow_version = "2.0.0"
 
 
 def upgrade():
     """Increase column length of pool name from 50 to 256 characters"""
     # use batch_alter_table to support SQLite workaround
-    with op.batch_alter_table('slot_pool', table_args=sa.UniqueConstraint('pool')) as batch_op:
-        batch_op.alter_column('pool', type_=sa.String(256, **COLLATION_ARGS))
+    with op.batch_alter_table("slot_pool", table_args=sa.UniqueConstraint("pool")) as batch_op:
+        batch_op.alter_column("pool", type_=sa.String(256, **COLLATION_ARGS))
 
 
 def downgrade():
     """Revert Increased length of pool name from 256 to 50 characters"""
-    with op.batch_alter_table('slot_pool', table_args=sa.UniqueConstraint('pool')) as batch_op:
-        batch_op.alter_column('pool', type_=sa.String(50))
+    with op.batch_alter_table("slot_pool", table_args=sa.UniqueConstraint("pool")) as batch_op:
+        batch_op.alter_column("pool", type_=sa.String(50))

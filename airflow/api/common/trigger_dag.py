@@ -59,7 +59,7 @@ def _trigger_dag(
     if replace_microseconds:
         execution_date = execution_date.replace(microsecond=0)
 
-    if dag.default_args and 'start_date' in dag.default_args:
+    if dag.default_args and "start_date" in dag.default_args:
         min_dag_start_date = dag.default_args["start_date"]
         if min_dag_start_date and execution_date < min_dag_start_date:
             raise ValueError(

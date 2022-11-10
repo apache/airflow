@@ -36,11 +36,11 @@ from sqlalchemy.sql import ColumnElement, Update, and_, select
 from airflow.migrations.db_types import TIMESTAMP, StringID
 
 # revision identifiers, used by Alembic.
-revision = '48925b2719cb'
-down_revision = '4eaab2fe6582'
+revision = "48925b2719cb"
+down_revision = "4eaab2fe6582"
 branch_labels = None
 depends_on = None
-airflow_version = '2.3.0'
+airflow_version = "2.3.0"
 
 ID_LEN = 250
 
@@ -49,29 +49,29 @@ def tables():
     global task_instance, task_fail, dag_run
     metadata = sa.MetaData()
     task_instance = sa.Table(
-        'task_instance',
+        "task_instance",
         metadata,
-        sa.Column('task_id', StringID()),
-        sa.Column('dag_id', StringID()),
-        sa.Column('run_id', StringID()),
-        sa.Column('map_index', sa.Integer(), server_default='-1'),
-        sa.Column('execution_date', TIMESTAMP),
+        sa.Column("task_id", StringID()),
+        sa.Column("dag_id", StringID()),
+        sa.Column("run_id", StringID()),
+        sa.Column("map_index", sa.Integer(), server_default="-1"),
+        sa.Column("execution_date", TIMESTAMP),
     )
     task_fail = sa.Table(
-        'task_fail',
+        "task_fail",
         metadata,
-        sa.Column('dag_id', StringID()),
-        sa.Column('task_id', StringID()),
-        sa.Column('run_id', StringID()),
-        sa.Column('map_index', StringID()),
-        sa.Column('execution_date', TIMESTAMP),
+        sa.Column("dag_id", StringID()),
+        sa.Column("task_id", StringID()),
+        sa.Column("run_id", StringID()),
+        sa.Column("map_index", StringID()),
+        sa.Column("execution_date", TIMESTAMP),
     )
     dag_run = sa.Table(
-        'dag_run',
+        "dag_run",
         metadata,
-        sa.Column('dag_id', StringID()),
-        sa.Column('run_id', StringID()),
-        sa.Column('execution_date', TIMESTAMP),
+        sa.Column("dag_id", StringID()),
+        sa.Column("run_id", StringID()),
+        sa.Column("execution_date", TIMESTAMP),
     )
 
 
@@ -106,51 +106,51 @@ def upgrade():
     tables()
     dialect_name = op.get_bind().dialect.name
 
-    op.drop_index('idx_task_fail_dag_task_date', table_name='task_fail')
+    op.drop_index("idx_task_fail_dag_task_date", table_name="task_fail")
 
-    with op.batch_alter_table('task_fail') as batch_op:
-        batch_op.add_column(sa.Column('map_index', sa.Integer(), server_default='-1', nullable=False))
-        batch_op.add_column(sa.Column('run_id', type_=StringID(), nullable=True))
+    with op.batch_alter_table("task_fail") as batch_op:
+        batch_op.add_column(sa.Column("map_index", sa.Integer(), server_default="-1", nullable=False))
+        batch_op.add_column(sa.Column("run_id", type_=StringID(), nullable=True))
 
     update_query = _update_value_from_dag_run(
         dialect_name=dialect_name,
         target_table=task_fail,
         target_column=task_fail.c.run_id,
-        join_columns=['dag_id', 'execution_date'],
+        join_columns=["dag_id", "execution_date"],
     )
     op.execute(update_query)
-    with op.batch_alter_table('task_fail') as batch_op:
-        batch_op.alter_column('run_id', existing_type=StringID(), existing_nullable=True, nullable=False)
-        batch_op.drop_column('execution_date')
+    with op.batch_alter_table("task_fail") as batch_op:
+        batch_op.alter_column("run_id", existing_type=StringID(), existing_nullable=True, nullable=False)
+        batch_op.drop_column("execution_date")
         batch_op.create_foreign_key(
-            'task_fail_ti_fkey',
-            'task_instance',
-            ['dag_id', 'task_id', 'run_id', 'map_index'],
-            ['dag_id', 'task_id', 'run_id', 'map_index'],
-            ondelete='CASCADE',
+            "task_fail_ti_fkey",
+            "task_instance",
+            ["dag_id", "task_id", "run_id", "map_index"],
+            ["dag_id", "task_id", "run_id", "map_index"],
+            ondelete="CASCADE",
         )
 
 
 def downgrade():
     tables()
     dialect_name = op.get_bind().dialect.name
-    op.add_column('task_fail', sa.Column('execution_date', TIMESTAMP, nullable=True))
+    op.add_column("task_fail", sa.Column("execution_date", TIMESTAMP, nullable=True))
     update_query = _update_value_from_dag_run(
         dialect_name=dialect_name,
         target_table=task_fail,
         target_column=task_fail.c.execution_date,
-        join_columns=['dag_id', 'run_id'],
+        join_columns=["dag_id", "run_id"],
     )
     op.execute(update_query)
-    with op.batch_alter_table('task_fail') as batch_op:
-        batch_op.alter_column('execution_date', existing_type=TIMESTAMP, nullable=False)
-        if dialect_name != 'sqlite':
-            batch_op.drop_constraint('task_fail_ti_fkey', type_='foreignkey')
-        batch_op.drop_column('map_index', mssql_drop_default=True)
-        batch_op.drop_column('run_id')
+    with op.batch_alter_table("task_fail") as batch_op:
+        batch_op.alter_column("execution_date", existing_type=TIMESTAMP, nullable=False)
+        if dialect_name != "sqlite":
+            batch_op.drop_constraint("task_fail_ti_fkey", type_="foreignkey")
+        batch_op.drop_column("map_index", mssql_drop_default=True)
+        batch_op.drop_column("run_id")
     op.create_index(
-        index_name='idx_task_fail_dag_task_date',
-        table_name='task_fail',
-        columns=['dag_id', 'task_id', 'execution_date'],
+        index_name="idx_task_fail_dag_task_date",
+        table_name="task_fail",
+        columns=["dag_id", "task_id", "execution_date"],
         unique=False,
     )

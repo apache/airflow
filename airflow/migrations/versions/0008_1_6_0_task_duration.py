@@ -29,18 +29,18 @@ from alembic import op
 from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
-revision = '2e541a1dcfed'
-down_revision = '1b38cef5b76e'
+revision = "2e541a1dcfed"
+down_revision = "1b38cef5b76e"
 branch_labels = None
 depends_on = None
-airflow_version = '1.6.0'
+airflow_version = "1.6.0"
 
 
 def upgrade():
     # use batch_alter_table to support SQLite workaround
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.alter_column(
-            'duration',
+            "duration",
             existing_type=mysql.INTEGER(display_width=11),
             type_=sa.Float(),
             existing_nullable=True,

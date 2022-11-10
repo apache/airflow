@@ -35,7 +35,7 @@ revision = "e655c0453f75"
 down_revision = "f9da662e7089"
 branch_labels = None
 depends_on = None
-airflow_version = '2.3.0'
+airflow_version = "2.3.0"
 
 
 def upgrade():

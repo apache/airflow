@@ -23,7 +23,7 @@ from random import choice
 
 def get_random_string(length=8, choices=string.ascii_letters + string.digits):
     """Generate random string"""
-    return ''.join(choice(choices) for _ in range(length))
+    return "".join(choice(choices) for _ in range(length))
 
 
 TRUE_LIKE_VALUES = {"on", "t", "true", "y", "yes", "1"}

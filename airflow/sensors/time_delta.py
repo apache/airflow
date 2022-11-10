@@ -41,9 +41,9 @@ class TimeDeltaSensor(BaseSensorOperator):
         self.delta = delta
 
     def poke(self, context: Context):
-        target_dttm = context['data_interval_end']
+        target_dttm = context["data_interval_end"]
         target_dttm += self.delta
-        self.log.info('Checking if the time (%s) has come', target_dttm)
+        self.log.info("Checking if the time (%s) has come", target_dttm)
         return timezone.utcnow() > target_dttm
 
 
@@ -61,7 +61,7 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
     """
 
     def execute(self, context: Context):
-        target_dttm = context['data_interval_end']
+        target_dttm = context["data_interval_end"]
         target_dttm += self.delta
         self.defer(trigger=DateTimeTrigger(moment=target_dttm), method_name="execute_complete")
 

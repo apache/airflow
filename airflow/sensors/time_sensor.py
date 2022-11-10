@@ -42,7 +42,7 @@ class TimeSensor(BaseSensorOperator):
         self.target_time = target_time
 
     def poke(self, context: Context):
-        self.log.info('Checking if the time (%s) has come', self.target_time)
+        self.log.info("Checking if the time (%s) has come", self.target_time)
         return timezone.make_naive(timezone.utcnow(), self.dag.timezone).time() > self.target_time
 
 

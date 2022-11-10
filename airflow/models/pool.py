@@ -51,7 +51,7 @@ class Pool(Base):
     slots = Column(Integer, default=0)
     description = Column(Text)
 
-    DEFAULT_POOL_NAME = 'default_pool'
+    DEFAULT_POOL_NAME = "default_pool"
 
     def __repr__(self):
         return str(self.pool)
@@ -165,7 +165,7 @@ class Pool(Base):
         pool_rows: Iterable[tuple[str, int]] = query.all()
         for (pool_name, total_slots) in pool_rows:
             if total_slots == -1:
-                total_slots = float('inf')  # type: ignore
+                total_slots = float("inf")  # type: ignore
             pools[pool_name] = PoolStats(total=total_slots, running=0, queued=0, open=0)
 
         state_count_by_pool = (
@@ -203,10 +203,10 @@ class Pool(Base):
         :return: the pool object in json format
         """
         return {
-            'id': self.id,
-            'pool': self.pool,
-            'slots': self.slots,
-            'description': self.description,
+            "id": self.id,
+            "pool": self.pool,
+            "slots": self.slots,
+            "description": self.description,
         }
 
     @provide_session
@@ -290,6 +290,6 @@ class Pool(Base):
         :return: the number of slots
         """
         if self.slots == -1:
-            return float('inf')
+            return float("inf")
         else:
             return self.slots - self.occupied_slots(session)

@@ -82,42 +82,42 @@ def cleanup_pods(args):
 
     # https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/
     # All Containers in the Pod have terminated in success, and will not be restarted.
-    pod_succeeded = 'succeeded'
+    pod_succeeded = "succeeded"
 
     # The Pod has been accepted by the Kubernetes cluster,
     # but one or more of the containers has not been set up and made ready to run.
-    pod_pending = 'pending'
+    pod_pending = "pending"
 
     # All Containers in the Pod have terminated, and at least one Container has terminated in failure.
     # That is, the Container either exited with non-zero status or was terminated by the system.
-    pod_failed = 'failed'
+    pod_failed = "failed"
 
     # https://kubernetes.io/docs/tasks/administer-cluster/out-of-resource/
-    pod_reason_evicted = 'evicted'
+    pod_reason_evicted = "evicted"
     # If pod is failed and restartPolicy is:
     # * Always: Restart Container; Pod phase stays Running.
     # * OnFailure: Restart Container; Pod phase stays Running.
     # * Never: Pod phase becomes Failed.
-    pod_restart_policy_never = 'never'
+    pod_restart_policy_never = "never"
 
-    print('Loading Kubernetes configuration')
+    print("Loading Kubernetes configuration")
     kube_client = get_kube_client()
-    print(f'Listing pods in namespace {namespace}')
+    print(f"Listing pods in namespace {namespace}")
     airflow_pod_labels = [
-        'dag_id',
-        'task_id',
-        'try_number',
-        'airflow_version',
+        "dag_id",
+        "task_id",
+        "try_number",
+        "airflow_version",
     ]
-    list_kwargs = {"namespace": namespace, "limit": 500, "label_selector": ','.join(airflow_pod_labels)}
+    list_kwargs = {"namespace": namespace, "limit": 500, "label_selector": ",".join(airflow_pod_labels)}
 
     while True:
         pod_list = kube_client.list_namespaced_pod(**list_kwargs)
         for pod in pod_list.items:
             pod_name = pod.metadata.name
-            print(f'Inspecting pod {pod_name}')
+            print(f"Inspecting pod {pod_name}")
             pod_phase = pod.status.phase.lower()
-            pod_reason = pod.status.reason.lower() if pod.status.reason else ''
+            pod_reason = pod.status.reason.lower() if pod.status.reason else ""
             pod_restart_policy = pod.spec.restart_policy.lower()
             current_time = datetime.now(pod.metadata.creation_timestamp.tzinfo)
 
@@ -140,7 +140,7 @@ def cleanup_pods(args):
                 except ApiException as e:
                     print(f"Can't remove POD: {e}", file=sys.stderr)
                 continue
-            print(f'No action taken on pod {pod_name}')
+            print(f"No action taken on pod {pod_name}")
         continue_token = pod_list.metadata._continue
         if not continue_token:
             break

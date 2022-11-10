@@ -40,7 +40,7 @@ def triggerer(args):
             "triggerer", args.pid, args.stdout, args.stderr, args.log_file
         )
         handle = setup_logging(log_file)
-        with open(stdout, 'a') as stdout_handle, open(stderr, 'a') as stderr_handle:
+        with open(stdout, "a") as stdout_handle, open(stderr, "a") as stderr_handle:
             stdout_handle.truncate(0)
             stderr_handle.truncate(0)
 

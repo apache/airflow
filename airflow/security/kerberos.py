@@ -59,22 +59,22 @@ def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True)
     # minutes to give ourselves a large renewal buffer.
     renewal_lifetime = f"{conf.getint('kerberos', 'reinit_frequency')}m"
 
-    cmd_principal = principal or conf.get_mandatory_value('kerberos', 'principal').replace(
+    cmd_principal = principal or conf.get_mandatory_value("kerberos", "principal").replace(
         "_HOST", get_hostname()
     )
 
-    if conf.getboolean('kerberos', 'forwardable'):
-        forwardable = '-f'
+    if conf.getboolean("kerberos", "forwardable"):
+        forwardable = "-f"
     else:
-        forwardable = '-F'
+        forwardable = "-F"
 
-    if conf.getboolean('kerberos', 'include_ip'):
-        include_ip = '-a'
+    if conf.getboolean("kerberos", "include_ip"):
+        include_ip = "-a"
     else:
-        include_ip = '-A'
+        include_ip = "-A"
 
     cmdv: list[str] = [
-        conf.get_mandatory_value('kerberos', 'kinit_path'),
+        conf.get_mandatory_value("kerberos", "kinit_path"),
         forwardable,
         include_ip,
         "-r",
@@ -83,7 +83,7 @@ def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True)
         "-t",
         keytab,  # specify keytab
         "-c",
-        conf.get_mandatory_value('kerberos', 'ccache'),  # specify credentials cache
+        conf.get_mandatory_value("kerberos", "ccache"),  # specify credentials cache
         cmd_principal,
     ]
     log.info("Re-initialising kerberos from keytab: %s", " ".join(shlex.quote(f) for f in cmdv))
@@ -132,9 +132,9 @@ def perform_krb181_workaround(principal: str):
     :return: None
     """
     cmdv: list[str] = [
-        conf.get_mandatory_value('kerberos', 'kinit_path'),
+        conf.get_mandatory_value("kerberos", "kinit_path"),
         "-c",
-        conf.get_mandatory_value('kerberos', 'ccache'),
+        conf.get_mandatory_value("kerberos", "ccache"),
         "-R",
     ]  # Renew ticket_cache
 
@@ -144,7 +144,7 @@ def perform_krb181_workaround(principal: str):
 
     if ret != 0:
         principal = f"{principal or conf.get('kerberos', 'principal')}/{get_hostname()}"
-        ccache = conf.get('kerberos', 'ccache')
+        ccache = conf.get("kerberos", "ccache")
         log.error(
             "Couldn't renew kerberos ticket in order to work around Kerberos 1.8.1 issue. Please check that "
             "the ticket for '%s' is still renewable:\n  $ kinit -f -c %s\nIf the 'renew until' date is the "
@@ -164,11 +164,11 @@ def detect_conf_var() -> bool:
     Sun Java Krb5LoginModule in Java6, so we need to take an action to work
     around it.
     """
-    ticket_cache = conf.get_mandatory_value('kerberos', 'ccache')
+    ticket_cache = conf.get_mandatory_value("kerberos", "ccache")
 
-    with open(ticket_cache, 'rb') as file:
+    with open(ticket_cache, "rb") as file:
         # Note: this file is binary, so we check against a bytearray.
-        return b'X-CACHECONF:' in file.read()
+        return b"X-CACHECONF:" in file.read()
 
 
 def run(principal: str | None, keytab: str):
@@ -185,4 +185,4 @@ def run(principal: str | None, keytab: str):
 
     while True:
         renew_from_kt(principal, keytab)
-        time.sleep(conf.getint('kerberos', 'reinit_frequency'))
+        time.sleep(conf.getint("kerberos", "reinit_frequency"))

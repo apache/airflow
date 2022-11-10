@@ -28,7 +28,7 @@ class HealthServer(BaseHTTPRequestHandler):
     """Small webserver to serve scheduler health check"""
 
     def do_GET(self):
-        if self.path == '/health':
+        if self.path == "/health":
             try:
                 with create_session() as session:
                     scheduler_job = (
@@ -50,7 +50,7 @@ class HealthServer(BaseHTTPRequestHandler):
 
 
 def serve_health_check():
-    health_check_port = conf.getint('scheduler', 'SCHEDULER_HEALTH_CHECK_SERVER_PORT')
+    health_check_port = conf.getint("scheduler", "SCHEDULER_HEALTH_CHECK_SERVER_PORT")
     httpd = HTTPServer(("0.0.0.0", health_check_port), HealthServer)
     httpd.serve_forever()
 

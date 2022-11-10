@@ -24,11 +24,11 @@ Create Date: 2018-06-17 10:47:23.339972
 from __future__ import annotations
 
 # revision identifiers, used by Alembic.
-revision = '05f30312d566'
-down_revision = ('86770d1215c0', '0e2a74e0fc9f')
+revision = "05f30312d566"
+down_revision = ("86770d1215c0", "0e2a74e0fc9f")
 branch_labels = None
 depends_on = None
-airflow_version = '1.10.0'
+airflow_version = "1.10.0"
 
 
 def upgrade():

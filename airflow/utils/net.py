@@ -25,12 +25,12 @@ from airflow.configuration import conf
 
 # patched version of socket.getfqdn() - see https://github.com/python/cpython/issues/49254
 @lru_cache(maxsize=None)
-def getfqdn(name=''):
+def getfqdn(name=""):
     """Get fully qualified domain name from name.
     An empty argument is interpreted as meaning the local host.
     """
     name = name.strip()
-    if not name or name == '0.0.0.0':
+    if not name or name == "0.0.0.0":
         name = socket.gethostname()
     try:
         addrs = socket.getaddrinfo(name, None, 0, socket.SOCK_DGRAM, 0, socket.AI_CANONNAME)
@@ -54,4 +54,4 @@ def get_hostname():
     Fetch the hostname using the callable from the config or using
     `airflow.utils.net.getfqdn` as a fallback.
     """
-    return conf.getimport('core', 'hostname_callable', fallback='airflow.utils.net.getfqdn')()
+    return conf.getimport("core", "hostname_callable", fallback="airflow.utils.net.getfqdn")()

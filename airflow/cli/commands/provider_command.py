@@ -74,8 +74,8 @@ def hooks_list(args):
             "connection_type": x[0],
             "class": x[1].hook_class_name if x[1] else ERROR_IMPORTING_HOOK,
             "conn_id_attribute_name": x[1].connection_id_attribute_name if x[1] else ERROR_IMPORTING_HOOK,
-            'package_name': x[1].package_name if x[1] else ERROR_IMPORTING_HOOK,
-            'hook_name': x[1].hook_name if x[1] else ERROR_IMPORTING_HOOK,
+            "package_name": x[1].package_name if x[1] else ERROR_IMPORTING_HOOK,
+            "hook_name": x[1].hook_name if x[1] else ERROR_IMPORTING_HOOK,
         },
     )
 
@@ -89,8 +89,8 @@ def connection_form_widget_list(args):
         mapper=lambda x: {
             "connection_parameter_name": x[0],
             "class": x[1].hook_class_name,
-            'package_name': x[1].package_name,
-            'field_type': x[1].field.field_class.__name__,
+            "package_name": x[1].package_name,
+            "field_type": x[1].field.field_class.__name__,
         },
     )
 

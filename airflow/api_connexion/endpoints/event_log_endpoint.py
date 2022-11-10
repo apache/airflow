@@ -56,7 +56,7 @@ def get_event_logs(
     """Get all log entries from event log"""
     to_replace = {"event_log_id": "id", "when": "dttm"}
     allowed_filter_attrs = [
-        'event_log_id',
+        "event_log_id",
         "when",
         "dag_id",
         "task_id",

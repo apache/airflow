@@ -69,24 +69,24 @@ class BaseJob(Base, LoggingMixin):
     hostname = Column(String(500))
     unixname = Column(String(1000))
 
-    __mapper_args__ = {'polymorphic_on': job_type, 'polymorphic_identity': 'BaseJob'}
+    __mapper_args__ = {"polymorphic_on": job_type, "polymorphic_identity": "BaseJob"}
 
     __table_args__ = (
-        Index('job_type_heart', job_type, latest_heartbeat),
-        Index('idx_job_state_heartbeat', state, latest_heartbeat),
-        Index('idx_job_dag_id', dag_id),
+        Index("job_type_heart", job_type, latest_heartbeat),
+        Index("idx_job_state_heartbeat", state, latest_heartbeat),
+        Index("idx_job_dag_id", dag_id),
     )
 
     task_instances_enqueued = relationship(
         "TaskInstance",
         primaryjoin="BaseJob.id == foreign(TaskInstance.queued_by_job_id)",
-        backref=backref('queued_by_job', uselist=False),
+        backref=backref("queued_by_job", uselist=False),
     )
 
     dag_runs = relationship(
         "DagRun",
         primaryjoin=lambda: BaseJob.id == foreign(_resolve_dagrun_model().creating_job_id),
-        backref='creating_job',
+        backref="creating_job",
     )
 
     """
@@ -95,7 +95,7 @@ class BaseJob(Base, LoggingMixin):
     Only makes sense for SchedulerJob and BackfillJob instances.
     """
 
-    heartrate = conf.getfloat('scheduler', 'JOB_HEARTBEAT_SEC')
+    heartrate = conf.getfloat("scheduler", "JOB_HEARTBEAT_SEC")
 
     def __init__(self, executor=None, heartrate=None, *args, **kwargs):
         self.hostname = get_hostname()
@@ -103,13 +103,13 @@ class BaseJob(Base, LoggingMixin):
             self.executor = executor
             self.executor_class = executor.__class__.__name__
         else:
-            self.executor_class = conf.get('core', 'EXECUTOR')
+            self.executor_class = conf.get("core", "EXECUTOR")
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
         if heartrate is not None:
             self.heartrate = heartrate
         self.unixname = getuser()
-        self.max_tis_per_query: int = conf.getint('scheduler', 'max_tis_per_query')
+        self.max_tis_per_query: int = conf.getint("scheduler", "max_tis_per_query")
         super().__init__(*args, **kwargs)
 
     @cached_property
@@ -154,7 +154,7 @@ class BaseJob(Base, LoggingMixin):
         try:
             self.on_kill()
         except Exception as e:
-            self.log.error('on_kill() method failed: %s', str(e))
+            self.log.error("on_kill() method failed: %s", str(e))
         session.merge(job)
         session.commit()
         raise AirflowException("Job shut down externally.")
@@ -224,16 +224,16 @@ class BaseJob(Base, LoggingMixin):
                 previous_heartbeat = self.latest_heartbeat
 
                 self.heartbeat_callback(session=session)
-                self.log.debug('[heartbeat]')
+                self.log.debug("[heartbeat]")
         except OperationalError:
-            Stats.incr(convert_camel_to_snake(self.__class__.__name__) + '_heartbeat_failure', 1, 1)
+            Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
             self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
             # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
             self.latest_heartbeat = previous_heartbeat
 
     def run(self):
         """Starts the job."""
-        Stats.incr(self.__class__.__name__.lower() + '_start', 1, 1)
+        Stats.incr(self.__class__.__name__.lower() + "_start", 1, 1)
         # Adding an entry in the DB
         with create_session() as session:
             self.state = State.RUNNING
@@ -256,7 +256,7 @@ class BaseJob(Base, LoggingMixin):
                 session.merge(self)
                 session.commit()
 
-        Stats.incr(self.__class__.__name__.lower() + '_end', 1, 1)
+        Stats.incr(self.__class__.__name__.lower() + "_end", 1, 1)
 
     def _execute(self):
         raise NotImplementedError("This method needs to be overridden")

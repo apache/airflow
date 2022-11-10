@@ -30,8 +30,8 @@ from airflow.example_dags.libs.helper import print_stuff
 
 log = logging.getLogger(__name__)
 
-worker_container_repository = conf.get('kubernetes_executor', 'worker_container_repository')
-worker_container_tag = conf.get('kubernetes_executor', 'worker_container_tag')
+worker_container_repository = conf.get("kubernetes_executor", "worker_container_repository")
+worker_container_tag = conf.get("kubernetes_executor", "worker_container_tag")
 
 try:
     from kubernetes.client import models as k8s
@@ -42,11 +42,11 @@ except ImportError:
 
 if k8s:
     with DAG(
-        dag_id='example_local_kubernetes_executor',
+        dag_id="example_local_kubernetes_executor",
         schedule=None,
         start_date=datetime(2021, 1, 1),
         catchup=False,
-        tags=['example3'],
+        tags=["example3"],
     ) as dag:
         # You can use annotations on your kubernetes pods!
         start_task_executor_config = {
@@ -55,17 +55,17 @@ if k8s:
 
         @task(
             executor_config=start_task_executor_config,
-            queue='kubernetes',
-            task_id='task_with_kubernetes_executor',
+            queue="kubernetes",
+            task_id="task_with_kubernetes_executor",
         )
         def task_with_template():
             print_stuff()
 
-        @task(task_id='task_with_local_executor')
+        @task(task_id="task_with_local_executor")
         def task_with_local(ds=None, **kwargs):
             """Print the Airflow context and ds variable from the context."""
             print(kwargs)
             print(ds)
-            return 'Whatever you return gets printed in the logs'
+            return "Whatever you return gets printed in the logs"
 
         task_with_local() >> task_with_template()

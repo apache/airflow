@@ -74,7 +74,7 @@ def datetime_to_label_safe_datestring(datetime_obj: datetime.datetime) -> str:
     :param datetime_obj: datetime.datetime object
     :return: ISO-like string representing the datetime
     """
-    return datetime_obj.isoformat().replace(":", "_").replace('+', '_plus_')
+    return datetime_obj.isoformat().replace(":", "_").replace("+", "_plus_")
 
 
 def label_safe_datestring_to_datetime(string: str) -> datetime.datetime:
@@ -86,7 +86,7 @@ def label_safe_datestring_to_datetime(string: str) -> datetime.datetime:
     :param string: str
     :return: datetime.datetime object
     """
-    return parser.parse(string.replace('_plus_', '+').replace("_", ":"))
+    return parser.parse(string.replace("_plus_", "+").replace("_", ":"))
 
 
 class PodGenerator:
@@ -173,15 +173,15 @@ class PodGenerator:
             return k8s_object
         elif isinstance(k8s_legacy_object, dict):
             warnings.warn(
-                'Using a dictionary for the executor_config is deprecated and will soon be removed.'
+                "Using a dictionary for the executor_config is deprecated and will soon be removed."
                 'please use a `kubernetes.client.models.V1Pod` class with a "pod_override" key'
-                ' instead. ',
+                " instead. ",
                 category=RemovedInAirflow3Warning,
             )
             return PodGenerator.from_legacy_obj(obj)
         else:
             raise TypeError(
-                'Cannot convert a non-kubernetes.client.models.V1Pod object into a KubernetesExecutorConfig'
+                "Cannot convert a non-kubernetes.client.models.V1Pod object into a KubernetesExecutorConfig"
             )
 
     @staticmethod
@@ -197,18 +197,18 @@ class PodGenerator:
         if not namespaced:
             return None
 
-        resources = namespaced.get('resources')
+        resources = namespaced.get("resources")
 
         if resources is None:
             requests = {
-                'cpu': namespaced.pop('request_cpu', None),
-                'memory': namespaced.pop('request_memory', None),
-                'ephemeral-storage': namespaced.get('ephemeral-storage'),  # We pop this one in limits
+                "cpu": namespaced.pop("request_cpu", None),
+                "memory": namespaced.pop("request_memory", None),
+                "ephemeral-storage": namespaced.get("ephemeral-storage"),  # We pop this one in limits
             }
             limits = {
-                'cpu': namespaced.pop('limit_cpu', None),
-                'memory': namespaced.pop('limit_memory', None),
-                'ephemeral-storage': namespaced.pop('ephemeral-storage', None),
+                "cpu": namespaced.pop("limit_cpu", None),
+                "memory": namespaced.pop("limit_memory", None),
+                "ephemeral-storage": namespaced.pop("ephemeral-storage", None),
             }
             all_resources = list(requests.values()) + list(limits.values())
             if all(r is None for r in all_resources):
@@ -218,7 +218,7 @@ class PodGenerator:
                 requests = {k: v for k, v in requests.items() if v is not None}
                 limits = {k: v for k, v in limits.items() if v is not None}
                 resources = k8s.V1ResourceRequirements(requests=requests, limits=limits)
-        namespaced['resources'] = resources
+        namespaced["resources"] = resources
         return PodGeneratorDeprecated(**namespaced).gen_pod()
 
     @staticmethod
@@ -257,9 +257,9 @@ class PodGenerator:
         elif client_meta and base_meta:
             client_meta.labels = merge_objects(base_meta.labels, client_meta.labels)
             client_meta.annotations = merge_objects(base_meta.annotations, client_meta.annotations)
-            extend_object_field(base_meta, client_meta, 'managed_fields')
-            extend_object_field(base_meta, client_meta, 'finalizers')
-            extend_object_field(base_meta, client_meta, 'owner_references')
+            extend_object_field(base_meta, client_meta, "managed_fields")
+            extend_object_field(base_meta, client_meta, "finalizers")
+            extend_object_field(base_meta, client_meta, "owner_references")
             return merge_objects(base_meta, client_meta)
 
         return None
@@ -282,8 +282,8 @@ class PodGenerator:
             client_spec.containers = PodGenerator.reconcile_containers(
                 base_spec.containers, client_spec.containers
             )
-            merged_spec = extend_object_field(base_spec, client_spec, 'init_containers')
-            merged_spec = extend_object_field(base_spec, merged_spec, 'volumes')
+            merged_spec = extend_object_field(base_spec, client_spec, "init_containers")
+            merged_spec = extend_object_field(base_spec, merged_spec, "volumes")
             return merge_objects(base_spec, merged_spec)
 
         return None
@@ -307,11 +307,11 @@ class PodGenerator:
 
         client_container = client_containers[0]
         base_container = base_containers[0]
-        client_container = extend_object_field(base_container, client_container, 'volume_mounts')
-        client_container = extend_object_field(base_container, client_container, 'env')
-        client_container = extend_object_field(base_container, client_container, 'env_from')
-        client_container = extend_object_field(base_container, client_container, 'ports')
-        client_container = extend_object_field(base_container, client_container, 'volume_devices')
+        client_container = extend_object_field(base_container, client_container, "volume_mounts")
+        client_container = extend_object_field(base_container, client_container, "env")
+        client_container = extend_object_field(base_container, client_container, "env_from")
+        client_container = extend_object_field(base_container, client_container, "ports")
+        client_container = extend_object_field(base_container, client_container, "volume_devices")
         client_container = merge_objects(base_container, client_container)
 
         return [client_container] + PodGenerator.reconcile_containers(
@@ -348,27 +348,27 @@ class PodGenerator:
             image = kube_image
 
         annotations = {
-            'dag_id': dag_id,
-            'task_id': task_id,
-            'try_number': str(try_number),
+            "dag_id": dag_id,
+            "task_id": task_id,
+            "try_number": str(try_number),
         }
         labels = {
-            'airflow-worker': make_safe_label_value(scheduler_job_id),
-            'dag_id': make_safe_label_value(dag_id),
-            'task_id': make_safe_label_value(task_id),
-            'try_number': str(try_number),
-            'airflow_version': airflow_version.replace('+', '-'),
-            'kubernetes_executor': 'True',
+            "airflow-worker": make_safe_label_value(scheduler_job_id),
+            "dag_id": make_safe_label_value(dag_id),
+            "task_id": make_safe_label_value(task_id),
+            "try_number": str(try_number),
+            "airflow_version": airflow_version.replace("+", "-"),
+            "kubernetes_executor": "True",
         }
         if map_index >= 0:
-            annotations['map_index'] = str(map_index)
-            labels['map_index'] = str(map_index)
+            annotations["map_index"] = str(map_index)
+            labels["map_index"] = str(map_index)
         if date:
-            annotations['execution_date'] = date.isoformat()
-            labels['execution_date'] = datetime_to_label_safe_datestring(date)
+            annotations["execution_date"] = date.isoformat()
+            labels["execution_date"] = datetime_to_label_safe_datestring(date)
         if run_id:
-            annotations['run_id'] = run_id
-            labels['run_id'] = make_safe_label_value(run_id)
+            annotations["run_id"] = run_id
+            labels["run_id"] = make_safe_label_value(run_id)
 
         dynamic_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
@@ -464,7 +464,7 @@ class PodGenerator:
         # Get prefix length after subtracting the uuid length. Clean up '.' and '-' from
         # end of podID ('.' can't be followed by '-').
         label_prefix_length = MAX_LABEL_LEN - len(safe_uuid) - 1  # -1 for separator
-        trimmed_pod_id = pod_id[:label_prefix_length].rstrip('-.')
+        trimmed_pod_id = pod_id[:label_prefix_length].rstrip("-.")
 
         # previously used a '.' as the separator, but this could create errors in some situations
         return f"{trimmed_pod_id}-{safe_uuid}"

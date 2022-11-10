@@ -28,20 +28,20 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = 'b247b1e3d1ed'
-down_revision = 'e38be357a868'
+revision = "b247b1e3d1ed"
+down_revision = "e38be357a868"
 branch_labels = None
 depends_on = None
-airflow_version = '2.0.0'
+airflow_version = "2.0.0"
 
 
 def upgrade():
     """Apply Add queued by Job ID to TI"""
-    with op.batch_alter_table('task_instance') as batch_op:
-        batch_op.add_column(sa.Column('queued_by_job_id', sa.Integer(), nullable=True))
+    with op.batch_alter_table("task_instance") as batch_op:
+        batch_op.add_column(sa.Column("queued_by_job_id", sa.Integer(), nullable=True))
 
 
 def downgrade():
     """Unapply Add queued by Job ID to TI"""
-    with op.batch_alter_table('task_instance') as batch_op:
-        batch_op.drop_column('queued_by_job_id')
+    with op.batch_alter_table("task_instance") as batch_op:
+        batch_op.drop_column("queued_by_job_id")

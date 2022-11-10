@@ -46,19 +46,19 @@ class Secret(K8SModel):
         secret keys to paths
         https://kubernetes.io/docs/concepts/configuration/secret/#projection-of-secret-keys-to-specific-paths
         """
-        if deploy_type not in ('env', 'volume'):
+        if deploy_type not in ("env", "volume"):
             raise AirflowConfigException("deploy_type must be env or volume")
 
         self.deploy_type = deploy_type
         self.deploy_target = deploy_target
         self.items = items or []
 
-        if deploy_target is not None and deploy_type == 'env':
+        if deploy_target is not None and deploy_type == "env":
             # if deploying to env, capitalize the deploy target
             self.deploy_target = deploy_target.upper()
 
         if key is not None and deploy_target is None:
-            raise AirflowConfigException('If `key` is set, `deploy_target` should not be None')
+            raise AirflowConfigException("If `key` is set, `deploy_target` should not be None")
 
         self.secret = secret
         self.key = key
@@ -78,7 +78,7 @@ class Secret(K8SModel):
 
     def to_volume_secret(self) -> tuple[k8s.V1Volume, k8s.V1VolumeMount]:
         """Converts to volume secret"""
-        vol_id = f'secretvol{uuid.uuid4()}'
+        vol_id = f"secretvol{uuid.uuid4()}"
         volume = k8s.V1Volume(name=vol_id, secret=k8s.V1SecretVolumeSource(secret_name=self.secret))
         if self.items:
             volume.secret.items = self.items
@@ -88,7 +88,7 @@ class Secret(K8SModel):
         """Attaches to pod"""
         cp_pod = copy.deepcopy(pod)
 
-        if self.deploy_type == 'volume':
+        if self.deploy_type == "volume":
             volume, volume_mount = self.to_volume_secret()
             if cp_pod.spec.volumes is None:
                 cp_pod.spec.volumes = []
@@ -97,13 +97,13 @@ class Secret(K8SModel):
                 cp_pod.spec.containers[0].volume_mounts = []
             cp_pod.spec.containers[0].volume_mounts.append(volume_mount)
 
-        if self.deploy_type == 'env' and self.key is not None:
+        if self.deploy_type == "env" and self.key is not None:
             env = self.to_env_secret()
             if cp_pod.spec.containers[0].env is None:
                 cp_pod.spec.containers[0].env = []
             cp_pod.spec.containers[0].env.append(env)
 
-        if self.deploy_type == 'env' and self.key is None:
+        if self.deploy_type == "env" and self.key is None:
             env_from = self.to_env_from_secret()
             if cp_pod.spec.containers[0].env_from is None:
                 cp_pod.spec.containers[0].env_from = []
@@ -120,4 +120,4 @@ class Secret(K8SModel):
         )
 
     def __repr__(self):
-        return f'Secret({self.deploy_type}, {self.deploy_target}, {self.secret}, {self.key})'
+        return f"Secret({self.deploy_type}, {self.deploy_target}, {self.secret}, {self.key})"

@@ -30,11 +30,11 @@ from alembic import op
 from airflow.migrations.db_types import TIMESTAMP
 
 # revision identifiers, used by Alembic.
-revision = '98271e7606e2'
-down_revision = 'bef4f3d11e8b'
+revision = "98271e7606e2"
+down_revision = "bef4f3d11e8b"
 branch_labels = None
 depends_on = None
-airflow_version = '2.0.0'
+airflow_version = "2.0.0"
 
 
 def upgrade():
@@ -46,24 +46,24 @@ def upgrade():
     if is_sqlite:
         op.execute("PRAGMA foreign_keys=off")
 
-    with op.batch_alter_table('dag_run', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('last_scheduling_decision', TIMESTAMP, nullable=True))
-        batch_op.create_index('idx_last_scheduling_decision', ['last_scheduling_decision'], unique=False)
-        batch_op.add_column(sa.Column('dag_hash', sa.String(32), nullable=True))
+    with op.batch_alter_table("dag_run", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("last_scheduling_decision", TIMESTAMP, nullable=True))
+        batch_op.create_index("idx_last_scheduling_decision", ["last_scheduling_decision"], unique=False)
+        batch_op.add_column(sa.Column("dag_hash", sa.String(32), nullable=True))
 
-    with op.batch_alter_table('dag', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('next_dagrun', TIMESTAMP, nullable=True))
-        batch_op.add_column(sa.Column('next_dagrun_create_after', TIMESTAMP, nullable=True))
+    with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("next_dagrun", TIMESTAMP, nullable=True))
+        batch_op.add_column(sa.Column("next_dagrun_create_after", TIMESTAMP, nullable=True))
         # Create with nullable and no default, then ALTER to set values, to avoid table level lock
-        batch_op.add_column(sa.Column('concurrency', sa.Integer(), nullable=True))
-        batch_op.add_column(sa.Column('has_task_concurrency_limits', sa.Boolean(), nullable=True))
+        batch_op.add_column(sa.Column("concurrency", sa.Integer(), nullable=True))
+        batch_op.add_column(sa.Column("has_task_concurrency_limits", sa.Boolean(), nullable=True))
 
-        batch_op.create_index('idx_next_dagrun_create_after', ['next_dagrun_create_after'], unique=False)
+        batch_op.create_index("idx_next_dagrun_create_after", ["next_dagrun_create_after"], unique=False)
 
     try:
         from airflow.configuration import conf
 
-        concurrency = conf.getint('core', 'dag_concurrency', fallback=16)
+        concurrency = conf.getint("core", "dag_concurrency", fallback=16)
     except:  # noqa
         concurrency = 16
 
@@ -79,9 +79,9 @@ def upgrade():
         """
     )
 
-    with op.batch_alter_table('dag', schema=None) as batch_op:
-        batch_op.alter_column('concurrency', type_=sa.Integer(), nullable=False)
-        batch_op.alter_column('has_task_concurrency_limits', type_=sa.Boolean(), nullable=False)
+    with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.alter_column("concurrency", type_=sa.Integer(), nullable=False)
+        batch_op.alter_column("has_task_concurrency_limits", type_=sa.Boolean(), nullable=False)
 
     if is_sqlite:
         op.execute("PRAGMA foreign_keys=on")
@@ -95,17 +95,17 @@ def downgrade():
     if is_sqlite:
         op.execute("PRAGMA foreign_keys=off")
 
-    with op.batch_alter_table('dag_run', schema=None) as batch_op:
-        batch_op.drop_index('idx_last_scheduling_decision')
-        batch_op.drop_column('last_scheduling_decision')
-        batch_op.drop_column('dag_hash')
+    with op.batch_alter_table("dag_run", schema=None) as batch_op:
+        batch_op.drop_index("idx_last_scheduling_decision")
+        batch_op.drop_column("last_scheduling_decision")
+        batch_op.drop_column("dag_hash")
 
-    with op.batch_alter_table('dag', schema=None) as batch_op:
-        batch_op.drop_index('idx_next_dagrun_create_after')
-        batch_op.drop_column('next_dagrun_create_after')
-        batch_op.drop_column('next_dagrun')
-        batch_op.drop_column('concurrency')
-        batch_op.drop_column('has_task_concurrency_limits')
+    with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.drop_index("idx_next_dagrun_create_after")
+        batch_op.drop_column("next_dagrun_create_after")
+        batch_op.drop_column("next_dagrun")
+        batch_op.drop_column("concurrency")
+        batch_op.drop_column("has_task_concurrency_limits")
 
     if is_sqlite:
         op.execute("PRAGMA foreign_keys=on")

@@ -51,7 +51,7 @@ class Validator(Protocol):
 
 def load_dag_schema_dict() -> dict:
     """Load & return Json Schema for DAG as Python dict"""
-    schema_file_name = 'schema.json'
+    schema_file_name = "schema.json"
     schema_file = pkgutil.get_data(__name__, schema_file_name)
 
     if schema_file is None:

@@ -46,11 +46,11 @@ def x():
 
 
 with DAG(
-    dag_id='example_python_operator',
+    dag_id="example_python_operator",
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
 
     # [START howto_operator_python]
@@ -59,7 +59,7 @@ with DAG(
         """Print the Airflow context and ds variable from the context."""
         pprint(kwargs)
         print(ds)
-        return 'Whatever you return gets printed in the logs'
+        return "Whatever you return gets printed in the logs"
 
     run_this = print_context()
     # [END howto_operator_python]
@@ -76,7 +76,7 @@ with DAG(
     # Generate 5 sleeping tasks, sleeping from 0.0 to 0.4 seconds respectively
     for i in range(5):
 
-        @task(task_id=f'sleep_for_{i}')
+        @task(task_id=f"sleep_for_{i}")
         def my_sleeping_function(random_base):
             """This is a function that will run within the DAG execution"""
             time.sleep(random_base)
@@ -104,14 +104,14 @@ with DAG(
 
             from colorama import Back, Fore, Style
 
-            print(Fore.RED + 'some red text')
-            print(Back.GREEN + 'and with a green background')
-            print(Style.DIM + 'and in dim text')
+            print(Fore.RED + "some red text")
+            print(Back.GREEN + "and with a green background")
+            print(Style.DIM + "and in dim text")
             print(Style.RESET_ALL)
             for _ in range(4):
-                print(Style.DIM + 'Please wait...', flush=True)
+                print(Style.DIM + "Please wait...", flush=True)
                 sleep(1)
-            print('Finished')
+            print("Finished")
 
         virtualenv_task = callable_virtualenv()
         # [END howto_operator_python_venv]
@@ -133,9 +133,9 @@ with DAG(
             print(f"Running task via {sys.executable}")
             print("Sleeping")
             for _ in range(4):
-                print('Please wait...', flush=True)
+                print("Please wait...", flush=True)
                 sleep(1)
-            print('Finished')
+            print("Finished")
 
         external_python_task = callable_external_python()
         # [END howto_operator_external_python]

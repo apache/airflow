@@ -210,10 +210,10 @@ class AirflowInfo:
             if module is None or module == str.__class__.__module__:
                 return o.__class__.__name__  # Avoid reporting __builtin__
             else:
-                return module + '.' + o.__class__.__name__
+                return module + "." + o.__class__.__name__
 
         try:
-            handler_names = [get_fullname(handler) for handler in logging.getLogger('airflow.task').handlers]
+            handler_names = [get_fullname(handler) for handler in logging.getLogger("airflow.task").handlers]
             return ", ".join(handler_names)
         except Exception:
             return "NOT AVAILABLE"
@@ -305,7 +305,7 @@ class AirflowInfo:
 
     @property
     def _providers_info(self):
-        return [(p.data['package-name'], p.version) for p in ProvidersManager().providers.values()]
+        return [(p.data["package-name"], p.version) for p in ProvidersManager().providers.values()]
 
     def show(self, output: str, console: AirflowConsole | None = None) -> None:
         """Shows information about Airflow instance"""

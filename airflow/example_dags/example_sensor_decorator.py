@@ -35,7 +35,7 @@ from airflow.sensors.base import PokeReturnValue
     schedule_interval=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 )
 def example_sensor_decorator():
     # [END instantiate_dag]

@@ -81,7 +81,7 @@ class RoleSchema(SQLAlchemySchema):
         model = Role
 
     name = auto_field()
-    permissions = fields.List(fields.Nested(ActionResourceSchema), data_key='actions')
+    permissions = fields.List(fields.Nested(ActionResourceSchema), data_key="actions")
 
 
 class RoleCollection(NamedTuple):

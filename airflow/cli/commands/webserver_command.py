@@ -229,7 +229,7 @@ class GunicornMonitor(LoggingMixin):
         # Whenever some workers are not ready, wait until all workers are ready
         if num_ready_workers_running < num_workers_running:
             self.log.debug(
-                '[%d / %d] Some workers are starting up, waiting...',
+                "[%d / %d] Some workers are starting up, waiting...",
                 num_ready_workers_running,
                 num_workers_running,
             )
@@ -241,7 +241,7 @@ class GunicornMonitor(LoggingMixin):
         if num_workers_running > self.num_workers_expected:
             excess = min(num_workers_running - self.num_workers_expected, self.worker_refresh_batch_size)
             self.log.debug(
-                '[%d / %d] Killing %s workers', num_ready_workers_running, num_workers_running, excess
+                "[%d / %d] Killing %s workers", num_ready_workers_running, num_workers_running, excess
             )
             self._kill_old_workers(excess)
             return
@@ -262,7 +262,7 @@ class GunicornMonitor(LoggingMixin):
                 )
                 # log at info since we are trying fix an error logged just above
                 self.log.info(
-                    '[%d / %d] Spawning %d workers',
+                    "[%d / %d] Spawning %d workers",
                     num_ready_workers_running,
                     num_workers_running,
                     new_worker_count,
@@ -279,7 +279,7 @@ class GunicornMonitor(LoggingMixin):
             if self.worker_refresh_interval < last_refresh_diff:
                 num_new_workers = self.worker_refresh_batch_size
                 self.log.debug(
-                    '[%d / %d] Starting doing a refresh. Starting %d workers.',
+                    "[%d / %d] Starting doing a refresh. Starting %d workers.",
                     num_ready_workers_running,
                     num_workers_running,
                     num_new_workers,
@@ -295,8 +295,8 @@ class GunicornMonitor(LoggingMixin):
             # If changed, wait until its content is fully saved.
             if new_state != self._last_plugin_state:
                 self.log.debug(
-                    '[%d / %d] Plugins folder changed. The gunicorn will be restarted the next time the '
-                    'plugin directory is checked, if there is no change in it.',
+                    "[%d / %d] Plugins folder changed. The gunicorn will be restarted the next time the "
+                    "plugin directory is checked, if there is no change in it.",
                     num_ready_workers_running,
                     num_workers_running,
                 )
@@ -304,7 +304,7 @@ class GunicornMonitor(LoggingMixin):
                 self._last_plugin_state = new_state
             elif self._restart_on_next_plugin_check:
                 self.log.debug(
-                    '[%d / %d] Starts reloading the gunicorn configuration.',
+                    "[%d / %d] Starts reloading the gunicorn configuration.",
                     num_ready_workers_running,
                     num_workers_running,
                 )
@@ -319,7 +319,7 @@ def webserver(args):
     print(settings.HEADER)
 
     # Check for old/insecure config, and fail safe (i.e. don't launch) if the config is wildly insecure.
-    if conf.get('webserver', 'secret_key') == 'temporary_key':
+    if conf.get("webserver", "secret_key") == "temporary_key":
         from rich import print as rich_print
 
         rich_print(
@@ -331,26 +331,26 @@ def webserver(args):
         )
         sys.exit(1)
 
-    access_logfile = args.access_logfile or conf.get('webserver', 'access_logfile')
-    error_logfile = args.error_logfile or conf.get('webserver', 'error_logfile')
-    access_logformat = args.access_logformat or conf.get('webserver', 'access_logformat')
-    num_workers = args.workers or conf.get('webserver', 'workers')
-    worker_timeout = args.worker_timeout or conf.get('webserver', 'web_server_worker_timeout')
-    ssl_cert = args.ssl_cert or conf.get('webserver', 'web_server_ssl_cert')
-    ssl_key = args.ssl_key or conf.get('webserver', 'web_server_ssl_key')
+    access_logfile = args.access_logfile or conf.get("webserver", "access_logfile")
+    error_logfile = args.error_logfile or conf.get("webserver", "error_logfile")
+    access_logformat = args.access_logformat or conf.get("webserver", "access_logformat")
+    num_workers = args.workers or conf.get("webserver", "workers")
+    worker_timeout = args.worker_timeout or conf.get("webserver", "web_server_worker_timeout")
+    ssl_cert = args.ssl_cert or conf.get("webserver", "web_server_ssl_cert")
+    ssl_key = args.ssl_key or conf.get("webserver", "web_server_ssl_key")
     if not ssl_cert and ssl_key:
-        raise AirflowException('An SSL certificate must also be provided for use with ' + ssl_key)
+        raise AirflowException("An SSL certificate must also be provided for use with " + ssl_key)
     if ssl_cert and not ssl_key:
-        raise AirflowException('An SSL key must also be provided for use with ' + ssl_cert)
+        raise AirflowException("An SSL key must also be provided for use with " + ssl_cert)
 
     from airflow.www.app import create_app
 
     if args.debug:
         print(f"Starting the web server on port {args.port} and host {args.hostname}.")
-        app = create_app(testing=conf.getboolean('core', 'unit_test_mode'))
+        app = create_app(testing=conf.getboolean("core", "unit_test_mode"))
         app.run(
             debug=True,
-            use_reloader=not app.config['TESTING'],
+            use_reloader=not app.config["TESTING"],
             port=args.port,
             host=args.hostname,
             ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None,
@@ -366,51 +366,51 @@ def webserver(args):
 
         print(
             textwrap.dedent(
-                f'''\
+                f"""\
                 Running the Gunicorn Server with:
                 Workers: {num_workers} {args.workerclass}
                 Host: {args.hostname}:{args.port}
                 Timeout: {worker_timeout}
                 Logfiles: {access_logfile} {error_logfile}
                 Access Logformat: {access_logformat}
-                ================================================================='''
+                ================================================================="""
             )
         )
 
         run_args = [
             sys.executable,
-            '-m',
-            'gunicorn',
-            '--workers',
+            "-m",
+            "gunicorn",
+            "--workers",
             str(num_workers),
-            '--worker-class',
+            "--worker-class",
             str(args.workerclass),
-            '--timeout',
+            "--timeout",
             str(worker_timeout),
-            '--bind',
-            args.hostname + ':' + str(args.port),
-            '--name',
-            'airflow-webserver',
-            '--pid',
+            "--bind",
+            args.hostname + ":" + str(args.port),
+            "--name",
+            "airflow-webserver",
+            "--pid",
             pid_file,
-            '--config',
-            'python:airflow.www.gunicorn_config',
+            "--config",
+            "python:airflow.www.gunicorn_config",
         ]
 
         if args.access_logfile:
-            run_args += ['--access-logfile', str(args.access_logfile)]
+            run_args += ["--access-logfile", str(args.access_logfile)]
 
         if args.error_logfile:
-            run_args += ['--error-logfile', str(args.error_logfile)]
+            run_args += ["--error-logfile", str(args.error_logfile)]
 
         if args.access_logformat and args.access_logformat.strip():
-            run_args += ['--access-logformat', str(args.access_logformat)]
+            run_args += ["--access-logformat", str(args.access_logformat)]
 
         if args.daemon:
-            run_args += ['--daemon']
+            run_args += ["--daemon"]
 
         if ssl_cert:
-            run_args += ['--certfile', ssl_cert, '--keyfile', ssl_key]
+            run_args += ["--certfile", ssl_cert, "--keyfile", ssl_key]
 
         run_args += ["airflow.www.app:cached_app()"]
 
@@ -418,7 +418,7 @@ def webserver(args):
         # all writing to the database at the same time, we use the --preload option.
         # With the preload option, the app is loaded before the workers are forked, and each worker will
         # then have a copy of the app
-        run_args += ['--preload']
+        run_args += ["--preload"]
 
         gunicorn_master_proc = None
 
@@ -440,24 +440,24 @@ def webserver(args):
             GunicornMonitor(
                 gunicorn_master_pid=gunicorn_master_pid,
                 num_workers_expected=num_workers,
-                master_timeout=conf.getint('webserver', 'web_server_master_timeout'),
-                worker_refresh_interval=conf.getint('webserver', 'worker_refresh_interval', fallback=30),
-                worker_refresh_batch_size=conf.getint('webserver', 'worker_refresh_batch_size', fallback=1),
+                master_timeout=conf.getint("webserver", "web_server_master_timeout"),
+                worker_refresh_interval=conf.getint("webserver", "worker_refresh_interval", fallback=30),
+                worker_refresh_batch_size=conf.getint("webserver", "worker_refresh_batch_size", fallback=1),
                 reload_on_plugin_change=conf.getboolean(
-                    'webserver', 'reload_on_plugin_change', fallback=False
+                    "webserver", "reload_on_plugin_change", fallback=False
                 ),
             ).start()
 
         if args.daemon:
             # This makes possible errors get reported before daemonization
-            os.environ['SKIP_DAGS_PARSING'] = 'True'
+            os.environ["SKIP_DAGS_PARSING"] = "True"
             app = create_app(None)
-            os.environ.pop('SKIP_DAGS_PARSING')
+            os.environ.pop("SKIP_DAGS_PARSING")
 
             handle = setup_logging(log_file)
 
             base, ext = os.path.splitext(pid_file)
-            with open(stdout, 'a') as stdout, open(stderr, 'a') as stderr:
+            with open(stdout, "a") as stdout, open(stderr, "a") as stderr:
                 stdout.truncate(0)
                 stderr.truncate(0)
 

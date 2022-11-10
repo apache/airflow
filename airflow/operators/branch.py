@@ -51,5 +51,5 @@ class BaseBranchOperator(BaseOperator, SkipMixin):
 
     def execute(self, context: Context):
         branches_to_execute = self.choose_branch(context)
-        self.skip_all_except(context['ti'], branches_to_execute)
+        self.skip_all_except(context["ti"], branches_to_execute)
         return branches_to_execute

@@ -39,9 +39,9 @@ from airflow.serialization.enums import Encoding
 
 log = logging.getLogger(__name__)
 
-utc = pendulum.tz.timezone('UTC')
+utc = pendulum.tz.timezone("UTC")
 
-using_mysql = conf.get_mandatory_value('database', 'sql_alchemy_conn').lower().startswith('mysql')
+using_mysql = conf.get_mandatory_value("database", "sql_alchemy_conn").lower().startswith("mysql")
 
 
 class UtcDateTime(TypeDecorator):
@@ -67,9 +67,9 @@ class UtcDateTime(TypeDecorator):
     def process_bind_param(self, value, dialect):
         if value is not None:
             if not isinstance(value, datetime.datetime):
-                raise TypeError('expected datetime.datetime, not ' + repr(value))
+                raise TypeError("expected datetime.datetime, not " + repr(value))
             elif value.tzinfo is None:
-                raise ValueError('naive datetime is disallowed')
+                raise ValueError("naive datetime is disallowed")
             # For mysql we should store timestamps as naive values
             # Timestamp in MYSQL is not timezone aware. In MySQL 5.6
             # timezone added at the end is ignored but in MySQL 5.7
@@ -99,9 +99,9 @@ class UtcDateTime(TypeDecorator):
         return value
 
     def load_dialect_impl(self, dialect):
-        if dialect.name == 'mssql':
+        if dialect.name == "mssql":
             return mssql.DATETIME2(precision=6)
-        elif dialect.name == 'mysql':
+        elif dialect.name == "mysql":
             return mysql.TIMESTAMP(fsp=6)
         return super().load_dialect_impl(dialect)
 
@@ -171,8 +171,8 @@ class ExecutorConfigType(PickleType):
 
         def process(value):
             val_copy = copy.copy(value)
-            if isinstance(val_copy, dict) and 'pod_override' in val_copy:
-                val_copy['pod_override'] = BaseSerialization.serialize(val_copy['pod_override'])
+            if isinstance(val_copy, dict) and "pod_override" in val_copy:
+                val_copy["pod_override"] = BaseSerialization.serialize(val_copy["pod_override"])
             return super_process(val_copy)
 
         return process
@@ -185,12 +185,12 @@ class ExecutorConfigType(PickleType):
         def process(value):
             value = super_process(value)  # unpickle
 
-            if isinstance(value, dict) and 'pod_override' in value:
-                pod_override = value['pod_override']
+            if isinstance(value, dict) and "pod_override" in value:
+                pod_override = value["pod_override"]
 
                 # If pod_override was serialized with Airflow's BaseSerialization, deserialize it
                 if isinstance(pod_override, dict) and pod_override.get(Encoding.TYPE):
-                    value['pod_override'] = BaseSerialization.deserialize(pod_override)
+                    value["pod_override"] = BaseSerialization.deserialize(pod_override)
             return value
 
         return process
@@ -224,30 +224,30 @@ class Interval(TypeDecorator):
     cache_ok = True
 
     attr_keys = {
-        datetime.timedelta: ('days', 'seconds', 'microseconds'),
+        datetime.timedelta: ("days", "seconds", "microseconds"),
         relativedelta.relativedelta: (
-            'years',
-            'months',
-            'days',
-            'leapdays',
-            'hours',
-            'minutes',
-            'seconds',
-            'microseconds',
-            'year',
-            'month',
-            'day',
-            'hour',
-            'minute',
-            'second',
-            'microsecond',
+            "years",
+            "months",
+            "days",
+            "leapdays",
+            "hours",
+            "minutes",
+            "seconds",
+            "microseconds",
+            "year",
+            "month",
+            "day",
+            "hour",
+            "minute",
+            "second",
+            "microsecond",
         ),
     }
 
     def process_bind_param(self, value, dialect):
         if isinstance(value, tuple(self.attr_keys)):
             attrs = {key: getattr(value, key) for key in self.attr_keys[type(value)]}
-            return json.dumps({'type': type(value).__name__, 'attrs': attrs})
+            return json.dumps({"type": type(value).__name__, "attrs": attrs})
         return json.dumps(value)
 
     def process_result_value(self, value, dialect):
@@ -256,7 +256,7 @@ class Interval(TypeDecorator):
         data = json.loads(value)
         if isinstance(data, dict):
             type_map = {key.__name__: key for key in self.attr_keys}
-            return type_map[data['type']](**data['attrs'])
+            return type_map[data["type"]](**data["attrs"])
         return data
 
 
@@ -275,7 +275,7 @@ def skip_locked(session: Session) -> dict[str, Any]:
     dialect = session.bind.dialect
 
     if dialect.name != "mysql" or dialect.supports_for_update_of:
-        return {'skip_locked': True}
+        return {"skip_locked": True}
     else:
         return {}
 
@@ -295,7 +295,7 @@ def nowait(session: Session) -> dict[str, Any]:
     dialect = session.bind.dialect
 
     if dialect.name != "mysql" or dialect.supports_for_update_of:
-        return {'nowait': True}
+        return {"nowait": True}
     else:
         return {}
 
@@ -312,7 +312,7 @@ def nulls_first(col, session: Session) -> dict[str, Any]:
         return col
 
 
-USE_ROW_LEVEL_LOCKING: bool = conf.getboolean('scheduler', 'use_row_level_locking', fallback=True)
+USE_ROW_LEVEL_LOCKING: bool = conf.getboolean("scheduler", "use_row_level_locking", fallback=True)
 
 
 def with_row_locks(query, session: Session, **kwargs):
@@ -348,11 +348,11 @@ class CommitProhibitorGuard:
         raise RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!")
 
     def __enter__(self):
-        event.listen(self.session, 'before_commit', self._validate_commit)
+        event.listen(self.session, "before_commit", self._validate_commit)
         return self
 
     def __exit__(self, *exc_info):
-        event.remove(self.session, 'before_commit', self._validate_commit)
+        event.remove(self.session, "before_commit", self._validate_commit)
 
     def commit(self):
         """
@@ -394,12 +394,12 @@ def is_lock_not_available_error(error: OperationalError):
     #               is set.'
     # MySQL: 1205, 'Lock wait timeout exceeded; try restarting transaction
     #              (when NOWAIT isn't available)
-    db_err_code = getattr(error.orig, 'pgcode', None) or error.orig.args[0]
+    db_err_code = getattr(error.orig, "pgcode", None) or error.orig.args[0]
 
     # We could test if error.orig is an instance of
     # psycopg2.errors.LockNotAvailable/_mysql_exceptions.OperationalError, but that involves
     # importing it. This doesn't
-    if db_err_code in ('55P03', 1205, 3572):
+    if db_err_code in ("55P03", 1205, 3572):
         return True
     return False
 

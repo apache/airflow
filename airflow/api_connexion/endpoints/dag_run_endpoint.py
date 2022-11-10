@@ -175,13 +175,13 @@ def _fetch_dag_runs(
 )
 @format_parameters(
     {
-        'start_date_gte': format_datetime,
-        'start_date_lte': format_datetime,
-        'execution_date_gte': format_datetime,
-        'execution_date_lte': format_datetime,
-        'end_date_gte': format_datetime,
-        'end_date_lte': format_datetime,
-        'limit': check_limit,
+        "start_date_gte": format_datetime,
+        "start_date_lte": format_datetime,
+        "execution_date_gte": format_datetime,
+        "execution_date_lte": format_datetime,
+        "end_date_gte": format_datetime,
+        "end_date_lte": format_datetime,
+        "limit": check_limit,
     }
 )
 @provide_session
@@ -345,14 +345,14 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
         session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
     )
     if dag_run is None:
-        error_message = f'Dag Run id {dag_run_id} not found in dag {dag_id}'
+        error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
         raise NotFound(error_message)
     try:
         post_body = set_dagrun_state_form_schema.load(get_json_request_dict())
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
-    state = post_body['state']
+    state = post_body["state"]
     dag = get_airflow_app().dag_bag.get_dag(dag_id)
     if state == DagRunState.SUCCESS:
         set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True)
@@ -377,14 +377,14 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
         session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
     )
     if dag_run is None:
-        error_message = f'Dag Run id {dag_run_id} not found in dag   {dag_id}'
+        error_message = f"Dag Run id {dag_run_id} not found in dag   {dag_id}"
         raise NotFound(error_message)
     try:
         post_body = clear_dagrun_form_schema.load(get_json_request_dict())
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
-    dry_run = post_body.get('dry_run', False)
+    dry_run = post_body.get("dry_run", False)
     dag = get_airflow_app().dag_bag.get_dag(dag_id)
     start_date = dag_run.logical_date
     end_date = dag_run.logical_date

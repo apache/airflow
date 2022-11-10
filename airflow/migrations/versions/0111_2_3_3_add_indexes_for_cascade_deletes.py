@@ -29,11 +29,11 @@ from __future__ import annotations
 from alembic import context, op
 
 # revision identifiers, used by Alembic.
-revision = 'f5fcbda3e651'
-down_revision = '3c94c427fdf6'
+revision = "f5fcbda3e651"
+down_revision = "3c94c427fdf6"
 branch_labels = None
 depends_on = None
-airflow_version = '2.3.3'
+airflow_version = "2.3.3"
 
 
 def _mysql_tables_where_indexes_already_present(conn):
@@ -43,9 +43,9 @@ def _mysql_tables_where_indexes_already_present(conn):
     downgrade.
     """
     to_check = [
-        ('xcom', 'idx_xcom_task_instance'),
-        ('task_reschedule', 'idx_task_reschedule_dag_run'),
-        ('task_fail', 'idx_task_fail_task_instance'),
+        ("xcom", "idx_xcom_task_instance"),
+        ("task_reschedule", "idx_task_reschedule_dag_run"),
+        ("task_fail", "idx_task_fail_task_instance"),
     ]
     tables = set()
     for tbl, idx in to_check:
@@ -60,20 +60,20 @@ def upgrade():
     tables_to_skip = set()
 
     # mysql requires indexes for FKs, so adding had the effect of renaming, and we cannot remove.
-    if conn.dialect.name == 'mysql' and not context.is_offline_mode():
+    if conn.dialect.name == "mysql" and not context.is_offline_mode():
         tables_to_skip.update(_mysql_tables_where_indexes_already_present(conn))
 
-    if 'task_fail' not in tables_to_skip:
-        with op.batch_alter_table('task_fail', schema=None) as batch_op:
-            batch_op.create_index('idx_task_fail_task_instance', ['dag_id', 'task_id', 'run_id', 'map_index'])
+    if "task_fail" not in tables_to_skip:
+        with op.batch_alter_table("task_fail", schema=None) as batch_op:
+            batch_op.create_index("idx_task_fail_task_instance", ["dag_id", "task_id", "run_id", "map_index"])
 
-    if 'task_reschedule' not in tables_to_skip:
-        with op.batch_alter_table('task_reschedule', schema=None) as batch_op:
-            batch_op.create_index('idx_task_reschedule_dag_run', ['dag_id', 'run_id'])
+    if "task_reschedule" not in tables_to_skip:
+        with op.batch_alter_table("task_reschedule", schema=None) as batch_op:
+            batch_op.create_index("idx_task_reschedule_dag_run", ["dag_id", "run_id"])
 
-    if 'xcom' not in tables_to_skip:
-        with op.batch_alter_table('xcom', schema=None) as batch_op:
-            batch_op.create_index('idx_xcom_task_instance', ['dag_id', 'task_id', 'run_id', 'map_index'])
+    if "xcom" not in tables_to_skip:
+        with op.batch_alter_table("xcom", schema=None) as batch_op:
+            batch_op.create_index("idx_xcom_task_instance", ["dag_id", "task_id", "run_id", "map_index"])
 
 
 def downgrade():
@@ -81,14 +81,14 @@ def downgrade():
     conn = op.get_bind()
 
     # mysql requires indexes for FKs, so adding had the effect of renaming, and we cannot remove.
-    if conn.dialect.name == 'mysql':
+    if conn.dialect.name == "mysql":
         return
 
-    with op.batch_alter_table('xcom', schema=None) as batch_op:
-        batch_op.drop_index('idx_xcom_task_instance')
+    with op.batch_alter_table("xcom", schema=None) as batch_op:
+        batch_op.drop_index("idx_xcom_task_instance")
 
-    with op.batch_alter_table('task_reschedule', schema=None) as batch_op:
-        batch_op.drop_index('idx_task_reschedule_dag_run')
+    with op.batch_alter_table("task_reschedule", schema=None) as batch_op:
+        batch_op.drop_index("idx_task_reschedule_dag_run")
 
-    with op.batch_alter_table('task_fail', schema=None) as batch_op:
-        batch_op.drop_index('idx_task_fail_task_instance')
+    with op.batch_alter_table("task_fail", schema=None) as batch_op:
+        batch_op.drop_index("idx_task_fail_task_instance")

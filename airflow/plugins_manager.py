@@ -115,7 +115,7 @@ class EntryPointSource(AirflowPluginSource):
     """Class used to define Plugins loaded from entrypoint."""
 
     def __init__(self, entrypoint: importlib_metadata.EntryPoint, dist: importlib_metadata.Distribution):
-        self.dist = dist.metadata['Name']
+        self.dist = dist.metadata["Name"]
         self.version = dist.version
         self.entrypoint = str(entrypoint)
 
@@ -223,8 +223,8 @@ def load_entrypoint_plugins():
 
     log.debug("Loading plugins from entrypoints")
 
-    for entry_point, dist in entry_points_with_dist('airflow.plugins'):
-        log.debug('Importing entry_point plugin %s', entry_point.name)
+    for entry_point, dist in entry_points_with_dist("airflow.plugins"):
+        log.debug("Importing entry_point plugin %s", entry_point.name)
         try:
             plugin_class = entry_point.load()
             if not is_valid_plugin(plugin_class):
@@ -247,7 +247,7 @@ def load_plugins_from_plugin_directory():
         if not os.path.isfile(file_path):
             continue
         mod_name, file_ext = os.path.splitext(os.path.split(file_path)[-1])
-        if file_ext != '.py':
+        if file_ext != ".py":
             continue
 
         try:
@@ -256,14 +256,14 @@ def load_plugins_from_plugin_directory():
             mod = importlib.util.module_from_spec(spec)
             sys.modules[spec.name] = mod
             loader.exec_module(mod)
-            log.debug('Importing plugin module %s', file_path)
+            log.debug("Importing plugin module %s", file_path)
 
             for mod_attr_value in (m for m in mod.__dict__.values() if is_valid_plugin(m)):
                 plugin_instance = mod_attr_value()
                 plugin_instance.source = PluginsDirectorySource(file_path)
                 register_plugin(plugin_instance)
         except Exception as e:
-            log.exception('Failed to import plugin %s', file_path)
+            log.exception("Failed to import plugin %s", file_path)
             import_errors[file_path] = str(e)
 
 
@@ -271,10 +271,10 @@ def make_module(name: str, objects: list[Any]):
     """Creates new module."""
     if not objects:
         return None
-    log.debug('Creating module %s', name)
+    log.debug("Creating module %s", name)
     name = name.lower()
     module = types.ModuleType(name)
-    module._name = name.split('.')[-1]  # type: ignore
+    module._name = name.split(".")[-1]  # type: ignore
     module._objects = objects  # type: ignore
     module.__dict__.update((o.__name__, o) for o in objects)
     return module
@@ -344,13 +344,13 @@ def initialize_web_ui_plugins():
     for plugin in plugins:
         flask_appbuilder_views.extend(plugin.appbuilder_views)
         flask_appbuilder_menu_links.extend(plugin.appbuilder_menu_items)
-        flask_blueprints.extend([{'name': plugin.name, 'blueprint': bp} for bp in plugin.flask_blueprints])
+        flask_blueprints.extend([{"name": plugin.name, "blueprint": bp} for bp in plugin.flask_blueprints])
 
         if (plugin.admin_views and not plugin.appbuilder_views) or (
             plugin.menu_links and not plugin.appbuilder_menu_items
         ):
             log.warning(
-                "Plugin \'%s\' may not be compatible with the current Airflow version. "
+                "Plugin '%s' may not be compatible with the current Airflow version. "
                 "Please contact the author of the plugin.",
                 plugin.name,
             )
@@ -452,7 +452,7 @@ def integrate_executor_plugins() -> None:
             raise AirflowPluginException("Invalid plugin name")
         plugin_name: str = plugin.name
 
-        executors_module = make_module('airflow.executors.' + plugin_name, plugin.executors)
+        executors_module = make_module("airflow.executors." + plugin_name, plugin.executors)
         if executors_module:
             executors_modules.append(executors_module)
             sys.modules[executors_module.__name__] = executors_module
@@ -481,7 +481,7 @@ def integrate_macros_plugins() -> None:
         if plugin.name is None:
             raise AirflowPluginException("Invalid plugin name")
 
-        macros_module = make_module(f'airflow.macros.{plugin.name}', plugin.macros)
+        macros_module = make_module(f"airflow.macros.{plugin.name}", plugin.macros)
 
         if macros_module:
             macros_modules.append(macros_module)
@@ -523,21 +523,21 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
         for plugin in plugins:
             info: dict[str, Any] = {"name": plugin.name}
             for attr in attrs_to_dump:
-                if attr in ('global_operator_extra_links', 'operator_extra_links'):
+                if attr in ("global_operator_extra_links", "operator_extra_links"):
                     info[attr] = [
-                        f'<{as_importable_string(d.__class__)} object>' for d in getattr(plugin, attr)
+                        f"<{as_importable_string(d.__class__)} object>" for d in getattr(plugin, attr)
                     ]
-                elif attr in ('macros', 'timetables', 'hooks', 'executors'):
+                elif attr in ("macros", "timetables", "hooks", "executors"):
                     info[attr] = [as_importable_string(d) for d in getattr(plugin, attr)]
-                elif attr == 'listeners':
+                elif attr == "listeners":
                     # listeners are always modules
                     info[attr] = [d.__name__ for d in getattr(plugin, attr)]
-                elif attr == 'appbuilder_views':
+                elif attr == "appbuilder_views":
                     info[attr] = [
-                        {**d, 'view': as_importable_string(d['view'].__class__) if 'view' in d else None}
+                        {**d, "view": as_importable_string(d["view"].__class__) if "view" in d else None}
                         for d in getattr(plugin, attr)
                     ]
-                elif attr == 'flask_blueprints':
+                elif attr == "flask_blueprints":
                     info[attr] = [
                         (
                             f"<{as_importable_string(d.__class__)}: "

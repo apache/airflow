@@ -30,11 +30,11 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = 'b0d31815b5a6'
-down_revision = 'ecb43d2a1842'
+revision = "b0d31815b5a6"
+down_revision = "ecb43d2a1842"
 branch_labels = None
 depends_on = None
-airflow_version = '2.4.2'
+airflow_version = "2.4.2"
 
 
 def upgrade():
@@ -49,27 +49,27 @@ def upgrade():
     to change them.
     """
     conn = op.get_bind()
-    if conn.dialect.name in ['mssql', 'sqlite']:
+    if conn.dialect.name in ["mssql", "sqlite"]:
         # 1.10.12 didn't support SQL Server, so it couldn't have gotten this wrong --> nothing to correct
         # SQLite autoinc was "implicit" for an INTEGER NOT NULL PRIMARY KEY
         return
 
     for table in (
-        'ab_permission',
-        'ab_view_menu',
-        'ab_role',
-        'ab_permission_view',
-        'ab_permission_view_role',
-        'ab_user',
-        'ab_user_role',
-        'ab_register_user',
+        "ab_permission",
+        "ab_view_menu",
+        "ab_role",
+        "ab_permission_view",
+        "ab_permission_view_role",
+        "ab_user",
+        "ab_user_role",
+        "ab_register_user",
     ):
         with op.batch_alter_table(table) as batch:
             kwargs = {}
-            if conn.dialect.name == 'postgresql':
-                kwargs['server_default'] = sa.Sequence(f'{table}_id_seq').next_value()
+            if conn.dialect.name == "postgresql":
+                kwargs["server_default"] = sa.Sequence(f"{table}_id_seq").next_value()
             else:
-                kwargs['autoincrement'] = True
+                kwargs["autoincrement"] = True
             batch.alter_column("id", existing_type=sa.Integer(), existing_nullable=False, **kwargs)
 
 

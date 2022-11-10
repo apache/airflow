@@ -31,30 +31,30 @@ from airflow.migrations.db_types import TIMESTAMP, StringID
 # revision identifiers, used by Alembic.
 
 
-revision = '424117c37d18'
-down_revision = 'f5fcbda3e651'
+revision = "424117c37d18"
+down_revision = "f5fcbda3e651"
 branch_labels = None
 depends_on = None
-airflow_version = '2.4.0'
+airflow_version = "2.4.0"
 
 
 def upgrade():
     """Apply Add DagWarning model"""
     op.create_table(
-        'dag_warning',
-        sa.Column('dag_id', StringID(), primary_key=True),
-        sa.Column('warning_type', sa.String(length=50), primary_key=True),
-        sa.Column('message', sa.Text(), nullable=False),
-        sa.Column('timestamp', TIMESTAMP, nullable=False),
+        "dag_warning",
+        sa.Column("dag_id", StringID(), primary_key=True),
+        sa.Column("warning_type", sa.String(length=50), primary_key=True),
+        sa.Column("message", sa.Text(), nullable=False),
+        sa.Column("timestamp", TIMESTAMP, nullable=False),
         sa.ForeignKeyConstraint(
-            ('dag_id',),
-            ['dag.dag_id'],
-            name='dcw_dag_id_fkey',
-            ondelete='CASCADE',
+            ("dag_id",),
+            ["dag.dag_id"],
+            name="dcw_dag_id_fkey",
+            ondelete="CASCADE",
         ),
     )
 
 
 def downgrade():
     """Unapply Add DagWarning model"""
-    op.drop_table('dag_warning')
+    op.drop_table("dag_warning")

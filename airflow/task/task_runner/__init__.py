@@ -26,7 +26,7 @@ from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
 
-_TASK_RUNNER_NAME = conf.get('core', 'TASK_RUNNER')
+_TASK_RUNNER_NAME = conf.get("core", "TASK_RUNNER")
 
 STANDARD_TASK_RUNNER = "StandardTaskRunner"
 

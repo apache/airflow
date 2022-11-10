@@ -111,8 +111,8 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-DEFAULT_VIEW_PRESETS = ['grid', 'graph', 'duration', 'gantt', 'landing_times']
-ORIENTATION_PRESETS = ['LR', 'TB', 'RL', 'BT']
+DEFAULT_VIEW_PRESETS = ["grid", "graph", "duration", "gantt", "landing_times"]
+ORIENTATION_PRESETS = ["LR", "TB", "RL", "BT"]
 
 TAG_MAX_LEN = 100
 
@@ -217,7 +217,7 @@ def get_dataset_triggered_next_run_info(
             DagScheduleDatasetReference.dag_id,
             # This is a dirty hack to workaround group by requiring an aggregate, since grouping by dataset
             # is not what we want to do here...but it works
-            case((func.count() == 1, func.max(DatasetModel.uri)), else_='').label("uri"),
+            case((func.count() == 1, func.max(DatasetModel.uri)), else_="").label("uri"),
             func.count().label("total"),
             func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)).label("ready"),
         )
@@ -350,15 +350,15 @@ class DAG(LoggingMixin):
     """
 
     _comps = {
-        'dag_id',
-        'task_ids',
-        'parent_dag',
-        'start_date',
-        'end_date',
-        'schedule_interval',
-        'fileloc',
-        'template_searchpath',
-        'last_loaded',
+        "dag_id",
+        "task_ids",
+        "parent_dag",
+        "start_date",
+        "end_date",
+        "schedule_interval",
+        "fileloc",
+        "template_searchpath",
+        "last_loaded",
     }
 
     __serialized_fields: frozenset[str] | None = None
@@ -391,13 +391,13 @@ class DAG(LoggingMixin):
         user_defined_filters: dict | None = None,
         default_args: dict | None = None,
         concurrency: int | None = None,
-        max_active_tasks: int = conf.getint('core', 'max_active_tasks_per_dag'),
-        max_active_runs: int = conf.getint('core', 'max_active_runs_per_dag'),
+        max_active_tasks: int = conf.getint("core", "max_active_tasks_per_dag"),
+        max_active_runs: int = conf.getint("core", "max_active_runs_per_dag"),
         dagrun_timeout: timedelta | None = None,
         sla_miss_callback: SLAMissCallback | None = None,
-        default_view: str = conf.get_mandatory_value('webserver', 'dag_default_view').lower(),
-        orientation: str = conf.get_mandatory_value('webserver', 'dag_orientation'),
-        catchup: bool = conf.getboolean('scheduler', 'catchup_by_default'),
+        default_view: str = conf.get_mandatory_value("webserver", "dag_default_view").lower(),
+        orientation: str = conf.get_mandatory_value("webserver", "dag_orientation"),
+        catchup: bool = conf.getboolean("scheduler", "catchup_by_default"),
         on_success_callback: DagStateChangeCallback | None = None,
         on_failure_callback: DagStateChangeCallback | None = None,
         doc_md: str | None = None,
@@ -424,9 +424,9 @@ class DAG(LoggingMixin):
         params = params or {}
 
         # merging potentially conflicting default_args['params'] into params
-        if 'params' in self.default_args:
-            params.update(self.default_args['params'])
-            del self.default_args['params']
+        if "params" in self.default_args:
+            params.update(self.default_args["params"])
+            del self.default_args["params"]
 
         # check self.params and convert them into ParamsDict
         self.params = ParamsDict(params)
@@ -463,11 +463,11 @@ class DAG(LoggingMixin):
         if start_date and start_date.tzinfo:
             tzinfo = None if start_date.tzinfo else settings.TIMEZONE
             tz = pendulum.instance(start_date, tz=tzinfo).timezone
-        elif 'start_date' in self.default_args and self.default_args['start_date']:
-            date = self.default_args['start_date']
+        elif "start_date" in self.default_args and self.default_args["start_date"]:
+            date = self.default_args["start_date"]
             if not isinstance(date, datetime):
                 date = timezone.parse(date)
-                self.default_args['start_date'] = date
+                self.default_args["start_date"] = date
                 start_date = date
 
             tzinfo = None if date.tzinfo else settings.TIMEZONE
@@ -475,20 +475,20 @@ class DAG(LoggingMixin):
         self.timezone = tz or settings.TIMEZONE
 
         # Apply the timezone we settled on to end_date if it wasn't supplied
-        if 'end_date' in self.default_args and self.default_args['end_date']:
-            if isinstance(self.default_args['end_date'], str):
-                self.default_args['end_date'] = timezone.parse(
-                    self.default_args['end_date'], timezone=self.timezone
+        if "end_date" in self.default_args and self.default_args["end_date"]:
+            if isinstance(self.default_args["end_date"], str):
+                self.default_args["end_date"] = timezone.parse(
+                    self.default_args["end_date"], timezone=self.timezone
                 )
 
         self.start_date = timezone.convert_to_utc(start_date)
         self.end_date = timezone.convert_to_utc(end_date)
 
         # also convert tasks
-        if 'start_date' in self.default_args:
-            self.default_args['start_date'] = timezone.convert_to_utc(self.default_args['start_date'])
-        if 'end_date' in self.default_args:
-            self.default_args['end_date'] = timezone.convert_to_utc(self.default_args['end_date'])
+        if "start_date" in self.default_args:
+            self.default_args["start_date"] = timezone.convert_to_utc(self.default_args["start_date"])
+        if "end_date" in self.default_args:
+            self.default_args["end_date"] = timezone.convert_to_utc(self.default_args["end_date"])
 
         # sort out DAG's scheduling behavior
         scheduling_args = [schedule_interval, timetable, schedule]
@@ -541,30 +541,30 @@ class DAG(LoggingMixin):
         self.template_searchpath = template_searchpath
         self.template_undefined = template_undefined
         self.last_loaded = timezone.utcnow()
-        self.safe_dag_id = dag_id.replace('.', '__dot__')
+        self.safe_dag_id = dag_id.replace(".", "__dot__")
         self.max_active_runs = max_active_runs
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback
         if default_view in DEFAULT_VIEW_PRESETS:
             self._default_view: str = default_view
-        elif default_view == 'tree':
+        elif default_view == "tree":
             warnings.warn(
                 "`default_view` of 'tree' has been renamed to 'grid' -- please update your DAG",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
-            self._default_view = 'grid'
+            self._default_view = "grid"
         else:
             raise AirflowException(
-                f'Invalid values of dag.default_view: only support '
-                f'{DEFAULT_VIEW_PRESETS}, but get {default_view}'
+                f"Invalid values of dag.default_view: only support "
+                f"{DEFAULT_VIEW_PRESETS}, but get {default_view}"
             )
         if orientation in ORIENTATION_PRESETS:
             self.orientation = orientation
         else:
             raise AirflowException(
-                f'Invalid values of dag.orientation: only support '
-                f'{ORIENTATION_PRESETS}, but get {orientation}'
+                f"Invalid values of dag.orientation: only support "
+                f"{ORIENTATION_PRESETS}, but get {orientation}"
             )
         self.catchup = catchup
 
@@ -612,7 +612,7 @@ class DAG(LoggingMixin):
 
         env = self.get_template_env(force_sandboxed=True)
 
-        if not doc_md.endswith('.md'):
+        if not doc_md.endswith(".md"):
             template = jinja2.Template(doc_md)
         else:
             try:
@@ -686,7 +686,7 @@ class DAG(LoggingMixin):
         hash_components = [type(self)]
         for c in self._comps:
             # task_ids returns a list and lists can't be hashed
-            if c == 'task_ids':
+            if c == "task_ids":
                 val = tuple(self.task_dict.keys())
             else:
                 val = getattr(self, c, None)
@@ -1185,7 +1185,7 @@ class DAG(LoggingMixin):
 
     @tasks.setter
     def tasks(self, val):
-        raise AttributeError('DAG.tasks can not be modified. Use dag.add_task() instead.')
+        raise AttributeError("DAG.tasks can not be modified. Use dag.add_task() instead.")
 
     @property
     def task_ids(self) -> list[str]:
@@ -1211,7 +1211,7 @@ class DAG(LoggingMixin):
         path = pathlib.Path(self.fileloc)
         try:
             rel_path = path.relative_to(self._processor_dags_folder or settings.DAGS_FOLDER)
-            if rel_path == pathlib.Path('.'):
+            if rel_path == pathlib.Path("."):
                 return path
             else:
                 return rel_path
@@ -1289,7 +1289,7 @@ class DAG(LoggingMixin):
         )
         if isinstance(self.schedule_interval, str) and self.schedule_interval in cron_presets:
             _schedule_interval: ScheduleInterval = cron_presets.get(self.schedule_interval)
-        elif self.schedule_interval == '@once':
+        elif self.schedule_interval == "@once":
             _schedule_interval = None
         else:
             _schedule_interval = self.schedule_interval
@@ -1313,12 +1313,12 @@ class DAG(LoggingMixin):
         """
         callback = self.on_success_callback if success else self.on_failure_callback
         if callback:
-            self.log.info('Executing dag callback function: %s', callback)
+            self.log.info("Executing dag callback function: %s", callback)
             tis = dagrun.get_task_instances(session=session)
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = self.get_task(ti.task_id)
             context = ti.get_template_context(session=session)
-            context.update({'reason': reason})
+            context.update({"reason": reason})
             try:
                 callback(context)
             except Exception:
@@ -1436,8 +1436,8 @@ class DAG(LoggingMixin):
                 isinstance(task, SubDagOperator)
                 or
                 # TODO remove in Airflow 2.0
-                type(task).__name__ == 'SubDagOperator'
-                or task.task_type == 'SubDagOperator'
+                type(task).__name__ == "SubDagOperator"
+                or task.task_type == "SubDagOperator"
             ):
                 subdag_lst.append(task.subdag)
                 subdag_lst += task.subdag.subdags
@@ -1456,10 +1456,10 @@ class DAG(LoggingMixin):
 
         # Default values (for backward compatibility)
         jinja_env_options = {
-            'loader': jinja2.FileSystemLoader(searchpath),
-            'undefined': self.template_undefined,
-            'extensions': ["jinja2.ext.do"],
-            'cache_size': 0,
+            "loader": jinja2.FileSystemLoader(searchpath),
+            "undefined": self.template_undefined,
+            "extensions": ["jinja2.ext.do"],
+            "cache_size": 0,
         }
         if self.jinja_environment_kwargs:
             jinja_env_options.update(self.jinja_environment_kwargs)
@@ -1667,7 +1667,7 @@ class DAG(LoggingMixin):
                 visited_external_tis = set()
 
             p_dag = self.parent_dag.partial_subset(
-                task_ids_or_regex=r"^{}$".format(self.dag_id.split('.')[1]),
+                task_ids_or_regex=r"^{}$".format(self.dag_id.split(".")[1]),
                 include_upstream=False,
                 include_downstream=True,
             )
@@ -1944,7 +1944,7 @@ class DAG(LoggingMixin):
             query = query.filter(DagRun.execution_date >= start_date)
         if end_date:
             query = query.filter(DagRun.execution_date <= end_date)
-        query.update({DagRun.state: state}, synchronize_session='fetch')
+        query.update({DagRun.state: state}, synchronize_session="fetch")
 
     @provide_session
     def clear(
@@ -2125,12 +2125,12 @@ class DAG(LoggingMixin):
         result = cls.__new__(cls)
         memo[id(self)] = result
         for k, v in self.__dict__.items():
-            if k not in ('user_defined_macros', 'user_defined_filters', '_log'):
+            if k not in ("user_defined_macros", "user_defined_filters", "_log"):
                 setattr(result, k, copy.deepcopy(v, memo))
 
         result.user_defined_macros = self.user_defined_macros
         result.user_defined_filters = self.user_defined_filters
-        if hasattr(self, '_log'):
+        if hasattr(self, "_log"):
             result._log = self._log
         return result
 
@@ -2269,16 +2269,16 @@ class DAG(LoggingMixin):
 
     def pickle_info(self):
         d = {}
-        d['is_picklable'] = True
+        d["is_picklable"] = True
         try:
             dttm = timezone.utcnow()
             pickled = pickle.dumps(self)
-            d['pickle_len'] = len(pickled)
-            d['pickling_duration'] = str(timezone.utcnow() - dttm)
+            d["pickle_len"] = len(pickled)
+            d["pickling_duration"] = str(timezone.utcnow() - dttm)
         except Exception as e:
             self.log.debug(e)
-            d['is_picklable'] = False
-            d['stacktrace'] = traceback.format_exc()
+            d["is_picklable"] = False
+            d["stacktrace"] = traceback.format_exc()
         return d
 
     @provide_session
@@ -2372,7 +2372,7 @@ class DAG(LoggingMixin):
         # This is "private" as removing could leave a hole in dependencies if done incorrectly, and this
         # doesn't guard against that
         task = self.task_dict.pop(task_id)
-        tg = getattr(task, 'task_group', None)
+        tg = getattr(task, "task_group", None)
         if tg:
             tg._remove(task)
 
@@ -2385,7 +2385,7 @@ class DAG(LoggingMixin):
         mark_success=False,
         local=False,
         executor=None,
-        donot_pickle=conf.getboolean('core', 'donot_pickle'),
+        donot_pickle=conf.getboolean("core", "donot_pickle"),
         ignore_task_deps=False,
         ignore_first_depends_on_past=True,
         pool=None,
@@ -2887,7 +2887,7 @@ class DAG(LoggingMixin):
     def get_default_view(self):
         """This is only there for backward compatible jinja2 templates"""
         if self.default_view is None:
-            return conf.get('webserver', 'dag_default_view').lower()
+            return conf.get("webserver", "dag_default_view").lower()
         else:
             return self.default_view
 
@@ -2971,31 +2971,31 @@ class DAG(LoggingMixin):
         """Stringified DAGs and operators contain exactly these fields."""
         if not cls.__serialized_fields:
             exclusion_list = {
-                'parent_dag',
-                'schedule_dataset_references',
-                'task_outlet_dataset_references',
-                '_old_context_manager_dags',
-                'safe_dag_id',
-                'last_loaded',
-                'user_defined_filters',
-                'user_defined_macros',
-                'partial',
-                'params',
-                '_pickle_id',
-                '_log',
-                'task_dict',
-                'template_searchpath',
-                'sla_miss_callback',
-                'on_success_callback',
-                'on_failure_callback',
-                'template_undefined',
-                'jinja_environment_kwargs',
+                "parent_dag",
+                "schedule_dataset_references",
+                "task_outlet_dataset_references",
+                "_old_context_manager_dags",
+                "safe_dag_id",
+                "last_loaded",
+                "user_defined_filters",
+                "user_defined_macros",
+                "partial",
+                "params",
+                "_pickle_id",
+                "_log",
+                "task_dict",
+                "template_searchpath",
+                "sla_miss_callback",
+                "on_success_callback",
+                "on_failure_callback",
+                "template_undefined",
+                "jinja_environment_kwargs",
                 # has_on_*_callback are only stored if the value is True, as the default is False
-                'has_on_success_callback',
-                'has_on_failure_callback',
-                'auto_register',
+                "has_on_success_callback",
+                "has_on_failure_callback",
+                "auto_register",
             }
-            cls.__serialized_fields = frozenset(vars(DAG(dag_id='test')).keys()) - exclusion_list
+            cls.__serialized_fields = frozenset(vars(DAG(dag_id="test")).keys()) - exclusion_list
         return cls.__serialized_fields
 
     def get_edge_info(self, upstream_task_id: str, downstream_task_id: str) -> EdgeInfoType:
@@ -3053,7 +3053,7 @@ class DagTag(Base):
     name = Column(String(TAG_MAX_LEN), primary_key=True)
     dag_id = Column(
         StringID(),
-        ForeignKey('dag.dag_id', name='dag_tag_dag_id_fkey', ondelete='CASCADE'),
+        ForeignKey("dag.dag_id", name="dag_tag_dag_id_fkey", ondelete="CASCADE"),
         primary_key=True,
     )
 
@@ -3070,7 +3070,7 @@ class DagOwnerAttributes(Base):
     __tablename__ = "dag_owner_attributes"
     dag_id = Column(
         StringID(),
-        ForeignKey('dag.dag_id', name='dag.dag_id', ondelete='CASCADE'),
+        ForeignKey("dag.dag_id", name="dag.dag_id", ondelete="CASCADE"),
         nullable=False,
         primary_key=True,
     )
@@ -3099,7 +3099,7 @@ class DagModel(Base):
     root_dag_id = Column(StringID())
     # A DAG can be paused from the UI / DB
     # Set this default value of is_paused based on a configuration value!
-    is_paused_at_creation = conf.getboolean('core', 'dags_are_paused_at_creation')
+    is_paused_at_creation = conf.getboolean("core", "dags_are_paused_at_creation")
     is_paused = Column(Boolean, default=is_paused_at_creation)
     # Whether the DAG is a subdag
     is_subdag = Column(Boolean, default=False)
@@ -3134,17 +3134,17 @@ class DagModel(Base):
     # Timetable/Schedule Interval description
     timetable_description = Column(String(1000), nullable=True)
     # Tags for view filter
-    tags = relationship('DagTag', cascade='all, delete, delete-orphan', backref=backref('dag'))
+    tags = relationship("DagTag", cascade="all, delete, delete-orphan", backref=backref("dag"))
     # Dag owner links for DAGs view
     dag_owner_links = relationship(
-        'DagOwnerAttributes', cascade='all, delete, delete-orphan', backref=backref('dag')
+        "DagOwnerAttributes", cascade="all, delete, delete-orphan", backref=backref("dag")
     )
 
     max_active_tasks = Column(Integer, nullable=False)
     max_active_runs = Column(Integer, nullable=True)
 
     has_task_concurrency_limits = Column(Boolean, nullable=False)
-    has_import_errors = Column(Boolean(), default=False, server_default='0')
+    has_import_errors = Column(Boolean(), default=False, server_default="0")
 
     # The logical date of the next dag run.
     next_dagrun = Column(UtcDateTime)
@@ -3157,8 +3157,8 @@ class DagModel(Base):
     next_dagrun_create_after = Column(UtcDateTime)
 
     __table_args__ = (
-        Index('idx_root_dag_id', root_dag_id, unique=False),
-        Index('idx_next_dagrun_create_after', next_dagrun_create_after, unique=False),
+        Index("idx_root_dag_id", root_dag_id, unique=False),
+        Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),
     )
 
     parent_dag = relationship(
@@ -3166,14 +3166,14 @@ class DagModel(Base):
     )
     schedule_dataset_references = relationship(
         "DagScheduleDatasetReference",
-        cascade='all, delete, delete-orphan',
+        cascade="all, delete, delete-orphan",
     )
-    schedule_datasets = association_proxy('schedule_dataset_references', 'dataset')
+    schedule_datasets = association_proxy("schedule_dataset_references", "dataset")
     task_outlet_dataset_references = relationship(
         "TaskOutletDatasetReference",
-        cascade='all, delete, delete-orphan',
+        cascade="all, delete, delete-orphan",
     )
-    NUM_DAGS_PER_DAGRUN_QUERY = conf.getint('scheduler', 'max_dagruns_to_create_per_loop', fallback=10)
+    NUM_DAGS_PER_DAGRUN_QUERY = conf.getint("scheduler", "max_dagruns_to_create_per_loop", fallback=10)
 
     def __init__(self, concurrency=None, **kwargs):
         super().__init__(**kwargs)
@@ -3186,10 +3186,10 @@ class DagModel(Base):
                 )
                 self.max_active_tasks = concurrency
             else:
-                self.max_active_tasks = conf.getint('core', 'max_active_tasks_per_dag')
+                self.max_active_tasks = conf.getint("core", "max_active_tasks_per_dag")
 
         if self.max_active_runs is None:
-            self.max_active_runs = conf.getint('core', 'max_active_runs_per_dag')
+            self.max_active_runs = conf.getint("core", "max_active_runs_per_dag")
 
         if self.has_task_concurrency_limits is None:
             # Be safe -- this will be updated later once the DAG is parsed
@@ -3272,11 +3272,11 @@ class DagModel(Base):
         have a value
         """
         # This is for backwards-compatibility with old dags that don't have None as default_view
-        return self.default_view or conf.get_mandatory_value('webserver', 'dag_default_view').lower()
+        return self.default_view or conf.get_mandatory_value("webserver", "dag_default_view").lower()
 
     @property
     def safe_dag_id(self):
-        return self.dag_id.replace('.', '__dot__')
+        return self.dag_id.replace(".", "__dot__")
 
     @property
     def relative_fileloc(self) -> pathlib.Path | None:
@@ -3305,7 +3305,7 @@ class DagModel(Base):
         if including_subdags:
             filter_query.append(DagModel.root_dag_id == self.dag_id)
         session.query(DagModel).filter(or_(*filter_query)).update(
-            {DagModel.is_paused: is_paused}, synchronize_session='fetch'
+            {DagModel.is_paused: is_paused}, synchronize_session="fetch"
         )
         session.commit()
 
@@ -3342,8 +3342,8 @@ class DagModel(Base):
             x.dag_id: (x.first_queued_time, x.last_queued_time)
             for x in session.query(
                 DagScheduleDatasetReference.dag_id,
-                func.max(DDRQ.created_at).label('last_queued_time'),
-                func.min(DDRQ.created_at).label('first_queued_time'),
+                func.max(DDRQ.created_at).label("last_queued_time"),
+                func.min(DDRQ.created_at).label("first_queued_time"),
             )
             .join(DagScheduleDatasetReference.queue_records, isouter=True)
             .group_by(DagScheduleDatasetReference.dag_id)
@@ -3453,13 +3453,13 @@ def dag(
     user_defined_filters: dict | None = None,
     default_args: dict | None = None,
     concurrency: int | None = None,
-    max_active_tasks: int = conf.getint('core', 'max_active_tasks_per_dag'),
-    max_active_runs: int = conf.getint('core', 'max_active_runs_per_dag'),
+    max_active_tasks: int = conf.getint("core", "max_active_tasks_per_dag"),
+    max_active_runs: int = conf.getint("core", "max_active_runs_per_dag"),
     dagrun_timeout: timedelta | None = None,
     sla_miss_callback: SLAMissCallback | None = None,
-    default_view: str = conf.get_mandatory_value('webserver', 'dag_default_view').lower(),
-    orientation: str = conf.get_mandatory_value('webserver', 'dag_orientation'),
-    catchup: bool = conf.getboolean('scheduler', 'catchup_by_default'),
+    default_view: str = conf.get_mandatory_value("webserver", "dag_default_view").lower(),
+    orientation: str = conf.get_mandatory_value("webserver", "dag_orientation"),
+    catchup: bool = conf.getboolean("scheduler", "catchup_by_default"),
     on_success_callback: DagStateChangeCallback | None = None,
     on_failure_callback: DagStateChangeCallback | None = None,
     doc_md: str | None = None,
@@ -3551,7 +3551,7 @@ def dag(
 
 
 STATICA_HACK = True
-globals()['kcah_acitats'[::-1].upper()] = False
+globals()["kcah_acitats"[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
 
     from airflow.models.serialized_dag import SerializedDagModel

@@ -38,14 +38,14 @@ class _PythonVirtualenvDecoratedOperator(DecoratedOperator, PythonVirtualenvOper
         multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys. Defaults to False.
     """
 
-    template_fields: Sequence[str] = ('op_args', 'op_kwargs')
+    template_fields: Sequence[str] = ("op_args", "op_kwargs")
     template_fields_renderers = {"op_args": "py", "op_kwargs": "py"}
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
-    shallow_copy_attrs: Sequence[str] = ('python_callable',)
+    shallow_copy_attrs: Sequence[str] = ("python_callable",)
 
-    custom_operator_name: str = '@task.virtualenv'
+    custom_operator_name: str = "@task.virtualenv"
 
     def __init__(self, *, python_callable, op_args, op_kwargs, **kwargs) -> None:
         kwargs_to_upstream = {

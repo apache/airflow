@@ -79,42 +79,42 @@ def __getattr__(name):
 
     from airflow.utils.module_loading import import_string
 
-    val = import_string(f'{path}.{name}')
+    val = import_string(f"{path}.{name}")
     # Store for next time
     globals()[name] = val
     return val
 
 
 __lazy_imports = {
-    'DAG': 'airflow.models.dag',
-    'ID_LEN': 'airflow.models.base',
-    'XCOM_RETURN_KEY': 'airflow.models.xcom',
-    'Base': 'airflow.models.base',
-    'BaseOperator': 'airflow.models.baseoperator',
-    'BaseOperatorLink': 'airflow.models.baseoperator',
-    'Connection': 'airflow.models.connection',
-    'DagBag': 'airflow.models.dagbag',
-    'DagModel': 'airflow.models.dag',
-    'DagPickle': 'airflow.models.dagpickle',
-    'DagRun': 'airflow.models.dagrun',
-    'DagTag': 'airflow.models.dag',
-    'DbCallbackRequest': 'airflow.models.db_callback_request',
-    'ImportError': 'airflow.models.errors',
-    'Log': 'airflow.models.log',
-    'MappedOperator': 'airflow.models.mappedoperator',
-    'Operator': 'airflow.models.operator',
-    'Param': 'airflow.models.param',
-    'Pool': 'airflow.models.pool',
-    'RenderedTaskInstanceFields': 'airflow.models.renderedtifields',
-    'SkipMixin': 'airflow.models.skipmixin',
-    'SlaMiss': 'airflow.models.slamiss',
-    'TaskFail': 'airflow.models.taskfail',
-    'TaskInstance': 'airflow.models.taskinstance',
-    'TaskReschedule': 'airflow.models.taskreschedule',
-    'Trigger': 'airflow.models.trigger',
-    'Variable': 'airflow.models.variable',
-    'XCom': 'airflow.models.xcom',
-    'clear_task_instances': 'airflow.models.taskinstance',
+    "DAG": "airflow.models.dag",
+    "ID_LEN": "airflow.models.base",
+    "XCOM_RETURN_KEY": "airflow.models.xcom",
+    "Base": "airflow.models.base",
+    "BaseOperator": "airflow.models.baseoperator",
+    "BaseOperatorLink": "airflow.models.baseoperator",
+    "Connection": "airflow.models.connection",
+    "DagBag": "airflow.models.dagbag",
+    "DagModel": "airflow.models.dag",
+    "DagPickle": "airflow.models.dagpickle",
+    "DagRun": "airflow.models.dagrun",
+    "DagTag": "airflow.models.dag",
+    "DbCallbackRequest": "airflow.models.db_callback_request",
+    "ImportError": "airflow.models.errors",
+    "Log": "airflow.models.log",
+    "MappedOperator": "airflow.models.mappedoperator",
+    "Operator": "airflow.models.operator",
+    "Param": "airflow.models.param",
+    "Pool": "airflow.models.pool",
+    "RenderedTaskInstanceFields": "airflow.models.renderedtifields",
+    "SkipMixin": "airflow.models.skipmixin",
+    "SlaMiss": "airflow.models.slamiss",
+    "TaskFail": "airflow.models.taskfail",
+    "TaskInstance": "airflow.models.taskinstance",
+    "TaskReschedule": "airflow.models.taskreschedule",
+    "Trigger": "airflow.models.trigger",
+    "Variable": "airflow.models.variable",
+    "XCom": "airflow.models.xcom",
+    "clear_task_instances": "airflow.models.taskinstance",
 }
 
 if TYPE_CHECKING:

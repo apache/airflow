@@ -30,35 +30,35 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = 'e07f49787c9d'
-down_revision = 'b0d31815b5a6'
+revision = "e07f49787c9d"
+down_revision = "b0d31815b5a6"
 branch_labels = None
 depends_on = None
-airflow_version = '2.4.3'
+airflow_version = "2.4.3"
 
 
 def upgrade():
     """Apply Add case-insensitive unique constraint"""
     conn = op.get_bind()
-    if conn.dialect.name == 'postgresql':
-        op.create_index('idx_ab_user_username', 'ab_user', [sa.text('LOWER(username)')], unique=True)
+    if conn.dialect.name == "postgresql":
+        op.create_index("idx_ab_user_username", "ab_user", [sa.text("LOWER(username)")], unique=True)
         op.create_index(
-            "idx_ab_register_user_username", 'ab_register_user', [sa.text('LOWER(username)')], unique=True
+            "idx_ab_register_user_username", "ab_register_user", [sa.text("LOWER(username)")], unique=True
         )
-    elif conn.dialect.name == 'sqlite':
-        with op.batch_alter_table('ab_user') as batch_op:
+    elif conn.dialect.name == "sqlite":
+        with op.batch_alter_table("ab_user") as batch_op:
             batch_op.alter_column(
-                'username',
+                "username",
                 existing_type=sa.String(64),
-                _type=sa.String(64, collation='NOCASE'),
+                _type=sa.String(64, collation="NOCASE"),
                 unique=True,
                 nullable=False,
             )
-        with op.batch_alter_table('ab_register_user') as batch_op:
+        with op.batch_alter_table("ab_register_user") as batch_op:
             batch_op.alter_column(
-                'username',
+                "username",
                 existing_type=sa.String(64),
-                _type=sa.String(64, collation='NOCASE'),
+                _type=sa.String(64, collation="NOCASE"),
                 unique=True,
                 nullable=False,
             )
@@ -67,22 +67,22 @@ def upgrade():
 def downgrade():
     """Unapply Add case-insensitive unique constraint"""
     conn = op.get_bind()
-    if conn.dialect.name == 'postgresql':
-        op.drop_index('idx_ab_user_username', table_name='ab_user')
-        op.drop_index('idx_ab_register_user_username', table_name='ab_register_user')
-    elif conn.dialect.name == 'sqlite':
-        with op.batch_alter_table('ab_user') as batch_op:
+    if conn.dialect.name == "postgresql":
+        op.drop_index("idx_ab_user_username", table_name="ab_user")
+        op.drop_index("idx_ab_register_user_username", table_name="ab_register_user")
+    elif conn.dialect.name == "sqlite":
+        with op.batch_alter_table("ab_user") as batch_op:
             batch_op.alter_column(
-                'username',
-                existing_type=sa.String(64, collation='NOCASE'),
+                "username",
+                existing_type=sa.String(64, collation="NOCASE"),
                 _type=sa.String(64),
                 unique=True,
                 nullable=False,
             )
-        with op.batch_alter_table('ab_register_user') as batch_op:
+        with op.batch_alter_table("ab_register_user") as batch_op:
             batch_op.alter_column(
-                'username',
-                existing_type=sa.String(64, collation='NOCASE'),
+                "username",
+                existing_type=sa.String(64, collation="NOCASE"),
                 _type=sa.String(64),
                 unique=True,
                 nullable=False,

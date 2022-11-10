@@ -29,15 +29,15 @@ from airflow.utils.edgemodifier import Label
 from airflow.utils.trigger_rule import TriggerRule
 
 with DAG(
-    dag_id='example_branch_python_operator_decorator',
+    dag_id="example_branch_python_operator_decorator",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     schedule="@daily",
-    tags=['example', 'example2'],
+    tags=["example", "example2"],
 ) as dag:
-    run_this_first = EmptyOperator(task_id='run_this_first')
+    run_this_first = EmptyOperator(task_id="run_this_first")
 
-    options = ['branch_a', 'branch_b', 'branch_c', 'branch_d']
+    options = ["branch_a", "branch_b", "branch_c", "branch_d"]
 
     @task.branch(task_id="branching")
     def random_choice(choices: list[str]) -> str:
@@ -47,12 +47,12 @@ with DAG(
 
     run_this_first >> random_choice_instance
 
-    join = EmptyOperator(task_id='join', trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+    join = EmptyOperator(task_id="join", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
 
     for option in options:
         t = EmptyOperator(task_id=option)
 
-        empty_follow = EmptyOperator(task_id='follow_' + option)
+        empty_follow = EmptyOperator(task_id="follow_" + option)
 
         # Label is optional here, but it can help identify more complex branches
         random_choice_instance >> Label(option) >> t >> empty_follow >> join

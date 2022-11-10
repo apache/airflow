@@ -105,11 +105,11 @@ class DayOfWeekSensor(BaseSensorOperator):
 
     def poke(self, context: Context) -> bool:
         self.log.info(
-            'Poking until weekday is in %s, Today is %s',
+            "Poking until weekday is in %s, Today is %s",
             self.week_day,
             WeekDay(timezone.utcnow().isoweekday()).name,
         )
         if self.use_task_logical_date:
-            return context['logical_date'].isoweekday() in self._week_day_num
+            return context["logical_date"].isoweekday() in self._week_day_num
         else:
             return timezone.utcnow().isoweekday() in self._week_day_num

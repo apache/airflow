@@ -62,7 +62,7 @@ class BackfillJob(BaseJob):
 
     STATES_COUNT_AS_RUNNING = (State.RUNNING, State.QUEUED)
 
-    __mapper_args__ = {'polymorphic_identity': 'BackfillJob'}
+    __mapper_args__ = {"polymorphic_identity": "BackfillJob"}
 
     @attr.define
     class _DagRunTaskStatus:
@@ -376,8 +376,8 @@ class BackfillJob(BaseJob):
 
     def _log_progress(self, ti_status):
         self.log.info(
-            '[backfill progress] | finished run %s of %s | tasks waiting: %s | succeeded: %s | '
-            'running: %s | failed: %s | skipped: %s | deadlocked: %s | not ready: %s',
+            "[backfill progress] | finished run %s of %s | tasks waiting: %s | succeeded: %s | "
+            "running: %s | failed: %s | skipped: %s | deadlocked: %s | not ready: %s",
             ti_status.finished_runs,
             ti_status.total_runs,
             len(ti_status.to_run),
@@ -414,7 +414,7 @@ class BackfillJob(BaseJob):
         """
         executed_run_dates = []
 
-        is_unit_test = airflow_conf.getboolean('core', 'unit_test_mode')
+        is_unit_test = airflow_conf.getboolean("core", "unit_test_mode")
 
         while (len(ti_status.to_run) > 0 or len(ti_status.running) > 0) and len(ti_status.deadlocked) == 0:
             self.log.debug("*** Clearing out not_ready list ***")
@@ -488,7 +488,7 @@ class BackfillJob(BaseJob):
                     if executor.has_task(ti):
                         self.log.debug("Task Instance %s already in executor waiting for queue to clear", ti)
                     else:
-                        self.log.debug('Sending %s to executor', ti)
+                        self.log.debug("Sending %s to executor", ti)
                         # Skip scheduled state, we are executing immediately
                         ti.state = TaskInstanceState.QUEUED
                         ti.queued_by_job_id = self.id
@@ -547,7 +547,7 @@ class BackfillJob(BaseJob):
                     return
 
                 # all remaining tasks
-                self.log.debug('Adding %s to not_ready', ti)
+                self.log.debug("Adding %s to not_ready", ti)
                 ti_status.not_ready.add(key)
 
             try:
@@ -558,7 +558,7 @@ class BackfillJob(BaseJob):
 
                         pool = session.query(models.Pool).filter(models.Pool.pool == task.pool).first()
                         if not pool:
-                            raise PoolNotFound(f'Unknown pool: {task.pool}')
+                            raise PoolNotFound(f"Unknown pool: {task.pool}")
 
                         open_slots = pool.open_slots(session=session)
                         if open_slots <= 0:
@@ -677,12 +677,12 @@ class BackfillJob(BaseJob):
 
             return tabulate(sorted_ti_keys, headers=headers)
 
-        err = ''
+        err = ""
         if ti_status.failed:
             err += "Some task instances failed:\n"
             err += tabulate_ti_keys_set(ti_status.failed)
         if ti_status.deadlocked:
-            err += 'BackfillJob is deadlocked.'
+            err += "BackfillJob is deadlocked."
             deadlocked_depends_on_past = any(
                 t.are_dependencies_met(
                     dep_context=DepContext(ignore_depends_on_past=False),
@@ -696,21 +696,21 @@ class BackfillJob(BaseJob):
             )
             if deadlocked_depends_on_past:
                 err += (
-                    'Some of the deadlocked tasks were unable to run because '
+                    "Some of the deadlocked tasks were unable to run because "
                     'of "depends_on_past" relationships. Try running the '
-                    'backfill with the option '
+                    "backfill with the option "
                     '"ignore_first_depends_on_past=True" or passing "-I" at '
-                    'the command line.'
+                    "the command line."
                 )
-            err += '\nThese tasks have succeeded:\n'
+            err += "\nThese tasks have succeeded:\n"
             err += tabulate_ti_keys_set(ti_status.succeeded)
-            err += '\n\nThese tasks are running:\n'
+            err += "\n\nThese tasks are running:\n"
             err += tabulate_ti_keys_set(ti_status.running)
-            err += '\n\nThese tasks have failed:\n'
+            err += "\n\nThese tasks have failed:\n"
             err += tabulate_ti_keys_set(ti_status.failed)
-            err += '\n\nThese tasks are skipped:\n'
+            err += "\n\nThese tasks are skipped:\n"
             err += tabulate_ti_keys_set(ti_status.skipped)
-            err += '\n\nThese tasks are deadlocked:\n'
+            err += "\n\nThese tasks are deadlocked:\n"
             err += tabulate_ti_keys_set([ti.key for ti in ti_status.deadlocked])
 
         return err
@@ -789,7 +789,7 @@ class BackfillJob(BaseJob):
             tasks_that_depend_on_past = [t.task_id for t in self.dag.task_dict.values() if t.depends_on_past]
             if tasks_that_depend_on_past:
                 raise AirflowException(
-                    f'You cannot backfill backwards because one or more '
+                    f"You cannot backfill backwards because one or more "
                     f'tasks depend_on_past: {",".join(tasks_that_depend_on_past)}'
                 )
             dagrun_infos = dagrun_infos[::-1]
@@ -941,7 +941,7 @@ class BackfillJob(BaseJob):
 
         reset_tis = helpers.reduce_in_chunks(query, tis_to_reset, [], self.max_tis_per_query)
 
-        task_instance_str = '\n\t'.join(repr(x) for x in reset_tis)
+        task_instance_str = "\n\t".join(repr(x) for x in reset_tis)
         session.flush()
 
         self.log.info("Reset the following %s TaskInstances:\n\t%s", len(reset_tis), task_instance_str)

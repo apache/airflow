@@ -207,9 +207,9 @@ def _run_task_by_executor(args, dag, ti):
                 session.add(pickle)
             pickle_id = pickle.id
             # TODO: This should be written to a log
-            print(f'Pickled dag {dag} as pickle_id: {pickle_id}')
+            print(f"Pickled dag {dag} as pickle_id: {pickle_id}")
         except Exception as e:
-            print('Could not pickle the DAG')
+            print("Could not pickle the DAG")
             print(e)
             raise e
     executor = ExecutorLoader.get_default_executor()
@@ -288,7 +288,7 @@ def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
     modify = not settings.DONOT_MODIFY_HANDLERS
 
     if modify:
-        root_logger, task_logger = logging.getLogger(), logging.getLogger('airflow.task')
+        root_logger, task_logger = logging.getLogger(), logging.getLogger("airflow.task")
 
         orig_level = root_logger.level
         root_logger.setLevel(task_logger.level)
@@ -330,8 +330,8 @@ def task_run(args, dag=None):
         unsupported_options = [o for o in RAW_TASK_UNSUPPORTED_OPTION if getattr(args, o)]
 
         if unsupported_options:
-            unsupported_raw_task_flags = ', '.join(f'--{o}' for o in RAW_TASK_UNSUPPORTED_OPTION)
-            unsupported_flags = ', '.join(f'--{o}' for o in unsupported_options)
+            unsupported_raw_task_flags = ", ".join(f"--{o}" for o in RAW_TASK_UNSUPPORTED_OPTION)
+            unsupported_flags = ", ".join(f"--{o}" for o in unsupported_options)
             raise AirflowException(
                 "Option --raw does not work with some of the other options on this command. "
                 "You can't use --raw option and the following options: "
@@ -360,7 +360,7 @@ def task_run(args, dag=None):
     settings.reconfigure_orm(disable_connection_pool=True)
 
     if args.pickle:
-        print(f'Loading pickle id: {args.pickle}')
+        print(f"Loading pickle id: {args.pickle}")
         dag = get_dag_by_pickle(args.pickle)
     elif not dag:
         dag = get_dag(args.subdir, args.dag_id, include_examples=False)
@@ -517,16 +517,16 @@ def task_test(args, dag=None):
 
     settings.MASK_SECRETS_IN_LOGS = True
 
-    handlers = logging.getLogger('airflow.task').handlers
+    handlers = logging.getLogger("airflow.task").handlers
     already_has_stream_handler = False
     for handler in handlers:
         already_has_stream_handler = isinstance(handler, logging.StreamHandler)
         if already_has_stream_handler:
             break
     if not already_has_stream_handler:
-        logging.getLogger('airflow.task').propagate = True
+        logging.getLogger("airflow.task").propagate = True
 
-    env_vars = {'AIRFLOW_TEST_MODE': 'True'}
+    env_vars = {"AIRFLOW_TEST_MODE": "True"}
     if args.env_vars:
         env_vars.update(args.env_vars)
         os.environ.update(env_vars)
@@ -562,7 +562,7 @@ def task_test(args, dag=None):
         if not already_has_stream_handler:
             # Make sure to reset back to normal. When run for CLI this doesn't
             # matter, but it does for test suite
-            logging.getLogger('airflow.task').propagate = False
+            logging.getLogger("airflow.task").propagate = False
         if dr_created:
             with create_session() as session:
                 session.delete(ti.dag_run)

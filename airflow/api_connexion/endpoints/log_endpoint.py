@@ -64,13 +64,13 @@ def get_log(
         except BadSignature:
             raise BadRequest("Bad Signature. Please use only the tokens provided by the API.")
 
-    if metadata.get('download_logs') and metadata['download_logs']:
+    if metadata.get("download_logs") and metadata["download_logs"]:
         full_content = True
 
     if full_content:
-        metadata['download_logs'] = True
+        metadata["download_logs"] = True
     else:
-        metadata['download_logs'] = False
+        metadata["download_logs"] = False
 
     task_log_reader = TaskLogReader()
     if not task_log_reader.supports_read:
@@ -87,7 +87,7 @@ def get_log(
         .one_or_none()
     )
     if ti is None:
-        metadata['end_of_log'] = True
+        metadata["end_of_log"] = True
         raise NotFound(title="TaskInstance not found")
 
     dag = get_airflow_app().dag_bag.get_dag(dag_id)
@@ -97,11 +97,11 @@ def get_log(
         except TaskNotFound:
             pass
 
-    return_type = request.accept_mimetypes.best_match(['text/plain', 'application/json'])
+    return_type = request.accept_mimetypes.best_match(["text/plain", "application/json"])
 
     # return_type would be either the above two or None
     logs: Any
-    if return_type == 'application/json' or return_type is None:  # default
+    if return_type == "application/json" or return_type is None:  # default
         logs, metadata = task_log_reader.read_log_chunks(ti, task_try_number, metadata)
         logs = logs[0] if task_try_number is not None else logs
         # we must have token here, so we can safely ignore it

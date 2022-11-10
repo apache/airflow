@@ -32,8 +32,8 @@ class EventLogSchema(SQLAlchemySchema):
 
         model = Log
 
-    id = auto_field(data_key='event_log_id', dump_only=True)
-    dttm = auto_field(data_key='when', dump_only=True)
+    id = auto_field(data_key="event_log_id", dump_only=True)
+    dttm = auto_field(data_key="when", dump_only=True)
     dag_id = auto_field(dump_only=True)
     task_id = auto_field(dump_only=True)
     event = auto_field(dump_only=True)

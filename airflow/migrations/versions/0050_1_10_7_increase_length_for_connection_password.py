@@ -28,18 +28,18 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = 'fe461863935f'
-down_revision = '08364691d074'
+revision = "fe461863935f"
+down_revision = "08364691d074"
 branch_labels = None
 depends_on = None
-airflow_version = '1.10.7'
+airflow_version = "1.10.7"
 
 
 def upgrade():
     """Apply Increase length for connection password"""
-    with op.batch_alter_table('connection', schema=None) as batch_op:
+    with op.batch_alter_table("connection", schema=None) as batch_op:
         batch_op.alter_column(
-            'password',
+            "password",
             existing_type=sa.VARCHAR(length=500),
             type_=sa.String(length=5000),
             existing_nullable=True,
@@ -48,9 +48,9 @@ def upgrade():
 
 def downgrade():
     """Unapply Increase length for connection password"""
-    with op.batch_alter_table('connection', schema=None) as batch_op:
+    with op.batch_alter_table("connection", schema=None) as batch_op:
         batch_op.alter_column(
-            'password',
+            "password",
             existing_type=sa.String(length=5000),
             type_=sa.VARCHAR(length=500),
             existing_nullable=True,

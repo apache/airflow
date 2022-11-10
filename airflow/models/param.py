@@ -47,14 +47,14 @@ class Param:
         default & description will form the schema
     """
 
-    CLASS_IDENTIFIER = '__class'
+    CLASS_IDENTIFIER = "__class"
 
     def __init__(self, default: Any = NOTSET, description: str | None = None, **kwargs):
         if default is not NOTSET:
             self._warn_if_not_json(default)
         self.value = default
         self.description = description
-        self.schema = kwargs.pop('schema') if 'schema' in kwargs else kwargs
+        self.schema = kwargs.pop("schema") if "schema" in kwargs else kwargs
 
     def __copy__(self) -> Param:
         return Param(self.value, self.description, schema=self.schema)
@@ -104,7 +104,7 @@ class Param:
 
     def dump(self) -> dict:
         """Dump the Param as a dictionary"""
-        out_dict = {self.CLASS_IDENTIFIER: f'{self.__module__}.{self.__class__.__name__}'}
+        out_dict = {self.CLASS_IDENTIFIER: f"{self.__module__}.{self.__class__.__name__}"}
         out_dict.update(self.__dict__)
         return out_dict
 
@@ -120,7 +120,7 @@ class ParamsDict(MutableMapping[str, Any]):
     dictionary implicitly and ideally not needed to be used directly.
     """
 
-    __slots__ = ['__dict', 'suppress_exception']
+    __slots__ = ["__dict", "suppress_exception"]
 
     def __init__(self, dict_obj: dict | None = None, suppress_exception: bool = False):
         """
@@ -184,7 +184,7 @@ class ParamsDict(MutableMapping[str, Any]):
             try:
                 param.resolve(value=value, suppress_exception=self.suppress_exception)
             except ParamValidationError as ve:
-                raise ParamValidationError(f'Invalid input for param {key}: {ve}') from None
+                raise ParamValidationError(f"Invalid input for param {key}: {ve}") from None
         else:
             # if the key isn't there already and if the value isn't of Param type create a new Param object
             param = Param(value)
@@ -227,7 +227,7 @@ class ParamsDict(MutableMapping[str, Any]):
             for k, v in self.items():
                 resolved_dict[k] = v.resolve(suppress_exception=self.suppress_exception)
         except ParamValidationError as ve:
-            raise ParamValidationError(f'Invalid input for param {k}: {ve}') from None
+            raise ParamValidationError(f"Invalid input for param {k}: {ve}") from None
 
         return resolved_dict
 
@@ -262,12 +262,12 @@ class DagParam(ResolveMixin):
     def resolve(self, context: Context) -> Any:
         """Pull DagParam value from DagRun context. This method is run during ``op.execute()``."""
         with contextlib.suppress(KeyError):
-            return context['dag_run'].conf[self._name]
+            return context["dag_run"].conf[self._name]
         if self._default is not NOTSET:
             return self._default
         with contextlib.suppress(KeyError):
-            return context['params'][self._name]
-        raise AirflowException(f'No value could be resolved for parameter {self._name}')
+            return context["params"][self._name]
+        raise AirflowException(f"No value could be resolved for parameter {self._name}")
 
 
 def process_params(
@@ -285,7 +285,7 @@ def process_params(
         params.update(dag.params)
     if task.params:
         params.update(task.params)
-    if conf.getboolean('core', 'dag_run_conf_overrides_params') and dag_run and dag_run.conf:
+    if conf.getboolean("core", "dag_run_conf_overrides_params") and dag_run and dag_run.conf:
         logger.debug("Updating task params (%s) with DagRun.conf (%s)", params, dag_run.conf)
         params.update(dag_run.conf)
     return params.validate()

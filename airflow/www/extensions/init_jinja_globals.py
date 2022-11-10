@@ -29,13 +29,13 @@ from airflow.utils.platform import get_airflow_git_version
 
 def init_jinja_globals(app):
     """Add extra globals variable to Jinja context"""
-    server_timezone = conf.get('core', 'default_timezone')
+    server_timezone = conf.get("core", "default_timezone")
     if server_timezone == "system":
         server_timezone = pendulum.local_timezone().name
     elif server_timezone == "utc":
         server_timezone = "UTC"
 
-    default_ui_timezone = conf.get('webserver', 'default_ui_timezone')
+    default_ui_timezone = conf.get("webserver", "default_ui_timezone")
     if default_ui_timezone == "system":
         default_ui_timezone = pendulum.local_timezone().name
     elif default_ui_timezone == "utc":
@@ -43,8 +43,8 @@ def init_jinja_globals(app):
     if not default_ui_timezone:
         default_ui_timezone = server_timezone
 
-    expose_hostname = conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
-    hostname = get_hostname() if expose_hostname else 'redact'
+    expose_hostname = conf.getboolean("webserver", "EXPOSE_HOSTNAME", fallback=True)
+    hostname = get_hostname() if expose_hostname else "redact"
 
     try:
         airflow_version = airflow.__version__
@@ -56,29 +56,29 @@ def init_jinja_globals(app):
 
     def prepare_jinja_globals():
         extra_globals = {
-            'server_timezone': server_timezone,
-            'default_ui_timezone': default_ui_timezone,
-            'hostname': hostname,
-            'navbar_color': conf.get('webserver', 'NAVBAR_COLOR'),
-            'log_fetch_delay_sec': conf.getint('webserver', 'log_fetch_delay_sec', fallback=2),
-            'log_auto_tailing_offset': conf.getint('webserver', 'log_auto_tailing_offset', fallback=30),
-            'log_animation_speed': conf.getint('webserver', 'log_animation_speed', fallback=1000),
-            'state_color_mapping': STATE_COLORS,
-            'airflow_version': airflow_version,
-            'git_version': git_version,
-            'k8s_or_k8scelery_executor': IS_K8S_OR_K8SCELERY_EXECUTOR,
-            'rest_api_enabled': False,
+            "server_timezone": server_timezone,
+            "default_ui_timezone": default_ui_timezone,
+            "hostname": hostname,
+            "navbar_color": conf.get("webserver", "NAVBAR_COLOR"),
+            "log_fetch_delay_sec": conf.getint("webserver", "log_fetch_delay_sec", fallback=2),
+            "log_auto_tailing_offset": conf.getint("webserver", "log_auto_tailing_offset", fallback=30),
+            "log_animation_speed": conf.getint("webserver", "log_animation_speed", fallback=1000),
+            "state_color_mapping": STATE_COLORS,
+            "airflow_version": airflow_version,
+            "git_version": git_version,
+            "k8s_or_k8scelery_executor": IS_K8S_OR_K8SCELERY_EXECUTOR,
+            "rest_api_enabled": False,
         }
 
-        backends = conf.get('api', 'auth_backends')
-        if len(backends) > 0 and backends[0] != 'airflow.api.auth.backend.deny_all':
-            extra_globals['rest_api_enabled'] = True
+        backends = conf.get("api", "auth_backends")
+        if len(backends) > 0 and backends[0] != "airflow.api.auth.backend.deny_all":
+            extra_globals["rest_api_enabled"] = True
 
-        if 'analytics_tool' in conf.getsection('webserver'):
+        if "analytics_tool" in conf.getsection("webserver"):
             extra_globals.update(
                 {
-                    'analytics_tool': conf.get('webserver', 'ANALYTICS_TOOL'),
-                    'analytics_id': conf.get('webserver', 'ANALYTICS_ID'),
+                    "analytics_tool": conf.get("webserver", "ANALYTICS_TOOL"),
+                    "analytics_id": conf.get("webserver", "ANALYTICS_ID"),
                 }
             )
 

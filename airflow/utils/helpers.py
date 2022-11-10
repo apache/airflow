@@ -37,12 +37,12 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstance
 
-KEY_REGEX = re.compile(r'^[\w.-]+$')
-GROUP_KEY_REGEX = re.compile(r'^[\w-]+$')
-CAMELCASE_TO_SNAKE_CASE_REGEX = re.compile(r'(?!^)([A-Z]+)')
+KEY_REGEX = re.compile(r"^[\w.-]+$")
+GROUP_KEY_REGEX = re.compile(r"^[\w-]+$")
+CAMELCASE_TO_SNAKE_CASE_REGEX = re.compile(r"(?!^)([A-Z]+)")
 
-T = TypeVar('T')
-S = TypeVar('S')
+T = TypeVar("T")
+S = TypeVar("S")
 
 
 def validate_key(k: str, max_length: int = 250):
@@ -85,8 +85,8 @@ def alchemy_to_dict(obj: Any) -> dict | None:
 
 def ask_yesno(question: str, default: bool | None = None) -> bool:
     """Helper to get a yes or no answer from the user."""
-    yes = {'yes', 'y'}
-    no = {'no', 'n'}
+    yes = {"yes", "y"}
+    no = {"no", "n"}
 
     print(question)
     while True:
@@ -116,7 +116,7 @@ def prompt_with_timeout(question: str, timeout: int, default: bool | None = None
 
 def is_container(obj: Any) -> bool:
     """Test if an object is a container (iterable) but not a string"""
-    return hasattr(obj, '__iter__') and not isinstance(obj, str)
+    return hasattr(obj, "__iter__") and not isinstance(obj, str)
 
 
 def as_tuple(obj: Any) -> tuple:
@@ -133,7 +133,7 @@ def as_tuple(obj: Any) -> tuple:
 def chunks(items: list[T], chunk_size: int) -> Generator[list[T], None, None]:
     """Yield successive chunks of a given size from a list of items"""
     if chunk_size <= 0:
-        raise ValueError('Chunk size must be a positive integer')
+        raise ValueError("Chunk size must be a positive integer")
     for i in range(0, len(items), chunk_size):
         yield items[i : i + chunk_size]
 
@@ -183,7 +183,7 @@ def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
     filename_template, filename_jinja_template = parse_template_string(filename_template)
     if filename_jinja_template:
         jinja_context = ti.get_template_context()
-        jinja_context['try_number'] = try_number
+        jinja_context["try_number"] = try_number
         return render_template_to_string(filename_jinja_template, jinja_context)
 
     return filename_template.format(
@@ -196,7 +196,7 @@ def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
 
 def convert_camel_to_snake(camel_str: str) -> str:
     """Converts CamelCase to snake_case."""
-    return CAMELCASE_TO_SNAKE_CASE_REGEX.sub(r'_\1', camel_str).lower()
+    return CAMELCASE_TO_SNAKE_CASE_REGEX.sub(r"_\1", camel_str).lower()
 
 
 def merge_dicts(dict1: dict, dict2: dict) -> dict:
@@ -227,7 +227,7 @@ def chain(*args, **kwargs):
         RemovedInAirflow3Warning,
         stacklevel=2,
     )
-    return import_string('airflow.models.baseoperator.chain')(*args, **kwargs)
+    return import_string("airflow.models.baseoperator.chain")(*args, **kwargs)
 
 
 def cross_downstream(*args, **kwargs):
@@ -237,7 +237,7 @@ def cross_downstream(*args, **kwargs):
         RemovedInAirflow3Warning,
         stacklevel=2,
     )
-    return import_string('airflow.models.baseoperator.cross_downstream')(*args, **kwargs)
+    return import_string("airflow.models.baseoperator.cross_downstream")(*args, **kwargs)
 
 
 def build_airflow_url_with_query(query: dict[str, Any]) -> str:
@@ -248,7 +248,7 @@ def build_airflow_url_with_query(query: dict[str, Any]) -> str:
     """
     import flask
 
-    view = conf.get_mandatory_value('webserver', 'dag_default_view').lower()
+    view = conf.get_mandatory_value("webserver", "dag_default_view").lower()
     return flask.url_for(f"Airflow.{view}", **query)
 
 
@@ -324,7 +324,7 @@ def at_most_one(*args) -> bool:
     return sum(map(is_set, args)) in (0, 1)
 
 
-def prune_dict(val: Any, mode='strict'):
+def prune_dict(val: Any, mode="strict"):
     """
     Given dict ``val``, returns new dict based on ``val`` with all
     empty elements removed.
@@ -335,9 +335,9 @@ def prune_dict(val: Any, mode='strict'):
     """
 
     def is_empty(x):
-        if mode == 'strict':
+        if mode == "strict":
             return x is None
-        elif mode == 'truthy':
+        elif mode == "truthy":
             return bool(x) is False
         raise ValueError("allowable values for `mode` include 'truthy' and 'strict'")
 

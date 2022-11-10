@@ -32,25 +32,25 @@ from airflow.migrations.db_types import TIMESTAMP
 from airflow.utils.sqlalchemy import ExtendedJSON
 
 # revision identifiers, used by Alembic.
-revision = 'c97c2ab6aa23'
-down_revision = 'c306b5b5ae4a'
+revision = "c97c2ab6aa23"
+down_revision = "c306b5b5ae4a"
 branch_labels = None
 depends_on = None
-airflow_version = '2.3.0'
+airflow_version = "2.3.0"
 
-TABLE_NAME = 'callback_request'
+TABLE_NAME = "callback_request"
 
 
 def upgrade():
     op.create_table(
         TABLE_NAME,
-        sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
-        sa.Column('created_at', TIMESTAMP, default=func.now, nullable=False),
-        sa.Column('priority_weight', sa.Integer(), default=1, nullable=False),
-        sa.Column('callback_data', ExtendedJSON, nullable=False),
-        sa.Column('callback_type', sa.String(20), nullable=False),
-        sa.Column('dag_directory', sa.String(length=1000), nullable=True),
-        sa.PrimaryKeyConstraint('id'),
+        sa.Column("id", sa.Integer(), nullable=False, primary_key=True),
+        sa.Column("created_at", TIMESTAMP, default=func.now, nullable=False),
+        sa.Column("priority_weight", sa.Integer(), default=1, nullable=False),
+        sa.Column("callback_data", ExtendedJSON, nullable=False),
+        sa.Column("callback_type", sa.String(20), nullable=False),
+        sa.Column("dag_directory", sa.String(length=1000), nullable=True),
+        sa.PrimaryKeyConstraint("id"),
     )
 
 

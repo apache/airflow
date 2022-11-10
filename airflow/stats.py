@@ -179,7 +179,7 @@ class DummyStatsLogger:
 
 # Only characters in the character set are considered valid
 # for the stat_name if stat_name_default_handler is used.
-ALLOWED_CHARACTERS = set(string.ascii_letters + string.digits + '_.-')
+ALLOWED_CHARACTERS = set(string.ascii_letters + string.digits + "_.-")
 
 
 def stat_name_default_handler(stat_name, max_length=250) -> str:
@@ -187,7 +187,7 @@ def stat_name_default_handler(stat_name, max_length=250) -> str:
     if necessary and return the transformed stat name.
     """
     if not isinstance(stat_name, str):
-        raise InvalidStatsNameException('The stat_name has to be a string')
+        raise InvalidStatsNameException("The stat_name has to be a string")
     if len(stat_name) > max_length:
         raise InvalidStatsNameException(
             f"The stat_name ({stat_name}) has to be less than {max_length} characters."
@@ -201,7 +201,7 @@ def stat_name_default_handler(stat_name, max_length=250) -> str:
 
 def get_current_handler_stat_name_func() -> Callable[[str], str]:
     """Get Stat Name Handler from airflow.cfg"""
-    return conf.getimport('metrics', 'stat_name_handler') or stat_name_default_handler
+    return conf.getimport("metrics", "stat_name_handler") or stat_name_default_handler
 
 
 T = TypeVar("T", bound=Callable)
@@ -220,7 +220,7 @@ def validate_stat(fn: T) -> T:
                 stat = handler_stat_name_func(stat)
             return fn(_self, stat, *args, **kwargs)
         except InvalidStatsNameException:
-            log.exception('Invalid stat name: %s.', stat)
+            log.exception("Invalid stat name: %s.", stat)
             return None
 
     return cast(T, wrapper)
@@ -232,7 +232,7 @@ class AllowListValidator:
     def __init__(self, allow_list=None):
         if allow_list:
 
-            self.allow_list = tuple(item.strip().lower() for item in allow_list.split(','))
+            self.allow_list = tuple(item.strip().lower() for item in allow_list.split(","))
         else:
             self.allow_list = None
 
@@ -353,10 +353,10 @@ class _Stats(type):
     def __init__(cls, *args, **kwargs):
         super().__init__(cls)
         if cls.__class__.factory is None:
-            is_datadog_enabled_defined = conf.has_option('metrics', 'statsd_datadog_enabled')
-            if is_datadog_enabled_defined and conf.getboolean('metrics', 'statsd_datadog_enabled'):
+            is_datadog_enabled_defined = conf.has_option("metrics", "statsd_datadog_enabled")
+            if is_datadog_enabled_defined and conf.getboolean("metrics", "statsd_datadog_enabled"):
                 cls.__class__.factory = cls.get_dogstatsd_logger
-            elif conf.getboolean('metrics', 'statsd_on'):
+            elif conf.getboolean("metrics", "statsd_on"):
                 cls.__class__.factory = cls.get_statsd_logger
             else:
                 cls.__class__.factory = DummyStatsLogger
@@ -368,7 +368,7 @@ class _Stats(type):
         # and previously it would crash with None is callable if it was called without it.
         from statsd import StatsClient
 
-        stats_class = conf.getimport('metrics', 'statsd_custom_client_path', fallback=None)
+        stats_class = conf.getimport("metrics", "statsd_custom_client_path", fallback=None)
 
         if stats_class:
             if not issubclass(stats_class, StatsClient):
@@ -383,11 +383,11 @@ class _Stats(type):
             stats_class = StatsClient
 
         statsd = stats_class(
-            host=conf.get('metrics', 'statsd_host'),
-            port=conf.getint('metrics', 'statsd_port'),
-            prefix=conf.get('metrics', 'statsd_prefix'),
+            host=conf.get("metrics", "statsd_host"),
+            port=conf.getint("metrics", "statsd_port"),
+            prefix=conf.get("metrics", "statsd_prefix"),
         )
-        allow_list_validator = AllowListValidator(conf.get('metrics', 'statsd_allow_list', fallback=None))
+        allow_list_validator = AllowListValidator(conf.get("metrics", "statsd_allow_list", fallback=None))
         return SafeStatsdLogger(statsd, allow_list_validator)
 
     @classmethod
@@ -396,12 +396,12 @@ class _Stats(type):
         from datadog import DogStatsd
 
         dogstatsd = DogStatsd(
-            host=conf.get('metrics', 'statsd_host'),
-            port=conf.getint('metrics', 'statsd_port'),
-            namespace=conf.get('metrics', 'statsd_prefix'),
+            host=conf.get("metrics", "statsd_host"),
+            port=conf.getint("metrics", "statsd_port"),
+            namespace=conf.get("metrics", "statsd_prefix"),
             constant_tags=cls.get_constant_tags(),
         )
-        dogstatsd_allow_list = conf.get('metrics', 'statsd_allow_list', fallback=None)
+        dogstatsd_allow_list = conf.get("metrics", "statsd_allow_list", fallback=None)
         allow_list_validator = AllowListValidator(dogstatsd_allow_list)
         return SafeDogStatsdLogger(dogstatsd, allow_list_validator)
 
@@ -409,11 +409,11 @@ class _Stats(type):
     def get_constant_tags(cls):
         """Get constant DataDog tags to add to all stats"""
         tags = []
-        tags_in_string = conf.get('metrics', 'statsd_datadog_tags', fallback=None)
-        if tags_in_string is None or tags_in_string == '':
+        tags_in_string = conf.get("metrics", "statsd_datadog_tags", fallback=None)
+        if tags_in_string is None or tags_in_string == "":
             return tags
         else:
-            for key_value in tags_in_string.split(','):
+            for key_value in tags_in_string.split(","):
                 tags.append(key_value)
             return tags
 

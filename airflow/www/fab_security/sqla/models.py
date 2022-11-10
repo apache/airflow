@@ -148,7 +148,7 @@ class User(Model):
     first_name = Column(String(64), nullable=False)
     last_name = Column(String(64), nullable=False)
     username = Column(
-        String(256).with_variant(String(256, collation='NOCASE'), "sqlite"), unique=True, nullable=False
+        String(256).with_variant(String(256, collation="NOCASE"), "sqlite"), unique=True, nullable=False
     )
     password = Column(String(256))
     active = Column(Boolean)
@@ -243,7 +243,7 @@ class RegisterUser(Model):
     first_name = Column(String(64), nullable=False)
     last_name = Column(String(64), nullable=False)
     username = Column(
-        String(256).with_variant(String(256, collation='NOCASE'), "sqlite"), unique=True, nullable=False
+        String(256).with_variant(String(256, collation="NOCASE"), "sqlite"), unique=True, nullable=False
     )
     password = Column(String(256))
     email = Column(String(256), nullable=False)

@@ -44,7 +44,7 @@ def _run_scheduler_job(args):
     skip_serve_logs = args.skip_serve_logs
     job = _create_scheduler_job(args)
     logs_sub_proc = _serve_logs(skip_serve_logs)
-    enable_health_check = conf.getboolean('scheduler', 'ENABLE_HEALTH_CHECK')
+    enable_health_check = conf.getboolean("scheduler", "ENABLE_HEALTH_CHECK")
     health_sub_proc = _serve_health_check(enable_health_check)
     try:
         job.run()
@@ -65,7 +65,7 @@ def scheduler(args):
             "scheduler", args.pid, args.stdout, args.stderr, args.log_file
         )
         handle = setup_logging(log_file)
-        with open(stdout, 'a') as stdout_handle, open(stderr, 'a') as stderr_handle:
+        with open(stdout, "a") as stdout_handle, open(stderr, "a") as stderr_handle:
             stdout_handle.truncate(0)
             stderr_handle.truncate(0)
 

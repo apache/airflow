@@ -31,22 +31,22 @@ if TYPE_CHECKING:
 
 
 def _root_app(env: WSGIEnvironment, resp: StartResponse) -> Iterable[bytes]:
-    resp('404 Not Found', [('Content-Type', 'text/plain')])
-    return [b'Apache Airflow is not at this location']
+    resp("404 Not Found", [("Content-Type", "text/plain")])
+    return [b"Apache Airflow is not at this location"]
 
 
 def init_wsgi_middleware(flask_app: Flask) -> None:
     """Handle X-Forwarded-* headers and base_url support"""
     # Apply DispatcherMiddleware
-    base_url = urlparse(conf.get('webserver', 'base_url'))[2]
-    if not base_url or base_url == '/':
+    base_url = urlparse(conf.get("webserver", "base_url"))[2]
+    if not base_url or base_url == "/":
         base_url = ""
     if base_url:
         wsgi_app = DispatcherMiddleware(_root_app, mounts={base_url: flask_app.wsgi_app})
         flask_app.wsgi_app = wsgi_app  # type: ignore[assignment]
 
     # Apply ProxyFix middleware
-    if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
+    if conf.getboolean("webserver", "ENABLE_PROXY_FIX"):
         flask_app.wsgi_app = ProxyFix(  # type: ignore
             flask_app.wsgi_app,
             x_for=conf.getint("webserver", "PROXY_FIX_X_FOR", fallback=1),

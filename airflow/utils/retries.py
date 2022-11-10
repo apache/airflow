@@ -25,7 +25,7 @@ from sqlalchemy.exc import DBAPIError, OperationalError
 
 from airflow.configuration import conf
 
-MAX_DB_RETRIES = conf.getint('database', 'max_db_retries', fallback=3)
+MAX_DB_RETRIES = conf.getint("database", "max_db_retries", fallback=3)
 
 
 def run_with_db_retries(max_retries: int = MAX_DB_RETRIES, logger: logging.Logger | None = None, **kwargs):

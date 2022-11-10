@@ -69,34 +69,34 @@ def sync_appbuilder_roles(flask_app):
     # Otherwise, when the name of a view or menu is changed, the framework
     # will add the new Views and Menus names to the backend, but will not
     # delete the old ones.
-    if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
+    if conf.getboolean("webserver", "UPDATE_FAB_PERMS"):
         flask_app.appbuilder.sm.sync_roles()
 
 
 def create_app(config=None, testing=False):
     """Create a new instance of Airflow WWW app"""
     flask_app = Flask(__name__)
-    flask_app.secret_key = conf.get('webserver', 'SECRET_KEY')
+    flask_app.secret_key = conf.get("webserver", "SECRET_KEY")
 
-    flask_app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=settings.get_session_lifetime_config())
+    flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=settings.get_session_lifetime_config())
     flask_app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
-    flask_app.config['APP_NAME'] = conf.get(section="webserver", key="instance_name", fallback="Airflow")
-    flask_app.config['TESTING'] = testing
-    flask_app.config['SQLALCHEMY_DATABASE_URI'] = conf.get('database', 'SQL_ALCHEMY_CONN')
+    flask_app.config["APP_NAME"] = conf.get(section="webserver", key="instance_name", fallback="Airflow")
+    flask_app.config["TESTING"] = testing
+    flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
 
-    url = make_url(flask_app.config['SQLALCHEMY_DATABASE_URI'])
-    if url.drivername == 'sqlite' and url.database and not url.database.startswith('/'):
+    url = make_url(flask_app.config["SQLALCHEMY_DATABASE_URI"])
+    if url.drivername == "sqlite" and url.database and not url.database.startswith("/"):
         raise AirflowConfigException(
             f'Cannot use relative path: `{conf.get("database", "SQL_ALCHEMY_CONN")}` to connect to sqlite. '
-            'Please use absolute path such as `sqlite:////tmp/airflow.db`.'
+            "Please use absolute path such as `sqlite:////tmp/airflow.db`."
         )
 
-    flask_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-    flask_app.config['SESSION_COOKIE_HTTPONLY'] = True
-    flask_app.config['SESSION_COOKIE_SECURE'] = conf.getboolean('webserver', 'COOKIE_SECURE')
+    flask_app.config["SESSION_COOKIE_HTTPONLY"] = True
+    flask_app.config["SESSION_COOKIE_SECURE"] = conf.getboolean("webserver", "COOKIE_SECURE")
 
-    cookie_samesite_config = conf.get('webserver', 'COOKIE_SAMESITE')
+    cookie_samesite_config = conf.get("webserver", "COOKIE_SAMESITE")
     if cookie_samesite_config == "":
         warnings.warn(
             "Old deprecated value found for `cookie_samesite` option in `[webserver]` section. "
@@ -104,13 +104,13 @@ def create_app(config=None, testing=False):
             RemovedInAirflow3Warning,
         )
         cookie_samesite_config = "Lax"
-    flask_app.config['SESSION_COOKIE_SAMESITE'] = cookie_samesite_config
+    flask_app.config["SESSION_COOKIE_SAMESITE"] = cookie_samesite_config
 
     if config:
         flask_app.config.from_mapping(config)
 
-    if 'SQLALCHEMY_ENGINE_OPTIONS' not in flask_app.config:
-        flask_app.config['SQLALCHEMY_ENGINE_OPTIONS'] = settings.prepare_engine_args()
+    if "SQLALCHEMY_ENGINE_OPTIONS" not in flask_app.config:
+        flask_app.config["SQLALCHEMY_ENGINE_OPTIONS"] = settings.prepare_engine_args()
 
     # Configure the JSON encoder used by `|tojson` filter from Flask
     flask_app.json_provider_class = AirflowJsonProvider
@@ -130,7 +130,7 @@ def create_app(config=None, testing=False):
 
     init_robots(flask_app)
 
-    cache_config = {'CACHE_TYPE': 'flask_caching.backends.filesystem', 'CACHE_DIR': gettempdir()}
+    cache_config = {"CACHE_TYPE": "flask_caching.backends.filesystem", "CACHE_DIR": gettempdir()}
     Cache(app=flask_app, config=cache_config)
 
     init_flash_views(flask_app)

@@ -69,7 +69,7 @@ def get_pools(
 ) -> APIResponse:
     """Get all pools"""
     to_replace = {"name": "pool"}
-    allowed_filter_attrs = ['name', 'slots', "id"]
+    allowed_filter_attrs = ["name", "slots", "id"]
     total_entries = session.query(func.count(Pool.id)).scalar()
     query = session.query(Pool)
     query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)

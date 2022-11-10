@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-TIMEZONE = pendulum.tz.timezone('UTC')
+TIMEZONE = pendulum.tz.timezone("UTC")
 try:
     tz = conf.get_mandatory_value("core", "default_timezone")
     if tz == "system":
@@ -58,13 +58,13 @@ except Exception:
 log.info("Configured default timezone %s", TIMEZONE)
 
 
-HEADER = '\n'.join(
+HEADER = "\n".join(
     [
-        r'  ____________       _____________',
-        r' ____    |__( )_________  __/__  /________      __',
-        r'____  /| |_  /__  ___/_  /_ __  /_  __ \_ | /| / /',
-        r'___  ___ |  / _  /   _  __/ _  / / /_/ /_ |/ |/ /',
-        r' _/_/  |_/_/  /_/    /_/    /_/  \____/____/|__/',
+        r"  ____________       _____________",
+        r" ____    |__( )_________  __/__  /________      __",
+        r"____  /| |_  /__  ___/_  /_ __  /_  __ \_ | /| / /",
+        r"___  ___ |  / _  /   _  __/ _  / / /_/ /_ |/ |/ /",
+        r" _/_/  |_/_/  /_/    /_/    /_/  \____/____/|__/",
     ]
 )
 
@@ -73,14 +73,14 @@ LOGGING_LEVEL = logging.INFO
 # the prefix to append to gunicorn worker processes after init
 GUNICORN_WORKER_READY_PREFIX = "[ready] "
 
-LOG_FORMAT = conf.get('logging', 'log_format')
-SIMPLE_LOG_FORMAT = conf.get('logging', 'simple_log_format')
+LOG_FORMAT = conf.get("logging", "log_format")
+SIMPLE_LOG_FORMAT = conf.get("logging", "simple_log_format")
 
 SQL_ALCHEMY_CONN: str | None = None
 PLUGINS_FOLDER: str | None = None
 LOGGING_CLASS_PATH: str | None = None
 DONOT_MODIFY_HANDLERS: bool | None = None
-DAGS_FOLDER: str = os.path.expanduser(conf.get_mandatory_value('core', 'DAGS_FOLDER'))
+DAGS_FOLDER: str = os.path.expanduser(conf.get_mandatory_value("core", "DAGS_FOLDER"))
 
 engine: Engine
 Session: Callable[..., SASession]
@@ -237,7 +237,7 @@ def get_dagbag_import_timeout(dag_file_path: str) -> int | float:
 
     If the return value is less than or equal to 0, it means no timeout during the DAG parsing.
     """
-    return conf.getfloat('core', 'DAGBAG_IMPORT_TIMEOUT')
+    return conf.getfloat("core", "DAGBAG_IMPORT_TIMEOUT")
 
 
 def configure_vars():
@@ -246,17 +246,17 @@ def configure_vars():
     global DAGS_FOLDER
     global PLUGINS_FOLDER
     global DONOT_MODIFY_HANDLERS
-    SQL_ALCHEMY_CONN = conf.get('database', 'SQL_ALCHEMY_CONN')
-    DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
+    SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN")
+    DAGS_FOLDER = os.path.expanduser(conf.get("core", "DAGS_FOLDER"))
 
-    PLUGINS_FOLDER = conf.get('core', 'plugins_folder', fallback=os.path.join(AIRFLOW_HOME, 'plugins'))
+    PLUGINS_FOLDER = conf.get("core", "plugins_folder", fallback=os.path.join(AIRFLOW_HOME, "plugins"))
 
     # If donot_modify_handlers=True, we do not modify logging handlers in task_run command
     # If the flag is set to False, we remove all handlers from the root logger
     # and add all handlers from 'airflow.task' logger to the root Logger. This is done
     # to get all the logs from the print & log statements in the DAG files before a task is run
     # The handlers are restored after the task completes execution.
-    DONOT_MODIFY_HANDLERS = conf.getboolean('logging', 'donot_modify_handlers', fallback=False)
+    DONOT_MODIFY_HANDLERS = conf.getboolean("logging", "donot_modify_handlers", fallback=False)
 
 
 def configure_orm(disable_connection_pool=False, pool_class=None):
@@ -268,8 +268,8 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     global Session
     engine_args = prepare_engine_args(disable_connection_pool, pool_class)
 
-    if conf.has_option('database', 'sql_alchemy_connect_args'):
-        connect_args = conf.getimport('database', 'sql_alchemy_connect_args')
+    if conf.has_option("database", "sql_alchemy_connect_args"):
+        connect_args = conf.getimport("database", "sql_alchemy_connect_args")
     else:
         connect_args = {}
 
@@ -287,12 +287,12 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
             expire_on_commit=False,
         )
     )
-    if engine.dialect.name == 'mssql':
+    if engine.dialect.name == "mssql":
         session = Session()
         try:
             result = session.execute(
                 sqlalchemy.text(
-                    'SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name=:database_name'
+                    "SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name=:database_name"
                 ),
                 params={"database_name": engine.url.database},
             )
@@ -311,10 +311,10 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
 
 DEFAULT_ENGINE_ARGS = {
-    'postgresql': {
-        'executemany_mode': 'values',
-        'executemany_values_page_size': 10000,
-        'executemany_batch_page_size': 2000,
+    "postgresql": {
+        "executemany_mode": "values",
+        "executemany_values_page_size": 10000,
+        "executemany_batch_page_size": 2000,
     },
 }
 
@@ -328,20 +328,20 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
             break
 
     engine_args: dict = conf.getjson(
-        'database', 'sql_alchemy_engine_args', fallback=default_args
+        "database", "sql_alchemy_engine_args", fallback=default_args
     )  # type: ignore
 
     if pool_class:
         # Don't use separate settings for size etc, only those from sql_alchemy_engine_args
-        engine_args['poolclass'] = pool_class
-    elif disable_connection_pool or not conf.getboolean('database', 'SQL_ALCHEMY_POOL_ENABLED'):
-        engine_args['poolclass'] = NullPool
+        engine_args["poolclass"] = pool_class
+    elif disable_connection_pool or not conf.getboolean("database", "SQL_ALCHEMY_POOL_ENABLED"):
+        engine_args["poolclass"] = NullPool
         log.debug("settings.prepare_engine_args(): Using NullPool")
-    elif not SQL_ALCHEMY_CONN.startswith('sqlite'):
+    elif not SQL_ALCHEMY_CONN.startswith("sqlite"):
         # Pool size engine args not supported by sqlite.
         # If no config value is defined for the pool size, select a reasonable value.
         # 0 means no limit, which could lead to exceeding the Database connection limit.
-        pool_size = conf.getint('database', 'SQL_ALCHEMY_POOL_SIZE', fallback=5)
+        pool_size = conf.getint("database", "SQL_ALCHEMY_POOL_SIZE", fallback=5)
 
         # The maximum overflow size of the pool.
         # When the number of checked-out connections reaches the size set in pool_size,
@@ -353,20 +353,20 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
         # max_overflow can be set to -1 to indicate no overflow limit;
         # no limit will be placed on the total number
         # of concurrent connections. Defaults to 10.
-        max_overflow = conf.getint('database', 'SQL_ALCHEMY_MAX_OVERFLOW', fallback=10)
+        max_overflow = conf.getint("database", "SQL_ALCHEMY_MAX_OVERFLOW", fallback=10)
 
         # The DB server already has a value for wait_timeout (number of seconds after
         # which an idle sleeping connection should be killed). Since other DBs may
         # co-exist on the same server, SQLAlchemy should set its
         # pool_recycle to an equal or smaller value.
-        pool_recycle = conf.getint('database', 'SQL_ALCHEMY_POOL_RECYCLE', fallback=1800)
+        pool_recycle = conf.getint("database", "SQL_ALCHEMY_POOL_RECYCLE", fallback=1800)
 
         # Check connection at the start of each connection pool checkout.
         # Typically, this is a simple statement like "SELECT 1", but may also make use
         # of some DBAPI-specific method to test the connection for liveness.
         # More information here:
         # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
-        pool_pre_ping = conf.getboolean('database', 'SQL_ALCHEMY_POOL_PRE_PING', fallback=True)
+        pool_pre_ping = conf.getboolean("database", "SQL_ALCHEMY_POOL_PRE_PING", fallback=True)
 
         log.debug(
             "settings.prepare_engine_args(): Using pool settings. pool_size=%d, max_overflow=%d, "
@@ -376,10 +376,10 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
             pool_recycle,
             os.getpid(),
         )
-        engine_args['pool_size'] = pool_size
-        engine_args['pool_recycle'] = pool_recycle
-        engine_args['pool_pre_ping'] = pool_pre_ping
-        engine_args['max_overflow'] = max_overflow
+        engine_args["pool_size"] = pool_size
+        engine_args["pool_recycle"] = pool_recycle
+        engine_args["pool_pre_ping"] = pool_pre_ping
+        engine_args["max_overflow"] = max_overflow
 
     # The default isolation level for MySQL (REPEATABLE READ) can introduce inconsistencies when
     # running multiple schedulers, as repeated queries on the same session may read from stale snapshots.
@@ -392,12 +392,12 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     # Select queries are running. This is by default enforced during init/upgrade. More information:
     # https://docs.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql
 
-    if SQL_ALCHEMY_CONN.startswith(('mysql', 'mssql')):
-        engine_args['isolation_level'] = 'READ COMMITTED'
+    if SQL_ALCHEMY_CONN.startswith(("mysql", "mssql")):
+        engine_args["isolation_level"] = "READ COMMITTED"
 
     # Allow the user to specify an encoding for their DB otherwise default
     # to utf-8 so jobs & users with non-latin1 characters can still use us.
-    engine_args['encoding'] = conf.get('database', 'SQL_ENGINE_ENCODING', fallback='utf-8')
+    engine_args["encoding"] = conf.get("database", "SQL_ENGINE_ENCODING", fallback="utf-8")
 
     return engine_args
 
@@ -426,12 +426,12 @@ def configure_adapters():
     """Register Adapters and DB Converters"""
     from pendulum import DateTime as Pendulum
 
-    if SQL_ALCHEMY_CONN.startswith('sqlite'):
+    if SQL_ALCHEMY_CONN.startswith("sqlite"):
         from sqlite3 import register_adapter
 
-        register_adapter(Pendulum, lambda val: val.isoformat(' '))
+        register_adapter(Pendulum, lambda val: val.isoformat(" "))
 
-    if SQL_ALCHEMY_CONN.startswith('mysql'):
+    if SQL_ALCHEMY_CONN.startswith("mysql"):
         try:
             import MySQLdb.converters
 
@@ -450,7 +450,7 @@ def validate_session():
     """Validate ORM Session"""
     global engine
 
-    worker_precheck = conf.getboolean('celery', 'worker_precheck', fallback=False)
+    worker_precheck = conf.getboolean("celery", "worker_precheck", fallback=False)
     if not worker_precheck:
         return True
     else:
@@ -480,7 +480,7 @@ def prepare_syspath():
 
     # Add ./config/ for loading custom log parsers etc, or
     # airflow_local_settings etc.
-    config_path = os.path.join(AIRFLOW_HOME, 'config')
+    config_path = os.path.join(AIRFLOW_HOME, "config")
     if config_path not in sys.path:
         sys.path.append(config_path)
 
@@ -490,20 +490,20 @@ def prepare_syspath():
 
 def get_session_lifetime_config():
     """Gets session timeout configs and handles outdated configs gracefully."""
-    session_lifetime_minutes = conf.get('webserver', 'session_lifetime_minutes', fallback=None)
-    session_lifetime_days = conf.get('webserver', 'session_lifetime_days', fallback=None)
+    session_lifetime_minutes = conf.get("webserver", "session_lifetime_minutes", fallback=None)
+    session_lifetime_days = conf.get("webserver", "session_lifetime_days", fallback=None)
     uses_deprecated_lifetime_configs = session_lifetime_days or conf.get(
-        'webserver', 'force_log_out_after', fallback=None
+        "webserver", "force_log_out_after", fallback=None
     )
 
     minutes_per_day = 24 * 60
-    default_lifetime_minutes = '43200'
+    default_lifetime_minutes = "43200"
     if uses_deprecated_lifetime_configs and session_lifetime_minutes == default_lifetime_minutes:
         warnings.warn(
-            '`session_lifetime_days` option from `[webserver]` section has been '
-            'renamed to `session_lifetime_minutes`. The new option allows to configure '
-            'session lifetime in minutes. The `force_log_out_after` option has been removed '
-            'from `[webserver]` section. Please update your configuration.',
+            "`session_lifetime_days` option from `[webserver]` section has been "
+            "renamed to `session_lifetime_minutes`. The new option allows to configure "
+            "session lifetime in minutes. The `force_log_out_after` option has been removed "
+            "from `[webserver]` section. Please update your configuration.",
             category=RemovedInAirflow3Warning,
         )
         if session_lifetime_days:
@@ -513,7 +513,7 @@ def get_session_lifetime_config():
         session_lifetime_days = 30
         session_lifetime_minutes = minutes_per_day * session_lifetime_days
 
-    logging.debug('User session lifetime is set to %s minutes.', session_lifetime_minutes)
+    logging.debug("User session lifetime is set to %s minutes.", session_lifetime_minutes)
 
     return int(session_lifetime_minutes)
 
@@ -542,7 +542,7 @@ def import_local_settings():
             globals()["task_policy"] = globals()["policy"]
             del globals()["policy"]
 
-        if not hasattr(task_instance_mutation_hook, 'is_noop'):
+        if not hasattr(task_instance_mutation_hook, "is_noop"):
             task_instance_mutation_hook.is_noop = False
 
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
@@ -580,52 +580,52 @@ def initialize():
 
 KILOBYTE = 1024
 MEGABYTE = KILOBYTE * KILOBYTE
-WEB_COLORS = {'LIGHTBLUE': '#4d9de0', 'LIGHTORANGE': '#FF9933'}
+WEB_COLORS = {"LIGHTBLUE": "#4d9de0", "LIGHTORANGE": "#FF9933"}
 
 
 # Updating serialized DAG can not be faster than a minimum interval to reduce database
 # write rate.
-MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint('core', 'min_serialized_dag_update_interval', fallback=30)
+MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint("core", "min_serialized_dag_update_interval", fallback=30)
 
 # If set to True, serialized DAGs is compressed before writing to DB,
-COMPRESS_SERIALIZED_DAGS = conf.getboolean('core', 'compress_serialized_dags', fallback=False)
+COMPRESS_SERIALIZED_DAGS = conf.getboolean("core", "compress_serialized_dags", fallback=False)
 
 # Fetching serialized DAG can not be faster than a minimum interval to reduce database
 # read rate. This config controls when your DAGs are updated in the Webserver
-MIN_SERIALIZED_DAG_FETCH_INTERVAL = conf.getint('core', 'min_serialized_dag_fetch_interval', fallback=10)
+MIN_SERIALIZED_DAG_FETCH_INTERVAL = conf.getint("core", "min_serialized_dag_fetch_interval", fallback=10)
 
 CAN_FORK = hasattr(os, "fork")
 
 EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not CAN_FORK or conf.getboolean(
-    'core',
-    'execute_tasks_new_python_interpreter',
+    "core",
+    "execute_tasks_new_python_interpreter",
     fallback=False,
 )
 
-ALLOW_FUTURE_EXEC_DATES = conf.getboolean('scheduler', 'allow_trigger_in_future', fallback=False)
+ALLOW_FUTURE_EXEC_DATES = conf.getboolean("scheduler", "allow_trigger_in_future", fallback=False)
 
 # Whether or not to check each dagrun against defined SLAs
-CHECK_SLAS = conf.getboolean('core', 'check_slas', fallback=True)
+CHECK_SLAS = conf.getboolean("core", "check_slas", fallback=True)
 
-USE_JOB_SCHEDULE = conf.getboolean('scheduler', 'use_job_schedule', fallback=True)
+USE_JOB_SCHEDULE = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
 
 # By default Airflow plugins are lazily-loaded (only loaded when required). Set it to False,
 # if you want to load plugins whenever 'airflow' is invoked via cli or loaded from module.
-LAZY_LOAD_PLUGINS = conf.getboolean('core', 'lazy_load_plugins', fallback=True)
+LAZY_LOAD_PLUGINS = conf.getboolean("core", "lazy_load_plugins", fallback=True)
 
 # By default Airflow providers are lazily-discovered (discovery and imports happen only when required).
 # Set it to False, if you want to discover providers whenever 'airflow' is invoked via cli or
 # loaded from module.
-LAZY_LOAD_PROVIDERS = conf.getboolean('core', 'lazy_discover_providers', fallback=True)
+LAZY_LOAD_PROVIDERS = conf.getboolean("core", "lazy_discover_providers", fallback=True)
 
 # Determines if the executor utilizes Kubernetes
-IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get('core', 'EXECUTOR') in {
+IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get("core", "EXECUTOR") in {
     executor_constants.KUBERNETES_EXECUTOR,
     executor_constants.CELERY_KUBERNETES_EXECUTOR,
     executor_constants.LOCAL_KUBERNETES_EXECUTOR,
 }
 
-HIDE_SENSITIVE_VAR_CONN_FIELDS = conf.getboolean('core', 'hide_sensitive_var_conn_fields')
+HIDE_SENSITIVE_VAR_CONN_FIELDS = conf.getboolean("core", "hide_sensitive_var_conn_fields")
 
 # By default this is off, but is automatically configured on when running task
 # instances
@@ -649,4 +649,4 @@ DASHBOARD_UIALERTS: list[UIAlert] = []
 # Prefix used to identify tables holding data moved during migration.
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"
 
-DAEMON_UMASK: str = conf.get('core', 'daemon_umask', fallback='0o077')
+DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")

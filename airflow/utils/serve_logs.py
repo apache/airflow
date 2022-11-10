@@ -42,11 +42,11 @@ logger = logging.getLogger(__name__)
 
 def create_app():
     flask_app = Flask(__name__, static_folder=None)
-    expiration_time_in_seconds = conf.getint('webserver', 'log_request_clock_grace', fallback=30)
-    log_directory = os.path.expanduser(conf.get('logging', 'BASE_LOG_FOLDER'))
+    expiration_time_in_seconds = conf.getint("webserver", "log_request_clock_grace", fallback=30)
+    log_directory = os.path.expanduser(conf.get("logging", "BASE_LOG_FOLDER"))
 
     signer = JWTSigner(
-        secret_key=conf.get('webserver', 'secret_key'),
+        secret_key=conf.get("webserver", "secret_key"),
         expiration_time_in_seconds=expiration_time_in_seconds,
         audience="task-instance-logs",
     )
@@ -55,13 +55,13 @@ def create_app():
     @flask_app.before_request
     def validate_pre_signed_url():
         try:
-            auth = request.headers.get('Authorization')
+            auth = request.headers.get("Authorization")
             if auth is None:
                 logger.warning("The Authorization header is missing: %s.", request.headers)
                 abort(403)
             payload = signer.verify_token(auth)
             token_filename = payload.get("filename")
-            request_filename = request.view_args['filename']
+            request_filename = request.view_args["filename"]
             if token_filename is None:
                 logger.warning("The payload does not contain 'filename' key: %s.", payload)
                 abort(403)
@@ -104,7 +104,7 @@ def create_app():
             logger.warning("Unknown error", exc_info=True)
             abort(403)
 
-    @flask_app.route('/log/<path:filename>')
+    @flask_app.route("/log/<path:filename>")
     def serve_logs_view(filename):
         return send_from_directory(log_directory, filename, mimetype="application/json", as_attachment=False)
 
@@ -143,7 +143,7 @@ def serve_logs():
     setproctitle("airflow serve-logs")
     wsgi_app = create_app()
 
-    worker_log_server_port = conf.getint('logging', 'WORKER_LOG_SERVER_PORT')
+    worker_log_server_port = conf.getint("logging", "WORKER_LOG_SERVER_PORT")
 
     # If dual stack is available and IPV6_V6ONLY is not enabled on the socket
     # then when IPV6 is bound to it will also bind to IPV4 automatically
@@ -156,5 +156,5 @@ def serve_logs():
     StandaloneGunicornApplication(wsgi_app, options).run()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     serve_logs()

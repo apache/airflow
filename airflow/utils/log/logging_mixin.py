@@ -26,7 +26,7 @@ from logging import Handler, Logger, StreamHandler
 from typing import IO
 
 # 7-bit C1 ANSI escape sequences
-ANSI_ESCAPE = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
+ANSI_ESCAPE = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
 
 # Private: A sentinel object
 DISABLE_PROPOGATE = object()
@@ -52,7 +52,7 @@ class LoggingMixin:
     def log(self) -> Logger:
         """Returns a logger."""
         if self._log is None:
-            self._log = logging.getLogger(self.__class__.__module__ + '.' + self.__class__.__name__)
+            self._log = logging.getLogger(self.__class__.__module__ + "." + self.__class__.__name__)
         return self._log
 
     def _set_context(self, context):
@@ -96,7 +96,7 @@ class StreamLogWriter(IOBase, IO[str]):  # type: ignore[misc]
         """
         self.logger = logger
         self.level = level
-        self._buffer = ''
+        self._buffer = ""
 
     def close(self):
         """
@@ -135,7 +135,7 @@ class StreamLogWriter(IOBase, IO[str]):  # type: ignore[misc]
         """Ensure all logging output has been flushed"""
         buf = self._buffer
         if len(buf) > 0:
-            self._buffer = ''
+            self._buffer = ""
             self._propagate_log(buf)
 
     def isatty(self):
@@ -160,7 +160,7 @@ class RedirectStdHandler(StreamHandler):
             )
 
         self._use_stderr = True
-        if 'stdout' in stream:
+        if "stdout" in stream:
             self._use_stderr = False
 
         # StreamHandler tries to set self.stream
@@ -186,7 +186,7 @@ def set_context(logger, value):
         for handler in logger.handlers:
             # Not all handlers need to have context passed in so we ignore
             # the error when handlers do not have set_context defined.
-            set_context = getattr(handler, 'set_context', None)
+            set_context = getattr(handler, "set_context", None)
             if set_context and set_context(value) is DISABLE_PROPOGATE:
                 logger.propagate = False
         if logger.propagate is True:

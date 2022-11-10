@@ -329,7 +329,7 @@ def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASess
     )
 
     if last_dagrun is None:
-        raise ValueError(f'DagRun for {dag.dag_id} not found')
+        raise ValueError(f"DagRun for {dag.dag_id} not found")
 
     # determine run_id range of dag runs and tasks to consider
     end_date = last_dagrun.logical_date if future else current_dagrun.logical_date
@@ -401,10 +401,10 @@ def set_dag_run_state_to_success(
             raise ValueError(f"Received non-localized date {execution_date}")
         dag_run = dag.get_dagrun(execution_date=execution_date)
         if not dag_run:
-            raise ValueError(f'DagRun with execution_date: {execution_date} not found')
+            raise ValueError(f"DagRun with execution_date: {execution_date} not found")
         run_id = dag_run.run_id
     if not run_id:
-        raise ValueError(f'Invalid dag_run_id: {run_id}')
+        raise ValueError(f"Invalid dag_run_id: {run_id}")
     # Mark the dag run to success.
     if commit:
         _set_dag_run_state(dag.dag_id, run_id, DagRunState.SUCCESS, session)
@@ -447,11 +447,11 @@ def set_dag_run_state_to_failed(
             raise ValueError(f"Received non-localized date {execution_date}")
         dag_run = dag.get_dagrun(execution_date=execution_date)
         if not dag_run:
-            raise ValueError(f'DagRun with execution_date: {execution_date} not found')
+            raise ValueError(f"DagRun with execution_date: {execution_date} not found")
         run_id = dag_run.run_id
 
     if not run_id:
-        raise ValueError(f'Invalid dag_run_id: {run_id}')
+        raise ValueError(f"Invalid dag_run_id: {run_id}")
 
     # Mark the dag run to failed.
     if commit:
@@ -524,10 +524,10 @@ def __set_dag_run_state_to_running_or_queued(
             raise ValueError(f"Received non-localized date {execution_date}")
         dag_run = dag.get_dagrun(execution_date=execution_date)
         if not dag_run:
-            raise ValueError(f'DagRun with execution_date: {execution_date} not found')
+            raise ValueError(f"DagRun with execution_date: {execution_date} not found")
         run_id = dag_run.run_id
     if not run_id:
-        raise ValueError(f'DagRun with run_id: {run_id} not found')
+        raise ValueError(f"DagRun with run_id: {run_id} not found")
     # Mark the dag run to running.
     if commit:
         _set_dag_run_state(dag.dag_id, run_id, new_state, session)

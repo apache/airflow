@@ -61,7 +61,7 @@ def get_users(*, limit: int, order_by: str = "id", offset: str | None = None) ->
     order_param = order_by.strip("-")
     order_param = to_replace.get(order_param, order_param)
     allowed_filter_attrs = [
-        'id',
+        "id",
         "first_name",
         "last_name",
         "user_name",
@@ -139,13 +139,13 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
         detail = f"The User with username `{username}` was not found"
         raise NotFound(title="User not found", detail=detail)
     # Check unique username
-    new_username = data.get('username')
+    new_username = data.get("username")
     if new_username and new_username != username:
         if security_manager.find_user(username=new_username):
             raise AlreadyExists(detail=f"The username `{new_username}` already exists")
 
     # Check unique email
-    email = data.get('email')
+    email = data.get("email")
     if email and email != user.email:
         if security_manager.find_user(email=email):
             raise AlreadyExists(detail=f"The email `{email}` already exists")

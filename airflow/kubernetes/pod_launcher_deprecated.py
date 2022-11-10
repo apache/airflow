@@ -55,10 +55,10 @@ warnings.warn(
 class PodStatus:
     """Status of the PODs"""
 
-    PENDING = 'pending'
-    RUNNING = 'running'
-    FAILED = 'failed'
-    SUCCEEDED = 'succeeded'
+    PENDING = "pending"
+    RUNNING = "running"
+    FAILED = "failed"
+    SUCCEEDED = "succeeded"
 
 
 class PodLauncher(LoggingMixin):
@@ -95,14 +95,14 @@ class PodLauncher(LoggingMixin):
         sanitized_pod = self._client.api_client.sanitize_for_serialization(pod)
         json_pod = json.dumps(sanitized_pod, indent=2)
 
-        self.log.debug('Pod Creation Request: \n%s', json_pod)
+        self.log.debug("Pod Creation Request: \n%s", json_pod)
         try:
             resp = self._client.create_namespaced_pod(
                 body=sanitized_pod, namespace=pod.metadata.namespace, **kwargs
             )
-            self.log.debug('Pod Creation Response: %s', resp)
+            self.log.debug("Pod Creation Response: %s", resp)
         except Exception as e:
-            self.log.exception('Exception when attempting to create Namespaced Pod: %s', json_pod)
+            self.log.exception("Exception when attempting to create Namespaced Pod: %s", json_pod)
             raise e
         return resp
 
@@ -148,7 +148,7 @@ class PodLauncher(LoggingMixin):
             while True:
                 logs = self.read_pod_logs(pod, timestamps=True, since_seconds=read_logs_since_sec)
                 for line in logs:
-                    timestamp, message = self.parse_log_line(line.decode('utf-8'))
+                    timestamp, message = self.parse_log_line(line.decode("utf-8"))
                     if timestamp:
                         last_log_time = pendulum.parse(timestamp)
                     self.log.info(message)
@@ -157,7 +157,7 @@ class PodLauncher(LoggingMixin):
                 if not self.base_container_is_running(pod):
                     break
 
-                self.log.warning('Pod %s log read interrupted', pod.metadata.name)
+                self.log.warning("Pod %s log read interrupted", pod.metadata.name)
                 if last_log_time:
                     delta = pendulum.now() - last_log_time
                     # Prefer logs duplication rather than loss
@@ -165,13 +165,13 @@ class PodLauncher(LoggingMixin):
         result = None
         if self.extract_xcom:
             while self.base_container_is_running(pod):
-                self.log.info('Container %s has state %s', pod.metadata.name, State.RUNNING)
+                self.log.info("Container %s has state %s", pod.metadata.name, State.RUNNING)
                 time.sleep(2)
             result = self._extract_xcom(pod)
             self.log.info(result)
             result = json.loads(result)
         while self.pod_is_running(pod):
-            self.log.info('Pod %s has state %s', pod.metadata.name, State.RUNNING)
+            self.log.info("Pod %s has state %s", pod.metadata.name, State.RUNNING)
             time.sleep(2)
         return self._task_status(self.read_pod(pod)), result
 
@@ -182,7 +182,7 @@ class PodLauncher(LoggingMixin):
         :param line: k8s log line
         :return: timestamp and log message
         """
-        split_at = line.find(' ')
+        split_at = line.find(" ")
         if split_at == -1:
             self.log.error(
                 "Error parsing timestamp (no timestamp in message: %r). "
@@ -195,7 +195,7 @@ class PodLauncher(LoggingMixin):
         return timestamp, message
 
     def _task_status(self, event):
-        self.log.info('Event: %s had an event of type %s', event.metadata.name, event.status.phase)
+        self.log.info("Event: %s had an event of type %s", event.metadata.name, event.status.phase)
         status = self.process_status(event.metadata.name, event.status.phase)
         return status
 
@@ -212,7 +212,7 @@ class PodLauncher(LoggingMixin):
     def base_container_is_running(self, pod: V1Pod):
         """Tests if base container is running"""
         event = self.read_pod(pod)
-        status = next((s for s in event.status.container_statuses if s.name == 'base'), None)
+        status = next((s for s in event.status.container_statuses if s.name == "base"), None)
         if not status:
             return False
         return status.state.running is not None
@@ -228,23 +228,23 @@ class PodLauncher(LoggingMixin):
         """Reads log from the POD"""
         additional_kwargs = {}
         if since_seconds:
-            additional_kwargs['since_seconds'] = since_seconds
+            additional_kwargs["since_seconds"] = since_seconds
 
         if tail_lines:
-            additional_kwargs['tail_lines'] = tail_lines
+            additional_kwargs["tail_lines"] = tail_lines
 
         try:
             return self._client.read_namespaced_pod_log(
                 name=pod.metadata.name,
                 namespace=pod.metadata.namespace,
-                container='base',
+                container="base",
                 follow=True,
                 timestamps=timestamps,
                 _preload_content=False,
                 **additional_kwargs,
             )
         except HTTPError as e:
-            raise AirflowException(f'There was an error reading the kubernetes API: {e}')
+            raise AirflowException(f"There was an error reading the kubernetes API: {e}")
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def read_pod_events(self, pod):
@@ -254,7 +254,7 @@ class PodLauncher(LoggingMixin):
                 namespace=pod.metadata.namespace, field_selector=f"involvedObject.name={pod.metadata.name}"
             )
         except HTTPError as e:
-            raise AirflowException(f'There was an error reading the kubernetes API: {e}')
+            raise AirflowException(f"There was an error reading the kubernetes API: {e}")
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def read_pod(self, pod: V1Pod):
@@ -262,7 +262,7 @@ class PodLauncher(LoggingMixin):
         try:
             return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
         except HTTPError as e:
-            raise AirflowException(f'There was an error reading the kubernetes API: {e}')
+            raise AirflowException(f"There was an error reading the kubernetes API: {e}")
 
     def _extract_xcom(self, pod: V1Pod):
         resp = kubernetes_stream(
@@ -270,7 +270,7 @@ class PodLauncher(LoggingMixin):
             pod.metadata.name,
             pod.metadata.namespace,
             container=PodDefaults.SIDECAR_CONTAINER_NAME,
-            command=['/bin/sh'],
+            command=["/bin/sh"],
             stdin=True,
             stdout=True,
             stderr=True,
@@ -278,18 +278,18 @@ class PodLauncher(LoggingMixin):
             _preload_content=False,
         )
         try:
-            result = self._exec_pod_command(resp, f'cat {PodDefaults.XCOM_MOUNT_PATH}/return.json')
-            self._exec_pod_command(resp, 'kill -s SIGINT 1')
+            result = self._exec_pod_command(resp, f"cat {PodDefaults.XCOM_MOUNT_PATH}/return.json")
+            self._exec_pod_command(resp, "kill -s SIGINT 1")
         finally:
             resp.close()
         if result is None:
-            raise AirflowException(f'Failed to extract xcom from pod: {pod.metadata.name}')
+            raise AirflowException(f"Failed to extract xcom from pod: {pod.metadata.name}")
         return result
 
     def _exec_pod_command(self, resp, command):
         if resp.is_open():
-            self.log.info('Running command... %s\n', command)
-            resp.write_stdin(command + '\n')
+            self.log.info("Running command... %s\n", command)
+            resp.write_stdin(command + "\n")
             while resp.is_open():
                 resp.update(timeout=1)
                 if resp.peek_stdout():
@@ -305,13 +305,13 @@ class PodLauncher(LoggingMixin):
         if status == PodStatus.PENDING:
             return State.QUEUED
         elif status == PodStatus.FAILED:
-            self.log.error('Event with job id %s Failed', job_id)
+            self.log.error("Event with job id %s Failed", job_id)
             return State.FAILED
         elif status == PodStatus.SUCCEEDED:
-            self.log.info('Event with job id %s Succeeded', job_id)
+            self.log.info("Event with job id %s Succeeded", job_id)
             return State.SUCCESS
         elif status == PodStatus.RUNNING:
             return State.RUNNING
         else:
-            self.log.error('Event: Invalid state %s on job %s', status, job_id)
+            self.log.error("Event: Invalid state %s on job %s", status, job_id)
             return State.FAILED

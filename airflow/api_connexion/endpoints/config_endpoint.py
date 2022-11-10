@@ -27,7 +27,7 @@ from airflow.configuration import conf
 from airflow.security import permissions
 from airflow.settings import json
 
-LINE_SEP = '\n'  # `\n` cannot appear in f-strings
+LINE_SEP = "\n"  # `\n` cannot appear in f-strings
 
 
 def _conf_dict_to_config(conf_dict: dict) -> Config:
@@ -45,14 +45,14 @@ def _conf_dict_to_config(conf_dict: dict) -> Config:
 
 def _option_to_text(config_option: ConfigOption) -> str:
     """Convert a single config option to text"""
-    return f'{config_option.key} = {config_option.value}'
+    return f"{config_option.key} = {config_option.value}"
 
 
 def _section_to_text(config_section: ConfigSection) -> str:
     """Convert a single config section to text"""
     return (
-        f'[{config_section.name}]{LINE_SEP}'
-        f'{LINE_SEP.join(_option_to_text(option) for option in config_section.options)}{LINE_SEP}'
+        f"[{config_section.name}]{LINE_SEP}"
+        f"{LINE_SEP.join(_option_to_text(option) for option in config_section.options)}{LINE_SEP}"
     )
 
 
@@ -70,8 +70,8 @@ def _config_to_json(config: Config) -> str:
 def get_config() -> Response:
     """Get current configuration."""
     serializer = {
-        'text/plain': _config_to_text,
-        'application/json': _config_to_json,
+        "text/plain": _config_to_text,
+        "application/json": _config_to_json,
     }
     return_type = request.accept_mimetypes.best_match(serializer.keys())
     if return_type not in serializer:
@@ -80,11 +80,11 @@ def get_config() -> Response:
         conf_dict = conf.as_dict(display_source=False, display_sensitive=True)
         config = _conf_dict_to_config(conf_dict)
         config_text = serializer[return_type](config)
-        return Response(config_text, headers={'Content-Type': return_type})
+        return Response(config_text, headers={"Content-Type": return_type})
     else:
         raise PermissionDenied(
             detail=(
-                'Your Airflow administrator chose not to expose the configuration, most likely for security'
-                ' reasons.'
+                "Your Airflow administrator chose not to expose the configuration, most likely for security"
+                " reasons."
             )
         )

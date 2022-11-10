@@ -47,7 +47,7 @@ class RenderedTaskInstanceFields(Base):
     dag_id = Column(StringID(), primary_key=True)
     task_id = Column(StringID(), primary_key=True)
     run_id = Column(StringID(), primary_key=True)
-    map_index = Column(Integer, primary_key=True, server_default=text('-1'))
+    map_index = Column(Integer, primary_key=True, server_default=text("-1"))
     rendered_fields = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
     k8s_pod_yaml = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
 
@@ -57,7 +57,7 @@ class RenderedTaskInstanceFields(Base):
             "task_id",
             "run_id",
             "map_index",
-            name='rendered_task_instance_fields_pkey',
+            name="rendered_task_instance_fields_pkey",
             mssql_clustered=True,
         ),
         ForeignKeyConstraint(
@@ -68,13 +68,13 @@ class RenderedTaskInstanceFields(Base):
                 "task_instance.run_id",
                 "task_instance.map_index",
             ],
-            name='rtif_ti_fkey',
+            name="rtif_ti_fkey",
             ondelete="CASCADE",
         ),
     )
     task_instance = relationship(
         "TaskInstance",
-        lazy='joined',
+        lazy="joined",
         back_populates="rendered_task_instance_fields",
     )
 
@@ -112,7 +112,7 @@ class RenderedTaskInstanceFields(Base):
         prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.run_id}"
         if self.map_index != -1:
             prefix += f" map_index={self.map_index}"
-        return prefix + '>'
+        return prefix + ">"
 
     def _redact(self):
         from airflow.utils.log.secrets_masker import redact

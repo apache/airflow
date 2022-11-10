@@ -30,11 +30,11 @@ log = logging.getLogger(__name__)
 
 def configure_logging():
     """Configure & Validate Airflow Logging"""
-    logging_class_path = ''
+    logging_class_path = ""
     try:
-        logging_class_path = conf.get('logging', 'logging_config_class')
+        logging_class_path = conf.get("logging", "logging_config_class")
     except AirflowConfigException:
-        log.debug('Could not find key logging_config_class in config')
+        log.debug("Could not find key logging_config_class in config")
 
     if logging_class_path:
         try:
@@ -44,31 +44,31 @@ def configure_logging():
             if not isinstance(logging_config, dict):
                 raise ValueError("Logging Config should be of dict type")
 
-            log.info('Successfully imported user-defined logging config from %s', logging_class_path)
+            log.info("Successfully imported user-defined logging config from %s", logging_class_path)
         except Exception as err:
             # Import default logging configurations.
-            raise ImportError(f'Unable to load custom logging from {logging_class_path} due to {err}')
+            raise ImportError(f"Unable to load custom logging from {logging_class_path} due to {err}")
     else:
-        logging_class_path = 'airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG'
+        logging_class_path = "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
         logging_config = import_string(logging_class_path)
-        log.debug('Unable to load custom logging, using default config instead')
+        log.debug("Unable to load custom logging, using default config instead")
 
     try:
         # Ensure that the password masking filter is applied to the 'task' handler
         # no matter what the user did.
-        if 'filters' in logging_config and 'mask_secrets' in logging_config['filters']:
+        if "filters" in logging_config and "mask_secrets" in logging_config["filters"]:
             # But if they replace the logging config _entirely_, don't try to set this, it won't work
-            task_handler_config = logging_config['handlers']['task']
+            task_handler_config = logging_config["handlers"]["task"]
 
-            task_handler_config.setdefault('filters', [])
+            task_handler_config.setdefault("filters", [])
 
-            if 'mask_secrets' not in task_handler_config['filters']:
-                task_handler_config['filters'].append('mask_secrets')
+            if "mask_secrets" not in task_handler_config["filters"]:
+                task_handler_config["filters"].append("mask_secrets")
 
         # Try to init logging
         dictConfig(logging_config)
     except (ValueError, KeyError) as e:
-        log.error('Unable to load the config, contains a configuration error.')
+        log.error("Unable to load the config, contains a configuration error.")
         # When there is an error in the config, escalate the exception
         # otherwise Airflow would silently fall back on the default config
         raise e
@@ -81,9 +81,9 @@ def configure_logging():
 def validate_logging_config(logging_config):
     """Validate the provided Logging Config"""
     # Now lets validate the other logging-related settings
-    task_log_reader = conf.get('logging', 'task_log_reader')
+    task_log_reader = conf.get("logging", "task_log_reader")
 
-    logger = logging.getLogger('airflow.task')
+    logger = logging.getLogger("airflow.task")
 
     def _get_handler(name):
         return next((h for h in logger.handlers if h.name == name), None)
@@ -97,7 +97,7 @@ def validate_logging_config(logging_config):
                 "Running config has been adjusted to match",
                 DeprecationWarning,
             )
-            conf.set('logging', 'task_log_reader', 'task')
+            conf.set("logging", "task_log_reader", "task")
         else:
             raise AirflowConfigException(
                 f"Configured task_log_reader {task_log_reader!r} was not a handler of "

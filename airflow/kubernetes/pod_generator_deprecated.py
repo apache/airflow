@@ -37,15 +37,15 @@ MAX_LABEL_LEN = 63
 class PodDefaults:
     """Static defaults for Pods"""
 
-    XCOM_MOUNT_PATH = '/airflow/xcom'
-    SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
+    XCOM_MOUNT_PATH = "/airflow/xcom"
+    SIDECAR_CONTAINER_NAME = "airflow-xcom-sidecar"
     XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 30; done;'
-    VOLUME_MOUNT = k8s.V1VolumeMount(name='xcom', mount_path=XCOM_MOUNT_PATH)
-    VOLUME = k8s.V1Volume(name='xcom', empty_dir=k8s.V1EmptyDirVolumeSource())
+    VOLUME_MOUNT = k8s.V1VolumeMount(name="xcom", mount_path=XCOM_MOUNT_PATH)
+    VOLUME = k8s.V1Volume(name="xcom", empty_dir=k8s.V1EmptyDirVolumeSource())
     SIDECAR_CONTAINER = k8s.V1Container(
         name=SIDECAR_CONTAINER_NAME,
-        command=['sh', '-c', XCOM_CMD],
-        image='alpine',
+        command=["sh", "-c", XCOM_CMD],
+        image="alpine",
         volume_mounts=[VOLUME_MOUNT],
         resources=k8s.V1ResourceRequirements(
             requests={
@@ -148,8 +148,8 @@ class PodGenerator:
     ):
 
         self.pod = k8s.V1Pod()
-        self.pod.api_version = 'v1'
-        self.pod.kind = 'Pod'
+        self.pod.api_version = "v1"
+        self.pod.kind = "Pod"
 
         # Pod Metadata
         self.metadata = k8s.V1ObjectMeta()
@@ -159,7 +159,7 @@ class PodGenerator:
         self.metadata.annotations = annotations
 
         # Pod Container
-        self.container = k8s.V1Container(name='base')
+        self.container = k8s.V1Container(name="base")
         self.container.image = image
         self.container.env = []
 
@@ -205,7 +205,7 @@ class PodGenerator:
         self.spec.image_pull_secrets = []
 
         if image_pull_secrets:
-            for image_pull_secret in image_pull_secrets.split(','):
+            for image_pull_secret in image_pull_secrets.split(","):
                 self.spec.image_pull_secrets.append(k8s.V1LocalObjectReference(name=image_pull_secret))
 
         # Attach sidecar
@@ -251,8 +251,8 @@ class PodGenerator:
 
         if not isinstance(obj, dict):
             raise TypeError(
-                'Cannot convert a non-dictionary or non-PodGenerator '
-                'object into a KubernetesExecutorConfig'
+                "Cannot convert a non-dictionary or non-PodGenerator "
+                "object into a KubernetesExecutorConfig"
             )
 
         # We do not want to extract constant here from ExecutorLoader because it is just
@@ -262,25 +262,25 @@ class PodGenerator:
         if not namespaced:
             return None
 
-        resources = namespaced.get('resources')
+        resources = namespaced.get("resources")
 
         if resources is None:
             requests = {
-                'cpu': namespaced.get('request_cpu'),
-                'memory': namespaced.get('request_memory'),
-                'ephemeral-storage': namespaced.get('ephemeral-storage'),
+                "cpu": namespaced.get("request_cpu"),
+                "memory": namespaced.get("request_memory"),
+                "ephemeral-storage": namespaced.get("ephemeral-storage"),
             }
             limits = {
-                'cpu': namespaced.get('limit_cpu'),
-                'memory': namespaced.get('limit_memory'),
-                'ephemeral-storage': namespaced.get('ephemeral-storage'),
+                "cpu": namespaced.get("limit_cpu"),
+                "memory": namespaced.get("limit_memory"),
+                "ephemeral-storage": namespaced.get("ephemeral-storage"),
             }
             all_resources = list(requests.values()) + list(limits.values())
             if all(r is None for r in all_resources):
                 resources = None
             else:
                 resources = k8s.V1ResourceRequirements(requests=requests, limits=limits)
-        namespaced['resources'] = resources
+        namespaced["resources"] = resources
         return PodGenerator(**namespaced).gen_pod()
 
     @staticmethod

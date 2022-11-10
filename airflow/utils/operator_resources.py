@@ -42,8 +42,8 @@ class Resource:
     def __init__(self, name, units_str, qty):
         if qty < 0:
             raise AirflowException(
-                f'Received resource quantity {qty} for resource {name}, '
-                f'but resource quantity must be non-negative.'
+                f"Received resource quantity {qty} for resource {name}, "
+                f"but resource quantity must be non-negative."
             )
 
         self._name = name
@@ -78,9 +78,9 @@ class Resource:
 
     def to_dict(self):
         return {
-            'name': self.name,
-            'qty': self.qty,
-            'units_str': self.units_str,
+            "name": self.name,
+            "qty": self.qty,
+            "units_str": self.units_str,
         }
 
 
@@ -88,28 +88,28 @@ class CpuResource(Resource):
     """Represents a CPU requirement in an execution environment for an operator."""
 
     def __init__(self, qty):
-        super().__init__('CPU', 'core(s)', qty)
+        super().__init__("CPU", "core(s)", qty)
 
 
 class RamResource(Resource):
     """Represents a RAM requirement in an execution environment for an operator."""
 
     def __init__(self, qty):
-        super().__init__('RAM', 'MB', qty)
+        super().__init__("RAM", "MB", qty)
 
 
 class DiskResource(Resource):
     """Represents a disk requirement in an execution environment for an operator."""
 
     def __init__(self, qty):
-        super().__init__('Disk', 'MB', qty)
+        super().__init__("Disk", "MB", qty)
 
 
 class GpuResource(Resource):
     """Represents a GPU requirement in an execution environment for an operator."""
 
     def __init__(self, qty):
-        super().__init__('GPU', 'gpu(s)', qty)
+        super().__init__("GPU", "gpu(s)", qty)
 
 
 class Resources:
@@ -125,10 +125,10 @@ class Resources:
 
     def __init__(
         self,
-        cpus=conf.getint('operators', 'default_cpus'),
-        ram=conf.getint('operators', 'default_ram'),
-        disk=conf.getint('operators', 'default_disk'),
-        gpus=conf.getint('operators', 'default_gpus'),
+        cpus=conf.getint("operators", "default_cpus"),
+        ram=conf.getint("operators", "default_ram"),
+        disk=conf.getint("operators", "default_disk"),
+        gpus=conf.getint("operators", "default_gpus"),
     ):
         self.cpus = CpuResource(cpus)
         self.ram = RamResource(ram)
@@ -145,18 +145,18 @@ class Resources:
 
     def to_dict(self):
         return {
-            'cpus': self.cpus.to_dict(),
-            'ram': self.ram.to_dict(),
-            'disk': self.disk.to_dict(),
-            'gpus': self.gpus.to_dict(),
+            "cpus": self.cpus.to_dict(),
+            "ram": self.ram.to_dict(),
+            "disk": self.disk.to_dict(),
+            "gpus": self.gpus.to_dict(),
         }
 
     @classmethod
     def from_dict(cls, resources_dict: dict):
         """Create resources from resources dict"""
-        cpus = resources_dict['cpus']['qty']
-        ram = resources_dict['ram']['qty']
-        disk = resources_dict['disk']['qty']
-        gpus = resources_dict['gpus']['qty']
+        cpus = resources_dict["cpus"]["qty"]
+        ram = resources_dict["ram"]["qty"]
+        disk = resources_dict["disk"]["qty"]
+        gpus = resources_dict["gpus"]["qty"]
 
         return cls(cpus=cpus, ram=ram, disk=disk, gpus=gpus)

@@ -28,14 +28,14 @@ from alembic import op
 from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
-revision = 'a66efa278eea'
-down_revision = '952da73b5eff'
+revision = "a66efa278eea"
+down_revision = "952da73b5eff"
 branch_labels = None
 depends_on = None
-airflow_version = '1.10.11'
+airflow_version = "1.10.11"
 
-TABLE_NAME = 'rendered_task_instance_fields'
-COLUMN_NAME = 'execution_date'
+TABLE_NAME = "rendered_task_instance_fields"
+COLUMN_NAME = "execution_date"
 
 
 def upgrade():

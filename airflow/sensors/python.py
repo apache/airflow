@@ -48,7 +48,7 @@ class PythonSensor(BaseSensorOperator):
         :ref:`howto/operator:PythonSensor`
     """
 
-    template_fields: Sequence[str] = ('templates_dict', 'op_args', 'op_kwargs')
+    template_fields: Sequence[str] = ("templates_dict", "op_args", "op_kwargs")
 
     def __init__(
         self,

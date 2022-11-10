@@ -27,16 +27,16 @@ from __future__ import annotations
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = 'dd25f486b8ea'
-down_revision = '9635ae0956e7'
+revision = "dd25f486b8ea"
+down_revision = "9635ae0956e7"
 branch_labels = None
 depends_on = None
-airflow_version = '1.10.2'
+airflow_version = "1.10.2"
 
 
 def upgrade():
-    op.create_index('idx_log_dag', 'log', ['dag_id'], unique=False)
+    op.create_index("idx_log_dag", "log", ["dag_id"], unique=False)
 
 
 def downgrade():
-    op.drop_index('idx_log_dag', table_name='log')
+    op.drop_index("idx_log_dag", table_name="log")

@@ -153,7 +153,7 @@ def mkdirs(path, mode):
     Path(path).mkdir(mode=mode, parents=True, exist_ok=True)
 
 
-ZIP_REGEX = re.compile(fr'((.*\.zip){re.escape(os.sep)})?(.*)')
+ZIP_REGEX = re.compile(rf"((.*\.zip){re.escape(os.sep)})?(.*)")
 
 
 @overload
@@ -183,7 +183,7 @@ def correct_maybe_zipped(fileloc: None | str | Path) -> None | str | Path:
         return fileloc
 
 
-def open_maybe_zipped(fileloc, mode='r'):
+def open_maybe_zipped(fileloc, mode="r"):
     """
     Opens the given file. If the path contains a folder with a .zip suffix, then
     the folder is treated as a zip archive, opening the file inside the archive.
@@ -260,7 +260,7 @@ def _find_path_from_directory(
 def find_path_from_directory(
     base_dir_path: str,
     ignore_file_name: str,
-    ignore_file_syntax: str = conf.get_mandatory_value('core', 'DAG_IGNORE_FILE_SYNTAX', fallback="regexp"),
+    ignore_file_syntax: str = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="regexp"),
 ) -> Generator[str, None, None]:
     """
     Recursively search the base path and return the list of file paths that should not be ignored.
@@ -280,7 +280,7 @@ def find_path_from_directory(
 
 def list_py_file_paths(
     directory: str | pathlib.Path,
-    safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE', fallback=True),
+    safe_mode: bool = conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE", fallback=True),
     include_examples: bool | None = None,
 ) -> list[str]:
     """
@@ -295,7 +295,7 @@ def list_py_file_paths(
     :return: a list of paths to Python files in the specified directory
     """
     if include_examples is None:
-        include_examples = conf.getboolean('core', 'LOAD_EXAMPLES')
+        include_examples = conf.getboolean("core", "LOAD_EXAMPLES")
     file_paths: list[str] = []
     if directory is None:
         file_paths = []
@@ -320,7 +320,7 @@ def find_dag_file_paths(directory: str | pathlib.Path, safe_mode: bool) -> list[
             if not os.path.isfile(file_path):
                 continue
             _, file_ext = os.path.splitext(os.path.split(file_path)[-1])
-            if file_ext != '.py' and not zipfile.is_zipfile(file_path):
+            if file_ext != ".py" and not zipfile.is_zipfile(file_path):
                 continue
             if not might_contain_dag(file_path, safe_mode):
                 continue
@@ -352,7 +352,7 @@ def might_contain_dag(file_path: str, safe_mode: bool, zip_file: zipfile.ZipFile
     else:
         if zipfile.is_zipfile(file_path):
             return True
-        with open(file_path, 'rb') as dag_file:
+        with open(file_path, "rb") as dag_file:
             content = dag_file.read()
     content = content.lower()
-    return all(s in content for s in (b'dag', b'airflow'))
+    return all(s in content for s in (b"dag", b"airflow"))

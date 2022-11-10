@@ -48,7 +48,7 @@ def get_python_source(x: Any) -> str | None:
             pass
 
     if source_code is None:
-        source_code = f'No source code available for {type(x)}'
+        source_code = f"No source code available for {type(x)}"
     return source_code
 
 
@@ -81,7 +81,7 @@ def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int 
 
 def get_terminal_formatter(**opts):
     """Returns the best formatter available in the current terminal."""
-    if '256' in os.environ.get('TERM', ''):
+    if "256" in os.environ.get("TERM", ""):
         from pygments.formatters.terminal256 import Terminal256Formatter
 
         formatter = Terminal256Formatter(**opts)

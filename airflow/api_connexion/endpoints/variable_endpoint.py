@@ -65,7 +65,7 @@ def get_variables(
     """Get all variable values"""
     total_entries = session.query(func.count(Variable.id)).scalar()
     to_replace = {"value": "val"}
-    allowed_filter_attrs = ['value', 'key', 'id']
+    allowed_filter_attrs = ["value", "key", "id"]
     query = session.query(Variable)
     query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
     variables = query.offset(offset).limit(limit).all()

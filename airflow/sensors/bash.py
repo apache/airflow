@@ -46,9 +46,9 @@ class BashSensor(BaseSensorOperator):
 
     """
 
-    template_fields: Sequence[str] = ('bash_command', 'env')
+    template_fields: Sequence[str] = ("bash_command", "env")
 
-    def __init__(self, *, bash_command, env=None, output_encoding='utf-8', **kwargs):
+    def __init__(self, *, bash_command, env=None, output_encoding="utf-8", **kwargs):
         super().__init__(**kwargs)
         self.bash_command = bash_command
         self.env = env
@@ -61,9 +61,9 @@ class BashSensor(BaseSensorOperator):
         """
         bash_command = self.bash_command
         self.log.info("Tmp dir root location: \n %s", gettempdir())
-        with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
+        with TemporaryDirectory(prefix="airflowtmp") as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir, prefix=self.task_id) as f:
-                f.write(bytes(bash_command, 'utf_8'))
+                f.write(bytes(bash_command, "utf_8"))
                 f.flush()
                 fname = f.name
                 script_location = tmp_dir + "/" + fname
@@ -71,7 +71,7 @@ class BashSensor(BaseSensorOperator):
                 self.log.info("Running command: %s", bash_command)
 
                 with Popen(
-                    ['bash', fname],
+                    ["bash", fname],
                     stdout=PIPE,
                     stderr=STDOUT,
                     close_fds=True,
@@ -81,7 +81,7 @@ class BashSensor(BaseSensorOperator):
                 ) as resp:
                     if resp.stdout:
                         self.log.info("Output:")
-                        for line in iter(resp.stdout.readline, b''):
+                        for line in iter(resp.stdout.readline, b""):
                             self.log.info(line.decode(self.output_encoding).strip())
                     resp.wait()
                     self.log.info("Command exited with return code %s", resp.returncode)

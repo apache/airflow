@@ -34,7 +34,7 @@ class ConnectionCollectionItemSchema(SQLAlchemySchema):
 
         model = Connection
 
-    connection_id = auto_field('conn_id', required=True)
+    connection_id = auto_field("conn_id", required=True)
     conn_type = auto_field(required=True)
     description = auto_field()
     host = auto_field()
@@ -47,7 +47,7 @@ class ConnectionSchema(ConnectionCollectionItemSchema):
     """Connection schema"""
 
     password = auto_field(load_only=True)
-    extra = fields.Method('serialize_extra', deserialize='deserialize_extra', allow_none=True)
+    extra = fields.Method("serialize_extra", deserialize="deserialize_extra", allow_none=True)
 
     @staticmethod
     def serialize_extra(obj: Connection):

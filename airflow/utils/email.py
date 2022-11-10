@@ -42,16 +42,16 @@ def send_email(
     dryrun: bool = False,
     cc: str | Iterable[str] | None = None,
     bcc: str | Iterable[str] | None = None,
-    mime_subtype: str = 'mixed',
-    mime_charset: str = 'utf-8',
+    mime_subtype: str = "mixed",
+    mime_charset: str = "utf-8",
     conn_id: str | None = None,
     custom_headers: dict[str, Any] | None = None,
     **kwargs,
 ):
     """Send email using backend specified in EMAIL_BACKEND."""
-    backend = conf.getimport('email', 'EMAIL_BACKEND')
+    backend = conf.getimport("email", "EMAIL_BACKEND")
     backend_conn_id = conn_id or conf.get("email", "EMAIL_CONN_ID")
-    from_email = conf.get('email', 'from_email', fallback=None)
+    from_email = conf.get("email", "from_email", fallback=None)
 
     to_list = get_email_address_list(to)
     to_comma_separated = ", ".join(to_list)
@@ -81,8 +81,8 @@ def send_email_smtp(
     dryrun: bool = False,
     cc: str | Iterable[str] | None = None,
     bcc: str | Iterable[str] | None = None,
-    mime_subtype: str = 'mixed',
-    mime_charset: str = 'utf-8',
+    mime_subtype: str = "mixed",
+    mime_charset: str = "utf-8",
     conn_id: str = "smtp_default",
     from_email: str | None = None,
     custom_headers: dict[str, Any] | None = None,
@@ -93,7 +93,7 @@ def send_email_smtp(
 
     >>> send_email('test@example.com', 'foo', '<b>Foo</b> bar', ['/dev/null'], dryrun=True)
     """
-    smtp_mail_from = conf.get('smtp', 'SMTP_MAIL_FROM')
+    smtp_mail_from = conf.get("smtp", "SMTP_MAIL_FROM")
 
     if smtp_mail_from is not None:
         mail_from = smtp_mail_from
@@ -128,8 +128,8 @@ def build_mime_message(
     files: list[str] | None = None,
     cc: str | Iterable[str] | None = None,
     bcc: str | Iterable[str] | None = None,
-    mime_subtype: str = 'mixed',
-    mime_charset: str = 'utf-8',
+    mime_subtype: str = "mixed",
+    mime_charset: str = "utf-8",
     custom_headers: dict[str, Any] | None = None,
 ) -> tuple[MIMEMultipart, list[str]]:
     """
@@ -152,13 +152,13 @@ def build_mime_message(
     to = get_email_address_list(to)
 
     msg = MIMEMultipart(mime_subtype)
-    msg['Subject'] = subject
-    msg['From'] = mail_from
-    msg['To'] = ", ".join(to)
+    msg["Subject"] = subject
+    msg["From"] = mail_from
+    msg["To"] = ", ".join(to)
     recipients = to
     if cc:
         cc = get_email_address_list(cc)
-        msg['CC'] = ", ".join(cc)
+        msg["CC"] = ", ".join(cc)
         recipients = recipients + cc
 
     if bcc:
@@ -166,16 +166,16 @@ def build_mime_message(
         bcc = get_email_address_list(bcc)
         recipients = recipients + bcc
 
-    msg['Date'] = formatdate(localtime=True)
-    mime_text = MIMEText(html_content, 'html', mime_charset)
+    msg["Date"] = formatdate(localtime=True)
+    mime_text = MIMEText(html_content, "html", mime_charset)
     msg.attach(mime_text)
 
     for fname in files or []:
         basename = os.path.basename(fname)
         with open(fname, "rb") as file:
             part = MIMEApplication(file.read(), Name=basename)
-            part['Content-Disposition'] = f'attachment; filename="{basename}"'
-            part['Content-ID'] = f'<{basename}>'
+            part["Content-Disposition"] = f'attachment; filename="{basename}"'
+            part["Content-ID"] = f"<{basename}>"
             msg.attach(part)
 
     if custom_headers:
@@ -193,12 +193,12 @@ def send_mime_email(
     dryrun: bool = False,
 ) -> None:
     """Send MIME email."""
-    smtp_host = conf.get_mandatory_value('smtp', 'SMTP_HOST')
-    smtp_port = conf.getint('smtp', 'SMTP_PORT')
-    smtp_starttls = conf.getboolean('smtp', 'SMTP_STARTTLS')
-    smtp_ssl = conf.getboolean('smtp', 'SMTP_SSL')
-    smtp_retry_limit = conf.getint('smtp', 'SMTP_RETRY_LIMIT')
-    smtp_timeout = conf.getint('smtp', 'SMTP_TIMEOUT')
+    smtp_host = conf.get_mandatory_value("smtp", "SMTP_HOST")
+    smtp_port = conf.getint("smtp", "SMTP_PORT")
+    smtp_starttls = conf.getboolean("smtp", "SMTP_STARTTLS")
+    smtp_ssl = conf.getboolean("smtp", "SMTP_SSL")
+    smtp_retry_limit = conf.getint("smtp", "SMTP_RETRY_LIMIT")
+    smtp_timeout = conf.getint("smtp", "SMTP_TIMEOUT")
     smtp_user = None
     smtp_password = None
 
@@ -219,8 +219,8 @@ def send_mime_email(
             stacklevel=2,
         )
         try:
-            smtp_user = conf.get('smtp', 'SMTP_USER')
-            smtp_password = conf.get('smtp', 'SMTP_PASSWORD')
+            smtp_user = conf.get("smtp", "SMTP_USER")
+            smtp_password = conf.get("smtp", "SMTP_PASSWORD")
         except AirflowConfigException:
             log.debug("No user/password found for SMTP, so logging in with no authentication.")
 

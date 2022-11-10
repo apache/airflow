@@ -27,7 +27,7 @@ class SmoothOperator(BaseOperator):
     Sade song "Smooth Operator".
     """
 
-    ui_color = '#e8f7e4'
+    ui_color = "#e8f7e4"
     yt_link: str = "https://www.youtube.com/watch?v=4TYv2PhG89A"
 
     def __init__(self, **kwargs) -> None:

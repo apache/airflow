@@ -48,10 +48,10 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
             elif not g.user.is_anonymous and not g.user.perms:
                 return (
                     render_template(
-                        'airflow/no_roles_permissions.html',
+                        "airflow/no_roles_permissions.html",
                         hostname=get_hostname()
-                        if conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
-                        else 'redact',
+                        if conf.getboolean("webserver", "EXPOSE_HOSTNAME", fallback=True)
+                        else "redact",
                         logout_url=appbuilder.get_url_for_logout,
                     ),
                     403,

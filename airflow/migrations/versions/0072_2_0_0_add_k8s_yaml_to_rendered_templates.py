@@ -31,14 +31,14 @@ from sqlalchemy import Column
 from airflow.settings import json
 
 # revision identifiers, used by Alembic.
-revision = '45ba3f1493b9'
-down_revision = '364159666cbd'
+revision = "45ba3f1493b9"
+down_revision = "364159666cbd"
 branch_labels = None
 depends_on = None
-airflow_version = '2.0.0'
+airflow_version = "2.0.0"
 
 __tablename__ = "rendered_task_instance_fields"
-k8s_pod_yaml = Column('k8s_pod_yaml', sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+k8s_pod_yaml = Column("k8s_pod_yaml", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
 
 
 def upgrade():
@@ -50,4 +50,4 @@ def upgrade():
 def downgrade():
     """Unapply add-k8s-yaml-to-rendered-templates"""
     with op.batch_alter_table(__tablename__, schema=None) as batch_op:
-        batch_op.drop_column('k8s_pod_yaml')
+        batch_op.drop_column("k8s_pod_yaml")

@@ -53,9 +53,9 @@ ID_LEN = 250
 
 def get_id_collation_args():
     """Get SQLAlchemy args to use for COLLATION"""
-    collation = conf.get('database', 'sql_engine_collation_for_ids', fallback=None)
+    collation = conf.get("database", "sql_engine_collation_for_ids", fallback=None)
     if collation:
-        return {'collation': collation}
+        return {"collation": collation}
     else:
         # Automatically use utf8mb3_bin collation for mysql
         # This is backwards-compatible. All our IDS are ASCII anyway so even if
@@ -67,9 +67,9 @@ def get_id_collation_args():
         #
         # We cannot use session/dialect as at this point we are trying to determine the right connection
         # parameters, so we use the connection
-        conn = conf.get('database', 'sql_alchemy_conn', fallback='')
-        if conn.startswith('mysql') or conn.startswith("mariadb"):
-            return {'collation': 'utf8mb3_bin'}
+        conn = conf.get("database", "sql_alchemy_conn", fallback="")
+        if conn.startswith("mysql") or conn.startswith("mariadb"):
+            return {"collation": "utf8mb3_bin"}
         return {}
 
 

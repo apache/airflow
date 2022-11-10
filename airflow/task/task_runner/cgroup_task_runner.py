@@ -160,7 +160,7 @@ class CgroupTaskRunner(BaseTaskRunner):
 
         # Start the process w/ cgroups
         self.log.debug("Starting task process with cgroups cpu,memory: %s", cgroup_name)
-        self.process = self.run_command(['cgexec', '-g', f'cpu,memory:{cgroup_name}'])
+        self.process = self.run_command(["cgexec", "-g", f"cpu,memory:{cgroup_name}"])
 
     def return_code(self, timeout: int = 0) -> int | None:
         return_code = self.process.poll()
@@ -188,7 +188,7 @@ class CgroupTaskRunner(BaseTaskRunner):
         def byte_to_gb(num_bytes, precision=2):
             return round(num_bytes / (1024 * 1024 * 1024), precision)
 
-        with open(mem_cgroup_node.full_path + '/memory.max_usage_in_bytes') as f:
+        with open(mem_cgroup_node.full_path + "/memory.max_usage_in_bytes") as f:
             max_usage_in_bytes = int(f.read().strip())
 
         used_gb = byte_to_gb(max_usage_in_bytes)

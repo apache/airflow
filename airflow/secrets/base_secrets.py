@@ -63,7 +63,7 @@ class BaseSecretsBackend(ABC):
         from airflow.models.connection import Connection
 
         value = value.strip()
-        if value[0] == '{':
+        if value[0] == "{":
             return Connection.from_json(conn_id=conn_id, value=value)
         else:
             return Connection(conn_id=conn_id, uri=value)

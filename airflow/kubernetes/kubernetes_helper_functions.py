@@ -38,7 +38,7 @@ def _strip_unsafe_kubernetes_special_chars(string: str) -> str:
     :param string: The requested Pod name
     :return: Pod name stripped of any unsafe characters
     """
-    return slugify(string, separator='', lowercase=True)
+    return slugify(string, separator="", lowercase=True)
 
 
 def create_pod_id(dag_id: str, task_id: str) -> str:
@@ -59,19 +59,19 @@ def create_pod_id(dag_id: str, task_id: str) -> str:
 def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
     """Build a TaskInstanceKey based on pod annotations"""
     log.debug("Creating task key for annotations %s", annotations)
-    dag_id = annotations['dag_id']
-    task_id = annotations['task_id']
-    try_number = int(annotations['try_number'])
-    annotation_run_id = annotations.get('run_id')
-    map_index = int(annotations.get('map_index', -1))
+    dag_id = annotations["dag_id"]
+    task_id = annotations["task_id"]
+    try_number = int(annotations["try_number"])
+    annotation_run_id = annotations.get("run_id")
+    map_index = int(annotations.get("map_index", -1))
 
-    if not annotation_run_id and 'execution_date' in annotations:
+    if not annotation_run_id and "execution_date" in annotations:
         # Compat: Look up the run_id from the TI table!
         from airflow.models.dagrun import DagRun
         from airflow.models.taskinstance import TaskInstance
         from airflow.settings import Session
 
-        execution_date = pendulum.parse(annotations['execution_date'])
+        execution_date = pendulum.parse(annotations["execution_date"])
         # Do _not_ use create-session, we don't want to expunge
         session = Session()
 

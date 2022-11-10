@@ -38,17 +38,17 @@ from airflow.operators.bash import BashOperator
 
 # [START instantiate_dag]
 with DAG(
-    'tutorial',
+    "tutorial",
     # [START default_args]
     # These args will get passed on to each operator
     # You can override them on a per-task basis during operator initialization
     default_args={
-        'depends_on_past': False,
-        'email': ['airflow@example.com'],
-        'email_on_failure': False,
-        'email_on_retry': False,
-        'retries': 1,
-        'retry_delay': timedelta(minutes=5),
+        "depends_on_past": False,
+        "email": ["airflow@example.com"],
+        "email_on_failure": False,
+        "email_on_retry": False,
+        "retries": 1,
+        "retry_delay": timedelta(minutes=5),
         # 'queue': 'bash_queue',
         # 'pool': 'backfill',
         # 'priority_weight': 10,
@@ -63,25 +63,25 @@ with DAG(
         # 'trigger_rule': 'all_success'
     },
     # [END default_args]
-    description='A simple tutorial DAG',
+    description="A simple tutorial DAG",
     schedule=timedelta(days=1),
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [END instantiate_dag]
 
     # t1, t2 and t3 are examples of tasks created by instantiating operators
     # [START basic_task]
     t1 = BashOperator(
-        task_id='print_date',
-        bash_command='date',
+        task_id="print_date",
+        bash_command="date",
     )
 
     t2 = BashOperator(
-        task_id='sleep',
+        task_id="sleep",
         depends_on_past=False,
-        bash_command='sleep 5',
+        bash_command="sleep 5",
         retries=3,
     )
     # [END basic_task]
@@ -115,7 +115,7 @@ with DAG(
     )
 
     t3 = BashOperator(
-        task_id='templated',
+        task_id="templated",
         depends_on_past=False,
         bash_command=templated_command,
     )

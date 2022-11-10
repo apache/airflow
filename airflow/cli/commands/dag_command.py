@@ -57,7 +57,7 @@ def dag_backfill(args, dag=None):
     import warnings
 
     warnings.warn(
-        '--ignore-first-depends-on-past is deprecated as the value is always set to True',
+        "--ignore-first-depends-on-past is deprecated as the value is always set to True",
         category=RemovedInAirflow3Warning,
     )
 
@@ -117,7 +117,7 @@ def dag_backfill(args, dag=None):
                     end_date=args.end_date,
                     mark_success=args.mark_success,
                     local=args.local,
-                    donot_pickle=(args.donot_pickle or conf.getboolean('core', 'donot_pickle')),
+                    donot_pickle=(args.donot_pickle or conf.getboolean("core", "donot_pickle")),
                     ignore_first_depends_on_past=args.ignore_first_depends_on_past,
                     ignore_task_deps=args.ignore_dependencies,
                     pool=args.pool,
@@ -232,25 +232,23 @@ def dag_show(args):
 
 
 def _display_dot_via_imgcat(dot: Dot):
-    data = dot.pipe(format='png')
+    data = dot.pipe(format="png")
     try:
         with subprocess.Popen("imgcat", stdout=subprocess.PIPE, stdin=subprocess.PIPE) as proc:
             out, err = proc.communicate(data)
             if out:
-                print(out.decode('utf-8'))
+                print(out.decode("utf-8"))
             if err:
-                print(err.decode('utf-8'))
+                print(err.decode("utf-8"))
     except OSError as e:
         if e.errno == errno.ENOENT:
-            raise SystemExit(
-                "Failed to execute. Make sure the imgcat executables are on your systems \'PATH\'"
-            )
+            raise SystemExit("Failed to execute. Make sure the imgcat executables are on your systems 'PATH'")
         else:
             raise
 
 
 def _save_dot_to_file(dot: Dot, filename: str):
-    filename_without_ext, _, ext = filename.rpartition('.')
+    filename_without_ext, _, ext = filename.rpartition(".")
     dot.render(filename=filename_without_ext, format=ext, cleanup=True)
     print(f"File {filename} saved")
 
@@ -271,9 +269,9 @@ def dag_state(args, session=NEW_SESSION):
         raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
     dr = session.query(DagRun).filter_by(dag_id=args.dag_id, execution_date=args.execution_date).one_or_none()
     out = dr.state if dr else None
-    conf_out = ''
+    conf_out = ""
     if out and dr.conf:
-        conf_out = ', ' + json.dumps(dr.conf)
+        conf_out = ", " + json.dumps(dr.conf)
     print(str(out) + conf_out)
 
 
@@ -397,7 +395,7 @@ def dag_list_jobs(args, dag=None, session=NEW_SESSION):
     if args.state:
         queries.append(BaseJob.state == args.state)
 
-    fields = ['dag_id', 'state', 'job_type', 'start_date', 'end_date']
+    fields = ["dag_id", "state", "job_type", "start_date", "end_date"]
     all_jobs = (
         session.query(BaseJob).filter(*queries).order_by(BaseJob.start_date.desc()).limit(args.limit).all()
     )
@@ -441,8 +439,8 @@ def dag_list_dag_runs(args, dag=None, session=NEW_SESSION):
             "run_id": dr.run_id,
             "state": dr.state,
             "execution_date": dr.execution_date.isoformat(),
-            "start_date": dr.start_date.isoformat() if dr.start_date else '',
-            "end_date": dr.end_date.isoformat() if dr.end_date else '',
+            "start_date": dr.start_date.isoformat() if dr.start_date else "",
+            "end_date": dr.end_date.isoformat() if dr.end_date else "",
         },
     )
 

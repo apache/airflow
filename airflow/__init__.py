@@ -33,7 +33,7 @@ from typing import Callable
 
 from airflow import settings
 
-__all__ = ['__version__', 'login', 'DAG', 'PY36', 'PY37', 'PY38', 'PY39', 'PY310', 'XComArg']
+__all__ = ["__version__", "login", "DAG", "PY36", "PY37", "PY38", "PY39", "PY310", "XComArg"]
 
 # Make `airflow` an namespace package, supporting installing
 # airflow.providers.* in different locations (i.e. one in site, and one in user
@@ -55,18 +55,18 @@ PY310 = sys.version_info >= (3, 10)
 
 # Things to lazy import in form {local_name: ('target_module', 'target_name')}
 __lazy_imports: dict[str, tuple[str, str]] = {
-    'DAG': ('.models.dag', 'DAG'),
-    'Dataset': ('.datasets', 'Dataset'),
-    'XComArg': ('.models.xcom_arg', 'XComArg'),
-    'AirflowException': ('.exceptions', 'AirflowException'),
-    'version': ('.version', ''),
-    '__version__': ('.version', 'version'),
+    "DAG": (".models.dag", "DAG"),
+    "Dataset": (".datasets", "Dataset"),
+    "XComArg": (".models.xcom_arg", "XComArg"),
+    "AirflowException": (".exceptions", "AirflowException"),
+    "version": (".version", ""),
+    "__version__": (".version", "version"),
 }
 
 
 def __getattr__(name: str):
     # PEP-562: Lazy loaded attributes on python modules
-    module_path, attr_name = __lazy_imports.get(name, ('', ''))
+    module_path, attr_name = __lazy_imports.get(name, ("", ""))
     if not module_path:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
@@ -101,7 +101,7 @@ if not settings.LAZY_LOAD_PROVIDERS:
 # into knowing the types of these symbols, and what
 # they contain.
 STATICA_HACK = True
-globals()['kcah_acitats'[::-1].upper()] = False
+globals()["kcah_acitats"[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
     from airflow.models.dag import DAG
     from airflow.models.xcom_arg import XComArg

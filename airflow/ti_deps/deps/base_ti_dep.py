@@ -56,7 +56,7 @@ class BaseTIDep:
         The human-readable name for the dependency. Use the classname as the default name
         if this method is not overridden in the subclass.
         """
-        return getattr(self, 'NAME', self.__class__.__name__)
+        return getattr(self, "NAME", self.__class__.__name__)
 
     def _get_dep_statuses(self, ti, session, dep_context):
         """
@@ -123,10 +123,10 @@ class BaseTIDep:
             if not dep_status.passed:
                 yield dep_status.reason
 
-    def _failing_status(self, reason=''):
+    def _failing_status(self, reason=""):
         return TIDepStatus(self.name, False, reason)
 
-    def _passing_status(self, reason=''):
+    def _passing_status(self, reason=""):
         return TIDepStatus(self.name, True, reason)
 
 
