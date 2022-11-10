@@ -149,6 +149,7 @@ class DockerOperator(BaseOperator):
     :param log_opts_max_file: The maximum number of log files that can be present.
         If rolling the logs creates excess files, the oldest file is removed.
         Only effective when max-size is also set. A positive integer. Defaults to 1.
+    :param ipc_mode: Set the IPC mode for the container.
     """
 
     template_fields: Sequence[str] = ("image", "command", "environment", "env_file", "container_name")
@@ -202,6 +203,7 @@ class DockerOperator(BaseOperator):
         device_requests: list[DeviceRequest] | None = None,
         log_opts_max_size: str | None = None,
         log_opts_max_file: str | None = None,
+        ipc_mode: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -261,6 +263,7 @@ class DockerOperator(BaseOperator):
         self.device_requests = device_requests
         self.log_opts_max_size = log_opts_max_size
         self.log_opts_max_file = log_opts_max_file
+        self.ipc_mode = ipc_mode
 
     def get_hook(self) -> DockerHook:
         """
@@ -332,6 +335,7 @@ class DockerOperator(BaseOperator):
                 privileged=self.privileged,
                 device_requests=self.device_requests,
                 log_config=LogConfig(config=docker_log_config),
+                ipc_mode=self.ipc_mode,
             ),
             image=self.image,
             user=self.user,
