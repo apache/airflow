@@ -45,11 +45,11 @@ def action_logging(f: T) -> T:
 
         with create_session() as session:
             if g.user.is_anonymous:
-                user = 'anonymous'
+                user = "anonymous"
             else:
                 user = g.user.username
 
-            fields_skip_logging = {'csrf_token', '_csrf_token'}
+            fields_skip_logging = {"csrf_token", "_csrf_token"}
             extra_fields = [
                 (k, v)
                 for k, v in chain(request.values.items(multi=True), request.view_args.items())
@@ -63,12 +63,12 @@ def action_logging(f: T) -> T:
                 task_instance=None,
                 owner=user,
                 extra=str(extra_fields),
-                task_id=params.get('task_id'),
-                dag_id=params.get('dag_id'),
+                task_id=params.get("task_id"),
+                dag_id=params.get("dag_id"),
             )
 
-            if 'execution_date' in request.values:
-                execution_date_value = request.values.get('execution_date')
+            if "execution_date" in request.values:
+                execution_date_value = request.values.get("execution_date")
                 try:
                     log.execution_date = pendulum.parse(execution_date_value, strict=False)
                 except ParserError:
@@ -90,9 +90,9 @@ def gzipped(f: T) -> T:
     def view_func(*args, **kwargs):
         @after_this_request
         def zipper(response):
-            accept_encoding = request.headers.get('Accept-Encoding', '')
+            accept_encoding = request.headers.get("Accept-Encoding", "")
 
-            if 'gzip' not in accept_encoding.lower():
+            if "gzip" not in accept_encoding.lower():
                 return response
 
             response.direct_passthrough = False
@@ -100,18 +100,18 @@ def gzipped(f: T) -> T:
             if (
                 response.status_code < 200
                 or response.status_code >= 300
-                or 'Content-Encoding' in response.headers
+                or "Content-Encoding" in response.headers
             ):
                 return response
             gzip_buffer = IO()
-            gzip_file = gzip.GzipFile(mode='wb', fileobj=gzip_buffer)
+            gzip_file = gzip.GzipFile(mode="wb", fileobj=gzip_buffer)
             gzip_file.write(response.data)
             gzip_file.close()
 
             response.data = gzip_buffer.getvalue()
-            response.headers['Content-Encoding'] = 'gzip'
-            response.headers['Vary'] = 'Accept-Encoding'
-            response.headers['Content-Length'] = len(response.data)
+            response.headers["Content-Encoding"] = "gzip"
+            response.headers["Vary"] = "Accept-Encoding"
+            response.headers["Content-Length"] = len(response.data)
 
             return response
 

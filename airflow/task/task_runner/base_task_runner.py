@@ -37,7 +37,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 
-PYTHONPATH_VAR = 'PYTHONPATH'
+PYTHONPATH_VAR = "PYTHONPATH"
 
 
 class BaseTaskRunner(LoggingMixin):
@@ -59,7 +59,7 @@ class BaseTaskRunner(LoggingMixin):
             self.run_as_user = self._task_instance.run_as_user
         else:
             try:
-                self.run_as_user = conf.get('core', 'default_impersonation')
+                self.run_as_user = conf.get("core", "default_impersonation")
             except AirflowConfigException:
                 self.run_as_user = None
 
@@ -74,14 +74,14 @@ class BaseTaskRunner(LoggingMixin):
             cfg_path = tmp_configuration_copy(chmod=0o600, include_env=True, include_cmds=True)
 
             # Give ownership of file to user; only they can read and write
-            subprocess.check_call(['sudo', 'chown', self.run_as_user, cfg_path], close_fds=True)
+            subprocess.check_call(["sudo", "chown", self.run_as_user, cfg_path], close_fds=True)
 
             # propagate PYTHONPATH environment variable
-            pythonpath_value = os.environ.get(PYTHONPATH_VAR, '')
-            popen_prepend = ['sudo', '-E', '-H', '-u', self.run_as_user]
+            pythonpath_value = os.environ.get(PYTHONPATH_VAR, "")
+            popen_prepend = ["sudo", "-E", "-H", "-u", self.run_as_user]
 
             if pythonpath_value:
-                popen_prepend.append(f'{PYTHONPATH_VAR}={pythonpath_value}')
+                popen_prepend.append(f"{PYTHONPATH_VAR}={pythonpath_value}")
 
         else:
             # Always provide a copy of the configuration file settings. Since
@@ -105,14 +105,14 @@ class BaseTaskRunner(LoggingMixin):
         while True:
             line = stream.readline()
             if isinstance(line, bytes):
-                line = line.decode('utf-8')
+                line = line.decode("utf-8")
             if not line:
                 break
             self.log.info(
-                'Job %s: Subtask %s %s',
+                "Job %s: Subtask %s %s",
                 self._task_instance.job_id,
                 self._task_instance.task_id,
-                line.rstrip('\n'),
+                line.rstrip("\n"),
             )
 
     def run_command(self, run_with=None) -> subprocess.Popen:
@@ -126,7 +126,7 @@ class BaseTaskRunner(LoggingMixin):
         full_cmd = run_with + self._command
 
         self.log.info("Running on host: %s", get_hostname())
-        self.log.info('Running: %s', full_cmd)
+        self.log.info("Running: %s", full_cmd)
         with _airflow_parsing_context_manager(
             dag_id=self._task_instance.dag_id,
             task_id=self._task_instance.task_id,
@@ -179,6 +179,6 @@ class BaseTaskRunner(LoggingMixin):
         """A callback that should be called when this is done running."""
         if self._cfg_path and os.path.isfile(self._cfg_path):
             if self.run_as_user:
-                subprocess.call(['sudo', 'rm', self._cfg_path], close_fds=True)
+                subprocess.call(["sudo", "rm", self._cfg_path], close_fds=True)
             else:
                 os.remove(self._cfg_path)

@@ -243,7 +243,8 @@ dask = [
     # Dask support is limited, we need Dask team to upgrade support for dask if we were to continue
     # Supporting it in the future
     "cloudpickle>=1.4.1",
-    "dask>=2.9.0",
+    # Dask in version 2022.10.1 removed `bokeh` support and we should avoid installing it
+    "dask>=2.9.0,!=2022.10.1",
     "distributed>=2.11.1",
 ]
 deprecated_api = [
@@ -275,7 +276,9 @@ doc = [
     "sphinxcontrib-spelling>=7.3",
 ]
 flask_appbuilder_oauth = [
-    "flask-appbuilder[oauth]",
+    "authlib>=1.0.0",
+    # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
+    "flask-appbuilder[oauth]==4.1.4",
 ]
 kerberos = [
     "pykerberos>=1.1.13",
@@ -364,7 +367,7 @@ devel_only = [
     "click>=8.0",
     "coverage",
     "filelock",
-    "flake8>=3.6.0",
+    "flake8>=3.9.0",
     "flake8-colors",
     "flake8-implicit-str-concat",
     "flaky",

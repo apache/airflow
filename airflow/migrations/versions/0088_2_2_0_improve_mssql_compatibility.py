@@ -33,11 +33,11 @@ from sqlalchemy.dialects import mssql
 from airflow.migrations.db_types import TIMESTAMP
 
 # revision identifiers, used by Alembic.
-revision = '83f031fd9f1c'
-down_revision = 'ccde3e26fe78'
+revision = "83f031fd9f1c"
+down_revision = "ccde3e26fe78"
 branch_labels = None
 depends_on = None
-airflow_version = '2.2.0'
+airflow_version = "2.2.0"
 
 
 def is_table_empty(conn, table_name):
@@ -48,7 +48,7 @@ def is_table_empty(conn, table_name):
     :param table_name: table name
     :return: Booelan indicating if the table is present
     """
-    return conn.execute(f'select TOP 1 * from {table_name}').first() is None
+    return conn.execute(f"select TOP 1 * from {table_name}").first() is None
 
 
 def get_table_constraints(conn, table_name) -> dict[tuple[str, str], list[str]]:
@@ -86,9 +86,9 @@ def drop_column_constraints(operator, column_name, constraint_dict):
     for constraint, columns in constraint_dict.items():
         if column_name in columns:
             if constraint[1].lower().startswith("primary"):
-                operator.drop_constraint(constraint[0], type_='primary')
+                operator.drop_constraint(constraint[0], type_="primary")
             elif constraint[1].lower().startswith("unique"):
-                operator.drop_constraint(constraint[0], type_='unique')
+                operator.drop_constraint(constraint[0], type_="unique")
 
 
 def create_constraints(operator, column_name, constraint_dict):
@@ -145,32 +145,32 @@ def alter_mssql_datetime_column(conn, op, table_name, column_name, nullable):
 def upgrade():
     """Improve compatibility with MSSQL backend"""
     conn = op.get_bind()
-    if conn.dialect.name != 'mssql':
+    if conn.dialect.name != "mssql":
         return
-    recreate_mssql_ts_column(conn, op, 'dag_code', 'last_updated')
-    recreate_mssql_ts_column(conn, op, 'rendered_task_instance_fields', 'execution_date')
-    alter_mssql_datetime_column(conn, op, 'serialized_dag', 'last_updated', False)
+    recreate_mssql_ts_column(conn, op, "dag_code", "last_updated")
+    recreate_mssql_ts_column(conn, op, "rendered_task_instance_fields", "execution_date")
+    alter_mssql_datetime_column(conn, op, "serialized_dag", "last_updated", False)
     op.alter_column(table_name="xcom", column_name="timestamp", type_=TIMESTAMP, nullable=False)
-    with op.batch_alter_table('task_reschedule') as task_reschedule_batch_op:
-        task_reschedule_batch_op.alter_column(column_name='end_date', type_=TIMESTAMP, nullable=False)
-        task_reschedule_batch_op.alter_column(column_name='reschedule_date', type_=TIMESTAMP, nullable=False)
-        task_reschedule_batch_op.alter_column(column_name='start_date', type_=TIMESTAMP, nullable=False)
-    with op.batch_alter_table('task_fail') as task_fail_batch_op:
-        task_fail_batch_op.drop_index('idx_task_fail_dag_task_date')
+    with op.batch_alter_table("task_reschedule") as task_reschedule_batch_op:
+        task_reschedule_batch_op.alter_column(column_name="end_date", type_=TIMESTAMP, nullable=False)
+        task_reschedule_batch_op.alter_column(column_name="reschedule_date", type_=TIMESTAMP, nullable=False)
+        task_reschedule_batch_op.alter_column(column_name="start_date", type_=TIMESTAMP, nullable=False)
+    with op.batch_alter_table("task_fail") as task_fail_batch_op:
+        task_fail_batch_op.drop_index("idx_task_fail_dag_task_date")
         task_fail_batch_op.alter_column(column_name="execution_date", type_=TIMESTAMP, nullable=False)
         task_fail_batch_op.create_index(
-            'idx_task_fail_dag_task_date', ['dag_id', 'task_id', 'execution_date'], unique=False
+            "idx_task_fail_dag_task_date", ["dag_id", "task_id", "execution_date"], unique=False
         )
-    with op.batch_alter_table('task_instance') as task_instance_batch_op:
-        task_instance_batch_op.drop_index('ti_state_lkp')
+    with op.batch_alter_table("task_instance") as task_instance_batch_op:
+        task_instance_batch_op.drop_index("ti_state_lkp")
         task_instance_batch_op.create_index(
-            'ti_state_lkp', ['dag_id', 'task_id', 'execution_date', 'state'], unique=False
+            "ti_state_lkp", ["dag_id", "task_id", "execution_date", "state"], unique=False
         )
-    constraint_dict = get_table_constraints(conn, 'dag_run')
+    constraint_dict = get_table_constraints(conn, "dag_run")
     for constraint, columns in constraint_dict.items():
-        if 'dag_id' in columns:
+        if "dag_id" in columns:
             if constraint[1].lower().startswith("unique"):
-                op.drop_constraint(constraint[0], 'dag_run', type_='unique')
+                op.drop_constraint(constraint[0], "dag_run", type_="unique")
     # create filtered indexes
     conn.execute(
         """CREATE UNIQUE NONCLUSTERED INDEX idx_not_null_dag_id_execution_date
@@ -187,25 +187,25 @@ def upgrade():
 def downgrade():
     """Reverse MSSQL backend compatibility improvements"""
     conn = op.get_bind()
-    if conn.dialect.name != 'mssql':
+    if conn.dialect.name != "mssql":
         return
     op.alter_column(table_name="xcom", column_name="timestamp", type_=TIMESTAMP, nullable=True)
-    with op.batch_alter_table('task_reschedule') as task_reschedule_batch_op:
-        task_reschedule_batch_op.alter_column(column_name='end_date', type_=TIMESTAMP, nullable=True)
-        task_reschedule_batch_op.alter_column(column_name='reschedule_date', type_=TIMESTAMP, nullable=True)
-        task_reschedule_batch_op.alter_column(column_name='start_date', type_=TIMESTAMP, nullable=True)
-    with op.batch_alter_table('task_fail') as task_fail_batch_op:
-        task_fail_batch_op.drop_index('idx_task_fail_dag_task_date')
+    with op.batch_alter_table("task_reschedule") as task_reschedule_batch_op:
+        task_reschedule_batch_op.alter_column(column_name="end_date", type_=TIMESTAMP, nullable=True)
+        task_reschedule_batch_op.alter_column(column_name="reschedule_date", type_=TIMESTAMP, nullable=True)
+        task_reschedule_batch_op.alter_column(column_name="start_date", type_=TIMESTAMP, nullable=True)
+    with op.batch_alter_table("task_fail") as task_fail_batch_op:
+        task_fail_batch_op.drop_index("idx_task_fail_dag_task_date")
         task_fail_batch_op.alter_column(column_name="execution_date", type_=TIMESTAMP, nullable=False)
         task_fail_batch_op.create_index(
-            'idx_task_fail_dag_task_date', ['dag_id', 'task_id', 'execution_date'], unique=False
+            "idx_task_fail_dag_task_date", ["dag_id", "task_id", "execution_date"], unique=False
         )
-    with op.batch_alter_table('task_instance') as task_instance_batch_op:
-        task_instance_batch_op.drop_index('ti_state_lkp')
+    with op.batch_alter_table("task_instance") as task_instance_batch_op:
+        task_instance_batch_op.drop_index("ti_state_lkp")
         task_instance_batch_op.create_index(
-            'ti_state_lkp', ['dag_id', 'task_id', 'execution_date'], unique=False
+            "ti_state_lkp", ["dag_id", "task_id", "execution_date"], unique=False
         )
-    op.create_unique_constraint('UQ__dag_run__dag_id_run_id', 'dag_run', ['dag_id', 'run_id'])
-    op.create_unique_constraint('UQ__dag_run__dag_id_execution_date', 'dag_run', ['dag_id', 'execution_date'])
-    op.drop_index('idx_not_null_dag_id_execution_date', table_name='dag_run')
-    op.drop_index('idx_not_null_dag_id_run_id', table_name='dag_run')
+    op.create_unique_constraint("UQ__dag_run__dag_id_run_id", "dag_run", ["dag_id", "run_id"])
+    op.create_unique_constraint("UQ__dag_run__dag_id_execution_date", "dag_run", ["dag_id", "execution_date"])
+    op.drop_index("idx_not_null_dag_id_execution_date", table_name="dag_run")
+    op.drop_index("idx_not_null_dag_id_run_id", table_name="dag_run")

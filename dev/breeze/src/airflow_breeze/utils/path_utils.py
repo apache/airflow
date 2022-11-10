@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import hashlib
 import os
+import platform
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -30,7 +32,7 @@ from pathlib import Path
 from airflow_breeze import NAME
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.reinstall import reinstall_breeze, warn_dependencies_changed, warn_non_editable
-from airflow_breeze.utils.shared_options import set_forced_answer
+from airflow_breeze.utils.shared_options import get_verbose, set_forced_answer
 
 AIRFLOW_CFG_FILE = "setup.cfg"
 
@@ -249,6 +251,7 @@ HOOKS_DIR = AIRFLOW_SOURCES_ROOT / "hooks"
 KUBE_DIR = AIRFLOW_SOURCES_ROOT / ".kube"
 LOGS_DIR = AIRFLOW_SOURCES_ROOT / "logs"
 DIST_DIR = AIRFLOW_SOURCES_ROOT / "dist"
+DOCS_DIR = AIRFLOW_SOURCES_ROOT / "docs"
 SCRIPTS_CI_DIR = AIRFLOW_SOURCES_ROOT / "scripts" / "ci"
 DOCKER_CONTEXT_DIR = AIRFLOW_SOURCES_ROOT / "docker-context-files"
 CACHE_TMP_FILE_DIR = tempfile.TemporaryDirectory()
@@ -301,3 +304,37 @@ def create_directories_and_files() -> None:
     (AIRFLOW_SOURCES_ROOT / ".bash_aliases").touch()
     (AIRFLOW_SOURCES_ROOT / ".bash_history").touch()
     (AIRFLOW_SOURCES_ROOT / ".inputrc").touch()
+
+
+def cleanup_python_generated_files():
+    if get_verbose():
+        get_console().print("[info]Cleaning .pyc and __pycache__")
+    permission_errors = []
+    for path in AIRFLOW_SOURCES_ROOT.rglob("*.pyc"):
+        try:
+            path.unlink()
+        except PermissionError:
+            permission_errors.append(path)
+    for path in AIRFLOW_SOURCES_ROOT.rglob("__pycache__"):
+        try:
+            shutil.rmtree(path)
+        except PermissionError:
+            permission_errors.append(path)
+    if permission_errors:
+        if platform.uname().system.lower() == "linux":
+            get_console().print("[warning]There were files that you could not clean-up:\n")
+            get_console().print(permission_errors)
+            get_console().print(
+                "Please run at earliest convenience:\n"
+                "[warning]breeze ci fix-ownership[/]\n\n"
+                "If you have sudo you can use:\n"
+                "[warning]breeze ci fix-ownership --use-sudo[/]\n\n"
+                "This will fix ownership of those.\n"
+                "You can also remove those files manually using sudo."
+            )
+        else:
+            get_console().print("[warnings]There were files that you could not clean-up:\n")
+            get_console().print(permission_errors)
+            get_console().print("You can also remove those files manually using sudo.")
+    if get_verbose():
+        get_console().print("[info]Cleaned")

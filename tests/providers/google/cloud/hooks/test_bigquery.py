@@ -170,7 +170,6 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
                 r"\['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'\]"
             ),
         ):
-
             self.hook.run_load(
                 "test.test",
                 "test_schema.json",
@@ -185,7 +184,6 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             match="schema_update_options is only allowed if"
             " write_disposition is 'WRITE_APPEND' or 'WRITE_TRUNCATE'.",
         ):
-
             self.hook.run_load(
                 "test.test",
                 "test_schema.json",
@@ -205,7 +203,10 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         self.hook.running_job_id = running_job_id
         self.hook.cancel_query()
 
-        calls = [mock.call(job_id=running_job_id), mock.call(running_job_id)]
+        calls = [
+            mock.call(job_id=running_job_id, project_id=PROJECT_ID, location=None),
+            mock.call(job_id=running_job_id, project_id=PROJECT_ID, location=None),
+        ]
         mock_poll_job_complete.assert_has_calls(calls)
         mock_client.assert_called_once_with(project_id=PROJECT_ID, location=None)
         mock_client.return_value.cancel_job.assert_called_once_with(job_id=running_job_id)
@@ -601,7 +602,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
 
         self.hook.running_job_id = JOB_ID
         self.hook.cancel_query()
-        poll_job_complete.assert_called_once_with(job_id=JOB_ID)
+        poll_job_complete.assert_called_once_with(job_id=JOB_ID, project_id=PROJECT_ID, location=None)
         mock_logger_info.has_call(mock.call("No running BigQuery jobs to cancel."))
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
@@ -2277,3 +2278,31 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
             dataset=DATASET_ID, project_id=PROJECT_ID, table_id=TABLE_ID, session=mock_session
         )
         assert isinstance(result, Table_async)
+
+    def test_get_records_return_type(self):
+        query_result = {
+            "kind": "bigquery#getQueryResultsResponse",
+            "etag": "test_etag",
+            "schema": {
+                "fields": [
+                    {"name": "f0_", "type": "INTEGER", "mode": "NULLABLE"},
+                    {"name": "f1_", "type": "FLOAT", "mode": "NULLABLE"},
+                    {"name": "f2_", "type": "STRING", "mode": "NULLABLE"},
+                ]
+            },
+            "jobReference": {
+                "projectId": "test_airflow-providers",
+                "jobId": "test_jobid",
+                "location": "US",
+            },
+            "totalRows": "1",
+            "rows": [{"f": [{"v": "22"}, {"v": "3.14"}, {"v": "PI"}]}],
+            "totalBytesProcessed": "0",
+            "jobComplete": True,
+            "cacheHit": False,
+        }
+        hook = BigQueryAsyncHook()
+        result = hook.get_records(query_result)
+        assert isinstance(result[0][0], int)
+        assert isinstance(result[0][1], float)
+        assert isinstance(result[0][2], str)

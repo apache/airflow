@@ -20,7 +20,7 @@
 Kubernetes cluster Connection
 =============================
 
-The Kubernetes cluster Connection type enables connection to a Kubernetes cluster by :class:`~airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator` tasks. They are not used by ``KubernetesPodOperator`` tasks.
+The Kubernetes cluster Connection type enables connection to a Kubernetes cluster by :class:`~airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator` tasks and :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` tasks.
 
 
 Authenticating to Kubernetes cluster
@@ -67,6 +67,10 @@ Disable verify SSL
 Disable TCP keepalive
   TCP keepalive is a feature (enabled by default) that tries to keep long-running connections
   alive. Set this parameter to True to disable this feature.
+
+Xcom sidecar image
+  Define the ``image`` used by the ``PodDefaults.SIDECAR_CONTAINER`` (defaults to ``"alpine"``) to allow private
+  repositories, as well as custom image overrides.
 
 Example storing connection in env var using URI format:
 

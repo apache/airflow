@@ -43,7 +43,7 @@ class UserCollectionItemSchema(SQLAlchemySchema):
     last_login = auto_field(dump_only=True)
     login_count = auto_field(dump_only=True)
     fail_login_count = auto_field(dump_only=True)
-    roles = fields.List(fields.Nested(RoleSchema, only=('name',)))
+    roles = fields.List(fields.Nested(RoleSchema, only=("name",)))
     created_on = auto_field(validate=validate_istimezone, dump_only=True)
     changed_on = auto_field(validate=validate_istimezone, dump_only=True)
 

@@ -49,7 +49,7 @@ class TriggerDagRunLink(BaseOperatorLink):
     DAG triggered by task using TriggerDagRunOperator.
     """
 
-    name = 'Triggered DAG'
+    name = "Triggered DAG"
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         # Fetch the correct execution date for the triggerED dag which is
@@ -70,6 +70,8 @@ class TriggerDagRunOperator(BaseOperator):
     :param execution_date: Execution date for the dag (templated).
     :param reset_dag_run: Whether or not clear existing dag run if already exists.
         This is useful when backfill or rerun an existing dag run.
+        This only resets (not recreates) the dag run.
+        Dag run conf is immutable and will not be reset on rerun of an existing dag run.
         When reset_dag_run=False and dag run exists, DagRunAlreadyExists will be raised.
         When reset_dag_run=True and dag run exists, existing dag run will be cleared to rerun.
     :param wait_for_completion: Whether or not wait for dag run completion. (default: False)
@@ -115,11 +117,6 @@ class TriggerDagRunOperator(BaseOperator):
 
         self.execution_date = execution_date
 
-        try:
-            json.dumps(self.conf)
-        except TypeError:
-            raise AirflowException("conf parameter should be JSON Serializable")
-
     def execute(self, context: Context):
         if isinstance(self.execution_date, datetime.datetime):
             parsed_execution_date = self.execution_date
@@ -127,6 +124,11 @@ class TriggerDagRunOperator(BaseOperator):
             parsed_execution_date = timezone.parse(self.execution_date)
         else:
             parsed_execution_date = timezone.utcnow()
+
+        try:
+            json.dumps(self.conf)
+        except TypeError:
+            raise AirflowException("conf parameter should be JSON Serializable")
 
         if self.trigger_run_id:
             run_id = self.trigger_run_id
@@ -161,7 +163,7 @@ class TriggerDagRunOperator(BaseOperator):
             raise RuntimeError("The dag_run should be set here!")
         # Store the execution date from the dag run (either created or found above) to
         # be used when creating the extra link on the webserver.
-        ti = context['task_instance']
+        ti = context["task_instance"]
         ti.xcom_push(key=XCOM_EXECUTION_DATE_ISO, value=dag_run.execution_date.isoformat())
         ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
 
@@ -169,7 +171,7 @@ class TriggerDagRunOperator(BaseOperator):
             # wait for dag to complete
             while True:
                 self.log.info(
-                    'Waiting for %s on %s to become allowed state %s ...',
+                    "Waiting for %s on %s to become allowed state %s ...",
                     self.trigger_dag_id,
                     dag_run.execution_date,
                     self.allowed_states,

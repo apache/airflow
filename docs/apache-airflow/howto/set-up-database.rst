@@ -79,7 +79,7 @@ it only works with Sequential Executor) and it should NEVER be used for producti
 There is a minimum version of sqlite3 required to run Airflow 2.0+ - minimum version is 3.15.0. Some of the
 older systems have an earlier version of sqlite installed by default and for those system you need to manually
 upgrade SQLite to use version newer than 3.15.0. Note, that this is not a ``python library`` version, it's the
-SQLite system-level application that needs to be upgraded. There are different ways how SQLIte might be
+SQLite system-level application that needs to be upgraded. There are different ways how SQLite might be
 installed, you can find some information about that at the `official website of SQLite
 <https://www.sqlite.org/index.html>`_ and in the documentation specific to distribution of your Operating
 System.

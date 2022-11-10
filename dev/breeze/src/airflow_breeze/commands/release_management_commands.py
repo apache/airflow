@@ -74,6 +74,7 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
+from airflow_breeze.utils.path_utils import cleanup_python_generated_files
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
@@ -91,11 +92,12 @@ option_debug_release_management = click.option(
 )
 
 
-def run_with_debug(
+def run_docker_command_with_debug(
     params: ShellParams,
     command: list[str],
     debug: bool,
     enable_input: bool = False,
+    output_outside_the_group: bool = False,
     **kwargs,
 ) -> RunCommandResult:
     env_variables = get_env_variables_for_docker_commands(params)
@@ -130,6 +132,7 @@ echo -e '\\e[34mRun this command to debug:
         return run_command(
             base_command,
             env=env_variables,
+            output_outside_the_group=output_outside_the_group,
             **kwargs,
         )
     else:
@@ -138,6 +141,7 @@ echo -e '\\e[34mRun this command to debug:
             base_command,
             env=env_variables,
             check=False,
+            output_outside_the_group=output_outside_the_group,
             **kwargs,
         )
 
@@ -168,6 +172,7 @@ def prepare_airflow_packages(
     github_repository: str,
 ):
     perform_environment_checks()
+    cleanup_python_generated_files()
     assert_pre_commit_installed()
     run_compile_www_assets(dev=False, run_in_background=False)
     shell_params = ShellParams(
@@ -180,10 +185,11 @@ def prepare_airflow_packages(
         mount_sources=MOUNT_ALL,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
-    result_command = run_with_debug(
+    result_command = run_docker_command_with_debug(
         params=shell_params,
         command=["/opt/airflow/scripts/in_container/run_prepare_airflow_packages.sh"],
         debug=debug,
+        output_outside_the_group=True,
     )
     sys.exit(result_command.returncode)
 
@@ -210,6 +216,7 @@ def prepare_provider_documentation(
     packages: list[str],
 ):
     perform_environment_checks()
+    cleanup_python_generated_files()
     shell_params = ShellParams(
         mount_sources=MOUNT_ALL,
         github_repository=github_repository,
@@ -220,7 +227,7 @@ def prepare_provider_documentation(
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     cmd_to_run = ["/opt/airflow/scripts/in_container/run_prepare_provider_documentation.sh", *packages]
     answer = get_forced_answer()
-    result_command = run_with_debug(
+    result_command = run_docker_command_with_debug(
         params=shell_params,
         command=cmd_to_run,
         enable_input=answer is None or answer[0].lower() != "y",
@@ -254,6 +261,7 @@ def prepare_provider_packages(
     github_repository: str,
 ):
     perform_environment_checks()
+    cleanup_python_generated_files()
     packages_list = list(packages)
     if package_list_file:
         packages_list.extend([package.strip() for package in package_list_file.readlines()])
@@ -267,7 +275,7 @@ def prepare_provider_packages(
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     cmd_to_run = ["/opt/airflow/scripts/in_container/run_prepare_provider_packages.sh", *packages_list]
-    result_command = run_with_debug(
+    result_command = run_docker_command_with_debug(
         params=shell_params,
         command=cmd_to_run,
         debug=debug,
@@ -283,11 +291,12 @@ def run_generate_constraints(
     cmd_to_run = [
         "/opt/airflow/scripts/in_container/run_generate_constraints.sh",
     ]
-    generate_constraints_result = run_with_debug(
+    generate_constraints_result = run_docker_command_with_debug(
         params=shell_params,
         command=cmd_to_run,
         debug=debug,
         output=output,
+        output_outside_the_group=True,
     )
     return (
         generate_constraints_result.returncode,
@@ -374,6 +383,7 @@ def generate_constraints(
     github_repository: str,
 ):
     perform_environment_checks()
+    cleanup_python_generated_files()
     if debug and run_in_parallel:
         get_console().print("\n[error]Cannot run --debug and --run-in-parallel at the same time[/]\n")
         sys.exit(1)
@@ -471,6 +481,7 @@ def verify_provider_packages(
     github_repository: str,
 ):
     perform_environment_checks()
+    cleanup_python_generated_files()
     shell_params = ShellParams(
         mount_sources=MOUNT_SELECTED,
         github_repository=github_repository,
@@ -487,10 +498,11 @@ def verify_provider_packages(
         "-c",
         "python /opt/airflow/scripts/in_container/verify_providers.py",
     ]
-    result_command = run_with_debug(
+    result_command = run_docker_command_with_debug(
         params=shell_params,
         command=cmd_to_run,
         debug=debug,
+        output_outside_the_group=True,
     )
     sys.exit(result_command.returncode)
 

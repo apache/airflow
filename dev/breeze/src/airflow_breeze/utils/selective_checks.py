@@ -306,7 +306,7 @@ class SelectiveChecks:
     def python_versions(self) -> list[str]:
         return (
             CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
-            if self.full_tests_needed
+            if self._run_everything or self.full_tests_needed
             else [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
         )
 
@@ -345,6 +345,11 @@ class SelectiveChecks:
     @cached_property
     def helm_version(self) -> str:
         return HELM_VERSION
+
+    @cached_property
+    def providers_package_format_exclude(self) -> list[dict[str, str]]:
+        # Exclude sdist format unless full tests are run
+        return [{"package-format": "sdist"}] if not self.full_tests_needed else []
 
     @cached_property
     def postgres_exclude(self) -> list[dict[str, str]]:

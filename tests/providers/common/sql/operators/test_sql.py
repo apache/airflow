@@ -448,7 +448,6 @@ class TestSQLCheckOperatorDbHook:
         if database:
             self._operator.database = database
         assert isinstance(self._operator._hook, PostgresHook)
-        assert self._operator._hook.schema == database
         mock_get_conn.assert_called_once_with(self.conn_id)
 
     def test_not_allowed_conn_type(self, mock_get_conn):
