@@ -28,6 +28,7 @@ import datetime
 import json
 import logging
 import warnings
+from copy import deepcopy
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union
 
@@ -42,12 +43,14 @@ from botocore.credentials import ReadOnlyCredentials
 from dateutil.tz import tzlocal
 from slugify import slugify
 
+from airflow import __version__ as airflow_version
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 from airflow.utils.helpers import exactly_one
+from airflow.providers_manager import ProvidersManager
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 
@@ -406,8 +409,23 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         self.resource_type = resource_type
 
         self._region_name = region_name
-        self._config = config
+        self._config = config or botocore.config.Config()
         self._verify = verify
+
+    @classmethod
+    def get_provider_version(cls) -> str:
+        manager = ProvidersManager()
+        provider_name = manager.hooks[cls.conn_type].package_name  # type: ignore[union-attr]
+        provider = manager.providers[provider_name]
+        return provider.version
+
+    def generate_user_agent_extra_field(self, existing_user_agent_extra: str) -> str:
+        user_agent_extra_values = [
+            f"Airflow/{airflow_version}",
+            f"AmPP/{self.get_provider_version()}",
+            existing_user_agent_extra or "",
+        ]
+        return " ".join(user_agent_extra_values).strip()
 
     @cached_property
     def conn_config(self) -> AwsConnectionWrapper:
@@ -451,6 +469,23 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             conn=self.conn_config, region_name=region_name, config=self.config
         ).create_session()
 
+    def _get_config(self, config: Config | None = None) -> Config:
+        """
+        No AWS Operators use the config argument to this method.
+        Keep backward compatibility with other users who might use it
+        """
+        if config is None:
+            config = deepcopy(self.config)
+
+        # ignore[union-attr] is required for this block to appease MyPy
+        # because the user_agent_extra field is generated at runtime.
+        user_agent_config = Config(
+            user_agent_extra=self.generate_user_agent_extra_field(
+                existing_user_agent_extra=config.user_agent_extra  # type: ignore[union-attr]
+            )
+        )
+        return config.merge(user_agent_config)  # type: ignore[union-attr]
+
     def get_client_type(
         self,
         region_name: str | None = None,
@@ -458,15 +493,12 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     ) -> boto3.client:
         """Get the underlying boto3 client using boto3 session"""
         client_type = self.client_type
-
-        # No AWS Operators use the config argument to this method.
-        # Keep backward compatibility with other users who might use it
-        if config is None:
-            config = self.config
-
         session = self.get_session(region_name=region_name)
         return session.client(
-            client_type, endpoint_url=self.conn_config.endpoint_url, config=config, verify=self.verify
+            client_type,
+            endpoint_url=self.conn_config.endpoint_url,
+            config=self._get_config(config),
+            verify=self.verify,
         )
 
     def get_resource_type(
@@ -476,15 +508,12 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     ) -> boto3.resource:
         """Get the underlying boto3 resource using boto3 session"""
         resource_type = self.resource_type
-
-        # No AWS Operators use the config argument to this method.
-        # Keep backward compatibility with other users who might use it
-        if config is None:
-            config = self.config
-
         session = self.get_session(region_name=region_name)
         return session.resource(
-            resource_type, endpoint_url=self.conn_config.endpoint_url, config=config, verify=self.verify
+            resource_type,
+            endpoint_url=self.conn_config.endpoint_url,
+            config=self._get_config(config),
+            verify=self.verify,
         )
 
     @cached_property
