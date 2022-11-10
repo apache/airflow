@@ -35,6 +35,7 @@ Breaking changes
 * In AzureFileShareHook, if both ``extra__azure_fileshare__foo`` and ``foo`` existed in connection extra
   dict, the prefixed version would be used; now, the non-prefixed version will be preferred.
 * ``Remove deprecated classes (#27417)``
+* In Azure Batch ``vm_size`` and ``vm_node_agent_sku_id`` parameters are required.
 
 4.3.0
 .....
