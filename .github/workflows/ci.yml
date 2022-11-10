@@ -703,6 +703,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           SKIP: ${{ needs.build-info.outputs.skip-pre-commits }}
           COLUMNS: "250"
           SKIP_GROUP_OUTPUT: "true"
+          DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
