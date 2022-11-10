@@ -295,8 +295,8 @@ class MappedOperator(AbstractOperator):
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
         (
-            'parse_time_mapped_ti_count',
-            'operator_class',
+            "parse_time_mapped_ti_count",
+            "operator_class",
         )
     )
 
@@ -317,7 +317,7 @@ class MappedOperator(AbstractOperator):
         for k, v in self.partial_kwargs.items():
             if k in self.template_fields:
                 XComArg.apply_upstream_relationship(self, v)
-        if self.partial_kwargs.get('sla') is not None:
+        if self.partial_kwargs.get("sla") is not None:
             raise AirflowException(
                 f"SLAs are unsupported with mapped tasks. Please set `sla=None` for task "
                 f"{self.task_id!r}."

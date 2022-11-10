@@ -35,7 +35,7 @@ def init_xframe_protection(app):
 
     See also: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
     """
-    x_frame_enabled = conf.getboolean('webserver', 'X_FRAME_ENABLED', fallback=True)
+    x_frame_enabled = conf.getboolean("webserver", "X_FRAME_ENABLED", fallback=True)
     if x_frame_enabled:
         return
 
@@ -48,14 +48,14 @@ def init_xframe_protection(app):
 
 def init_api_experimental_auth(app):
     """Loads authentication backends"""
-    auth_backends = 'airflow.api.auth.backend.default'
+    auth_backends = "airflow.api.auth.backend.default"
     try:
         auth_backends = conf.get("api", "auth_backends")
     except AirflowConfigException:
         pass
 
     app.api_auth = []
-    for backend in auth_backends.split(','):
+    for backend in auth_backends.split(","):
         try:
             auth = import_module(backend.strip())
             auth.init_app(app)

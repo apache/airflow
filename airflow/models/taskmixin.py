@@ -186,7 +186,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         dags: set[DAG] = {task.dag for task in [*self.roots, *task_list] if task.has_dag() and task.dag}
 
         if len(dags) > 1:
-            raise AirflowException(f'Tried to set relationships between tasks in more than one DAG: {dags}')
+            raise AirflowException(f"Tried to set relationships between tasks in more than one DAG: {dags}")
         elif len(dags) == 1:
             dag = dags.pop()
         else:
@@ -202,7 +202,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         def add_only_new(obj, item_set: set[str], item: str) -> None:
             """Adds only new items to item set"""
             if item in item_set:
-                self.log.warning('Dependency %s, %s already registered for DAG: %s', obj, item, dag.dag_id)
+                self.log.warning("Dependency %s, %s already registered for DAG: %s", obj, item, dag.dag_id)
             else:
                 item_set.add(item)
 
@@ -241,14 +241,14 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
     def downstream_list(self) -> Iterable[Operator]:
         """List of nodes directly downstream"""
         if not self.dag:
-            raise AirflowException(f'Operator {self} has not been assigned to a DAG yet')
+            raise AirflowException(f"Operator {self} has not been assigned to a DAG yet")
         return [self.dag.get_task(tid) for tid in self.downstream_task_ids]
 
     @property
     def upstream_list(self) -> Iterable[Operator]:
         """List of nodes directly upstream"""
         if not self.dag:
-            raise AirflowException(f'Operator {self} has not been assigned to a DAG yet')
+            raise AirflowException(f"Operator {self} has not been assigned to a DAG yet")
         return [self.dag.get_task(tid) for tid in self.upstream_task_ids]
 
     def get_direct_relative_ids(self, upstream: bool = False) -> set[str]:

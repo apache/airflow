@@ -55,9 +55,9 @@ class DatasetModel(Base):
                 length=3000,
                 # latin1 allows for more indexed length in mysql
                 # and this field should only be ascii chars
-                collation='latin1_general_cs',
+                collation="latin1_general_cs",
             ),
-            'mysql',
+            "mysql",
         ),
         nullable=False,
     )
@@ -70,8 +70,8 @@ class DatasetModel(Base):
 
     __tablename__ = "dataset"
     __table_args__ = (
-        Index('idx_uri_unique', uri, unique=True),
-        {'sqlite_autoincrement': True},  # ensures PK values not reused
+        Index("idx_uri_unique", uri, unique=True),
+        {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
 
     @classmethod
@@ -80,11 +80,11 @@ class DatasetModel(Base):
 
     def __init__(self, uri: str, **kwargs):
         try:
-            uri.encode('ascii')
+            uri.encode("ascii")
         except UnicodeEncodeError:
-            raise ValueError('URI must be ascii')
+            raise ValueError("URI must be ascii")
         parsed = urlparse(uri)
-        if parsed.scheme and parsed.scheme.lower() == 'airflow':
+        if parsed.scheme and parsed.scheme.lower() == "airflow":
             raise ValueError("Scheme `airflow` is reserved.")
         super().__init__(uri=uri, **kwargs)
 
@@ -109,7 +109,7 @@ class DagScheduleDatasetReference(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    dataset = relationship('DatasetModel', back_populates="consuming_dags")
+    dataset = relationship("DatasetModel", back_populates="consuming_dags")
     queue_records = relationship(
         "DatasetDagRunQueue",
         primaryjoin="""and_(
@@ -125,14 +125,14 @@ class DagScheduleDatasetReference(Base):
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
-            name='dsdr_dataset_fkey',
+            name="dsdr_dataset_fkey",
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
             columns=(dag_id,),
-            refcolumns=['dag.dag_id'],
-            name='dsdr_dag_id_fkey',
-            ondelete='CASCADE',
+            refcolumns=["dag.dag_id"],
+            name="dsdr_dag_id_fkey",
+            ondelete="CASCADE",
         ),
     )
 
@@ -168,15 +168,15 @@ class TaskOutletDatasetReference(Base):
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
-            name='todr_dataset_fkey',
+            name="todr_dataset_fkey",
             ondelete="CASCADE",
         ),
         PrimaryKeyConstraint(dataset_id, dag_id, task_id, name="todr_pkey", mssql_clustered=True),
         ForeignKeyConstraint(
             columns=(dag_id,),
-            refcolumns=['dag.dag_id'],
-            name='todr_dag_id_fkey',
-            ondelete='CASCADE',
+            refcolumns=["dag.dag_id"],
+            name="todr_dag_id_fkey",
+            ondelete="CASCADE",
         ),
     )
 
@@ -213,13 +213,13 @@ class DatasetDagRunQueue(Base):
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
-            name='ddrq_dataset_fkey',
+            name="ddrq_dataset_fkey",
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
             (target_dag_id,),
             ["dag.dag_id"],
-            name='ddrq_dag_fkey',
+            name="ddrq_dag_fkey",
             ondelete="CASCADE",
         ),
     )
@@ -277,8 +277,8 @@ class DatasetEvent(Base):
 
     __tablename__ = "dataset_event"
     __table_args__ = (
-        Index('idx_dataset_id_timestamp', dataset_id, timestamp),
-        {'sqlite_autoincrement': True},  # ensures PK values not reused
+        Index("idx_dataset_id_timestamp", dataset_id, timestamp),
+        {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
 
     created_dagruns = relationship(
@@ -324,13 +324,13 @@ class DatasetEvent(Base):
     def __repr__(self) -> str:
         args = []
         for attr in [
-            'id',
-            'dataset_id',
-            'extra',
-            'source_task_id',
-            'source_dag_id',
-            'source_run_id',
-            'source_map_index',
+            "id",
+            "dataset_id",
+            "extra",
+            "source_task_id",
+            "source_dag_id",
+            "source_run_id",
+            "source_map_index",
         ]:
             args.append(f"{attr}={getattr(self, attr)!r}")
         return f"{self.__class__.__name__}({', '.join(args)})"

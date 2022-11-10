@@ -105,20 +105,20 @@ class AbstractOperator(LoggingMixin, DAGNode):
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = frozenset(
         (
-            'log',
-            'dag',  # We show dag_id, don't need to show this too
-            'node_id',  # Duplicates task_id
-            'task_group',  # Doesn't have a useful repr, no point showing in UI
-            'inherits_from_empty_operator',  # impl detail
+            "log",
+            "dag",  # We show dag_id, don't need to show this too
+            "node_id",  # Duplicates task_id
+            "task_group",  # Doesn't have a useful repr, no point showing in UI
+            "inherits_from_empty_operator",  # impl detail
             # For compatibility with TG, for operators these are just the current task, no point showing
-            'roots',
-            'leaves',
+            "roots",
+            "leaves",
             # These lists are already shown via *_task_ids
-            'upstream_list',
-            'downstream_list',
+            "upstream_list",
+            "downstream_list",
             # Not useful, implementation detail, already shown elsewhere
-            'global_operator_extra_link_dict',
-            'operator_extra_link_dict',
+            "global_operator_extra_link_dict",
+            "operator_extra_link_dict",
         )
     )
 
