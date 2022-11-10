@@ -26,6 +26,7 @@ import re
 import weakref
 from typing import TYPE_CHECKING, Any, Generator, Sequence
 
+from airflow.compat.functools import cache
 from airflow.exceptions import (
     AirflowDagCycleException,
     AirflowException,
@@ -37,6 +38,8 @@ from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
     from airflow.models.expandinput import ExpandInput
@@ -468,6 +471,34 @@ class MappedTaskGroup(TaskGroup):
     def __init__(self, *, expand_input: ExpandInput, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._expand_input = expand_input
+
+    @cache
+    def get_parse_time_mapped_ti_count(self) -> int:
+        """Number of instances a task in this group should be mapped to, when a DAG run is created.
+
+        This only considers literal mapped arguments, and would return *None*
+        when any non-literal values are used for mapping. This also does not
+        account for nested mapped groups; only the number expanded due to this
+        specific group is returned, regardless of whether any of its parent
+        groups are mapped.
+
+        :raise NotFullyPopulated: If any non-literal mapped arguments are encountered.
+        :return: The total number of mapped instances each task should have.
+        """
+        return self._expand_input.get_parse_time_mapped_ti_count()
+
+    def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
+        """Number of instances a task in this group should be mapped to at run time.
+
+        This considers both literal and non-literal mapped arguments, and the
+        result is therefore available when all depended tasks have finished. The
+        return value should be identical to ``parse_time_mapped_ti_count`` if
+        all mapped arguments are literal.
+
+        :raise NotFullyPopulated: If upstream tasks are not all complete yet.
+        :return: Total number of mapped TIs this task should have.
+        """
+        return self._expand_input.get_total_map_length(run_id, session=session)
 
 
 class TaskGroupContext:
