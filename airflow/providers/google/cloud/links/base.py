@@ -45,6 +45,6 @@ class BaseGoogleLink(BaseOperatorLink):
         conf = XCom.get_value(key=self.key, ti_key=ti_key)
         if not conf:
             return ""
-        if self.format_str.startswith(BASE_LINK):
+        if self.format_str.startswith("http"):
             return self.format_str.format(**conf)
         return BASE_LINK + self.format_str.format(**conf)
