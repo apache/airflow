@@ -67,9 +67,10 @@ you would want to store your connection at ``/airflow/connections/smtp_default``
 Optionally you can supply a profile name to reference aws profile, e.g. defined in ``~/.aws/config``.
 
 The value of the SSM parameter must be the :ref:`connection URI representation <generating_connection_uri>`
-of the connection object.
+or in the :ref:`JSON Format <connection-serialization-json-example>` of the connection object.
 
-In some cases, URI's you will need stored in Secrets Manager may not be intuitive, for example when using HTTP / HTTPS or SPARK, you may need URI's that will look like this:
+In some cases, URI's that you will need to store in AWS SSM Parameter Store may not be intuitive,
+for example when using HTTP / HTTPS or SPARK, you may need URI's that will look like this:
 
 .. code-block:: ini
 
@@ -79,7 +80,19 @@ In some cases, URI's you will need stored in Secrets Manager may not be intuitiv
 
 This is a known situation, where schema and protocol parts of the URI are independent and in some cases, need to be specified explicitly.
 
-See GitHub issue `#10256 <https://github.com/apache/airflow/pull/10256>`__ and `#10913 <https://github.com/apache/airflow/issues/10913>`__ for more detailed discussion that led to this documentation update. This may get resolved in the future.
+See GitHub issue `#10256 <https://github.com/apache/airflow/pull/10256>`__
+and `#10913 <https://github.com/apache/airflow/issues/10913>`__ for more detailed discussion that led to this documentation update.
+This may get resolved in the future.
+
+
+The same connections could be represented in AWS SSM Parameter Store as a JSON Object
+
+.. code-block:: json
+
+    {"conn_type": "http", "host": "https://example.com"}
+
+    {"conn_type": "spark", "host": "spark://spark-master-0.spark-master.spark", "port": 7077}
+
 
 Storing and Retrieving Variables
 """"""""""""""""""""""""""""""""
