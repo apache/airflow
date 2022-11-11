@@ -38,7 +38,7 @@ from airflow.utils.state import State
 class LocalTaskJob(BaseJob):
     """LocalTaskJob runs a single task instance."""
 
-    __mapper_args__ = {'polymorphic_identity': 'LocalTaskJob'}
+    __mapper_args__ = {"polymorphic_identity": "LocalTaskJob"}
 
     def __init__(
         self,
@@ -101,7 +101,7 @@ class LocalTaskJob(BaseJob):
         try:
             self.task_runner.start()
 
-            heartbeat_time_limit = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
+            heartbeat_time_limit = conf.getint("scheduler", "scheduler_zombie_task_threshold")
 
             # LocalTaskJob should not run callbacks, which are handled by TaskInstance._run_raw_task
             # 1, LocalTaskJob does not parse DAG, thus cannot run callbacks
@@ -139,7 +139,7 @@ class LocalTaskJob(BaseJob):
                 # This can only really happen if the worker can't read the DB for a long time
                 time_since_last_heartbeat = (timezone.utcnow() - self.latest_heartbeat).total_seconds()
                 if time_since_last_heartbeat > heartbeat_time_limit:
-                    Stats.incr('local_task_job_prolonged_heartbeat_failure', 1, 1)
+                    Stats.incr("local_task_job_prolonged_heartbeat_failure", 1, 1)
                     self.log.error("Heartbeat time limit exceeded!")
                     raise AirflowException(
                         f"Time since last heartbeat({time_since_last_heartbeat:.2f}s) exceeded limit "
@@ -159,7 +159,7 @@ class LocalTaskJob(BaseJob):
         self.log.info("Task exited with return code %s", return_code)
 
         if not self.task_instance.test_mode:
-            if conf.getboolean('scheduler', 'schedule_after_task_execution', fallback=True):
+            if conf.getboolean("scheduler", "schedule_after_task_execution", fallback=True):
                 self.task_instance.schedule_downstream_tasks()
 
     def on_kill(self):
@@ -206,7 +206,7 @@ class LocalTaskJob(BaseJob):
                     "Recorded pid %s does not match the current pid %s", recorded_pid, current_pid
                 )
                 raise AirflowException("PID of job runner does not match")
-        elif self.task_runner.return_code() is None and hasattr(self.task_runner, 'process'):
+        elif self.task_runner.return_code() is None and hasattr(self.task_runner, "process"):
             if ti.state == State.SKIPPED:
                 # A DagRun timeout will cause tasks to be externally marked as skipped.
                 dagrun = ti.get_dagrun(session=session)

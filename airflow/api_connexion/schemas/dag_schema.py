@@ -77,14 +77,14 @@ class DAGSchema(SQLAlchemySchema):
     @staticmethod
     def get_owners(obj: DagModel):
         """Convert owners attribute to DAG representation"""
-        if not getattr(obj, 'owners', None):
+        if not getattr(obj, "owners", None):
             return []
         return obj.owners.split(",")
 
     @staticmethod
     def get_token(obj: DagModel):
         """Return file token"""
-        serializer = URLSafeSerializer(conf.get_mandatory_value('webserver', 'secret_key'))
+        serializer = URLSafeSerializer(conf.get_mandatory_value("webserver", "secret_key"))
         return serializer.dumps(obj.fileloc)
 
 
@@ -101,7 +101,7 @@ class DAGDetailSchema(DAGSchema):
     dag_run_timeout = fields.Nested(TimeDeltaSchema, attribute="dagrun_timeout")
     doc_md = fields.String()
     default_view = fields.String()
-    params = fields.Method('get_params', dump_only=True)
+    params = fields.Method("get_params", dump_only=True)
     tags = fields.Method("get_tags", dump_only=True)  # type: ignore
     is_paused = fields.Method("get_is_paused", dump_only=True)
     is_active = fields.Method("get_is_active", dump_only=True)
@@ -109,7 +109,7 @@ class DAGDetailSchema(DAGSchema):
     end_date = fields.DateTime(dump_only=True)
     template_search_path = fields.String(dump_only=True)
     render_template_as_native_obj = fields.Boolean(dump_only=True)
-    last_loaded = fields.DateTime(dump_only=True, data_key='last_parsed')
+    last_loaded = fields.DateTime(dump_only=True, data_key="last_parsed")
 
     @staticmethod
     def get_concurrency(obj: DAG):
@@ -126,7 +126,7 @@ class DAGDetailSchema(DAGSchema):
     @staticmethod
     def get_owners(obj: DAG):
         """Convert owners attribute to DAG representation"""
-        if not getattr(obj, 'owner', None):
+        if not getattr(obj, "owner", None):
             return []
         return obj.owner.split(",")
 

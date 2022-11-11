@@ -26,8 +26,8 @@ from enum import Enum, unique
 class Encoding(str, Enum):
     """Enum of encoding constants."""
 
-    TYPE = '__type'
-    VAR = '__var'
+    TYPE = "__type"
+    VAR = "__var"
 
 
 # Supported types for encoding. primitives and list are not encoded.
@@ -35,18 +35,18 @@ class Encoding(str, Enum):
 class DagAttributeTypes(str, Enum):
     """Enum of supported attribute types of DAG."""
 
-    DAG = 'dag'
-    OP = 'operator'
-    DATETIME = 'datetime'
-    TIMEDELTA = 'timedelta'
-    TIMEZONE = 'timezone'
-    RELATIVEDELTA = 'relativedelta'
-    DICT = 'dict'
-    SET = 'set'
-    TUPLE = 'tuple'
-    POD = 'k8s.V1Pod'
-    TASK_GROUP = 'taskgroup'
-    EDGE_INFO = 'edgeinfo'
-    PARAM = 'param'
-    XCOM_REF = 'xcomref'
-    DATASET = 'dataset'
+    DAG = "dag"
+    OP = "operator"
+    DATETIME = "datetime"
+    TIMEDELTA = "timedelta"
+    TIMEZONE = "timezone"
+    RELATIVEDELTA = "relativedelta"
+    DICT = "dict"
+    SET = "set"
+    TUPLE = "tuple"
+    POD = "k8s.V1Pod"
+    TASK_GROUP = "taskgroup"
+    EDGE_INFO = "edgeinfo"
+    PARAM = "param"
+    XCOM_REF = "xcomref"
+    DATASET = "dataset"

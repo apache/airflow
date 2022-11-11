@@ -47,25 +47,25 @@ def failure_callable():
 
 
 with DAG(
-    dag_id='example_sensors',
+    dag_id="example_sensors",
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [START example_time_delta_sensor]
-    t0 = TimeDeltaSensor(task_id='wait_some_seconds', delta=timedelta(seconds=2))
+    t0 = TimeDeltaSensor(task_id="wait_some_seconds", delta=timedelta(seconds=2))
     # [END example_time_delta_sensor]
 
     # [START example_time_delta_sensor_async]
-    t0a = TimeDeltaSensorAsync(task_id='wait_some_seconds_async', delta=timedelta(seconds=2))
+    t0a = TimeDeltaSensorAsync(task_id="wait_some_seconds_async", delta=timedelta(seconds=2))
     # [END example_time_delta_sensor_async]
 
     # [START example_time_sensors]
-    t1 = TimeSensor(task_id='fire_immediately', target_time=datetime.now(tz=UTC).time())
+    t1 = TimeSensor(task_id="fire_immediately", target_time=datetime.now(tz=UTC).time())
 
     t2 = TimeSensor(
-        task_id='timeout_after_second_date_in_the_future',
+        task_id="timeout_after_second_date_in_the_future",
         timeout=1,
         soft_fail=True,
         target_time=(datetime.now(tz=UTC) + timedelta(hours=1)).time(),
@@ -73,10 +73,10 @@ with DAG(
     # [END example_time_sensors]
 
     # [START example_time_sensors_async]
-    t1a = TimeSensorAsync(task_id='fire_immediately_async', target_time=datetime.now(tz=UTC).time())
+    t1a = TimeSensorAsync(task_id="fire_immediately_async", target_time=datetime.now(tz=UTC).time())
 
     t2a = TimeSensorAsync(
-        task_id='timeout_after_second_date_in_the_future_async',
+        task_id="timeout_after_second_date_in_the_future_async",
         timeout=1,
         soft_fail=True,
         target_time=(datetime.now(tz=UTC) + timedelta(hours=1)).time(),
@@ -84,36 +84,36 @@ with DAG(
     # [END example_time_sensors_async]
 
     # [START example_bash_sensors]
-    t3 = BashSensor(task_id='Sensor_succeeds', bash_command='exit 0')
+    t3 = BashSensor(task_id="Sensor_succeeds", bash_command="exit 0")
 
-    t4 = BashSensor(task_id='Sensor_fails_after_3_seconds', timeout=3, soft_fail=True, bash_command='exit 1')
+    t4 = BashSensor(task_id="Sensor_fails_after_3_seconds", timeout=3, soft_fail=True, bash_command="exit 1")
     # [END example_bash_sensors]
 
-    t5 = BashOperator(task_id='remove_file', bash_command='rm -rf /tmp/temporary_file_for_testing')
+    t5 = BashOperator(task_id="remove_file", bash_command="rm -rf /tmp/temporary_file_for_testing")
 
     # [START example_file_sensor]
-    t6 = FileSensor(task_id='wait_for_file', filepath="/tmp/temporary_file_for_testing")
+    t6 = FileSensor(task_id="wait_for_file", filepath="/tmp/temporary_file_for_testing")
     # [END example_file_sensor]
 
     t7 = BashOperator(
-        task_id='create_file_after_3_seconds', bash_command='sleep 3; touch /tmp/temporary_file_for_testing'
+        task_id="create_file_after_3_seconds", bash_command="sleep 3; touch /tmp/temporary_file_for_testing"
     )
 
     # [START example_python_sensors]
-    t8 = PythonSensor(task_id='success_sensor_python', python_callable=success_callable)
+    t8 = PythonSensor(task_id="success_sensor_python", python_callable=success_callable)
 
     t9 = PythonSensor(
-        task_id='failure_timeout_sensor_python', timeout=3, soft_fail=True, python_callable=failure_callable
+        task_id="failure_timeout_sensor_python", timeout=3, soft_fail=True, python_callable=failure_callable
     )
     # [END example_python_sensors]
 
     # [START example_day_of_week_sensor]
     t10 = DayOfWeekSensor(
-        task_id='week_day_sensor_failing_on_timeout', timeout=3, soft_fail=True, week_day=WeekDay.MONDAY
+        task_id="week_day_sensor_failing_on_timeout", timeout=3, soft_fail=True, week_day=WeekDay.MONDAY
     )
     # [END example_day_of_week_sensor]
 
-    tx = BashOperator(task_id='print_date_in_bash', bash_command='date')
+    tx = BashOperator(task_id="print_date_in_bash", bash_command="date")
 
     tx.trigger_rule = TriggerRule.NONE_FAILED
     [t0, t0a, t1, t1a, t2, t2a, t3, t4] >> tx
