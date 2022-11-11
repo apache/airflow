@@ -58,7 +58,7 @@ Package apache-airflow-providers-zendesk
 `Zendesk <https://www.zendesk.com/>`__
 
 
-Release: 4.0.0
+Release: 4.1.0
 
 Provider package
 ----------------
@@ -79,7 +79,7 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.2.0``
+``apache-airflow``  ``>=2.3.0``
 ``zenpy``           ``>=2.0.24``
 ==================  ==================
 
