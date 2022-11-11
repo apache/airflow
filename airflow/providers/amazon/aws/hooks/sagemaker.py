@@ -22,6 +22,7 @@ import os
 import tarfile
 import tempfile
 import time
+import warnings
 from datetime import datetime
 from functools import partial
 from typing import Any, Callable, Generator, cast
@@ -939,13 +940,47 @@ class SageMakerHook(AwsBaseHook):
                 next_token = response["NextToken"]
 
     def find_processing_job_by_name(self, processing_job_name: str) -> bool:
-        """Query processing job by name"""
+        """
+        Query processing job by name
+
+        This method is deprecated.
+        Please use `airflow.providers.amazon.aws.hooks.sagemaker.count_processing_jobs_by_name`.
+        """
+        warnings.warn(
+            "This method is deprecated. "
+            "Please use `airflow.providers.amazon.aws.hooks.sagemaker.count_processing_jobs_by_name`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return bool(self.count_processing_jobs_by_name(processing_job_name))
+
+    def count_processing_jobs_by_name(
+        self,
+        processing_job_name: str,
+        throttle_retry_delay: int = 2,
+        retries: int = 3,
+    ) -> int:
+        """
+        Returns the number of processing jobs found with the provided name prefix.
+        :param processing_job_name: The prefix to look for.
+        :param throttle_retry_delay: Seconds to wait if a ThrottlingException is hit.
+        :param retries: The max number of times to retry.
+        :returns: The number of processing jobs that start with the provided prefix.
+        """
         try:
-            self.get_conn().describe_processing_job(ProcessingJobName=processing_job_name)
-            return True
+            jobs = self.get_conn().list_processing_jobs(NameContains=processing_job_name)
+            return len(jobs["ProcessingJobSummaries"])
         except ClientError as e:
-            if e.response["Error"]["Code"] in ["ValidationException", "ResourceNotFound"]:
-                return False
+            if e.response["Error"]["Code"] == "ResourceNotFound":
+                # No jobs found with that name.  This is good, return 0.
+                return 0
+            if e.response["Error"]["Code"] == "ThrottlingException":
+                # If we hit a ThrottlingException, back off a little and try again.
+                if retries:
+                    time.sleep(throttle_retry_delay)
+                    return self.count_processing_jobs_by_name(
+                        processing_job_name, throttle_retry_delay * 2, retries - 1
+                    )
             raise
 
     def delete_model(self, model_name: str):

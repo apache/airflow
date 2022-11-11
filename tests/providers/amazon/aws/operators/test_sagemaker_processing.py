@@ -94,7 +94,7 @@ class TestSageMakerProcessingOperator(unittest.TestCase):
         )
 
     @mock.patch.object(SageMakerHook, "get_conn")
-    @mock.patch.object(SageMakerHook, "find_processing_job_by_name", return_value=False)
+    @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=0)
     @mock.patch.object(
         SageMakerHook,
         "create_processing_job",
@@ -113,7 +113,7 @@ class TestSageMakerProcessingOperator(unittest.TestCase):
             assert sagemaker.config[key1][key2][key3] == int(sagemaker.config[key1][key2][key3])
 
     @mock.patch.object(SageMakerHook, "get_conn")
-    @mock.patch.object(SageMakerHook, "find_processing_job_by_name", return_value=False)
+    @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=0)
     @mock.patch.object(
         SageMakerHook,
         "create_processing_job",
@@ -136,7 +136,7 @@ class TestSageMakerProcessingOperator(unittest.TestCase):
                 sagemaker.config[key1][key2] == int(sagemaker.config[key1][key2])
 
     @mock.patch.object(SageMakerHook, "get_conn")
-    @mock.patch.object(SageMakerHook, "find_processing_job_by_name", return_value=False)
+    @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=0)
     @mock.patch.object(
         SageMakerHook,
         "create_processing_job",
@@ -153,7 +153,7 @@ class TestSageMakerProcessingOperator(unittest.TestCase):
         )
 
     @mock.patch.object(SageMakerHook, "get_conn")
-    @mock.patch.object(SageMakerHook, "find_processing_job_by_name", return_value=False)
+    @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=0)
     @mock.patch.object(
         SageMakerHook,
         "create_processing_job",
@@ -187,12 +187,12 @@ class TestSageMakerProcessingOperator(unittest.TestCase):
 
     @unittest.skip("Currently, the auto-increment jobname functionality is not missing.")
     @mock.patch.object(SageMakerHook, "get_conn")
-    @mock.patch.object(SageMakerHook, "find_processing_job_by_name", return_value=True)
+    @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=1)
     @mock.patch.object(
         SageMakerHook, "create_processing_job", return_value={"ResponseMetadata": {"HTTPStatusCode": 200}}
     )
     def test_execute_with_existing_job_increment(
-        self, mock_create_processing_job, find_processing_job_by_name, mock_client
+        self, mock_create_processing_job, count_processing_jobs_by_name, mock_client
     ):
         sagemaker = SageMakerProcessingOperator(
             **self.processing_config_kwargs, config=CREATE_PROCESSING_PARAMS
@@ -211,7 +211,7 @@ class TestSageMakerProcessingOperator(unittest.TestCase):
         )
 
     @mock.patch.object(SageMakerHook, "get_conn")
-    @mock.patch.object(SageMakerHook, "find_processing_job_by_name", return_value=True)
+    @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=1)
     @mock.patch.object(
         SageMakerHook, "create_processing_job", return_value={"ResponseMetadata": {"HTTPStatusCode": 200}}
     )

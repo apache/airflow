@@ -621,10 +621,15 @@ class TestSageMakerHook:
         assert mock_session.describe_training_job.call_count == 1
 
     @mock.patch.object(SageMakerHook, "get_conn")
-    def test_find_processing_job_by_name(self, _):
+    def test_find_processing_job_by_name(self, mock_conn):
         hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
-        ret = hook.find_processing_job_by_name("existing_job")
-        assert ret
+        mock_conn().list_processing_jobs.return_value = {
+            "ProcessingJobSummaries": [{"ProcessingJobName": "existing_job"}]
+        }
+
+        with pytest.warns(DeprecationWarning):
+            ret = hook.find_processing_job_by_name("existing_job")
+            assert ret
 
     @mock.patch.object(SageMakerHook, "get_conn")
     def test_find_processing_job_by_name_job_not_exists_should_return_false(self, mock_conn):
@@ -634,8 +639,61 @@ class TestSageMakerHook:
         )
         hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
 
-        ret = hook.find_processing_job_by_name("existing_job")
-        assert not ret
+        with pytest.warns(DeprecationWarning):
+            ret = hook.find_processing_job_by_name("existing_job")
+            assert not ret
+
+    @mock.patch.object(SageMakerHook, "get_conn")
+    def test_count_processing_jobs_by_name(self, mock_conn):
+        hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
+        existing_job_name = "existing_job"
+        mock_conn().list_processing_jobs.return_value = {
+            "ProcessingJobSummaries": [{"ProcessingJobName": existing_job_name}]
+        }
+        ret = hook.count_processing_jobs_by_name(existing_job_name)
+        assert ret == 1
+
+    @mock.patch.object(SageMakerHook, "get_conn")
+    @mock.patch("time.sleep", return_value=None)
+    def test_count_processing_jobs_by_name_retries_on_throttle_exception(self, _, mock_conn):
+        throttle_exception = ClientError(
+            error_response={"Error": {"Code": "ThrottlingException"}}, operation_name="empty"
+        )
+        successful_result = {"ProcessingJobSummaries": [{"ProcessingJobName": "existing_job"}]}
+        # Return a ThrottleException on the first call, then a mocked successful value the second.
+        mock_conn().list_processing_jobs.side_effect = [throttle_exception, successful_result]
+        hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
+
+        ret = hook.count_processing_jobs_by_name("existing_job")
+
+        assert mock_conn().list_processing_jobs.call_count == 2
+        assert ret == 1
+
+    @mock.patch.object(SageMakerHook, "get_conn")
+    @mock.patch("time.sleep", return_value=None)
+    def test_count_processing_jobs_by_name_fails_after_max_retries(self, _, mock_conn):
+        mock_conn().list_processing_jobs.side_effect = ClientError(
+            error_response={"Error": {"Code": "ThrottlingException"}}, operation_name="empty"
+        )
+        hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
+
+        with pytest.raises(ClientError) as raised_exception:
+            hook.count_processing_jobs_by_name("existing_job")
+
+        # One initial call plus retries
+        assert mock_conn().list_processing_jobs.call_count == 4
+        assert raised_exception.value.response["Error"]["Code"] == "ThrottlingException"
+
+    @mock.patch.object(SageMakerHook, "get_conn")
+    def test_count_processing_jobs_by_name_job_not_exists_should_return_falsy(self, mock_conn):
+        error_resp = {"Error": {"Code": "ResourceNotFound"}}
+        mock_conn().list_processing_jobs.side_effect = ClientError(
+            error_response=error_resp, operation_name="empty"
+        )
+        hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
+
+        ret = hook.count_processing_jobs_by_name("existing_job")
+        assert ret == 0
 
     @mock_sagemaker
     def test_delete_model(self):
