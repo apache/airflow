@@ -296,6 +296,42 @@ class TestKubernetesExecutor:
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
+    @mock.patch("airflow.executors.kubernetes_executor.pod_mutation_hook")
+    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    def test_run_next_pmh_error(self, mock_get_kube_client, mock_pmh):
+        """
+        Exception during Pod Mutation Hook execution should be handled gracefully.
+        """
+        exception_in_pmh = Exception("Purposely generate error for test")
+        mock_pmh.side_effect = exception_in_pmh
+
+        mock_kube_client = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
+        mock_kube_client.create_namespaced_pod = mock.MagicMock()
+        mock_get_kube_client.return_value = mock_kube_client
+
+        kubernetes_executor = self.kubernetes_executor
+        kubernetes_executor.start()
+        try_number = 1
+        task_instance_key = TaskInstanceKey("dag", "task", "run_id", try_number)
+        kubernetes_executor.execute_async(
+            key=task_instance_key,
+            queue=None,
+            command=["airflow", "tasks", "run", "true", "some_parameter"],
+        )
+        kubernetes_executor.sync()
+
+        # The pod_mutation_hook should have been called once.
+        assert mock_pmh.call_count == 1
+        # There should be no pod creation request sent
+        assert mock_kube_client.create_namespaced_pod.call_count == 0
+        # The task is not re-queued and there is the failed record in event_buffer
+        assert kubernetes_executor.task_queue.empty()
+        assert kubernetes_executor.event_buffer[task_instance_key][0] == State.FAILED
+        assert kubernetes_executor.event_buffer[task_instance_key][1].args[0] == exception_in_pmh
+
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
     def test_run_next_pod_reconciliation_error(self, mock_get_kube_client, mock_kubernetes_job_watcher):

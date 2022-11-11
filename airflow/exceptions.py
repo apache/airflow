@@ -337,6 +337,10 @@ class TaskDeferralError(AirflowException):
     """Raised when a task failed during deferral for some reason."""
 
 
+class PodMutationHookException(AirflowException):
+    """Raised when exception happens during Pod Mutation Hook execution"""
+
+
 class PodReconciliationError(AirflowException):
     """Raised when an error is encountered while trying to merge pod configs."""
 
