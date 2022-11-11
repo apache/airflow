@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import ast
 import re
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs, Union
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowFailException
@@ -624,7 +624,7 @@ class SQLCheckOperator(BaseSQLOperator):
         sql: str,
         conn_id: str | None = None,
         database: str | None = None,
-        parameters: Union[Iterable, Mapping] | None = None,
+        parameters: Iterable | Mapping | None = None,
         **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
