@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import ast
 import re
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs, Union
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowFailException
@@ -619,10 +619,11 @@ class SQLCheckOperator(BaseSQLOperator):
     ui_color = "#fff7e6"
 
     def __init__(
-        self, *, sql: str, conn_id: str | None = None, database: str | None = None, **kwargs
+        self, *, sql: str, conn_id: str | None = None, database: str | None = None, parameters: Union[tuple, dict] | None = None, **kwargs
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
         self.sql = sql
+        self.parameters = parameters
 
     def execute(self, context: Context):
         self.log.info("Executing SQL check: %s", self.sql)

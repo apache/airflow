@@ -179,12 +179,11 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(sql=sql, **kwargs)
+        super().__init__(sql=sql, parameters=parameters, **kwargs)
         self.snowflake_conn_id = snowflake_conn_id
         self.sql = sql
         self.autocommit = autocommit
         self.do_xcom_push = do_xcom_push
-        self.parameters = parameters
         self.warehouse = warehouse
         self.database = database
         self.role = role
