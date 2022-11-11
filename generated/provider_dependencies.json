@@ -45,7 +45,7 @@
   "apache.beam": {
     "deps": [
       "apache-airflow>=2.3.0",
-      "apache-beam>=2.33.0"
+      "apache-beam>=2.33.0,<2.41.0"
     ],
     "cross-providers-deps": [
       "google"
@@ -541,7 +541,7 @@
   "pagerduty": {
     "deps": [
       "apache-airflow>=2.3.0",
-      "pdpyras>=4.1.2"
+      "pdpyras>=4.5.2"
     ],
     "cross-providers-deps": []
   },
@@ -660,6 +660,7 @@
       "apache-airflow-providers-common-sql>=1.3.0",
       "apache-airflow>=2.3.0",
       "snowflake-connector-python>=2.4.1",
+      "snowflake-snowpark-python; python_version=='3.8'",
       "snowflake-sqlalchemy>=1.1.0"
     ],
     "cross-providers-deps": [

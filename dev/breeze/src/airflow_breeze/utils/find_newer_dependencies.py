@@ -31,12 +31,22 @@ https://github.com/apache/airflow/blob/main/dev/TRACKING_BACKTRACKING_ISSUES.md
 from __future__ import annotations
 
 import json
+import shlex
 from datetime import timedelta
 from typing import Any
 
 from rich.progress import Progress
 
 from airflow_breeze.utils.console import get_console
+
+
+def shlex_join(split_command: list[str]):
+    """
+    Return a shell-escaped string from `split_command`.
+
+    This function is backported from Python 3.9 - shlex.join.
+    """
+    return " ".join(shlex.quote(arg) for arg in split_command)
 
 
 def find_newer_dependencies(
@@ -86,15 +96,30 @@ def find_newer_dependencies(
     get_console().print(
         "[warning]https://github.com/apache/airflow/blob/main/dev/TRACKING_BACKTRACKING_ISSUES.md[/]\n"
     )
-    constraint_string = ""
+    constraint_args: list[str] = []
     for package, constrained_version in constrained_packages.items():
-        constraint_string += f' "{package}=={constrained_version}"'
+        constraint_args += f"{package}=={constrained_version}"
     get_console().print("[info]Use the following pip install command (see the doc above for details)\n")
     # !!! MAKE SURE YOU SYNCHRONIZE THE LIST BETWEEN: Dockerfile, Dockerfile.ci, find_newer_dependencies.py
+    pip_command = [
+        "pip",
+        "install",
+        ".[devel_all]",
+        "--upgrade",
+        "--upgrade-strategy",
+        "eager",
+        "dill<0.3.3",
+        "pyarrow>=6.0.0",
+        "protobuf<4.21.0",
+        "authlib>=1.0.0",
+        "gcloud_aio_auth>=4.0.0",
+        "adal>=1.2.7",
+        "cloudpickle==2.0.0",
+        "apache-beam==2.39.0",
+        *constraint_args,
+    ]
     get_console().print(
-        'pip install ".[devel_all]" --upgrade --upgrade-strategy eager '
-        '"dill<0.3.3" "pyarrow>=6.0.0" "protobuf<4.21.0" '
-        '"authlib>=1.0.0" "gcloud_aio_auth>=4.0.0" "adal>=1.2.7"' + constraint_string,
+        shlex_join(pip_command),
         markup=False,
         soft_wrap=True,
     )

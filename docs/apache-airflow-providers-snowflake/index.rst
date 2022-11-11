@@ -28,6 +28,7 @@ Content
 
     Connection Types <connections/snowflake>
     Operators <operators/index>
+    Decorators <decorators/snowpark>
 
 .. toctree::
     :maxdepth: 1

@@ -251,6 +251,14 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: set[str] = {
     ),
 }
 
+KNOWN_EXCEPTIONS: dict[str, str] = {
+    # snowflake-snowpark-python is only compatible with Python 3.8, and all the tests run on Python 3.7,
+    # so this module will never load on our CI and that is expected for now
+    "airflow.providers.snowflake.decorators.snowpark": (
+        "The snowflake-snowpark-python package is not installed. Make sure you are using Python 3.8."
+    )
+}
+
 
 def filter_known_warnings(warn: warnings.WarningMessage) -> bool:
     msg_string = str(warn.message).replace("\n", " ")
@@ -355,8 +363,11 @@ def import_all_classes(
                             imported_classes.append(class_name)
                 if w:
                     all_warnings.extend(w)
-            except Exception:
+            except Exception as ex:
                 exception_str = traceback.format_exc()
+                known_exception = KNOWN_EXCEPTIONS.get(modinfo.name)
+                if known_exception and known_exception in str(ex):
+                    continue
                 tracebacks.append((modinfo.name, exception_str))
     if tracebacks:
         console.print(

@@ -34,7 +34,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.3.0
-  - pdpyras>=4.1.2
+  - pdpyras>=4.5.2
 
 integrations:
   - integration-name: Pagerduty

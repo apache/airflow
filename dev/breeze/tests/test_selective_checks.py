@@ -257,6 +257,23 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 id="Everything should run and upgrading to newer requirements as dependencies change",
             )
         ),
+        (
+            pytest.param(
+                ("airflow/providers/snowflake/decorators/snowpark.py",),
+                {
+                    "all-python-versions": "['3.7', '3.8']",
+                    "all-python-versions-list-as-string": "3.7 3.8",
+                    "image-build": "true",
+                    "needs-helm-tests": "false",
+                    "run-tests": "true",
+                    "docs-build": "true",
+                    "run-kubernetes-tests": "false",
+                    "upgrade-to-newer-dependencies": "false",
+                    "test-types": "Always Providers",
+                },
+                id="Snowflake tests and docs should run on Python 3.7 and 3.8",
+            )
+        ),
     ],
 )
 def test_expected_output_pull_request_main(

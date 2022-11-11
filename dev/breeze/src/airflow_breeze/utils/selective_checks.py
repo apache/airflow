@@ -70,6 +70,7 @@ class FileGroupForCi(Enum):
     DOC_FILES = "doc_files"
     WWW_FILES = "www_files"
     KUBERNETES_FILES = "kubernetes_files"
+    SNOWFLAKE_FILES = "snowflake_files"
     ALL_PYTHON_FILES = "all_python_files"
     ALL_SOURCE_FILES = "all_sources_for_tests"
 
@@ -145,6 +146,10 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/providers/cncf/kubernetes/",
             r"^tests/providers/cncf/kubernetes/",
             r"^tests/system/providers/cncf/kubernetes/",
+        ],
+        FileGroupForCi.SNOWFLAKE_FILES: [
+            r"^airflow/providers/snowflake/",
+            r"^tests/providers/snowflake/",
         ],
         FileGroupForCi.ALL_PYTHON_FILES: [
             r"\.py$",
@@ -304,11 +309,15 @@ class SelectiveChecks:
 
     @cached_property
     def python_versions(self) -> list[str]:
-        return (
-            CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
-            if self._run_everything or self.full_tests_needed
-            else [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
-        )
+        if self._run_everything or self.full_tests_needed:
+            return CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
+
+        # Tests for Snowflake are always run on Python 3.8 as snowflake-snowpark-python package
+        # is only compatible with Python 3.8 for now.
+        if self.run_snowflake_tests:
+            return [DEFAULT_PYTHON_MAJOR_MINOR_VERSION, "3.8"]
+
+        return [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
 
     @cached_property
     def python_versions_list_as_string(self) -> str:
@@ -316,11 +325,15 @@ class SelectiveChecks:
 
     @cached_property
     def all_python_versions(self) -> list[str]:
-        return (
-            ALL_PYTHON_MAJOR_MINOR_VERSIONS
-            if self._run_everything or self.full_tests_needed
-            else [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
-        )
+        if self._run_everything or self.full_tests_needed:
+            return ALL_PYTHON_MAJOR_MINOR_VERSIONS
+
+        # Tests for Snowflake are always run on Python 3.8 as snowflake-snowpark-python package
+        # is only compatible with Python 3.8 for now.
+        if self.run_snowflake_tests:
+            return [DEFAULT_PYTHON_MAJOR_MINOR_VERSION, "3.8"]
+
+        return [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
 
     @cached_property
     def all_python_versions_list_as_string(self) -> str:
@@ -456,6 +469,10 @@ class SelectiveChecks:
     @cached_property
     def run_kubernetes_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.KUBERNETES_FILES)
+
+    @cached_property
+    def run_snowflake_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.SNOWFLAKE_FILES)
 
     @cached_property
     def docs_build(self) -> bool:

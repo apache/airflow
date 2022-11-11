@@ -1301,6 +1301,8 @@ SlackResponse
 slas
 smtp
 SnowflakeHook
+Snowpark
+snowpark
 somecollection
 somedatabase
 sortable

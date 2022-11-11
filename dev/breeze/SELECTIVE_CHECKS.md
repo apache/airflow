@@ -44,6 +44,7 @@ We have the following Groups of files for CI that determine which tests are run:
 * `UI and WWW files` - those are files for the UI and WWW part of our UI (useful to determine if UI
   tests should run)
 * `Kubernetes files` - determine if any of Kubernetes related tests should be run
+* `Snowflake files` - determine if any of Snowflake related tests should be run
 * `All Python files` - if none of the Python file changed, that indicates that we should not run unit tests
 * `All source files` - if none of the sources change, that indicates that we should probably not build
   an image and run any image-based static checks
@@ -77,7 +78,8 @@ The logic implements the following rules:
 * `Full tests` mode is enabled when the event is PUSH, or SCHEDULE or when "full tests needed" label is set.
   That enables all matrix combinations of variables, and all possible tests
 * Python, Kubernetes, Backend, Kind, Helm versions are limited to "defaults" only unless `Full tests` mode
-  is enabled.
+  is enabled. Tests for Snowflake are always performed on Python 3.8 as well, as `snowflake-snowpark-python`
+  package is only compatible with Python 3.8.
 * If "Commit" to work on cannot be determined, or `Full Test` mode is enabled or some of the important
   environment files (setup.py, setup.cfg, Dockerfile, build scripts) changed - all unit tests are
   executed - this is `run everything` mode. No further checks are performed.

@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from glob import glob
 
 import pytest
@@ -50,7 +51,9 @@ def relative_path(path):
 
 
 @pytest.mark.parametrize("example", example_dags(), ids=relative_path)
-def test_should_be_importable(example):
+def test_should_be_importable(example: str):
+    if example.endswith("/example_snowflake_snowpark.py") and not sys.version_info[0:2] == (3, 8):
+        pytest.skip("unsupported python version")
     dagbag = DagBag(
         dag_folder=example,
         include_examples=False,

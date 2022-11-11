@@ -24,6 +24,7 @@ from io import StringIO
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
 
+import snowflake
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from snowflake import connector
@@ -34,6 +35,11 @@ from sqlalchemy import create_engine
 from airflow import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.strings import to_boolean
+
+try:
+    from snowflake.snowpark import Session as SnowparkSession
+except ImportError:
+    SnowparkSession = None  # type: ignore
 
 
 def _try_to_boolean(value: Any):
@@ -295,6 +301,27 @@ class SnowflakeHook(DbApiHook):
         conn_config = self._get_conn_params()
         conn = connector.connect(**conn_config)
         return conn
+
+    def get_snowpark_session(self) -> snowflake.snowpark.Session:
+        if SnowparkSession is None:
+            # Snowpark is an optional feature and if imports are missing, it should be silently ignored
+            # As of Airflow 2.3 and above we can throw OptionalProviderFeatureException
+            try:
+                from airflow.exceptions import AirflowOptionalProviderFeatureException
+            except ImportError:
+                # However, in order to keep backwards-compatibility with Airflow 2.1 and 2.2, if the
+                # 2.3 exception cannot be imported, the original AirflowException should be raised.
+                # This try/except can be removed when the provider depends on Airflow >= 2.3.0
+                from airflow.exceptions import (  # type: ignore
+                    AirflowException as AirflowOptionalProviderFeatureException,
+                )
+            raise AirflowOptionalProviderFeatureException(
+                "Optional feature - Snowpark is disabled. "
+                "To use, install `apache-airflow-providers-snowflake[snowpark]` package."
+            )
+
+        connection_parameters = self._get_conn_params()
+        return SnowparkSession.builder.configs(connection_parameters).create()
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """
