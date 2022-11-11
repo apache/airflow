@@ -1808,12 +1808,12 @@ class TaskInstance(Base, LoggingMixin):
             except Exception:
                 self.log.exception("Failed to send email to: %s", task.email)
 
-        if callback and context:
-            self._run_finished_callback(callback, context, callback_type)
-
         if not test_mode:
             session.merge(self)
             session.flush()
+
+        if callback and context:
+            self._run_finished_callback(callback, context, callback_type)
 
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry"""
