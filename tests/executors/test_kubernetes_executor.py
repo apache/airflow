@@ -298,13 +298,12 @@ class TestKubernetesExecutor:
     )
     @mock.patch("airflow.executors.kubernetes_executor.pod_mutation_hook")
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
-    def test_run_next_pmh_error_requeue(self, mock_get_kube_client, mock_pmh):
+    def test_run_next_pmh_error(self, mock_get_kube_client, mock_pmh):
         """
         Exception during Pod Mutation Hook execution should be handled gracefully.
-        The job should also be re-queued in case the Pod Mutation Hook failed due to transient reason.
-
         """
-        mock_pmh.side_effect = Exception("Purposely generate error for test")
+        exception_in_pmh = Exception("Purposely generate error for test")
+        mock_pmh.side_effect = exception_in_pmh
 
         mock_kube_client = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
         mock_kube_client.create_namespaced_pod = mock.MagicMock()
@@ -325,8 +324,10 @@ class TestKubernetesExecutor:
         assert mock_pmh.call_count == 1
         # There should be no pod creation request sent
         assert mock_kube_client.create_namespaced_pod.call_count == 0
-        # The task is not re-queued
+        # The task is not re-queued and there is the failed record in event_buffer
         assert kubernetes_executor.task_queue.empty()
+        assert kubernetes_executor.event_buffer[task_instance_key][0] == State.FAILED
+        assert kubernetes_executor.event_buffer[task_instance_key][1].args[0] == exception_in_pmh
 
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"

@@ -37,7 +37,7 @@ from kubernetes.client import Configuration, models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3.exceptions import ReadTimeoutError
 
-from airflow.exceptions import AirflowException, PodReconciliationError, PodMutationHookException
+from airflow.exceptions import AirflowException, PodMutationHookException, PodReconciliationError
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor, CommandType
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.kube_client import get_kube_client
