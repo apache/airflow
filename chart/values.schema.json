@@ -1794,12 +1794,12 @@
                             }
                         },
                         "securityContexts": {
-                            "description": "Security context definition for the waitForMigrations. If not set, the values from global `securityContexts` will be used.",
+                            "description": "Security context definition for the wait for migrations. If not set, the values from global `securityContexts` will be used.",
                             "type": "object",
                             "x-docsSection": "Kubernetes",
                             "properties": {
                                 "container": {
-                                    "description": "Container security context definition for the waitForMigrations.",
+                                    "description": "Container security context definition for the wait for migrations.",
                                     "type": "object",
                                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                                     "default": {},
@@ -2275,12 +2275,12 @@
                             }
                         },
                         "securityContexts": {
-                            "description": "Security context definition for the waitForMigrations. If not set, the values from global `securityContexts` will be used.",
+                            "description": "Security context definition for the wait for migrations. If not set, the values from global `securityContexts` will be used.",
                             "type": "object",
                             "x-docsSection": "Kubernetes",
                             "properties": {
                                 "container": {
-                                    "description": "Container security context definition for the waitForMigrations.",
+                                    "description": "Container security context definition for the wait for migrations.",
                                     "type": "object",
                                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                                     "default": {},
@@ -2654,12 +2654,12 @@
                             }
                         },
                         "securityContexts": {
-                            "description": "Security context definition for the waitForMigrations. If not set, the values from global `securityContexts` will be used.",
+                            "description": "Security context definition for the wait for migrations. If not set, the values from global `securityContexts` will be used.",
                             "type": "object",
                             "x-docsSection": "Kubernetes",
                             "properties": {
                                 "container": {
-                                    "description": "Container security context definition for the waitForMigrations.",
+                                    "description": "Container security context definition for the wait for migrations.",
                                     "type": "object",
                                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                                     "default": {},
@@ -3025,12 +3025,12 @@
                             }
                         },
                         "securityContexts": {
-                            "description": "Security context definition for the waitForMigrations. If not set, the values from global `securityContexts` will be used.",
+                            "description": "Security context definition for the wait for migrations. If not set, the values from global `securityContexts` will be used.",
                             "type": "object",
                             "x-docsSection": "Kubernetes",
                             "properties": {
                                 "container": {
-                                    "description": "Container security context definition for the waitForMigrations.",
+                                    "description": "Container security context definition for the wait for migrations.",
                                     "type": "object",
                                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                                     "default": {},
@@ -4090,12 +4090,12 @@
                             }
                         },
                         "securityContexts": {
-                            "description": "Security context definition for the waitForMigrations. If not set, the values from global `securityContexts` will be used.",
+                            "description": "Security context definition for the wait for migrations. If not set, the values from global `securityContexts` will be used.",
                             "type": "object",
                             "x-docsSection": "Kubernetes",
                             "properties": {
                                 "container": {
-                                    "description": "Container security context definition for the waitForMigrations.",
+                                    "description": "Container security context definition for the wait for migrations.",
                                     "type": "object",
                                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                                     "default": {},
