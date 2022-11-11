@@ -651,12 +651,12 @@ class KubernetesExecutor(BaseExecutor):
                         self.task_queue.put(task)
                 except PodMutationHookException as e:
                     key, _, _, _ = task
-                    self.log.warning(
-                        "Pod Mutation Hook failed for the task %s. Re-queueing. Details: %s",
+                    self.log.error(
+                        "Pod Mutation Hook failed for the task %s. Failing task. Details: %s",
                         key,
                         e,
                     )
-                    self.task_queue.put(task)
+                    self.fail(key, e)
                 finally:
                     self.task_queue.task_done()
             except Empty:

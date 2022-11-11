@@ -325,8 +325,8 @@ class TestKubernetesExecutor:
         assert mock_pmh.call_count == 1
         # There should be no pod creation request sent
         assert mock_kube_client.create_namespaced_pod.call_count == 0
-        # The task should have been re-queued
-        assert not kubernetes_executor.task_queue.empty()
+        # The task is not re-queued
+        assert kubernetes_executor.task_queue.empty()
 
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
