@@ -100,8 +100,8 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }: Props) =
       <Flex
         alignItems="center"
         justifyContent="space-between"
-        mb={2}
         p={1}
+        pb={2}
         backgroundColor="white"
         ref={buttonsRef}
       >
@@ -125,7 +125,7 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }: Props) =
         />
       </Flex>
       <Box
-        height={`calc(100% - ${dimensions?.borderBox.height}px)`}
+        height={`calc(100% - ${dimensions?.borderBox.height || 0}px)`}
         ref={scrollRef}
         overflow="auto"
         position="relative"

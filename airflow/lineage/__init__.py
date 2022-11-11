@@ -57,15 +57,15 @@ def get_backend() -> LineageBackend | None:
 
 
 def _render_object(obj: Any, context: Context) -> dict:
-    return context['ti'].task.render_template(obj, context)
+    return context["ti"].task.render_template(obj, context)
 
 
 def _deserialize(serialized: dict):
     from airflow.serialization.serialized_objects import BaseSerialization
 
     # This is only use in the worker side, so it is okay to "blindly" import the specified class here.
-    cls = import_string(serialized['__type'])
-    return cls(**BaseSerialization.deserialize(serialized['__var']))
+    cls = import_string(serialized["__type"])
+    return cls(**BaseSerialization.deserialize(serialized["__var"]))
 
 
 def _serialize(objs: list[Any], source: str):
@@ -76,16 +76,16 @@ def _serialize(objs: list[Any], source: str):
         if not attr.has(obj):
             continue
 
-        type_name = obj.__module__ + '.' + obj.__class__.__name__
+        type_name = obj.__module__ + "." + obj.__class__.__name__
         # Only include attributes which we can pass back to the classes constructor
         data = attr.asdict(obj, recurse=True, filter=lambda a, v: a.init)
 
         yield {
             k: BaseSerialization.serialize(v)
             for k, v in (
-                ('__type', type_name),
-                ('__source', source),
-                ('__var', data),
+                ("__type", type_name),
+                ("__source", source),
+                ("__var", data),
             )
         }
 
@@ -111,12 +111,12 @@ def apply_lineage(func: T) -> T:
 
         if outlets:
             self.xcom_push(
-                context, key=PIPELINE_OUTLETS, value=outlets, execution_date=context['ti'].execution_date
+                context, key=PIPELINE_OUTLETS, value=outlets, execution_date=context["ti"].execution_date
             )
 
         if inlets:
             self.xcom_push(
-                context, key=PIPELINE_INLETS, value=inlets, execution_date=context['ti'].execution_date
+                context, key=PIPELINE_INLETS, value=inlets, execution_date=context["ti"].execution_date
             )
 
         if _backend:

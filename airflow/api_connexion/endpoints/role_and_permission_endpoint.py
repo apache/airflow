@@ -88,7 +88,7 @@ def get_roles(*, order_by: str = "name", limit: int, offset: int | None = None) 
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_ACTION)])
-@format_parameters({'limit': check_limit})
+@format_parameters({"limit": check_limit})
 def get_permissions(*, limit: int, offset: int | None = None) -> APIResponse:
     """Get permissions"""
     session = get_airflow_app().appbuilder.get_session
@@ -129,7 +129,7 @@ def patch_role(*, role_name: str, update_mask: UpdateMask = None) -> APIResponse
             if field in data and not field == "permissions":
                 data_[field] = data[field]
             elif field == "actions":
-                data_["permissions"] = data['permissions']
+                data_["permissions"] = data["permissions"]
             else:
                 raise BadRequest(detail=f"'{field}' in update_mask is unknown")
         data = data_
@@ -153,9 +153,9 @@ def post_role() -> APIResponse:
         data = role_schema.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
-    role = security_manager.find_role(name=data['name'])
+    role = security_manager.find_role(name=data["name"])
     if not role:
-        perms = [(item['action']['name'], item['resource']['name']) for item in data['permissions'] if item]
+        perms = [(item["action"]["name"], item["resource"]["name"]) for item in data["permissions"] if item]
         _check_action_and_resource(security_manager, perms)
         security_manager.bulk_sync_roles([{"role": data["name"], "perms": perms}])
         return role_schema.dump(role)

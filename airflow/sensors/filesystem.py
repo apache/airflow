@@ -48,10 +48,10 @@ class FileSensor(BaseSensorOperator):
 
     """
 
-    template_fields: Sequence[str] = ('filepath',)
-    ui_color = '#91818a'
+    template_fields: Sequence[str] = ("filepath",)
+    ui_color = "#91818a"
 
-    def __init__(self, *, filepath, fs_conn_id='fs_default', recursive=False, **kwargs):
+    def __init__(self, *, filepath, fs_conn_id="fs_default", recursive=False, **kwargs):
         super().__init__(**kwargs)
         self.filepath = filepath
         self.fs_conn_id = fs_conn_id
@@ -61,12 +61,12 @@ class FileSensor(BaseSensorOperator):
         hook = FSHook(self.fs_conn_id)
         basepath = hook.get_path()
         full_path = os.path.join(basepath, self.filepath)
-        self.log.info('Poking for file %s', full_path)
+        self.log.info("Poking for file %s", full_path)
 
         for path in glob(full_path, recursive=self.recursive):
             if os.path.isfile(path):
-                mod_time = datetime.datetime.fromtimestamp(os.path.getmtime(path)).strftime('%Y%m%d%H%M%S')
-                self.log.info('Found File %s last modified: %s', str(path), mod_time)
+                mod_time = datetime.datetime.fromtimestamp(os.path.getmtime(path)).strftime("%Y%m%d%H%M%S")
+                self.log.info("Found File %s last modified: %s", str(path), mod_time)
                 return True
 
             for _, _, files in os.walk(path):

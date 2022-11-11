@@ -49,7 +49,7 @@ class TriggerDagRunLink(BaseOperatorLink):
     DAG triggered by task using TriggerDagRunOperator.
     """
 
-    name = 'Triggered DAG'
+    name = "Triggered DAG"
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         # Fetch the correct execution date for the triggerED dag which is
@@ -117,11 +117,6 @@ class TriggerDagRunOperator(BaseOperator):
 
         self.execution_date = execution_date
 
-        try:
-            json.dumps(self.conf)
-        except TypeError:
-            raise AirflowException("conf parameter should be JSON Serializable")
-
     def execute(self, context: Context):
         if isinstance(self.execution_date, datetime.datetime):
             parsed_execution_date = self.execution_date
@@ -129,6 +124,11 @@ class TriggerDagRunOperator(BaseOperator):
             parsed_execution_date = timezone.parse(self.execution_date)
         else:
             parsed_execution_date = timezone.utcnow()
+
+        try:
+            json.dumps(self.conf)
+        except TypeError:
+            raise AirflowException("conf parameter should be JSON Serializable")
 
         if self.trigger_run_id:
             run_id = self.trigger_run_id
@@ -163,7 +163,7 @@ class TriggerDagRunOperator(BaseOperator):
             raise RuntimeError("The dag_run should be set here!")
         # Store the execution date from the dag run (either created or found above) to
         # be used when creating the extra link on the webserver.
-        ti = context['task_instance']
+        ti = context["task_instance"]
         ti.xcom_push(key=XCOM_EXECUTION_DATE_ISO, value=dag_run.execution_date.isoformat())
         ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
 
@@ -171,7 +171,7 @@ class TriggerDagRunOperator(BaseOperator):
             # wait for dag to complete
             while True:
                 self.log.info(
-                    'Waiting for %s on %s to become allowed state %s ...',
+                    "Waiting for %s on %s to become allowed state %s ...",
                     self.trigger_dag_id,
                     dag_run.execution_date,
                     self.allowed_states,
