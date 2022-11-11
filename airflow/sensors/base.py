@@ -97,6 +97,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         prevent too much load on the scheduler.
     :param exponential_backoff: allow progressive longer waits between
         pokes by using exponential backoff algorithm
+    :param max_wait: maximum wait interval between pokes, can be ``timedelta`` or ``float`` seconds
     """
 
     ui_color: str = "#e6f1f2"
@@ -114,6 +115,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         soft_fail: bool = False,
         mode: str = "poke",
         exponential_backoff: bool = False,
+        max_wait: timedelta | float | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -122,7 +124,16 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self.timeout = timeout
         self.mode = mode
         self.exponential_backoff = exponential_backoff
+        self.max_wait = self._coerce_max_wait(max_wait)
         self._validate_input_values()
+
+    @staticmethod
+    def _coerce_max_wait(max_wait: float | timedelta | None) -> timedelta | None:
+        if max_wait is None or isinstance(max_wait, timedelta):
+            return max_wait
+        if isinstance(max_wait, (int, float)) and max_wait >= 0:
+            return timedelta(seconds=max_wait)
+        raise AirflowException("Operator arg `max_wait` must be timedelta object or a non-negative number")
 
     def _validate_input_values(self) -> None:
         if not isinstance(self.poke_interval, (int, float)) or self.poke_interval < 0:
@@ -233,6 +244,10 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
         delay_backoff_in_seconds = min(modded_hash, timedelta.max.total_seconds() - 1)
         new_interval = min(self.timeout - int(run_duration()), delay_backoff_in_seconds)
+
+        if self.max_wait:
+            new_interval = min(self.max_wait.total_seconds(), new_interval)
+
         self.log.info("new %s interval is %s", self.mode, new_interval)
         return new_interval
 
