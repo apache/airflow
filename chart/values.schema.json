@@ -4475,12 +4475,12 @@
                     ]
                 },
                 "securityContexts": {
-                    "description": "Security context definition for the networkPolicy. If not set, the values from global `securityContexts` will be used.",
+                    "description": "Security context definition for the network policy. If not set, the values from global `securityContexts` will be used.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {
                         "pod": {
-                            "description": "Pod security context definition for the networkPolicy.",
+                            "description": "Pod security context definition for the network policy.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                             "default": {},
@@ -4494,7 +4494,7 @@
                             ]
                         },
                         "container": {
-                            "description": "Container security context definition for the networkPolicy.",
+                            "description": "Container security context definition for the network policy.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                             "default": {},
