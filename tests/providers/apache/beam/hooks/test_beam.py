@@ -18,11 +18,13 @@ from __future__ import annotations
 
 import copy
 import os
+import re
 import subprocess
 import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -58,7 +60,8 @@ INFO: To cancel the job using the 'gcloud' tool, run:
 
 class TestBeamHook(unittest.TestCase):
     @mock.patch(BEAM_STRING.format("BeamCommandRunner"))
-    def test_start_python_pipeline(self, mock_runner):
+    @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.39.0")
+    def test_start_python_pipeline(self, mock_check_output, mock_runner):
         hook = BeamHook(runner=DEFAULT_RUNNER)
         wait_for_done = mock_runner.return_value.wait_for_done
         process_line_callback = MagicMock()
@@ -83,6 +86,26 @@ class TestBeamHook(unittest.TestCase):
         )
         wait_for_done.assert_called_once_with()
 
+    @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.35.0")
+    def test_start_python_pipeline_unsupported_option(self, mock_check_output):
+        hook = BeamHook(runner=DEFAULT_RUNNER)
+
+        with pytest.raises(
+            AirflowException,
+            match=re.escape("The impersonateServiceAccount option requires Apache Beam 2.39.0 or newer."),
+        ):
+            hook.start_python_pipeline(
+                variables={
+                    "impersonate_service_account": "test@impersonation.com",
+                },
+                py_file="/tmp/file.py",
+                py_options=["-m"],
+                py_interpreter="python3",
+                py_requirements=None,
+                py_system_site_packages=False,
+                process_line_callback=MagicMock(),
+            )
+
     @parameterized.expand(
         [
             ("default_to_python3", "python3"),
@@ -92,7 +115,10 @@ class TestBeamHook(unittest.TestCase):
         ]
     )
     @mock.patch(BEAM_STRING.format("BeamCommandRunner"))
-    def test_start_python_pipeline_with_custom_interpreter(self, _, py_interpreter, mock_runner):
+    @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.39.0")
+    def test_start_python_pipeline_with_custom_interpreter(
+        self, _, py_interpreter, mock_check_output, mock_runner
+    ):
         hook = BeamHook(runner=DEFAULT_RUNNER)
         wait_for_done = mock_runner.return_value.wait_for_done
         process_line_callback = MagicMock()
@@ -127,8 +153,14 @@ class TestBeamHook(unittest.TestCase):
     )
     @mock.patch(BEAM_STRING.format("prepare_virtualenv"))
     @mock.patch(BEAM_STRING.format("BeamCommandRunner"))
+    @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.39.0")
     def test_start_python_pipeline_with_non_empty_py_requirements_and_without_system_packages(
-        self, current_py_requirements, current_py_system_site_packages, mock_runner, mock_virtualenv
+        self,
+        current_py_requirements,
+        current_py_system_site_packages,
+        mock_check_output,
+        mock_runner,
+        mock_virtualenv,
     ):
         hook = BeamHook(runner=DEFAULT_RUNNER)
         wait_for_done = mock_runner.return_value.wait_for_done
@@ -164,7 +196,10 @@ class TestBeamHook(unittest.TestCase):
         )
 
     @mock.patch(BEAM_STRING.format("BeamCommandRunner"))
-    def test_start_python_pipeline_with_empty_py_requirements_and_without_system_packages(self, mock_runner):
+    @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.39.0")
+    def test_start_python_pipeline_with_empty_py_requirements_and_without_system_packages(
+        self, mock_check_output, mock_runner
+    ):
         hook = BeamHook(runner=DEFAULT_RUNNER)
         wait_for_done = mock_runner.return_value.wait_for_done
         process_line_callback = MagicMock()
