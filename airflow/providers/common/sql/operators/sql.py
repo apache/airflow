@@ -619,7 +619,13 @@ class SQLCheckOperator(BaseSQLOperator):
     ui_color = "#fff7e6"
 
     def __init__(
-        self, *, sql: str, conn_id: str | None = None, database: str | None = None, parameters: Union[tuple, dict] | None = None, **kwargs
+        self,
+        *,
+        sql: str,
+        conn_id: str | None = None,
+        database: str | None = None,
+        parameters: Union[Iterable, Mapping] | None = None,
+        **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
         self.sql = sql

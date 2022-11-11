@@ -184,6 +184,7 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         self.sql = sql
         self.autocommit = autocommit
         self.do_xcom_push = do_xcom_push
+        self.parameters = parameters
         self.warehouse = warehouse
         self.database = database
         self.role = role
