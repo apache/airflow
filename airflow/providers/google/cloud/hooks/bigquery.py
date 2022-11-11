@@ -57,6 +57,7 @@ from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook, get_field
 from airflow.utils.helpers import convert_camel_to_snake
@@ -2740,7 +2741,7 @@ class BigQueryCursor(BigQueryBaseCursor):
                 rows = query_results["rows"]
 
                 for dict_row in rows:
-                    typed_row = [_bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
+                    typed_row = [bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
                     self.buffer.append(typed_row)
 
                 if not self.page_token:
@@ -2843,25 +2844,6 @@ def _escape(s: str) -> str:
     e = e.replace("'", "\\'")
     e = e.replace('"', '\\"')
     return e
-
-
-def _bq_cast(string_field: str, bq_type: str) -> None | int | float | bool | str:
-    """
-    Helper method that casts a BigQuery row to the appropriate data types.
-    This is useful because BigQuery returns all fields as strings.
-    """
-    if string_field is None:
-        return None
-    elif bq_type == "INTEGER":
-        return int(string_field)
-    elif bq_type in ("FLOAT", "TIMESTAMP"):
-        return float(string_field)
-    elif bq_type == "BOOLEAN":
-        if string_field not in ["true", "false"]:
-            raise ValueError(f"{string_field} must have value 'true' or 'false'")
-        return string_field == "true"
-    else:
-        return string_field
 
 
 def split_tablename(
@@ -3070,7 +3052,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             fields = query_results["schema"]["fields"]
             col_types = [field["type"] for field in fields]
             for dict_row in rows:
-                typed_row = [_bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
+                typed_row = [bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
                 buffer.append(typed_row)
         return buffer
 
