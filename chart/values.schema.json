@@ -1474,12 +1474,12 @@
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                         },
                         "securityContexts": {
-                            "description": "Security context definition for the kerberosSidecar. If not set, the values from global `securityContexts` will be used.",
+                            "description": "Security context definition for the kerberos sidecar. If not set, the values from global `securityContexts` will be used.",
                             "type": "object",
                             "x-docsSection": "Kubernetes",
                             "properties": {
                                 "container": {
-                                    "description": "Container security context definition for the kerberosSidecar.",
+                                    "description": "Container security context definition for the kerberos sidecar.",
                                     "type": "object",
                                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                                     "default": {},
@@ -2167,12 +2167,12 @@
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                         },
                         "securityContexts": {
-                            "description": "Security context definition for the logGroomerSidecar. If not set, the values from global `securityContexts` will be used.",
+                            "description": "Security context definition for the log groomer sidecar. If not set, the values from global `securityContexts` will be used.",
                             "type": "object",
                             "x-docsSection": "Kubernetes",
                             "properties": {
                                 "container": {
-                                    "description": "Container security context definition for the logGroomerSidecar.",
+                                    "description": "Container security context definition for the log groomer sidecar.",
                                     "type": "object",
                                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                                     "default": {},
@@ -3491,12 +3491,12 @@
                     ]
                 },
                 "securityContexts": {
-                    "description": "Security context definition for the migrateDatabaseJob. If not set, the values from global `securityContexts` will be used.",
+                    "description": "Security context definition for the migrate database job. If not set, the values from global `securityContexts` will be used.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {
                         "pod": {
-                            "description": "Pod security context definition for the migrateDatabaseJob.",
+                            "description": "Pod security context definition for the migrate database job.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                             "default": {},
@@ -3510,7 +3510,7 @@
                             ]
                         },
                         "container": {
-                            "description": "Container security context definition for the migrateDatabaseJob.",
+                            "description": "Container security context definition for the migrate database job.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                             "default": {},
@@ -5130,12 +5130,12 @@
                             "default": "disable"
                         },
                         "securityContexts": {
-                            "description": "Security context definition for the metricsExporterSidecar. If not set, the values from global `securityContexts` will be used.",
+                            "description": "Security context definition for the metrics exporter sidecar. If not set, the values from global `securityContexts` will be used.",
                             "type": "object",
                             "x-docsSection": "Kubernetes",
                             "properties": {
                                 "container": {
-                                    "description": "Container security context definition for the metricsExporterSidecar.",
+                                    "description": "Container security context definition for the metrics exporter sidecar.",
                                     "type": "object",
                                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                                     "default": {},
