@@ -57,7 +57,10 @@ def _read_file_contents(filename):
 class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     custom_operator_name = "@task.kubernetes"
 
-    template_fields: Sequence[str] = ("op_args", "op_kwargs")
+    # `cmds` and `arguments` are used internally by the operator
+    template_fields: Sequence[str] = tuple(
+        {"op_args", "op_kwargs", *KubernetesPodOperator.template_fields} - {"cmds", "arguments"}
+    )
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
