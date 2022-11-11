@@ -34,6 +34,30 @@ Configuration
 Before you can use the Dataform operators you need to initialize repository and workspace, for more information
 about this visit `Dataform Production documentation <Product documentation <https://cloud.google.com/dataform/docs/reference>`__
 
+Create Repository
+-----------------
+Create repository for tracking your code in Dataform service. Example of usage can be seen below:
+
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformCreateRepositoryOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_create_repository]
+    :end-before: [END howto_operator_create_repository]
+
+Create Workspace
+----------------
+Create workspace for storing your code in Dataform service. Example of usage can be seen below:
+
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformCreateWorkspaceOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_create_workspace]
+    :end-before: [END howto_operator_create_workspace]
+
 
 Create Compilation Result
 -------------------------
@@ -108,3 +132,99 @@ To cancel a Workflow Invocation you can use:
     :dedent: 4
     :start-after: [START howto_operator_cancel_workflow_invocation]
     :end-before: [END howto_operator_cancel_workflow_invocation]
+
+Delete Repository
+-----------------
+Deletes repository. Example of usage can be seen below:
+
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformDeleteRepositoryOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_delete_workspace]
+    :end-before: [END howto_operator_delete_workspace]
+
+Delete Workspace
+----------------
+Deletes workspace. Example of usage can be seen below:
+
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformDeleteRepositoryOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_delete_repository]
+    :end-before: [END howto_operator_delete_repository]
+
+Remove file
+-----------
+Removes file. Example of usage can be seen below:
+
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformRemoveFileOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_remove_file]
+    :end-before: [END howto_operator_remove_file]
+
+Remove directory
+----------------
+Removes directory. Example of usage can be seen below:
+
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformRemoveDirectoryOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_remove_directory]
+    :end-before: [END howto_operator_remove_directory]
+
+Initialize workspace
+--------------------
+Creates default projects structure for provided workspace. Before it can be done workspace and repository should be created. Example of usage can be seen below:
+
+:class:`~airflow.providers.google.cloud.utils.dataform.make_initialization_workspace_flow`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_initialize_workspace]
+    :end-before: [END howto_initialize_workspace]
+
+Write file to workspace
+-----------------------
+Writes file with given content to specified workspace.
+
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformWriteFileOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_write_file]
+    :end-before: [END howto_operator_write_file]
+
+Make directory in workspace
+---------------------------
+Make directory with given path in specified workspace.
+
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformMakeDirectoryOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_make_directory]
+    :end-before: [END howto_operator_make_directory]
+
+Install NPM packages
+--------------------
+Installs npm packages for specified workspace
+
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformInstallNpmPackagesOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_install_npm_packages]
+    :end-before: [END howto_operator_install_npm_packages]

@@ -24,14 +24,30 @@ from google.api_core.gapic_v1.method import DEFAULT
 from airflow.providers.google.cloud.operators.dataform import (
     DataformCancelWorkflowInvocationOperator,
     DataformCreateCompilationResultOperator,
+    DataformCreateRepositoryOperator,
     DataformCreateWorkflowInvocationOperator,
+    DataformCreateWorkspaceOperator,
+    DataformDeleteRepositoryOperator,
+    DataformDeleteWorkspaceOperator,
     DataformGetCompilationResultOperator,
     DataformGetWorkflowInvocationOperator,
+    DataformInstallNpmPackagesOperator,
+    DataformMakeDirectoryOperator,
+    DataformRemoveDirectoryOperator,
+    DataformRemoveFileOperator,
+    DataformWriteFileOperator,
 )
 
 HOOK_STR = "airflow.providers.google.cloud.operators.dataform.DataformHook"
 WORKFLOW_INVOCATION_STR = "airflow.providers.google.cloud.operators.dataform.WorkflowInvocation"
 COMPILATION_RESULT_STR = "airflow.providers.google.cloud.operators.dataform.CompilationResult"
+REPOSITORY_STR = "airflow.providers.google.cloud.operators.dataform.Repository"
+WORKSPACE_STR = "airflow.providers.google.cloud.operators.dataform.Workspace"
+WRITE_FILE_RESPONSE_STR = "airflow.providers.google.cloud.operators.dataform.WriteFileResponse"
+MAKE_DIRECTORY_RESPONSE_STR = "airflow.providers.google.cloud.operators.dataform.MakeDirectoryResponse"
+INSTALL_NPM_PACKAGES_RESPONSE_STR = (
+    "airflow.providers.google.cloud.operators.dataform.InstallNpmPackagesResponse"
+)
 
 PROJECT_ID = "project-id"
 REGION = "region"
@@ -42,6 +58,9 @@ COMPILATION_RESULT_ID = "test_compilation_result_id"
 GCP_CONN_ID = "google_cloud_default"
 DELEGATE_TO = "test-delegate-to"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
+FILEPATH = "path/to/file.txt"
+FILE_CONTENT = b"test content"
+DIRECTORY_PATH = "path/to/directory"
 
 WORKFLOW_INVOCATION = {
     "compilation_result": (
@@ -171,6 +190,226 @@ class TestDataformCancelWorkflowInvocationOperator(TestCase):
             region=REGION,
             repository_id=REPOSITORY_ID,
             workflow_invocation_id=WORKFLOW_INVOCATION_ID,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataformCreateRepositoryOperator(TestCase):
+    @mock.patch(HOOK_STR)
+    @mock.patch(REPOSITORY_STR)
+    def test_execute(self, _, hook_mock):
+        op = DataformCreateRepositoryOperator(
+            task_id="create-repository",
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+        )
+        op.execute(context=mock.MagicMock())
+        hook_mock.return_value.create_repository.assert_called_once_with(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataformDeleteRepositoryOperator(TestCase):
+    @mock.patch(HOOK_STR)
+    def test_execute(self, hook_mock):
+        force = True
+        op = DataformDeleteRepositoryOperator(
+            task_id="delete-repository",
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            force=force,
+        )
+
+        op.execute(context=mock.MagicMock())
+        hook_mock.return_value.delete_repository.assert_called_once_with(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            force=force,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataformCreateWorkspaceOperator(TestCase):
+    @mock.patch(HOOK_STR)
+    @mock.patch(WORKSPACE_STR)
+    def test_execute(self, _, hook_mock):
+        op = DataformCreateWorkspaceOperator(
+            task_id="create-workspace",
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+        )
+
+        op.execute(context=mock.MagicMock())
+        hook_mock.return_value.create_workspace.assert_called_once_with(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataformDeleteWorkspaceOperator(TestCase):
+    @mock.patch(HOOK_STR)
+    def test_execute(self, hook_mock):
+        op = DataformDeleteWorkspaceOperator(
+            task_id="delete-workspace",
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+        )
+
+        op.execute(context=mock.MagicMock())
+        hook_mock.return_value.delete_workspace.assert_called_once_with(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataformWriteFileOperator(TestCase):
+    @mock.patch(HOOK_STR)
+    @mock.patch(WRITE_FILE_RESPONSE_STR)
+    def test_execute(self, _, hook_mock):
+        op = DataformWriteFileOperator(
+            task_id="write-file",
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+            filepath=FILEPATH,
+            contents=FILE_CONTENT,
+        )
+
+        op.execute(context=mock.MagicMock())
+        hook_mock.return_value.write_file.assert_called_once_with(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+            filepath=FILEPATH,
+            contents=FILE_CONTENT,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataformMakeDirectoryOperator(TestCase):
+    @mock.patch(HOOK_STR)
+    @mock.patch(MAKE_DIRECTORY_RESPONSE_STR)
+    def test_execute(self, _, hook_mock):
+        op = DataformMakeDirectoryOperator(
+            task_id="write-file",
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+            directory_path=DIRECTORY_PATH,
+        )
+
+        op.execute(context=mock.MagicMock())
+        hook_mock.return_value.make_directory.assert_called_once_with(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+            path=DIRECTORY_PATH,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataformRemoveFileOperator(TestCase):
+    @mock.patch(HOOK_STR)
+    def test_execute(self, hook_mock):
+        op = DataformRemoveFileOperator(
+            task_id="remove-file",
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+            filepath=FILEPATH,
+        )
+
+        op.execute(context=mock.MagicMock())
+        hook_mock.return_value.remove_file.assert_called_once_with(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+            filepath=FILEPATH,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataformRemoveDirectoryOperator(TestCase):
+    @mock.patch(HOOK_STR)
+    def test_execute(self, hook_mock):
+        op = DataformRemoveDirectoryOperator(
+            task_id="remove-directory",
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+            directory_path=DIRECTORY_PATH,
+        )
+
+        op.execute(context=mock.MagicMock())
+        hook_mock.return_value.remove_directory.assert_called_once_with(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+            path=DIRECTORY_PATH,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataformInstallNpmPackagesOperator(TestCase):
+    @mock.patch(HOOK_STR)
+    @mock.patch(INSTALL_NPM_PACKAGES_RESPONSE_STR)
+    def test_execute(self, _, hook_mock):
+        op = DataformInstallNpmPackagesOperator(
+            task_id="remove-directory",
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+        )
+
+        op.execute(context=mock.MagicMock())
+        hook_mock.return_value.install_npm_packages.assert_called_once_with(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
             retry=DEFAULT,
             timeout=None,
             metadata=(),

@@ -25,11 +25,23 @@ from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
 DATAFORM_BASE_LINK = "/bigquery/dataform"
 DATAFORM_WORKFLOW_INVOCATION_LINK = (
     DATAFORM_BASE_LINK
     + "/locations/{region}/repositories/{repository_id}/workflows/"
     + "{workflow_invocation_id}?project={project_id}"
+)
+DATAFORM_REPOSITORY_LINK = (
+    DATAFORM_BASE_LINK
+    + "/locations/{region}/repositories/{repository_id}/"
+    + "details/workspaces?project={project_id}"
+)
+DATAFORM_WORKSPACE_LINK = (
+    DATAFORM_BASE_LINK
+    + "/locations/{region}/repositories/{repository_id}/"
+    + "workspaces/{workspace_id}/"
+    + "files/?project={project_id}"
 )
 
 
@@ -57,5 +69,59 @@ class DataformWorkflowInvocationLink(BaseGoogleLink):
                 "region": region,
                 "repository_id": repository_id,
                 "workflow_invocation_id": workflow_invocation_id,
+            },
+        )
+
+
+class DataformRepositoryLink(BaseGoogleLink):
+    """Helper class for constructing Dataflow repository link."""
+
+    name = "Dataform Repository"
+    key = "dataform_repository"
+    format_str = DATAFORM_REPOSITORY_LINK
+
+    @staticmethod
+    def persist(
+        operator_instance: BaseOperator,
+        context: Context,
+        project_id: str,
+        region: str,
+        repository_id: str,
+    ) -> None:
+        operator_instance.xcom_push(
+            context=context,
+            key=DataformRepositoryLink.key,
+            value={
+                "project_id": project_id,
+                "region": region,
+                "repository_id": repository_id,
+            },
+        )
+
+
+class DataformWorkspaceLink(BaseGoogleLink):
+    """Helper class for constructing Dataform workspace link."""
+
+    name = "Dataform Workspace"
+    key = "dataform_workspace"
+    format_str = DATAFORM_WORKSPACE_LINK
+
+    @staticmethod
+    def persist(
+        operator_instance: BaseOperator,
+        context: Context,
+        project_id: str,
+        region: str,
+        repository_id: str,
+        workspace_id: str,
+    ) -> None:
+        operator_instance.xcom_push(
+            context=context,
+            key=DataformWorkspaceLink.key,
+            value={
+                "project_id": project_id,
+                "region": region,
+                "repository_id": repository_id,
+                "workspace_id": workspace_id,
             },
         )
