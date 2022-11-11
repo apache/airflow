@@ -48,6 +48,9 @@ WORKFLOW_INVOCATION = {
     ),
 }
 WORKFLOW_INVOCATION_ID = "test_workflow_invocation_id"
+PATH_TO_FOLDER = "path/to/folder"
+FILEPATH = "path/to/file.txt"
+FILE_CONTENTS = b"test content"
 
 
 class TestDataflowHook(unittest.TestCase):
@@ -151,6 +154,205 @@ class TestDataflowHook(unittest.TestCase):
             request=dict(
                 name=name,
             ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAFORM_STRING.format("DataformHook.get_dataform_client"))
+    def test_create_repository(self, mock_client):
+        self.hook.create_repository(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+        )
+        parent = f"projects/{PROJECT_ID}/locations/{REGION}"
+        mock_client.return_value.create_repository.assert_called_once_with(
+            request={"parent": parent, "repository_id": REPOSITORY_ID},
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAFORM_STRING.format("DataformHook.get_dataform_client"))
+    def test_create_workspace(self, mock_client):
+        self.hook.create_workspace(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+        )
+        parent = f"projects/{PROJECT_ID}/locations/{REGION}/repositories/{REPOSITORY_ID}"
+
+        mock_client.return_value.create_workspace.assert_called_once_with(
+            request={
+                "parent": parent,
+                "workspace_id": WORKSPACE_ID,
+            },
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAFORM_STRING.format("DataformHook.get_dataform_client"))
+    def test_delete_repository(self, mock_client):
+        force = True
+        self.hook.delete_repository(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            force=force,
+        )
+        name = f"projects/{PROJECT_ID}/locations/{REGION}/repositories/{REPOSITORY_ID}"
+
+        mock_client.return_value.delete_repository.assert_called_once_with(
+            request={
+                "name": name,
+                "force": force,
+            },
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAFORM_STRING.format("DataformHook.get_dataform_client"))
+    def test_delete_workspace(self, mock_client):
+        self.hook.delete_workspace(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+        )
+        name = (
+            f"projects/{PROJECT_ID}/locations/{REGION}/"
+            f"repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
+        )
+
+        mock_client.return_value.delete_workspace.assert_called_once_with(
+            request={
+                "name": name,
+            },
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAFORM_STRING.format("DataformHook.get_dataform_client"))
+    def test_write_file(self, mock_client):
+        self.hook.write_file(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+            filepath=FILEPATH,
+            contents=FILE_CONTENTS,
+        )
+        workspace_path = (
+            f"projects/{PROJECT_ID}/locations/{REGION}/"
+            f"repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
+        )
+
+        mock_client.return_value.write_file.assert_called_once_with(
+            request={
+                "workspace": workspace_path,
+                "path": FILEPATH,
+                "contents": FILE_CONTENTS,
+            },
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAFORM_STRING.format("DataformHook.get_dataform_client"))
+    def test_make_directory(self, mock_client):
+        self.hook.make_directory(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+            path=PATH_TO_FOLDER,
+        )
+        workspace_path = (
+            f"projects/{PROJECT_ID}/locations/{REGION}/"
+            f"repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
+        )
+
+        mock_client.return_value.make_directory.assert_called_once_with(
+            request={
+                "workspace": workspace_path,
+                "path": PATH_TO_FOLDER,
+            },
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAFORM_STRING.format("DataformHook.get_dataform_client"))
+    def test_remove_directory(self, mock_client):
+        self.hook.remove_directory(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+            path=PATH_TO_FOLDER,
+        )
+        workspace_path = (
+            f"projects/{PROJECT_ID}/locations/{REGION}/"
+            f"repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
+        )
+
+        mock_client.return_value.remove_directory.assert_called_once_with(
+            request={
+                "workspace": workspace_path,
+                "path": PATH_TO_FOLDER,
+            },
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAFORM_STRING.format("DataformHook.get_dataform_client"))
+    def test_remove_file(self, mock_client):
+        self.hook.remove_file(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+            filepath=FILEPATH,
+        )
+        workspace_path = (
+            f"projects/{PROJECT_ID}/locations/{REGION}/"
+            f"repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
+        )
+
+        mock_client.return_value.remove_file.assert_called_once_with(
+            request={
+                "workspace": workspace_path,
+                "path": FILEPATH,
+            },
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAFORM_STRING.format("DataformHook.get_dataform_client"))
+    def test_install_npm_packages(self, mock_client):
+        self.hook.install_npm_packages(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+        )
+
+        workspace_path = (
+            f"projects/{PROJECT_ID}/locations/{REGION}/"
+            f"repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
+        )
+
+        mock_client.return_value.install_npm_packages.assert_called_once_with(
+            request={
+                "workspace": workspace_path,
+            },
             retry=DEFAULT,
             timeout=None,
             metadata=(),
