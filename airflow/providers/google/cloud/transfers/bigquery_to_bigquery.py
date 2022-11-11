@@ -70,13 +70,13 @@ class BigQueryToBigQueryOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'source_project_dataset_tables',
-        'destination_project_dataset_table',
-        'labels',
-        'impersonation_chain',
+        "source_project_dataset_tables",
+        "destination_project_dataset_table",
+        "labels",
+        "impersonation_chain",
     )
-    template_ext: Sequence[str] = ('.sql',)
-    ui_color = '#e6f0e4'
+    template_ext: Sequence[str] = (".sql",)
+    ui_color = "#e6f0e4"
     operator_extra_links = (BigQueryTableLink(),)
 
     def __init__(
@@ -84,9 +84,9 @@ class BigQueryToBigQueryOperator(BaseOperator):
         *,
         source_project_dataset_tables: list[str] | str,
         destination_project_dataset_table: str,
-        write_disposition: str = 'WRITE_EMPTY',
-        create_disposition: str = 'CREATE_IF_NEEDED',
-        gcp_conn_id: str = 'google_cloud_default',
+        write_disposition: str = "WRITE_EMPTY",
+        create_disposition: str = "CREATE_IF_NEEDED",
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         labels: dict | None = None,
         encryption_configuration: dict | None = None,
@@ -109,7 +109,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         self.log.info(
-            'Executing copy of %s into: %s',
+            "Executing copy of %s into: %s",
             self.source_project_dataset_tables,
             self.destination_project_dataset_table,
         )

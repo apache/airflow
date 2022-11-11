@@ -74,7 +74,7 @@ class ImportFinder(NodeVisitor):
         import_names: list[str] = []
         for alias in node.names:
             name = alias.name
-            fullname = f'{node.module}.{name}' if node.module else name
+            fullname = f"{node.module}.{name}" if node.module else name
             import_names.append(fullname)
         return import_names
 
@@ -83,7 +83,7 @@ class ImportFinder(NodeVisitor):
             self.process_import(alias.name)
 
     def visit_ImportFrom(self, node: ImportFrom):
-        if node.module == '__future__':
+        if node.module == "__future__":
             return
         for fullname in self.get_import_name_from_import_from(node):
             self.process_import(fullname)
@@ -92,7 +92,7 @@ class ImportFinder(NodeVisitor):
 def find_all_providers_and_provider_files():
     for (root, _, filenames) in os.walk(AIRFLOW_PROVIDERS_DIR):
         for filename in filenames:
-            if filename == 'provider.yaml':
+            if filename == "provider.yaml":
                 provider_file = Path(root, filename)
                 provider_name = str(provider_file.parent.relative_to(AIRFLOW_PROVIDERS_DIR)).replace(
                     os.sep, "."
@@ -163,7 +163,7 @@ def check_if_different_provider_used(file_path: Path) -> None:
             ALL_DEPENDENCIES[file_provider][CROSS_PROVIDERS_DEPS].append(imported_provider)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     find_all_providers_and_provider_files()
     num_files = len(ALL_PROVIDER_FILES)
     num_providers = len(ALL_PROVIDERS)
@@ -173,7 +173,7 @@ if __name__ == '__main__':
         check_if_different_provider_used(file)
 
     for provider, provider_yaml_content in ALL_PROVIDERS.items():
-        ALL_DEPENDENCIES[provider][DEPS].extend(provider_yaml_content['dependencies'])
+        ALL_DEPENDENCIES[provider][DEPS].extend(provider_yaml_content["dependencies"])
 
     if warnings:
         console.print("[yellow]Warnings!\n")

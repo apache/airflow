@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import os
 import shutil
-import unittest
 from datetime import timedelta
 
 from freezegun import freeze_time
@@ -28,9 +27,8 @@ from airflow.utils import timezone
 from airflow.utils.log.file_processor_handler import FileProcessorHandler
 
 
-class TestFileProcessorHandler(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
+class TestFileProcessorHandler:
+    def setup_method(self):
         self.base_log_folder = "/tmp/log_test"
         self.filename = "{filename}"
         self.filename_template = "{{ filename }}.log"
@@ -109,5 +107,5 @@ class TestFileProcessorHandler(unittest.TestCase):
         with freeze_time(date1):
             handler.set_context(filename=os.path.join(self.dag_dir, "log1"))
 
-    def tearDown(self):
+    def teardown_method(self):
         shutil.rmtree(self.base_log_folder, ignore_errors=True)

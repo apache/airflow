@@ -93,13 +93,13 @@ class AzureBatchOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'batch_pool_id',
-        'batch_pool_vm_size',
-        'batch_job_id',
-        'batch_task_id',
-        'batch_task_command_line',
+        "batch_pool_id",
+        "batch_pool_vm_size",
+        "batch_job_id",
+        "batch_task_id",
+        "batch_task_command_line",
     )
-    ui_color = '#f0f0e4'
+    ui_color = "#f0f0e4"
 
     def __init__(
         self,
@@ -133,7 +133,7 @@ class AzureBatchOperator(BaseOperator):
         target_dedicated_nodes: int | None = None,
         enable_auto_scale: bool = False,
         auto_scale_formula: str | None = None,
-        azure_batch_conn_id='azure_batch_default',
+        azure_batch_conn_id="azure_batch_default",
         use_latest_verified_vm_image_and_sku: bool = False,
         timeout: int = 25,
         should_delete_job: bool = False,
@@ -306,7 +306,7 @@ class AzureBatchOperator(BaseOperator):
 
     def on_kill(self) -> None:
         response = self.hook.connection.job.terminate(
-            job_id=self.batch_job_id, terminate_reason='Job killed by user'
+            job_id=self.batch_job_id, terminate_reason="Job killed by user"
         )
         self.log.info("Azure Batch job (%s) terminated: %s", self.batch_job_id, response)
 

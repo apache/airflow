@@ -147,5 +147,5 @@ For connecting to a google cloud conn, all the fields must be in the extra field
 
 .. code-block:: ini
 
-  {'extra__google_cloud_platform__key_path': '/opt/airflow/service_account.json',
-  'extra__google_cloud_platform__scope': 'https://www.googleapis.com/auth/devstorage.read_only'}
+  {'key_path': '/opt/airflow/service_account.json',
+  'scope': 'https://www.googleapis.com/auth/devstorage.read_only'}

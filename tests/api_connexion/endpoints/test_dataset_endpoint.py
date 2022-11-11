@@ -89,13 +89,13 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
         with assert_queries_count(5):
             response = self.client.get(
                 f"/api/v1/datasets/{urllib.parse.quote('s3://bucket/key', safe='')}",
-                environ_overrides={'REMOTE_USER': "test"},
+                environ_overrides={"REMOTE_USER": "test"},
             )
         assert response.status_code == 200
         assert response.json == {
             "id": 1,
             "uri": "s3://bucket/key",
-            "extra": {'foo': 'bar'},
+            "extra": {"foo": "bar"},
             "created_at": self.default_time,
             "updated_at": self.default_time,
             "consuming_dags": [],
@@ -105,14 +105,14 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
     def test_should_respond_404(self):
         response = self.client.get(
             f"/api/v1/datasets/{urllib.parse.quote('s3://bucket/key', safe='')}",
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
         assert {
-            'detail': "The Dataset with uri: `s3://bucket/key` was not found",
-            'status': 404,
-            'title': 'Dataset not found',
-            'type': EXCEPTIONS_LINK_MAP[404],
+            "detail": "The Dataset with uri: `s3://bucket/key` was not found",
+            "status": 404,
+            "title": "Dataset not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json
 
     def test_should_raises_401_unauthenticated(self, session):
@@ -138,7 +138,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert session.query(DatasetModel).count() == 2
 
         with assert_queries_count(8):
-            response = self.client.get("/api/v1/datasets", environ_overrides={'REMOTE_USER': "test"})
+            response = self.client.get("/api/v1/datasets", environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
         response_data = response.json
@@ -147,7 +147,7 @@ class TestGetDatasets(TestDatasetEndpoint):
                 {
                     "id": 1,
                     "uri": "s3://bucket/key/1",
-                    "extra": {'foo': 'bar'},
+                    "extra": {"foo": "bar"},
                     "created_at": self.default_time,
                     "updated_at": self.default_time,
                     "consuming_dags": [],
@@ -156,7 +156,7 @@ class TestGetDatasets(TestDatasetEndpoint):
                 {
                     "id": 2,
                     "uri": "s3://bucket/key/2",
-                    "extra": {'foo': 'bar'},
+                    "extra": {"foo": "bar"},
                     "created_at": self.default_time,
                     "updated_at": self.default_time,
                     "consuming_dags": [],
@@ -181,12 +181,12 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert session.query(DatasetModel).count() == 2
 
         response = self.client.get(
-            "/api/v1/datasets?order_by=fake", environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/datasets?order_by=fake", environ_overrides={"REMOTE_USER": "test"}
         )  # missing attr
 
         assert response.status_code == 400
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
-        assert response.json['detail'] == msg
+        assert response.json["detail"] == msg
 
     def test_should_raises_401_unauthenticated(self, session):
         datasets = [
@@ -209,7 +209,7 @@ class TestGetDatasets(TestDatasetEndpoint):
     @parameterized.expand(
         [
             ("api/v1/datasets?uri_pattern=s3", {"s3://folder/key"}),
-            ("api/v1/datasets?uri_pattern=bucket", {"gcp://bucket/key", 'wasb://some_dataset_bucket_/key'}),
+            ("api/v1/datasets?uri_pattern=bucket", {"gcp://bucket/key", "wasb://some_dataset_bucket_/key"}),
             (
                 "api/v1/datasets?uri_pattern=dataset",
                 {"somescheme://dataset/key", "wasb://some_dataset_bucket_/key"},
@@ -217,9 +217,9 @@ class TestGetDatasets(TestDatasetEndpoint):
             (
                 "api/v1/datasets?uri_pattern=",
                 {
-                    'gcp://bucket/key',
-                    's3://folder/key',
-                    'somescheme://dataset/key',
+                    "gcp://bucket/key",
+                    "s3://folder/key",
+                    "somescheme://dataset/key",
                     "wasb://some_dataset_bucket_/key",
                 },
             ),
@@ -233,9 +233,9 @@ class TestGetDatasets(TestDatasetEndpoint):
         dataset4 = DatasetModel("wasb://some_dataset_bucket_/key")
         session.add_all([dataset1, dataset2, dataset3, dataset4])
         session.commit()
-        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        dataset_urls = {dataset['uri'] for dataset in response.json['datasets']}
+        dataset_urls = {dataset["uri"] for dataset in response.json["datasets"]}
         assert expected_datasets == dataset_urls
 
 
@@ -266,7 +266,7 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         session.add_all(datasets)
         session.commit()
 
-        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
         dataset_uris = [dataset["uri"] for dataset in response.json["datasets"]]
@@ -285,10 +285,10 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         session.add_all(datasets)
         session.commit()
 
-        response = self.client.get("/api/v1/datasets", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/datasets", environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
-        assert len(response.json['datasets']) == 100
+        assert len(response.json["datasets"]) == 100
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self, session):
@@ -304,10 +304,10 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         session.add_all(datasets)
         session.commit()
 
-        response = self.client.get("/api/v1/datasets?limit=180", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/datasets?limit=180", environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
-        assert len(response.json['datasets']) == 150
+        assert len(response.json["datasets"]) == 150
 
 
 class TestGetDatasetEvents(TestDatasetEndpoint):
@@ -315,7 +315,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         d = self._create_dataset(session)
         common = {
             "dataset_id": 1,
-            "extra": {'foo': 'bar'},
+            "extra": {"foo": "bar"},
             "source_dag_id": "foo",
             "source_task_id": "bar",
             "source_run_id": "custom",
@@ -328,7 +328,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         session.commit()
         assert session.query(DatasetEvent).count() == 2
 
-        response = self.client.get("/api/v1/datasets/events", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/datasets/events", environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
         response_data = response.json
@@ -351,13 +351,13 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         }
 
     @pytest.mark.parametrize(
-        'attr, value',
+        "attr, value",
         [
-            ('dataset_id', '2'),
-            ('source_dag_id', 'dag2'),
-            ('source_task_id', 'task2'),
-            ('source_run_id', 'run2'),
-            ('source_map_index', '2'),
+            ("dataset_id", "2"),
+            ("source_dag_id", "dag2"),
+            ("source_task_id", "task2"),
+            ("source_run_id", "run2"),
+            ("source_map_index", "2"),
         ],
     )
     @provide_session
@@ -391,7 +391,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         assert session.query(DatasetEvent).count() == 3
 
         response = self.client.get(
-            f"/api/v1/datasets/events?{attr}={value}", environ_overrides={'REMOTE_USER': "test"}
+            f"/api/v1/datasets/events?{attr}={value}", environ_overrides={"REMOTE_USER": "test"}
         )
 
         assert response.status_code == 200
@@ -433,12 +433,12 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         assert session.query(DatasetEvent).count() == 2
 
         response = self.client.get(
-            "/api/v1/datasets/events?order_by=fake", environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/datasets/events?order_by=fake", environ_overrides={"REMOTE_USER": "test"}
         )  # missing attr
 
         assert response.status_code == 400
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
-        assert response.json['detail'] == msg
+        assert response.json["detail"] == msg
 
     def test_should_raises_401_unauthenticated(self, session):
         response = self.client.get("/api/v1/datasets/events")
@@ -461,7 +461,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
-            state='success',
+            state="success",
         )
         dagrun.end_date = timezone.parse(self.default_time)
         session.add(dagrun)
@@ -470,7 +470,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         event.created_dagruns.append(dagrun)
         session.commit()
 
-        response = self.client.get("/api/v1/datasets/events", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/datasets/events", environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
         response_data = response.json
@@ -479,7 +479,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                 {
                     "id": 1,
                     "dataset_id": 1,
-                    "dataset_uri": 's3://bucket/key',
+                    "dataset_uri": "s3://bucket/key",
                     "extra": {},
                     "source_dag_id": None,
                     "source_task_id": None,
@@ -488,14 +488,14 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                     "timestamp": self.default_time,
                     "created_dagruns": [
                         {
-                            'dag_id': 'TEST_DAG_ID',
-                            'dag_run_id': 'TEST_DAG_RUN_ID',
-                            'data_interval_end': None,
-                            'data_interval_start': None,
-                            'end_date': self.default_time,
-                            'logical_date': self.default_time,
-                            'start_date': self.default_time,
-                            'state': 'success',
+                            "dag_id": "TEST_DAG_ID",
+                            "dag_run_id": "TEST_DAG_RUN_ID",
+                            "data_interval_end": None,
+                            "data_interval_start": None,
+                            "end_date": self.default_time,
+                            "logical_date": self.default_time,
+                            "start_date": self.default_time,
+                            "state": "success",
                         },
                     ],
                 }
@@ -546,7 +546,7 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
         session.add_all(events)
         session.commit()
 
-        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
         event_runids = [event["source_run_id"] for event in response.json["dataset_events"]]
@@ -568,10 +568,10 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
         session.add_all(events)
         session.commit()
 
-        response = self.client.get("/api/v1/datasets/events", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/datasets/events", environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
-        assert len(response.json['dataset_events']) == 100
+        assert len(response.json["dataset_events"]) == 100
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self, session):
@@ -591,8 +591,8 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
         session.commit()
 
         response = self.client.get(
-            "/api/v1/datasets/events?limit=180", environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/datasets/events?limit=180", environ_overrides={"REMOTE_USER": "test"}
         )
 
         assert response.status_code == 200
-        assert len(response.json['dataset_events']) == 150
+        assert len(response.json["dataset_events"]) == 150

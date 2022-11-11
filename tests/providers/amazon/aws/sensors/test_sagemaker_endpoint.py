@@ -27,49 +27,49 @@ from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.sensors.sagemaker import SageMakerEndpointSensor
 
 DESCRIBE_ENDPOINT_CREATING_RESPONSE = {
-    'EndpointStatus': 'Creating',
-    'ResponseMetadata': {
-        'HTTPStatusCode': 200,
+    "EndpointStatus": "Creating",
+    "ResponseMetadata": {
+        "HTTPStatusCode": 200,
     },
 }
 DESCRIBE_ENDPOINT_INSERVICE_RESPONSE = {
-    'EndpointStatus': 'InService',
-    'ResponseMetadata': {
-        'HTTPStatusCode': 200,
+    "EndpointStatus": "InService",
+    "ResponseMetadata": {
+        "HTTPStatusCode": 200,
     },
 }
 
 DESCRIBE_ENDPOINT_FAILED_RESPONSE = {
-    'EndpointStatus': 'Failed',
-    'ResponseMetadata': {
-        'HTTPStatusCode': 200,
+    "EndpointStatus": "Failed",
+    "ResponseMetadata": {
+        "HTTPStatusCode": 200,
     },
-    'FailureReason': 'Unknown',
+    "FailureReason": "Unknown",
 }
 
 DESCRIBE_ENDPOINT_UPDATING_RESPONSE = {
-    'EndpointStatus': 'Updating',
-    'ResponseMetadata': {
-        'HTTPStatusCode': 200,
+    "EndpointStatus": "Updating",
+    "ResponseMetadata": {
+        "HTTPStatusCode": 200,
     },
 }
 
 
 class TestSageMakerEndpointSensor(unittest.TestCase):
-    @mock.patch.object(SageMakerHook, 'get_conn')
-    @mock.patch.object(SageMakerHook, 'describe_endpoint')
+    @mock.patch.object(SageMakerHook, "get_conn")
+    @mock.patch.object(SageMakerHook, "describe_endpoint")
     def test_sensor_with_failure(self, mock_describe, mock_get_conn):
         mock_describe.side_effect = [DESCRIBE_ENDPOINT_FAILED_RESPONSE]
         sensor = SageMakerEndpointSensor(
-            task_id='test_task', poke_interval=1, aws_conn_id='aws_test', endpoint_name='test_job_name'
+            task_id="test_task", poke_interval=1, aws_conn_id="aws_test", endpoint_name="test_job_name"
         )
         with pytest.raises(AirflowException):
             sensor.execute(None)
-        mock_describe.assert_called_once_with('test_job_name')
+        mock_describe.assert_called_once_with("test_job_name")
 
-    @mock.patch.object(SageMakerHook, 'get_conn')
-    @mock.patch.object(SageMakerHook, '__init__')
-    @mock.patch.object(SageMakerHook, 'describe_endpoint')
+    @mock.patch.object(SageMakerHook, "get_conn")
+    @mock.patch.object(SageMakerHook, "__init__")
+    @mock.patch.object(SageMakerHook, "describe_endpoint")
     def test_sensor(self, mock_describe, hook_init, mock_get_conn):
         hook_init.return_value = None
 
@@ -79,7 +79,7 @@ class TestSageMakerEndpointSensor(unittest.TestCase):
             DESCRIBE_ENDPOINT_INSERVICE_RESPONSE,
         ]
         sensor = SageMakerEndpointSensor(
-            task_id='test_task', poke_interval=1, aws_conn_id='aws_test', endpoint_name='test_job_name'
+            task_id="test_task", poke_interval=1, aws_conn_id="aws_test", endpoint_name="test_job_name"
         )
 
         sensor.execute(None)
@@ -88,5 +88,5 @@ class TestSageMakerEndpointSensor(unittest.TestCase):
         assert mock_describe.call_count == 3
 
         # make sure the hook was initialized with the specific params
-        calls = [mock.call(aws_conn_id='aws_test')]
+        calls = [mock.call(aws_conn_id="aws_test")]
         hook_init.assert_has_calls(calls)

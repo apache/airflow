@@ -29,15 +29,15 @@ from kubernetes.client import models as k8s
 class PodDefaults:
     """Static defaults for Pods"""
 
-    XCOM_MOUNT_PATH = '/airflow/xcom'
-    SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
+    XCOM_MOUNT_PATH = "/airflow/xcom"
+    SIDECAR_CONTAINER_NAME = "airflow-xcom-sidecar"
     XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 1; done;'
-    VOLUME_MOUNT = k8s.V1VolumeMount(name='xcom', mount_path=XCOM_MOUNT_PATH)
-    VOLUME = k8s.V1Volume(name='xcom', empty_dir=k8s.V1EmptyDirVolumeSource())
+    VOLUME_MOUNT = k8s.V1VolumeMount(name="xcom", mount_path=XCOM_MOUNT_PATH)
+    VOLUME = k8s.V1Volume(name="xcom", empty_dir=k8s.V1EmptyDirVolumeSource())
     SIDECAR_CONTAINER = k8s.V1Container(
         name=SIDECAR_CONTAINER_NAME,
-        command=['sh', '-c', XCOM_CMD],
-        image='alpine',
+        command=["sh", "-c", XCOM_CMD],
+        image="alpine",
         volume_mounts=[VOLUME_MOUNT],
         resources=k8s.V1ResourceRequirements(
             requests={

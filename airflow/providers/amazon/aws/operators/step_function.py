@@ -44,9 +44,9 @@ class StepFunctionStartExecutionOperator(BaseOperator):
     :param do_xcom_push: if True, execution_arn is pushed to XCom with key execution_arn.
     """
 
-    template_fields: Sequence[str] = ('state_machine_arn', 'name', 'input')
+    template_fields: Sequence[str] = ("state_machine_arn", "name", "input")
     template_ext: Sequence[str] = ()
-    ui_color = '#f9c915'
+    ui_color = "#f9c915"
 
     def __init__(
         self,
@@ -54,7 +54,7 @@ class StepFunctionStartExecutionOperator(BaseOperator):
         state_machine_arn: str,
         name: str | None = None,
         state_machine_input: dict | str | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         region_name: str | None = None,
         **kwargs,
     ):
@@ -71,9 +71,9 @@ class StepFunctionStartExecutionOperator(BaseOperator):
         execution_arn = hook.start_execution(self.state_machine_arn, self.name, self.input)
 
         if execution_arn is None:
-            raise AirflowException(f'Failed to start State Machine execution for: {self.state_machine_arn}')
+            raise AirflowException(f"Failed to start State Machine execution for: {self.state_machine_arn}")
 
-        self.log.info('Started State Machine execution for %s: %s', self.state_machine_arn, execution_arn)
+        self.log.info("Started State Machine execution for %s: %s", self.state_machine_arn, execution_arn)
 
         return execution_arn
 
@@ -92,15 +92,15 @@ class StepFunctionGetExecutionOutputOperator(BaseOperator):
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
     """
 
-    template_fields: Sequence[str] = ('execution_arn',)
+    template_fields: Sequence[str] = ("execution_arn",)
     template_ext: Sequence[str] = ()
-    ui_color = '#f9c915'
+    ui_color = "#f9c915"
 
     def __init__(
         self,
         *,
         execution_arn: str,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         region_name: str | None = None,
         **kwargs,
     ):
@@ -113,8 +113,8 @@ class StepFunctionGetExecutionOutputOperator(BaseOperator):
         hook = StepFunctionHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
         execution_status = hook.describe_execution(self.execution_arn)
-        execution_output = json.loads(execution_status['output']) if 'output' in execution_status else None
+        execution_output = json.loads(execution_status["output"]) if "output" in execution_status else None
 
-        self.log.info('Got State Machine Execution output for %s', self.execution_arn)
+        self.log.info("Got State Machine Execution output for %s", self.execution_arn)
 
         return execution_output

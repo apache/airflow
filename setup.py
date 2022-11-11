@@ -44,12 +44,12 @@ from distutils import log  # isort: skip
 # It is turned on by default in case of development environments such as Breeze
 # And it is particularly useful when you add a new provider and there is no
 # PyPI version to install the provider package from
-INSTALL_PROVIDERS_FROM_SOURCES = 'INSTALL_PROVIDERS_FROM_SOURCES'
+INSTALL_PROVIDERS_FROM_SOURCES = "INSTALL_PROVIDERS_FROM_SOURCES"
 PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
-version = '2.5.0.dev0'
+version = "2.5.0.dev0"
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parent.resolve()
 PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
@@ -80,7 +80,7 @@ PROVIDER_DEPENDENCIES = fill_provider_dependencies()
 def airflow_test_suite() -> unittest.TestSuite:
     """Test suite for Airflow tests"""
     test_loader = unittest.TestLoader()
-    test_suite = test_loader.discover(str(AIRFLOW_SOURCES_ROOT / 'tests'), pattern='test_*.py')
+    test_suite = test_loader.discover(str(AIRFLOW_SOURCES_ROOT / "tests"), pattern="test_*.py")
     return test_suite
 
 
@@ -111,13 +111,13 @@ class CleanCommand(Command):
     def run(self) -> None:
         """Remove temporary files and directories."""
         os.chdir(str(AIRFLOW_SOURCES_ROOT))
-        self.rm_all_files(glob.glob('./build/*'))
-        self.rm_all_files(glob.glob('./**/__pycache__/*', recursive=True))
-        self.rm_all_files(glob.glob('./**/*.pyc', recursive=True))
-        self.rm_all_files(glob.glob('./dist/*'))
-        self.rm_all_files(glob.glob('./*.egg-info'))
-        self.rm_all_files(glob.glob('./docker-context-files/*.whl'))
-        self.rm_all_files(glob.glob('./docker-context-files/*.tgz'))
+        self.rm_all_files(glob.glob("./build/*"))
+        self.rm_all_files(glob.glob("./**/__pycache__/*", recursive=True))
+        self.rm_all_files(glob.glob("./**/*.pyc", recursive=True))
+        self.rm_all_files(glob.glob("./dist/*"))
+        self.rm_all_files(glob.glob("./*.egg-info"))
+        self.rm_all_files(glob.glob("./docker-context-files/*.whl"))
+        self.rm_all_files(glob.glob("./docker-context-files/*.tgz"))
 
 
 class CompileAssets(Command):
@@ -138,8 +138,8 @@ class CompileAssets(Command):
     def run(self) -> None:
         """Run a command to compile and build assets."""
         www_dir = AIRFLOW_SOURCES_ROOT / "airflow" / "www"
-        subprocess.check_call(['yarn', 'install', '--frozen-lockfile'], cwd=str(www_dir))
-        subprocess.check_call(['yarn', 'run', 'build'], cwd=str(www_dir))
+        subprocess.check_call(["yarn", "install", "--frozen-lockfile"], cwd=str(www_dir))
+        subprocess.check_call(["yarn", "run", "build"], cwd=str(www_dir))
 
 
 class ListExtras(Command):
@@ -179,23 +179,23 @@ def git_version(version_: str) -> str:
         import git
 
         try:
-            repo = git.Repo(str(AIRFLOW_SOURCES_ROOT / '.git'))
+            repo = git.Repo(str(AIRFLOW_SOURCES_ROOT / ".git"))
         except (git.NoSuchPathError):
-            logger.warning('.git directory not found: Cannot compute the git version')
-            return ''
+            logger.warning(".git directory not found: Cannot compute the git version")
+            return ""
         except git.InvalidGitRepositoryError:
-            logger.warning('Invalid .git directory not found: Cannot compute the git version')
-            return ''
+            logger.warning("Invalid .git directory not found: Cannot compute the git version")
+            return ""
     except ImportError:
-        logger.warning('gitpython not found: Cannot compute the git version.')
-        return ''
+        logger.warning("gitpython not found: Cannot compute the git version.")
+        return ""
     if repo:
         sha = repo.head.commit.hexsha
         if repo.is_dirty():
-            return f'.dev0+{sha}.dirty'
+            return f".dev0+{sha}.dirty"
         # commit is clean
-        return f'.release:{version_}+{sha}'
-    return 'no_git_version'
+        return f".release:{version_}+{sha}"
+    return "no_git_version"
 
 
 def write_version(filename: str = str(AIRFLOW_SOURCES_ROOT / "airflow" / "git_version")) -> None:
@@ -205,7 +205,7 @@ def write_version(filename: str = str(AIRFLOW_SOURCES_ROOT / "airflow" / "git_ve
     :param str filename: Destination file to write
     """
     text = f"{git_version(version)}"
-    with open(filename, 'w') as file:
+    with open(filename, "w") as file:
         file.write(text)
 
 
@@ -217,12 +217,12 @@ def write_version(filename: str = str(AIRFLOW_SOURCES_ROOT / "airflow" / "git_ve
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
 async_packages = [
-    'eventlet>=0.9.7',
-    'gevent>=0.13',
-    'greenlet>=0.4.9',
+    "eventlet>=0.9.7",
+    "gevent>=0.13",
+    "greenlet>=0.4.9",
 ]
 atlas = [
-    'atlasclient>=0.1.2',
+    "atlasclient>=0.1.2",
 ]
 celery = [
     # The Celery is known to introduce problems when upgraded to a MAJOR version. Airflow Core
@@ -234,54 +234,54 @@ celery = [
     # limiting minimum airflow version supported in celery provider due to the
     # potential breaking changes in Airflow Core as well (celery is added as extra, so Airflow
     # core is not hard-limited via install-requires, only by extra).
-    'celery>=5.2.3,<6'
+    "celery>=5.2.3,<6"
 ]
 cgroups = [
     # Cgroupspy 0.2.2 added Python 3.10 compatibility
-    'cgroupspy>=0.2.2',
+    "cgroupspy>=0.2.2",
 ]
 dask = [
     # Dask support is limited, we need Dask team to upgrade support for dask if we were to continue
     # Supporting it in the future
-    'cloudpickle>=1.4.1',
-    'dask>=2.9.0',
-    'distributed>=2.11.1',
+    "cloudpickle>=1.4.1",
+    "dask>=2.9.0",
+    "distributed>=2.11.1",
 ]
 deprecated_api = [
-    'requests>=2.26.0',
+    "requests>=2.26.0",
 ]
 doc = [
     # Astroid 2.12.* breaks documentation building
     # We can remove the limit here after https://github.com/PyCQA/astroid/issues/1708 is solved
-    'astroid<2.12.0',
-    'checksumdir',
-    'click>=8.0',
+    "astroid<2.12.0",
+    "checksumdir",
+    "click>=8.0",
     # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
     # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
     # <section> tags for sections
-    'docutils<0.17.0',
-    'eralchemy2',
+    "docutils<0.17.0",
+    "eralchemy2",
     # Without this, Sphinx goes in to a _very_ large backtrack on Python 3.7,
     # even though Sphinx 4.4.0 has this but with python_version<3.10.
     'importlib-metadata>=4.4; python_version < "3.8"',
-    'sphinx-airflow-theme',
-    'sphinx-argparse>=0.1.13',
-    'sphinx-autoapi>=2.0.0',
-    'sphinx-copybutton',
-    'sphinx-jinja>=2.0',
-    'sphinx-rtd-theme>=0.1.6',
-    'sphinx>=5.2.0',
-    'sphinxcontrib-httpdomain>=1.7.0',
-    'sphinxcontrib-redoc>=1.6.0',
-    'sphinxcontrib-spelling>=7.3',
+    "sphinx-airflow-theme",
+    "sphinx-argparse>=0.1.13",
+    "sphinx-autoapi>=2.0.0",
+    "sphinx-copybutton",
+    "sphinx-jinja>=2.0",
+    "sphinx-rtd-theme>=0.1.6",
+    "sphinx>=5.2.0",
+    "sphinxcontrib-httpdomain>=1.7.0",
+    "sphinxcontrib-redoc>=1.6.0",
+    "sphinxcontrib-spelling>=7.3",
 ]
 flask_appbuilder_oauth = [
-    'flask-appbuilder[oauth]',
+    "flask-appbuilder[oauth]",
 ]
 kerberos = [
-    'pykerberos>=1.1.13',
-    'requests_kerberos>=0.10.0',
-    'thrift_sasl>=0.2.0',
+    "pykerberos>=1.1.13",
+    "requests_kerberos>=0.10.0",
+    "thrift_sasl>=0.2.0",
 ]
 kubernetes = [
     # The Kubernetes API is known to introduce problems when upgraded to a MAJOR version. Airflow Core
@@ -292,36 +292,36 @@ kubernetes = [
     # limiting minimum airflow version supported in cncf.kubernetes provider, due to the
     # potential breaking changes in Airflow Core as well (kubernetes is added as extra, so Airflow
     # core is not hard-limited via install-requires, only by extra).
-    'cryptography>=2.0.0',
-    'kubernetes>=21.7.0,<24',
+    "cryptography>=2.0.0",
+    "kubernetes>=21.7.0,<24",
 ]
 ldap = [
-    'ldap3>=2.5.1',
-    'python-ldap',
+    "ldap3>=2.5.1",
+    "python-ldap",
 ]
 leveldb = ['plyvel; platform_machine != "aarch64"']
 pandas = [
-    'pandas>=0.17.1',
+    "pandas>=0.17.1",
 ]
 password = [
-    'bcrypt>=2.0.0',
-    'flask-bcrypt>=0.7.1',
+    "bcrypt>=2.0.0",
+    "flask-bcrypt>=0.7.1",
 ]
 rabbitmq = [
-    'amqp',
+    "amqp",
 ]
 sentry = [
-    'blinker>=1.1',
-    'sentry-sdk>=0.8.0',
+    "blinker>=1.1",
+    "sentry-sdk>=0.8.0",
 ]
 statsd = [
-    'statsd>=3.3.0',
+    "statsd>=3.3.0",
 ]
 virtualenv = [
-    'virtualenv',
+    "virtualenv",
 ]
 webhdfs = [
-    'hdfs[avro,dataframe,kerberos]>=2.0.4',
+    "hdfs[avro,dataframe,kerberos]>=2.0.4",
 ]
 # End dependencies group
 
@@ -331,82 +331,82 @@ webhdfs = [
 # mypyd which does not support installing the types dynamically with --install-types
 mypy_dependencies = [
     # TODO: upgrade to newer versions of MyPy continuously as they are released
-    'mypy==0.971',
-    'types-boto',
-    'types-certifi',
-    'types-croniter',
-    'types-Deprecated',
-    'types-docutils',
-    'types-freezegun',
-    'types-paramiko',
-    'types-protobuf',
-    'types-python-dateutil',
-    'types-python-slugify',
-    'types-pytz',
-    'types-redis',
-    'types-requests',
-    'types-setuptools',
-    'types-termcolor',
-    'types-tabulate',
-    'types-toml',
-    'types-Markdown',
-    'types-PyMySQL',
-    'types-PyYAML',
+    "mypy==0.971",
+    "types-boto",
+    "types-certifi",
+    "types-croniter",
+    "types-Deprecated",
+    "types-docutils",
+    "types-freezegun",
+    "types-paramiko",
+    "types-protobuf",
+    "types-python-dateutil",
+    "types-python-slugify",
+    "types-pytz",
+    "types-redis",
+    "types-requests",
+    "types-setuptools",
+    "types-termcolor",
+    "types-tabulate",
+    "types-toml",
+    "types-Markdown",
+    "types-PyMySQL",
+    "types-PyYAML",
 ]
 
 # Dependencies needed for development only
 devel_only = [
-    'asynctest~=0.13',
-    'aws_xray_sdk',
-    'beautifulsoup4>=4.7.1',
-    'black',
-    'blinker',
-    'bowler',
-    'click>=8.0',
-    'coverage',
-    'filelock',
-    'flake8>=3.6.0',
-    'flake8-colors',
-    'flake8-implicit-str-concat',
-    'flaky',
-    'freezegun',
-    'gitpython',
-    'ipdb',
-    'isort',
-    'jira',
-    'jsondiff',
-    'mongomock',
-    'moto[cloudformation, glue]>=3.1.12',
-    'parameterized',
-    'paramiko',
-    'pipdeptree',
-    'pre-commit',
-    'pypsrp',
-    'pygithub',
+    "asynctest~=0.13",
+    "aws_xray_sdk",
+    "beautifulsoup4>=4.7.1",
+    "black",
+    "blinker",
+    "bowler",
+    "click>=8.0",
+    "coverage",
+    "filelock",
+    "flake8>=3.6.0",
+    "flake8-colors",
+    "flake8-implicit-str-concat",
+    "flaky",
+    "freezegun",
+    "gitpython",
+    "ipdb",
+    "isort",
+    "jira",
+    "jsondiff",
+    "mongomock",
+    "moto[cloudformation, glue]>=3.1.12",
+    "parameterized",
+    "paramiko",
+    "pipdeptree",
+    "pre-commit",
+    "pypsrp",
+    "pygithub",
     # Pytest 7 has been released in February 2022 and we should attempt to upgrade and remove the limit
     # It contains a number of potential breaking changes but none of them looks breaking our use
     # https://docs.pytest.org/en/latest/changelog.html#pytest-7-0-0-2022-02-03
     # TODO: upgrade it and remove the limit
-    'pytest~=6.0',
-    'pytest-asyncio',
-    'pytest-cov',
-    'pytest-instafail',
+    "pytest~=6.0",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-instafail",
     # We should attempt to remove the limit when we upgrade Pytest
     # TODO: remove the limit when we upgrade pytest
-    'pytest-rerunfailures~=9.1',
-    'pytest-timeouts',
-    'pytest-xdist',
-    'python-jose',
-    'pywinrm',
-    'qds-sdk>=1.9.6',
-    'pytest-httpx',
-    'requests_mock',
-    'rich-click>=1.5',
-    'semver',
-    'towncrier',
-    'twine',
-    'wheel',
-    'yamllint',
+    "pytest-rerunfailures~=9.1",
+    "pytest-timeouts",
+    "pytest-xdist",
+    "python-jose",
+    "pywinrm",
+    "qds-sdk>=1.9.6",
+    "pytest-httpx",
+    "requests_mock",
+    "rich-click>=1.5",
+    "semver",
+    "towncrier",
+    "twine",
+    "wheel",
+    "yamllint",
 ]
 
 
@@ -429,7 +429,7 @@ devel = get_unique_dependency_list(
         doc,
         kubernetes,
         mypy_dependencies,
-        get_provider_dependencies('mysql'),
+        get_provider_dependencies("mysql"),
         pandas,
         password,
     ]
@@ -438,10 +438,10 @@ devel = get_unique_dependency_list(
 devel_hadoop = get_unique_dependency_list(
     [
         devel,
-        get_provider_dependencies('apache.hdfs'),
-        get_provider_dependencies('apache.hive'),
+        get_provider_dependencies("apache.hdfs"),
+        get_provider_dependencies("apache.hive"),
         kerberos,
-        get_provider_dependencies('presto'),
+        get_provider_dependencies("presto"),
         webhdfs,
     ]
 )
@@ -451,30 +451,30 @@ devel_hadoop = get_unique_dependency_list(
 # but they do not have separate providers (yet?), they are merely there to add extra libraries
 # That can be used in custom python/bash operators.
 ADDITIONAL_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
-    'apache.atlas': atlas,
-    'apache.webhdfs': webhdfs,
+    "apache.atlas": atlas,
+    "apache.webhdfs": webhdfs,
 }
 
 # Those are extras that are extensions of the 'core' Airflow. They provide additional features
 # To airflow core. They do not have separate providers because they do not have any operators/hooks etc.
 CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
-    'async': async_packages,
-    'celery': celery,
-    'cgroups': cgroups,
-    'cncf.kubernetes': kubernetes,
-    'dask': dask,
-    'deprecated_api': deprecated_api,
-    'github_enterprise': flask_appbuilder_oauth,
-    'google_auth': flask_appbuilder_oauth,
-    'kerberos': kerberos,
-    'ldap': ldap,
-    'leveldb': leveldb,
-    'pandas': pandas,
-    'password': password,
-    'rabbitmq': rabbitmq,
-    'sentry': sentry,
-    'statsd': statsd,
-    'virtualenv': virtualenv,
+    "async": async_packages,
+    "celery": celery,
+    "cgroups": cgroups,
+    "cncf.kubernetes": kubernetes,
+    "dask": dask,
+    "deprecated_api": deprecated_api,
+    "github_enterprise": flask_appbuilder_oauth,
+    "google_auth": flask_appbuilder_oauth,
+    "kerberos": kerberos,
+    "ldap": ldap,
+    "leveldb": leveldb,
+    "pandas": pandas,
+    "password": password,
+    "rabbitmq": rabbitmq,
+    "sentry": sentry,
+    "statsd": statsd,
+    "virtualenv": virtualenv,
 }
 
 EXTRAS_DEPENDENCIES: dict[str, list[str]] = deepcopy(CORE_EXTRAS_DEPENDENCIES)
@@ -499,24 +499,24 @@ add_additional_extras()
 
 # Dictionary of aliases from 1.10 - deprecated in Airflow 2.*
 EXTRAS_DEPRECATED_ALIASES: dict[str, str] = {
-    'atlas': 'apache.atlas',
-    'aws': 'amazon',
-    'azure': 'microsoft.azure',
-    'cassandra': 'apache.cassandra',
-    'crypto': '',  # this is legacy extra - all dependencies are already "install-requires"
-    'druid': 'apache.druid',
-    'gcp': 'google',
-    'gcp_api': 'google',
-    'hdfs': 'apache.hdfs',
-    'hive': 'apache.hive',
-    'kubernetes': 'cncf.kubernetes',
-    'mssql': 'microsoft.mssql',
-    'pinot': 'apache.pinot',
-    'qds': 'qubole',
-    's3': 'amazon',
-    'spark': 'apache.spark',
-    'webhdfs': 'apache.webhdfs',
-    'winrm': 'microsoft.winrm',
+    "atlas": "apache.atlas",
+    "aws": "amazon",
+    "azure": "microsoft.azure",
+    "cassandra": "apache.cassandra",
+    "crypto": "",  # this is legacy extra - all dependencies are already "install-requires"
+    "druid": "apache.druid",
+    "gcp": "google",
+    "gcp_api": "google",
+    "hdfs": "apache.hdfs",
+    "hive": "apache.hive",
+    "kubernetes": "cncf.kubernetes",
+    "mssql": "microsoft.mssql",
+    "pinot": "apache.pinot",
+    "qds": "qubole",
+    "s3": "amazon",
+    "spark": "apache.spark",
+    "webhdfs": "apache.webhdfs",
+    "winrm": "microsoft.winrm",
 }
 
 EXTRAS_DEPRECATED_ALIASES_NOT_PROVIDERS: list[str] = [
@@ -537,7 +537,7 @@ def add_extras_for_all_deprecated_aliases() -> None:
     Thanks to that if the original extras are later extended with providers, aliases are extended as well.
     """
     for alias, extra in EXTRAS_DEPRECATED_ALIASES.items():
-        dependencies = EXTRAS_DEPENDENCIES.get(extra) if extra != '' else []
+        dependencies = EXTRAS_DEPENDENCIES.get(extra) if extra != "" else []
         if dependencies is None:
             raise Exception(f"The extra {extra} is missing for deprecated alias {alias}")
         EXTRAS_DEPENDENCIES[alias] = dependencies
@@ -568,25 +568,25 @@ add_extras_for_all_deprecated_aliases()
 ALL_PROVIDERS = list(PROVIDER_DEPENDENCIES.keys())
 
 ALL_DB_PROVIDERS = [
-    'apache.cassandra',
-    'apache.drill',
-    'apache.druid',
-    'apache.hdfs',
-    'apache.hive',
-    'apache.pinot',
-    'arangodb',
-    'cloudant',
-    'databricks',
-    'exasol',
-    'influxdb',
-    'microsoft.mssql',
-    'mongo',
-    'mysql',
-    'neo4j',
-    'postgres',
-    'presto',
-    'trino',
-    'vertica',
+    "apache.cassandra",
+    "apache.drill",
+    "apache.druid",
+    "apache.hdfs",
+    "apache.hive",
+    "apache.pinot",
+    "arangodb",
+    "cloudant",
+    "databricks",
+    "exasol",
+    "influxdb",
+    "microsoft.mssql",
+    "mongo",
+    "mysql",
+    "neo4j",
+    "postgres",
+    "presto",
+    "trino",
+    "vertica",
 ]
 
 
@@ -609,7 +609,7 @@ EXTRAS_DEPENDENCIES["all_dbs"] = all_dbs
 _all_dependencies = get_unique_dependency_list(EXTRAS_DEPENDENCIES.values())
 
 _all_dependencies_without_airflow_providers = list(
-    filter(lambda k: 'apache-airflow-' not in k, _all_dependencies)
+    filter(lambda k: "apache-airflow-" not in k, _all_dependencies)
 )
 
 # All user extras here
@@ -626,7 +626,7 @@ devel_all = get_unique_dependency_list(
 
 # Those are packages excluded for "all" dependencies
 PACKAGES_EXCLUDED_FOR_ALL = []
-PACKAGES_EXCLUDED_FOR_ALL.extend(['snakebite'])
+PACKAGES_EXCLUDED_FOR_ALL.extend(["snakebite"])
 
 
 def is_package_excluded(package: str, exclusion_list: list[str]) -> bool:
@@ -692,11 +692,11 @@ EXTRAS_DEPENDENCIES = sort_extras_dependencies()
 # Those providers do not have dependency on airflow2.0 because that would lead to circular dependencies.
 # This is not a problem for PIP but some tools (pipdeptree) show those as a warning.
 PREINSTALLED_PROVIDERS = [
-    'common.sql',
-    'ftp',
-    'http',
-    'imap',
-    'sqlite',
+    "common.sql",
+    "ftp",
+    "http",
+    "imap",
+    "sqlite",
 ]
 
 
@@ -741,14 +741,14 @@ class AirflowDistribution(Distribution):
         Providers manager can find package information.
         """
         super().parse_config_files(*args, **kwargs)
-        if os.getenv(INSTALL_PROVIDERS_FROM_SOURCES) == 'true':
+        if os.getenv(INSTALL_PROVIDERS_FROM_SOURCES) == "true":
             self.install_requires = [
-                req for req in self.install_requires if not req.startswith('apache-airflow-providers-')
+                req for req in self.install_requires if not req.startswith("apache-airflow-providers-")
             ]
             provider_yaml_files = glob.glob("airflow/providers/**/provider.yaml", recursive=True)
             for provider_yaml_file in provider_yaml_files:
                 provider_relative_path = relpath(provider_yaml_file, str(AIRFLOW_SOURCES_ROOT / "airflow"))
-                self.package_data['airflow'].append(provider_relative_path)
+                self.package_data["airflow"].append(provider_relative_path)
         else:
             self.install_requires.extend(
                 [
@@ -795,7 +795,7 @@ def replace_extra_dependencies_with_provider_packages(extra: str, providers: lis
     :param extra: Name of the extra to add providers to
     :param providers: list of provider ids
     """
-    if extra in ['cncf.kubernetes', 'kubernetes', 'celery']:
+    if extra in ["cncf.kubernetes", "kubernetes", "celery"]:
         EXTRAS_DEPENDENCIES[extra].extend(
             [get_provider_package_name_from_package_id(package_name) for package_name in providers]
         )
@@ -845,7 +845,7 @@ class Develop(develop_orig):
     """Forces removal of providers in editable mode."""
 
     def run(self) -> None:  # type: ignore
-        self.announce('Installing in editable mode. Uninstalling provider packages!', level=log.INFO)
+        self.announce("Installing in editable mode. Uninstalling provider packages!", level=log.INFO)
         # We need to run "python3 -m pip" because it might be that older PIP binary is in the path
         # And it results with an error when running pip directly (cannot import pip module)
         # also PIP does not have a stable API so we have to run subprocesses ¯\_(ツ)_/¯
@@ -858,10 +858,10 @@ class Develop(develop_orig):
                 for package_line in installed_packages
                 if package_line.startswith("apache-airflow-providers")
             ]
-            self.announce(f'Uninstalling ${airflow_provider_packages}!', level=log.INFO)
+            self.announce(f"Uninstalling ${airflow_provider_packages}!", level=log.INFO)
             subprocess.check_call(["python3", "-m", "pip", "uninstall", "--yes", *airflow_provider_packages])
         except subprocess.CalledProcessError as e:
-            self.announce(f'Error when uninstalling airflow provider packages: {e}!', level=log.WARN)
+            self.announce(f"Error when uninstalling airflow provider packages: {e}!", level=log.WARN)
         super().run()
 
 
@@ -869,7 +869,7 @@ class Install(install_orig):
     """Forces installation of providers from sources in editable mode."""
 
     def run(self) -> None:
-        self.announce('Standard installation. Providers are installed from packages', level=log.INFO)
+        self.announce("Standard installation. Providers are installed from packages", level=log.INFO)
         super().run()
 
 
@@ -888,11 +888,11 @@ def do_setup() -> None:
         including airflow and provider packages, otherwise defaults from setup.cfg control this.
         The kwargs in setup() call override those that are specified in setup.cfg.
         """
-        if os.getenv(INSTALL_PROVIDERS_FROM_SOURCES) == 'true':
-            setup_kwargs['packages'] = find_namespace_packages(include=['airflow*'])
+        if os.getenv(INSTALL_PROVIDERS_FROM_SOURCES) == "true":
+            setup_kwargs["packages"] = find_namespace_packages(include=["airflow*"])
 
     include_provider_namespace_packages_when_installing_from_sources()
-    if os.getenv(INSTALL_PROVIDERS_FROM_SOURCES) == 'true':
+    if os.getenv(INSTALL_PROVIDERS_FROM_SOURCES) == "true":
         print("Installing providers from sources. Skip adding providers as dependencies")
     else:
         add_all_provider_packages()
@@ -902,15 +902,15 @@ def do_setup() -> None:
         distclass=AirflowDistribution,
         version=version,
         extras_require=EXTRAS_DEPENDENCIES,
-        download_url=('https://archive.apache.org/dist/airflow/' + version),
+        download_url=("https://archive.apache.org/dist/airflow/" + version),
         cmdclass={
-            'extra_clean': CleanCommand,
-            'compile_assets': CompileAssets,
-            'list_extras': ListExtras,
-            'install': Install,  # type: ignore
-            'develop': Develop,
+            "extra_clean": CleanCommand,
+            "compile_assets": CompileAssets,
+            "list_extras": ListExtras,
+            "install": Install,  # type: ignore
+            "develop": Develop,
         },
-        test_suite='setup.airflow_test_suite',
+        test_suite="setup.airflow_test_suite",
         **setup_kwargs,  # type: ignore
     )
 

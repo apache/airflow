@@ -40,10 +40,10 @@ class AzureContainerInstanceHook(AzureBaseHook):
         a service principal which will be used to start the container instance.
     """
 
-    conn_name_attr = 'azure_conn_id'
-    default_conn_name = 'azure_default'
-    conn_type = 'azure_container_instance'
-    hook_name = 'Azure Container Instance'
+    conn_name_attr = "azure_conn_id"
+    default_conn_name = "azure_default"
+    conn_type = "azure_container_instance"
+    hook_name = "Azure Container Instance"
 
     def __init__(self, azure_conn_id: str = default_conn_name) -> None:
         super().__init__(sdk_client=ContainerInstanceManagementClient, conn_id=azure_conn_id)

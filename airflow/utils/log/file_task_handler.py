@@ -184,7 +184,7 @@ class FileTaskHandler(logging.Handler):
                     # Kubernetes takes the pod name and truncates it for the hostname. This truncated hostname
                     # is returned for the fqdn to comply with the 63 character limit imposed by DNS standards
                     # on any label of a FQDN.
-                    pod_list = kube_client.list_namespaced_pod(conf.get('kubernetes', 'namespace'))
+                    pod_list = kube_client.list_namespaced_pod(conf.get('kubernetes_executor', 'namespace'))
                     matches = [
                         pod.metadata.name
                         for pod in pod_list.items
@@ -198,7 +198,7 @@ class FileTaskHandler(logging.Handler):
 
                 res = kube_client.read_namespaced_pod_log(
                     name=ti.hostname,
-                    namespace=conf.get('kubernetes', 'namespace'),
+                    namespace=conf.get('kubernetes_executor', 'namespace'),
                     container='base',
                     follow=False,
                     tail_lines=100,

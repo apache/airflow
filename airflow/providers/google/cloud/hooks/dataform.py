@@ -85,9 +85,9 @@ class DataformHook(GoogleBaseHook):
                 )
 
         if state == WorkflowInvocation.State.FAILED:
-            raise AirflowException(f'Workflow Invocation failed:\n{workflow_invocation}')
+            raise AirflowException(f"Workflow Invocation failed:\n{workflow_invocation}")
         if state == WorkflowInvocation.State.CANCELLED:
-            raise AirflowException(f'Workflow Invocation was cancelled:\n{workflow_invocation}')
+            raise AirflowException(f"Workflow Invocation was cancelled:\n{workflow_invocation}")
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_compilation_result(

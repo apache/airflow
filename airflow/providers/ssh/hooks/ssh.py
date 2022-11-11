@@ -80,31 +80,31 @@ class SSHHook(BaseHook):
     )
 
     _host_key_mappings = {
-        'rsa': paramiko.RSAKey,
-        'dss': paramiko.DSSKey,
-        'ecdsa': paramiko.ECDSAKey,
-        'ed25519': paramiko.Ed25519Key,
+        "rsa": paramiko.RSAKey,
+        "dss": paramiko.DSSKey,
+        "ecdsa": paramiko.ECDSAKey,
+        "ed25519": paramiko.Ed25519Key,
     }
 
-    conn_name_attr = 'ssh_conn_id'
-    default_conn_name = 'ssh_default'
-    conn_type = 'ssh'
-    hook_name = 'SSH'
+    conn_name_attr = "ssh_conn_id"
+    default_conn_name = "ssh_default"
+    conn_type = "ssh"
+    hook_name = "SSH"
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['schema'],
+            "hidden_fields": ["schema"],
             "relabeling": {
-                'login': 'Username',
+                "login": "Username",
             },
         }
 
     def __init__(
         self,
         ssh_conn_id: str | None = None,
-        remote_host: str = '',
+        remote_host: str = "",
         username: str | None = None,
         password: str | None = None,
         key_file: str | None = None,
@@ -159,25 +159,25 @@ class SSHHook(BaseHook):
                 if "key_file" in extra_options and self.key_file is None:
                     self.key_file = extra_options.get("key_file")
 
-                private_key = extra_options.get('private_key')
-                private_key_passphrase = extra_options.get('private_key_passphrase')
+                private_key = extra_options.get("private_key")
+                private_key_passphrase = extra_options.get("private_key_passphrase")
                 if private_key:
                     self.pkey = self._pkey_from_private_key(private_key, passphrase=private_key_passphrase)
 
                 if "timeout" in extra_options:
                     warnings.warn(
-                        'Extra option `timeout` is deprecated.'
-                        'Please use `conn_timeout` instead.'
-                        'The old option `timeout` will be removed in a future version.',
+                        "Extra option `timeout` is deprecated."
+                        "Please use `conn_timeout` instead."
+                        "The old option `timeout` will be removed in a future version.",
                         DeprecationWarning,
                         stacklevel=2,
                     )
-                    self.timeout = int(extra_options['timeout'])
+                    self.timeout = int(extra_options["timeout"])
 
                 if "conn_timeout" in extra_options and self.conn_timeout is None:
-                    self.conn_timeout = int(extra_options['conn_timeout'])
+                    self.conn_timeout = int(extra_options["conn_timeout"])
 
-                if "compress" in extra_options and str(extra_options["compress"]).lower() == 'false':
+                if "compress" in extra_options and str(extra_options["compress"]).lower() == "false":
                     self.compress = False
 
                 host_key = extra_options.get("host_key")
@@ -192,13 +192,13 @@ class SSHHook(BaseHook):
 
                 if (
                     "allow_host_key_change" in extra_options
-                    and str(extra_options["allow_host_key_change"]).lower() == 'true'
+                    and str(extra_options["allow_host_key_change"]).lower() == "true"
                 ):
                     self.allow_host_key_change = True
 
                 if (
                     "look_for_keys" in extra_options
-                    and str(extra_options["look_for_keys"]).lower() == 'false'
+                    and str(extra_options["look_for_keys"]).lower() == "false"
                 ):
                     self.look_for_keys = False
 
@@ -214,15 +214,15 @@ class SSHHook(BaseHook):
                         key_constructor = self._host_key_mappings[key_type[4:]]
                     else:
                         key_constructor = paramiko.RSAKey
-                    decoded_host_key = decodebytes(host_key.encode('utf-8'))
+                    decoded_host_key = decodebytes(host_key.encode("utf-8"))
                     self.host_key = key_constructor(data=decoded_host_key)
                     self.no_host_key_check = False
 
         if self.timeout:
             warnings.warn(
-                'Parameter `timeout` is deprecated.'
-                'Please use `conn_timeout` instead.'
-                'The old option `timeout` will be removed in a future version.',
+                "Parameter `timeout` is deprecated."
+                "Please use `conn_timeout` instead."
+                "The old option `timeout` will be removed in a future version.",
                 DeprecationWarning,
                 stacklevel=1,
             )
@@ -248,18 +248,18 @@ class SSHHook(BaseHook):
             )
             self.username = getuser()
 
-        user_ssh_config_filename = os.path.expanduser('~/.ssh/config')
+        user_ssh_config_filename = os.path.expanduser("~/.ssh/config")
         if os.path.isfile(user_ssh_config_filename):
             ssh_conf = paramiko.SSHConfig()
             with open(user_ssh_config_filename) as config_fd:
                 ssh_conf.parse(config_fd)
             host_info = ssh_conf.lookup(self.remote_host)
-            if host_info and host_info.get('proxycommand'):
-                self.host_proxy_cmd = host_info['proxycommand']
+            if host_info and host_info.get("proxycommand"):
+                self.host_proxy_cmd = host_info["proxycommand"]
 
             if not (self.password or self.key_file):
-                if host_info and host_info.get('identityfile'):
-                    self.key_file = host_info['identityfile'][0]
+                if host_info and host_info.get("identityfile"):
+                    self.key_file = host_info["identityfile"][0]
 
         self.port = self.port or SSH_PORT
 
@@ -274,7 +274,7 @@ class SSHHook(BaseHook):
 
         :rtype: paramiko.client.SSHClient
         """
-        self.log.debug('Creating SSH client for conn_id: %s', self.ssh_conn_id)
+        self.log.debug("Creating SSH client for conn_id: %s", self.ssh_conn_id)
         client = paramiko.SSHClient()
 
         if self.allow_host_key_change:
@@ -358,9 +358,9 @@ class SSHHook(BaseHook):
 
     def __enter__(self) -> SSHHook:
         warnings.warn(
-            'The contextmanager of SSHHook is deprecated.'
-            'Please use get_conn() as a contextmanager instead.'
-            'This method will be removed in Airflow 2.0',
+            "The contextmanager of SSHHook is deprecated."
+            "Please use get_conn() as a contextmanager instead."
+            "This method will be removed in Airflow 2.0",
             category=DeprecationWarning,
         )
         return self
@@ -383,9 +383,9 @@ class SSHHook(BaseHook):
         :return: sshtunnel.SSHTunnelForwarder object
         """
         if local_port:
-            local_bind_address: tuple[str, int] | tuple[str] = ('localhost', local_port)
+            local_bind_address: tuple[str, int] | tuple[str] = ("localhost", local_port)
         else:
-            local_bind_address = ('localhost',)
+            local_bind_address = ("localhost",)
 
         tunnel_kwargs = dict(
             ssh_port=self.port,
@@ -423,10 +423,10 @@ class SSHHook(BaseHook):
         :return:
         """
         warnings.warn(
-            'SSHHook.create_tunnel is deprecated, Please'
-            'use get_tunnel() instead. But please note that the'
-            'order of the parameters have changed'
-            'This method will be removed in Airflow 2.0',
+            "SSHHook.create_tunnel is deprecated, Please"
+            "use get_tunnel() instead. But please note that the"
+            "order of the parameters have changed"
+            "This method will be removed in Airflow 2.0",
             category=DeprecationWarning,
         )
 
@@ -441,21 +441,21 @@ class SSHHook(BaseHook):
         :raises AirflowException: if key cannot be read
         """
         if len(private_key.split("\n", 2)) < 2:
-            raise AirflowException('Key must have BEGIN and END header/footer on separate lines.')
+            raise AirflowException("Key must have BEGIN and END header/footer on separate lines.")
 
         for pkey_class in self._pkey_loaders:
             try:
                 key = pkey_class.from_private_key(StringIO(private_key), password=passphrase)
                 # Test it actually works. If Paramiko loads an openssh generated key, sometimes it will
                 # happily load it as the wrong type, only to fail when actually used.
-                key.sign_ssh_data(b'')
+                key.sign_ssh_data(b"")
                 return key
             except (paramiko.ssh_exception.SSHException, ValueError):
                 continue
         raise AirflowException(
-            'Private key provided cannot be read by paramiko.'
-            'Ensure key provided is valid for one of the following'
-            'key formats: RSA, DSS, ECDSA, or Ed25519'
+            "Private key provided cannot be read by paramiko."
+            "Ensure key provided is valid for one of the following"
+            "key formats: RSA, DSS, ECDSA, or Ed25519"
         )
 
     def exec_ssh_client_command(
@@ -482,8 +482,8 @@ class SSHHook(BaseHook):
         stdin.close()
         channel.shutdown_write()
 
-        agg_stdout = b''
-        agg_stderr = b''
+        agg_stdout = b""
+        agg_stderr = b""
 
         # capture any initial output in case channel is closed already
         stdout_buffer_length = len(stdout.channel.in_buffer)
@@ -498,11 +498,11 @@ class SSHHook(BaseHook):
                 if recv.recv_ready():
                     line = stdout.channel.recv(len(recv.in_buffer))
                     agg_stdout += line
-                    self.log.info(line.decode('utf-8', 'replace').strip('\n'))
+                    self.log.info(line.decode("utf-8", "replace").strip("\n"))
                 if recv.recv_stderr_ready():
                     line = stderr.channel.recv_stderr(len(recv.in_stderr_buffer))
                     agg_stderr += line
-                    self.log.warning(line.decode('utf-8', 'replace').strip('\n'))
+                    self.log.warning(line.decode("utf-8", "replace").strip("\n"))
             if (
                 stdout.channel.exit_status_ready()
                 and not stderr.channel.recv_stderr_ready()

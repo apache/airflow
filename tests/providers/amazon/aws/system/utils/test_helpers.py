@@ -44,21 +44,21 @@ try:
 except ImportError:
     mock_ssm = None
 
-TEST_NAME: str = 'example_test'
-ANY_STR: str = 'any'
+TEST_NAME: str = "example_test"
+ANY_STR: str = "any"
 
-ENV_VALUE: str = 'foo'
-SSM_VALUE: str = 'bar'
-DEFAULT_VALUE: str = 'baz'
+ENV_VALUE: str = "foo"
+SSM_VALUE: str = "bar"
+DEFAULT_VALUE: str = "baz"
 
 
 @pytest.fixture(autouse=True)
 def provide_test_name():
-    with patch.object(utils, '_get_test_name', return_value=TEST_NAME) as name:
+    with patch.object(utils, "_get_test_name", return_value=TEST_NAME) as name:
         yield name
 
 
-@pytest.mark.skipif(mock_ssm is None, reason='mock_ssm package not present')
+@pytest.mark.skipif(mock_ssm is None, reason="mock_ssm package not present")
 @mock_ssm
 class TestAmazonSystemTestHelpers:
     FETCH_VARIABLE_TEST_CASES = [
@@ -75,9 +75,9 @@ class TestAmazonSystemTestHelpers:
     ]
 
     @pytest.mark.parametrize(
-        'env_value, ssm_value, default_value, expected_result', FETCH_VARIABLE_TEST_CASES
+        "env_value, ssm_value, default_value, expected_result", FETCH_VARIABLE_TEST_CASES
     )
-    @patch.object(os, 'getenv')
+    @patch.object(os, "getenv")
     def test_fetch_variable_success(
         self, mock_getenv, env_value, ssm_value, default_value, expected_result
     ) -> None:
@@ -96,23 +96,23 @@ class TestAmazonSystemTestHelpers:
 
     ENV_ID_TEST_CASES = [
         # Happy Cases
-        ('ABCD', True),
-        ('AbCd', True),
-        ('abcd', True),
-        ('ab12', True),
+        ("ABCD", True),
+        ("AbCd", True),
+        ("abcd", True),
+        ("ab12", True),
         # Failure Cases
         # Must be alphanumeric
-        ('not_alphanumeric', False),
+        ("not_alphanumeric", False),
         # Can not be empty
-        ('', False),
+        ("", False),
         # Must start with a letter
-        ('1234', False),
-        ('12ab', False),
-        ('12AB', False),
-        ('12Ab', False),
+        ("1234", False),
+        ("12ab", False),
+        ("12AB", False),
+        ("12Ab", False),
     ]
 
-    @pytest.mark.parametrize('env_id, is_valid', ENV_ID_TEST_CASES)
+    @pytest.mark.parametrize("env_id, is_valid", ENV_ID_TEST_CASES)
     def test_validate_env_id_success(self, env_id, is_valid):
         if is_valid:
             captured_output = io.StringIO()

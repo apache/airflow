@@ -42,7 +42,7 @@ class TestSecurity(unittest.TestCase):
         # This makes the tests slightly slower (but they work with Flask 2.1 and 2.2
         self.app = application.create_app(testing=True)
         self.appbuilder = self.app.appbuilder
-        self.app.config['WTF_CSRF_ENABLED'] = False
+        self.app.config["WTF_CSRF_ENABLED"] = False
         self.security_manager = self.appbuilder.sm
         self.delete_roles()
         self.db = SQLA(self.app)
@@ -50,7 +50,7 @@ class TestSecurity(unittest.TestCase):
         self.client = self.app.test_client()  # type:ignore
 
     def delete_roles(self):
-        for role_name in ['role_edit_one_dag']:
+        for role_name in ["role_edit_one_dag"]:
             delete_role(self.app, role_name)
 
     @parameterized.expand(
@@ -58,27 +58,27 @@ class TestSecurity(unittest.TestCase):
             (
                 "/resetpassword/form?pk={user.id}",
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_PASSWORD),
-                'Reset Password Form',
+                "Reset Password Form",
             ),
             (
                 "/resetmypassword/form",
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PASSWORD),
-                'Reset Password Form',
+                "Reset Password Form",
             ),
             (
                 "/users/userinfo/",
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
-                'Your user information',
+                "Your user information",
             ),
             (
                 "/userinfoeditview/form",
                 (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
-                'Edit User',
+                "Edit User",
             ),
-            ("/users/add", (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER), 'Add User'),
-            ("/users/list/", (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER), 'List Users'),
-            ("/users/show/{user.id}", (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER), 'Show User'),
-            ("/users/edit/{user.id}", (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER), 'Edit User'),
+            ("/users/add", (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER), "Add User"),
+            ("/users/list/", (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER), "List Users"),
+            ("/users/show/{user.id}", (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER), "Show User"),
+            ("/users/edit/{user.id}", (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER), "Edit User"),
         ]
     )
     def test_user_model_view_with_access(self, url, permission, expected_text):
@@ -103,27 +103,27 @@ class TestSecurity(unittest.TestCase):
             (
                 "/resetpassword/form?pk={user.id}",
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_PASSWORD),
-                'Reset Password Form',
+                "Reset Password Form",
             ),
             (
                 "/resetmypassword/form",
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PASSWORD),
-                'Reset Password Form',
+                "Reset Password Form",
             ),
             (
                 "/users/userinfo/",
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
-                'Your user information',
+                "Your user information",
             ),
             (
                 "/userinfoeditview/form",
                 (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
-                'Edit User',
+                "Edit User",
             ),
-            ("/users/add", (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER), 'Add User'),
-            ("/users/list/", (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER), 'List Users'),
-            ("/users/show/{user.id}", (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER), 'Show User'),
-            ("/users/edit/{user.id}", (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER), 'Edit User'),
+            ("/users/add", (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER), "Add User"),
+            ("/users/list/", (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER), "List Users"),
+            ("/users/show/{user.id}", (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER), "Show User"),
+            ("/users/edit/{user.id}", (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER), "Edit User"),
         ]
     )
     def test_user_model_view_without_access(self, url, permission, expected_text):

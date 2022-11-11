@@ -71,7 +71,7 @@ def env_vars(overrides):
     new_vars = []
     for env, value in overrides.items():
         if env in os.environ:
-            orig_vars[env] = os.environ.pop(env, '')
+            orig_vars[env] = os.environ.pop(env, "")
         else:
             new_vars.append(env)
         os.environ[env] = value

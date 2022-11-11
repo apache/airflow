@@ -47,14 +47,14 @@ def verify_an_image(
         )
         return command_result.returncode, f"Testing {image_type} python {image_name}"
     pytest_args = ("-n", str(os.cpu_count()), "--color=yes")
-    if image_type == 'PROD':
+    if image_type == "PROD":
         test_path = AIRFLOW_SOURCES_ROOT / "docker_tests" / "test_prod_image.py"
     else:
         test_path = AIRFLOW_SOURCES_ROOT / "docker_tests" / "test_ci_image.py"
     env = os.environ.copy()
-    env['DOCKER_IMAGE'] = image_name
+    env["DOCKER_IMAGE"] = image_name
     if slim_image:
-        env['TEST_SLIM_IMAGE'] = 'true'
+        env["TEST_SLIM_IMAGE"] = "true"
     command_result = run_command(
         [sys.executable, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
         dry_run=dry_run,
@@ -78,7 +78,7 @@ def run_docker_compose_tests(
     pytest_args = ("-n", str(os.cpu_count()), "--color=yes")
     test_path = AIRFLOW_SOURCES_ROOT / "docker_tests" / "test_docker_compose_quick_start.py"
     env = os.environ.copy()
-    env['DOCKER_IMAGE'] = image_name
+    env["DOCKER_IMAGE"] = image_name
     command_result = run_command(
         [sys.executable, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
         dry_run=dry_run,

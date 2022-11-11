@@ -30,27 +30,27 @@ from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.utils import db
 
 BATCH_ID = 100
-SAMPLE_GET_RESPONSE = {'id': BATCH_ID, 'state': BatchState.SUCCESS.value}
+SAMPLE_GET_RESPONSE = {"id": BATCH_ID, "state": BatchState.SUCCESS.value}
 
 
 class TestLivyHook(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         db.merge_conn(
-            Connection(conn_id='livy_default', conn_type='http', host='host', schema='http', port=8998)
+            Connection(conn_id="livy_default", conn_type="http", host="host", schema="http", port=8998)
         )
-        db.merge_conn(Connection(conn_id='default_port', conn_type='http', host='http://host'))
-        db.merge_conn(Connection(conn_id='default_protocol', conn_type='http', host='host'))
-        db.merge_conn(Connection(conn_id='port_set', host='host', conn_type='http', port=1234))
-        db.merge_conn(Connection(conn_id='schema_set', host='host', conn_type='http', schema='zzz'))
+        db.merge_conn(Connection(conn_id="default_port", conn_type="http", host="http://host"))
+        db.merge_conn(Connection(conn_id="default_protocol", conn_type="http", host="host"))
+        db.merge_conn(Connection(conn_id="port_set", host="host", conn_type="http", port=1234))
+        db.merge_conn(Connection(conn_id="schema_set", host="host", conn_type="http", schema="zzz"))
         db.merge_conn(
-            Connection(conn_id='dont_override_schema', conn_type='http', host='http://host', schema='zzz')
+            Connection(conn_id="dont_override_schema", conn_type="http", host="http://host", schema="zzz")
         )
-        db.merge_conn(Connection(conn_id='missing_host', conn_type='http', port=1234))
-        db.merge_conn(Connection(conn_id='invalid_uri', uri='http://invalid_uri:4321'))
+        db.merge_conn(Connection(conn_id="missing_host", conn_type="http", port=1234))
+        db.merge_conn(Connection(conn_id="invalid_uri", uri="http://invalid_uri:4321"))
         db.merge_conn(
             Connection(
-                conn_id='with_credentials', login='login', password='secret', conn_type='http', host='host'
+                conn_id="with_credentials", login="login", password="secret", conn_type="http", host="host"
             )
         )
 
@@ -58,11 +58,11 @@ class TestLivyHook(unittest.TestCase):
 
         connection_url_mapping = {
             # id, expected
-            'default_port': 'http://host',
-            'default_protocol': 'http://host',
-            'port_set': 'http://host:1234',
-            'schema_set': 'zzz://host',
-            'dont_override_schema': 'http://host',
+            "default_port": "http://host",
+            "default_protocol": "http://host",
+            "port_set": "http://host:1234",
+            "schema_set": "zzz://host",
+            "dont_override_schema": "http://host",
         }
 
         for conn_id, expected in connection_url_mapping.items():
@@ -75,198 +75,198 @@ class TestLivyHook(unittest.TestCase):
     @unittest.skip("inherited HttpHook does not handle missing hostname")
     def test_missing_host(self):
         with pytest.raises(AirflowException):
-            LivyHook(livy_conn_id='missing_host').get_conn()
+            LivyHook(livy_conn_id="missing_host").get_conn()
 
     def test_build_body(self):
-        with self.subTest('minimal request'):
-            body = LivyHook.build_post_batch_body(file='appname')
+        with self.subTest("minimal request"):
+            body = LivyHook.build_post_batch_body(file="appname")
 
-            assert body == {'file': 'appname'}
+            assert body == {"file": "appname"}
 
-        with self.subTest('complex request'):
+        with self.subTest("complex request"):
             body = LivyHook.build_post_batch_body(
-                file='appname',
-                class_name='org.example.livy',
-                proxy_user='proxyUser',
-                args=['a', '1'],
-                jars=['jar1', 'jar2'],
-                files=['file1', 'file2'],
-                py_files=['py1', 'py2'],
-                archives=['arch1', 'arch2'],
-                queue='queue',
-                name='name',
-                conf={'a': 'b'},
+                file="appname",
+                class_name="org.example.livy",
+                proxy_user="proxyUser",
+                args=["a", "1"],
+                jars=["jar1", "jar2"],
+                files=["file1", "file2"],
+                py_files=["py1", "py2"],
+                archives=["arch1", "arch2"],
+                queue="queue",
+                name="name",
+                conf={"a": "b"},
                 driver_cores=2,
-                driver_memory='1M',
-                executor_memory='1m',
-                executor_cores='1',
-                num_executors='10',
+                driver_memory="1M",
+                executor_memory="1m",
+                executor_cores="1",
+                num_executors="10",
             )
 
             assert body == {
-                'file': 'appname',
-                'className': 'org.example.livy',
-                'proxyUser': 'proxyUser',
-                'args': ['a', '1'],
-                'jars': ['jar1', 'jar2'],
-                'files': ['file1', 'file2'],
-                'pyFiles': ['py1', 'py2'],
-                'archives': ['arch1', 'arch2'],
-                'queue': 'queue',
-                'name': 'name',
-                'conf': {'a': 'b'},
-                'driverCores': 2,
-                'driverMemory': '1M',
-                'executorMemory': '1m',
-                'executorCores': '1',
-                'numExecutors': '10',
+                "file": "appname",
+                "className": "org.example.livy",
+                "proxyUser": "proxyUser",
+                "args": ["a", "1"],
+                "jars": ["jar1", "jar2"],
+                "files": ["file1", "file2"],
+                "pyFiles": ["py1", "py2"],
+                "archives": ["arch1", "arch2"],
+                "queue": "queue",
+                "name": "name",
+                "conf": {"a": "b"},
+                "driverCores": 2,
+                "driverMemory": "1M",
+                "executorMemory": "1m",
+                "executorCores": "1",
+                "numExecutors": "10",
             }
 
     def test_parameters_validation(self):
-        with self.subTest('not a size'):
+        with self.subTest("not a size"):
             with pytest.raises(ValueError):
-                LivyHook.build_post_batch_body(file='appname', executor_memory='xxx')
+                LivyHook.build_post_batch_body(file="appname", executor_memory="xxx")
 
-        with self.subTest('list of stringables'):
-            assert LivyHook.build_post_batch_body(file='appname', args=['a', 1, 0.1])['args'] == [
-                'a',
-                '1',
-                '0.1',
+        with self.subTest("list of stringables"):
+            assert LivyHook.build_post_batch_body(file="appname", args=["a", 1, 0.1])["args"] == [
+                "a",
+                "1",
+                "0.1",
             ]
 
     def test_validate_size_format(self):
-        with self.subTest('lower 1'):
-            assert LivyHook._validate_size_format('1m')
+        with self.subTest("lower 1"):
+            assert LivyHook._validate_size_format("1m")
 
-        with self.subTest('lower 2'):
-            assert LivyHook._validate_size_format('1mb')
+        with self.subTest("lower 2"):
+            assert LivyHook._validate_size_format("1mb")
 
-        with self.subTest('upper 1'):
-            assert LivyHook._validate_size_format('1G')
+        with self.subTest("upper 1"):
+            assert LivyHook._validate_size_format("1G")
 
-        with self.subTest('upper 2'):
-            assert LivyHook._validate_size_format('1GB')
+        with self.subTest("upper 2"):
+            assert LivyHook._validate_size_format("1GB")
 
-        with self.subTest('snake 1'):
-            assert LivyHook._validate_size_format('1Gb')
+        with self.subTest("snake 1"):
+            assert LivyHook._validate_size_format("1Gb")
 
-        with self.subTest('fullmatch'):
+        with self.subTest("fullmatch"):
             with pytest.raises(ValueError):
-                assert LivyHook._validate_size_format('1Gb foo')
+                assert LivyHook._validate_size_format("1Gb foo")
 
-        with self.subTest('missing size'):
+        with self.subTest("missing size"):
             with pytest.raises(ValueError):
-                assert LivyHook._validate_size_format('10')
+                assert LivyHook._validate_size_format("10")
 
-        with self.subTest('numeric'):
+        with self.subTest("numeric"):
             with pytest.raises(ValueError):
                 LivyHook._validate_size_format(1)
 
-        with self.subTest('None'):
+        with self.subTest("None"):
             assert LivyHook._validate_size_format(None)
 
     def test_validate_list_of_stringables(self):
-        with self.subTest('valid list'):
+        with self.subTest("valid list"):
             try:
-                LivyHook._validate_list_of_stringables([1, 'string'])
+                LivyHook._validate_list_of_stringables([1, "string"])
             except ValueError:
                 self.fail("Exception raised")
 
-        with self.subTest('valid tuple'):
+        with self.subTest("valid tuple"):
             try:
-                LivyHook._validate_list_of_stringables((1, 'string'))
+                LivyHook._validate_list_of_stringables((1, "string"))
             except ValueError:
                 self.fail("Exception raised")
 
-        with self.subTest('empty list'):
+        with self.subTest("empty list"):
             try:
                 LivyHook._validate_list_of_stringables([])
             except ValueError:
                 self.fail("Exception raised")
 
-        with self.subTest('dict'):
+        with self.subTest("dict"):
             with pytest.raises(ValueError):
-                LivyHook._validate_list_of_stringables({'a': 'a'})
+                LivyHook._validate_list_of_stringables({"a": "a"})
 
-        with self.subTest('invalid element'):
+        with self.subTest("invalid element"):
             with pytest.raises(ValueError):
                 LivyHook._validate_list_of_stringables([1, {}])
 
-        with self.subTest('dict'):
+        with self.subTest("dict"):
             with pytest.raises(ValueError):
                 LivyHook._validate_list_of_stringables([1, None])
 
-        with self.subTest('None'):
+        with self.subTest("None"):
             with pytest.raises(ValueError):
                 LivyHook._validate_list_of_stringables(None)
 
-        with self.subTest('int'):
+        with self.subTest("int"):
             with pytest.raises(ValueError):
                 LivyHook._validate_list_of_stringables(1)
 
-        with self.subTest('string'):
+        with self.subTest("string"):
             with pytest.raises(ValueError):
-                LivyHook._validate_list_of_stringables('string')
+                LivyHook._validate_list_of_stringables("string")
 
     def test_validate_extra_conf(self):
-        with self.subTest('valid'):
+        with self.subTest("valid"):
             try:
-                LivyHook._validate_extra_conf({'k1': 'v1', 'k2': 0})
+                LivyHook._validate_extra_conf({"k1": "v1", "k2": 0})
             except ValueError:
                 self.fail("Exception raised")
 
-        with self.subTest('empty dict'):
+        with self.subTest("empty dict"):
             try:
                 LivyHook._validate_extra_conf({})
             except ValueError:
                 self.fail("Exception raised")
 
-        with self.subTest('none'):
+        with self.subTest("none"):
             try:
                 LivyHook._validate_extra_conf(None)
             except ValueError:
                 self.fail("Exception raised")
 
-        with self.subTest('not a dict 1'):
+        with self.subTest("not a dict 1"):
             with pytest.raises(ValueError):
-                LivyHook._validate_extra_conf('k1=v1')
+                LivyHook._validate_extra_conf("k1=v1")
 
-        with self.subTest('not a dict 2'):
+        with self.subTest("not a dict 2"):
             with pytest.raises(ValueError):
-                LivyHook._validate_extra_conf([('k1', 'v1'), ('k2', 0)])
+                LivyHook._validate_extra_conf([("k1", "v1"), ("k2", 0)])
 
-        with self.subTest('nested dict'):
+        with self.subTest("nested dict"):
             with pytest.raises(ValueError):
-                LivyHook._validate_extra_conf({'outer': {'inner': 'val'}})
+                LivyHook._validate_extra_conf({"outer": {"inner": "val"}})
 
-        with self.subTest('empty items'):
+        with self.subTest("empty items"):
             with pytest.raises(ValueError):
-                LivyHook._validate_extra_conf({'has_val': 'val', 'no_val': None})
+                LivyHook._validate_extra_conf({"has_val": "val", "no_val": None})
 
-        with self.subTest('empty string'):
+        with self.subTest("empty string"):
             with pytest.raises(ValueError):
-                LivyHook._validate_extra_conf({'has_val': 'val', 'no_val': ''})
+                LivyHook._validate_extra_conf({"has_val": "val", "no_val": ""})
 
-    @patch('airflow.providers.apache.livy.hooks.livy.LivyHook.run_method')
+    @patch("airflow.providers.apache.livy.hooks.livy.LivyHook.run_method")
     def test_post_batch_arguments(self, mock_request):
 
         mock_request.return_value.status_code = 201
         mock_request.return_value.json.return_value = {
-            'id': BATCH_ID,
-            'state': BatchState.STARTING.value,
-            'log': [],
+            "id": BATCH_ID,
+            "state": BatchState.STARTING.value,
+            "log": [],
         }
 
         hook = LivyHook()
-        resp = hook.post_batch(file='sparkapp')
+        resp = hook.post_batch(file="sparkapp")
 
         mock_request.assert_called_once_with(
-            method='POST', endpoint='/batches', data=json.dumps({'file': 'sparkapp'}), headers={}
+            method="POST", endpoint="/batches", data=json.dumps({"file": "sparkapp"}), headers={}
         )
 
         request_args = mock_request.call_args[1]
-        assert 'data' in request_args
-        assert isinstance(request_args['data'], str)
+        assert "data" in request_args
+        assert isinstance(request_args["data"], str)
 
         assert isinstance(resp, int)
         assert resp == BATCH_ID
@@ -274,43 +274,43 @@ class TestLivyHook(unittest.TestCase):
     @requests_mock.mock()
     def test_post_batch_success(self, mock):
         mock.register_uri(
-            'POST',
-            '//livy:8998/batches',
-            json={'id': BATCH_ID, 'state': BatchState.STARTING.value, 'log': []},
+            "POST",
+            "//livy:8998/batches",
+            json={"id": BATCH_ID, "state": BatchState.STARTING.value, "log": []},
             status_code=201,
         )
 
-        resp = LivyHook().post_batch(file='sparkapp')
+        resp = LivyHook().post_batch(file="sparkapp")
 
         assert isinstance(resp, int)
         assert resp == BATCH_ID
 
     @requests_mock.mock()
     def test_post_batch_fail(self, mock):
-        mock.register_uri('POST', '//livy:8998/batches', json={}, status_code=400, reason='ERROR')
+        mock.register_uri("POST", "//livy:8998/batches", json={}, status_code=400, reason="ERROR")
 
         hook = LivyHook()
         with pytest.raises(AirflowException):
-            hook.post_batch(file='sparkapp')
+            hook.post_batch(file="sparkapp")
 
     @requests_mock.mock()
     def test_get_batch_success(self, mock):
-        mock.register_uri('GET', f'//livy:8998/batches/{BATCH_ID}', json={'id': BATCH_ID}, status_code=200)
+        mock.register_uri("GET", f"//livy:8998/batches/{BATCH_ID}", json={"id": BATCH_ID}, status_code=200)
 
         hook = LivyHook()
         resp = hook.get_batch(BATCH_ID)
 
         assert isinstance(resp, dict)
-        assert 'id' in resp
+        assert "id" in resp
 
     @requests_mock.mock()
     def test_get_batch_fail(self, mock):
         mock.register_uri(
-            'GET',
-            f'//livy:8998/batches/{BATCH_ID}',
-            json={'msg': 'Unable to find batch'},
+            "GET",
+            f"//livy:8998/batches/{BATCH_ID}",
+            json={"msg": "Unable to find batch"},
             status_code=404,
-            reason='ERROR',
+            reason="ERROR",
         )
 
         hook = LivyHook()
@@ -318,9 +318,9 @@ class TestLivyHook(unittest.TestCase):
             hook.get_batch(BATCH_ID)
 
     def test_invalid_uri(self):
-        hook = LivyHook(livy_conn_id='invalid_uri')
+        hook = LivyHook(livy_conn_id="invalid_uri")
         with pytest.raises(RequestException):
-            hook.post_batch(file='sparkapp')
+            hook.post_batch(file="sparkapp")
 
     @requests_mock.mock()
     def test_get_batch_state_success(self, mock):
@@ -328,9 +328,9 @@ class TestLivyHook(unittest.TestCase):
         running = BatchState.RUNNING
 
         mock.register_uri(
-            'GET',
-            f'//livy:8998/batches/{BATCH_ID}/state',
-            json={'id': BATCH_ID, 'state': running.value},
+            "GET",
+            f"//livy:8998/batches/{BATCH_ID}/state",
+            json={"id": BATCH_ID, "state": running.value},
             status_code=200,
         )
 
@@ -342,7 +342,7 @@ class TestLivyHook(unittest.TestCase):
     @requests_mock.mock()
     def test_get_batch_state_fail(self, mock):
         mock.register_uri(
-            'GET', f'//livy:8998/batches/{BATCH_ID}/state', json={}, status_code=400, reason='ERROR'
+            "GET", f"//livy:8998/batches/{BATCH_ID}/state", json={}, status_code=400, reason="ERROR"
         )
 
         hook = LivyHook()
@@ -351,31 +351,31 @@ class TestLivyHook(unittest.TestCase):
 
     @requests_mock.mock()
     def test_get_batch_state_missing(self, mock):
-        mock.register_uri('GET', f'//livy:8998/batches/{BATCH_ID}/state', json={}, status_code=200)
+        mock.register_uri("GET", f"//livy:8998/batches/{BATCH_ID}/state", json={}, status_code=200)
 
         hook = LivyHook()
         with pytest.raises(AirflowException):
             hook.get_batch_state(BATCH_ID)
 
     def test_parse_post_response(self):
-        res_id = LivyHook._parse_post_response({'id': BATCH_ID, 'log': []})
+        res_id = LivyHook._parse_post_response({"id": BATCH_ID, "log": []})
 
         assert BATCH_ID == res_id
 
     @requests_mock.mock()
     def test_delete_batch_success(self, mock):
         mock.register_uri(
-            'DELETE', f'//livy:8998/batches/{BATCH_ID}', json={'msg': 'deleted'}, status_code=200
+            "DELETE", f"//livy:8998/batches/{BATCH_ID}", json={"msg": "deleted"}, status_code=200
         )
 
         resp = LivyHook().delete_batch(BATCH_ID)
 
-        assert resp == {'msg': 'deleted'}
+        assert resp == {"msg": "deleted"}
 
     @requests_mock.mock()
     def test_delete_batch_fail(self, mock):
         mock.register_uri(
-            'DELETE', f'//livy:8998/batches/{BATCH_ID}', json={}, status_code=400, reason='ERROR'
+            "DELETE", f"//livy:8998/batches/{BATCH_ID}", json={}, status_code=400, reason="ERROR"
         )
 
         hook = LivyHook()
@@ -384,95 +384,95 @@ class TestLivyHook(unittest.TestCase):
 
     @requests_mock.mock()
     def test_missing_batch_id(self, mock):
-        mock.register_uri('POST', '//livy:8998/batches', json={}, status_code=201)
+        mock.register_uri("POST", "//livy:8998/batches", json={}, status_code=201)
 
         hook = LivyHook()
         with pytest.raises(AirflowException):
-            hook.post_batch(file='sparkapp')
+            hook.post_batch(file="sparkapp")
 
     @requests_mock.mock()
     def test_get_batch_validation(self, mock):
-        mock.register_uri('GET', f'//livy:8998/batches/{BATCH_ID}', json=SAMPLE_GET_RESPONSE, status_code=200)
+        mock.register_uri("GET", f"//livy:8998/batches/{BATCH_ID}", json=SAMPLE_GET_RESPONSE, status_code=200)
 
         hook = LivyHook()
-        with self.subTest('get_batch'):
+        with self.subTest("get_batch"):
             hook.get_batch(BATCH_ID)
 
         # make sure blocked by validation
-        for val in [None, 'one', {'a': 'b'}]:
-            with self.subTest(f'get_batch {val}'):
+        for val in [None, "one", {"a": "b"}]:
+            with self.subTest(f"get_batch {val}"):
                 with pytest.raises(TypeError):
                     hook.get_batch(val)
 
     @requests_mock.mock()
     def test_get_batch_state_validation(self, mock):
         mock.register_uri(
-            'GET', f'//livy:8998/batches/{BATCH_ID}/state', json=SAMPLE_GET_RESPONSE, status_code=200
+            "GET", f"//livy:8998/batches/{BATCH_ID}/state", json=SAMPLE_GET_RESPONSE, status_code=200
         )
 
         hook = LivyHook()
-        with self.subTest('get_batch'):
+        with self.subTest("get_batch"):
             hook.get_batch_state(BATCH_ID)
 
-        for val in [None, 'one', {'a': 'b'}]:
-            with self.subTest(f'get_batch {val}'):
+        for val in [None, "one", {"a": "b"}]:
+            with self.subTest(f"get_batch {val}"):
                 with pytest.raises(TypeError):
                     hook.get_batch_state(val)
 
     @requests_mock.mock()
     def test_delete_batch_validation(self, mock):
-        mock.register_uri('DELETE', f'//livy:8998/batches/{BATCH_ID}', json={'id': BATCH_ID}, status_code=200)
+        mock.register_uri("DELETE", f"//livy:8998/batches/{BATCH_ID}", json={"id": BATCH_ID}, status_code=200)
 
         hook = LivyHook()
-        with self.subTest('get_batch'):
+        with self.subTest("get_batch"):
             hook.delete_batch(BATCH_ID)
 
-        for val in [None, 'one', {'a': 'b'}]:
-            with self.subTest(f'get_batch {val}'):
+        for val in [None, "one", {"a": "b"}]:
+            with self.subTest(f"get_batch {val}"):
                 with pytest.raises(TypeError):
                     hook.delete_batch(val)
 
     def test_check_session_id(self):
-        with self.subTest('valid 00'):
+        with self.subTest("valid 00"):
             try:
                 LivyHook._validate_session_id(100)
             except TypeError:
                 self.fail("")
 
-        with self.subTest('valid 01'):
+        with self.subTest("valid 01"):
             try:
                 LivyHook._validate_session_id(0)
             except TypeError:
                 self.fail("")
 
-        with self.subTest('None'):
+        with self.subTest("None"):
             with pytest.raises(TypeError):
                 LivyHook._validate_session_id(None)
 
-        with self.subTest('random string'):
+        with self.subTest("random string"):
             with pytest.raises(TypeError):
-                LivyHook._validate_session_id('asd')
+                LivyHook._validate_session_id("asd")
 
     @requests_mock.mock()
     def test_extra_headers(self, mock):
         mock.register_uri(
-            'POST',
-            '//livy:8998/batches',
-            json={'id': BATCH_ID, 'state': BatchState.STARTING.value, 'log': []},
+            "POST",
+            "//livy:8998/batches",
+            json={"id": BATCH_ID, "state": BatchState.STARTING.value, "log": []},
             status_code=201,
-            request_headers={'X-Requested-By': 'user'},
+            request_headers={"X-Requested-By": "user"},
         )
 
-        hook = LivyHook(extra_headers={'X-Requested-By': 'user'})
-        hook.post_batch(file='sparkapp')
+        hook = LivyHook(extra_headers={"X-Requested-By": "user"})
+        hook.post_batch(file="sparkapp")
 
     def test_alternate_auth_type(self):
         auth_type = MagicMock()
 
-        hook = LivyHook(livy_conn_id='with_credentials', auth_type=auth_type)
+        hook = LivyHook(livy_conn_id="with_credentials", auth_type=auth_type)
 
         auth_type.assert_not_called()
 
         hook.get_conn()
 
-        auth_type.assert_called_once_with('login', 'secret')
+        auth_type.assert_called_once_with("login", "secret")

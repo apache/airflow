@@ -28,10 +28,10 @@ class TestInfluxDbHook(unittest.TestCase):
         super().setUp()
         self.influxdb_hook = InfluxDBHook()
         extra = {}
-        extra['token'] = '123456789'
-        extra['org_name'] = 'test'
+        extra["token"] = "123456789"
+        extra["org_name"] = "test"
 
-        self.connection = Connection(schema='http', host='localhost', extra=extra)
+        self.connection = Connection(schema="http", host="localhost", extra=extra)
 
     def test_get_conn(self):
         self.influxdb_hook.get_connection = mock.Mock()
@@ -40,11 +40,11 @@ class TestInfluxDbHook(unittest.TestCase):
         self.influxdb_hook.get_client = mock.Mock()
         self.influxdb_hook.get_conn()
 
-        assert self.influxdb_hook.org_name == 'test'
-        assert self.influxdb_hook.uri == 'http://localhost:7687'
+        assert self.influxdb_hook.org_name == "test"
+        assert self.influxdb_hook.uri == "http://localhost:7687"
 
-        assert self.influxdb_hook.get_connection.return_value.schema == 'http'
-        assert self.influxdb_hook.get_connection.return_value.host == 'localhost'
+        assert self.influxdb_hook.get_connection.return_value.schema == "http"
+        assert self.influxdb_hook.get_connection.return_value.host == "localhost"
 
         assert self.influxdb_hook.get_client is not None
 

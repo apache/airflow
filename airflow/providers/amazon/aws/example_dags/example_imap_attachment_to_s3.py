@@ -36,11 +36,11 @@ with DAG(
     dag_id="example_imap_attachment_to_s3",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [START howto_transfer_imap_attachment_to_s3]
     task_transfer_imap_attachment_to_s3 = ImapAttachmentToS3Operator(
-        task_id='transfer_imap_attachment_to_s3',
+        task_id="transfer_imap_attachment_to_s3",
         imap_attachment_name=IMAP_ATTACHMENT_NAME,
         s3_bucket=S3_BUCKET,
         s3_key=S3_KEY,

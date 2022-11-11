@@ -274,12 +274,15 @@ An example:
             "relabeling": {},
             "placeholders": {
                 "password": "Asana personal access token",
-                "extra__my_conn_type__workspace": "My workspace gid",
-                "extra__my_conn_type__project": "My project gid",
+                "workspace": "My workspace gid",
+                "project": "My project gid",
             },
         }
 
-Note here that *here* (in contrast with ``get_connection_form_widgets``) we must add the prefix ``extra__<conn type>__`` when referencing a custom field.  This is because it's possible to create a custom field whose name overlaps with a built-in field and we need to be able to reference it unambiguously.
+.. note::
+
+    If you want to add a form placeholder for an ``extra`` field whose name conflicts with a standard connection attribute (i.e. login, password, host, scheme, port, extra) then
+    you must prefix it with ``extra__<conn type>__``.  E.g. ``extra__myservice__password``.
 
 Take a look at providers for examples of what you can do, for example :py:class:`~airflow.providers.jdbc.hooks.jdbc.JdbcHook`
 and :py:class:`~airflow.providers.asana.hooks.jdbc.AsanaHook` both make use of this feature.

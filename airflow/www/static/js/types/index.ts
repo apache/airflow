@@ -109,8 +109,8 @@ interface DepNode {
 }
 
 interface DepEdge {
-  u: string;
-  v: string;
+  source: string;
+  target: string;
 }
 
 interface DatasetListItem extends API.Dataset {

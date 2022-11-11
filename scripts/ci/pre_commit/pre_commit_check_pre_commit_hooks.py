@@ -49,21 +49,21 @@ def get_errors_and_hooks(content: Any, max_length: int) -> tuple[list[str], dict
     hooks: dict[str, list[str]] = defaultdict(list)
     needs_image = False
     image_hooks = []
-    for repo in content['repos']:
-        for hook in repo['hooks']:
-            if 'id' in hook:
-                hook_id = hook['id']
+    for repo in content["repos"]:
+        for hook in repo["hooks"]:
+            if "id" in hook:
+                hook_id = hook["id"]
             else:
                 errors.append(f"The id is missing in {hook}")
                 continue
-            if hook_id == 'run-mypy':
+            if hook_id == "run-mypy":
                 needs_image = True
-            if 'name' not in hook:
+            if "name" not in hook:
                 errors.append(
                     f"Name is missing in hook `{hook_id}` in {PRE_COMMIT_YAML_FILE}. Please add it!"
                 )
                 continue
-            name = hook['name']
+            name = hook["name"]
             if len(name) > max_length:
                 errors.append(
                     f"Name is too long for hook `{hook_id}` in {PRE_COMMIT_YAML_FILE}. Please shorten it!"
@@ -114,15 +114,15 @@ def black_mode():
     config = parse_pyproject_toml(AIRFLOW_BREEZE_SOURCES_PATH / "pyproject.toml")
 
     target_versions = set(
-        target_version_option_callback(None, None, tuple(config.get('target_version', ()))),
+        target_version_option_callback(None, None, tuple(config.get("target_version", ()))),
     )
 
     return Mode(
         target_versions=target_versions,
-        line_length=bool(config.get('line_length', Mode.line_length)),
-        is_pyi=bool(config.get('is_pyi', Mode.is_pyi)),
-        string_normalization=not bool(config.get('skip_string_normalization', not Mode.string_normalization)),
-        preview=bool(config.get('preview', Mode.preview)),
+        line_length=bool(config.get("line_length", Mode.line_length)),
+        is_pyi=bool(config.get("is_pyi", Mode.is_pyi)),
+        string_normalization=not bool(config.get("skip_string_normalization", not Mode.string_normalization)),
+        preview=bool(config.get("preview", Mode.preview)),
     )
 
 
@@ -139,7 +139,7 @@ def prepare_pre_commit_ids_py_file(pre_commit_ids):
                 searchpath=AIRFLOW_BREEZE_SOURCES_PATH / "src" / "airflow_breeze",
                 template_name="pre_commit_ids",
                 context={"PRE_COMMIT_IDS": pre_commit_ids},
-                extension='.py',
+                extension=".py",
                 autoescape=False,
                 keep_trailing_newline=True,
             )
@@ -157,7 +157,7 @@ def update_static_checks_array(hooks: dict[str, list[str]], image_hooks: list[st
             hook_description[0] if len(hook_description) == 1 else "* " + "\n* ".join(hook_description)
         )
         rows.append((hook_id, formatted_hook_description, " * " if hook_id in image_hooks else "  "))
-    formatted_table = "\n" + tabulate(rows, tablefmt="grid", headers=("ID", "Description", 'Image')) + "\n\n"
+    formatted_table = "\n" + tabulate(rows, tablefmt="grid", headers=("ID", "Description", "Image")) + "\n\n"
     insert_documentation(
         file_path=AIRFLOW_SOURCES_PATH / "STATIC_CODE_CHECKS.rst",
         content=formatted_table.splitlines(keepends=True),
@@ -168,7 +168,7 @@ def update_static_checks_array(hooks: dict[str, list[str]], image_hooks: list[st
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--max-length', help="Max length for hook names")
+    parser.add_argument("--max-length", help="Max length for hook names")
     args = parser.parse_args()
     max_length = int(args.max_length) or 70
     content = yaml.safe_load(PRE_COMMIT_YAML_FILE.read_text())
@@ -184,5 +184,5 @@ def main():
     update_static_checks_array(hooks, image_hooks)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

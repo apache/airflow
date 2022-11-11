@@ -39,7 +39,7 @@ class CloudComposerSystemTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_CLOUD_COMPOSER)
     def test_run_example_dag_composer(self):
-        self.run_dag('composer_dag1', CLOUD_DAG_FOLDER)
+        self.run_dag("composer_dag1", CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_CLOUD_COMPOSER)
     def tearDown(self):

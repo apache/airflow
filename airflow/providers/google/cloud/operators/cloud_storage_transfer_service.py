@@ -69,7 +69,7 @@ if TYPE_CHECKING:
 class TransferJobPreprocessor:
     """Helper class for preprocess of transfer job body."""
 
-    def __init__(self, body: dict, aws_conn_id: str = 'aws_default', default_schedule: bool = False) -> None:
+    def __init__(self, body: dict, aws_conn_id: str = "aws_default", default_schedule: bool = False) -> None:
         self.body = body
         self.aws_conn_id = aws_conn_id
         self.default_schedule = default_schedule
@@ -217,10 +217,10 @@ class CloudDataTransferServiceCreateJobOperator(BaseOperator):
 
     # [START gcp_transfer_job_create_template_fields]
     template_fields: Sequence[str] = (
-        'body',
-        'gcp_conn_id',
-        'aws_conn_id',
-        'google_impersonation_chain',
+        "body",
+        "gcp_conn_id",
+        "aws_conn_id",
+        "google_impersonation_chain",
     )
     # [END gcp_transfer_job_create_template_fields]
     operator_extra_links = (CloudStorageTransferJobLink(),)
@@ -229,9 +229,9 @@ class CloudDataTransferServiceCreateJobOperator(BaseOperator):
         self,
         *,
         body: dict,
-        aws_conn_id: str = 'aws_default',
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
+        aws_conn_id: str = "aws_default",
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
         project_id: str | None = None,
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -303,11 +303,11 @@ class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
 
     # [START gcp_transfer_job_update_template_fields]
     template_fields: Sequence[str] = (
-        'job_name',
-        'body',
-        'gcp_conn_id',
-        'aws_conn_id',
-        'google_impersonation_chain',
+        "job_name",
+        "body",
+        "gcp_conn_id",
+        "aws_conn_id",
+        "google_impersonation_chain",
     )
     # [END gcp_transfer_job_update_template_fields]
     operator_extra_links = (CloudStorageTransferJobLink(),)
@@ -317,9 +317,9 @@ class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
         *,
         job_name: str,
         body: dict,
-        aws_conn_id: str = 'aws_default',
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
+        aws_conn_id: str = "aws_default",
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
         project_id: str | None = None,
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -388,11 +388,11 @@ class CloudDataTransferServiceDeleteJobOperator(BaseOperator):
 
     # [START gcp_transfer_job_delete_template_fields]
     template_fields: Sequence[str] = (
-        'job_name',
-        'project_id',
-        'gcp_conn_id',
-        'api_version',
-        'google_impersonation_chain',
+        "job_name",
+        "project_id",
+        "gcp_conn_id",
+        "api_version",
+        "google_impersonation_chain",
     )
     # [END gcp_transfer_job_delete_template_fields]
 
@@ -453,9 +453,9 @@ class CloudDataTransferServiceGetOperationOperator(BaseOperator):
 
     # [START gcp_transfer_operation_get_template_fields]
     template_fields: Sequence[str] = (
-        'operation_name',
-        'gcp_conn_id',
-        'google_impersonation_chain',
+        "operation_name",
+        "gcp_conn_id",
+        "google_impersonation_chain",
     )
     # [END gcp_transfer_operation_get_template_fields]
     operator_extra_links = (CloudStorageTransferDetailsLink(),)
@@ -528,9 +528,9 @@ class CloudDataTransferServiceListOperationsOperator(BaseOperator):
 
     # [START gcp_transfer_operations_list_template_fields]
     template_fields: Sequence[str] = (
-        'filter',
-        'gcp_conn_id',
-        'google_impersonation_chain',
+        "filter",
+        "gcp_conn_id",
+        "google_impersonation_chain",
     )
     # [END gcp_transfer_operations_list_template_fields]
     operator_extra_links = (CloudStorageTransferListLink(),)
@@ -539,16 +539,16 @@ class CloudDataTransferServiceListOperationsOperator(BaseOperator):
         self,
         request_filter: dict | None = None,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         # To preserve backward compatibility
         # TODO: remove one day
         if request_filter is None:
-            if 'filter' in kwargs:
-                request_filter = kwargs['filter']
+            if "filter" in kwargs:
+                request_filter = kwargs["filter"]
                 DeprecationWarning("Use 'request_filter' instead 'filter' to pass the argument.")
             else:
                 TypeError("__init__() missing 1 required positional argument: 'request_filter'")
@@ -608,10 +608,10 @@ class CloudDataTransferServicePauseOperationOperator(BaseOperator):
 
     # [START gcp_transfer_operation_pause_template_fields]
     template_fields: Sequence[str] = (
-        'operation_name',
-        'gcp_conn_id',
-        'api_version',
-        'google_impersonation_chain',
+        "operation_name",
+        "gcp_conn_id",
+        "api_version",
+        "google_impersonation_chain",
     )
     # [END gcp_transfer_operation_pause_template_fields]
 
@@ -667,10 +667,10 @@ class CloudDataTransferServiceResumeOperationOperator(BaseOperator):
 
     # [START gcp_transfer_operation_resume_template_fields]
     template_fields: Sequence[str] = (
-        'operation_name',
-        'gcp_conn_id',
-        'api_version',
-        'google_impersonation_chain',
+        "operation_name",
+        "gcp_conn_id",
+        "api_version",
+        "google_impersonation_chain",
     )
     # [END gcp_transfer_operation_resume_template_fields]
 
@@ -727,10 +727,10 @@ class CloudDataTransferServiceCancelOperationOperator(BaseOperator):
 
     # [START gcp_transfer_operation_cancel_template_fields]
     template_fields: Sequence[str] = (
-        'operation_name',
-        'gcp_conn_id',
-        'api_version',
-        'google_impersonation_chain',
+        "operation_name",
+        "gcp_conn_id",
+        "api_version",
+        "google_impersonation_chain",
     )
     # [END gcp_transfer_operation_cancel_template_fields]
 
@@ -828,16 +828,16 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'gcp_conn_id',
-        's3_bucket',
-        'gcs_bucket',
-        's3_path',
-        'gcs_path',
-        'description',
-        'object_conditions',
-        'google_impersonation_chain',
+        "gcp_conn_id",
+        "s3_bucket",
+        "gcs_bucket",
+        "s3_path",
+        "gcs_path",
+        "description",
+        "object_conditions",
+        "google_impersonation_chain",
     )
-    ui_color = '#e09411'
+    ui_color = "#e09411"
 
     def __init__(
         self,
@@ -847,8 +847,8 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
         s3_path: str | None = None,
         gcs_path: str | None = None,
         project_id: str | None = None,
-        aws_conn_id: str = 'aws_default',
-        gcp_conn_id: str = 'google_cloud_default',
+        aws_conn_id: str = "aws_default",
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         description: str | None = None,
         schedule: dict | None = None,
@@ -1000,16 +1000,16 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'gcp_conn_id',
-        'source_bucket',
-        'destination_bucket',
-        'source_path',
-        'destination_path',
-        'description',
-        'object_conditions',
-        'google_impersonation_chain',
+        "gcp_conn_id",
+        "source_bucket",
+        "destination_bucket",
+        "source_path",
+        "destination_path",
+        "description",
+        "object_conditions",
+        "google_impersonation_chain",
     )
-    ui_color = '#e09411'
+    ui_color = "#e09411"
 
     def __init__(
         self,
@@ -1019,7 +1019,7 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
         source_path: str | None = None,
         destination_path: str | None = None,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         description: str | None = None,
         schedule: dict | None = None,

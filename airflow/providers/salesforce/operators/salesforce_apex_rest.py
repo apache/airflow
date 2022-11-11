@@ -43,9 +43,9 @@ class SalesforceApexRestOperator(BaseOperator):
         self,
         *,
         endpoint: str,
-        method: str = 'GET',
+        method: str = "GET",
         payload: dict,
-        salesforce_conn_id: str = 'salesforce_default',
+        salesforce_conn_id: str = "salesforce_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

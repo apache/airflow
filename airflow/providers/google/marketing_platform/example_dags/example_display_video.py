@@ -136,11 +136,11 @@ with models.DAG(
 ) as dag2:
     # [START howto_google_display_video_upload_multiple_entity_read_files_to_big_query]
     upload_erf_to_bq = GCSToBigQueryOperator(
-        task_id='upload_erf_to_bq',
+        task_id="upload_erf_to_bq",
         bucket=BUCKET,
         source_objects=ERF_SOURCE_OBJECT,
         destination_project_dataset_table=f"{BQ_DATA_SET}.gcs_to_bq_table",
-        write_disposition='WRITE_TRUNCATE',
+        write_disposition="WRITE_TRUNCATE",
     )
     # [END howto_google_display_video_upload_multiple_entity_read_files_to_big_query]
 

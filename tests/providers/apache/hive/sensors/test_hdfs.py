@@ -24,12 +24,12 @@ from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensor
 from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
 
 
-@unittest.skipIf('AIRFLOW_RUNALL_TESTS' not in os.environ, "Skipped because AIRFLOW_RUNALL_TESTS is not set")
+@unittest.skipIf("AIRFLOW_RUNALL_TESTS" not in os.environ, "Skipped because AIRFLOW_RUNALL_TESTS is not set")
 class TestHdfsSensor(TestHiveEnvironment):
     def test_hdfs_sensor(self):
         op = HdfsSensor(
-            task_id='hdfs_sensor_check',
-            filepath='hdfs://user/hive/warehouse/airflow.db/static_babynames',
+            task_id="hdfs_sensor_check",
+            filepath="hdfs://user/hive/warehouse/airflow.db/static_babynames",
             dag=self.dag,
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

@@ -42,8 +42,8 @@ class MetastorePartitionSensor(SqlSensor):
     :param mysql_conn_id: a reference to the MySQL conn_id for the metastore
     """
 
-    template_fields: Sequence[str] = ('partition_name', 'table', 'schema')
-    ui_color = '#8da7be'
+    template_fields: Sequence[str] = ("partition_name", "table", "schema")
+    ui_color = "#8da7be"
 
     def __init__(
         self,
@@ -70,8 +70,8 @@ class MetastorePartitionSensor(SqlSensor):
     def poke(self, context: Context) -> Any:
         if self.first_poke:
             self.first_poke = False
-            if '.' in self.table:
-                self.schema, self.table = self.table.split('.')
+            if "." in self.table:
+                self.schema, self.table = self.table.split(".")
             self.sql = """
             SELECT 'X'
             FROM PARTITIONS A0

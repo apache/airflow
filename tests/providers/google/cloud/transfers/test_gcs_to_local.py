@@ -38,7 +38,7 @@ XCOM_KEY = "some_xkom_key"
 FILE_CONTENT_STR = "some file content"
 FILE_CONTENT_BYTES_UTF8 = b"some file content"
 FILE_CONTENT_BYTES_UTF16 = (
-    b'\xff\xfes\x00o\x00m\x00e\x00 \x00f\x00i\x00l\x00e\x00 \x00c\x00o\x00n\x00t\x00e\x00n\x00t\x00'
+    b"\xff\xfes\x00o\x00m\x00e\x00 \x00f\x00i\x00l\x00e\x00 \x00c\x00o\x00n\x00t\x00e\x00n\x00t\x00"
 )
 
 
@@ -100,7 +100,7 @@ class TestGoogleCloudStorageDownloadOperator(unittest.TestCase):
             bucket=TEST_BUCKET,
             object_name=TEST_OBJECT,
             store_to_xcom_key=XCOM_KEY,
-            file_encoding='utf-16',
+            file_encoding="utf-16",
         )
         context = {"ti": MagicMock()}
         mock_hook.return_value.download.return_value = FILE_CONTENT_BYTES_UTF16

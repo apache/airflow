@@ -33,10 +33,10 @@ class AirbyteHook(HttpHook):
     :param api_version: Optional. Airbyte API version.
     """
 
-    conn_name_attr = 'airbyte_conn_id'
-    default_conn_name = 'airbyte_default'
-    conn_type = 'airbyte'
-    hook_name = 'Airbyte'
+    conn_name_attr = "airbyte_conn_id"
+    default_conn_name = "airbyte_default"
+    conn_type = "airbyte"
+    hook_name = "Airbyte"
 
     RUNNING = "running"
     SUCCEEDED = "succeeded"
@@ -121,19 +121,19 @@ class AirbyteHook(HttpHook):
 
     def test_connection(self):
         """Tests the Airbyte connection by hitting the health API"""
-        self.method = 'GET'
+        self.method = "GET"
         try:
             res = self.run(
                 endpoint=f"api/{self.api_version}/health",
                 headers={"accept": "application/json"},
-                extra_options={'check_response': False},
+                extra_options={"check_response": False},
             )
 
             if res.status_code == 200:
-                return True, 'Connection successfully tested'
+                return True, "Connection successfully tested"
             else:
                 return False, res.text
         except Exception as e:
             return False, str(e)
         finally:
-            self.method = 'POST'
+            self.method = "POST"

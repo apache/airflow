@@ -31,22 +31,22 @@ S3_BUCKET = "test-bucket"
 S3_KEY = "path/to/test-file-path/test-file.json"
 AWS_CONNECTION_ID = "aws_default"
 SALESFORCE_RESPONSE = {
-    'records': [
+    "records": [
         OrderedDict(
             [
                 (
-                    'attributes',
+                    "attributes",
                     OrderedDict(
-                        [('type', 'Lead'), ('url', '/services/data/v42.0/sobjects/Lead/00Q3t00001eJ7AnEAK')]
+                        [("type", "Lead"), ("url", "/services/data/v42.0/sobjects/Lead/00Q3t00001eJ7AnEAK")]
                     ),
                 ),
-                ('Id', '00Q3t00001eJ7AnEAK'),
-                ('Company', 'Hello World Inc'),
+                ("Id", "00Q3t00001eJ7AnEAK"),
+                ("Company", "Hello World Inc"),
             ]
         )
     ],
-    'totalSize': 1,
-    'done': True,
+    "totalSize": 1,
+    "done": True,
 }
 QUERY_PARAMS = {"DEFAULT_SETTING": "ENABLED"}
 EXPORT_FORMAT = "json"
@@ -56,9 +56,9 @@ ACL_POLICY = None
 
 
 class TestSalesforceToGcsOperator(unittest.TestCase):
-    @mock.patch.object(S3Hook, 'load_file')
-    @mock.patch.object(SalesforceHook, 'write_object_to_file')
-    @mock.patch.object(SalesforceHook, 'make_query')
+    @mock.patch.object(S3Hook, "load_file")
+    @mock.patch.object(SalesforceHook, "write_object_to_file")
+    @mock.patch.object(SalesforceHook, "make_query")
     def test_execute(self, mock_make_query, mock_write_object_to_file, mock_load_file):
         mock_make_query.return_value = SALESFORCE_RESPONSE
 
@@ -103,7 +103,7 @@ class TestSalesforceToGcsOperator(unittest.TestCase):
         )
 
         mock_write_object_to_file.assert_called_once_with(
-            query_results=SALESFORCE_RESPONSE['records'],
+            query_results=SALESFORCE_RESPONSE["records"],
             filename=mock.ANY,
             fmt=EXPORT_FORMAT,
             coerce_to_timestamp=COERCE_TO_TIMESTAMP,

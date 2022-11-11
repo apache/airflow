@@ -69,7 +69,7 @@ class TestGetPools(TestBasePoolEndpoints):
         session.commit()
         result = session.query(Pool).all()
         assert len(result) == 2  # accounts for the default pool as well
-        response = self.client.get("/api/v1/pools", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/pools", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert {
             "pools": [
@@ -103,7 +103,7 @@ class TestGetPools(TestBasePoolEndpoints):
         session.commit()
         result = session.query(Pool).all()
         assert len(result) == 2  # accounts for the default pool as well
-        response = self.client.get("/api/v1/pools?order_by=slots", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/pools?order_by=slots", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert {
             "pools": [
@@ -137,7 +137,7 @@ class TestGetPools(TestBasePoolEndpoints):
         assert_401(response)
 
     def test_should_raise_403_forbidden(self):
-        response = self.client.get("/api/v1/pools", environ_overrides={'REMOTE_USER': "test_no_permissions"})
+        response = self.client.get("/api/v1/pools", environ_overrides={"REMOTE_USER": "test_no_permissions"})
         assert response.status_code == 403
 
 
@@ -169,7 +169,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         session.commit()
         result = session.query(Pool).count()
         assert result == 121  # accounts for default pool as well
-        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         pool_ids = [pool["name"] for pool in response.json["pools"]]
         assert pool_ids == expected_pool_ids
@@ -180,9 +180,9 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         session.commit()
         result = session.query(Pool).count()
         assert result == 121
-        response = self.client.get("/api/v1/pools", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/pools", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert len(response.json['pools']) == 100
+        assert len(response.json["pools"]) == 100
 
     def test_should_raise_400_for_invalid_orderby(self, session):
         pools = [Pool(pool=f"test_pool{i}", slots=1) for i in range(1, 121)]
@@ -191,11 +191,11 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         result = session.query(Pool).count()
         assert result == 121
         response = self.client.get(
-            "/api/v1/pools?order_by=open_slots", environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/pools?order_by=open_slots", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 400
         msg = "Ordering with 'open_slots' is disallowed or the attribute does not exist on the model"
-        assert response.json['detail'] == msg
+        assert response.json["detail"] == msg
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self, session):
@@ -204,9 +204,9 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         session.commit()
         result = session.query(Pool).count()
         assert result == 200
-        response = self.client.get("/api/v1/pools?limit=180", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/pools?limit=180", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert len(response.json['pools']) == 150
+        assert len(response.json["pools"]) == 150
 
 
 class TestGetPool(TestBasePoolEndpoints):
@@ -214,7 +214,7 @@ class TestGetPool(TestBasePoolEndpoints):
         pool_model = Pool(pool="test_pool_a", slots=3)
         session.add(pool_model)
         session.commit()
-        response = self.client.get("/api/v1/pools/test_pool_a", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/pools/test_pool_a", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert {
             "name": "test_pool_a",
@@ -228,7 +228,7 @@ class TestGetPool(TestBasePoolEndpoints):
         } == response.json
 
     def test_response_404(self):
-        response = self.client.get("/api/v1/pools/invalid_pool", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/pools/invalid_pool", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
         assert {
             "detail": "Pool with name:'invalid_pool' not found",
@@ -250,14 +250,14 @@ class TestDeletePool(TestBasePoolEndpoints):
         session.add(pool_instance)
         session.commit()
 
-        response = self.client.delete(f"api/v1/pools/{pool_name}", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.delete(f"api/v1/pools/{pool_name}", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 204
         # Check if the pool is deleted from the db
-        response = self.client.get(f"api/v1/pools/{pool_name}", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(f"api/v1/pools/{pool_name}", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
 
     def test_response_404(self):
-        response = self.client.delete("api/v1/pools/invalid_pool", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.delete("api/v1/pools/invalid_pool", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
         assert {
             "detail": "Pool with name:'invalid_pool' not found",
@@ -277,7 +277,7 @@ class TestDeletePool(TestBasePoolEndpoints):
         assert_401(response)
 
         # Should still exists
-        response = self.client.get(f"/api/v1/pools/{pool_name}", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(f"/api/v1/pools/{pool_name}", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
 
 
@@ -286,7 +286,7 @@ class TestPostPool(TestBasePoolEndpoints):
         response = self.client.post(
             "api/v1/pools",
             json={"name": "test_pool_a", "slots": 3, "description": "test pool"},
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         assert {
@@ -308,7 +308,7 @@ class TestPostPool(TestBasePoolEndpoints):
         response = self.client.post(
             "api/v1/pools",
             json={"name": "test_pool_a", "slots": 3},
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 409
         assert {
@@ -345,7 +345,7 @@ class TestPostPool(TestBasePoolEndpoints):
     def test_response_400(self, name, request_json, error_detail):
         del name
         response = self.client.post(
-            "api/v1/pools", json=request_json, environ_overrides={'REMOTE_USER': "test"}
+            "api/v1/pools", json=request_json, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 400
         assert {
@@ -369,7 +369,7 @@ class TestPatchPool(TestBasePoolEndpoints):
         response = self.client.patch(
             "api/v1/pools/test_pool",
             json={"name": "test_pool_a", "slots": 3},
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         assert {
@@ -402,7 +402,7 @@ class TestPatchPool(TestBasePoolEndpoints):
         session.add(pool)
         session.commit()
         response = self.client.patch(
-            "api/v1/pools/test_pool", json=request_json, environ_overrides={'REMOTE_USER': "test"}
+            "api/v1/pools/test_pool", json=request_json, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 400
         assert {
@@ -427,7 +427,7 @@ class TestPatchPool(TestBasePoolEndpoints):
 
 class TestModifyDefaultPool(TestBasePoolEndpoints):
     def test_delete_400(self):
-        response = self.client.delete("api/v1/pools/default_pool", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.delete("api/v1/pools/default_pool", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 400
         assert {
             "detail": "Default Pool can't be deleted",
@@ -517,7 +517,7 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
     )
     def test_patch(self, name, status_code, url, json, expected_response):
         del name
-        response = self.client.patch(url, json=json, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.patch(url, json=json, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == status_code
         assert response.json == expected_response
 
@@ -556,7 +556,7 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
         pool = Pool(pool="test_pool", slots=3)
         session.add(pool)
         session.commit()
-        response = self.client.patch(url, json=patch_json, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.patch(url, json=patch_json, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert {
             "name": expected_name,
@@ -603,7 +603,7 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
         pool = Pool(pool="test_pool", slots=3)
         session.add(pool)
         session.commit()
-        response = self.client.patch(url, json=patch_json, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.patch(url, json=patch_json, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 400
         assert {
             "detail": error_detail,

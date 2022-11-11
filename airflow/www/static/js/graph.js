@@ -434,11 +434,10 @@ function handleRefresh() {
         // only refresh if the data has changed
         if (prevTis !== tis) {
         // eslint-disable-next-line no-global-assign
-          taskInstances = JSON.parse(tis);
-          updateNodesStates(taskInstances);
+          updateNodesStates(tis);
 
           // Only redraw the graph if labels have changed
-          const haveLabelsChanged = updateNodeLabels(nodes, taskInstances);
+          const haveLabelsChanged = updateNodeLabels(nodes, tis);
           if (haveLabelsChanged) draw();
 
           // end refresh if all states are final

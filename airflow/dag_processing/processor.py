@@ -136,8 +136,6 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
 
         # Since we share all open FDs from the parent, we need to close the parent side of the pipe here in
         # the child, else it won't get closed properly until we exit.
-        log.info("Closing parent pipe")
-
         parent_channel.close()
         del parent_channel
 

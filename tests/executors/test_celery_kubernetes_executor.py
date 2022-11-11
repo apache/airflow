@@ -36,8 +36,8 @@ class TestCeleryKubernetesExecutor:
         k8s_executor_mock = mock.MagicMock()
         cke = CeleryKubernetesExecutor(celery_executor_mock, k8s_executor_mock)
 
-        celery_queued_tasks = {('dag_id', 'task_id', '2020-08-30', 1): 'queued_command'}
-        k8s_queued_tasks = {('dag_id_2', 'task_id_2', '2020-08-30', 2): 'queued_command'}
+        celery_queued_tasks = {("dag_id", "task_id", "2020-08-30", 1): "queued_command"}
+        k8s_queued_tasks = {("dag_id_2", "task_id_2", "2020-08-30", 2): "queued_command"}
 
         celery_executor_mock.queued_tasks = celery_queued_tasks
         k8s_executor_mock.queued_tasks = k8s_queued_tasks
@@ -50,8 +50,8 @@ class TestCeleryKubernetesExecutor:
         k8s_executor_mock = mock.MagicMock()
         cke = CeleryKubernetesExecutor(celery_executor_mock, k8s_executor_mock)
 
-        celery_running_tasks = {('dag_id', 'task_id', '2020-08-30', 1)}
-        k8s_running_tasks = {('dag_id_2', 'task_id_2', '2020-08-30', 2)}
+        celery_running_tasks = {("dag_id", "task_id", "2020-08-30", 1)}
+        k8s_running_tasks = {("dag_id_2", "task_id_2", "2020-08-30", 2)}
 
         celery_executor_mock.running = celery_running_tasks
         k8s_executor_mock.running = k8s_running_tasks
@@ -70,17 +70,17 @@ class TestCeleryKubernetesExecutor:
 
     @parameterized.expand(
         [
-            ('any-other-queue',),
+            ("any-other-queue",),
             (KUBERNETES_QUEUE,),
         ]
     )
-    @mock.patch.object(CeleryExecutor, 'queue_command')
-    @mock.patch.object(KubernetesExecutor, 'queue_command')
+    @mock.patch.object(CeleryExecutor, "queue_command")
+    @mock.patch.object(KubernetesExecutor, "queue_command")
     def test_queue_command(self, test_queue, k8s_queue_cmd, celery_queue_cmd):
         kwargs = dict(
-            command=['airflow', 'run', 'dag'],
+            command=["airflow", "run", "dag"],
             priority=1,
-            queue='default',
+            queue="default",
         )
         kwarg_values = kwargs.values()
         cke = CeleryKubernetesExecutor(CeleryExecutor(), KubernetesExecutor())
@@ -99,7 +99,7 @@ class TestCeleryKubernetesExecutor:
 
     @parameterized.expand(
         [
-            ('any-other-queue',),
+            ("any-other-queue",),
             (KUBERNETES_QUEUE,),
         ]
     )
@@ -162,7 +162,7 @@ class TestCeleryKubernetesExecutor:
             ti.queue = queue
             return ti
 
-        celery_tis = [mock_ti('default') for _ in range(num_celery)]
+        celery_tis = [mock_ti("default") for _ in range(num_celery)]
         k8s_tis = [mock_ti(KUBERNETES_QUEUE) for _ in range(num_k8s)]
 
         cke = CeleryKubernetesExecutor(celery_executor_mock, k8s_executor_mock)
@@ -175,10 +175,10 @@ class TestCeleryKubernetesExecutor:
         k8s_executor_mock = mock.MagicMock()
         cke = CeleryKubernetesExecutor(celery_executor_mock, k8s_executor_mock)
 
-        dag_ids = ['dag_ids']
+        dag_ids = ["dag_ids"]
 
-        events_in_celery = {('dag_id', 'task_id', '2020-08-30', 1): ('failed', 'failed task')}
-        events_in_k8s = {('dag_id_2', 'task_id_2', '2020-08-30', 1): ('success', None)}
+        events_in_celery = {("dag_id", "task_id", "2020-08-30", 1): ("failed", "failed task")}
+        events_in_k8s = {("dag_id_2", "task_id_2", "2020-08-30", 1): ("success", None)}
 
         celery_executor_mock.get_event_buffer.return_value = events_in_celery
         k8s_executor_mock.get_event_buffer.return_value = events_in_k8s
@@ -214,7 +214,7 @@ class TestCeleryKubernetesExecutor:
         cel_exec = CeleryExecutor()
         k8s_exec = KubernetesExecutor()
         cel_k8s_exec = CeleryKubernetesExecutor(cel_exec, k8s_exec)
-        job_id = 'this-job-id'
+        job_id = "this-job-id"
         cel_k8s_exec.job_id = job_id
         assert cel_exec.job_id == k8s_exec.job_id == cel_k8s_exec.job_id == job_id
 
@@ -224,7 +224,7 @@ class TestCeleryKubernetesExecutor:
         CeleryKubernetesExecutor(celery_executor_mock, k8s_executor_mock)
 
         assert k8s_executor_mock.kubernetes_queue == conf.get(
-            'celery_kubernetes_executor', 'kubernetes_queue'
+            "celery_kubernetes_executor", "kubernetes_queue"
         )
 
     def test_send_callback(self):

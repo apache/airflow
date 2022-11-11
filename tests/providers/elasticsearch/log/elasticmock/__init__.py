@@ -68,7 +68,7 @@ def elasticmock(function):
     @wraps(function)
     def decorated(*args, **kwargs):
         ELASTIC_INSTANCES.clear()
-        with patch('elasticsearch.Elasticsearch', _get_elasticmock):
+        with patch("elasticsearch.Elasticsearch", _get_elasticmock):
             result = function(*args, **kwargs)
         return result
 

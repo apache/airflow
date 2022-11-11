@@ -29,6 +29,6 @@ def mocked_s3_res():
 
 @pytest.fixture
 def s3_bucket(mocked_s3_res):
-    bucket = 'airflow-test-s3-bucket'
+    bucket = "airflow-test-s3-bucket"
     mocked_s3_res.create_bucket(Bucket=bucket)
     return bucket

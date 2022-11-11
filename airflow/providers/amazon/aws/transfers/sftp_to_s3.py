@@ -52,7 +52,7 @@ class SFTPToS3Operator(BaseOperator):
         if False streams file from SFTP to S3.
     """
 
-    template_fields: Sequence[str] = ('s3_key', 'sftp_path')
+    template_fields: Sequence[str] = ("s3_key", "sftp_path")
 
     def __init__(
         self,
@@ -60,8 +60,8 @@ class SFTPToS3Operator(BaseOperator):
         s3_bucket: str,
         s3_key: str,
         sftp_path: str,
-        sftp_conn_id: str = 'ssh_default',
-        s3_conn_id: str = 'aws_default',
+        sftp_conn_id: str = "ssh_default",
+        s3_conn_id: str = "aws_default",
         use_temp_file: bool = True,
         **kwargs,
     ) -> None:
@@ -77,7 +77,7 @@ class SFTPToS3Operator(BaseOperator):
     def get_s3_key(s3_key: str) -> str:
         """This parses the correct format for S3 keys regardless of how the S3 url is passed."""
         parsed_s3_key = urlparse(s3_key)
-        return parsed_s3_key.path.lstrip('/')
+        return parsed_s3_key.path.lstrip("/")
 
     def execute(self, context: Context) -> None:
         self.s3_key = self.get_s3_key(self.s3_key)
@@ -92,5 +92,5 @@ class SFTPToS3Operator(BaseOperator):
 
                 s3_hook.load_file(filename=f.name, key=self.s3_key, bucket_name=self.s3_bucket, replace=True)
         else:
-            with sftp_client.file(self.sftp_path, mode='rb') as data:
+            with sftp_client.file(self.sftp_path, mode="rb") as data:
                 s3_hook.get_conn().upload_fileobj(data, self.s3_bucket, self.s3_key, Callback=self.log.info)

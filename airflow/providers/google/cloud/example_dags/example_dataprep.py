@@ -29,8 +29,8 @@ from airflow.providers.google.cloud.operators.dataprep import (
     DataprepRunJobGroupOperator,
 )
 
-DATAPREP_JOB_ID = int(os.environ.get('DATAPREP_JOB_ID', 12345677))
-DATAPREP_JOB_RECIPE_ID = int(os.environ.get('DATAPREP_JOB_RECIPE_ID', 12345677))
+DATAPREP_JOB_ID = int(os.environ.get("DATAPREP_JOB_ID", 12345677))
+DATAPREP_JOB_RECIPE_ID = int(os.environ.get("DATAPREP_JOB_RECIPE_ID", 12345677))
 DATAPREP_BUCKET = os.environ.get("DATAPREP_BUCKET", "gs://INVALID BUCKET NAME/name@email.com")
 
 DATA = {

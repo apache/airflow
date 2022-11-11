@@ -41,7 +41,7 @@ class TestPigOperator(unittest.TestCase):
         operator.prepare_template()
         assert "sh echo {{ DATE }};" == operator.pig
 
-    @mock.patch.object(PigCliHook, 'run_cli')
+    @mock.patch.object(PigCliHook, "run_cli")
     def test_execute(self, mock_run_cli):
         pig_opts = "-x mapreduce"
         operator = PigOperator(pig=PIG, pig_opts=pig_opts, task_id=TEST_TASK_ID)
@@ -49,15 +49,15 @@ class TestPigOperator(unittest.TestCase):
 
         mock_run_cli.assert_called_once_with(pig=PIG, pig_opts=pig_opts)
 
-    @mock.patch.object(PigCliHook, 'run_cli')
+    @mock.patch.object(PigCliHook, "run_cli")
     def test_execute_default_pig_opts_to_none(self, mock_run_cli):
         operator = PigOperator(pig=PIG, task_id=TEST_TASK_ID)
         operator.execute(context=TEST_CONTEXT_ID)
 
         mock_run_cli.assert_called_once_with(pig=PIG, pig_opts=None)
 
-    @mock.patch.object(PigCliHook, 'run_cli')
-    @mock.patch.object(PigCliHook, 'kill')
+    @mock.patch.object(PigCliHook, "run_cli")
+    @mock.patch.object(PigCliHook, "kill")
     def test_on_kill(self, mock_kill, mock_rul_cli):
         operator = PigOperator(pig=PIG, task_id=TEST_TASK_ID)
         operator.execute(context=TEST_CONTEXT_ID)

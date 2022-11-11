@@ -27,69 +27,69 @@ from airflow.providers.microsoft.azure.sensors.wasb import WasbBlobSensor, WasbP
 
 class TestWasbBlobSensor(unittest.TestCase):
     _config = {
-        'container_name': 'container',
-        'blob_name': 'blob',
-        'wasb_conn_id': 'conn_id',
-        'timeout': 100,
+        "container_name": "container",
+        "blob_name": "blob",
+        "wasb_conn_id": "conn_id",
+        "timeout": 100,
     }
 
     def setUp(self):
-        args = {'owner': 'airflow', 'start_date': datetime.datetime(2017, 1, 1)}
-        self.dag = DAG('test_dag_id', default_args=args)
+        args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
+        self.dag = DAG("test_dag_id", default_args=args)
 
     def test_init(self):
-        sensor = WasbBlobSensor(task_id='wasb_sensor_1', dag=self.dag, **self._config)
-        assert sensor.container_name == self._config['container_name']
-        assert sensor.blob_name == self._config['blob_name']
-        assert sensor.wasb_conn_id == self._config['wasb_conn_id']
+        sensor = WasbBlobSensor(task_id="wasb_sensor_1", dag=self.dag, **self._config)
+        assert sensor.container_name == self._config["container_name"]
+        assert sensor.blob_name == self._config["blob_name"]
+        assert sensor.wasb_conn_id == self._config["wasb_conn_id"]
         assert sensor.check_options == {}
-        assert sensor.timeout == self._config['timeout']
+        assert sensor.timeout == self._config["timeout"]
 
         sensor = WasbBlobSensor(
-            task_id='wasb_sensor_2', dag=self.dag, check_options={'timeout': 2}, **self._config
+            task_id="wasb_sensor_2", dag=self.dag, check_options={"timeout": 2}, **self._config
         )
-        assert sensor.check_options == {'timeout': 2}
+        assert sensor.check_options == {"timeout": 2}
 
-    @mock.patch('airflow.providers.microsoft.azure.sensors.wasb.WasbHook', autospec=True)
+    @mock.patch("airflow.providers.microsoft.azure.sensors.wasb.WasbHook", autospec=True)
     def test_poke(self, mock_hook):
         mock_instance = mock_hook.return_value
         sensor = WasbBlobSensor(
-            task_id='wasb_sensor', dag=self.dag, check_options={'timeout': 2}, **self._config
+            task_id="wasb_sensor", dag=self.dag, check_options={"timeout": 2}, **self._config
         )
         sensor.poke(None)
-        mock_instance.check_for_blob.assert_called_once_with('container', 'blob', timeout=2)
+        mock_instance.check_for_blob.assert_called_once_with("container", "blob", timeout=2)
 
 
 class TestWasbPrefixSensor(unittest.TestCase):
     _config = {
-        'container_name': 'container',
-        'prefix': 'prefix',
-        'wasb_conn_id': 'conn_id',
-        'timeout': 100,
+        "container_name": "container",
+        "prefix": "prefix",
+        "wasb_conn_id": "conn_id",
+        "timeout": 100,
     }
 
     def setUp(self):
-        args = {'owner': 'airflow', 'start_date': datetime.datetime(2017, 1, 1)}
-        self.dag = DAG('test_dag_id', default_args=args)
+        args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
+        self.dag = DAG("test_dag_id", default_args=args)
 
     def test_init(self):
-        sensor = WasbPrefixSensor(task_id='wasb_sensor_1', dag=self.dag, **self._config)
-        assert sensor.container_name == self._config['container_name']
-        assert sensor.prefix == self._config['prefix']
-        assert sensor.wasb_conn_id == self._config['wasb_conn_id']
+        sensor = WasbPrefixSensor(task_id="wasb_sensor_1", dag=self.dag, **self._config)
+        assert sensor.container_name == self._config["container_name"]
+        assert sensor.prefix == self._config["prefix"]
+        assert sensor.wasb_conn_id == self._config["wasb_conn_id"]
         assert sensor.check_options == {}
-        assert sensor.timeout == self._config['timeout']
+        assert sensor.timeout == self._config["timeout"]
 
         sensor = WasbPrefixSensor(
-            task_id='wasb_sensor_2', dag=self.dag, check_options={'timeout': 2}, **self._config
+            task_id="wasb_sensor_2", dag=self.dag, check_options={"timeout": 2}, **self._config
         )
-        assert sensor.check_options == {'timeout': 2}
+        assert sensor.check_options == {"timeout": 2}
 
-    @mock.patch('airflow.providers.microsoft.azure.sensors.wasb.WasbHook', autospec=True)
+    @mock.patch("airflow.providers.microsoft.azure.sensors.wasb.WasbHook", autospec=True)
     def test_poke(self, mock_hook):
         mock_instance = mock_hook.return_value
         sensor = WasbPrefixSensor(
-            task_id='wasb_sensor', dag=self.dag, check_options={'timeout': 2}, **self._config
+            task_id="wasb_sensor", dag=self.dag, check_options={"timeout": 2}, **self._config
         )
         sensor.poke(None)
-        mock_instance.check_for_prefix.assert_called_once_with('container', 'prefix', timeout=2)
+        mock_instance.check_for_prefix.assert_called_once_with("container", "prefix", timeout=2)

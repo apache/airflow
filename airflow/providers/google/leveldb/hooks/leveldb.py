@@ -17,23 +17,13 @@
 """Hook for Level DB"""
 from __future__ import annotations
 
+from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.hooks.base import BaseHook
+
 try:
     import plyvel
     from plyvel import DB
-
-    from airflow.exceptions import AirflowException
-    from airflow.hooks.base import BaseHook
-
 except ImportError as e:
-    # Plyvel is an optional feature and if imports are missing, it should be silently ignored
-    # As of Airflow 2.3  and above the operator can throw OptionalProviderFeatureException
-    try:
-        from airflow.exceptions import AirflowOptionalProviderFeatureException
-    except ImportError:
-        # However, in order to keep backwards-compatibility with Airflow 2.1 and 2.2, if the
-        # 2.3 exception cannot be imported, the original ImportError should be raised.
-        # This try/except can be removed when the provider depends on Airflow >= 2.3.0
-        raise e from None
     raise AirflowOptionalProviderFeatureException(e)
 
 DB_NOT_INITIALIZED_BEFORE = "The `get_conn` method should be called before!"
@@ -49,10 +39,10 @@ class LevelDBHook(BaseHook):
     `LevelDB Connection Documentation <https://plyvel.readthedocs.io/en/latest/>`__
     """
 
-    conn_name_attr = 'leveldb_conn_id'
-    default_conn_name = 'leveldb_default'
-    conn_type = 'leveldb'
-    hook_name = 'LevelDB'
+    conn_name_attr = "leveldb_conn_id"
+    default_conn_name = "leveldb_default"
+    conn_type = "leveldb"
+    hook_name = "LevelDB"
 
     def __init__(self, leveldb_conn_id: str = default_conn_name):
         super().__init__()
@@ -60,7 +50,7 @@ class LevelDBHook(BaseHook):
         self.connection = self.get_connection(leveldb_conn_id)
         self.db: plyvel.DB | None = None
 
-    def get_conn(self, name: str = '/tmp/testdb/', create_if_missing: bool = False, **kwargs) -> DB:
+    def get_conn(self, name: str = "/tmp/testdb/", create_if_missing: bool = False, **kwargs) -> DB:
         """
         Creates `Plyvel DB <https://plyvel.readthedocs.io/en/latest/api.html#DB>`__
 
@@ -102,15 +92,15 @@ class LevelDBHook(BaseHook):
         :returns: value from get or None
         :rtype: Optional[bytes]
         """
-        if command == 'put':
+        if command == "put":
             if not value:
                 raise Exception("Please provide `value`!")
             return self.put(key, value)
-        elif command == 'get':
+        elif command == "get":
             return self.get(key)
-        elif command == 'delete':
+        elif command == "delete":
             return self.delete(key)
-        elif command == 'write_batch':
+        elif command == "write_batch":
             if not keys:
                 raise Exception("Please provide `keys`!")
             if not values:

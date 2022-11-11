@@ -22,8 +22,8 @@ from unittest import mock
 
 from airflow.providers.microsoft.azure.operators.adls import ADLSListOperator
 
-TASK_ID = 'test-adls-list-operator'
-TEST_PATH = 'test/*'
+TASK_ID = "test-adls-list-operator"
+TEST_PATH = "test/*"
 MOCK_FILES = [
     "test/TEST1.csv",
     "test/TEST2.csv",
@@ -34,7 +34,7 @@ MOCK_FILES = [
 
 
 class TestAzureDataLakeStorageListOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.microsoft.azure.operators.adls.AzureDataLakeHook')
+    @mock.patch("airflow.providers.microsoft.azure.operators.adls.AzureDataLakeHook")
     def test_execute(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES
 

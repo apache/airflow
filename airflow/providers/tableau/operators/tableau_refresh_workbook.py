@@ -58,7 +58,7 @@ class TableauRefreshWorkbookOperator(BaseOperator):
         workbook_name: str,
         site_id: str | None = None,
         blocking: bool = True,
-        tableau_conn_id: str = 'tableau_default',
+        tableau_conn_id: str = "tableau_default",
         check_interval: float = 20,
         **kwargs,
     ) -> None:
@@ -78,15 +78,15 @@ class TableauRefreshWorkbookOperator(BaseOperator):
         :rtype: str
         """
         job_id = TableauOperator(
-            resource='workbooks',
-            method='refresh',
+            resource="workbooks",
+            method="refresh",
             find=self.workbook_name,
-            match_with='name',
+            match_with="name",
             site_id=self.site_id,
             tableau_conn_id=self.tableau_conn_id,
             blocking_refresh=self.blocking,
             check_interval=self.check_interval,
-            task_id='refresh_workbook',
+            task_id="refresh_workbook",
             dag=None,
         ).execute(context=context)
 

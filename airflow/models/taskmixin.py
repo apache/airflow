@@ -272,5 +272,5 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
             return self.downstream_list
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
-        """This is used by SerializedTaskGroup to serialize a task group's content."""
+        """This is used by TaskGroupSerialization to serialize a task group's content."""
         raise NotImplementedError()

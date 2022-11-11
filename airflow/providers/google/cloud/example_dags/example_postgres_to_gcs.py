@@ -32,10 +32,10 @@ FILENAME = "test_file"
 SQL_QUERY = "select * from test_table;"
 
 with models.DAG(
-    dag_id='example_postgres_to_gcs',
+    dag_id="example_postgres_to_gcs",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     upload_data = PostgresToGCSOperator(
         task_id="get_data", sql=SQL_QUERY, bucket=GCS_BUCKET, filename=FILENAME, gzip=False

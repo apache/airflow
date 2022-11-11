@@ -46,7 +46,7 @@ class JiraOperator(BaseOperator):
         self,
         *,
         jira_method: str,
-        jira_conn_id: str = 'jira_default',
+        jira_conn_id: str = "jira_default",
         jira_method_args: dict | None = None,
         result_processor: Callable | None = None,
         get_jira_resource_method: Callable | None = None,

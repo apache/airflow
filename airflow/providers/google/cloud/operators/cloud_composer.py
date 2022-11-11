@@ -40,7 +40,7 @@ CLOUD_COMPOSER_BASE_LINK = "https://console.cloud.google.com/composer/environmen
 CLOUD_COMPOSER_DETAILS_LINK = (
     CLOUD_COMPOSER_BASE_LINK + "/detail/{region}/{environment_id}/monitoring?project={project_id}"
 )
-CLOUD_COMPOSER_ENVIRONMENTS_LINK = CLOUD_COMPOSER_BASE_LINK + '?project={project_id}'
+CLOUD_COMPOSER_ENVIRONMENTS_LINK = CLOUD_COMPOSER_BASE_LINK + "?project={project_id}"
 
 
 class CloudComposerEnvironmentLink(BaseGoogleLink):
@@ -117,11 +117,11 @@ class CloudComposerCreateEnvironmentOperator(BaseOperator):
     """
 
     template_fields = (
-        'project_id',
-        'region',
-        'environment_id',
-        'environment',
-        'impersonation_chain',
+        "project_id",
+        "region",
+        "environment_id",
+        "environment",
+        "impersonation_chain",
     )
 
     operator_extra_links = (CloudComposerEnvironmentLink(),)
@@ -256,10 +256,10 @@ class CloudComposerDeleteEnvironmentOperator(BaseOperator):
     """
 
     template_fields = (
-        'project_id',
-        'region',
-        'environment_id',
-        'impersonation_chain',
+        "project_id",
+        "region",
+        "environment_id",
+        "impersonation_chain",
     )
 
     def __init__(
@@ -350,10 +350,10 @@ class CloudComposerGetEnvironmentOperator(BaseOperator):
     """
 
     template_fields = (
-        'project_id',
-        'region',
-        'environment_id',
-        'impersonation_chain',
+        "project_id",
+        "region",
+        "environment_id",
+        "impersonation_chain",
     )
 
     operator_extra_links = (CloudComposerEnvironmentLink(),)
@@ -430,9 +430,9 @@ class CloudComposerListEnvironmentsOperator(BaseOperator):
     """
 
     template_fields = (
-        'project_id',
-        'region',
-        'impersonation_chain',
+        "project_id",
+        "region",
+        "impersonation_chain",
     )
 
     operator_extra_links = (CloudComposerEnvironmentsLink(),)
@@ -516,10 +516,10 @@ class CloudComposerUpdateEnvironmentOperator(BaseOperator):
     """
 
     template_fields = (
-        'project_id',
-        'region',
-        'environment_id',
-        'impersonation_chain',
+        "project_id",
+        "region",
+        "environment_id",
+        "impersonation_chain",
     )
 
     operator_extra_links = (CloudComposerEnvironmentLink(),)
@@ -637,9 +637,9 @@ class CloudComposerListImageVersionsOperator(BaseOperator):
     """
 
     template_fields = (
-        'project_id',
-        'region',
-        'impersonation_chain',
+        "project_id",
+        "region",
+        "impersonation_chain",
     )
 
     def __init__(

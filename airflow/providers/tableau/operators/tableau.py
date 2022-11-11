@@ -31,15 +31,15 @@ if TYPE_CHECKING:
 
 
 RESOURCES_METHODS = {
-    'datasources': ['delete', 'refresh'],
-    'groups': ['delete'],
-    'projects': ['delete'],
-    'schedule': ['delete'],
-    'sites': ['delete'],
-    'subscriptions': ['delete'],
-    'tasks': ['delete', 'run'],
-    'users': ['remove'],
-    'workbooks': ['delete', 'refresh'],
+    "datasources": ["delete", "refresh"],
+    "groups": ["delete"],
+    "projects": ["delete"],
+    "schedule": ["delete"],
+    "sites": ["delete"],
+    "subscriptions": ["delete"],
+    "tasks": ["delete", "run"],
+    "users": ["remove"],
+    "workbooks": ["delete", "refresh"],
 }
 
 
@@ -70,11 +70,11 @@ class TableauOperator(BaseOperator):
         resource: str,
         method: str,
         find: str,
-        match_with: str = 'id',
+        match_with: str = "id",
         site_id: str | None = None,
         blocking_refresh: bool = True,
         check_interval: float = 20,
-        tableau_conn_id: str = 'tableau_default',
+        tableau_conn_id: str = "tableau_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -96,12 +96,12 @@ class TableauOperator(BaseOperator):
         """
         available_resources = RESOURCES_METHODS.keys()
         if self.resource not in available_resources:
-            error_message = f'Resource not found! Available Resources: {available_resources}'
+            error_message = f"Resource not found! Available Resources: {available_resources}"
             raise AirflowException(error_message)
 
         available_methods = RESOURCES_METHODS[self.resource]
         if self.method not in available_methods:
-            error_message = f'Method not found! Available methods for {self.resource}: {available_methods}'
+            error_message = f"Method not found! Available methods for {self.resource}: {available_methods}"
             raise AirflowException(error_message)
 
         with TableauHook(self.site_id, self.tableau_conn_id) as tableau_hook:
@@ -115,26 +115,26 @@ class TableauOperator(BaseOperator):
 
             job_id = response.id
 
-            if self.method == 'refresh':
+            if self.method == "refresh":
                 if self.blocking_refresh:
                     if not tableau_hook.wait_for_state(
                         job_id=job_id,
                         check_interval=self.check_interval,
                         target_state=TableauJobFinishCode.SUCCESS,
                     ):
-                        raise TableauJobFailedException(f'The Tableau Refresh {self.resource} Job failed!')
+                        raise TableauJobFailedException(f"The Tableau Refresh {self.resource} Job failed!")
 
         return job_id
 
     def _get_resource_id(self, tableau_hook: TableauHook) -> str:
 
-        if self.match_with == 'id':
+        if self.match_with == "id":
             return self.find
 
         for resource in tableau_hook.get_all(resource_name=self.resource):
             if getattr(resource, self.match_with) == self.find:
                 resource_id = resource.id
-                self.log.info('Found matching with id %s', resource_id)
+                self.log.info("Found matching with id %s", resource_id)
                 return resource_id
 
-        raise AirflowException(f'{self.resource} with {self.match_with} {self.find} not found!')
+        raise AirflowException(f"{self.resource} with {self.match_with} {self.find} not found!")

@@ -61,8 +61,8 @@ class SSHOperator(BaseOperator):
     :param banner_timeout: timeout to wait for banner from the server in seconds
     """
 
-    template_fields: Sequence[str] = ('command', 'remote_host')
-    template_ext: Sequence[str] = ('.sh',)
+    template_fields: Sequence[str] = ("command", "remote_host")
+    template_ext: Sequence[str] = (".sh",)
     template_fields_renderers = {"command": "bash"}
 
     def __init__(
@@ -98,9 +98,9 @@ class SSHOperator(BaseOperator):
 
         if self.timeout:
             warnings.warn(
-                'Parameter `timeout` is deprecated.'
-                'Please use `conn_timeout` and `cmd_timeout` instead.'
-                'The old option `timeout` will be removed in a future version.',
+                "Parameter `timeout` is deprecated."
+                "Please use `conn_timeout` and `cmd_timeout` instead."
+                "The old option `timeout` will be removed in a future version.",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -134,13 +134,13 @@ class SSHOperator(BaseOperator):
 
     def get_ssh_client(self) -> SSHClient:
         # Remember to use context manager or call .close() on this when done
-        self.log.info('Creating ssh_client')
+        self.log.info("Creating ssh_client")
         return self.get_hook().get_conn()
 
     def exec_ssh_client_command(self, ssh_client: SSHClient, command: str):
         warnings.warn(
-            'exec_ssh_client_command method on SSHOperator is deprecated, call '
-            '`ssh_hook.exec_ssh_client_command` instead',
+            "exec_ssh_client_command method on SSHOperator is deprecated, call "
+            "`ssh_hook.exec_ssh_client_command` instead",
             DeprecationWarning,
         )
         assert self.ssh_hook
@@ -166,13 +166,13 @@ class SSHOperator(BaseOperator):
             raise AirflowException("SSH operator error: SSH command not specified. Aborting.")
 
         # Forcing get_pty to True if the command begins with "sudo".
-        self.get_pty = self.command.startswith('sudo') or self.get_pty
+        self.get_pty = self.command.startswith("sudo") or self.get_pty
 
         with self.get_ssh_client() as ssh_client:
             result = self.run_ssh_client_command(ssh_client, self.command)
-        enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
+        enable_pickling = conf.getboolean("core", "enable_xcom_pickling")
         if not enable_pickling:
-            result = b64encode(result).decode('utf-8')
+            result = b64encode(result).decode("utf-8")
         return result
 
     def tunnel(self) -> None:

@@ -95,8 +95,8 @@ class AutoMLHook(GoogleBaseHook):
         region: str | None = None,
     ) -> PipelineServiceClient:
         """Returns PipelineServiceClient."""
-        if region and region != 'global':
-            client_options = ClientOptions(api_endpoint=f'{region}-aiplatform.googleapis.com:443')
+        if region and region != "global":
+            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
             client_options = ClientOptions()
 
@@ -109,8 +109,8 @@ class AutoMLHook(GoogleBaseHook):
         region: str | None = None,
     ) -> JobServiceClient:
         """Returns JobServiceClient"""
-        if region and region != 'global':
-            client_options = ClientOptions(api_endpoint=f'{region}-aiplatform.googleapis.com:443')
+        if region and region != "global":
+            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
             client_options = ClientOptions()
 
@@ -1170,7 +1170,7 @@ class AutoMLHook(GoogleBaseHook):
 
         result = client.delete_training_pipeline(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -1203,7 +1203,7 @@ class AutoMLHook(GoogleBaseHook):
 
         result = client.get_training_pipeline(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -1260,11 +1260,11 @@ class AutoMLHook(GoogleBaseHook):
 
         result = client.list_training_pipelines(
             request={
-                'parent': parent,
-                'page_size': page_size,
-                'page_token': page_token,
-                'filter': filter,
-                'read_mask': read_mask,
+                "parent": parent,
+                "page_size": page_size,
+                "page_token": page_token,
+                "filter": filter,
+                "read_mask": read_mask,
             },
             retry=retry,
             timeout=timeout,

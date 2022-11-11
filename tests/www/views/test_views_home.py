@@ -49,10 +49,10 @@ def setup():
 
 def test_home(capture_templates, admin_client):
     with capture_templates() as templates:
-        resp = admin_client.get('home', follow_redirects=True)
-        check_content_in_response('DAGs', resp)
+        resp = admin_client.get("home", follow_redirects=True)
+        check_content_in_response("DAGs", resp)
         val_state_color_mapping = (
-            'const STATE_COLOR = {'
+            "const STATE_COLOR = {"
             '"deferred": "mediumpurple", "failed": "red", '
             '"null": "lightblue", "queued": "gray", '
             '"removed": "lightgrey", "restarting": "violet", "running": "lime", '
@@ -64,34 +64,34 @@ def test_home(capture_templates, admin_client):
         check_content_in_response(val_state_color_mapping, resp)
 
     assert len(templates) == 1
-    assert templates[0].name == 'airflow/dags.html'
+    assert templates[0].name == "airflow/dags.html"
     state_color_mapping = State.state_color.copy()
     state_color_mapping["null"] = state_color_mapping.pop(None)
-    assert templates[0].local_context['state_color'] == state_color_mapping
+    assert templates[0].local_context["state_color"] == state_color_mapping
 
 
 def test_home_filter_tags(admin_client):
     with admin_client:
-        admin_client.get('home?tags=example&tags=data', follow_redirects=True)
-        assert 'example,data' == flask.session[FILTER_TAGS_COOKIE]
+        admin_client.get("home?tags=example&tags=data", follow_redirects=True)
+        assert "example,data" == flask.session[FILTER_TAGS_COOKIE]
 
-        admin_client.get('home?reset_tags', follow_redirects=True)
+        admin_client.get("home?reset_tags", follow_redirects=True)
         assert flask.session[FILTER_TAGS_COOKIE] is None
 
 
 def test_home_status_filter_cookie(admin_client):
     with admin_client:
-        admin_client.get('home', follow_redirects=True)
-        assert 'all' == flask.session[FILTER_STATUS_COOKIE]
+        admin_client.get("home", follow_redirects=True)
+        assert "all" == flask.session[FILTER_STATUS_COOKIE]
 
-        admin_client.get('home?status=active', follow_redirects=True)
-        assert 'active' == flask.session[FILTER_STATUS_COOKIE]
+        admin_client.get("home?status=active", follow_redirects=True)
+        assert "active" == flask.session[FILTER_STATUS_COOKIE]
 
-        admin_client.get('home?status=paused', follow_redirects=True)
-        assert 'paused' == flask.session[FILTER_STATUS_COOKIE]
+        admin_client.get("home?status=paused", follow_redirects=True)
+        assert "paused" == flask.session[FILTER_STATUS_COOKIE]
 
-        admin_client.get('home?status=all', follow_redirects=True)
-        assert 'all' == flask.session[FILTER_STATUS_COOKIE]
+        admin_client.get("home?status=all", follow_redirects=True)
+        assert "all" == flask.session[FILTER_STATUS_COOKIE]
 
 
 @pytest.fixture(scope="module")
@@ -118,11 +118,11 @@ def client_single_dag(app, user_single_dag):
     )
 
 
-TEST_FILTER_DAG_IDS = ['filter_test_1', 'filter_test_2', 'a_first_dag_id_asc']
+TEST_FILTER_DAG_IDS = ["filter_test_1", "filter_test_2", "a_first_dag_id_asc"]
 
 
 def _process_file(file_path, session):
-    dag_file_processor = DagFileProcessor(dag_ids=[], dag_directory='/tmp', log=mock.MagicMock())
+    dag_file_processor = DagFileProcessor(dag_ids=[], dag_directory="/tmp", log=mock.MagicMock())
     dag_file_processor.process_file(file_path, [], False, session)
 
 
@@ -144,19 +144,19 @@ def broken_dags(tmpdir, working_dags):
         for dag_id in TEST_FILTER_DAG_IDS:
             filename = os.path.join(tmpdir, f"{dag_id}.py")
             with open(filename, "w") as f:
-                f.writelines('airflow DAG')
+                f.writelines("airflow DAG")
             _process_file(filename, session)
 
 
 def test_home_importerrors(broken_dags, user_client):
     # Users with "can read on DAGs" gets all DAG import errors
-    resp = user_client.get('home', follow_redirects=True)
+    resp = user_client.get("home", follow_redirects=True)
     check_content_in_response("Import Errors", resp)
     for dag_id in TEST_FILTER_DAG_IDS:
         check_content_in_response(f"/{dag_id}.py", resp)
 
 
-@pytest.mark.parametrize('page', ['home', 'home?status=active', 'home?status=paused', 'home?status=all'])
+@pytest.mark.parametrize("page", ["home", "home?status=active", "home?status=paused", "home?status=all"])
 def test_home_importerrors_filtered_singledag_user(broken_dags, client_single_dag, page):
     # Users that can only see certain DAGs get a filtered list of import errors
     resp = client_single_dag.get(page, follow_redirects=True)
@@ -170,14 +170,14 @@ def test_home_importerrors_filtered_singledag_user(broken_dags, client_single_da
 
 def test_home_dag_list(working_dags, user_client):
     # Users with "can read on DAGs" gets all DAGs
-    resp = user_client.get('home', follow_redirects=True)
+    resp = user_client.get("home", follow_redirects=True)
     for dag_id in TEST_FILTER_DAG_IDS:
         check_content_in_response(f"dag_id={dag_id}", resp)
 
 
 def test_home_dag_list_filtered_singledag_user(working_dags, client_single_dag):
     # Users that can only see certain DAGs get a filtered list
-    resp = client_single_dag.get('home', follow_redirects=True)
+    resp = client_single_dag.get("home", follow_redirects=True)
     # They can see the first DAG
     check_content_in_response(f"dag_id={TEST_FILTER_DAG_IDS[0]}", resp)
     # But not the rest
@@ -187,8 +187,8 @@ def test_home_dag_list_filtered_singledag_user(working_dags, client_single_dag):
 
 def test_home_robots_header_in_response(user_client):
     # Responses should include X-Robots-Tag header
-    resp = user_client.get('home', follow_redirects=True)
-    assert resp.headers['X-Robots-Tag'] == 'noindex, nofollow'
+    resp = user_client.get("home", follow_redirects=True)
+    assert resp.headers["X-Robots-Tag"] == "noindex, nofollow"
 
 
 @pytest.mark.parametrize(
@@ -249,8 +249,8 @@ def test_dashboard_flash_messages_type(user_client):
 
 
 def test_audit_log_view(user_client, working_dags):
-    resp = user_client.get('/dags/filter_test_1/audit_log')
-    check_content_in_response('Dag Audit Log', resp)
+    resp = user_client.get("/dags/filter_test_1/audit_log")
+    check_content_in_response("Dag Audit Log", resp)
 
 
 @pytest.mark.parametrize(
@@ -264,7 +264,7 @@ def test_audit_log_view(user_client, working_dags):
 )
 def test_sorting_home_view(url, lower_key, greater_key, user_client, working_dags):
     resp = user_client.get(url, follow_redirects=True)
-    resp_html = resp.data.decode('utf-8')
+    resp_html = resp.data.decode("utf-8")
     lower_index = resp_html.find(lower_key)
     greater_index = resp_html.find(greater_key)
     assert lower_index < greater_index

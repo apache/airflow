@@ -67,7 +67,7 @@ def upgrade():
         with op.batch_alter_table(table) as batch:
             kwargs = {}
             if conn.dialect.name == 'postgresql':
-                kwargs['type_'] = sa.Sequence(f'{table}_id_seq').next_value()
+                kwargs['server_default'] = sa.Sequence(f'{table}_id_seq').next_value()
             else:
                 kwargs['autoincrement'] = True
             batch.alter_column("id", existing_type=sa.Integer(), existing_nullable=False, **kwargs)

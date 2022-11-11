@@ -84,9 +84,9 @@ class TestEC2Hook(unittest.TestCase):
             MinCount=1,
         )
 
-        created_instance_id = created_instances['Instances'][0]['InstanceId']
+        created_instance_id = created_instances["Instances"][0]["InstanceId"]
         all_instances = ec2_hook.get_instances()
-        created_instance_state = all_instances[0]['State']['Name']
+        created_instance_state = all_instances[0]["State"]["Name"]
 
         existing_instance_state = ec2_hook.get_instance_state(instance_id=created_instance_id)
         assert created_instance_state == existing_instance_state
@@ -99,7 +99,7 @@ class TestEC2Hook(unittest.TestCase):
             MinCount=1,
         )
 
-        created_instance_id = created_instances['Instances'][0]['InstanceId']
+        created_instance_id = created_instances["Instances"][0]["InstanceId"]
         response = ec2_hook.start_instances(instance_ids=[created_instance_id])
 
         assert response["StartingInstances"][0]["InstanceId"] == created_instance_id
@@ -113,7 +113,7 @@ class TestEC2Hook(unittest.TestCase):
             MinCount=1,
         )
 
-        created_instance_id = created_instances['Instances'][0]['InstanceId']
+        created_instance_id = created_instances["Instances"][0]["InstanceId"]
         response = ec2_hook.stop_instances(instance_ids=[created_instance_id])
 
         assert response["StoppingInstances"][0]["InstanceId"] == created_instance_id
@@ -127,7 +127,7 @@ class TestEC2Hook(unittest.TestCase):
             MinCount=1,
         )
 
-        created_instance_id = created_instances['Instances'][0]['InstanceId']
+        created_instance_id = created_instances["Instances"][0]["InstanceId"]
         response = ec2_hook.terminate_instances(instance_ids=[created_instance_id])
 
         assert response["TerminatingInstances"][0]["InstanceId"] == created_instance_id
@@ -141,7 +141,7 @@ class TestEC2Hook(unittest.TestCase):
             MinCount=1,
         )
 
-        created_instance_id = created_instances['Instances'][0]['InstanceId']
+        created_instance_id = created_instances["Instances"][0]["InstanceId"]
 
         # Without filter
         response = ec2_hook.describe_instances(instance_ids=[created_instance_id])
@@ -173,8 +173,8 @@ class TestEC2Hook(unittest.TestCase):
             MinCount=2,
         )
 
-        created_instance_id_1 = created_instances['Instances'][0]['InstanceId']
-        created_instance_id_2 = created_instances['Instances'][1]['InstanceId']
+        created_instance_id_1 = created_instances["Instances"][0]["InstanceId"]
+        created_instance_id_2 = created_instances["Instances"][1]["InstanceId"]
 
         # Without filter
         response = ec2_hook.get_instances(instance_ids=[created_instance_id_1, created_instance_id_2])
@@ -215,8 +215,8 @@ class TestEC2Hook(unittest.TestCase):
             MinCount=2,
         )
 
-        created_instance_id_1 = created_instances['Instances'][0]['InstanceId']
-        created_instance_id_2 = created_instances['Instances'][1]['InstanceId']
+        created_instance_id_1 = created_instances["Instances"][0]["InstanceId"]
+        created_instance_id_2 = created_instances["Instances"][1]["InstanceId"]
 
         # Without filter
         response = ec2_hook.get_instance_ids()

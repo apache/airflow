@@ -27,21 +27,21 @@ except ImportError:
     mock_stepfunctions = None
 
 
-@unittest.skipIf(mock_stepfunctions is None, 'moto package not present')
+@unittest.skipIf(mock_stepfunctions is None, "moto package not present")
 class TestStepFunctionHook(unittest.TestCase):
     @mock_stepfunctions
     def test_get_conn_returns_a_boto3_connection(self):
-        hook = StepFunctionHook(aws_conn_id='aws_default')
-        assert 'stepfunctions' == hook.get_conn().meta.service_model.service_name
+        hook = StepFunctionHook(aws_conn_id="aws_default")
+        assert "stepfunctions" == hook.get_conn().meta.service_model.service_name
 
     @mock_stepfunctions
     def test_start_execution(self):
-        hook = StepFunctionHook(aws_conn_id='aws_default', region_name='us-east-1')
+        hook = StepFunctionHook(aws_conn_id="aws_default", region_name="us-east-1")
         state_machine = hook.get_conn().create_state_machine(
-            name='pseudo-state-machine', definition='{}', roleArn='arn:aws:iam::000000000000:role/Role'
+            name="pseudo-state-machine", definition="{}", roleArn="arn:aws:iam::000000000000:role/Role"
         )
 
-        state_machine_arn = state_machine.get('stateMachineArn')
+        state_machine_arn = state_machine.get("stateMachineArn")
 
         execution_arn = hook.start_execution(
             state_machine_arn=state_machine_arn, name=None, state_machine_input={}
@@ -51,16 +51,16 @@ class TestStepFunctionHook(unittest.TestCase):
 
     @mock_stepfunctions
     def test_describe_execution(self):
-        hook = StepFunctionHook(aws_conn_id='aws_default', region_name='us-east-1')
+        hook = StepFunctionHook(aws_conn_id="aws_default", region_name="us-east-1")
         state_machine = hook.get_conn().create_state_machine(
-            name='pseudo-state-machine', definition='{}', roleArn='arn:aws:iam::000000000000:role/Role'
+            name="pseudo-state-machine", definition="{}", roleArn="arn:aws:iam::000000000000:role/Role"
         )
 
-        state_machine_arn = state_machine.get('stateMachineArn')
+        state_machine_arn = state_machine.get("stateMachineArn")
 
         execution_arn = hook.start_execution(
             state_machine_arn=state_machine_arn, name=None, state_machine_input={}
         )
         response = hook.describe_execution(execution_arn)
 
-        assert 'input' in response
+        assert "input" in response

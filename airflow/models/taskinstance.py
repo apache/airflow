@@ -1522,7 +1522,7 @@ class TaskInstance(Base, LoggingMixin):
 
         if not test_mode:
             session.add(Log(self.state, self))
-            session.merge(self)
+            session.merge(self).task = self.task
             if self.state == TaskInstanceState.SUCCESS:
                 self._register_dataset_changes(session=session)
             session.commit()

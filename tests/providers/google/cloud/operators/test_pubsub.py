@@ -33,19 +33,19 @@ from airflow.providers.google.cloud.operators.pubsub import (
     PubSubPullOperator,
 )
 
-TASK_ID = 'test-task-id'
-TEST_PROJECT = 'test-project'
-TEST_TOPIC = 'test-topic'
-TEST_SUBSCRIPTION = 'test-subscription'
+TASK_ID = "test-task-id"
+TEST_PROJECT = "test-project"
+TEST_TOPIC = "test-topic"
+TEST_SUBSCRIPTION = "test-subscription"
 TEST_MESSAGES = [
-    {'data': b'Hello, World!', 'attributes': {'type': 'greeting'}},
-    {'data': b'Knock, knock'},
-    {'attributes': {'foo': ''}},
+    {"data": b"Hello, World!", "attributes": {"type": "greeting"}},
+    {"data": b"Knock, knock"},
+    {"attributes": {"foo": ""}},
 ]
 
 
 class TestPubSubTopicCreateOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_failifexists(self, mock_hook):
         operator = PubSubCreateTopicOperator(
             task_id=TASK_ID, project_id=TEST_PROJECT, topic=TEST_TOPIC, fail_if_exists=True
@@ -65,7 +65,7 @@ class TestPubSubTopicCreateOperator(unittest.TestCase):
             metadata=(),
         )
 
-    @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_succeedifexists(self, mock_hook):
         operator = PubSubCreateTopicOperator(
             task_id=TASK_ID, project_id=TEST_PROJECT, topic=TEST_TOPIC, fail_if_exists=False
@@ -87,7 +87,7 @@ class TestPubSubTopicCreateOperator(unittest.TestCase):
 
 
 class TestPubSubTopicDeleteOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_execute(self, mock_hook):
         operator = PubSubDeleteTopicOperator(task_id=TASK_ID, project_id=TEST_PROJECT, topic=TEST_TOPIC)
 
@@ -103,7 +103,7 @@ class TestPubSubTopicDeleteOperator(unittest.TestCase):
 
 
 class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_execute(self, mock_hook):
         operator = PubSubCreateSubscriptionOperator(
             task_id=TASK_ID, project_id=TEST_PROJECT, topic=TEST_TOPIC, subscription=TEST_SUBSCRIPTION
@@ -133,9 +133,9 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
         )
         assert response == TEST_SUBSCRIPTION
 
-    @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_execute_different_project_ids(self, mock_hook):
-        another_project = 'another-project'
+        another_project = "another-project"
         operator = PubSubCreateSubscriptionOperator(
             project_id=TEST_PROJECT,
             topic=TEST_TOPIC,
@@ -168,7 +168,7 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
         )
         assert response == TEST_SUBSCRIPTION
 
-    @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_execute_no_subscription(self, mock_hook):
         operator = PubSubCreateSubscriptionOperator(
             task_id=TASK_ID, project_id=TEST_PROJECT, topic=TEST_TOPIC
@@ -200,7 +200,7 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
 
 
 class TestPubSubSubscriptionDeleteOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_execute(self, mock_hook):
         operator = PubSubDeleteSubscriptionOperator(
             task_id=TASK_ID, project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION
@@ -218,7 +218,7 @@ class TestPubSubSubscriptionDeleteOperator(unittest.TestCase):
 
 
 class TestPubSubPublishOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_publish(self, mock_hook):
         operator = PubSubPublishMessageOperator(
             task_id=TASK_ID,
@@ -239,7 +239,7 @@ class TestPubSubPullOperator(unittest.TestCase):
             ReceivedMessage(
                 ack_id=f"{i}",
                 message={
-                    "data": f'Message {i}'.encode(),
+                    "data": f"Message {i}".encode(),
                     "attributes": {"type": "generated message"},
                 },
             )
@@ -249,7 +249,7 @@ class TestPubSubPullOperator(unittest.TestCase):
     def _generate_dicts(self, count):
         return [ReceivedMessage.to_dict(m) for m in self._generate_messages(count)]
 
-    @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_execute_no_messages(self, mock_hook):
         operator = PubSubPullOperator(
             task_id=TASK_ID,
@@ -260,7 +260,7 @@ class TestPubSubPullOperator(unittest.TestCase):
         mock_hook.return_value.pull.return_value = []
         assert [] == operator.execute({})
 
-    @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_execute_with_ack_messages(self, mock_hook):
         operator = PubSubPullOperator(
             task_id=TASK_ID,
@@ -280,10 +280,10 @@ class TestPubSubPullOperator(unittest.TestCase):
             messages=generated_messages,
         )
 
-    @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_execute_with_messages_callback(self, mock_hook):
         generated_messages = self._generate_messages(5)
-        messages_callback_return_value = 'asdfg'
+        messages_callback_return_value = "asdfg"
 
         def messages_callback(
             pulled_messages: list[ReceivedMessage],

@@ -401,23 +401,23 @@ class _DataflowJobsController(LoggingMixin):
         :raise: Exception
         """
         if self._wait_until_finished is None:
-            wait_for_running = job.get('type') == DataflowJobType.JOB_TYPE_STREAMING
+            wait_for_running = job.get("type") == DataflowJobType.JOB_TYPE_STREAMING
         else:
             wait_for_running = not self._wait_until_finished
 
-        if job['currentState'] == DataflowJobStatus.JOB_STATE_DONE:
+        if job["currentState"] == DataflowJobStatus.JOB_STATE_DONE:
             return True
-        elif job['currentState'] == DataflowJobStatus.JOB_STATE_FAILED:
+        elif job["currentState"] == DataflowJobStatus.JOB_STATE_FAILED:
             raise Exception(f"Google Cloud Dataflow job {job['name']} has failed.")
-        elif job['currentState'] == DataflowJobStatus.JOB_STATE_CANCELLED:
+        elif job["currentState"] == DataflowJobStatus.JOB_STATE_CANCELLED:
             raise Exception(f"Google Cloud Dataflow job {job['name']} was cancelled.")
-        elif job['currentState'] == DataflowJobStatus.JOB_STATE_DRAINED:
+        elif job["currentState"] == DataflowJobStatus.JOB_STATE_DRAINED:
             raise Exception(f"Google Cloud Dataflow job {job['name']} was drained.")
-        elif job['currentState'] == DataflowJobStatus.JOB_STATE_UPDATED:
+        elif job["currentState"] == DataflowJobStatus.JOB_STATE_UPDATED:
             raise Exception(f"Google Cloud Dataflow job {job['name']} was updated.")
-        elif job['currentState'] == DataflowJobStatus.JOB_STATE_RUNNING and wait_for_running:
+        elif job["currentState"] == DataflowJobStatus.JOB_STATE_RUNNING and wait_for_running:
             return True
-        elif job['currentState'] in DataflowJobStatus.AWAITING_STATES:
+        elif job["currentState"] in DataflowJobStatus.AWAITING_STATES:
             return self._wait_until_finished is False
         self.log.debug("Current job: %s", str(job))
         raise Exception(f"Google Cloud Dataflow job {job['name']} was unknown state: {job['currentState']}")
@@ -452,13 +452,13 @@ class _DataflowJobsController(LoggingMixin):
             raise ValueError("The _jobs should be set")
         while True:
             self._refresh_jobs()
-            job_states = {job['currentState'] for job in self._jobs}
+            job_states = {job["currentState"] for job in self._jobs}
             if not job_states.difference(expected_states):
                 return
             unexpected_failed_end_states = expected_states - DataflowJobStatus.FAILED_END_STATES
             if unexpected_failed_end_states.intersection(job_states):
                 unexpected_failed_jobs = {
-                    job for job in self._jobs if job['currentState'] in unexpected_failed_end_states
+                    job for job in self._jobs if job["currentState"] in unexpected_failed_end_states
                 }
                 raise AirflowException(
                     "Jobs failed: "

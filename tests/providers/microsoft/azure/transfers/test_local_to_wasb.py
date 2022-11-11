@@ -29,43 +29,43 @@ from airflow.providers.microsoft.azure.transfers.local_to_wasb import LocalFiles
 class TestLocalFilesystemToWasbOperator:
 
     _config = {
-        'file_path': 'file',
-        'container_name': 'container',
-        'blob_name': 'blob',
-        'wasb_conn_id': 'wasb_default',
-        'retries': 3,
+        "file_path": "file",
+        "container_name": "container",
+        "blob_name": "blob",
+        "wasb_conn_id": "wasb_default",
+        "retries": 3,
     }
 
     def setup(self):
-        args = {'owner': 'airflow', 'start_date': datetime.datetime(2017, 1, 1)}
-        self.dag = DAG('test_dag_id', default_args=args)
+        args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
+        self.dag = DAG("test_dag_id", default_args=args)
 
     def test_init(self):
-        operator = LocalFilesystemToWasbOperator(task_id='wasb_operator_1', dag=self.dag, **self._config)
-        assert operator.file_path == self._config['file_path']
-        assert operator.container_name == self._config['container_name']
-        assert operator.blob_name == self._config['blob_name']
-        assert operator.wasb_conn_id == self._config['wasb_conn_id']
+        operator = LocalFilesystemToWasbOperator(task_id="wasb_operator_1", dag=self.dag, **self._config)
+        assert operator.file_path == self._config["file_path"]
+        assert operator.container_name == self._config["container_name"]
+        assert operator.blob_name == self._config["blob_name"]
+        assert operator.wasb_conn_id == self._config["wasb_conn_id"]
         assert operator.load_options == {}
-        assert operator.retries == self._config['retries']
+        assert operator.retries == self._config["retries"]
 
         operator = LocalFilesystemToWasbOperator(
-            task_id='wasb_operator_2', dag=self.dag, load_options={'timeout': 2}, **self._config
+            task_id="wasb_operator_2", dag=self.dag, load_options={"timeout": 2}, **self._config
         )
-        assert operator.load_options == {'timeout': 2}
+        assert operator.load_options == {"timeout": 2}
 
     @pytest.mark.parametrize(argnames="create_container", argvalues=[True, False])
-    @mock.patch('airflow.providers.microsoft.azure.transfers.local_to_wasb.WasbHook', autospec=True)
+    @mock.patch("airflow.providers.microsoft.azure.transfers.local_to_wasb.WasbHook", autospec=True)
     def test_execute(self, mock_hook, create_container):
         mock_instance = mock_hook.return_value
         operator = LocalFilesystemToWasbOperator(
-            task_id='wasb_sensor',
+            task_id="wasb_sensor",
             dag=self.dag,
             create_container=create_container,
-            load_options={'timeout': 2},
+            load_options={"timeout": 2},
             **self._config,
         )
         operator.execute(None)
         mock_instance.load_file.assert_called_once_with(
-            'file', 'container', 'blob', create_container, timeout=2
+            "file", "container", "blob", create_container, timeout=2
         )

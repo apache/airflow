@@ -38,15 +38,15 @@ class DruidOperator(BaseOperator):
     :param max_ingestion_time: The maximum ingestion time before assuming the job failed
     """
 
-    template_fields: Sequence[str] = ('json_index_file',)
-    template_ext: Sequence[str] = ('.json',)
-    template_fields_renderers = {'json_index_file': 'json'}
+    template_fields: Sequence[str] = ("json_index_file",)
+    template_ext: Sequence[str] = (".json",)
+    template_fields_renderers = {"json_index_file": "json"}
 
     def __init__(
         self,
         *,
         json_index_file: str,
-        druid_ingest_conn_id: str = 'druid_ingest_default',
+        druid_ingest_conn_id: str = "druid_ingest_default",
         timeout: int = 1,
         max_ingestion_time: int | None = None,
         **kwargs: Any,

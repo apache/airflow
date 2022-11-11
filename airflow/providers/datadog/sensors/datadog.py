@@ -51,12 +51,12 @@ class DatadogSensor(BaseSensorOperator):
     :param response_check: Optional[Callable[[Dict[str, Any]], bool]]
     """
 
-    ui_color = '#66c3dd'
+    ui_color = "#66c3dd"
 
     def __init__(
         self,
         *,
-        datadog_conn_id: str = 'datadog_default',
+        datadog_conn_id: str = "datadog_default",
         from_seconds_ago: int = 3600,
         up_to_seconds_from_now: int = 0,
         priority: str | None = None,
@@ -89,7 +89,7 @@ class DatadogSensor(BaseSensorOperator):
             tags=self.tags,
         )
 
-        if isinstance(response, dict) and response.get('status', 'ok') != 'ok':
+        if isinstance(response, dict) and response.get("status", "ok") != "ok":
             self.log.error("Unexpected Datadog result: %s", response)
             raise AirflowException("Datadog returned unexpected result")
 

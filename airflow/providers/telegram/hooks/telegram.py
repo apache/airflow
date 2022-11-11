@@ -134,10 +134,10 @@ class TelegramHook(BaseHook):
         }
         kwargs.update(api_params)
 
-        if 'text' not in kwargs or kwargs['text'] is None:
+        if "text" not in kwargs or kwargs["text"] is None:
             raise AirflowException("'text' must be provided for telegram message")
 
-        if kwargs['chat_id'] is None:
+        if kwargs["chat_id"] is None:
             raise AirflowException("'chat_id' must be provided for telegram message")
 
         response = self.connection.send_message(**kwargs)

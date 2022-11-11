@@ -42,10 +42,10 @@ class KubernetesHook(BaseHook):
     """
     Creates Kubernetes API connection.
 
-    - use in cluster configuration by using ``extra__kubernetes__in_cluster`` in connection
-    - use custom config by providing path to the file using ``extra__kubernetes__kube_config_path``
+    - use in cluster configuration by using extra field ``in_cluster`` in connection
+    - use custom config by providing path to the file using extra field ``kube_config_path`` in connection
     - use custom configuration by providing content of kubeconfig file via
-        ``extra__kubernetes__kube_config`` in connection
+        extra field ``kube_config`` in connection
     - use default config by providing no extras
 
     This hook check for configuration option in the above order. Once an option is present it will
@@ -67,10 +67,10 @@ class KubernetesHook(BaseHook):
     :param disable_tcp_keepalive: Set to ``True`` if you want to disable keepalive logic.
     """
 
-    conn_name_attr = 'kubernetes_conn_id'
-    default_conn_name = 'kubernetes_default'
-    conn_type = 'kubernetes'
-    hook_name = 'Kubernetes Cluster Connection'
+    conn_name_attr = "kubernetes_conn_id"
+    default_conn_name = "kubernetes_default"
+    conn_type = "kubernetes"
+    hook_name = "Kubernetes Cluster Connection"
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
@@ -80,28 +80,22 @@ class KubernetesHook(BaseHook):
         from wtforms import BooleanField, StringField
 
         return {
-            "extra__kubernetes__in_cluster": BooleanField(lazy_gettext('In cluster configuration')),
-            "extra__kubernetes__kube_config_path": StringField(
-                lazy_gettext('Kube config path'), widget=BS3TextFieldWidget()
+            "in_cluster": BooleanField(lazy_gettext("In cluster configuration")),
+            "kube_config_path": StringField(lazy_gettext("Kube config path"), widget=BS3TextFieldWidget()),
+            "kube_config": StringField(
+                lazy_gettext("Kube config (JSON format)"), widget=BS3TextFieldWidget()
             ),
-            "extra__kubernetes__kube_config": StringField(
-                lazy_gettext('Kube config (JSON format)'), widget=BS3TextFieldWidget()
-            ),
-            "extra__kubernetes__namespace": StringField(
-                lazy_gettext('Namespace'), widget=BS3TextFieldWidget()
-            ),
-            "extra__kubernetes__cluster_context": StringField(
-                lazy_gettext('Cluster context'), widget=BS3TextFieldWidget()
-            ),
-            "extra__kubernetes__disable_verify_ssl": BooleanField(lazy_gettext('Disable SSL')),
-            "extra__kubernetes__disable_tcp_keepalive": BooleanField(lazy_gettext('Disable TCP keepalive')),
+            "namespace": StringField(lazy_gettext("Namespace"), widget=BS3TextFieldWidget()),
+            "cluster_context": StringField(lazy_gettext("Cluster context"), widget=BS3TextFieldWidget()),
+            "disable_verify_ssl": BooleanField(lazy_gettext("Disable SSL")),
+            "disable_tcp_keepalive": BooleanField(lazy_gettext("Disable TCP keepalive")),
         }
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
+            "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
         }
 
@@ -141,7 +135,12 @@ class KubernetesHook(BaseHook):
         return extras
 
     def _get_field(self, field_name):
-        if field_name.startswith('extra_'):
+        """
+        Prior to Airflow 2.3, in order to make use of UI customizations for extra fields,
+        we needed to store them with the prefix ``extra__kubernetes__``. This method
+        handles the backcompat, i.e. if the extra dict contains prefixed fields.
+        """
+        if field_name.startswith("extra__"):
             raise ValueError(
                 f"Got prefixed name {field_name}; please remove the 'extra__kubernetes__' prefix "
                 f"when using this method."
@@ -153,7 +152,7 @@ class KubernetesHook(BaseHook):
 
     @staticmethod
     def _deprecation_warning_core_param(deprecation_warnings):
-        settings_list_str = ''.join([f"\n\t{k}={v!r}" for k, v in deprecation_warnings])
+        settings_list_str = "".join([f"\n\t{k}={v!r}" for k, v in deprecation_warnings])
         warnings.warn(
             f"\nApplying core Airflow settings from section [kubernetes] with the following keys:"
             f"{settings_list_str}\n"
@@ -164,17 +163,10 @@ class KubernetesHook(BaseHook):
 
     def get_conn(self) -> client.ApiClient:
         """Returns kubernetes api session for use with requests"""
-        in_cluster = self._coalesce_param(
-            self.in_cluster, self.conn_extras.get("extra__kubernetes__in_cluster") or None
-        )
-        cluster_context = self._coalesce_param(
-            self.cluster_context, self.conn_extras.get("extra__kubernetes__cluster_context") or None
-        )
-        kubeconfig_path = self._coalesce_param(
-            self.config_file, self.conn_extras.get("extra__kubernetes__kube_config_path") or None
-        )
-
-        kubeconfig = self.conn_extras.get("extra__kubernetes__kube_config") or None
+        in_cluster = self._coalesce_param(self.in_cluster, self._get_field("in_cluster"))
+        cluster_context = self._coalesce_param(self.cluster_context, self._get_field("cluster_context"))
+        kubeconfig_path = self._coalesce_param(self.config_file, self._get_field("kube_config_path"))
+        kubeconfig = self._get_field("kube_config")
         num_selected_configuration = len([o for o in [in_cluster, kubeconfig, kubeconfig_path] if o])
 
         if num_selected_configuration > 1:
@@ -292,7 +284,7 @@ class KubernetesHook(BaseHook):
             )
             self.log.warning("Deleted SparkApplication with the same name.")
         except client.rest.ApiException:
-            self.log.info("SparkApp %s not found.", body_dict['metadata']['name'])
+            self.log.info("SparkApp %s not found.", body_dict["metadata"]["name"])
 
         try:
             response = api.create_namespaced_custom_object(
@@ -329,10 +321,7 @@ class KubernetesHook(BaseHook):
     def get_namespace(self) -> str | None:
         """Returns the namespace that defined in the connection"""
         if self.conn_id:
-            connection = self.get_connection(self.conn_id)
-            extras = connection.extra_dejson
-            namespace = extras.get("extra__kubernetes__namespace", "default")
-            return namespace
+            return self._get_field("namespace") or "default"
         return None
 
     def get_pod_log_stream(
@@ -388,8 +377,8 @@ def _get_bool(val) -> bool | None:
     if isinstance(val, bool):
         return val
     elif isinstance(val, str):
-        if val.strip().lower() == 'true':
+        if val.strip().lower() == "true":
             return True
-        elif val.strip().lower() == 'false':
+        elif val.strip().lower() == "false":
             return False
     return None

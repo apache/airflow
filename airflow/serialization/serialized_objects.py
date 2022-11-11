@@ -56,7 +56,7 @@ from airflow.utils.code_utils import get_python_source
 from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import as_importable_string, import_string
 from airflow.utils.operator_resources import Resources
-from airflow.utils.task_group import TaskGroup
+from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
 if TYPE_CHECKING:
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
@@ -434,7 +434,7 @@ class BaseSerialization:
             # FIXME: casts tuple to list in customized serialization in future.
             return cls._encode([cls.serialize(v) for v in var], type_=DAT.TUPLE)
         elif isinstance(var, TaskGroup):
-            return SerializedTaskGroup.serialize_task_group(var)
+            return TaskGroupSerialization.serialize_task_group(var)
         elif isinstance(var, Param):
             return cls._encode(cls._serialize_param(var), type_=DAT.PARAM)
         elif isinstance(var, XComArg):
@@ -1144,7 +1144,7 @@ class SerializedDAG(DAG, BaseSerialization):
             }
             dag_deps.update(DependencyDetector.detect_dag_dependencies(dag))
             serialized_dag["dag_dependencies"] = [x.__dict__ for x in dag_deps]
-            serialized_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
+            serialized_dag['_task_group'] = TaskGroupSerialization.serialize_task_group(dag.task_group)
 
             # Edge info in the JSON exactly matches our internal structure
             serialized_dag["edge_info"] = dag.edge_info
@@ -1206,8 +1206,11 @@ class SerializedDAG(DAG, BaseSerialization):
 
         # Set _task_group
         if "_task_group" in encoded_dag:
-            dag._task_group = SerializedTaskGroup.deserialize_task_group(
-                encoded_dag["_task_group"], None, dag.task_dict, dag
+            dag._task_group = TaskGroupSerialization.deserialize_task_group(
+                encoded_dag["_task_group"],
+                None,
+                dag.task_dict,
+                dag,
             )
         else:
             # This must be old data that had no task_group. Create a root TaskGroup and add
@@ -1266,8 +1269,8 @@ class SerializedDAG(DAG, BaseSerialization):
         return cls.deserialize_dag(serialized_obj['dag'])
 
 
-class SerializedTaskGroup(TaskGroup, BaseSerialization):
-    """A JSON serializable representation of TaskGroup."""
+class TaskGroupSerialization(BaseSerialization):
+    """JSON serializable representation of a task group."""
 
     @classmethod
     def serialize_task_group(cls, task_group: TaskGroup) -> dict[str, Any] | None:
@@ -1278,7 +1281,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         # task_group.xxx_ids needs to be sorted here, because task_group.xxx_ids is a set,
         # when converting set to list, the order is uncertain.
         # When calling json.dumps(self.data, sort_keys=True) to generate dag_hash, misjudgment will occur
-        serialize_group = {
+        encoded = {
             "_group_id": task_group._group_id,
             "prefix_group_id": task_group.prefix_group_id,
             "tooltip": task_group.tooltip,
@@ -1293,7 +1296,15 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             "downstream_task_ids": cls.serialize(sorted(task_group.downstream_task_ids)),
         }
 
-        return serialize_group
+        if isinstance(task_group, MappedTaskGroup):
+            expand_input = task_group._expand_input
+            encoded["expand_input"] = {
+                "type": get_map_type_key(expand_input),
+                "value": cls.serialize(expand_input.value),
+            }
+            encoded["is_mapped"] = True
+
+        return encoded
 
     @classmethod
     def deserialize_task_group(
@@ -1309,16 +1320,27 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             key: cls.deserialize(encoded_group[key])
             for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
         }
-        group = SerializedTaskGroup(group_id=group_id, parent_group=parent_group, dag=dag, **kwargs)
+
+        if not encoded_group.get("is_mapped"):
+            group = TaskGroup(group_id=group_id, parent_group=parent_group, dag=dag, **kwargs)
+        else:
+            xi = encoded_group["expand_input"]
+            group = MappedTaskGroup(
+                group_id=group_id,
+                parent_group=parent_group,
+                dag=dag,
+                expand_input=_ExpandInputRef(xi["type"], cls.deserialize(xi["value"])).deref(dag),
+                **kwargs,
+            )
 
         def set_ref(task: Operator) -> Operator:
             task.task_group = weakref.proxy(group)
             return task
 
         group.children = {
-            label: set_ref(task_dict[val])  # type: ignore
-            if _type == DAT.OP  # type: ignore
-            else SerializedTaskGroup.deserialize_task_group(val, group, task_dict, dag=dag)
+            label: set_ref(task_dict[val])
+            if _type == DAT.OP
+            else cls.deserialize_task_group(val, group, task_dict, dag=dag)
             for label, (_type, val) in encoded_group["children"].items()
         }
         group.upstream_group_ids.update(cls.deserialize(encoded_group["upstream_group_ids"]))

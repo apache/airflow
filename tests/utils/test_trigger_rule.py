@@ -17,14 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import pytest
 
 from airflow.utils.trigger_rule import TriggerRule
 
 
-class TestTriggerRule(unittest.TestCase):
+class TestTriggerRule:
     def test_valid_trigger_rules(self):
         assert TriggerRule.is_valid(TriggerRule.ALL_SUCCESS)
         assert TriggerRule.is_valid(TriggerRule.ALL_FAILED)

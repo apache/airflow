@@ -53,4 +53,4 @@ class MlEngineExampleDagTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_AI_KEY)
     def test_run_example_dag(self):
-        self.run_dag('example_gcp_mlengine', CLOUD_DAG_FOLDER)
+        self.run_dag("example_gcp_mlengine", CLOUD_DAG_FOLDER)

@@ -53,7 +53,7 @@ class CeleryQueueSensor(BaseSensorOperator):
         :return: True if task has been executed, otherwise False
         :rtype: bool
         """
-        ti = context['ti']
+        ti = context["ti"]
         celery_result = ti.xcom_pull(task_ids=self.target_task_id)
         return celery_result.ready()
 
@@ -72,8 +72,8 @@ class CeleryQueueSensor(BaseSensorOperator):
             scheduled = len(scheduled[self.celery_queue])
             active = len(active[self.celery_queue])
 
-            self.log.info('Checking if celery queue %s is empty.', self.celery_queue)
+            self.log.info("Checking if celery queue %s is empty.", self.celery_queue)
 
             return reserved == 0 and scheduled == 0 and active == 0
         except KeyError:
-            raise KeyError(f'Could not locate Celery queue {self.celery_queue}')
+            raise KeyError(f"Could not locate Celery queue {self.celery_queue}")

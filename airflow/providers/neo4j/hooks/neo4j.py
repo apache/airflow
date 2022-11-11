@@ -33,10 +33,10 @@ class Neo4jHook(BaseHook):
     :param neo4j_conn_id: Reference to :ref:`Neo4j connection id <howto/connection:neo4j>`.
     """
 
-    conn_name_attr = 'neo4j_conn_id'
-    default_conn_name = 'neo4j_default'
-    conn_type = 'neo4j'
-    hook_name = 'Neo4j'
+    conn_name_attr = "neo4j_conn_id"
+    default_conn_name = "neo4j_default"
+    conn_type = "neo4j"
+    hook_name = "Neo4j"
 
     def __init__(self, conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -55,9 +55,9 @@ class Neo4jHook(BaseHook):
         self.connection = self.get_connection(self.neo4j_conn_id)
 
         uri = self.get_uri(self.connection)
-        self.log.info('URI: %s', uri)
+        self.log.info("URI: %s", uri)
 
-        is_encrypted = self.connection.extra_dejson.get('encrypted', False)
+        is_encrypted = self.connection.extra_dejson.get("encrypted", False)
 
         self.client = GraphDatabase.driver(
             uri, auth=(self.connection.login, self.connection.password), encrypted=is_encrypted
@@ -76,20 +76,20 @@ class Neo4jHook(BaseHook):
         :param conn: connection object.
         :return: uri
         """
-        use_neo4j_scheme = conn.extra_dejson.get('neo4j_scheme', False)
-        scheme = 'neo4j' if use_neo4j_scheme else 'bolt'
+        use_neo4j_scheme = conn.extra_dejson.get("neo4j_scheme", False)
+        scheme = "neo4j" if use_neo4j_scheme else "bolt"
 
         # Self signed certificates
-        ssc = conn.extra_dejson.get('certs_self_signed', False)
+        ssc = conn.extra_dejson.get("certs_self_signed", False)
 
         # Only certificates signed by CA.
-        trusted_ca = conn.extra_dejson.get('certs_trusted_ca', False)
-        encryption_scheme = ''
+        trusted_ca = conn.extra_dejson.get("certs_trusted_ca", False)
+        encryption_scheme = ""
 
         if ssc:
-            encryption_scheme = '+ssc'
+            encryption_scheme = "+ssc"
         elif trusted_ca:
-            encryption_scheme = '+s'
+            encryption_scheme = "+s"
 
         return f"{scheme}{encryption_scheme}://{conn.host}:{7687 if conn.port is None else conn.port}"
 

@@ -36,12 +36,12 @@ class TestElasticsearchHook(unittest.TestCase):
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
         conn = self.conn
-        self.connection = Connection(host='localhost', port=9200, schema='http')
+        self.connection = Connection(host="localhost", port=9200, schema="http")
 
         with self.assertWarns(DeprecationWarning):
 
             class UnitTestElasticsearchHook(ElasticsearchHook):
-                conn_name_attr = 'test_conn_id'
+                conn_name_attr = "test_conn_id"
 
                 def get_conn(self):
                     return conn
@@ -53,20 +53,20 @@ class TestElasticsearchSQLHookConn(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
-        self.connection = Connection(host='localhost', port=9200, schema='http')
+        self.connection = Connection(host="localhost", port=9200, schema="http")
 
         class UnitTestElasticsearchHook(ElasticsearchSQLHook):
-            conn_name_attr = 'elasticsearch_conn_id'
+            conn_name_attr = "elasticsearch_conn_id"
 
         self.db_hook = UnitTestElasticsearchHook()
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = self.connection
 
-    @mock.patch('airflow.providers.elasticsearch.hooks.elasticsearch.connect')
+    @mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.connect")
     def test_get_conn(self, mock_connect):
-        self.db_hook.test_conn_id = 'non_default'
+        self.db_hook.test_conn_id = "non_default"
         self.db_hook.get_conn()
-        mock_connect.assert_called_with(host='localhost', port=9200, scheme='http', user=None, password=None)
+        mock_connect.assert_called_with(host="localhost", port=9200, scheme="http", user=None, password=None)
 
 
 class TestElasticsearcSQLhHook(unittest.TestCase):
@@ -79,7 +79,7 @@ class TestElasticsearcSQLhHook(unittest.TestCase):
         conn = self.conn
 
         class UnitTestElasticsearchHook(ElasticsearchSQLHook):
-            conn_name_attr = 'test_conn_id'
+            conn_name_attr = "test_conn_id"
 
             def get_conn(self):
                 return conn
@@ -87,8 +87,8 @@ class TestElasticsearcSQLhHook(unittest.TestCase):
         self.db_hook = UnitTestElasticsearchHook()
 
     def test_get_first_record(self):
-        statement = 'SQL'
-        result_sets = [('row1',), ('row2',)]
+        statement = "SQL"
+        result_sets = [("row1",), ("row2",)]
         self.cur.fetchone.return_value = result_sets[0]
 
         assert result_sets[0] == self.db_hook.get_first(statement)
@@ -97,8 +97,8 @@ class TestElasticsearcSQLhHook(unittest.TestCase):
         self.cur.execute.assert_called_once_with(statement)
 
     def test_get_records(self):
-        statement = 'SQL'
-        result_sets = [('row1',), ('row2',)]
+        statement = "SQL"
+        result_sets = [("row1",), ("row2",)]
         self.cur.fetchall.return_value = result_sets
 
         assert result_sets == self.db_hook.get_records(statement)
@@ -107,9 +107,9 @@ class TestElasticsearcSQLhHook(unittest.TestCase):
         self.cur.execute.assert_called_once_with(statement)
 
     def test_get_pandas_df(self):
-        statement = 'SQL'
-        column = 'col'
-        result_sets = [('row1',), ('row2',)]
+        statement = "SQL"
+        column = "col"
+        result_sets = [("row1",), ("row2",)]
         self.cur.description = [(column,)]
         self.cur.fetchall.return_value = result_sets
         df = self.db_hook.get_pandas_df(statement)
@@ -150,4 +150,4 @@ class TestElasticsearchPythonHook:
 
         result = self.elasticsearch_hook.search(index="test_index", query=query)
 
-        assert result == es_data['hits']
+        assert result == es_data["hits"]

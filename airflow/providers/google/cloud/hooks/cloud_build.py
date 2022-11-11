@@ -117,7 +117,7 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start cancelling build: %s.", id_)
 
         build = client.cancel_build(
-            request={'project_id': project_id, 'id': id_},
+            request={"project_id": project_id, "id": id_},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -157,7 +157,7 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start creating build.")
 
         operation = client.create_build(
-            request={'project_id': project_id, 'build': build},
+            request={"project_id": project_id, "build": build},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -203,7 +203,7 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start creating build trigger.")
 
         trigger = client.create_build_trigger(
-            request={'project_id': project_id, 'trigger': trigger},
+            request={"project_id": project_id, "trigger": trigger},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -239,7 +239,7 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start deleting build trigger: %s.", trigger_id)
 
         client.delete_build_trigger(
-            request={'project_id': project_id, 'trigger_id': trigger_id},
+            request={"project_id": project_id, "trigger_id": trigger_id},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -275,7 +275,7 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start retrieving build: %s.", id_)
 
         build = client.get_build(
-            request={'project_id': project_id, 'id': id_},
+            request={"project_id": project_id, "id": id_},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -313,7 +313,7 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start retrieving build trigger: %s.", trigger_id)
 
         trigger = client.get_build_trigger(
-            request={'project_id': project_id, 'trigger_id': trigger_id},
+            request={"project_id": project_id, "trigger_id": trigger_id},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -358,10 +358,10 @@ class CloudBuildHook(GoogleBaseHook):
 
         response = client.list_build_triggers(
             request={
-                'parent': parent,
-                'project_id': project_id,
-                'page_size': page_size,
-                'page_token': page_token,
+                "parent": parent,
+                "project_id": project_id,
+                "page_size": page_size,
+                "page_token": page_token,
             },
             retry=retry,
             timeout=timeout,
@@ -409,11 +409,11 @@ class CloudBuildHook(GoogleBaseHook):
 
         response = client.list_builds(
             request={
-                'parent': parent,
-                'project_id': project_id,
-                'page_size': page_size,
-                'page_token': page_token,
-                'filter': filter_,
+                "parent": parent,
+                "project_id": project_id,
+                "page_size": page_size,
+                "page_token": page_token,
+                "filter": filter_,
             },
             retry=retry,
             timeout=timeout,
@@ -455,7 +455,7 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start retrying build: %s.", id_)
 
         operation = client.retry_build(
-            request={'project_id': project_id, 'id': id_},
+            request={"project_id": project_id, "id": id_},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -505,7 +505,7 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start running build trigger: %s.", trigger_id)
 
         operation = client.run_build_trigger(
-            request={'project_id': project_id, 'trigger_id': trigger_id, 'source': source},
+            request={"project_id": project_id, "trigger_id": trigger_id, "source": source},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -553,7 +553,7 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start updating build trigger: %s.", trigger_id)
 
         trigger = client.update_build_trigger(
-            request={'project_id': project_id, 'trigger_id': trigger_id, 'trigger': trigger},
+            request={"project_id": project_id, "trigger_id": trigger_id, "trigger": trigger},
             retry=retry,
             timeout=timeout,
             metadata=metadata,

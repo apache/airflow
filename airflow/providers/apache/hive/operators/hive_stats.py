@@ -60,8 +60,8 @@ class HiveStatsCollectionOperator(BaseOperator):
         column.
     """
 
-    template_fields: Sequence[str] = ('table', 'partition', 'ds', 'dttm')
-    ui_color = '#aff7a6'
+    template_fields: Sequence[str] = ("table", "partition", "ds", "dttm")
+    ui_color = "#aff7a6"
 
     def __init__(
         self,
@@ -71,12 +71,12 @@ class HiveStatsCollectionOperator(BaseOperator):
         extra_exprs: dict[str, Any] | None = None,
         excluded_columns: list[str] | None = None,
         assignment_func: Callable[[str, str], dict[Any, Any] | None] | None = None,
-        metastore_conn_id: str = 'metastore_default',
-        presto_conn_id: str = 'presto_default',
-        mysql_conn_id: str = 'airflow_db',
+        metastore_conn_id: str = "metastore_default",
+        presto_conn_id: str = "presto_default",
+        mysql_conn_id: str = "airflow_db",
         **kwargs: Any,
     ) -> None:
-        if 'col_blacklist' in kwargs:
+        if "col_blacklist" in kwargs:
             warnings.warn(
                 f"col_blacklist kwarg passed to {self.__class__.__name__} "
                 f"(task_id: {kwargs.get('task_id')}) is deprecated, "
@@ -84,7 +84,7 @@ class HiveStatsCollectionOperator(BaseOperator):
                 category=FutureWarning,
                 stacklevel=2,
             )
-            excluded_columns = kwargs.pop('col_blacklist')
+            excluded_columns = kwargs.pop("col_blacklist")
         super().__init__(**kwargs)
         self.table = table
         self.partition = partition
@@ -94,25 +94,25 @@ class HiveStatsCollectionOperator(BaseOperator):
         self.presto_conn_id = presto_conn_id
         self.mysql_conn_id = mysql_conn_id
         self.assignment_func = assignment_func
-        self.ds = '{{ ds }}'
-        self.dttm = '{{ execution_date.isoformat() }}'
+        self.ds = "{{ ds }}"
+        self.dttm = "{{ execution_date.isoformat() }}"
 
     def get_default_exprs(self, col: str, col_type: str) -> dict[Any, Any]:
         """Get default expressions"""
         if col in self.excluded_columns:
             return {}
-        exp = {(col, 'non_null'): f"COUNT({col})"}
-        if col_type in {'double', 'int', 'bigint', 'float'}:
-            exp[(col, 'sum')] = f'SUM({col})'
-            exp[(col, 'min')] = f'MIN({col})'
-            exp[(col, 'max')] = f'MAX({col})'
-            exp[(col, 'avg')] = f'AVG({col})'
-        elif col_type == 'boolean':
-            exp[(col, 'true')] = f'SUM(CASE WHEN {col} THEN 1 ELSE 0 END)'
-            exp[(col, 'false')] = f'SUM(CASE WHEN NOT {col} THEN 1 ELSE 0 END)'
-        elif col_type == 'string':
-            exp[(col, 'len')] = f'SUM(CAST(LENGTH({col}) AS BIGINT))'
-            exp[(col, 'approx_distinct')] = f'APPROX_DISTINCT({col})'
+        exp = {(col, "non_null"): f"COUNT({col})"}
+        if col_type in {"double", "int", "bigint", "float"}:
+            exp[(col, "sum")] = f"SUM({col})"
+            exp[(col, "min")] = f"MIN({col})"
+            exp[(col, "max")] = f"MAX({col})"
+            exp[(col, "avg")] = f"AVG({col})"
+        elif col_type == "boolean":
+            exp[(col, "true")] = f"SUM(CASE WHEN {col} THEN 1 ELSE 0 END)"
+            exp[(col, "false")] = f"SUM(CASE WHEN NOT {col} THEN 1 ELSE 0 END)"
+        elif col_type == "string":
+            exp[(col, "len")] = f"SUM(CAST(LENGTH({col}) AS BIGINT))"
+            exp[(col, "approx_distinct")] = f"APPROX_DISTINCT({col})"
 
         return exp
 
@@ -121,7 +121,7 @@ class HiveStatsCollectionOperator(BaseOperator):
         table = metastore.get_table(table_name=self.table)
         field_types = {col.name: col.type for col in table.sd.cols}
 
-        exprs: Any = {('', 'count'): 'COUNT(*)'}
+        exprs: Any = {("", "count"): "COUNT(*)"}
         for col, col_type in list(field_types.items()):
             if self.assignment_func:
                 assign_exprs = self.assignment_func(col, col_type)
@@ -139,7 +139,7 @@ class HiveStatsCollectionOperator(BaseOperator):
         sql = f"SELECT {exprs_str} FROM {self.table} WHERE {where_clause};"
 
         presto = PrestoHook(presto_conn_id=self.presto_conn_id)
-        self.log.info('Executing SQL check: %s', sql)
+        self.log.info("Executing SQL check: %s", sql)
         row = presto.get_first(sql)
         self.log.info("Record: %s", row)
         if not row:
@@ -172,15 +172,15 @@ class HiveStatsCollectionOperator(BaseOperator):
             (self.ds, self.dttm, self.table, part_json) + (r[0][0], r[0][1], r[1]) for r in zip(exprs, row)
         ]
         mysql.insert_rows(
-            table='hive_stats',
+            table="hive_stats",
             rows=rows,
             target_fields=[
-                'ds',
-                'dttm',
-                'table_name',
-                'partition_repr',
-                'col',
-                'metric',
-                'value',
+                "ds",
+                "dttm",
+                "table_name",
+                "partition_repr",
+                "col",
+                "metric",
+                "value",
             ],
         )

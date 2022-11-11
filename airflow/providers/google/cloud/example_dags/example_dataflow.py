@@ -46,20 +46,20 @@ from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFile
 
 START_DATE = datetime(2021, 1, 1)
 
-GCS_TMP = os.environ.get('GCP_DATAFLOW_GCS_TMP', 'gs://INVALID BUCKET NAME/temp/')
-GCS_STAGING = os.environ.get('GCP_DATAFLOW_GCS_STAGING', 'gs://INVALID BUCKET NAME/staging/')
-GCS_OUTPUT = os.environ.get('GCP_DATAFLOW_GCS_OUTPUT', 'gs://INVALID BUCKET NAME/output')
-GCS_JAR = os.environ.get('GCP_DATAFLOW_JAR', 'gs://INVALID BUCKET NAME/word-count-beam-bundled-0.1.jar')
-GCS_PYTHON = os.environ.get('GCP_DATAFLOW_PYTHON', 'gs://INVALID BUCKET NAME/wordcount_debugging.py')
+GCS_TMP = os.environ.get("GCP_DATAFLOW_GCS_TMP", "gs://INVALID BUCKET NAME/temp/")
+GCS_STAGING = os.environ.get("GCP_DATAFLOW_GCS_STAGING", "gs://INVALID BUCKET NAME/staging/")
+GCS_OUTPUT = os.environ.get("GCP_DATAFLOW_GCS_OUTPUT", "gs://INVALID BUCKET NAME/output")
+GCS_JAR = os.environ.get("GCP_DATAFLOW_JAR", "gs://INVALID BUCKET NAME/word-count-beam-bundled-0.1.jar")
+GCS_PYTHON = os.environ.get("GCP_DATAFLOW_PYTHON", "gs://INVALID BUCKET NAME/wordcount_debugging.py")
 
 GCS_JAR_PARTS = urlparse(GCS_JAR)
 GCS_JAR_BUCKET_NAME = GCS_JAR_PARTS.netloc
 GCS_JAR_OBJECT_NAME = GCS_JAR_PARTS.path[1:]
 
 default_args = {
-    'dataflow_default_options': {
-        'tempLocation': GCS_TMP,
-        'stagingLocation': GCS_STAGING,
+    "dataflow_default_options": {
+        "tempLocation": GCS_TMP,
+        "stagingLocation": GCS_STAGING,
     }
 }
 
@@ -67,7 +67,7 @@ with models.DAG(
     "example_gcp_dataflow_native_java",
     start_date=START_DATE,
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag_native_java:
 
     # [START howto_operator_start_java_job_jar_on_gcs]
@@ -75,12 +75,12 @@ with models.DAG(
         task_id="start-java-job",
         jar=GCS_JAR,
         pipeline_options={
-            'output': GCS_OUTPUT,
+            "output": GCS_OUTPUT,
         },
-        job_class='org.apache.beam.examples.WordCount',
+        job_class="org.apache.beam.examples.WordCount",
         dataflow_config={
             "check_if_running": CheckJobRunning.IgnoreJob,
-            "location": 'europe-west3',
+            "location": "europe-west3",
             "poll_sleep": 10,
         },
     )
@@ -98,12 +98,12 @@ with models.DAG(
         task_id="start-java-job-local",
         jar="/tmp/dataflow-{{ ds_nodash }}.jar",
         pipeline_options={
-            'output': GCS_OUTPUT,
+            "output": GCS_OUTPUT,
         },
-        job_class='org.apache.beam.examples.WordCount',
+        job_class="org.apache.beam.examples.WordCount",
         dataflow_config={
             "check_if_running": CheckJobRunning.WaitForRun,
-            "location": 'europe-west3',
+            "location": "europe-west3",
             "poll_sleep": 10,
         },
     )
@@ -115,7 +115,7 @@ with models.DAG(
     default_args=default_args,
     start_date=START_DATE,
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag_native_python:
 
     # [START howto_operator_start_python_job]
@@ -124,24 +124,24 @@ with models.DAG(
         py_file=GCS_PYTHON,
         py_options=[],
         pipeline_options={
-            'output': GCS_OUTPUT,
+            "output": GCS_OUTPUT,
         },
-        py_requirements=['apache-beam[gcp]==2.21.0'],
-        py_interpreter='python3',
+        py_requirements=["apache-beam[gcp]==2.21.0"],
+        py_interpreter="python3",
         py_system_site_packages=False,
-        dataflow_config={'location': 'europe-west3'},
+        dataflow_config={"location": "europe-west3"},
     )
     # [END howto_operator_start_python_job]
 
     start_python_job_local = BeamRunPythonPipelineOperator(
         task_id="start-python-job-local",
-        py_file='apache_beam.examples.wordcount',
-        py_options=['-m'],
+        py_file="apache_beam.examples.wordcount",
+        py_options=["-m"],
         pipeline_options={
-            'output': GCS_OUTPUT,
+            "output": GCS_OUTPUT,
         },
-        py_requirements=['apache-beam[gcp]==2.14.0'],
-        py_interpreter='python3',
+        py_requirements=["apache-beam[gcp]==2.14.0"],
+        py_interpreter="python3",
         py_system_site_packages=False,
     )
 
@@ -150,7 +150,7 @@ with models.DAG(
     default_args=default_args,
     start_date=START_DATE,
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag_native_python_async:
     # [START howto_operator_start_python_job_async]
     start_python_job_async = BeamRunPythonPipelineOperator(
@@ -159,14 +159,14 @@ with models.DAG(
         py_file=GCS_PYTHON,
         py_options=[],
         pipeline_options={
-            'output': GCS_OUTPUT,
+            "output": GCS_OUTPUT,
         },
-        py_requirements=['apache-beam[gcp]==2.25.0'],
-        py_interpreter='python3',
+        py_requirements=["apache-beam[gcp]==2.25.0"],
+        py_interpreter="python3",
         py_system_site_packages=False,
         dataflow_config={
             "job_name": "start-python-job-async",
-            "location": 'europe-west3',
+            "location": "europe-west3",
             "wait_until_finished": False,
         },
     )
@@ -177,7 +177,7 @@ with models.DAG(
         task_id="wait-for-python-job-async-done",
         job_id="{{task_instance.xcom_pull('start-python-job-async')['dataflow_job_id']}}",
         expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
-        location='europe-west3',
+        location="europe-west3",
     )
     # [END howto_sensor_wait_for_job_status]
 
@@ -200,7 +200,7 @@ with models.DAG(
     wait_for_python_job_async_metric = DataflowJobMetricsSensor(
         task_id="wait-for-python-job-async-metric",
         job_id="{{task_instance.xcom_pull('start-python-job-async')['dataflow_job_id']}}",
-        location='europe-west3',
+        location="europe-west3",
         callback=check_metric_scalar_gte(metric_name="Service-cpu_num_seconds", value=100),
         fail_on_terminal_state=False,
     )
@@ -217,7 +217,7 @@ with models.DAG(
     wait_for_python_job_async_message = DataflowJobMessagesSensor(
         task_id="wait-for-python-job-async-message",
         job_id="{{task_instance.xcom_pull('start-python-job-async')['dataflow_job_id']}}",
-        location='europe-west3',
+        location="europe-west3",
         callback=check_message,
         fail_on_terminal_state=False,
     )
@@ -234,7 +234,7 @@ with models.DAG(
     wait_for_python_job_async_autoscaling_event = DataflowJobAutoScalingEventsSensor(
         task_id="wait-for-python-job-async-autoscaling-event",
         job_id="{{task_instance.xcom_pull('start-python-job-async')['dataflow_job_id']}}",
-        location='europe-west3',
+        location="europe-west3",
         callback=check_autoscaling_event,
         fail_on_terminal_state=False,
     )
@@ -251,13 +251,13 @@ with models.DAG(
     default_args=default_args,
     start_date=START_DATE,
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag_template:
     # [START howto_operator_start_template_job]
     start_template_job = DataflowTemplatedJobStartOperator(
         task_id="start-template-job",
-        template='gs://dataflow-templates/latest/Word_Count',
-        parameters={'inputFile': "gs://dataflow-samples/shakespeare/kinglear.txt", 'output': GCS_OUTPUT},
-        location='europe-west3',
+        template="gs://dataflow-templates/latest/Word_Count",
+        parameters={"inputFile": "gs://dataflow-samples/shakespeare/kinglear.txt", "output": GCS_OUTPUT},
+        location="europe-west3",
     )
     # [END howto_operator_start_template_job]

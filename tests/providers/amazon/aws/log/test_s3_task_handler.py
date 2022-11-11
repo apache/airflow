@@ -49,21 +49,21 @@ def s3mock():
 
 @pytest.mark.skipif(mock_s3 is None, reason="Skipping test because moto.mock_s3 is not available")
 class TestS3TaskHandler:
-    @conf_vars({('logging', 'remote_log_conn_id'): 'aws_default'})
+    @conf_vars({("logging", "remote_log_conn_id"): "aws_default"})
     @pytest.fixture(autouse=True)
     def setup(self, create_log_template, tmp_path_factory):
-        self.remote_log_base = 's3://bucket/remote/log/location'
-        self.remote_log_location = 's3://bucket/remote/log/location/1.log'
-        self.remote_log_key = 'remote/log/location/1.log'
+        self.remote_log_base = "s3://bucket/remote/log/location"
+        self.remote_log_location = "s3://bucket/remote/log/location/1.log"
+        self.remote_log_key = "remote/log/location/1.log"
         self.local_log_location = str(tmp_path_factory.mktemp("local-s3-log-location"))
-        create_log_template('{try_number}.log')
+        create_log_template("{try_number}.log")
         self.s3_task_handler = S3TaskHandler(self.local_log_location, self.remote_log_base)
         # Vivfy the hook now with the config override
         assert self.s3_task_handler.hook is not None
 
         date = datetime(2016, 1, 1)
-        self.dag = DAG('dag_for_testing_s3_task_handler', start_date=date)
-        task = EmptyOperator(task_id='task_for_testing_s3_log_handler', dag=self.dag)
+        self.dag = DAG("dag_for_testing_s3_task_handler", start_date=date)
+        task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="manual")
         with create_session() as session:
             session.add(dag_run)
@@ -75,7 +75,7 @@ class TestS3TaskHandler:
         self.ti.try_number = 1
         self.ti.state = State.RUNNING
 
-        self.conn = boto3.client('s3')
+        self.conn = boto3.client("s3")
         # We need to create the bucket since this is all in Moto's 'virtual'
         # AWS account
         moto.moto_api._internal.models.moto_api_backend.reset()
@@ -97,25 +97,25 @@ class TestS3TaskHandler:
         assert self.s3_task_handler.hook.transfer_config.use_threads is False
 
     def test_log_exists(self):
-        self.conn.put_object(Bucket='bucket', Key=self.remote_log_key, Body=b'')
+        self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"")
         assert self.s3_task_handler.s3_log_exists(self.remote_log_location)
 
     def test_log_exists_none(self):
         assert not self.s3_task_handler.s3_log_exists(self.remote_log_location)
 
     def test_log_exists_raises(self):
-        assert not self.s3_task_handler.s3_log_exists('s3://nonexistentbucket/foo')
+        assert not self.s3_task_handler.s3_log_exists("s3://nonexistentbucket/foo")
 
     def test_log_exists_no_hook(self):
         with mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook") as mock_hook:
-            mock_hook.side_effect = Exception('Failed to connect')
+            mock_hook.side_effect = Exception("Failed to connect")
             with pytest.raises(Exception):
                 self.s3_task_handler.s3_log_exists(self.remote_log_location)
 
     def test_set_context_raw(self):
         self.ti.raw = True
         mock_open = mock.mock_open()
-        with mock.patch('airflow.providers.amazon.aws.log.s3_task_handler.open', mock_open):
+        with mock.patch("airflow.providers.amazon.aws.log.s3_task_handler.open", mock_open):
             self.s3_task_handler.set_context(self.ti)
 
         assert not self.s3_task_handler.upload_on_close
@@ -123,76 +123,76 @@ class TestS3TaskHandler:
 
     def test_set_context_not_raw(self):
         mock_open = mock.mock_open()
-        with mock.patch('airflow.providers.amazon.aws.log.s3_task_handler.open', mock_open):
+        with mock.patch("airflow.providers.amazon.aws.log.s3_task_handler.open", mock_open):
             self.s3_task_handler.set_context(self.ti)
 
         assert self.s3_task_handler.upload_on_close
-        mock_open.assert_called_once_with(os.path.join(self.local_log_location, '1.log'), 'w')
+        mock_open.assert_called_once_with(os.path.join(self.local_log_location, "1.log"), "w")
         mock_open().write.assert_not_called()
 
     def test_read(self):
-        self.conn.put_object(Bucket='bucket', Key=self.remote_log_key, Body=b'Log line\n')
+        self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"Log line\n")
         log, metadata = self.s3_task_handler.read(self.ti)
         assert (
             log[0][0][-1]
-            == '*** Reading remote log from s3://bucket/remote/log/location/1.log.\nLog line\n\n'
+            == "*** Reading remote log from s3://bucket/remote/log/location/1.log.\nLog line\n\n"
         )
-        assert metadata == [{'end_of_log': True}]
+        assert metadata == [{"end_of_log": True}]
 
     def test_read_when_s3_log_missing(self):
         log, metadata = self.s3_task_handler.read(self.ti)
 
         assert 1 == len(log)
         assert len(log) == len(metadata)
-        assert '*** Log file does not exist:' in log[0][0][-1]
-        assert {'end_of_log': True} == metadata[0]
+        assert "*** Log file does not exist:" in log[0][0][-1]
+        assert {"end_of_log": True} == metadata[0]
 
     def test_s3_read_when_log_missing(self):
         handler = self.s3_task_handler
-        url = 's3://bucket/foo'
-        with mock.patch.object(handler.log, 'error') as mock_error:
+        url = "s3://bucket/foo"
+        with mock.patch.object(handler.log, "error") as mock_error:
             result = handler.s3_read(url, return_error=True)
             msg = (
-                f'Could not read logs from {url} with error: An error occurred (404) when calling the '
-                f'HeadObject operation: Not Found'
+                f"Could not read logs from {url} with error: An error occurred (404) when calling the "
+                f"HeadObject operation: Not Found"
             )
             assert result == msg
             mock_error.assert_called_once_with(msg, exc_info=True)
 
     def test_read_raises_return_error(self):
         handler = self.s3_task_handler
-        url = 's3://nonexistentbucket/foo'
-        with mock.patch.object(handler.log, 'error') as mock_error:
+        url = "s3://nonexistentbucket/foo"
+        with mock.patch.object(handler.log, "error") as mock_error:
             result = handler.s3_read(url, return_error=True)
             msg = (
-                f'Could not read logs from {url} with error: An error occurred (NoSuchBucket) when '
-                f'calling the HeadObject operation: The specified bucket does not exist'
+                f"Could not read logs from {url} with error: An error occurred (NoSuchBucket) when "
+                f"calling the HeadObject operation: The specified bucket does not exist"
             )
             assert result == msg
             mock_error.assert_called_once_with(msg, exc_info=True)
 
     def test_write(self):
-        with mock.patch.object(self.s3_task_handler.log, 'error') as mock_error:
-            self.s3_task_handler.s3_write('text', self.remote_log_location)
+        with mock.patch.object(self.s3_task_handler.log, "error") as mock_error:
+            self.s3_task_handler.s3_write("text", self.remote_log_location)
             # We shouldn't expect any error logs in the default working case.
             mock_error.assert_not_called()
-        body = boto3.resource('s3').Object('bucket', self.remote_log_key).get()['Body'].read()
+        body = boto3.resource("s3").Object("bucket", self.remote_log_key).get()["Body"].read()
 
-        assert body == b'text'
+        assert body == b"text"
 
     def test_write_existing(self):
-        self.conn.put_object(Bucket='bucket', Key=self.remote_log_key, Body=b'previous ')
-        self.s3_task_handler.s3_write('text', self.remote_log_location)
-        body = boto3.resource('s3').Object('bucket', self.remote_log_key).get()['Body'].read()
+        self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"previous ")
+        self.s3_task_handler.s3_write("text", self.remote_log_location)
+        body = boto3.resource("s3").Object("bucket", self.remote_log_key).get()["Body"].read()
 
-        assert body == b'previous \ntext'
+        assert body == b"previous \ntext"
 
     def test_write_raises(self):
         handler = self.s3_task_handler
-        url = 's3://nonexistentbucket/foo'
-        with mock.patch.object(handler.log, 'error') as mock_error:
-            handler.s3_write('text', url)
-            mock_error.assert_called_once_with('Could not write logs to %s', url, exc_info=True)
+        url = "s3://nonexistentbucket/foo"
+        with mock.patch.object(handler.log, "error") as mock_error:
+            handler.s3_write("text", url)
+            mock_error.assert_called_once_with("Could not write logs to %s", url, exc_info=True)
 
     def test_close(self):
         self.s3_task_handler.set_context(self.ti)
@@ -200,7 +200,7 @@ class TestS3TaskHandler:
 
         self.s3_task_handler.close()
         # Should not raise
-        boto3.resource('s3').Object('bucket', self.remote_log_key).get()
+        boto3.resource("s3").Object("bucket", self.remote_log_key).get()
 
     def test_close_no_upload(self):
         self.ti.raw = True
@@ -209,4 +209,4 @@ class TestS3TaskHandler:
         self.s3_task_handler.close()
 
         with pytest.raises(ClientError):
-            boto3.resource('s3').Object('bucket', self.remote_log_key).get()
+            boto3.resource("s3").Object("bucket", self.remote_log_key).get()

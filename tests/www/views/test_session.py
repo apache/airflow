@@ -27,7 +27,7 @@ from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
 def get_session_cookie(client):
-    return next((cookie for cookie in client.cookie_jar if cookie.name == 'session'), None)
+    return next((cookie for cookie in client.cookie_jar if cookie.name == "session"), None)
 
 
 def test_session_cookie_created_on_login(user_client):
@@ -38,12 +38,12 @@ def test_session_inaccessible_after_logout(user_client):
     session_cookie = get_session_cookie(user_client)
     assert session_cookie is not None
 
-    resp = user_client.get('/logout/')
+    resp = user_client.get("/logout/")
     assert resp.status_code == 302
 
     # Try to access /home with the session cookie from earlier
-    user_client.set_cookie('session', session_cookie.value)
-    user_client.get('/home/')
+    user_client.set_cookie("session", session_cookie.value)
+    user_client.get("/home/")
     assert resp.status_code == 302
 
 
@@ -76,7 +76,7 @@ def test_session_id_rotates(app, user_client):
     old_session_cookie = get_session_cookie(user_client)
     assert old_session_cookie is not None
 
-    resp = user_client.get('/logout/')
+    resp = user_client.get("/logout/")
     assert resp.status_code == 302
 
     patch_path = "airflow.www.fab_security.manager.check_password_hash"

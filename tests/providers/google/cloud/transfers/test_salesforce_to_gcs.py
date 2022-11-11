@@ -32,31 +32,31 @@ GCS_OBJECT_PATH = "path/to/test-file-path"
 EXPECTED_GCS_URI = f"gs://{GCS_BUCKET}/{GCS_OBJECT_PATH}"
 GCP_CONNECTION_ID = "google_cloud_default"
 SALESFORCE_RESPONSE = {
-    'records': [
+    "records": [
         OrderedDict(
             [
                 (
-                    'attributes',
+                    "attributes",
                     OrderedDict(
-                        [('type', 'Lead'), ('url', '/services/data/v42.0/sobjects/Lead/00Q3t00001eJ7AnEAK')]
+                        [("type", "Lead"), ("url", "/services/data/v42.0/sobjects/Lead/00Q3t00001eJ7AnEAK")]
                     ),
                 ),
-                ('Id', '00Q3t00001eJ7AnEAK'),
-                ('Company', 'Hello World Inc'),
+                ("Id", "00Q3t00001eJ7AnEAK"),
+                ("Company", "Hello World Inc"),
             ]
         )
     ],
-    'totalSize': 1,
-    'done': True,
+    "totalSize": 1,
+    "done": True,
 }
 INCLUDE_DELETED = True
 QUERY_PARAMS = {"DEFAULT_SETTING": "ENABLED"}
 
 
 class TestSalesforceToGcsOperator(unittest.TestCase):
-    @mock.patch.object(GCSHook, 'upload')
-    @mock.patch.object(SalesforceHook, 'write_object_to_file')
-    @mock.patch.object(SalesforceHook, 'make_query')
+    @mock.patch.object(GCSHook, "upload")
+    @mock.patch.object(SalesforceHook, "write_object_to_file")
+    @mock.patch.object(SalesforceHook, "make_query")
     def test_execute(self, mock_make_query, mock_write_object_to_file, mock_upload):
         mock_make_query.return_value = SALESFORCE_RESPONSE
 
@@ -80,7 +80,7 @@ class TestSalesforceToGcsOperator(unittest.TestCase):
         )
 
         mock_write_object_to_file.assert_called_once_with(
-            query_results=SALESFORCE_RESPONSE['records'],
+            query_results=SALESFORCE_RESPONSE["records"],
             filename=mock.ANY,
             fmt="json",
             coerce_to_timestamp=True,

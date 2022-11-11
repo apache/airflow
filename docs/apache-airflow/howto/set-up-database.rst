@@ -118,7 +118,7 @@ An example URI for the sqlite database:
 AmazonLinux SQLite can only be upgraded to v3.7 using the source repos. Airflow requires v3.15 or higher. Use the
 following instructions to setup the base image (or AMI) with latest SQLite3
 
-Pre-requisite: You will need ``wget``, ``tar``, ``gzip``,`` gcc``, ``make``, and ``expect`` to get the upgrade process working.
+Pre-requisite: You will need ``wget``, ``tar``, ``gzip``, ``gcc``, ``make``, and ``expect`` to get the upgrade process working.
 
 .. code-block:: bash
 

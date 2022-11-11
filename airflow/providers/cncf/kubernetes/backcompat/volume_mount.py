@@ -31,7 +31,7 @@ warnings.warn(
 class VolumeMount:
     """Backward compatible VolumeMount"""
 
-    __slots__ = ('name', 'mount_path', 'sub_path', 'read_only')
+    __slots__ = ("name", "mount_path", "sub_path", "read_only")
 
     def __init__(self, name, mount_path, sub_path, read_only):
         """

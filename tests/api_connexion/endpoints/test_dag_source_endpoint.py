@@ -81,12 +81,12 @@ class TestGetSource:
 
         url = f"/api/v1/dagSources/{url_safe_serializer.dumps(first_dag.fileloc)}"
         response = self.client.get(
-            url, headers={"Accept": "text/plain"}, environ_overrides={'REMOTE_USER': "test"}
+            url, headers={"Accept": "text/plain"}, environ_overrides={"REMOTE_USER": "test"}
         )
 
         assert 200 == response.status_code
         assert dag_docstring in response.data.decode()
-        assert 'text/plain' == response.headers['Content-Type']
+        assert "text/plain" == response.headers["Content-Type"]
 
     def test_should_respond_200_json(self, url_safe_serializer):
         dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
@@ -96,12 +96,12 @@ class TestGetSource:
 
         url = f"/api/v1/dagSources/{url_safe_serializer.dumps(first_dag.fileloc)}"
         response = self.client.get(
-            url, headers={"Accept": 'application/json'}, environ_overrides={'REMOTE_USER': "test"}
+            url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
         )
 
         assert 200 == response.status_code
-        assert dag_docstring in response.json['content']
-        assert 'application/json' == response.headers['Content-Type']
+        assert dag_docstring in response.json["content"]
+        assert "application/json" == response.headers["Content-Type"]
 
     def test_should_respond_406(self, url_safe_serializer):
         dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
@@ -110,7 +110,7 @@ class TestGetSource:
 
         url = f"/api/v1/dagSources/{url_safe_serializer.dumps(first_dag.fileloc)}"
         response = self.client.get(
-            url, headers={"Accept": 'image/webp'}, environ_overrides={'REMOTE_USER': "test"}
+            url, headers={"Accept": "image/webp"}, environ_overrides={"REMOTE_USER": "test"}
         )
 
         assert 406 == response.status_code
@@ -119,7 +119,7 @@ class TestGetSource:
         wrong_fileloc = "abcd1234"
         url = f"/api/v1/dagSources/{wrong_fileloc}"
         response = self.client.get(
-            url, headers={"Accept": 'application/json'}, environ_overrides={'REMOTE_USER': "test"}
+            url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
         )
 
         assert 404 == response.status_code
@@ -144,6 +144,6 @@ class TestGetSource:
         response = self.client.get(
             f"/api/v1/dagSources/{url_safe_serializer.dumps(first_dag.fileloc)}",
             headers={"Accept": "text/plain"},
-            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403

@@ -65,7 +65,7 @@ def attributes_to_test(
         # The below tag is mandatory and must have a value of either 'owned' or 'shared'
         # A value of 'owned' denotes that the subnets are exclusive to the nodegroup.
         # The 'shared' value allows more than one resource to use the subnet.
-        required_tag: dict = {f'kubernetes.io/cluster/{cluster_name}': 'owned'}
+        required_tag: dict = {f"kubernetes.io/cluster/{cluster_name}": "owned"}
         # Find the user-submitted tag set and append the required tag to it.
         final_tag_set: dict = required_tag
         for key, value in result:
@@ -209,33 +209,33 @@ def convert_keys(original: dict) -> dict:
     :param original: Dict which needs the keys converted.
     :value original: Dict
     """
-    if 'nodegroup_name' in original.keys():
+    if "nodegroup_name" in original.keys():
         conversion_map = {
-            'cluster_name': 'clusterName',
-            'cluster_role_arn': 'roleArn',
-            'nodegroup_subnets': 'subnets',
-            'subnets': 'subnets',
-            'nodegroup_name': 'nodegroupName',
-            'nodegroup_role_arn': 'nodeRole',
+            "cluster_name": "clusterName",
+            "cluster_role_arn": "roleArn",
+            "nodegroup_subnets": "subnets",
+            "subnets": "subnets",
+            "nodegroup_name": "nodegroupName",
+            "nodegroup_role_arn": "nodeRole",
         }
-    elif 'fargate_profile_name' in original.keys():
+    elif "fargate_profile_name" in original.keys():
         conversion_map = {
-            'cluster_name': 'clusterName',
-            'fargate_profile_name': 'fargateProfileName',
-            'subnets': 'subnets',
+            "cluster_name": "clusterName",
+            "fargate_profile_name": "fargateProfileName",
+            "subnets": "subnets",
             # The following are "duplicated" because we used the more verbose/descriptive version
             # in the CreateCluster Operator when creating a cluster alongside a Fargate profile, but
             # the more terse version in the CreateFargateProfile Operator for the sake of convenience.
-            'pod_execution_role_arn': 'podExecutionRoleArn',
-            'fargate_pod_execution_role_arn': 'podExecutionRoleArn',
-            'selectors': 'selectors',
-            'fargate_selectors': 'selectors',
+            "pod_execution_role_arn": "podExecutionRoleArn",
+            "fargate_pod_execution_role_arn": "podExecutionRoleArn",
+            "selectors": "selectors",
+            "fargate_selectors": "selectors",
         }
     else:
         conversion_map = {
-            'cluster_name': 'name',
-            'cluster_role_arn': 'roleArn',
-            'resources_vpc_config': 'resourcesVpcConfig',
+            "cluster_name": "name",
+            "cluster_role_arn": "roleArn",
+            "resources_vpc_config": "resourcesVpcConfig",
         }
 
     return {conversion_map[k] if k in conversion_map else k: v for (k, v) in deepcopy(original).items()}

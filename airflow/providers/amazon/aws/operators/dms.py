@@ -49,13 +49,13 @@ class DmsCreateTaskOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'replication_task_id',
-        'source_endpoint_arn',
-        'target_endpoint_arn',
-        'replication_instance_arn',
-        'table_mappings',
-        'migration_type',
-        'create_task_kwargs',
+        "replication_task_id",
+        "source_endpoint_arn",
+        "target_endpoint_arn",
+        "replication_instance_arn",
+        "table_mappings",
+        "migration_type",
+        "create_task_kwargs",
     )
     template_ext: Sequence[str] = ()
     template_fields_renderers = {
@@ -71,9 +71,9 @@ class DmsCreateTaskOperator(BaseOperator):
         target_endpoint_arn: str,
         replication_instance_arn: str,
         table_mappings: dict,
-        migration_type: str = 'full-load',
+        migration_type: str = "full-load",
         create_task_kwargs: dict | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -124,7 +124,7 @@ class DmsDeleteTaskOperator(BaseOperator):
         maintained on each worker node).
     """
 
-    template_fields: Sequence[str] = ('replication_task_arn',)
+    template_fields: Sequence[str] = ("replication_task_arn",)
     template_ext: Sequence[str] = ()
     template_fields_renderers: dict[str, str] = {}
 
@@ -132,7 +132,7 @@ class DmsDeleteTaskOperator(BaseOperator):
         self,
         *,
         replication_task_arn: str | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -166,15 +166,15 @@ class DmsDescribeTasksOperator(BaseOperator):
         maintained on each worker node).
     """
 
-    template_fields: Sequence[str] = ('describe_tasks_kwargs',)
+    template_fields: Sequence[str] = ("describe_tasks_kwargs",)
     template_ext: Sequence[str] = ()
-    template_fields_renderers: dict[str, str] = {'describe_tasks_kwargs': 'json'}
+    template_fields_renderers: dict[str, str] = {"describe_tasks_kwargs": "json"}
 
     def __init__(
         self,
         *,
         describe_tasks_kwargs: dict | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -212,20 +212,20 @@ class DmsStartTaskOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'replication_task_arn',
-        'start_replication_task_type',
-        'start_task_kwargs',
+        "replication_task_arn",
+        "start_replication_task_type",
+        "start_task_kwargs",
     )
     template_ext: Sequence[str] = ()
-    template_fields_renderers = {'start_task_kwargs': 'json'}
+    template_fields_renderers = {"start_task_kwargs": "json"}
 
     def __init__(
         self,
         *,
         replication_task_arn: str,
-        start_replication_task_type: str = 'start-replication',
+        start_replication_task_type: str = "start-replication",
         start_task_kwargs: dict | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -266,7 +266,7 @@ class DmsStopTaskOperator(BaseOperator):
         maintained on each worker node).
     """
 
-    template_fields: Sequence[str] = ('replication_task_arn',)
+    template_fields: Sequence[str] = ("replication_task_arn",)
     template_ext: Sequence[str] = ()
     template_fields_renderers: dict[str, str] = {}
 
@@ -274,7 +274,7 @@ class DmsStopTaskOperator(BaseOperator):
         self,
         *,
         replication_task_arn: str | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)

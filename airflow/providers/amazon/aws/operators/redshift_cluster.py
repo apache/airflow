@@ -401,11 +401,11 @@ class RedshiftResumeClusterOperator(BaseOperator):
     def execute(self, context: Context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
         cluster_state = redshift_hook.cluster_status(cluster_identifier=self.cluster_identifier)
-        if cluster_state == 'paused':
+        if cluster_state == "paused":
             self.log.info("Starting Redshift cluster %s", self.cluster_identifier)
             redshift_hook.get_conn().resume_cluster(ClusterIdentifier=self.cluster_identifier)
         else:
-            raise Exception(f'Unable to resume cluster - cluster state is {cluster_state}')
+            raise Exception(f"Unable to resume cluster - cluster state is {cluster_state}")
 
 
 class RedshiftPauseClusterOperator(BaseOperator):
@@ -438,11 +438,11 @@ class RedshiftPauseClusterOperator(BaseOperator):
     def execute(self, context: Context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
         cluster_state = redshift_hook.cluster_status(cluster_identifier=self.cluster_identifier)
-        if cluster_state == 'available':
+        if cluster_state == "available":
             self.log.info("Pausing Redshift cluster %s", self.cluster_identifier)
             redshift_hook.get_conn().pause_cluster(ClusterIdentifier=self.cluster_identifier)
         else:
-            raise Exception(f'Unable to pause cluster - cluster state is {cluster_state}')
+            raise Exception(f"Unable to pause cluster - cluster state is {cluster_state}")
 
 
 class RedshiftDeleteClusterOperator(BaseOperator):
@@ -493,8 +493,8 @@ class RedshiftDeleteClusterOperator(BaseOperator):
         )
 
         if self.wait_for_completion:
-            waiter = self.redshift_hook.get_conn().get_waiter('cluster_deleted')
+            waiter = self.redshift_hook.get_conn().get_waiter("cluster_deleted")
             waiter.wait(
                 ClusterIdentifier=self.cluster_identifier,
-                WaiterConfig={'Delay': self.poll_interval, 'MaxAttempts': 30},
+                WaiterConfig={"Delay": self.poll_interval, "MaxAttempts": 30},
             )

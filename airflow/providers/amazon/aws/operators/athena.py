@@ -50,9 +50,9 @@ class AthenaOperator(BaseOperator):
         To limit task execution time, use execution_timeout.
     """
 
-    ui_color = '#44b5e2'
-    template_fields: Sequence[str] = ('query', 'database', 'output_location')
-    template_ext: Sequence[str] = ('.sql',)
+    ui_color = "#44b5e2"
+    template_fields: Sequence[str] = ("query", "database", "output_location")
+    template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"query": "sql"}
 
     def __init__(
@@ -103,8 +103,8 @@ class AthenaOperator(BaseOperator):
 
     def execute(self, context: Context) -> str | None:
         """Run Presto Query on Athena"""
-        self.query_execution_context['Database'] = self.database
-        self.result_configuration['OutputLocation'] = self.output_location
+        self.query_execution_context["Database"] = self.database
+        self.result_configuration["OutputLocation"] = self.output_location
         self.query_execution_id = self.hook.run_query(
             self.query,
             self.query_execution_context,
@@ -120,13 +120,13 @@ class AthenaOperator(BaseOperator):
         if query_status in AthenaHook.FAILURE_STATES:
             error_message = self.hook.get_state_change_reason(self.query_execution_id)
             raise Exception(
-                f'Final state of Athena job is {query_status}, query_execution_id is '
-                f'{self.query_execution_id}. Error: {error_message}'
+                f"Final state of Athena job is {query_status}, query_execution_id is "
+                f"{self.query_execution_id}. Error: {error_message}"
             )
         elif not query_status or query_status in AthenaHook.INTERMEDIATE_STATES:
             raise Exception(
-                f'Final state of Athena job is {query_status}. Max tries of poll status exceeded, '
-                f'query_execution_id is {self.query_execution_id}.'
+                f"Final state of Athena job is {query_status}. Max tries of poll status exceeded, "
+                f"query_execution_id is {self.query_execution_id}."
             )
 
         return self.query_execution_id
@@ -134,19 +134,19 @@ class AthenaOperator(BaseOperator):
     def on_kill(self) -> None:
         """Cancel the submitted athena query"""
         if self.query_execution_id:
-            self.log.info('Received a kill signal.')
-            self.log.info('Stopping Query with executionId - %s', self.query_execution_id)
+            self.log.info("Received a kill signal.")
+            self.log.info("Stopping Query with executionId - %s", self.query_execution_id)
             response = self.hook.stop_query(self.query_execution_id)
             http_status_code = None
             try:
-                http_status_code = response['ResponseMetadata']['HTTPStatusCode']
+                http_status_code = response["ResponseMetadata"]["HTTPStatusCode"]
             except Exception as ex:
-                self.log.error('Exception while cancelling query: %s', ex)
+                self.log.error("Exception while cancelling query: %s", ex)
             finally:
                 if http_status_code is None or http_status_code != 200:
-                    self.log.error('Unable to request query cancel on athena. Exiting')
+                    self.log.error("Unable to request query cancel on athena. Exiting")
                 else:
                     self.log.info(
-                        'Polling Athena for query with id %s to reach final state', self.query_execution_id
+                        "Polling Athena for query with id %s to reach final state", self.query_execution_id
                     )
                     self.hook.poll_query_status(self.query_execution_id)

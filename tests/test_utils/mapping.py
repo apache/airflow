@@ -42,4 +42,4 @@ def expand_mapped_task(
     session.flush()
 
     mapped.expand_mapped_task(run_id, session=session)
-    mapped.run_time_mapped_ti_count.cache_clear()  # type: ignore[attr-defined]
+    mapped.get_mapped_ti_count.cache_clear()  # type: ignore[attr-defined]

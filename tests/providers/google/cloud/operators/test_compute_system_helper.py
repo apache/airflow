@@ -24,29 +24,29 @@ import os
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_COMPUTE_KEY, GcpAuthenticator
 from tests.test_utils.logging_command_executor import CommandExecutor
 
-GCE_INSTANCE = os.environ.get('GCE_INSTANCE', 'testinstance')
-GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
-GCE_INSTANCE_GROUP_MANAGER_NAME = os.environ.get('GCE_INSTANCE_GROUP_MANAGER_NAME', 'instance-group-test')
-GCE_ZONE = os.environ.get('GCE_ZONE', 'europe-west1-b')
-GCE_TEMPLATE_NAME = os.environ.get('GCE_TEMPLATE_NAME', 'instance-template-test')
-GCE_NEW_TEMPLATE_NAME = os.environ.get('GCE_NEW_TEMPLATE_NAME', 'instance-template-test-new')
+GCE_INSTANCE = os.environ.get("GCE_INSTANCE", "testinstance")
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
+GCE_INSTANCE_GROUP_MANAGER_NAME = os.environ.get("GCE_INSTANCE_GROUP_MANAGER_NAME", "instance-group-test")
+GCE_ZONE = os.environ.get("GCE_ZONE", "europe-west1-b")
+GCE_TEMPLATE_NAME = os.environ.get("GCE_TEMPLATE_NAME", "instance-template-test")
+GCE_NEW_TEMPLATE_NAME = os.environ.get("GCE_NEW_TEMPLATE_NAME", "instance-template-test-new")
 
 
 class GCPComputeTestHelper(CommandExecutor):
     def delete_instance(self):
         self.execute_cmd(
             [
-                'gcloud',
-                'beta',
-                'compute',
-                '--project',
+                "gcloud",
+                "beta",
+                "compute",
+                "--project",
                 GCP_PROJECT_ID,
-                '--quiet',
-                '--verbosity=none',
-                'instances',
-                'delete',
+                "--quiet",
+                "--verbosity=none",
+                "instances",
+                "delete",
                 GCE_INSTANCE,
-                '--zone',
+                "--zone",
                 GCE_ZONE,
             ]
         )
@@ -54,16 +54,16 @@ class GCPComputeTestHelper(CommandExecutor):
     def create_instance(self):
         self.execute_cmd(
             [
-                'gcloud',
-                'beta',
-                'compute',
-                '--project',
+                "gcloud",
+                "beta",
+                "compute",
+                "--project",
                 GCP_PROJECT_ID,
-                '--quiet',
-                'instances',
-                'create',
+                "--quiet",
+                "instances",
+                "create",
                 GCE_INSTANCE,
-                '--zone',
+                "--zone",
                 GCE_ZONE,
             ]
         )
@@ -71,48 +71,48 @@ class GCPComputeTestHelper(CommandExecutor):
     def delete_instance_group_and_template(self, silent=False):
         self.execute_cmd(
             [
-                'gcloud',
-                'beta',
-                'compute',
-                '--project',
+                "gcloud",
+                "beta",
+                "compute",
+                "--project",
                 GCP_PROJECT_ID,
-                '--quiet',
-                '--verbosity=none',
-                'instance-groups',
-                'managed',
-                'delete',
+                "--quiet",
+                "--verbosity=none",
+                "instance-groups",
+                "managed",
+                "delete",
                 GCE_INSTANCE_GROUP_MANAGER_NAME,
-                '--zone',
+                "--zone",
                 GCE_ZONE,
             ],
             silent=silent,
         )
         self.execute_cmd(
             [
-                'gcloud',
-                'beta',
-                'compute',
-                '--project',
+                "gcloud",
+                "beta",
+                "compute",
+                "--project",
                 GCP_PROJECT_ID,
-                '--quiet',
-                '--verbosity=none',
-                'instance-templates',
-                'delete',
+                "--quiet",
+                "--verbosity=none",
+                "instance-templates",
+                "delete",
                 GCE_NEW_TEMPLATE_NAME,
             ],
             silent=silent,
         )
         self.execute_cmd(
             [
-                'gcloud',
-                'beta',
-                'compute',
-                '--project',
+                "gcloud",
+                "beta",
+                "compute",
+                "--project",
                 GCP_PROJECT_ID,
-                '--quiet',
-                '--verbosity=none',
-                'instance-templates',
-                'delete',
+                "--quiet",
+                "--verbosity=none",
+                "instance-templates",
+                "delete",
                 GCE_TEMPLATE_NAME,
             ],
             silent=silent,
@@ -121,69 +121,69 @@ class GCPComputeTestHelper(CommandExecutor):
     def create_instance_group_and_template(self):
         self.execute_cmd(
             [
-                'gcloud',
-                'beta',
-                'compute',
-                '--project',
+                "gcloud",
+                "beta",
+                "compute",
+                "--project",
                 GCP_PROJECT_ID,
-                '--quiet',
-                'instance-templates',
-                'create',
+                "--quiet",
+                "instance-templates",
+                "create",
                 GCE_TEMPLATE_NAME,
             ]
         )
         self.execute_cmd(
             [
-                'gcloud',
-                'beta',
-                'compute',
-                '--project',
+                "gcloud",
+                "beta",
+                "compute",
+                "--project",
                 GCP_PROJECT_ID,
-                '--quiet',
-                'instance-groups',
-                'managed',
-                'create',
+                "--quiet",
+                "instance-groups",
+                "managed",
+                "create",
                 GCE_INSTANCE_GROUP_MANAGER_NAME,
-                '--template',
+                "--template",
                 GCE_TEMPLATE_NAME,
-                '--zone',
+                "--zone",
                 GCE_ZONE,
-                '--size=1',
+                "--size=1",
             ]
         )
         self.execute_cmd(
             [
-                'gcloud',
-                'beta',
-                'compute',
-                '--project',
+                "gcloud",
+                "beta",
+                "compute",
+                "--project",
                 GCP_PROJECT_ID,
-                '--quiet',
-                'instance-groups',
-                'managed',
-                'wait-until-stable',
+                "--quiet",
+                "instance-groups",
+                "managed",
+                "wait-until-stable",
                 GCE_INSTANCE_GROUP_MANAGER_NAME,
-                '--zone',
+                "--zone",
                 GCE_ZONE,
             ]
         )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description='Create or delete GCE instances/instance groups for system tests.'
+        description="Create or delete GCE instances/instance groups for system tests."
     )
     parser.add_argument(
-        '--action',
-        dest='action',
+        "--action",
+        dest="action",
         required=True,
         choices=(
-            'create-instance',
-            'delete-instance',
-            'create-instance-group',
-            'delete-instance-group',
-            'before-tests',
-            'after-tests',
+            "create-instance",
+            "delete-instance",
+            "create-instance-group",
+            "delete-instance-group",
+            "before-tests",
+            "after-tests",
         ),
     )
     action = parser.parse_args().action
@@ -195,17 +195,17 @@ if __name__ == '__main__':
     gcp_authenticator.gcp_store_authentication()
     try:
         gcp_authenticator.gcp_authenticate()
-        if action == 'before-tests':
+        if action == "before-tests":
             pass
-        elif action == 'after-tests':
+        elif action == "after-tests":
             pass
-        elif action == 'create-instance':
+        elif action == "create-instance":
             helper.create_instance()
-        elif action == 'delete-instance':
+        elif action == "delete-instance":
             helper.delete_instance()
-        elif action == 'create-instance-group':
+        elif action == "create-instance-group":
             helper.create_instance_group_and_template()
-        elif action == 'delete-instance-group':
+        elif action == "delete-instance-group":
             helper.delete_instance_group_and_template()
         else:
             raise Exception(f"Unknown action: {action}")

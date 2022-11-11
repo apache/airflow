@@ -62,12 +62,12 @@ class SpannerDeployInstanceOperator(BaseOperator):
 
     # [START gcp_spanner_deploy_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance_id',
-        'configuration_name',
-        'display_name',
-        'gcp_conn_id',
-        'impersonation_chain',
+        "project_id",
+        "instance_id",
+        "configuration_name",
+        "display_name",
+        "gcp_conn_id",
+        "impersonation_chain",
     )
     # [END gcp_spanner_deploy_template_fields]
     operator_extra_links = (SpannerInstanceLink(),)
@@ -80,7 +80,7 @@ class SpannerDeployInstanceOperator(BaseOperator):
         node_count: int,
         display_name: str,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -95,7 +95,7 @@ class SpannerDeployInstanceOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def _validate_inputs(self) -> None:
-        if self.project_id == '':
+        if self.project_id == "":
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
             raise AirflowException("The required parameter 'instance_id' is empty or None")
@@ -151,10 +151,10 @@ class SpannerDeleteInstanceOperator(BaseOperator):
 
     # [START gcp_spanner_delete_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance_id',
-        'gcp_conn_id',
-        'impersonation_chain',
+        "project_id",
+        "instance_id",
+        "gcp_conn_id",
+        "impersonation_chain",
     )
     # [END gcp_spanner_delete_template_fields]
 
@@ -163,7 +163,7 @@ class SpannerDeleteInstanceOperator(BaseOperator):
         *,
         instance_id: str,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -175,7 +175,7 @@ class SpannerDeleteInstanceOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def _validate_inputs(self) -> None:
-        if self.project_id == '':
+        if self.project_id == "":
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
             raise AirflowException("The required parameter 'instance_id' is empty or None")
@@ -223,15 +223,15 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
 
     # [START gcp_spanner_query_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance_id',
-        'database_id',
-        'query',
-        'gcp_conn_id',
-        'impersonation_chain',
+        "project_id",
+        "instance_id",
+        "database_id",
+        "query",
+        "gcp_conn_id",
+        "impersonation_chain",
     )
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'query': 'sql'}
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"query": "sql"}
     # [END gcp_spanner_query_template_fields]
     operator_extra_links = (SpannerDatabaseLink(),)
 
@@ -242,7 +242,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
         database_id: str,
         query: str | list[str],
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -256,7 +256,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def _validate_inputs(self) -> None:
-        if self.project_id == '':
+        if self.project_id == "":
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
             raise AirflowException("The required parameter 'instance_id' is empty or None")
@@ -271,7 +271,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         if isinstance(self.query, str):
-            queries = [x.strip() for x in self.query.split(';')]
+            queries = [x.strip() for x in self.query.split(";")]
             self.sanitize_queries(queries)
         else:
             queries = self.query
@@ -304,7 +304,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
         :param queries: queries
         :rtype: None
         """
-        if queries and queries[-1] == '':
+        if queries and queries[-1] == "":
             del queries[-1]
 
 
@@ -335,15 +335,15 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
 
     # [START gcp_spanner_database_deploy_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance_id',
-        'database_id',
-        'ddl_statements',
-        'gcp_conn_id',
-        'impersonation_chain',
+        "project_id",
+        "instance_id",
+        "database_id",
+        "ddl_statements",
+        "gcp_conn_id",
+        "impersonation_chain",
     )
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'ddl_statements': 'sql'}
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"ddl_statements": "sql"}
     # [END gcp_spanner_database_deploy_template_fields]
     operator_extra_links = (SpannerDatabaseLink(),)
 
@@ -354,7 +354,7 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
         database_id: str,
         ddl_statements: list[str],
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -368,7 +368,7 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def _validate_inputs(self) -> None:
-        if self.project_id == '':
+        if self.project_id == "":
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
             raise AirflowException("The required parameter 'instance_id' is empty or None")
@@ -441,15 +441,15 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
 
     # [START gcp_spanner_database_update_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance_id',
-        'database_id',
-        'ddl_statements',
-        'gcp_conn_id',
-        'impersonation_chain',
+        "project_id",
+        "instance_id",
+        "database_id",
+        "ddl_statements",
+        "gcp_conn_id",
+        "impersonation_chain",
     )
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'ddl_statements': 'sql'}
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"ddl_statements": "sql"}
     # [END gcp_spanner_database_update_template_fields]
     operator_extra_links = (SpannerDatabaseLink(),)
 
@@ -461,7 +461,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
         ddl_statements: list[str],
         project_id: str | None = None,
         operation_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -476,7 +476,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def _validate_inputs(self) -> None:
-        if self.project_id == '':
+        if self.project_id == "":
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
             raise AirflowException("The required parameter 'instance_id' is empty or None")
@@ -540,11 +540,11 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
 
     # [START gcp_spanner_database_delete_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance_id',
-        'database_id',
-        'gcp_conn_id',
-        'impersonation_chain',
+        "project_id",
+        "instance_id",
+        "database_id",
+        "gcp_conn_id",
+        "impersonation_chain",
     )
     # [END gcp_spanner_database_delete_template_fields]
 
@@ -554,7 +554,7 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
         instance_id: str,
         database_id: str,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -567,7 +567,7 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def _validate_inputs(self) -> None:
-        if self.project_id == '':
+        if self.project_id == "":
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
             raise AirflowException("The required parameter 'instance_id' is empty or None")

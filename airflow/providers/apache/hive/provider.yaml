@@ -42,7 +42,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.2.0
+  - apache-airflow>=2.3.0
   - apache-airflow-providers-common-sql>=1.2.0
   - hmsclient>=0.1.0
   - pandas>=0.17.1

@@ -17,7 +17,6 @@
 
 Example DAGs
 ============
-
 You can learn how to use Google integrations by analyzing the source code of the example DAGs:
 
 * `Google Ads <https://github.com/apache/airflow/tree/providers-google/8.1.0/tests/system/providers/google/ads>`__
@@ -25,5 +24,5 @@ You can learn how to use Google integrations by analyzing the source code of the
 * `Google Cloud <https://github.com/apache/airflow/tree/providers-google/8.0.0/tests/system/providers/google>`__
 * `Google Firebase <https://github.com/apache/airflow/tree/providers-google/8.1.0/tests/system/providers/google/firebase>`__
 * `Google Marketing Platform <https://github.com/apache/airflow/tree/providers-google/8.0.0/airflow/providers/google/marketing_platform/example_dags>`__
-* `Google Workplace <https://github.com/apache/airflow/tree/providers-google/8.0.0/airflow/providers/google/suite/example_dags>`__ (formerly Google Suite)
+* `Google Workplace <https://github.com/apache/airflow/tree/providers-google/8.3.0/tests/system/providers/google/suite>`__ (formerly Google Suite)
 * `Google LevelDB <https://github.com/apache/airflow/tree/providers-google/8.0.0/tests/system/providers/google/leveldb>`__

@@ -17,17 +17,15 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import re
-from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence, SupportsAbs
-
-from packaging.version import Version
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Sequence, SupportsAbs
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, SkipMixin
-from airflow.providers.common.sql.hooks.sql import DbApiHook, _backported_get_hook
-from airflow.version import version
+from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -39,9 +37,9 @@ def parse_boolean(val: str) -> str | bool:
     Raises ValueError if the input is not a valid true- or false-like string value.
     """
     val = val.lower()
-    if val in ('y', 'yes', 't', 'true', 'on', '1'):
+    if val in ("y", "yes", "t", "true", "on", "1"):
         return True
-    if val in ('n', 'no', 'f', 'false', 'off', '0'):
+    if val in ("n", "no", "f", "false", "off", "0"):
         return False
     raise ValueError(f"{val!r} is not a boolean-like string value")
 
@@ -60,7 +58,7 @@ def _get_failed_checks(checks, col=None):
     ]
 
 
-_PROVIDERS_MATCHER = re.compile(r'airflow\.providers\.(.*)\.hooks.*')
+_PROVIDERS_MATCHER = re.compile(r"airflow\.providers\.(.*)\.hooks.*")
 
 _MIN_SUPPORTED_PROVIDERS_VERSION = {
     "amazon": "4.1.0",
@@ -94,7 +92,9 @@ class BaseSQLOperator(BaseOperator):
 
     The provided method is .get_db_hook(). The default behavior will try to
     retrieve the DB hook based on connection type.
-    You can custom the behavior by overriding the .get_db_hook() method.
+    You can customize the behavior by overriding the .get_db_hook() method.
+
+    :param conn_id: reference to a specific database
     """
 
     def __init__(
@@ -115,13 +115,7 @@ class BaseSQLOperator(BaseOperator):
         """Get DB Hook based on connection type"""
         self.log.debug("Get connection for %s", self.conn_id)
         conn = BaseHook.get_connection(self.conn_id)
-        if Version(version) >= Version('2.3'):
-            # "hook_params" were introduced to into "get_hook()" only in Airflow 2.3.
-            hook = conn.get_hook(hook_params=self.hook_params)  # ignore airflow compat check
-        else:
-            # For supporting Airflow versions < 2.3, we backport "get_hook()" method. This should be removed
-            # when "apache-airflow-providers-common-sql" will depend on Airflow >= 2.3.
-            hook = _backported_get_hook(conn, hook_params=self.hook_params)
+        hook = conn.get_hook(hook_params=self.hook_params)
         if not isinstance(hook, DbApiHook):
             from airflow.hooks.dbapi_hook import DbApiHook as _DbApiHook
 
@@ -135,16 +129,16 @@ class BaseSQLOperator(BaseOperator):
                     min_version = _MIN_SUPPORTED_PROVIDERS_VERSION.get(provider)
                     if min_version:
                         raise AirflowException(
-                            f'You are trying to use common-sql with {hook.__class__.__name__},'
-                            f' but the Hook class comes from provider {provider} that does not support it.'
-                            f' Please upgrade provider {provider} to at least {min_version}.'
+                            f"You are trying to use common-sql with {hook.__class__.__name__},"
+                            f" but the Hook class comes from provider {provider} that does not support it."
+                            f" Please upgrade provider {provider} to at least {min_version}."
                         )
             raise AirflowException(
-                f'You are trying to use `common-sql` with {hook.__class__.__name__},'
-                ' but its provider does not support it. Please upgrade the provider to a version that'
-                ' supports `common-sql`. The hook class should be a subclass of'
-                ' `airflow.providers.common.sql.hooks.sql.DbApiHook`.'
-                f' Got {hook.__class__.__name__} Hook with class hierarchy: {hook.__class__.mro()}'
+                f"You are trying to use `common-sql` with {hook.__class__.__name__},"
+                " but its provider does not support it. Please upgrade the provider to a version that"
+                " supports `common-sql`. The hook class should be a subclass of"
+                " `airflow.providers.common.sql.hooks.sql.DbApiHook`."
+                f" Got {hook.__class__.__name__} Hook with class hierarchy: {hook.__class__.mro()}"
             )
 
         if self.database:
@@ -160,6 +154,78 @@ class BaseSQLOperator(BaseOperator):
         :rtype: DbApiHook
         """
         return self._hook
+
+
+class SQLExecuteQueryOperator(BaseSQLOperator):
+    """
+    Executes SQL code in a specific database
+    :param sql: the SQL code or string pointing to a template file to be executed (templated).
+    File must have a '.sql' extensions.
+    :param autocommit: (optional) if True, each command is automatically committed (default: False).
+    :param parameters: (optional) the parameters to render the SQL query with.
+    :param handler: (optional) the function that will be applied to the cursor (default: fetch_all_handler).
+    :param split_statements: (optional) if split single SQL string into statements (default: False).
+    :param return_last: (optional) if return the result of only last statement (default: True).
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SQLExecuteQueryOperator`
+    """
+
+    template_fields: Sequence[str] = ("sql", "parameters")
+    template_ext: Sequence[str] = (".sql", ".json")
+    template_fields_renderers = {"sql": "sql", "parameters": "json"}
+    ui_color = "#cdaaed"
+
+    def __init__(
+        self,
+        *,
+        sql: str | list[str],
+        autocommit: bool = False,
+        parameters: Mapping | Iterable | None = None,
+        handler: Callable[[Any], Any] = fetch_all_handler,
+        split_statements: bool = False,
+        return_last: bool = True,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.sql = sql
+        self.autocommit = autocommit
+        self.parameters = parameters
+        self.handler = handler
+        self.split_statements = split_statements
+        self.return_last = return_last
+
+    def execute(self, context):
+        self.log.info("Executing: %s", self.sql)
+        hook = self.get_db_hook()
+        if self.do_xcom_push:
+            output = hook.run(
+                sql=self.sql,
+                autocommit=self.autocommit,
+                parameters=self.parameters,
+                handler=self.handler,
+                split_statements=self.split_statements,
+                return_last=self.return_last,
+            )
+        else:
+            output = hook.run(
+                sql=self.sql,
+                autocommit=self.autocommit,
+                parameters=self.parameters,
+                split_statements=self.split_statements,
+            )
+
+        if hasattr(self, "_process_output"):
+            for out in output:
+                self._process_output(*out)
+
+        return output
+
+    def prepare_template(self) -> None:
+        """Parse template file for attribute parameters."""
+        if isinstance(self.parameters, str):
+            self.parameters = ast.literal_eval(self.parameters)
 
 
 class SQLColumnCheckOperator(BaseSQLOperator):
@@ -817,7 +883,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
                 f'DAG: {self.dag_id}\nTask_id: {meta_data.get("task_id")}\n'
                 f'Check description: {meta_data.get("description")}\n'
                 f"SQL: {self.sql}\n"
-                f'Result: {result} is not within thresholds '
+                f"Result: {result} is not within thresholds "
                 f'{meta_data.get("min_threshold")} and {meta_data.get("max_threshold")}'
             )
             raise AirflowException(error_msg)

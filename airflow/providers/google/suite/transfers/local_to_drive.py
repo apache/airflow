@@ -68,8 +68,8 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
     """
 
     template_fields = (
-        'local_paths',
-        'drive_folder',
+        "local_paths",
+        "drive_folder",
     )
 
     def __init__(

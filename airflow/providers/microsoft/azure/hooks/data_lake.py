@@ -44,10 +44,10 @@ class AzureDataLakeHook(BaseHook):
     :param azure_data_lake_conn_id: Reference to the :ref:`Azure Data Lake connection<howto/connection:adl>`.
     """
 
-    conn_name_attr = 'azure_data_lake_conn_id'
-    default_conn_name = 'azure_data_lake_default'
-    conn_type = 'azure_data_lake'
-    hook_name = 'Azure Data Lake'
+    conn_name_attr = "azure_data_lake_conn_id"
+    default_conn_name = "azure_data_lake_default"
+    conn_type = "azure_data_lake"
+    hook_name = "Azure Data Lake"
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
@@ -58,10 +58,10 @@ class AzureDataLakeHook(BaseHook):
 
         return {
             "extra__azure_data_lake__tenant": StringField(
-                lazy_gettext('Azure Tenant ID'), widget=BS3TextFieldWidget()
+                lazy_gettext("Azure Tenant ID"), widget=BS3TextFieldWidget()
             ),
             "extra__azure_data_lake__account_name": StringField(
-                lazy_gettext('Azure DataLake Store Name'), widget=BS3TextFieldWidget()
+                lazy_gettext("Azure DataLake Store Name"), widget=BS3TextFieldWidget()
             ),
         }
 
@@ -69,16 +69,16 @@ class AzureDataLakeHook(BaseHook):
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['schema', 'port', 'host', 'extra'],
+            "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
-                'login': 'Azure Client ID',
-                'password': 'Azure Client Secret',
+                "login": "Azure Client ID",
+                "password": "Azure Client Secret",
             },
             "placeholders": {
-                'login': 'client id',
-                'password': 'secret',
-                'extra__azure_data_lake__tenant': 'tenant id',
-                'extra__azure_data_lake__account_name': 'datalake store',
+                "login": "client id",
+                "password": "secret",
+                "extra__azure_data_lake__tenant": "tenant id",
+                "extra__azure_data_lake__account_name": "datalake store",
             },
         }
 
@@ -93,10 +93,10 @@ class AzureDataLakeHook(BaseHook):
         if not self._conn:
             conn = self.get_connection(self.conn_id)
             service_options = conn.extra_dejson
-            self.account_name = service_options.get('account_name') or service_options.get(
-                'extra__azure_data_lake__account_name'
+            self.account_name = service_options.get("account_name") or service_options.get(
+                "extra__azure_data_lake__account_name"
             )
-            tenant = service_options.get('tenant') or service_options.get('extra__azure_data_lake__tenant')
+            tenant = service_options.get("tenant") or service_options.get("extra__azure_data_lake__tenant")
 
             adl_creds = lib.auth(tenant_id=tenant, client_secret=conn.password, client_id=conn.login)
             self._conn = core.AzureDLFileSystem(adl_creds, store_name=self.account_name)

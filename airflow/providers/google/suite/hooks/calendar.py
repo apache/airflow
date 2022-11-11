@@ -51,7 +51,7 @@ class GoogleCalendarHook(GoogleBaseHook):
     def __init__(
         self,
         api_version: str,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
@@ -74,13 +74,13 @@ class GoogleCalendarHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build('calendar', self.api_version, http=http_authorized, cache_discovery=False)
+            self._conn = build("calendar", self.api_version, http=http_authorized, cache_discovery=False)
 
         return self._conn
 
     def get_events(
         self,
-        calendar_id: str = 'primary',
+        calendar_id: str = "primary",
         i_cal_uid: str | None = None,
         max_attendees: int | None = None,
         max_results: int | None = None,
@@ -164,11 +164,11 @@ class GoogleCalendarHook(GoogleBaseHook):
     def create_event(
         self,
         event: dict[str, Any],
-        calendar_id: str = 'primary',
+        calendar_id: str = "primary",
         conference_data_version: int | None = 0,
         max_attendees: int | None = None,
         send_notifications: bool | None = False,
-        send_updates: str | None = 'false',
+        send_updates: str | None = "false",
         supports_attachments: bool | None = False,
     ) -> dict:
         """

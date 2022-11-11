@@ -45,10 +45,10 @@ def provide_bucket_name(func: T) -> T:
     def wrapper(*args, **kwargs) -> T:
         bound_args = function_signature.bind(*args, **kwargs)
         self = args[0]
-        if bound_args.arguments.get('bucket_name') is None and self.oss_conn_id:
+        if bound_args.arguments.get("bucket_name") is None and self.oss_conn_id:
             connection = self.get_connection(self.oss_conn_id)
             if connection.schema:
-                bound_args.arguments['bucket_name'] = connection.schema
+                bound_args.arguments["bucket_name"] = connection.schema
 
         return func(*bound_args.args, **bound_args.kwargs)
 
@@ -67,13 +67,13 @@ def unify_bucket_name_and_key(func: T) -> T:
         bound_args = function_signature.bind(*args, **kwargs)
 
         def get_key() -> str:
-            if 'key' in bound_args.arguments:
-                return 'key'
-            raise ValueError('Missing key parameter!')
+            if "key" in bound_args.arguments:
+                return "key"
+            raise ValueError("Missing key parameter!")
 
         key_name = get_key()
-        if 'bucket_name' not in bound_args.arguments or bound_args.arguments['bucket_name'] is None:
-            bound_args.arguments['bucket_name'], bound_args.arguments['key'] = OSSHook.parse_oss_url(
+        if "bucket_name" not in bound_args.arguments or bound_args.arguments["bucket_name"] is None:
+            bound_args.arguments["bucket_name"], bound_args.arguments["key"] = OSSHook.parse_oss_url(
                 bound_args.arguments[key_name]
             )
 
@@ -85,12 +85,12 @@ def unify_bucket_name_and_key(func: T) -> T:
 class OSSHook(BaseHook):
     """Interact with Alibaba Cloud OSS, using the oss2 library."""
 
-    conn_name_attr = 'alibabacloud_conn_id'
-    default_conn_name = 'oss_default'
-    conn_type = 'oss'
-    hook_name = 'OSS'
+    conn_name_attr = "alibabacloud_conn_id"
+    default_conn_name = "oss_default"
+    conn_type = "oss"
+    hook_name = "OSS"
 
-    def __init__(self, region: str | None = None, oss_conn_id='oss_default', *args, **kwargs) -> None:
+    def __init__(self, region: str | None = None, oss_conn_id="oss_default", *args, **kwargs) -> None:
         self.oss_conn_id = oss_conn_id
         self.oss_conn = self.get_connection(oss_conn_id)
         self.region = self.get_default_region() if region is None else region
@@ -114,7 +114,7 @@ class OSSHook(BaseHook):
             raise AirflowException(f'Please provide a bucket_name instead of "{ossurl}"')
 
         bucket_name = parsed_url.netloc
-        key = parsed_url.path.lstrip('/')
+        key = parsed_url.path.lstrip("/")
 
         return bucket_name, key
 
@@ -146,7 +146,7 @@ class OSSHook(BaseHook):
         """
         auth = self.get_credential()
         assert self.region is not None
-        return oss2.Bucket(auth, f'https://oss-{self.region}.aliyuncs.com', bucket_name)
+        return oss2.Bucket(auth, f"https://oss-{self.region}.aliyuncs.com", bucket_name)
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -337,7 +337,7 @@ class OSSHook(BaseHook):
         :param key: oss bucket key
         """
         # full_path = None
-        self.log.info('Looking up oss bucket %s for bucket key %s ...', bucket_name, key)
+        self.log.info("Looking up oss bucket %s for bucket key %s ...", bucket_name, key)
         try:
             return self.get_bucket(bucket_name).object_exists(key)
         except Exception as e:
@@ -346,14 +346,14 @@ class OSSHook(BaseHook):
 
     def get_credential(self) -> oss2.auth.Auth:
         extra_config = self.oss_conn.extra_dejson
-        auth_type = extra_config.get('auth_type', None)
+        auth_type = extra_config.get("auth_type", None)
         if not auth_type:
             raise Exception("No auth_type specified in extra_config. ")
 
-        if auth_type != 'AK':
+        if auth_type != "AK":
             raise Exception(f"Unsupported auth_type: {auth_type}")
-        oss_access_key_id = extra_config.get('access_key_id', None)
-        oss_access_key_secret = extra_config.get('access_key_secret', None)
+        oss_access_key_id = extra_config.get("access_key_id", None)
+        oss_access_key_secret = extra_config.get("access_key_secret", None)
         if not oss_access_key_id:
             raise Exception(f"No access_key_id is specified for connection: {self.oss_conn_id}")
 
@@ -364,14 +364,14 @@ class OSSHook(BaseHook):
 
     def get_default_region(self) -> str | None:
         extra_config = self.oss_conn.extra_dejson
-        auth_type = extra_config.get('auth_type', None)
+        auth_type = extra_config.get("auth_type", None)
         if not auth_type:
             raise Exception("No auth_type specified in extra_config. ")
 
-        if auth_type != 'AK':
+        if auth_type != "AK":
             raise Exception(f"Unsupported auth_type: {auth_type}")
 
-        default_region = extra_config.get('region', None)
+        default_region = extra_config.get("region", None)
         if not default_region:
             raise Exception(f"No region is specified for connection: {self.oss_conn_id}")
         return default_region

@@ -84,24 +84,24 @@ class ComputeEngineSSHHook(SSHHook):
         domain-wide delegation enabled.
     """
 
-    conn_name_attr = 'gcp_conn_id'
-    default_conn_name = 'google_cloud_ssh_default'
-    conn_type = 'gcpssh'
-    hook_name = 'Google Cloud SSH'
+    conn_name_attr = "gcp_conn_id"
+    default_conn_name = "google_cloud_ssh_default"
+    conn_type = "gcpssh"
+    hook_name = "Google Cloud SSH"
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
         return {
-            "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
+            "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
         }
 
     def __init__(
         self,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         instance_name: str | None = None,
         zone: str | None = None,
-        user: str | None = 'root',
+        user: str | None = "root",
         project_id: str | None = None,
         hostname: str | None = None,
         use_internal_ip: bool = False,
@@ -138,23 +138,23 @@ class ComputeEngineSSHHook(SSHHook):
             if isinstance(value, bool):
                 return value
             if isinstance(value, str):
-                if value.lower() == 'false':
+                if value.lower() == "false":
                     return False
-                elif value.lower() == 'true':
+                elif value.lower() == "true":
                     return True
             return False
 
         def intify(key, value, default):
             if value is None:
                 return default
-            if isinstance(value, str) and value.strip() == '':
+            if isinstance(value, str) and value.strip() == "":
                 return default
             try:
                 return int(value)
             except ValueError:
                 raise AirflowException(
                     f"The {key} field should be a integer. "
-                    f"Current value: \"{value}\" (type: {type(value)}). "
+                    f'Current value: "{value}" (type: {type(value)}). '
                     f"Please check the connection configuration."
                 )
 
@@ -217,15 +217,15 @@ class ComputeEngineSSHHook(SSHHook):
         proxy_command = None
         if self.use_iap_tunnel:
             proxy_command_args = [
-                'gcloud',
-                'compute',
-                'start-iap-tunnel',
+                "gcloud",
+                "compute",
+                "start-iap-tunnel",
                 str(self.instance_name),
-                '22',
-                '--listen-on-stdin',
-                f'--project={self.project_id}',
-                f'--zone={self.zone}',
-                '--verbosity=warning',
+                "22",
+                "--listen-on-stdin",
+                f"--project={self.project_id}",
+                f"--zone={self.zone}",
+                "--verbosity=warning",
             ]
             proxy_command = " ".join(shlex.quote(arg) for arg in proxy_command_args)
 
@@ -266,16 +266,16 @@ class ComputeEngineSSHHook(SSHHook):
         )
 
         keys = self.user + ":" + pubkey + "\n"
-        metadata = instance_info['metadata']
+        metadata = instance_info["metadata"]
         items = metadata.get("items", [])
         for item in items:
             if item.get("key") == "ssh-keys":
                 keys += item["value"]
-                item['value'] = keys
+                item["value"] = keys
                 break
         else:
-            new_dict = dict(key='ssh-keys', value=keys)
-            metadata['items'] = [new_dict]
+            new_dict = dict(key="ssh-keys", value=keys)
+            metadata["items"] = [new_dict]
 
         self._compute_hook.set_instance_metadata(
             zone=self.zone, resource_id=self.instance_name, metadata=metadata, project_id=self.project_id

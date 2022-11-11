@@ -37,10 +37,10 @@ def clear_db():
 
 
 def add_log(execdate, session, dag_maker, timezone_override=None):
-    with dag_maker(dag_id='logging', default_args={'start_date': execdate}):
-        task = EmptyOperator(task_id='dummy')
+    with dag_maker(dag_id="logging", default_args={"start_date": execdate}):
+        task = EmptyOperator(task_id="dummy")
     dag_maker.create_dagrun()
-    task_instance = TaskInstance(task=task, execution_date=execdate, state='success')
+    task_instance = TaskInstance(task=task, execution_date=execdate, state="success")
     session.merge(task_instance)
     log = Log(State.RUNNING, task_instance)
     if timezone_override:
@@ -59,7 +59,7 @@ def test_timestamp_behaviour(dag_maker, session=None):
         session.expunge(old_log)
         log_time = session.query(Log).one().dttm
         assert log_time == current_time
-        assert log_time.tzinfo.name == 'UTC'
+        assert log_time.tzinfo.name == "UTC"
 
 
 @provide_session
@@ -67,11 +67,11 @@ def test_timestamp_behaviour_with_timezone(dag_maker, session=None):
     execdate = timezone.utcnow()
     with freeze_time(execdate):
         current_time = timezone.utcnow()
-        old_log = add_log(execdate, session, dag_maker, timezone_override=pendulum.timezone('Europe/Warsaw'))
+        old_log = add_log(execdate, session, dag_maker, timezone_override=pendulum.timezone("Europe/Warsaw"))
         session.expunge(old_log)
         # No matter what timezone we set - we should always get back UTC
         log_time = session.query(Log).one().dttm
         assert log_time == current_time
-        assert old_log.dttm.tzinfo.name != 'UTC'
-        assert log_time.tzinfo.name == 'UTC'
-        assert old_log.dttm.astimezone(pendulum.timezone('UTC')) == log_time
+        assert old_log.dttm.tzinfo.name != "UTC"
+        assert log_time.tzinfo.name == "UTC"
+        assert old_log.dttm.astimezone(pendulum.timezone("UTC")) == log_time

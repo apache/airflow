@@ -66,9 +66,9 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
     def __init__(
         self,
-        connections_prefix: str = '/airflow/connections',
-        variables_prefix: str = '/airflow/variables',
-        config_prefix: str = '/airflow/config',
+        connections_prefix: str = "/airflow/connections",
+        variables_prefix: str = "/airflow/variables",
+        config_prefix: str = "/airflow/config",
         **kwargs,
     ):
         super().__init__()
@@ -77,11 +77,11 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         else:
             self.connections_prefix = connections_prefix
         if variables_prefix is not None:
-            self.variables_prefix = variables_prefix.rstrip('/')
+            self.variables_prefix = variables_prefix.rstrip("/")
         else:
             self.variables_prefix = variables_prefix
         if config_prefix is not None:
-            self.config_prefix = config_prefix.rstrip('/')
+            self.config_prefix = config_prefix.rstrip("/")
         else:
             self.config_prefix = config_prefix
 

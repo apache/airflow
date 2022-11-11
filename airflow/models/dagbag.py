@@ -98,6 +98,7 @@ class DagBag(LoggingMixin):
         read_dags_from_db: bool = False,
         store_serialized_dags: bool | None = None,
         load_op_links: bool = True,
+        collect_dags: bool = True,
     ):
         # Avoid circular import
         from airflow.models.dag import DAG
@@ -137,11 +138,12 @@ class DagBag(LoggingMixin):
 
         self.dagbag_import_error_tracebacks = conf.getboolean('core', 'dagbag_import_error_tracebacks')
         self.dagbag_import_error_traceback_depth = conf.getint('core', 'dagbag_import_error_traceback_depth')
-        self.collect_dags(
-            dag_folder=dag_folder,
-            include_examples=include_examples,
-            safe_mode=safe_mode,
-        )
+        if collect_dags:
+            self.collect_dags(
+                dag_folder=dag_folder,
+                include_examples=include_examples,
+                safe_mode=safe_mode,
+            )
         # Should the extra operator link be loaded via plugins?
         # This flag is set to False in Scheduler so that Extra Operator links are not loaded
         self.load_op_links = load_op_links

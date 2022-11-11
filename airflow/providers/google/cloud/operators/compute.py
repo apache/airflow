@@ -43,8 +43,8 @@ class ComputeEngineBaseOperator(BaseOperator):
         zone: str,
         resource_id: str,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -58,7 +58,7 @@ class ComputeEngineBaseOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def _validate_inputs(self) -> None:
-        if self.project_id == '':
+        if self.project_id == "":
             raise AirflowException("The required parameter 'project_id' is missing")
         if not self.zone:
             raise AirflowException("The required parameter 'zone' is missing")
@@ -98,12 +98,12 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
 
     # [START gce_instance_start_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'zone',
-        'resource_id',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "zone",
+        "resource_id",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gce_instance_start_template_fields]
 
@@ -145,12 +145,12 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
 
     # [START gce_instance_stop_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'zone',
-        'resource_id',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "zone",
+        "resource_id",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gce_instance_stop_template_fields]
 
@@ -202,13 +202,13 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
 
     # [START gce_instance_set_machine_type_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'zone',
-        'resource_id',
-        'body',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "zone",
+        "resource_id",
+        "body",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gce_instance_set_machine_type_template_fields]
 
@@ -219,8 +219,8 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
         resource_id: str,
         body: dict,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -262,7 +262,7 @@ GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION = [
     dict(name="description", optional=True),
     dict(
         name="properties",
-        type='dict',
+        type="dict",
         optional=True,
         fields=[
             dict(name="description", optional=True),
@@ -357,12 +357,12 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
 
     # [START gce_instance_template_copy_operator_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'resource_id',
-        'request_id',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "resource_id",
+        "request_id",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gce_instance_template_copy_operator_template_fields]
 
@@ -373,8 +373,8 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         body_patch: dict,
         project_id: str | None = None,
         request_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -382,7 +382,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         self.body_patch = body_patch
         self.request_id = request_id
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
-        if 'name' not in self.body_patch:
+        if "name" not in self.body_patch:
             raise AirflowException(
                 f"The body '{body_patch}' should contain at least name for the new operator "
                 f"in the 'name' field"
@@ -394,7 +394,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE)
         super().__init__(
             project_id=project_id,
-            zone='global',
+            zone="global",
             resource_id=resource_id,
             gcp_conn_id=gcp_conn_id,
             api_version=api_version,
@@ -422,7 +422,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
             # that we cannot delete template if it is already used in some Instance
             # Group Manager. We assume success if the template is simply present
             existing_template = hook.get_instance_template(
-                resource_id=self.body_patch['name'], project_id=self.project_id
+                resource_id=self.body_patch["name"], project_id=self.project_id
             )
             self.log.info(
                 "The %s template already existed. It was likely created by previous run of the operator. "
@@ -441,7 +441,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         new_body = merge(new_body, self.body_patch)
         self.log.info("Calling insert instance template with updated body: %s", new_body)
         hook.insert_instance_template(body=new_body, request_id=self.request_id, project_id=self.project_id)
-        return hook.get_instance_template(resource_id=self.body_patch['name'], project_id=self.project_id)
+        return hook.get_instance_template(resource_id=self.body_patch["name"], project_id=self.project_id)
 
 
 class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseOperator):
@@ -481,15 +481,15 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
 
     # [START gce_igm_update_template_operator_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'resource_id',
-        'zone',
-        'request_id',
-        'source_template',
-        'destination_template',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "resource_id",
+        "zone",
+        "request_id",
+        "source_template",
+        "destination_template",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gce_igm_update_template_operator_template_fields]
 
@@ -503,8 +503,8 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
         project_id: str | None = None,
         update_policy: dict[str, Any] | None = None,
         request_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version='beta',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version="beta",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -514,7 +514,7 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
         self.request_id = request_id
         self.update_policy = update_policy
         self._change_performed = False
-        if api_version == 'v1':
+        if api_version == "v1":
             raise AirflowException(
                 "Api version v1 does not have update/patch "
                 "operations for Instance Group Managers. Use beta"
@@ -531,8 +531,8 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
         )
 
     def _possibly_replace_template(self, dictionary: dict) -> None:
-        if dictionary.get('instanceTemplate') == self.source_template:
-            dictionary['instanceTemplate'] = self.destination_template
+        if dictionary.get("instanceTemplate") == self.source_template:
+            dictionary["instanceTemplate"] = self.destination_template
             self._change_performed = True
 
     def execute(self, context: Context) -> bool | None:
@@ -545,15 +545,15 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
             zone=self.zone, resource_id=self.resource_id, project_id=self.project_id
         )
         patch_body = {}
-        if 'versions' in old_instance_group_manager:
-            patch_body['versions'] = old_instance_group_manager['versions']
-        if 'instanceTemplate' in old_instance_group_manager:
-            patch_body['instanceTemplate'] = old_instance_group_manager['instanceTemplate']
+        if "versions" in old_instance_group_manager:
+            patch_body["versions"] = old_instance_group_manager["versions"]
+        if "instanceTemplate" in old_instance_group_manager:
+            patch_body["instanceTemplate"] = old_instance_group_manager["instanceTemplate"]
         if self.update_policy:
-            patch_body['updatePolicy'] = self.update_policy
+            patch_body["updatePolicy"] = self.update_policy
         self._possibly_replace_template(patch_body)
-        if 'versions' in patch_body:
-            for version in patch_body['versions']:
+        if "versions" in patch_body:
+            for version in patch_body["versions"]:
                 self._possibly_replace_template(version)
         if self._change_performed or self.update_policy:
             self.log.info("Calling patch instance template with updated body: %s", patch_body)

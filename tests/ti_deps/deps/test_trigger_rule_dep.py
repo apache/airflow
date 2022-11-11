@@ -42,7 +42,7 @@ def get_task_instance(session, dag_maker):
     def _get_task_instance(trigger_rule=TriggerRule.ALL_SUCCESS, state=None, upstream_task_ids=None):
         with dag_maker(session=session):
             task = BaseOperator(
-                task_id='test_task', trigger_rule=trigger_rule, start_date=datetime(2015, 1, 1)
+                task_id="test_task", trigger_rule=trigger_rule, start_date=datetime(2015, 1, 1)
             )
             if upstream_task_ids:
                 [EmptyOperator(task_id=task_id) for task_id in upstream_task_ids] >> task
@@ -67,13 +67,13 @@ def get_mapped_task_dagrun(session, dag_maker):
         def do_something_else(i):
             return 1
 
-        with dag_maker(dag_id='test_dag'):
+        with dag_maker(dag_id="test_dag"):
             nums = do_something.expand(i=[i + 1 for i in range(5)])
             do_something_else.expand(i=nums)
 
         dr = dag_maker.create_dagrun()
 
-        ti = dr.get_task_instance('do_something_else', session=session)
+        ti = dr.get_task_instance("do_something_else", session=session)
         ti.map_index = 0
         for map_index in range(1, 5):
             ti = TaskInstance(ti.task, run_id=dr.run_id, map_index=map_index)
@@ -82,7 +82,7 @@ def get_mapped_task_dagrun(session, dag_maker):
         session.flush()
         tis = dr.get_task_instances()
         for ti in tis:
-            if ti.task_id == 'do_something':
+            if ti.task_id == "do_something":
                 if ti.map_index > 2:
                     ti.state = TaskInstanceState.REMOVED
                 else:
@@ -803,14 +803,14 @@ class TestTriggerRuleDep:
         get_states_count_upstream_ti = TriggerRuleDep._get_states_count_upstream_ti
         session = settings.Session()
         now = timezone.utcnow()
-        dag = DAG('test_dagrun_with_pre_tis', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
+        dag = DAG("test_dagrun_with_pre_tis", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
 
         with dag:
-            op1 = EmptyOperator(task_id='A')
-            op2 = EmptyOperator(task_id='B')
-            op3 = EmptyOperator(task_id='C')
-            op4 = EmptyOperator(task_id='D')
-            op5 = EmptyOperator(task_id='E', trigger_rule=TriggerRule.ONE_FAILED)
+            op1 = EmptyOperator(task_id="A")
+            op2 = EmptyOperator(task_id="B")
+            op3 = EmptyOperator(task_id="C")
+            op4 = EmptyOperator(task_id="D")
+            op5 = EmptyOperator(task_id="E", trigger_rule=TriggerRule.ONE_FAILED)
 
             op1.set_downstream([op2, op3])  # op1 >> op2, op3
             op4.set_upstream([op3, op2])  # op3, op2 >> op4
@@ -819,7 +819,7 @@ class TestTriggerRuleDep:
         clear_db_runs()
         dag.clear()
         dr = dag.create_dagrun(
-            run_id='test_dagrun_with_pre_tis', state=State.RUNNING, execution_date=now, start_date=now
+            run_id="test_dagrun_with_pre_tis", state=State.RUNNING, execution_date=now, start_date=now
         )
 
         ti_op1 = dr.get_task_instance(op1.task_id, session)
@@ -860,7 +860,7 @@ class TestTriggerRuleDep:
         dr, task = get_mapped_task_dagrun()
 
         # ti with removed upstream ti
-        ti = dr.get_task_instance(task_id='do_something_else', map_index=3, session=session)
+        ti = dr.get_task_instance(task_id="do_something_else", map_index=3, session=session)
         ti.task = task
 
         dep_statuses = tuple(
@@ -891,7 +891,7 @@ class TestTriggerRuleDep:
         dr, task = get_mapped_task_dagrun(trigger_rule=TriggerRule.ALL_FAILED, state=State.FAILED)
 
         # ti with removed upstream ti
-        ti = dr.get_task_instance(task_id='do_something_else', map_index=3, session=session)
+        ti = dr.get_task_instance(task_id="do_something_else", map_index=3, session=session)
         ti.task = task
 
         dep_statuses = tuple(
@@ -920,7 +920,7 @@ class TestTriggerRuleDep:
         dr, task = get_mapped_task_dagrun(trigger_rule=TriggerRule.NONE_FAILED)
 
         # ti with removed upstream ti
-        ti = dr.get_task_instance(task_id='do_something_else', map_index=3, session=session)
+        ti = dr.get_task_instance(task_id="do_something_else", map_index=3, session=session)
         ti.task = task
 
         dep_statuses = tuple(
@@ -949,7 +949,7 @@ class TestTriggerRuleDep:
         dr, task = get_mapped_task_dagrun(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
 
         # ti with removed upstream ti
-        ti = dr.get_task_instance(task_id='do_something_else', map_index=3, session=session)
+        ti = dr.get_task_instance(task_id="do_something_else", map_index=3, session=session)
         ti.task = task
 
         dep_statuses = tuple(

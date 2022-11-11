@@ -28,7 +28,7 @@ class Terraform(SystemTest):
         self.execute_cmd(["terraform", "apply", "-input=false", "-auto-approve", self.TERRAFORM_DIR])
 
     def get_tf_output(self, name):
-        return self.check_output(["terraform", "output", name]).decode('utf-8').replace("\r\n", "")
+        return self.check_output(["terraform", "output", name]).decode("utf-8").replace("\r\n", "")
 
     def tearDown(self) -> None:
         self.execute_cmd(["terraform", "plan", "-destroy", "-input=false", self.TERRAFORM_DIR])

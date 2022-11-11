@@ -101,7 +101,7 @@ class TestCloudBuildOperator(TestCase):
         [
             (
                 ".json",
-                json.dumps({"steps": [{"name": 'ubuntu', "args": ['echo', 'Hello {{ params.name }}!']}]}),
+                json.dumps({"steps": [{"name": "ubuntu", "args": ["echo", "Hello {{ params.name }}!"]}]}),
             ),
             (
                 ".yaml",
@@ -114,15 +114,15 @@ class TestCloudBuildOperator(TestCase):
         ]
     )
     def test_load_templated(self, file_type, file_content):
-        with tempfile.NamedTemporaryFile(suffix=file_type, mode='w+') as f:
+        with tempfile.NamedTemporaryFile(suffix=file_type, mode="w+") as f:
             f.writelines(file_content)
             f.flush()
 
             operator = CloudBuildCreateBuildOperator(
-                build=f.name, task_id="task-id", params={'name': 'airflow'}
+                build=f.name, task_id="task-id", params={"name": "airflow"}
             )
             operator.prepare_template()
-            expected_body = {'steps': [{'name': 'ubuntu', 'args': ['echo', 'Hello {{ params.name }}!']}]}
+            expected_body = {"steps": [{"name": "ubuntu", "args": ["echo", "Hello {{ params.name }}!"]}]}
             assert expected_body == operator.build
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")

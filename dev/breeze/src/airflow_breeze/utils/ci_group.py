@@ -40,7 +40,7 @@ def ci_group(title: str, message_type: MessageType | None = MessageType.INFO, ou
     if _in_ci_group or skip_group_output():
         yield
         return
-    if os.environ.get('GITHUB_ACTIONS', 'false') != "true":
+    if os.environ.get("GITHUB_ACTIONS", "false") != "true":
         if message_type is not None:
             get_console(output=output).print(f"\n[{message_type.value}]{title}\n")
         else:

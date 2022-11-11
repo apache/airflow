@@ -63,13 +63,13 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             dag=None,
         )
         op.execute(None)
-        copy_query = '''
+        copy_query = """
                         COPY schema.table
                         FROM 's3://bucket/key'
                         credentials
                         'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
                         ;
-                     '''
+                     """
         assert mock_run.call_count == 1
         assert access_key in copy_query
         assert secret_key in copy_query
@@ -110,13 +110,13 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             dag=None,
         )
         op.execute(None)
-        copy_query = '''
+        copy_query = """
                         COPY schema.table (column_1, column_2)
                         FROM 's3://bucket/key'
                         credentials
                         'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
                         ;
-                     '''
+                     """
         assert mock_run.call_count == 1
         assert access_key in copy_query
         assert secret_key in copy_query
@@ -149,21 +149,21 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             s3_bucket=s3_bucket,
             s3_key=s3_key,
             copy_options=copy_options,
-            method='REPLACE',
+            method="REPLACE",
             redshift_conn_id="redshift_conn_id",
             aws_conn_id="aws_conn_id",
             task_id="task_id",
             dag=None,
         )
         op.execute(None)
-        copy_statement = '''
+        copy_statement = """
                         COPY schema.table
                         FROM 's3://bucket/key'
                         credentials
                         'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
                         ;
-                     '''
-        delete_statement = f'DELETE FROM {schema}.{table};'
+                     """
+        delete_statement = f"DELETE FROM {schema}.{table};"
         transaction = f"""
                     BEGIN;
                     {delete_statement}
@@ -201,8 +201,8 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             s3_bucket=s3_bucket,
             s3_key=s3_key,
             copy_options=copy_options,
-            method='UPSERT',
-            upsert_keys=['id'],
+            method="UPSERT",
+            upsert_keys=["id"],
             redshift_conn_id="redshift_conn_id",
             aws_conn_id="aws_conn_id",
             task_id="task_id",
@@ -210,13 +210,13 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
         )
         op.execute(None)
 
-        copy_statement = f'''
+        copy_statement = f"""
                         COPY #{table}
                         FROM 's3://bucket/key'
                         credentials
                         'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
                         ;
-                     '''
+                     """
         transaction = f"""
                     CREATE TABLE #{table} (LIKE {schema}.{table});
                     {copy_statement}
@@ -263,13 +263,13 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             dag=None,
         )
         op.execute(None)
-        copy_statement = '''
+        copy_statement = """
                             COPY schema.table
                             FROM 's3://bucket/key'
                             credentials
                             'aws_access_key_id=ASIA_aws_access_key_id;aws_secret_access_key=aws_secret_access_key;token=aws_secret_token'
                             ;
-                         '''
+                         """
         assert access_key in copy_statement
         assert secret_key in copy_statement
         assert token in copy_statement
@@ -312,27 +312,27 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             dag=None,
         )
         op.execute(None)
-        copy_statement = '''
+        copy_statement = """
                             COPY schema.table
                             FROM 's3://bucket/key'
                             credentials
                             'aws_iam_role=arn:aws:iam::112233445566:role/myRole'
                             ;
-                         '''
+                         """
 
-        assert extra['role_arn'] in copy_statement
+        assert extra["role_arn"] in copy_statement
         assert mock_run.call_count == 1
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_statement)
 
     def test_template_fields_overrides(self):
         assert S3ToRedshiftOperator.template_fields == (
-            's3_bucket',
-            's3_key',
-            'schema',
-            'table',
-            'column_list',
-            'copy_options',
-            'redshift_conn_id',
+            "s3_bucket",
+            "s3_key",
+            "schema",
+            "table",
+            "column_list",
+            "copy_options",
+            "redshift_conn_id",
         )
 
     def test_execute_unavailable_method(self):

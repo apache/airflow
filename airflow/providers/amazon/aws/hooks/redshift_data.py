@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from mypy_boto3_redshift_data import RedshiftDataAPIServiceClient  # noqa
 
 
-class RedshiftDataHook(AwsGenericHook['RedshiftDataAPIServiceClient']):
+class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
     """
     Interact with AWS Redshift Data, using the boto3 library
     Hook attribute `conn` has all methods that listed in documentation

@@ -27,7 +27,7 @@ from docs.exts.provider_yaml_utils import load_package_data
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 DOCS_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
-BUILD_DIR = os.path.abspath(os.path.join(DOCS_DIR, '_build'))
+BUILD_DIR = os.path.abspath(os.path.join(DOCS_DIR, "_build"))
 ALL_PROVIDER_YAMLS = load_package_data()
 
 
@@ -51,14 +51,14 @@ def _render_content():
             current_provider = next(
                 provider_yaml
                 for provider_yaml in ALL_PROVIDER_YAMLS
-                if provider_yaml['package-name'] == package_name
+                if provider_yaml["package-name"] == package_name
             )
             providers.append(current_provider)
         except StopIteration:
             raise Exception(f"Could not find provider.yaml file for package: {package_name}")
 
     content = _render_template(
-        'dev_index_template.html.jinja2', providers=sorted(providers, key=lambda k: k['package-name'])
+        "dev_index_template.html.jinja2", providers=sorted(providers, key=lambda k: k["package-name"])
     )
     return content
 
@@ -74,8 +74,8 @@ def generate_index(out_file: str) -> None:
         output_file.write(content)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('outfile', nargs='?', type=argparse.FileType('w'), default=sys.stdout)
+    parser.add_argument("outfile", nargs="?", type=argparse.FileType("w"), default=sys.stdout)
     args = parser.parse_args()
     args.outfile.write(_render_content())

@@ -41,9 +41,9 @@ if TYPE_CHECKING:
 
 def stringify(line: str | bytes):
     """Make sure string is returned even if bytes are passed. Docker stream can return bytes."""
-    decode_method = getattr(line, 'decode', None)
+    decode_method = getattr(line, "decode", None)
     if decode_method:
-        return decode_method(encoding='utf-8', errors='surrogateescape')
+        return decode_method(encoding="utf-8", errors="surrogateescape")
     else:
         return line
 
@@ -148,10 +148,10 @@ class DockerOperator(BaseOperator):
         Only effective when max-size is also set. A positive integer. Defaults to 1.
     """
 
-    template_fields: Sequence[str] = ('image', 'command', 'environment', 'container_name')
+    template_fields: Sequence[str] = ("image", "command", "environment", "container_name")
     template_ext: Sequence[str] = (
-        '.sh',
-        '.bash',
+        ".sh",
+        ".bash",
     )
 
     def __init__(
@@ -162,7 +162,7 @@ class DockerOperator(BaseOperator):
         command: str | list[str] | None = None,
         container_name: str | None = None,
         cpus: float = 1.0,
-        docker_url: str = 'unix://var/run/docker.sock',
+        docker_url: str = "unix://var/run/docker.sock",
         environment: dict | None = None,
         private_environment: dict | None = None,
         force_pull: bool = False,
@@ -175,7 +175,7 @@ class DockerOperator(BaseOperator):
         tls_hostname: str | bool | None = None,
         tls_ssl_version: str | None = None,
         mount_tmp_dir: bool = True,
-        tmp_dir: str = '/tmp/airflow',
+        tmp_dir: str = "/tmp/airflow",
         user: str | int | None = None,
         mounts: list[Mount] | None = None,
         entrypoint: str | list[str] | None = None,
@@ -271,11 +271,11 @@ class DockerOperator(BaseOperator):
 
     def _run_image(self) -> list[str] | str | None:
         """Run a Docker container with the provided image"""
-        self.log.info('Starting docker container from image %s', self.image)
+        self.log.info("Starting docker container from image %s", self.image)
         if not self.cli:
             raise Exception("The 'cli' should be initialized before!")
         if self.mount_tmp_dir:
-            with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir_generated:
+            with TemporaryDirectory(prefix="airflowtmp", dir=self.host_tmp_dir) as host_tmp_dir_generated:
                 tmp_mount = Mount(self.tmp_dir, host_tmp_dir_generated, "bind")
                 try:
                     return self._run_image_with_mounts(self.mounts + [tmp_mount], add_tmp_variable=True)
@@ -294,16 +294,16 @@ class DockerOperator(BaseOperator):
 
     def _run_image_with_mounts(self, target_mounts, add_tmp_variable: bool) -> list[str] | str | None:
         if add_tmp_variable:
-            self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
+            self.environment["AIRFLOW_TMP_DIR"] = self.tmp_dir
         else:
-            self.environment.pop('AIRFLOW_TMP_DIR', None)
+            self.environment.pop("AIRFLOW_TMP_DIR", None)
         if not self.cli:
             raise Exception("The 'cli' should be initialized before!")
         docker_log_config = {}
         if self.log_opts_max_size is not None:
-            docker_log_config['max-size'] = self.log_opts_max_size
+            docker_log_config["max-size"] = self.log_opts_max_size
         if self.log_opts_max_file is not None:
-            docker_log_config['max-file'] = self.log_opts_max_file
+            docker_log_config["max-file"] = self.log_opts_max_file
         self.container = self.cli.create_container(
             command=self.format_command(self.command),
             name=self.container_name,
@@ -329,9 +329,9 @@ class DockerOperator(BaseOperator):
             working_dir=self.working_dir,
             tty=self.tty,
         )
-        logstream = self.cli.attach(container=self.container['Id'], stdout=True, stderr=True, stream=True)
+        logstream = self.cli.attach(container=self.container["Id"], stdout=True, stderr=True, stream=True)
         try:
-            self.cli.start(self.container['Id'])
+            self.cli.start(self.container["Id"])
 
             log_lines = []
             for log_chunk in logstream:
@@ -339,10 +339,10 @@ class DockerOperator(BaseOperator):
                 log_lines.append(log_chunk)
                 self.log.info("%s", log_chunk)
 
-            result = self.cli.wait(self.container['Id'])
-            if result['StatusCode'] != 0:
+            result = self.cli.wait(self.container["Id"])
+            if result["StatusCode"] != 0:
                 joined_log_lines = "\n".join(log_lines)
-                raise AirflowException(f'Docker container failed: {repr(result)} lines {joined_log_lines}')
+                raise AirflowException(f"Docker container failed: {repr(result)} lines {joined_log_lines}")
 
             if self.retrieve_output:
                 return self._attempt_to_retrieve_result()
@@ -360,9 +360,9 @@ class DockerOperator(BaseOperator):
             return None
         finally:
             if self.auto_remove == "success":
-                self.cli.remove_container(self.container['Id'])
+                self.cli.remove_container(self.container["Id"])
             elif self.auto_remove == "force":
-                self.cli.remove_container(self.container['Id'], force=True)
+                self.cli.remove_container(self.container["Id"], force=True)
 
     def _attempt_to_retrieve_result(self):
         """
@@ -374,18 +374,18 @@ class DockerOperator(BaseOperator):
 
         def copy_from_docker(container_id, src):
             archived_result, stat = self.cli.get_archive(container_id, src)
-            if stat['size'] == 0:
+            if stat["size"] == 0:
                 # 0 byte file, it can't be anything else than None
                 return None
             # no need to port to a file since we intend to deserialize
             file_standin = io.BytesIO(b"".join(archived_result))
             tar = tarfile.open(fileobj=file_standin)
-            file = tar.extractfile(stat['name'])
-            lib = getattr(self, 'pickling_library', pickle)
+            file = tar.extractfile(stat["name"])
+            lib = getattr(self, "pickling_library", pickle)
             return lib.loads(file.read())
 
         try:
-            return copy_from_docker(self.container['Id'], self.retrieve_output_path)
+            return copy_from_docker(self.container["Id"], self.retrieve_output_path)
         except APIError:
             return None
 
@@ -397,15 +397,15 @@ class DockerOperator(BaseOperator):
         # Pull the docker image if `force_pull` is set or image does not exist locally
 
         if self.force_pull or not self.cli.images(name=self.image):
-            self.log.info('Pulling docker image %s', self.image)
+            self.log.info("Pulling docker image %s", self.image)
             latest_status = {}
             for output in self.cli.pull(self.image, stream=True, decode=True):
                 if isinstance(output, str):
                     self.log.info("%s", output)
                     continue
-                if isinstance(output, dict) and 'status' in output:
+                if isinstance(output, dict) and "status" in output:
                     output_status = output["status"]
-                    if 'id' not in output:
+                    if "id" not in output:
                         self.log.info("%s", output_status)
                         continue
 
@@ -434,17 +434,17 @@ class DockerOperator(BaseOperator):
         :return: the command (or commands)
         :rtype: str | List[str]
         """
-        if isinstance(command, str) and command.strip().find('[') == 0:
+        if isinstance(command, str) and command.strip().find("[") == 0:
             return ast.literal_eval(command)
         return command
 
     def on_kill(self) -> None:
         if self.cli is not None:
-            self.log.info('Stopping docker container')
+            self.log.info("Stopping docker container")
             if self.container is None:
-                self.log.info('Not attempting to kill container as it was not created')
+                self.log.info("Not attempting to kill container as it was not created")
                 return
-            self.cli.stop(self.container['Id'])
+            self.cli.stop(self.container["Id"])
 
     def __get_tls_config(self) -> tls.TLSConfig | None:
         tls_config = None
@@ -458,5 +458,5 @@ class DockerOperator(BaseOperator):
                 ssl_version=self.tls_ssl_version,
                 assert_hostname=self.tls_hostname,
             )
-            self.docker_url = self.docker_url.replace('tcp://', 'https://')
+            self.docker_url = self.docker_url.replace("tcp://", "https://")
         return tls_config

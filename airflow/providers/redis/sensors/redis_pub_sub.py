@@ -34,8 +34,8 @@ class RedisPubSubSensor(BaseSensorOperator):
     :param redis_conn_id: the redis connection id
     """
 
-    template_fields: Sequence[str] = ('channels',)
-    ui_color = '#f0eee4'
+    template_fields: Sequence[str] = ("channels",)
+    ui_color = "#f0eee4"
 
     def __init__(self, *, channels: list[str] | str, redis_conn_id: str, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -53,15 +53,15 @@ class RedisPubSubSensor(BaseSensorOperator):
         :param context: the context object
         :return: ``True`` if message (with type 'message') is available or ``False`` if not
         """
-        self.log.info('RedisPubSubSensor checking for message on channels: %s', self.channels)
+        self.log.info("RedisPubSubSensor checking for message on channels: %s", self.channels)
 
         message = self.pubsub.get_message()
-        self.log.info('Message %s from channel %s', message, self.channels)
+        self.log.info("Message %s from channel %s", message, self.channels)
 
         # Process only message types
-        if message and message['type'] == 'message':
+        if message and message["type"] == "message":
 
-            context['ti'].xcom_push(key='message', value=message)
+            context["ti"].xcom_push(key="message", value=message)
             self.pubsub.unsubscribe(self.channels)
 
             return True

@@ -86,14 +86,14 @@ class SparkJDBCHook(SparkSubmitHook):
                                       types.
     """
 
-    conn_name_attr = 'spark_conn_id'
-    default_conn_name = 'spark_default'
-    conn_type = 'spark_jdbc'
-    hook_name = 'Spark JDBC'
+    conn_name_attr = "spark_conn_id"
+    default_conn_name = "spark_default"
+    conn_type = "spark_jdbc"
+    hook_name = "Spark JDBC"
 
     def __init__(
         self,
-        spark_app_name: str = 'airflow-spark-jdbc',
+        spark_app_name: str = "airflow-spark-jdbc",
         spark_conn_id: str = default_conn_name,
         spark_conf: dict[str, Any] | None = None,
         spark_py_files: str | None = None,
@@ -106,9 +106,9 @@ class SparkJDBCHook(SparkSubmitHook):
         verbose: bool = False,
         principal: str | None = None,
         keytab: str | None = None,
-        cmd_type: str = 'spark_to_jdbc',
+        cmd_type: str = "spark_to_jdbc",
         jdbc_table: str | None = None,
-        jdbc_conn_id: str = 'jdbc-default',
+        jdbc_conn_id: str = "jdbc-default",
         jdbc_driver: str | None = None,
         metastore_table: str | None = None,
         jdbc_truncate: bool = False,
@@ -156,18 +156,18 @@ class SparkJDBCHook(SparkSubmitHook):
         self._jdbc_connection = self._resolve_jdbc_connection()
 
     def _resolve_jdbc_connection(self) -> dict[str, Any]:
-        conn_data = {'url': '', 'schema': '', 'conn_prefix': '', 'user': '', 'password': ''}
+        conn_data = {"url": "", "schema": "", "conn_prefix": "", "user": "", "password": ""}
         try:
             conn = self.get_connection(self._jdbc_conn_id)
             if conn.port:
-                conn_data['url'] = f"{conn.host}:{conn.port}"
+                conn_data["url"] = f"{conn.host}:{conn.port}"
             else:
-                conn_data['url'] = conn.host
-            conn_data['schema'] = conn.schema
-            conn_data['user'] = conn.login
-            conn_data['password'] = conn.password
+                conn_data["url"] = conn.host
+            conn_data["schema"] = conn.schema
+            conn_data["user"] = conn.login
+            conn_data["password"] = conn.password
             extra = conn.extra_dejson
-            conn_data['conn_prefix'] = extra.get('conn_prefix', '')
+            conn_data["conn_prefix"] = extra.get("conn_prefix", "")
         except AirflowException:
             self.log.debug(
                 "Could not load jdbc connection string %s, defaulting to %s", self._jdbc_conn_id, ""
@@ -177,45 +177,45 @@ class SparkJDBCHook(SparkSubmitHook):
     def _build_jdbc_application_arguments(self, jdbc_conn: dict[str, Any]) -> Any:
         arguments = []
         arguments += ["-cmdType", self._cmd_type]
-        if self._jdbc_connection['url']:
+        if self._jdbc_connection["url"]:
             arguments += [
-                '-url',
+                "-url",
                 f"{jdbc_conn['conn_prefix']}{jdbc_conn['url']}/{jdbc_conn['schema']}",
             ]
-        if self._jdbc_connection['user']:
-            arguments += ['-user', self._jdbc_connection['user']]
-        if self._jdbc_connection['password']:
-            arguments += ['-password', self._jdbc_connection['password']]
+        if self._jdbc_connection["user"]:
+            arguments += ["-user", self._jdbc_connection["user"]]
+        if self._jdbc_connection["password"]:
+            arguments += ["-password", self._jdbc_connection["password"]]
         if self._metastore_table:
-            arguments += ['-metastoreTable', self._metastore_table]
+            arguments += ["-metastoreTable", self._metastore_table]
         if self._jdbc_table:
-            arguments += ['-jdbcTable', self._jdbc_table]
+            arguments += ["-jdbcTable", self._jdbc_table]
         if self._jdbc_truncate:
-            arguments += ['-jdbcTruncate', str(self._jdbc_truncate)]
+            arguments += ["-jdbcTruncate", str(self._jdbc_truncate)]
         if self._jdbc_driver:
-            arguments += ['-jdbcDriver', self._jdbc_driver]
+            arguments += ["-jdbcDriver", self._jdbc_driver]
         if self._batch_size:
-            arguments += ['-batchsize', str(self._batch_size)]
+            arguments += ["-batchsize", str(self._batch_size)]
         if self._fetch_size:
-            arguments += ['-fetchsize', str(self._fetch_size)]
+            arguments += ["-fetchsize", str(self._fetch_size)]
         if self._num_partitions:
-            arguments += ['-numPartitions', str(self._num_partitions)]
+            arguments += ["-numPartitions", str(self._num_partitions)]
         if self._partition_column and self._lower_bound and self._upper_bound and self._num_partitions:
             # these 3 parameters need to be used all together to take effect.
             arguments += [
-                '-partitionColumn',
+                "-partitionColumn",
                 self._partition_column,
-                '-lowerBound',
+                "-lowerBound",
                 self._lower_bound,
-                '-upperBound',
+                "-upperBound",
                 self._upper_bound,
             ]
         if self._save_mode:
-            arguments += ['-saveMode', self._save_mode]
+            arguments += ["-saveMode", self._save_mode]
         if self._save_format:
-            arguments += ['-saveFormat', self._save_format]
+            arguments += ["-saveFormat", self._save_format]
         if self._create_table_column_types:
-            arguments += ['-createTableColumnTypes', self._create_table_column_types]
+            arguments += ["-createTableColumnTypes", self._create_table_column_types]
         return arguments
 
     def submit_jdbc_job(self) -> None:

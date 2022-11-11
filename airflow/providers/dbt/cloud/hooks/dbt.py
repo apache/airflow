@@ -148,7 +148,7 @@ class DbtCloudHook(HttpHook):
     def __init__(self, dbt_cloud_conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(auth_type=TokenAuth)
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
-        tenant = self.connection.schema if self.connection.schema else 'cloud'
+        tenant = self.connection.schema if self.connection.schema else "cloud"
 
         self.base_url = f"https://{tenant}.getdbt.com/api/v2/accounts/"
 

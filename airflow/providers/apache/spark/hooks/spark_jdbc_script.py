@@ -28,11 +28,11 @@ SPARK_READ_FROM_JDBC: str = "jdbc_to_spark"
 
 def set_common_options(
     spark_source: Any,
-    url: str = 'localhost:5432',
-    jdbc_table: str = 'default.default',
-    user: str = 'root',
-    password: str = 'root',
-    driver: str = 'driver',
+    url: str = "localhost:5432",
+    jdbc_table: str = "default.default",
+    user: str = "root",
+    password: str = "root",
+    driver: str = "driver",
 ) -> Any:
     """
     Get Spark source from JDBC connection
@@ -45,12 +45,12 @@ def set_common_options(
     :param driver: JDBC resource driver
     """
     spark_source = (
-        spark_source.format('jdbc')
-        .option('url', url)
-        .option('dbtable', jdbc_table)
-        .option('user', user)
-        .option('password', password)
-        .option('driver', driver)
+        spark_source.format("jdbc")
+        .option("url", url)
+        .option("dbtable", jdbc_table)
+        .option("user", user)
+        .option("password", password)
+        .option("driver", driver)
     )
     return spark_source
 
@@ -76,11 +76,11 @@ def spark_write_to_jdbc(
 
     # now set write-specific options
     if truncate:
-        writer = writer.option('truncate', truncate)
+        writer = writer.option("truncate", truncate)
     if batch_size:
-        writer = writer.option('batchsize', batch_size)
+        writer = writer.option("batchsize", batch_size)
     if num_partitions:
-        writer = writer.option('numPartitions', num_partitions)
+        writer = writer.option("numPartitions", num_partitions)
     if create_table_column_types:
         writer = writer.option("createTableColumnTypes", create_table_column_types)
 
@@ -109,39 +109,39 @@ def spark_read_from_jdbc(
 
     # now set specific read options
     if fetch_size:
-        reader = reader.option('fetchsize', fetch_size)
+        reader = reader.option("fetchsize", fetch_size)
     if num_partitions:
-        reader = reader.option('numPartitions', num_partitions)
+        reader = reader.option("numPartitions", num_partitions)
     if partition_column and lower_bound and upper_bound:
         reader = (
-            reader.option('partitionColumn', partition_column)
-            .option('lowerBound', lower_bound)
-            .option('upperBound', upper_bound)
+            reader.option("partitionColumn", partition_column)
+            .option("lowerBound", lower_bound)
+            .option("upperBound", upper_bound)
         )
 
     reader.load().write.saveAsTable(metastore_table, format=save_format, mode=save_mode)
 
 
 def _parse_arguments(args: list[str] | None = None) -> Any:
-    parser = argparse.ArgumentParser(description='Spark-JDBC')
-    parser.add_argument('-cmdType', dest='cmd_type', action='store')
-    parser.add_argument('-url', dest='url', action='store')
-    parser.add_argument('-user', dest='user', action='store')
-    parser.add_argument('-password', dest='password', action='store')
-    parser.add_argument('-metastoreTable', dest='metastore_table', action='store')
-    parser.add_argument('-jdbcTable', dest='jdbc_table', action='store')
-    parser.add_argument('-jdbcDriver', dest='jdbc_driver', action='store')
-    parser.add_argument('-jdbcTruncate', dest='truncate', action='store')
-    parser.add_argument('-saveMode', dest='save_mode', action='store')
-    parser.add_argument('-saveFormat', dest='save_format', action='store')
-    parser.add_argument('-batchsize', dest='batch_size', action='store')
-    parser.add_argument('-fetchsize', dest='fetch_size', action='store')
-    parser.add_argument('-name', dest='name', action='store')
-    parser.add_argument('-numPartitions', dest='num_partitions', action='store')
-    parser.add_argument('-partitionColumn', dest='partition_column', action='store')
-    parser.add_argument('-lowerBound', dest='lower_bound', action='store')
-    parser.add_argument('-upperBound', dest='upper_bound', action='store')
-    parser.add_argument('-createTableColumnTypes', dest='create_table_column_types', action='store')
+    parser = argparse.ArgumentParser(description="Spark-JDBC")
+    parser.add_argument("-cmdType", dest="cmd_type", action="store")
+    parser.add_argument("-url", dest="url", action="store")
+    parser.add_argument("-user", dest="user", action="store")
+    parser.add_argument("-password", dest="password", action="store")
+    parser.add_argument("-metastoreTable", dest="metastore_table", action="store")
+    parser.add_argument("-jdbcTable", dest="jdbc_table", action="store")
+    parser.add_argument("-jdbcDriver", dest="jdbc_driver", action="store")
+    parser.add_argument("-jdbcTruncate", dest="truncate", action="store")
+    parser.add_argument("-saveMode", dest="save_mode", action="store")
+    parser.add_argument("-saveFormat", dest="save_format", action="store")
+    parser.add_argument("-batchsize", dest="batch_size", action="store")
+    parser.add_argument("-fetchsize", dest="fetch_size", action="store")
+    parser.add_argument("-name", dest="name", action="store")
+    parser.add_argument("-numPartitions", dest="num_partitions", action="store")
+    parser.add_argument("-partitionColumn", dest="partition_column", action="store")
+    parser.add_argument("-lowerBound", dest="lower_bound", action="store")
+    parser.add_argument("-upperBound", dest="upper_bound", action="store")
+    parser.add_argument("-createTableColumnTypes", dest="create_table_column_types", action="store")
     return parser.parse_args(args=args)
 
 

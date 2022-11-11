@@ -37,15 +37,15 @@ JOB_NAME = "job-name/123"
 
 class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
     @mock.patch(
-        'airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.CloudDataTransferServiceHook'
+        "airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
     def test_wait_for_status_success(self, mock_tool):
         operations = [
             {
-                'name': TEST_NAME,
-                'metadata': {
-                    'status': GcpTransferOperationStatus.SUCCESS,
-                    'counters': TEST_COUNTERS,
+                "name": TEST_NAME,
+                "metadata": {
+                    "status": GcpTransferOperationStatus.SUCCESS,
+                    "counters": TEST_COUNTERS,
                 },
             }
         ]
@@ -53,17 +53,17 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
         mock_tool.operations_contain_expected_statuses.return_value = True
 
         op = CloudDataTransferServiceJobStatusSensor(
-            task_id='task-id',
+            task_id="task-id",
             job_name=JOB_NAME,
-            project_id='project-id',
+            project_id="project-id",
             expected_statuses=GcpTransferOperationStatus.SUCCESS,
         )
 
-        context = {'ti': (mock.Mock(**{'xcom_push.return_value': None}))}
+        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None}))}
         result = op.poke(context)
 
         mock_tool.return_value.list_transfer_operations.assert_called_once_with(
-            request_filter={'project_id': 'project-id', 'job_names': [JOB_NAME]}
+            request_filter={"project_id": "project-id", "job_names": [JOB_NAME]}
         )
         mock_tool.operations_contain_expected_statuses.assert_called_once_with(
             operations=operations, expected_statuses={GcpTransferOperationStatus.SUCCESS}
@@ -71,18 +71,18 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
         assert result
 
     @mock.patch(
-        'airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.CloudDataTransferServiceHook'
+        "airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
     def test_wait_for_status_success_default_expected_status(self, mock_tool):
 
         op = CloudDataTransferServiceJobStatusSensor(
-            task_id='task-id',
+            task_id="task-id",
             job_name=JOB_NAME,
-            project_id='project-id',
+            project_id="project-id",
             expected_statuses=GcpTransferOperationStatus.SUCCESS,
         )
 
-        context = {'ti': (mock.Mock(**{'xcom_push.return_value': None}))}
+        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None}))}
 
         result = op.poke(context)
 
@@ -92,25 +92,25 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
         assert result
 
     @mock.patch(
-        'airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.CloudDataTransferServiceHook'
+        "airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
     def test_wait_for_status_after_retry(self, mock_tool):
         operations_set = [
             [
                 {
-                    'name': TEST_NAME,
-                    'metadata': {
-                        'status': GcpTransferOperationStatus.SUCCESS,
-                        'counters': TEST_COUNTERS,
+                    "name": TEST_NAME,
+                    "metadata": {
+                        "status": GcpTransferOperationStatus.SUCCESS,
+                        "counters": TEST_COUNTERS,
                     },
                 },
             ],
             [
                 {
-                    'name': TEST_NAME,
-                    'metadata': {
-                        'status': GcpTransferOperationStatus.SUCCESS,
-                        'counters': TEST_COUNTERS,
+                    "name": TEST_NAME,
+                    "metadata": {
+                        "status": GcpTransferOperationStatus.SUCCESS,
+                        "counters": TEST_COUNTERS,
                     },
                 },
             ],
@@ -120,13 +120,13 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
         mock_tool.operations_contain_expected_statuses.side_effect = [False, True]
 
         op = CloudDataTransferServiceJobStatusSensor(
-            task_id='task-id',
+            task_id="task-id",
             job_name=JOB_NAME,
-            project_id='project-id',
+            project_id="project-id",
             expected_statuses=GcpTransferOperationStatus.SUCCESS,
         )
 
-        context = {'ti': (mock.Mock(**{'xcom_push.return_value': None}))}
+        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None}))}
 
         result = op.poke(context)
         assert not result
@@ -154,15 +154,15 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
         ]
     )
     @mock.patch(
-        'airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.CloudDataTransferServiceHook'
+        "airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
     def test_wait_for_status_normalize_status(self, expected_status, received_status, mock_tool):
         operations = [
             {
-                'name': TEST_NAME,
-                'metadata': {
-                    'status': GcpTransferOperationStatus.SUCCESS,
-                    'counters': TEST_COUNTERS,
+                "name": TEST_NAME,
+                "metadata": {
+                    "status": GcpTransferOperationStatus.SUCCESS,
+                    "counters": TEST_COUNTERS,
                 },
             }
         ]
@@ -171,13 +171,13 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
         mock_tool.operations_contain_expected_statuses.side_effect = [False, True]
 
         op = CloudDataTransferServiceJobStatusSensor(
-            task_id='task-id',
+            task_id="task-id",
             job_name=JOB_NAME,
-            project_id='project-id',
+            project_id="project-id",
             expected_statuses=expected_status,
         )
 
-        context = {'ti': (mock.Mock(**{'xcom_push.return_value': None}))}
+        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None}))}
 
         result = op.poke(context)
         assert not result

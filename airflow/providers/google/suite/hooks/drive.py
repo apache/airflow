@@ -194,8 +194,8 @@ class GoogleDriveHook(GoogleBaseHook):
                 .execute(num_retries=self.num_retries)
             )
         file_metadata = {}
-        if files['files']:
-            file_metadata = {"id": files['files'][0]['id'], "mime_type": files['files'][0]['mimeType']}
+        if files["files"]:
+            file_metadata = {"id": files["files"][0]["id"], "mime_type": files["files"][0]["mimeType"]}
         return file_metadata
 
     def upload_file(

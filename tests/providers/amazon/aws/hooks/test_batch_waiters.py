@@ -327,7 +327,7 @@ class TestBatchWaiters(unittest.TestCase):
         self.region_name = AWS_REGION
 
         self.batch_waiters = BatchWaitersHook(region_name=self.region_name)
-        assert self.batch_waiters.aws_conn_id == 'aws_default'
+        assert self.batch_waiters.aws_conn_id == "aws_default"
         assert self.batch_waiters.region_name == self.region_name
 
         # init the mock client
