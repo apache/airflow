@@ -40,27 +40,27 @@ TEST_CONN_ID = "conn_id_for_testing"
 class TestSFTPOperator:
     def setup_method(self):
 
-        hook = SSHHook(ssh_conn_id='ssh_default')
+        hook = SSHHook(ssh_conn_id="ssh_default")
         hook.no_host_key_check = True
         self.hook = hook
-        sftp_hook = SFTPHook(ssh_conn_id='ssh_default')
+        sftp_hook = SFTPHook(ssh_conn_id="ssh_default")
         sftp_hook.no_host_key_check = True
         self.sftp_hook = sftp_hook
         self.test_dir = "/tmp"
         self.test_local_dir = "/tmp/tmp2"
         self.test_remote_dir = "/tmp/tmp1"
-        self.test_local_filename = 'test_local_file'
-        self.test_remote_filename = 'test_remote_file'
+        self.test_local_filename = "test_local_file"
+        self.test_remote_filename = "test_remote_file"
         self.test_remote_file_content = (
             b"This is remote file content \n which is also multiline "
             b"another line here \n this is last line. EOF"
         )
-        self.test_local_filepath = f'{self.test_dir}/{self.test_local_filename}'
+        self.test_local_filepath = f"{self.test_dir}/{self.test_local_filename}"
         # Local Filepath with Intermediate Directory
-        self.test_local_filepath_int_dir = f'{self.test_local_dir}/{self.test_local_filename}'
-        self.test_remote_filepath = f'{self.test_dir}/{self.test_remote_filename}'
+        self.test_local_filepath_int_dir = f"{self.test_local_dir}/{self.test_local_filename}"
+        self.test_remote_filepath = f"{self.test_dir}/{self.test_remote_filename}"
         # Remote Filepath with Intermediate Directory
-        self.test_remote_filepath_int_dir = f'{self.test_remote_dir}/{self.test_remote_filename}'
+        self.test_remote_filepath_int_dir = f"{self.test_remote_dir}/{self.test_remote_filename}"
 
     def teardown_method(self):
         if os.path.exists(self.test_local_filepath):
@@ -76,14 +76,14 @@ class TestSFTPOperator:
         if os.path.exists(self.test_remote_dir):
             os.rmdir(self.test_remote_dir)
 
-    @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
+    @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_pickle_file_transfer_put(self, dag_maker):
         test_local_file_content = (
             b"This is local file content \n which is multiline "
             b"continuing....with other character\nanother line here \n this is last line"
         )
         # create a test file locally
-        with open(self.test_local_filepath, 'wb') as file:
+        with open(self.test_local_filepath, "wb") as file:
             file.write(test_local_file_content)
 
         with dag_maker(dag_id="unit_tests_sftp_op_pickle_file_transfer_put", start_date=DEFAULT_DATE):
@@ -106,17 +106,17 @@ class TestSFTPOperator:
         tis["put_test_task"].run()
         tis["check_file_task"].run()
 
-        pulled = tis["check_file_task"].xcom_pull(task_ids="check_file_task", key='return_value')
+        pulled = tis["check_file_task"].xcom_pull(task_ids="check_file_task", key="return_value")
         assert pulled.strip() == test_local_file_content
 
-    @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
+    @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_file_transfer_no_intermediate_dir_error_put(self, create_task_instance_of_operator):
         test_local_file_content = (
             b"This is local file content \n which is multiline "
             b"continuing....with other character\nanother line here \n this is last line"
         )
         # create a test file locally
-        with open(self.test_local_filepath, 'wb') as file:
+        with open(self.test_local_filepath, "wb") as file:
             file.write(test_local_file_content)
 
         # Try to put test file to remote. This should raise an error with
@@ -134,16 +134,16 @@ class TestSFTPOperator:
         )
         with pytest.raises(AirflowException) as ctx:
             ti2.run()
-        assert 'No such file' in str(ctx.value)
+        assert "No such file" in str(ctx.value)
 
-    @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
+    @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_file_transfer_with_intermediate_dir_put(self, dag_maker):
         test_local_file_content = (
             b"This is local file content \n which is multiline "
             b"continuing....with other character\nanother line here \n this is last line"
         )
         # create a test file locally
-        with open(self.test_local_filepath, 'wb') as file:
+        with open(self.test_local_filepath, "wb") as file:
             file.write(test_local_file_content)
 
         with dag_maker(dag_id="unit_tests_sftp_op_file_transfer_with_intermediate_dir_put"):
@@ -167,17 +167,17 @@ class TestSFTPOperator:
         tis["test_sftp"].run()
         tis["test_check_file"].run()
 
-        pulled = tis["test_check_file"].xcom_pull(task_ids='test_check_file', key='return_value')
+        pulled = tis["test_check_file"].xcom_pull(task_ids="test_check_file", key="return_value")
         assert pulled.strip() == test_local_file_content
 
-    @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
+    @conf_vars({("core", "enable_xcom_pickling"): "False"})
     def test_json_file_transfer_put(self, dag_maker):
         test_local_file_content = (
             b"This is local file content \n which is multiline "
             b"continuing....with other character\nanother line here \n this is last line"
         )
         # create a test file locally
-        with open(self.test_local_filepath, 'wb') as file:
+        with open(self.test_local_filepath, "wb") as file:
             file.write(test_local_file_content)
 
         with dag_maker(dag_id="unit_tests_sftp_op_json_file_transfer_put"):
@@ -200,17 +200,17 @@ class TestSFTPOperator:
         tis["put_test_task"].run()
         tis["check_file_task"].run()
 
-        pulled = tis["check_file_task"].xcom_pull(task_ids="check_file_task", key='return_value')
-        assert pulled.strip() == b64encode(test_local_file_content).decode('utf-8')
+        pulled = tis["check_file_task"].xcom_pull(task_ids="check_file_task", key="return_value")
+        assert pulled.strip() == b64encode(test_local_file_content).decode("utf-8")
 
     @pytest.fixture
     def create_remote_file_and_cleanup(self):
-        with open(self.test_remote_filepath, 'wb') as file:
+        with open(self.test_remote_filepath, "wb") as file:
             file.write(self.test_remote_file_content)
         yield
         os.remove(self.test_remote_filepath)
 
-    @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
+    @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_pickle_file_transfer_get(self, dag_maker, create_remote_file_and_cleanup):
         with dag_maker(dag_id="unit_tests_sftp_op_pickle_file_transfer_get"):
             SFTPOperator(  # Get remote file to local.
@@ -225,11 +225,11 @@ class TestSFTPOperator:
             ti.run()
 
         # Test the received content.
-        with open(self.test_local_filepath, 'rb') as file:
+        with open(self.test_local_filepath, "rb") as file:
             content_received = file.read()
         assert content_received == self.test_remote_file_content
 
-    @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
+    @conf_vars({("core", "enable_xcom_pickling"): "False"})
     def test_json_file_transfer_get(self, dag_maker, create_remote_file_and_cleanup):
         with dag_maker(dag_id="unit_tests_sftp_op_json_file_transfer_get"):
             SFTPOperator(  # Get remote file to local.
@@ -245,11 +245,11 @@ class TestSFTPOperator:
 
         # Test the received content.
         content_received = None
-        with open(self.test_local_filepath, 'rb') as file:
+        with open(self.test_local_filepath, "rb") as file:
             content_received = file.read()
         assert content_received == self.test_remote_file_content
 
-    @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
+    @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_file_transfer_no_intermediate_dir_error_get(self, dag_maker, create_remote_file_and_cleanup):
         with dag_maker(dag_id="unit_tests_sftp_op_file_transfer_no_intermediate_dir_error_get"):
             SFTPOperator(  # Try to GET test file from remote.
@@ -265,9 +265,9 @@ class TestSFTPOperator:
             # does not exist.
             with pytest.raises(AirflowException) as ctx:
                 ti.run()
-            assert 'No such file' in str(ctx.value)
+            assert "No such file" in str(ctx.value)
 
-    @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
+    @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_file_transfer_with_intermediate_dir_error_get(self, dag_maker, create_remote_file_and_cleanup):
         with dag_maker(dag_id="unit_tests_sftp_op_file_transfer_with_intermediate_dir_error_get"):
             SFTPOperator(  # Get remote file to local.
@@ -284,11 +284,11 @@ class TestSFTPOperator:
 
         # Test the received content.
         content_received = None
-        with open(self.test_local_filepath_int_dir, 'rb') as file:
+        with open(self.test_local_filepath_int_dir, "rb") as file:
             content_received = file.read()
         assert content_received == self.test_remote_file_content
 
-    @mock.patch.dict('os.environ', {'AIRFLOW_CONN_' + TEST_CONN_ID.upper(): "ssh://test_id@localhost"})
+    @mock.patch.dict("os.environ", {"AIRFLOW_CONN_" + TEST_CONN_ID.upper(): "ssh://test_id@localhost"})
     def test_arg_checking(self):
         dag = DAG(dag_id="unit_tests_sftp_op_arg_checking", default_args={"start_date": DEFAULT_DATE})
         # Exception should be raised if neither ssh_hook nor ssh_conn_id is provided
@@ -354,7 +354,7 @@ class TestSFTPOperator:
                 task_id="test_sftp_4",
                 local_filepath=self.test_local_filepath,
                 remote_filepath=self.test_remote_filepath,
-                operation='invalid_operation',
+                operation="invalid_operation",
                 dag=dag,
             )
             task_4.execute(None)
@@ -378,7 +378,7 @@ class TestSFTPOperator:
         task_6 = SFTPOperator(
             task_id="test_sftp_6",
             ssh_conn_id=TEST_CONN_ID,
-            remote_host='remotehost',
+            remote_host="remotehost",
             local_filepath=self.test_local_filepath,
             remote_filepath=self.test_remote_filepath,
             operation=SFTPOperation.PUT,
@@ -388,31 +388,31 @@ class TestSFTPOperator:
             task_6.execute(None)
         except Exception:
             pass
-        assert task_6.sftp_hook.remote_host == 'remotehost'
+        assert task_6.sftp_hook.remote_host == "remotehost"
 
     def test_unequal_local_remote_file_paths(self):
         with pytest.raises(ValueError):
             SFTPOperator(
-                task_id='test_sftp_unequal_paths',
-                local_filepath='/tmp/test',
-                remote_filepath=['/tmp/test1', '/tmp/test2'],
+                task_id="test_sftp_unequal_paths",
+                local_filepath="/tmp/test",
+                remote_filepath=["/tmp/test1", "/tmp/test2"],
             )
 
     def test_str_filepaths_converted_to_lists(self):
-        local_filepath = '/tmp/test'
-        remote_filepath = '/tmp/remotetest'
+        local_filepath = "/tmp/test"
+        remote_filepath = "/tmp/remotetest"
         sftp_op = SFTPOperator(
-            task_id='test_str_to_list', local_filepath=local_filepath, remote_filepath=remote_filepath
+            task_id="test_str_to_list", local_filepath=local_filepath, remote_filepath=remote_filepath
         )
         assert sftp_op.local_filepath == [local_filepath]
         assert sftp_op.remote_filepath == [remote_filepath]
 
-    @mock.patch('airflow.providers.sftp.operators.sftp.SFTPHook.retrieve_file')
+    @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.retrieve_file")
     def test_multiple_paths_get(self, mock_get):
-        local_filepath = ['/tmp/ltest1', '/tmp/ltest2']
-        remote_filepath = ['/tmp/rtest1', '/tmp/rtest2']
+        local_filepath = ["/tmp/ltest1", "/tmp/ltest2"]
+        remote_filepath = ["/tmp/rtest1", "/tmp/rtest2"]
         sftp_op = SFTPOperator(
-            task_id='test_multiple_paths_get',
+            task_id="test_multiple_paths_get",
             sftp_hook=self.sftp_hook,
             local_filepath=local_filepath,
             remote_filepath=remote_filepath,
@@ -425,12 +425,12 @@ class TestSFTPOperator:
         assert args0 == (remote_filepath[0], local_filepath[0])
         assert args1 == (remote_filepath[1], local_filepath[1])
 
-    @mock.patch('airflow.providers.sftp.operators.sftp.SFTPHook.store_file')
+    @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.store_file")
     def test_multiple_paths_put(self, mock_put):
-        local_filepath = ['/tmp/ltest1', '/tmp/ltest2']
-        remote_filepath = ['/tmp/rtest1', '/tmp/rtest2']
+        local_filepath = ["/tmp/ltest1", "/tmp/ltest2"]
+        remote_filepath = ["/tmp/rtest1", "/tmp/rtest2"]
         sftp_op = SFTPOperator(
-            task_id='test_multiple_paths_get',
+            task_id="test_multiple_paths_get",
             sftp_hook=self.sftp_hook,
             local_filepath=local_filepath,
             remote_filepath=remote_filepath,
@@ -443,12 +443,12 @@ class TestSFTPOperator:
         assert args0 == (remote_filepath[0], local_filepath[0])
         assert args1 == (remote_filepath[1], local_filepath[1])
 
-    @mock.patch('airflow.providers.sftp.operators.sftp.SFTPHook.retrieve_file')
+    @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.retrieve_file")
     def test_return_str_when_local_filepath_was_str(self, mock_get):
-        local_filepath = '/tmp/ltest1'
-        remote_filepath = '/tmp/rtest1'
+        local_filepath = "/tmp/ltest1"
+        remote_filepath = "/tmp/rtest1"
         sftp_op = SFTPOperator(
-            task_id='test_returns_str',
+            task_id="test_returns_str",
             sftp_hook=self.sftp_hook,
             local_filepath=local_filepath,
             remote_filepath=remote_filepath,

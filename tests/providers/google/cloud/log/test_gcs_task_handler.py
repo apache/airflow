@@ -105,7 +105,7 @@ class TestGCSTaskHandler:
             log == "*** Unable to read remote log from gs://bucket/remote/log/location/1.log\n*** "
             f"Failed to connect\n\n*** Reading local file: {self.local_log_location}/1.log\n"
         )
-        assert metadata == {'end_of_log': False, 'log_pos': 31 + len(self.local_log_location)}
+        assert metadata == {"end_of_log": False, "log_pos": 31 + len(self.local_log_location)}
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )

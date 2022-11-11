@@ -60,44 +60,6 @@ function in_container_script_start() {
 }
 
 #
-# Cleans up PYC files (in case they come in mounted folders)
-#
-function in_container_cleanup_pyc() {
-    set +o pipefail
-    if [[ ${CLEANED_PYC=} == "true" ]]; then
-        return
-    fi
-    sudo find . \
-        -path "./airflow/www/node_modules" -prune -o \
-        -path "./provider_packages/airflow/www/node_modules" -prune -o \
-        -path "./.eggs" -prune -o \
-        -path "./docs/_build" -prune -o \
-        -path "./build" -prune -o \
-        -name "*.pyc" | grep ".pyc$" | sudo xargs rm -f
-    set -o pipefail
-    export CLEANED_PYC="true"
-}
-
-#
-# Cleans up __pycache__ directories (in case they come in mounted folders)
-#
-function in_container_cleanup_pycache() {
-    set +o pipefail
-    if [[ ${CLEANED_PYCACHE=} == "true" ]]; then
-        return
-    fi
-    find . \
-        -path "./airflow/www/node_modules" -prune -o \
-        -path "./provider_packages/airflow/www/node_modules" -prune -o \
-        -path "./.eggs" -prune -o \
-        -path "./docs/_build" -prune -o \
-        -path "./build" -prune -o \
-        -name "__pycache__" | grep "__pycache__" | sudo xargs rm -rf
-    set -o pipefail
-    export CLEANED_PYCACHE="true"
-}
-
-#
 # Fixes ownership of files generated in container - if they are owned by root, they will be owned by
 # The host user. Only needed if the host is Linux - on Mac, ownership of files is automatically
 # changed to the Host user via osxfs filesystem
@@ -137,8 +99,6 @@ function in_container_go_to_airflow_sources() {
 function in_container_basic_sanity_check() {
     assert_in_container
     in_container_go_to_airflow_sources
-    in_container_cleanup_pyc
-    in_container_cleanup_pycache
 }
 
 export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"

@@ -32,6 +32,31 @@ Breaking changes
 
 Previously KubernetesPodOperator considered some settings from the Airflow config's ``kubernetes`` section.  Such consideration was deprecated in 4.1.0 and is now removed.  If you previously relied on the Airflow config, and you want client generation to have non-default configuration, you will need to define your configuration in an Airflow connection and set KPO to use the connection.  See kubernetes provider documentation on defining a kubernetes Airflow connection for details.
 
+Drop support for providing ``resource`` as dict in ``KubernetesPodOperator``. You should use ``container_resources`` with ``V1ResourceRequirements``.
+
+Param ``node_selectors`` has been removed in ``KubernetesPodOperator``; use ``node_selector`` instead.
+
+The following backcompat modules for KubernetesPodOperator are removed and you must now use the corresponding objects from the kubernetes library:
+* ``airflow.providers.cncf.kubernetes.backcompat.pod``
+* ``airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env``
+* ``airflow.providers.cncf.kubernetes.backcompat.volume``
+* ``airflow.providers.cncf.kubernetes.backcompat.volume_mount``
+
+
+Features
+~~~~~~~~
+
+* Previously, ``name`` was a required argument for KubernetesPodOperator (when also not supplying pod template or full pod spec). Now, if ``name`` is not supplied, ``task_id`` will be used.
+* KubernetsPodOperator argument ``namespace`` is now optional.  If not supplied via KPO param or pod template file or full pod spec, then we'll check the airflow conn,
+  then if in a k8s pod, try to infer the namespace from the container, then finally will use the ``default`` namespace.
+
+Deprecations
+~~~~~~~~~~~~
+
+* In ``KubernetesHook.get_namespace``, if a connection is defined but a namespace isn't set, we currently return 'default'; this behavior is deprecated. In the next release, we'll return ``None``.
+
+
+
 4.4.0
 .....
 
@@ -83,6 +108,10 @@ Bug Fixes
 * ``Revert "Fix await_container_completion condition (#23883)" (#24474)``
 * ``Update providers to use functools compat for ''cached_property'' (#24582)``
 
+Misc
+~~~~
+* ``Rename 'resources' arg in Kub op to k8s_resources (#24673)``
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Only assert stuff for mypy when type checking (#24937)``
@@ -91,7 +120,6 @@ Bug Fixes
    * ``Move provider dependencies to inside provider folders (#24672)``
    * ``Use our yaml util in all providers (#24720)``
    * ``Remove 'hook-class-names' from provider.yaml (#24702)``
-   * ``Rename 'resources' arg in Kub op to k8s_resources (#24673)``
 
 4.1.0
 .....
@@ -225,7 +253,7 @@ Features
 ~~~~~~~~
 
 * ``Add map_index label to mapped KubernetesPodOperator (#21916)``
-* ``Change KubePodOperator labels from exeuction_date to run_id (#21960)``
+* ``Change KubernetesPodOperator labels from execution_date to run_id (#21960)``
 
 Misc
 ~~~~
@@ -490,7 +518,7 @@ Breaking changes
 Features
 ~~~~~~~~
 
-* ``Add 'KubernetesPodOperat' 'pod-template-file' jinja template support (#15942)``
+* ``Add 'KubernetesPodOperator' 'pod-template-file' jinja template support (#15942)``
 * ``Save pod name to xcom for KubernetesPodOperator (#15755)``
 
 Bug Fixes
@@ -499,7 +527,7 @@ Bug Fixes
 * ``Bug Fix Pod-Template Affinity Ignored due to empty Affinity K8S Object (#15787)``
 * ``Bug Pod Template File Values Ignored (#16095)``
 * ``Fix issue with parsing error logs in the KPO (#15638)``
-* ``Fix unsuccessful KubernetesPod final_state call when 'is_delete_operator_pod=True' (#15490)``
+* ``Fix unsuccessful KubernetesPodOperator final_state call when 'is_delete_operator_pod=True' (#15490)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -521,7 +549,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Fix timeout when using XCom with KubernetesPodOperator (#15388)``
-* ``Fix labels on the pod created by ''KubernetsPodOperator'' (#15492)``
+* ``Fix labels on the pod created by ''KubernetesPodOperator'' (#15492)``
 
 1.1.0
 .....

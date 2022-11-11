@@ -17,16 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+import warnings
+from typing import Sequence
 
-from airflow.models import BaseOperator
-from airflow.providers.apache.drill.hooks.drill import DrillHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 
-class DrillOperator(BaseOperator):
+class DrillOperator(SQLExecuteQueryOperator):
     """
     Executes the provided SQL in the identified Drill environment.
 
@@ -42,26 +39,16 @@ class DrillOperator(BaseOperator):
     :param parameters: (optional) the parameters to render the SQL query with.
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_fields_renderers = {'sql': 'sql'}
-    template_ext: Sequence[str] = ('.sql',)
-    ui_color = '#ededed'
+    template_fields: Sequence[str] = ("sql",)
+    template_fields_renderers = {"sql": "sql"}
+    template_ext: Sequence[str] = (".sql",)
+    ui_color = "#ededed"
 
-    def __init__(
-        self,
-        *,
-        sql: str,
-        drill_conn_id: str = 'drill_default',
-        parameters: Iterable | Mapping | None = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.sql = sql
-        self.drill_conn_id = drill_conn_id
-        self.parameters = parameters
-        self.hook: DrillHook | None = None
-
-    def execute(self, context: Context):
-        self.log.info('Executing: %s on %s', self.sql, self.drill_conn_id)
-        self.hook = DrillHook(drill_conn_id=self.drill_conn_id)
-        self.hook.run(self.sql, parameters=self.parameters, split_statements=True)
+    def __init__(self, *, drill_conn_id: str = "drill_default", **kwargs) -> None:
+        super().__init__(conn_id=drill_conn_id, **kwargs)
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )

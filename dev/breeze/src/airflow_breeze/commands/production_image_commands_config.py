@@ -36,6 +36,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--image-tag",
                 "--tag-as-latest",
                 "--docker-cache",
+                "--github-repository",
             ],
         },
         {
@@ -109,6 +110,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--verify",
                 "--wait-for-image",
                 "--tag-as-latest",
+                "--github-repository",
             ],
         },
         {
@@ -132,6 +134,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--slim-image",
                 "--image-tag",
                 "--pull",
+                "--github-repository",
             ],
         }
     ],

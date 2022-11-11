@@ -37,7 +37,7 @@ TEST_JOB_ID = "test_job_id"
 TEST_PROJECT_ID = "test_project"
 TEST_LOCATION = "us-central1"
 TEST_DELEGATE_TO = "test_delegate_to"
-TEST_GCP_CONN_ID = 'test_gcp_conn_id'
+TEST_GCP_CONN_ID = "test_gcp_conn_id"
 TEST_IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 

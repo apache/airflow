@@ -95,13 +95,13 @@ class TestDagRunOperator:
             )
             .one()
         )
-        with mock.patch('airflow.operators.trigger_dagrun.build_airflow_url_with_query') as mock_build_url:
-            triggering_task.get_extra_links(triggering_ti, 'Triggered DAG')
+        with mock.patch("airflow.operators.trigger_dagrun.build_airflow_url_with_query") as mock_build_url:
+            triggering_task.get_extra_links(triggering_ti, "Triggered DAG")
         assert mock_build_url.called
         args, _ = mock_build_url.call_args
         expected_args = {
-            'dag_id': triggered_dag_run.dag_id,
-            'base_date': triggered_dag_run.execution_date.isoformat(),
+            "dag_id": triggered_dag_run.dag_id,
+            "base_date": triggered_dag_run.execution_date.isoformat(),
         }
         assert expected_args in args
 
@@ -215,14 +215,14 @@ class TestDagRunOperator:
 
     def test_trigger_dagrun_operator_templated_invalid_conf(self):
         """Test passing a conf that is not JSON Serializable raise error."""
-
+        task = TriggerDagRunOperator(
+            task_id="test_trigger_dagrun_with_invalid_conf",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            conf={"foo": "{{ dag.dag_id }}", "datetime": timezone.utcnow()},
+            dag=self.dag,
+        )
         with pytest.raises(AirflowException, match="^conf parameter should be JSON Serializable$"):
-            TriggerDagRunOperator(
-                task_id="test_trigger_dagrun_with_invalid_conf",
-                trigger_dag_id=TRIGGERED_DAG_ID,
-                conf={"foo": "{{ dag.dag_id }}", "datetime": timezone.utcnow()},
-                dag=self.dag,
-            )
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_trigger_dagrun_operator_templated_conf(self):
         """Test passing a templated conf to the triggered DagRun."""

@@ -22,9 +22,9 @@ from airflow.providers.amazon.aws.hooks.rds import RdsHook
 
 class TestRdsHook:
     def test_conn_attribute(self):
-        hook = RdsHook(aws_conn_id='aws_default', region_name='us-east-1')
-        assert hasattr(hook, 'conn')
-        assert hook.conn.__class__.__name__ == 'RDS'
+        hook = RdsHook(aws_conn_id="aws_default", region_name="us-east-1")
+        assert hasattr(hook, "conn")
+        assert hook.conn.__class__.__name__ == "RDS"
         conn = hook.conn
         assert conn is hook.conn  # Cached property
         assert conn is hook.get_conn()  # Same object as returned by `conn` property

@@ -31,25 +31,25 @@ DAG_ID = "aci_example"
 
 with DAG(
     dag_id=DAG_ID,
-    default_args={'retries': 1},
+    default_args={"retries": 1},
     schedule=timedelta(days=1),
     start_date=datetime(2018, 11, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
 
     t1 = AzureContainerInstancesOperator(
-        ci_conn_id='azure_default',
+        ci_conn_id="azure_default",
         registry_conn_id=None,
-        resource_group='resource-group',
-        name='aci-test-{{ ds }}',
-        image='hello-world',
-        region='WestUS2',
+        resource_group="resource-group",
+        name="aci-test-{{ ds }}",
+        image="hello-world",
+        region="WestUS2",
         environment_variables={},
         volumes=[],
         memory_in_gb=4.0,
         cpu=1.0,
-        task_id='start_container',
+        task_id="start_container",
     )
 
 

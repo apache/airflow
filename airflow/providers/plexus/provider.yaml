@@ -32,7 +32,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.2.0
+  - apache-airflow>=2.3.0
   - arrow>=0.16.0
 
 integrations:

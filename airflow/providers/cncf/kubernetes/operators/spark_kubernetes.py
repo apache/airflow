@@ -110,13 +110,20 @@ class SparkKubernetesOperator(BaseOperator):
     :param reattach_on_restart: if the scheduler dies while the pod is running, reattach and monitor
     """
 
+<<<<<<< HEAD
     template_fields = ['application_file', 'namespace']
     template_ext = ('yaml', 'yml', 'json')
     ui_color = '#f4a460'
+=======
+    template_fields: Sequence[str] = ("application_file", "namespace")
+    template_ext: Sequence[str] = (".yaml", ".yml", ".json")
+    ui_color = "#f4a460"
+>>>>>>> origin/main
 
     def __init__(
         self,
         *,
+<<<<<<< HEAD
         image: str | None = None,
         code_path: str | None = None,
         namespace: str | None = 'default',
@@ -160,6 +167,13 @@ class SparkKubernetesOperator(BaseOperator):
         startup_timeout_seconds=600,
         log_events_on_failure: bool = False,
         reattach_on_restart: bool = True,
+=======
+        application_file: str,
+        namespace: str | None = None,
+        kubernetes_conn_id: str = "kubernetes_default",
+        api_group: str = "sparkoperator.k8s.io",
+        api_version: str = "v1beta2",
+>>>>>>> origin/main
         **kwargs,
     ) -> None:
         if kwargs.get('xcom_push') is not None:

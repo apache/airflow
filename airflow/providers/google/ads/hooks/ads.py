@@ -32,6 +32,7 @@ from google.auth.exceptions import GoogleAuthError
 from airflow import AirflowException
 from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
+from airflow.providers.google.common.hooks.base_google import get_field
 
 
 class GoogleAdsHook(BaseHook):
@@ -70,7 +71,6 @@ class GoogleAdsHook(BaseHook):
     :param api_version: The Google Ads API version to use.
 
     :return: list of Google Ads Row object(s)
-    :rtype: list[GoogleAdsRow]
     """
 
     default_api_version = "v10"
@@ -106,7 +106,6 @@ class GoogleAdsHook(BaseHook):
         :param query: Google Ads Query Language query.
         :param page_size: Number of results to return per page. Max 10000.
         :return: Google Ads API response, converted to Google Ads Row objects
-        :rtype: list[GoogleAdsRow]
         """
         data_proto_plus = self._search(client_ids, query, page_size, **kwargs)
         data_native_pb = [row._pb for row in data_proto_plus]
@@ -124,7 +123,6 @@ class GoogleAdsHook(BaseHook):
         :param query: Google Ads Query Language query.
         :param page_size: Number of results to return per page. Max 10000.
         :return: Google Ads API response, converted to Google Ads Row objects
-        :rtype: list[GoogleAdsRow]
         """
         return self._search(client_ids, query, page_size, **kwargs)
 
@@ -149,7 +147,7 @@ class GoogleAdsHook(BaseHook):
                 self.log.error('\tError with message "%s".', error.message)
                 if error.location:
                     for field_path_element in error.location.field_path_elements:
-                        self.log.error('\t\tOn field: %s', field_path_element.field_name)
+                        self.log.error("\t\tOn field: %s", field_path_element.field_name)
             raise
 
     @cached_property
@@ -200,8 +198,10 @@ class GoogleAdsHook(BaseHook):
         Updates google ads config with file path of the temp file containing the secret
         Note, the secret must be passed as a file path for Google Ads API
         """
-        secret_conn = self.get_connection(self.gcp_conn_id)
-        secret = secret_conn.extra_dejson["extra__google_cloud_platform__keyfile_dict"]
+        extras = self.get_connection(self.gcp_conn_id).extra_dejson
+        secret = get_field(extras, "keyfile_dict")
+        if not secret:
+            raise KeyError("secret_conn.extra_dejson does not contain keyfile_dict")
         secrets_temp.write(secret)
         secrets_temp.flush()
 
@@ -218,13 +218,12 @@ class GoogleAdsHook(BaseHook):
         :param page_size: Number of results to return per page. Max 10000.
 
         :return: Google Ads API response, converted to Google Ads Row objects
-        :rtype: list[GoogleAdsRow]
         """
         service = self._get_service
 
         iterators = []
         for client_id in client_ids:
-            request = self._get_client.get_type("SearchGoogleAdsRequest")  # type: SearchGoogleAdsRequest
+            request: SearchGoogleAdsRequest = self._get_client.get_type("SearchGoogleAdsRequest")
             request.customer_id = client_id
             request.query = query
             request.page_size = page_size
@@ -243,7 +242,6 @@ class GoogleAdsHook(BaseHook):
         :param iterators: List of Google Page Iterator (GRPCIterator) objects
 
         :return: API response for all clients in the form of Google Ads Row object(s)
-        :rtype: list[GoogleAdsRow]
         """
         try:
             self.log.info("Extracting data from returned Google Ads Iterators")

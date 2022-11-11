@@ -45,10 +45,10 @@ class MongoHook(BaseHook):
         when connecting to MongoDB.
     """
 
-    conn_name_attr = 'conn_id'
-    default_conn_name = 'mongo_default'
-    conn_type = 'mongo'
-    hook_name = 'MongoDB'
+    conn_name_attr = "conn_id"
+    default_conn_name = "mongo_default"
+    conn_type = "mongo"
+    hook_name = "MongoDB"
 
     def __init__(self, conn_id: str = default_conn_name, *args, **kwargs) -> None:
 
@@ -58,12 +58,12 @@ class MongoHook(BaseHook):
         self.extras = self.connection.extra_dejson.copy()
         self.client = None
 
-        srv = self.extras.pop('srv', False)
-        scheme = 'mongodb+srv' if srv else 'mongodb'
+        srv = self.extras.pop("srv", False)
+        scheme = "mongodb+srv" if srv else "mongodb"
 
-        creds = f'{self.connection.login}:{self.connection.password}@' if self.connection.login else ''
-        port = '' if self.connection.port is None else f':{self.connection.port}'
-        self.uri = f'{scheme}://{creds}{self.connection.host}{port}/{self.connection.schema}'
+        creds = f"{self.connection.login}:{self.connection.password}@" if self.connection.login else ""
+        port = "" if self.connection.port is None else f":{self.connection.port}"
+        self.uri = f"{scheme}://{creds}{self.connection.host}{port}/{self.connection.schema}"
 
     def __enter__(self):
         return self
@@ -86,8 +86,8 @@ class MongoHook(BaseHook):
         options = self.extras
 
         # If we are using SSL disable requiring certs from specific hostname
-        if options.get('ssl', False):
-            options.update({'ssl_cert_reqs': CERT_NONE})
+        if options.get("ssl", False):
+            options.update({"ssl_cert_reqs": CERT_NONE})
 
         self.client = MongoClient(self.uri, **options)
 
@@ -239,7 +239,7 @@ class MongoHook(BaseHook):
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
 
         if not filter_doc:
-            filter_doc = {'_id': doc['_id']}
+            filter_doc = {"_id": doc["_id"]}
 
         return collection.replace_one(filter_doc, doc, **kwargs)
 
@@ -280,7 +280,7 @@ class MongoHook(BaseHook):
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
 
         if not filter_docs:
-            filter_docs = [{'_id': doc['_id']} for doc in docs]
+            filter_docs = [{"_id": doc["_id"]} for doc in docs]
 
         requests = [
             ReplaceOne(filter_docs[i], docs[i], upsert=upsert, collation=collation) for i in range(len(docs))

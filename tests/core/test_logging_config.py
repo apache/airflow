@@ -92,7 +92,7 @@ SETTINGS_FILE_EMPTY = """
 # Other settings here
 """
 
-SETTINGS_DEFAULT_NAME = 'custom_airflow_local_settings'
+SETTINGS_DEFAULT_NAME = "custom_airflow_local_settings"
 
 
 def reset_logging():
@@ -100,7 +100,7 @@ def reset_logging():
     manager = logging.root.manager
     manager.disabled = logging.NOTSET
     airflow_loggers = [
-        logger for logger_name, logger in manager.loggerDict.items() if logger_name.startswith('airflow')
+        logger for logger_name, logger in manager.loggerDict.items() if logger_name.startswith("airflow")
     ]
     for logger in airflow_loggers:
         if isinstance(logger, logging.Logger):
@@ -123,7 +123,7 @@ def reset_logging():
 
 
 @contextlib.contextmanager
-def settings_context(content, directory=None, name='LOGGING_CONFIG'):
+def settings_context(content, directory=None, name="LOGGING_CONFIG"):
     """
     Sets a settings file and puts it in the Python classpath
 
@@ -142,19 +142,19 @@ def settings_context(content, directory=None, name='LOGGING_CONFIG'):
             pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
 
             basedir = settings_root
-            for part in directory.split('/'):
-                open(os.path.join(basedir, '__init__.py'), 'w').close()
+            for part in directory.split("/"):
+                open(os.path.join(basedir, "__init__.py"), "w").close()
                 basedir = os.path.join(basedir, part)
-            open(os.path.join(basedir, '__init__.py'), 'w').close()
+            open(os.path.join(basedir, "__init__.py"), "w").close()
 
             # Replace slashes by dots
-            module = directory.replace('/', '.') + '.' + SETTINGS_DEFAULT_NAME + '.' + name
+            module = directory.replace("/", ".") + "." + SETTINGS_DEFAULT_NAME + "." + name
             settings_file = os.path.join(dir_path, filename)
         else:
-            module = SETTINGS_DEFAULT_NAME + '.' + name
+            module = SETTINGS_DEFAULT_NAME + "." + name
             settings_file = os.path.join(settings_root, filename)
 
-        with open(settings_file, 'w') as handle:
+        with open(settings_file, "w") as handle:
             handle.writelines(content)
         sys.path.append(settings_root)
 
@@ -192,27 +192,27 @@ class TestLoggingSettings:
         from airflow.logging_config import configure_logging, log
 
         with settings_context(SETTINGS_FILE_INVALID):
-            with patch.object(log, 'error') as mock_info:
+            with patch.object(log, "error") as mock_info:
                 # Load config
                 with pytest.raises(ValueError):
                     configure_logging()
 
                 mock_info.assert_called_once_with(
-                    'Unable to load the config, contains a configuration error.'
+                    "Unable to load the config, contains a configuration error."
                 )
 
     def test_loading_valid_complex_local_settings(self):
         # Test what happens when the config is somewhere in a subfolder
-        module_structure = 'etc.airflow.config'
-        dir_structure = module_structure.replace('.', '/')
+        module_structure = "etc.airflow.config"
+        dir_structure = module_structure.replace(".", "/")
         with settings_context(SETTINGS_FILE_VALID, dir_structure):
             from airflow.logging_config import configure_logging, log
 
-            with patch.object(log, 'info') as mock_info:
+            with patch.object(log, "info") as mock_info:
                 configure_logging()
                 mock_info.assert_called_once_with(
-                    'Successfully imported user-defined logging config from %s',
-                    f'etc.airflow.config.{SETTINGS_DEFAULT_NAME}.LOGGING_CONFIG',
+                    "Successfully imported user-defined logging config from %s",
+                    f"etc.airflow.config.{SETTINGS_DEFAULT_NAME}.LOGGING_CONFIG",
                 )
 
     # When we try to load a valid config
@@ -220,11 +220,11 @@ class TestLoggingSettings:
         with settings_context(SETTINGS_FILE_VALID):
             from airflow.logging_config import configure_logging, log
 
-            with patch.object(log, 'info') as mock_info:
+            with patch.object(log, "info") as mock_info:
                 configure_logging()
                 mock_info.assert_called_once_with(
-                    'Successfully imported user-defined logging config from %s',
-                    f'{SETTINGS_DEFAULT_NAME}.LOGGING_CONFIG',
+                    "Successfully imported user-defined logging config from %s",
+                    f"{SETTINGS_DEFAULT_NAME}.LOGGING_CONFIG",
                 )
 
     # When we load an empty file, it should go to default
@@ -239,26 +239,26 @@ class TestLoggingSettings:
     def test_when_the_config_key_does_not_exists(self):
         from airflow import logging_config
 
-        with conf_vars({('logging', 'logging_config_class'): None}):
-            with patch.object(logging_config.log, 'debug') as mock_debug:
+        with conf_vars({("logging", "logging_config_class"): None}):
+            with patch.object(logging_config.log, "debug") as mock_debug:
                 logging_config.configure_logging()
-                mock_debug.assert_any_call('Could not find key logging_config_class in config')
+                mock_debug.assert_any_call("Could not find key logging_config_class in config")
 
     # Just default
     def test_loading_local_settings_without_logging_config(self):
         from airflow.logging_config import configure_logging, log
 
-        with patch.object(log, 'debug') as mock_info:
+        with patch.object(log, "debug") as mock_info:
             configure_logging()
-            mock_info.assert_called_once_with('Unable to load custom logging, using default config instead')
+            mock_info.assert_called_once_with("Unable to load custom logging, using default config instead")
 
     def test_1_9_config(self):
         from airflow.logging_config import configure_logging
 
-        with conf_vars({('logging', 'task_log_reader'): 'file.task'}):
-            with pytest.warns(DeprecationWarning, match=r'file.task'):
+        with conf_vars({("logging", "task_log_reader"): "file.task"}):
+            with pytest.warns(DeprecationWarning, match=r"file.task"):
                 configure_logging()
-            assert conf.get('logging', 'task_log_reader') == 'task'
+            assert conf.get("logging", "task_log_reader") == "task"
 
     def test_loading_remote_logging_with_wasb_handler(self):
         """Test if logging can be configured successfully for Azure Blob Storage"""
@@ -268,31 +268,31 @@ class TestLoggingSettings:
 
         with conf_vars(
             {
-                ('logging', 'remote_logging'): 'True',
-                ('logging', 'remote_log_conn_id'): 'some_wasb',
-                ('logging', 'remote_base_log_folder'): 'wasb://some-folder',
+                ("logging", "remote_logging"): "True",
+                ("logging", "remote_log_conn_id"): "some_wasb",
+                ("logging", "remote_base_log_folder"): "wasb://some-folder",
             }
         ):
             importlib.reload(airflow_local_settings)
             configure_logging()
 
-        logger = logging.getLogger('airflow.task')
+        logger = logging.getLogger("airflow.task")
         assert isinstance(logger.handlers[0], WasbTaskHandler)
 
     @pytest.mark.parametrize(
         "remote_base_log_folder, log_group_arn",
         [
             (
-                'cloudwatch://arn:aws:logs:aaaa:bbbbb:log-group:ccccc',
-                'arn:aws:logs:aaaa:bbbbb:log-group:ccccc',
+                "cloudwatch://arn:aws:logs:aaaa:bbbbb:log-group:ccccc",
+                "arn:aws:logs:aaaa:bbbbb:log-group:ccccc",
             ),
             (
-                'cloudwatch://arn:aws:logs:aaaa:bbbbb:log-group:aws/ccccc',
-                'arn:aws:logs:aaaa:bbbbb:log-group:aws/ccccc',
+                "cloudwatch://arn:aws:logs:aaaa:bbbbb:log-group:aws/ccccc",
+                "arn:aws:logs:aaaa:bbbbb:log-group:aws/ccccc",
             ),
             (
-                'cloudwatch://arn:aws:logs:aaaa:bbbbb:log-group:/aws/ecs/ccccc',
-                'arn:aws:logs:aaaa:bbbbb:log-group:/aws/ecs/ccccc',
+                "cloudwatch://arn:aws:logs:aaaa:bbbbb:log-group:/aws/ecs/ccccc",
+                "arn:aws:logs:aaaa:bbbbb:log-group:/aws/ecs/ccccc",
             ),
         ],
     )
@@ -305,14 +305,14 @@ class TestLoggingSettings:
 
         with conf_vars(
             {
-                ('logging', 'remote_logging'): 'True',
-                ('logging', 'remote_log_conn_id'): 'some_cloudwatch',
-                ('logging', 'remote_base_log_folder'): remote_base_log_folder,
+                ("logging", "remote_logging"): "True",
+                ("logging", "remote_log_conn_id"): "some_cloudwatch",
+                ("logging", "remote_base_log_folder"): remote_base_log_folder,
             }
         ):
             importlib.reload(airflow_local_settings)
             configure_logging()
             assert (
-                airflow_local_settings.DEFAULT_LOGGING_CONFIG['handlers']['task']['log_group_arn']
+                airflow_local_settings.DEFAULT_LOGGING_CONFIG["handlers"]["task"]["log_group_arn"]
                 == log_group_arn
             )

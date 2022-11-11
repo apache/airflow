@@ -59,7 +59,7 @@ class TestCloudTasksQueueCreate(unittest.TestCase):
 
         result = operator.execute(context=mock.MagicMock())
 
-        assert {'name': FULL_QUEUE_PATH, 'state': 0} == result
+        assert {"name": FULL_QUEUE_PATH, "state": 0} == result
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=None,
@@ -83,7 +83,7 @@ class TestCloudTasksQueueUpdate(unittest.TestCase):
 
         result = operator.execute(context=mock.MagicMock())
 
-        assert {'name': FULL_QUEUE_PATH, 'state': 0} == result
+        assert {"name": FULL_QUEUE_PATH, "state": 0} == result
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=None,
@@ -108,7 +108,7 @@ class TestCloudTasksQueueGet(unittest.TestCase):
 
         result = operator.execute(context=mock.MagicMock())
 
-        assert {'name': FULL_QUEUE_PATH, 'state': 0} == result
+        assert {"name": FULL_QUEUE_PATH, "state": 0} == result
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=None,
@@ -131,7 +131,7 @@ class TestCloudTasksQueuesList(unittest.TestCase):
 
         result = operator.execute(context=mock.MagicMock())
 
-        assert [{'name': FULL_QUEUE_PATH, 'state': 0}] == result
+        assert [{"name": FULL_QUEUE_PATH, "state": 0}] == result
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=None,
@@ -177,7 +177,7 @@ class TestCloudTasksQueuePurge(unittest.TestCase):
 
         result = operator.execute(context=mock.MagicMock())
 
-        assert {'name': FULL_QUEUE_PATH, 'state': 0} == result
+        assert {"name": FULL_QUEUE_PATH, "state": 0} == result
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=None,
@@ -200,7 +200,7 @@ class TestCloudTasksQueuePause(unittest.TestCase):
 
         result = operator.execute(context=mock.MagicMock())
 
-        assert {'name': FULL_QUEUE_PATH, 'state': 0} == result
+        assert {"name": FULL_QUEUE_PATH, "state": 0} == result
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=None,
@@ -223,7 +223,7 @@ class TestCloudTasksQueueResume(unittest.TestCase):
 
         result = operator.execute(context=mock.MagicMock())
 
-        assert {'name': FULL_QUEUE_PATH, 'state': 0} == result
+        assert {"name": FULL_QUEUE_PATH, "state": 0} == result
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=None,
@@ -249,11 +249,11 @@ class TestCloudTasksTaskCreate(unittest.TestCase):
         result = operator.execute(context=mock.MagicMock())
 
         assert {
-            'app_engine_http_request': {'body': '', 'headers': {}, 'http_method': 0, 'relative_uri': ''},
-            'dispatch_count': 0,
-            'name': '',
-            'response_count': 0,
-            'view': 0,
+            "app_engine_http_request": {"body": "", "headers": {}, "http_method": 0, "relative_uri": ""},
+            "dispatch_count": 0,
+            "name": "",
+            "response_count": 0,
+            "view": 0,
         } == result
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -283,11 +283,11 @@ class TestCloudTasksTaskGet(unittest.TestCase):
         result = operator.execute(context=mock.MagicMock())
 
         assert {
-            'app_engine_http_request': {'body': '', 'headers': {}, 'http_method': 0, 'relative_uri': ''},
-            'dispatch_count': 0,
-            'name': '',
-            'response_count': 0,
-            'view': 0,
+            "app_engine_http_request": {"body": "", "headers": {}, "http_method": 0, "relative_uri": ""},
+            "dispatch_count": 0,
+            "name": "",
+            "response_count": 0,
+            "view": 0,
         } == result
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -315,16 +315,16 @@ class TestCloudTasksTasksList(unittest.TestCase):
 
         assert [
             {
-                'app_engine_http_request': {
-                    'body': '',
-                    'headers': {},
-                    'http_method': 0,
-                    'relative_uri': '',
+                "app_engine_http_request": {
+                    "body": "",
+                    "headers": {},
+                    "http_method": 0,
+                    "relative_uri": "",
                 },
-                'dispatch_count': 0,
-                'name': '',
-                'response_count': 0,
-                'view': 0,
+                "dispatch_count": 0,
+                "name": "",
+                "response_count": 0,
+                "view": 0,
             }
         ] == result
         mock_hook.assert_called_once_with(
@@ -379,11 +379,11 @@ class TestCloudTasksTaskRun(unittest.TestCase):
         result = operator.execute(context=mock.MagicMock())
 
         assert {
-            'app_engine_http_request': {'body': '', 'headers': {}, 'http_method': 0, 'relative_uri': ''},
-            'dispatch_count': 0,
-            'name': '',
-            'response_count': 0,
-            'view': 0,
+            "app_engine_http_request": {"body": "", "headers": {}, "http_method": 0, "relative_uri": ""},
+            "dispatch_count": 0,
+            "name": "",
+            "response_count": 0,
+            "view": 0,
         } == result
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,

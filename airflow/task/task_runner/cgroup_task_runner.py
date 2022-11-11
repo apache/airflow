@@ -72,14 +72,13 @@ class CgroupTaskRunner(BaseTaskRunner):
         self._created_mem_cgroup = False
         self._cur_user = getuser()
 
-    def _create_cgroup(self, path):
+    def _create_cgroup(self, path) -> trees.Node:
         """
         Create the specified cgroup.
 
         :param path: The path of the cgroup to create.
         E.g. cpu/mygroup/mysubgroup
         :return: the Node associated with the created cgroup.
-        :rtype: cgroupspy.nodes.Node
         """
         node = trees.Tree().root
         path_split = path.split(os.sep)
@@ -161,7 +160,7 @@ class CgroupTaskRunner(BaseTaskRunner):
 
         # Start the process w/ cgroups
         self.log.debug("Starting task process with cgroups cpu,memory: %s", cgroup_name)
-        self.process = self.run_command(['cgexec', '-g', f'cpu,memory:{cgroup_name}'])
+        self.process = self.run_command(["cgexec", "-g", f"cpu,memory:{cgroup_name}"])
 
     def return_code(self, timeout: int = 0) -> int | None:
         return_code = self.process.poll()
@@ -189,7 +188,7 @@ class CgroupTaskRunner(BaseTaskRunner):
         def byte_to_gb(num_bytes, precision=2):
             return round(num_bytes / (1024 * 1024 * 1024), precision)
 
-        with open(mem_cgroup_node.full_path + '/memory.max_usage_in_bytes') as f:
+        with open(mem_cgroup_node.full_path + "/memory.max_usage_in_bytes") as f:
             max_usage_in_bytes = int(f.read().strip())
 
         used_gb = byte_to_gb(max_usage_in_bytes)
@@ -217,10 +216,11 @@ class CgroupTaskRunner(BaseTaskRunner):
         super().on_finish()
 
     @staticmethod
-    def _get_cgroup_names():
+    def _get_cgroup_names() -> dict[str, str]:
         """
+        Get the mapping between the subsystem name and the cgroup name.
+
         :return: a mapping between the subsystem name to the cgroup name
-        :rtype: dict[str, str]
         """
         with open("/proc/self/cgroup") as file:
             lines = file.readlines()

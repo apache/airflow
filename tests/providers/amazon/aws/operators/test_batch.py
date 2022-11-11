@@ -61,7 +61,7 @@ class TestBatchOperator(unittest.TestCase):
             parameters=None,
             overrides={},
             array_properties=None,
-            aws_conn_id='airflow_test',
+            aws_conn_id="airflow_test",
             region_name="eu-west-1",
             tags={},
         )
@@ -189,15 +189,15 @@ class TestBatchOperator(unittest.TestCase):
 
 
 class TestBatchCreateComputeEnvironmentOperator(unittest.TestCase):
-    @mock.patch.object(BatchClientHook, 'client')
+    @mock.patch.object(BatchClientHook, "client")
     def test_execute(self, mock_conn):
-        environment_name = 'environment_name'
-        environment_type = 'environment_type'
-        environment_state = 'environment_state'
+        environment_name = "environment_name"
+        environment_type = "environment_type"
+        environment_state = "environment_state"
         compute_resources = {}
         tags = {}
         operator = BatchCreateComputeEnvironmentOperator(
-            task_id='task',
+            task_id="task",
             compute_environment_name=environment_name,
             environment_type=environment_type,
             state=environment_state,

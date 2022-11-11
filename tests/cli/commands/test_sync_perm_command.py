@@ -33,7 +33,7 @@ class TestCliSyncPerm:
         appbuilder = mock_cached_app.return_value.appbuilder
         appbuilder.sm = mock.Mock()
 
-        args = self.parser.parse_args(['sync-perm'])
+        args = self.parser.parse_args(["sync-perm"])
         sync_perm_command.sync_perm(args)
 
         appbuilder.add_permissions.assert_called_once_with(update_perms=True)
@@ -45,7 +45,7 @@ class TestCliSyncPerm:
         appbuilder = mock_cached_app.return_value.appbuilder
         appbuilder.sm = mock.Mock()
 
-        args = self.parser.parse_args(['sync-perm', '--include-dags'])
+        args = self.parser.parse_args(["sync-perm", "--include-dags"])
         sync_perm_command.sync_perm(args)
 
         appbuilder.add_permissions.assert_called_once_with(update_perms=True)

@@ -314,7 +314,7 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
 
     def prepare_template(self) -> None:
         # If .json is passed then we have to read the file
-        if isinstance(self.report, str) and self.report.endswith('.json'):
+        if isinstance(self.report, str) and self.report.endswith(".json"):
             with open(self.report) as file:
                 self.report = json.load(file)
 

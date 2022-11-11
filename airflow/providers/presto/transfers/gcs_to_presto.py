@@ -59,9 +59,9 @@ class GCSToPrestoOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'source_bucket',
-        'source_object',
-        'presto_table',
+        "source_bucket",
+        "source_object",
+        "presto_table",
     )
 
     def __init__(

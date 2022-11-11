@@ -62,7 +62,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         s3_bucket = "bucket"
         s3_key = "key"
         unload_options = [
-            'HEADER',
+            "HEADER",
         ]
 
         op = RedshiftToS3Operator(
@@ -81,7 +81,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
 
         op.execute(None)
 
-        unload_options = '\n\t\t\t'.join(unload_options)
+        unload_options = "\n\t\t\t".join(unload_options)
         select_query = f"SELECT * FROM {schema}.{table}"
         credentials_block = build_credentials_block(mock_session.return_value)
 
@@ -127,7 +127,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         s3_bucket = "bucket"
         s3_key = "key"
         unload_options = [
-            'HEADER',
+            "HEADER",
         ]
 
         op = RedshiftToS3Operator(
@@ -146,7 +146,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
 
         op.execute(None)
 
-        unload_options = '\n\t\t\t'.join(unload_options)
+        unload_options = "\n\t\t\t".join(unload_options)
         select_query = f"SELECT * FROM {schema}.{table}"
         credentials_block = build_credentials_block(mock_session.return_value)
 
@@ -193,7 +193,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         s3_bucket = "bucket"
         s3_key = "key"
         unload_options = [
-            'HEADER',
+            "HEADER",
         ]
         select_query = "select column from table"
 
@@ -213,7 +213,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
 
         op.execute(None)
 
-        unload_options = '\n\t\t\t'.join(unload_options)
+        unload_options = "\n\t\t\t".join(unload_options)
         credentials_block = build_credentials_block(mock_session.return_value)
 
         unload_query = op._build_unload_query(
@@ -258,7 +258,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         s3_bucket = "bucket"
         s3_key = "key"
         unload_options = [
-            'HEADER',
+            "HEADER",
         ]
 
         op = RedshiftToS3Operator(
@@ -277,7 +277,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
 
         op.execute(None)
 
-        unload_options = '\n\t\t\t'.join(unload_options)
+        unload_options = "\n\t\t\t".join(unload_options)
         select_query = f"SELECT * FROM {schema}.{table}"
         credentials_block = f"aws_iam_role={extra['role_arn']}"
 
@@ -286,16 +286,16 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         )
 
         assert mock_run.call_count == 1
-        assert extra['role_arn'] in unload_query
+        assert extra["role_arn"] in unload_query
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
 
     def test_template_fields_overrides(self):
         assert RedshiftToS3Operator.template_fields == (
-            's3_bucket',
-            's3_key',
-            'schema',
-            'table',
-            'unload_options',
-            'select_query',
-            'redshift_conn_id',
+            "s3_bucket",
+            "s3_key",
+            "schema",
+            "table",
+            "unload_options",
+            "select_query",
+            "redshift_conn_id",
         )

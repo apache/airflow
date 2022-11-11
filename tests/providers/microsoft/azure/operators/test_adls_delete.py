@@ -22,12 +22,12 @@ from unittest import mock
 
 from airflow.providers.microsoft.azure.operators.adls import ADLSDeleteOperator
 
-TASK_ID = 'test-adls-list-operator'
-TEST_PATH = 'test'
+TASK_ID = "test-adls-list-operator"
+TEST_PATH = "test"
 
 
 class TestAzureDataLakeStorageDeleteOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.microsoft.azure.operators.adls.AzureDataLakeHook')
+    @mock.patch("airflow.providers.microsoft.azure.operators.adls.AzureDataLakeHook")
     def test_execute(self, mock_hook):
 
         operator = ADLSDeleteOperator(task_id=TASK_ID, path=TEST_PATH)

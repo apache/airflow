@@ -69,10 +69,10 @@ SECOND_INSTANCE = {"tier": Instance.Tier.STANDARD_HA, "memory_size_gb": 3}
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',  # Override to match your needs
+    schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
 

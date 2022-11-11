@@ -24,7 +24,7 @@ description: |
     `InfluxDB <https://www.influxdata.com/>`__
 
 dependencies:
-  - apache-airflow>=2.2.0
+  - apache-airflow>=2.3.0
   - influxdb-client>=1.19.0
   - requests>=2.26.0
 

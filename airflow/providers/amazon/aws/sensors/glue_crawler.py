@@ -40,23 +40,23 @@ class GlueCrawlerSensor(BaseSensorOperator):
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
     """
 
-    template_fields: Sequence[str] = ('crawler_name',)
+    template_fields: Sequence[str] = ("crawler_name",)
 
-    def __init__(self, *, crawler_name: str, aws_conn_id: str = 'aws_default', **kwargs) -> None:
+    def __init__(self, *, crawler_name: str, aws_conn_id: str = "aws_default", **kwargs) -> None:
         super().__init__(**kwargs)
         self.crawler_name = crawler_name
         self.aws_conn_id = aws_conn_id
-        self.success_statuses = 'SUCCEEDED'
-        self.errored_statuses = ('FAILED', 'CANCELLED')
+        self.success_statuses = "SUCCEEDED"
+        self.errored_statuses = ("FAILED", "CANCELLED")
         self.hook: GlueCrawlerHook | None = None
 
     def poke(self, context: Context):
         hook = self.get_hook()
         self.log.info("Poking for AWS Glue crawler: %s", self.crawler_name)
-        crawler_state = hook.get_crawler(self.crawler_name)['State']
-        if crawler_state == 'READY':
+        crawler_state = hook.get_crawler(self.crawler_name)["State"]
+        if crawler_state == "READY":
             self.log.info("State: %s", crawler_state)
-            crawler_status = hook.get_crawler(self.crawler_name)['LastCrawl']['Status']
+            crawler_status = hook.get_crawler(self.crawler_name)["LastCrawl"]["Status"]
             if crawler_status == self.success_statuses:
                 self.log.info("Status: %s", crawler_status)
                 return True

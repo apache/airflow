@@ -46,6 +46,20 @@ This Operator returns a dictionary of information related to the initiated job s
     :start-after: [START howto_operator_glacier_create_job]
     :end-before: [END howto_operator_glacier_create_job]
 
+.. _howto/operator:GlacierUploadArchiveOperator:
+
+Upload archive to an Amazon Glacier
+===================================
+
+To add an archive to an Amazon S3 Glacier vault
+use :class:`~airflow.providers.amazon.aws.transfers.glacier_to_gcs.GlacierUploadArchiveOperator`
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_glacier_to_gcs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_glacier_upload_archive]
+    :end-before: [END howto_operator_glacier_upload_archive]
+
 Sensors
 -------
 

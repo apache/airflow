@@ -36,7 +36,7 @@ from airflow.operators.python import ShortCircuitOperator
 from airflow.providers.docker.operators.docker import DockerOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = 'docker_sample_copy_data'
+DAG_ID = "docker_sample_copy_data"
 
 with models.DAG(
     DAG_ID,

@@ -50,5 +50,5 @@ class DbCallbackRequest(Base):
         module = import_module("airflow.callbacks.callback_requests")
         callback_class = getattr(module, self.callback_type)
         # Get the function (from the instance) that we need to call
-        from_json = getattr(callback_class, 'from_json')
+        from_json = getattr(callback_class, "from_json")
         return from_json(self.callback_data)

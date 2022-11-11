@@ -77,7 +77,7 @@ class BigQueryToMsSqlOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = ('source_project_dataset_table', 'mssql_table', 'impersonation_chain')
+    template_fields: Sequence[str] = ("source_project_dataset_table", "mssql_table", "impersonation_chain")
     operator_extra_links = (BigQueryTableLink(),)
 
     def __init__(
@@ -86,8 +86,8 @@ class BigQueryToMsSqlOperator(BaseOperator):
         source_project_dataset_table: str,
         mssql_table: str,
         selected_fields: list[str] | str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        mssql_conn_id: str = 'mssql_default',
+        gcp_conn_id: str = "google_cloud_default",
+        mssql_conn_id: str = "mssql_default",
         database: str | None = None,
         delegate_to: str | None = None,
         replace: bool = False,
@@ -108,10 +108,10 @@ class BigQueryToMsSqlOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
         try:
-            _, self.dataset_id, self.table_id = source_project_dataset_table.split('.')
+            _, self.dataset_id, self.table_id = source_project_dataset_table.split(".")
         except ValueError:
             raise ValueError(
-                f'Could not parse {source_project_dataset_table} as <project>.<dataset>.<table>'
+                f"Could not parse {source_project_dataset_table} as <project>.<dataset>.<table>"
             ) from None
         self.source_project_dataset_table = source_project_dataset_table
 
@@ -122,7 +122,7 @@ class BigQueryToMsSqlOperator(BaseOperator):
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
-        project_id, dataset_id, table_id = self.source_project_dataset_table.split('.')
+        project_id, dataset_id, table_id = self.source_project_dataset_table.split(".")
         BigQueryTableLink.persist(
             context=context,
             task_instance=self,

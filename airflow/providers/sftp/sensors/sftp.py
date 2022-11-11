@@ -42,8 +42,8 @@ class SFTPSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = (
-        'path',
-        'newer_than',
+        "path",
+        "newer_than",
     )
 
     def __init__(
@@ -52,7 +52,7 @@ class SFTPSensor(BaseSensorOperator):
         path: str,
         file_pattern: str = "",
         newer_than: datetime | None = None,
-        sftp_conn_id: str = 'sftp_default',
+        sftp_conn_id: str = "sftp_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -77,14 +77,14 @@ class SFTPSensor(BaseSensorOperator):
 
         try:
             mod_time = self.hook.get_mod_time(actual_file_to_check)
-            self.log.info('Found File %s last modified: %s', str(actual_file_to_check), str(mod_time))
+            self.log.info("Found File %s last modified: %s", str(actual_file_to_check), str(mod_time))
         except OSError as e:
             if e.errno != SFTP_NO_SUCH_FILE:
                 raise e
             return False
         self.hook.close_conn()
         if self.newer_than:
-            _mod_time = convert_to_utc(datetime.strptime(mod_time, '%Y%m%d%H%M%S'))
+            _mod_time = convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
             _newer_than = convert_to_utc(self.newer_than)
             return _newer_than <= _mod_time
         else:

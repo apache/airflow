@@ -65,13 +65,12 @@ class SecretsManagerHook(GoogleBaseHook):
         Retrieves the connection to Secret Manager.
 
         :return: Secret Manager client.
-        :rtype: airflow.providers.google.cloud._internal_client.secret_manager_client._SecretManagerClient
         """
         return self.client
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_secret(
-        self, secret_id: str, secret_version: str = 'latest', project_id: str | None = None
+        self, secret_id: str, secret_version: str = "latest", project_id: str | None = None
     ) -> str | None:
         """
         Get secret value from the Secret Manager.

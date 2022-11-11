@@ -29,20 +29,20 @@ from airflow.providers.singularity.operators.singularity import SingularityOpera
 
 
 class SingularityOperatorTestCase(unittest.TestCase):
-    @mock.patch('airflow.providers.singularity.operators.singularity.Client')
+    @mock.patch("airflow.providers.singularity.operators.singularity.Client")
     def test_execute(self, client_mock):
         instance = mock.Mock(
             autospec=Instance,
             **{
-                'start.return_value': 0,
-                'stop.return_value': 0,
+                "start.return_value": 0,
+                "stop.return_value": 0,
             },
         )
 
         client_mock.instance.return_value = instance
-        client_mock.execute.return_value = {'return_code': 0, 'message': 'message'}
+        client_mock.execute.return_value = {"return_code": 0, "message": "message"}
 
-        task = SingularityOperator(task_id='task-id', image="docker://busybox", command="echo hello")
+        task = SingularityOperator(task_id="task-id", image="docker://busybox", command="echo hello")
         task.execute({})
 
         client_mock.instance.assert_called_once_with("docker://busybox", options=[], args=None, start=False)
@@ -62,26 +62,26 @@ class SingularityOperatorTestCase(unittest.TestCase):
         ]
     )
     def test_command_is_required(self, command):
-        task = SingularityOperator(task_id='task-id', image="docker://busybox", command=command)
+        task = SingularityOperator(task_id="task-id", image="docker://busybox", command=command)
         with pytest.raises(AirflowException, match="You must define a command."):
             task.execute({})
 
-    @mock.patch('airflow.providers.singularity.operators.singularity.Client')
+    @mock.patch("airflow.providers.singularity.operators.singularity.Client")
     def test_image_should_be_pulled_when_not_exists(self, client_mock):
         instance = mock.Mock(
             autospec=Instance,
             **{
-                'start.return_value': 0,
-                'stop.return_value': 0,
+                "start.return_value": 0,
+                "stop.return_value": 0,
             },
         )
 
-        client_mock.pull.return_value = '/tmp/busybox_latest.sif'
+        client_mock.pull.return_value = "/tmp/busybox_latest.sif"
         client_mock.instance.return_value = instance
-        client_mock.execute.return_value = {'return_code': 0, 'message': 'message'}
+        client_mock.execute.return_value = {"return_code": 0, "message": "message"}
 
         task = SingularityOperator(
-            task_id='task-id',
+            task_id="task-id",
             image="docker://busybox",
             command="echo hello",
             pull_folder="/tmp",
@@ -107,33 +107,33 @@ class SingularityOperatorTestCase(unittest.TestCase):
             ),
             (
                 ["AAA"],
-                ['--bind', 'AAA'],
+                ["--bind", "AAA"],
             ),
             (
                 ["AAA", "BBB"],
-                ['--bind', 'AAA', '--bind', 'BBB'],
+                ["--bind", "AAA", "--bind", "BBB"],
             ),
             (
                 ["AAA", "BBB", "CCC"],
-                ['--bind', 'AAA', '--bind', 'BBB', '--bind', 'CCC'],
+                ["--bind", "AAA", "--bind", "BBB", "--bind", "CCC"],
             ),
         ]
     )
-    @mock.patch('airflow.providers.singularity.operators.singularity.Client')
+    @mock.patch("airflow.providers.singularity.operators.singularity.Client")
     def test_bind_options(self, volumes, expected_options, client_mock):
         instance = mock.Mock(
             autospec=Instance,
             **{
-                'start.return_value': 0,
-                'stop.return_value': 0,
+                "start.return_value": 0,
+                "stop.return_value": 0,
             },
         )
-        client_mock.pull.return_value = 'docker://busybox'
+        client_mock.pull.return_value = "docker://busybox"
         client_mock.instance.return_value = instance
-        client_mock.execute.return_value = {'return_code': 0, 'message': 'message'}
+        client_mock.execute.return_value = {"return_code": 0, "message": "message"}
 
         task = SingularityOperator(
-            task_id='task-id',
+            task_id="task-id",
             image="docker://busybox",
             command="echo hello",
             force_pull=True,
@@ -153,29 +153,29 @@ class SingularityOperatorTestCase(unittest.TestCase):
             ),
             (
                 "",
-                ['--workdir', ''],
+                ["--workdir", ""],
             ),
             (
                 "/work-dir/",
-                ['--workdir', '/work-dir/'],
+                ["--workdir", "/work-dir/"],
             ),
         ]
     )
-    @mock.patch('airflow.providers.singularity.operators.singularity.Client')
+    @mock.patch("airflow.providers.singularity.operators.singularity.Client")
     def test_working_dir(self, working_dir, expected_working_dir, client_mock):
         instance = mock.Mock(
             autospec=Instance,
             **{
-                'start.return_value': 0,
-                'stop.return_value': 0,
+                "start.return_value": 0,
+                "stop.return_value": 0,
             },
         )
-        client_mock.pull.return_value = 'docker://busybox'
+        client_mock.pull.return_value = "docker://busybox"
         client_mock.instance.return_value = instance
-        client_mock.execute.return_value = {'return_code': 0, 'message': 'message'}
+        client_mock.execute.return_value = {"return_code": 0, "message": "message"}
 
         task = SingularityOperator(
-            task_id='task-id',
+            task_id="task-id",
             image="docker://busybox",
             command="echo hello",
             force_pull=True,

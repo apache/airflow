@@ -44,6 +44,7 @@ analyzeSyntax
 AnalyzeSyntaxResponse
 Aneesh
 AnnotateTextResponse
+ans
 Ansible
 apache
 api
@@ -229,6 +230,8 @@ cli
 clientId
 Cloudant
 cloudant
+cloudbuild
+CloudBuildClient
 cloudml
 cloudsqldatabehook
 CloudTasksClient
@@ -254,6 +257,8 @@ colours
 CommandType
 comparator
 compat
+Compute
+compute
 Computenodes
 ComputeNodeState
 concat
@@ -276,6 +281,8 @@ conn
 connectTimeoutMS
 connexion
 containerConfiguration
+ContainerGroup
+containerinstance
 ContainerPort
 contentUrl
 contextmgr
@@ -373,6 +380,7 @@ dbs
 dbt
 dbtapquerycmd
 dbutils
+ddl
 de
 Debounce
 declaratively
@@ -408,6 +416,7 @@ dest
 dev
 devel
 DevOps
+devtools
 df
 dicts
 dimensionX
@@ -418,6 +427,7 @@ DirectRunner
 dirs
 discoverability
 discoverable
+diskTypes
 displayName
 distcp
 distro
@@ -609,6 +619,8 @@ globstring
 glyphicon
 Gmail
 golang
+googleads
+GoogleAdsRow
 googleapiclient
 gpu
 gpus
@@ -854,6 +866,7 @@ Lowin
 lshift
 lxml
 Lyft
+machineTypes
 macOS
 macosx
 mailto
@@ -883,6 +896,7 @@ metarouter
 Metastore
 metastore
 mget
+mgmt
 microservice
 microservices
 microsoft
@@ -1253,6 +1267,7 @@ securityManager
 seealso
 Seedlist
 seedlist
+seekable
 segmentGranularity
 Sendgrid
 sendgrid
@@ -1366,6 +1381,7 @@ submodules
 subnet
 subnets
 subnetwork
+subnetworks
 subpackage
 Subpackages
 subpackages

@@ -25,12 +25,12 @@ from airflow.utils.state import State
 
 
 class TestDagrunRunningDep:
-    @patch('airflow.models.DagRun.find', return_value=())
+    @patch("airflow.models.DagRun.find", return_value=())
     def test_dagrun_doesnt_exist(self, mock_dagrun_find):
         """
         Task instances without dagruns should fail this dep
         """
-        dag = DAG('test_dag', max_active_runs=2)
+        dag = DAG("test_dag", max_active_runs=2)
         dagrun = DagRun(state=State.QUEUED)
         ti = Mock(task=Mock(dag=dag), get_dagrun=Mock(return_value=dagrun))
         assert not DagrunRunningDep().is_met(ti=ti)

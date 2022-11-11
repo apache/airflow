@@ -50,10 +50,10 @@ OPERATION_ID = "unique_operation_id"
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',  # Override to match your needs
+    schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example', 'spanner'],
+    tags=["example", "spanner"],
 ) as dag:
     # Create
     # [START howto_operator_spanner_deploy]
@@ -63,14 +63,14 @@ with models.DAG(
         configuration_name=GCP_SPANNER_CONFIG_NAME,
         node_count=GCP_SPANNER_NODE_COUNT,
         display_name=GCP_SPANNER_DISPLAY_NAME,
-        task_id='spanner_instance_create_task',
+        task_id="spanner_instance_create_task",
     )
     spanner_instance_update_task = SpannerDeployInstanceOperator(
         instance_id=GCP_SPANNER_INSTANCE_ID,
         configuration_name=GCP_SPANNER_CONFIG_NAME,
         node_count=GCP_SPANNER_NODE_COUNT + 1,
-        display_name=GCP_SPANNER_DISPLAY_NAME + '_updated',
-        task_id='spanner_instance_update_task',
+        display_name=GCP_SPANNER_DISPLAY_NAME + "_updated",
+        task_id="spanner_instance_update_task",
     )
     # [END howto_operator_spanner_deploy]
 
@@ -82,7 +82,7 @@ with models.DAG(
             "CREATE TABLE my_table1 (id INT64, name STRING(MAX)) PRIMARY KEY (id)",
             "CREATE TABLE my_table2 (id INT64, name STRING(MAX)) PRIMARY KEY (id)",
         ],
-        task_id='spanner_database_deploy_task',
+        task_id="spanner_database_deploy_task",
     )
     # [END howto_operator_spanner_database_deploy]
 
@@ -93,7 +93,7 @@ with models.DAG(
         ddl_statements=[
             "CREATE TABLE my_table3 (id INT64, name STRING(MAX)) PRIMARY KEY (id)",
         ],
-        task_id='spanner_database_update_task',
+        task_id="spanner_database_update_task",
     )
     # [END howto_operator_spanner_database_update]
 
@@ -106,7 +106,7 @@ with models.DAG(
         ddl_statements=[
             "CREATE TABLE my_table_unique (id INT64, name STRING(MAX)) PRIMARY KEY (id)",
         ],
-        task_id='spanner_database_update_idempotent1_task',
+        task_id="spanner_database_update_idempotent1_task",
     )
     spanner_database_update_idempotent2_task = SpannerUpdateDatabaseInstanceOperator(
         instance_id=GCP_SPANNER_INSTANCE_ID,
@@ -115,7 +115,7 @@ with models.DAG(
         ddl_statements=[
             "CREATE TABLE my_table_unique (id INT64, name STRING(MAX)) PRIMARY KEY (id)",
         ],
-        task_id='spanner_database_update_idempotent2_task',
+        task_id="spanner_database_update_idempotent2_task",
     )
     # [END howto_operator_spanner_database_update_idempotent]
 
@@ -124,7 +124,7 @@ with models.DAG(
         instance_id=GCP_SPANNER_INSTANCE_ID,
         database_id=GCP_SPANNER_DATABASE_ID,
         query=["DELETE FROM my_table2 WHERE true"],
-        task_id='spanner_instance_query_task',
+        task_id="spanner_instance_query_task",
     )
     # [END howto_operator_spanner_query]
 
@@ -132,14 +132,14 @@ with models.DAG(
     spanner_database_delete_task = SpannerDeleteDatabaseInstanceOperator(
         instance_id=GCP_SPANNER_INSTANCE_ID,
         database_id=GCP_SPANNER_DATABASE_ID,
-        task_id='spanner_database_delete_task',
+        task_id="spanner_database_delete_task",
     )
     # [END howto_operator_spanner_database_delete]
     spanner_database_delete_task.trigger_rule = TriggerRule.ALL_DONE
 
     # [START howto_operator_spanner_delete]
     spanner_instance_delete_task = SpannerDeleteInstanceOperator(
-        instance_id=GCP_SPANNER_INSTANCE_ID, task_id='spanner_instance_delete_task'
+        instance_id=GCP_SPANNER_INSTANCE_ID, task_id="spanner_instance_delete_task"
     )
     # [END howto_operator_spanner_delete]
     spanner_instance_delete_task.trigger_rule = TriggerRule.ALL_DONE

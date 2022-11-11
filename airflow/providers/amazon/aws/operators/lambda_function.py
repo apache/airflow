@@ -48,8 +48,8 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
 
     """
 
-    template_fields: Sequence[str] = ('function_name', 'payload', 'qualifier', 'invocation_type')
-    ui_color = '#ff7300'
+    template_fields: Sequence[str] = ("function_name", "payload", "qualifier", "invocation_type")
+    ui_color = "#ff7300"
 
     def __init__(
         self,
@@ -60,7 +60,7 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
         invocation_type: str | None = None,
         client_context: str | None = None,
         payload: str | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -91,13 +91,13 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
         )
         self.log.info("Lambda response metadata: %r", response.get("ResponseMetadata"))
         if response.get("StatusCode") not in success_status_codes:
-            raise ValueError('Lambda function did not execute', json.dumps(response.get("ResponseMetadata")))
+            raise ValueError("Lambda function did not execute", json.dumps(response.get("ResponseMetadata")))
         payload_stream = response.get("Payload")
         payload = payload_stream.read().decode()
         if "FunctionError" in response:
             raise ValueError(
-                'Lambda function execution resulted in error',
+                "Lambda function execution resulted in error",
                 {"ResponseMetadata": response.get("ResponseMetadata"), "Payload": payload},
             )
-        self.log.info('Lambda function invocation succeeded: %r', response.get("ResponseMetadata"))
+        self.log.info("Lambda function invocation succeeded: %r", response.get("ResponseMetadata"))
         return payload

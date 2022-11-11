@@ -41,12 +41,12 @@ DAG_ID = "example_databricks_sql_operator"
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@daily',
+    schedule="@daily",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
-    connection_id = 'my_connection'
+    connection_id = "my_connection"
     sql_endpoint_name = "My Endpoint"
 
     # [START howto_operator_databricks_sql_multiple]
@@ -54,7 +54,7 @@ with DAG(
     create = DatabricksSqlOperator(
         databricks_conn_id=connection_id,
         sql_endpoint_name=sql_endpoint_name,
-        task_id='create_and_populate_table',
+        task_id="create_and_populate_table",
         sql=[
             "drop table if exists default.my_airflow_table",
             "create table default.my_airflow_table(id int, v string)",
@@ -68,7 +68,7 @@ with DAG(
     select = DatabricksSqlOperator(
         databricks_conn_id=connection_id,
         sql_endpoint_name=sql_endpoint_name,
-        task_id='select_data',
+        task_id="select_data",
         sql="select * from default.my_airflow_table",
     )
     # [END howto_operator_databricks_sql_select]
@@ -78,7 +78,7 @@ with DAG(
     select_into_file = DatabricksSqlOperator(
         databricks_conn_id=connection_id,
         sql_endpoint_name=sql_endpoint_name,
-        task_id='select_data_into_file',
+        task_id="select_data_into_file",
         sql="select * from default.my_airflow_table",
         output_path="/tmp/1.jsonl",
         output_format="jsonl",
@@ -91,7 +91,7 @@ with DAG(
     create_file = DatabricksSqlOperator(
         databricks_conn_id=connection_id,
         sql_endpoint_name=sql_endpoint_name,
-        task_id='create_and_populate_from_file',
+        task_id="create_and_populate_from_file",
         sql="test.sql",
     )
     # [END howto_operator_databricks_sql_multiple_file]
@@ -99,13 +99,13 @@ with DAG(
     # [START howto_operator_databricks_copy_into]
     # Example of importing data using COPY_INTO SQL command
     import_csv = DatabricksCopyIntoOperator(
-        task_id='import_csv',
+        task_id="import_csv",
         databricks_conn_id=connection_id,
         sql_endpoint_name=sql_endpoint_name,
         table_name="my_table",
         file_format="CSV",
         file_location="abfss://container@account.dfs.core.windows.net/my-data/csv",
-        format_options={'header': 'true'},
+        format_options={"header": "true"},
         force_copy=True,
     )
     # [END howto_operator_databricks_copy_into]

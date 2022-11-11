@@ -255,7 +255,7 @@ add them in ``tests/charts``.
 
 .. code-block:: python
 
-    class TestBaseChartTest(unittest.TestCase):
+    class TestBaseChartTest:
         ...
 
 To render the chart create a YAML string with the nested dictionary of options you wish to test. You can then
@@ -277,7 +277,7 @@ Example test here:
     """
 
 
-    class TestGitSyncScheduler(unittest.TestCase):
+    class TestGitSyncScheduler:
         def test_basic(self):
             helm_settings = yaml.safe_load(git_sync_basic)
             res = render_chart(

@@ -30,233 +30,233 @@ from alembic import op
 from airflow.migrations.db_types import TIMESTAMP
 
 # revision identifiers, used by Alembic.
-revision = '44b7034f6bdc'
-down_revision = '424117c37d18'
+revision = "44b7034f6bdc"
+down_revision = "424117c37d18"
 branch_labels = None
 depends_on = None
-airflow_version = '2.4.0'
+airflow_version = "2.4.0"
 
 
 def upgrade():
     """Apply compare types between ORM and DB."""
     conn = op.get_bind()
-    with op.batch_alter_table('connection', schema=None) as batch_op:
+    with op.batch_alter_table("connection", schema=None) as batch_op:
         batch_op.alter_column(
-            'extra',
+            "extra",
             existing_type=sa.TEXT(),
             type_=sa.Text(),
             existing_nullable=True,
         )
-    with op.batch_alter_table('log_template', schema=None) as batch_op:
+    with op.batch_alter_table("log_template", schema=None) as batch_op:
         batch_op.alter_column(
-            'created_at', existing_type=sa.DateTime(), type_=TIMESTAMP(), existing_nullable=False
+            "created_at", existing_type=sa.DateTime(), type_=TIMESTAMP(), existing_nullable=False
         )
 
-    with op.batch_alter_table('serialized_dag', schema=None) as batch_op:
+    with op.batch_alter_table("serialized_dag", schema=None) as batch_op:
         # drop server_default
         batch_op.alter_column(
-            'dag_hash',
+            "dag_hash",
             existing_type=sa.String(32),
             server_default=None,
             type_=sa.String(32),
             existing_nullable=False,
         )
-    with op.batch_alter_table('trigger', schema=None) as batch_op:
+    with op.batch_alter_table("trigger", schema=None) as batch_op:
         batch_op.alter_column(
-            'created_date', existing_type=sa.DateTime(), type_=TIMESTAMP(), existing_nullable=False
+            "created_date", existing_type=sa.DateTime(), type_=TIMESTAMP(), existing_nullable=False
         )
 
-    if conn.dialect.name != 'sqlite':
+    if conn.dialect.name != "sqlite":
         return
-    with op.batch_alter_table('serialized_dag', schema=None) as batch_op:
-        batch_op.alter_column('fileloc_hash', existing_type=sa.Integer, type_=sa.BigInteger())
+    with op.batch_alter_table("serialized_dag", schema=None) as batch_op:
+        batch_op.alter_column("fileloc_hash", existing_type=sa.Integer, type_=sa.BigInteger())
     # Some sqlite date are not in db_types.TIMESTAMP. Convert these to TIMESTAMP.
-    with op.batch_alter_table('dag', schema=None) as batch_op:
+    with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.alter_column(
-            'last_pickled', existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
+            "last_pickled", existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
         )
         batch_op.alter_column(
-            'last_expired', existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
-        )
-
-    with op.batch_alter_table('dag_pickle', schema=None) as batch_op:
-        batch_op.alter_column(
-            'created_dttm', existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
+            "last_expired", existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
         )
 
-    with op.batch_alter_table('dag_run', schema=None) as batch_op:
+    with op.batch_alter_table("dag_pickle", schema=None) as batch_op:
         batch_op.alter_column(
-            'execution_date', existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=False
-        )
-        batch_op.alter_column(
-            'start_date', existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
-        )
-        batch_op.alter_column(
-            'end_date', existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
+            "created_dttm", existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
         )
 
-    with op.batch_alter_table('import_error', schema=None) as batch_op:
+    with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.alter_column(
-            'timestamp', existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
+            "execution_date", existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=False
+        )
+        batch_op.alter_column(
+            "start_date", existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
+        )
+        batch_op.alter_column(
+            "end_date", existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
         )
 
-    with op.batch_alter_table('job', schema=None) as batch_op:
+    with op.batch_alter_table("import_error", schema=None) as batch_op:
         batch_op.alter_column(
-            'start_date', existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
-        )
-        batch_op.alter_column(
-            'end_date', existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
-        )
-        batch_op.alter_column(
-            'latest_heartbeat', existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
+            "timestamp", existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
         )
 
-    with op.batch_alter_table('log', schema=None) as batch_op:
-        batch_op.alter_column('dttm', existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True)
+    with op.batch_alter_table("job", schema=None) as batch_op:
         batch_op.alter_column(
-            'execution_date', existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
+            "start_date", existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
+        )
+        batch_op.alter_column(
+            "end_date", existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
+        )
+        batch_op.alter_column(
+            "latest_heartbeat", existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
         )
 
-    with op.batch_alter_table('serialized_dag', schema=None) as batch_op:
+    with op.batch_alter_table("log", schema=None) as batch_op:
+        batch_op.alter_column("dttm", existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True)
         batch_op.alter_column(
-            'last_updated', existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=False
+            "execution_date", existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
         )
 
-    with op.batch_alter_table('sla_miss', schema=None) as batch_op:
+    with op.batch_alter_table("serialized_dag", schema=None) as batch_op:
         batch_op.alter_column(
-            'execution_date', existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=False
-        )
-        batch_op.alter_column(
-            'timestamp', existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
+            "last_updated", existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=False
         )
 
-    with op.batch_alter_table('task_fail', schema=None) as batch_op:
+    with op.batch_alter_table("sla_miss", schema=None) as batch_op:
         batch_op.alter_column(
-            'start_date', existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
+            "execution_date", existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=False
         )
         batch_op.alter_column(
-            'end_date', existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
+            "timestamp", existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
         )
 
-    with op.batch_alter_table('task_instance', schema=None) as batch_op:
+    with op.batch_alter_table("task_fail", schema=None) as batch_op:
         batch_op.alter_column(
-            'start_date', existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
+            "start_date", existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
         )
         batch_op.alter_column(
-            'end_date', existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
+            "end_date", existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
+        )
+
+    with op.batch_alter_table("task_instance", schema=None) as batch_op:
+        batch_op.alter_column(
+            "start_date", existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
         )
         batch_op.alter_column(
-            'queued_dttm', existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
+            "end_date", existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
+        )
+        batch_op.alter_column(
+            "queued_dttm", existing_type=sa.DATETIME(), type_=TIMESTAMP(), existing_nullable=True
         )
 
 
 def downgrade():
     """Unapply compare types between ORM and DB."""
-    with op.batch_alter_table('connection', schema=None) as batch_op:
+    with op.batch_alter_table("connection", schema=None) as batch_op:
         batch_op.alter_column(
-            'extra',
+            "extra",
             existing_type=sa.Text(),
             type_=sa.TEXT(),
             existing_nullable=True,
         )
-    with op.batch_alter_table('log_template', schema=None) as batch_op:
+    with op.batch_alter_table("log_template", schema=None) as batch_op:
         batch_op.alter_column(
-            'created_at', existing_type=TIMESTAMP(), type_=sa.DateTime(), existing_nullable=False
+            "created_at", existing_type=TIMESTAMP(), type_=sa.DateTime(), existing_nullable=False
         )
-    with op.batch_alter_table('serialized_dag', schema=None) as batch_op:
+    with op.batch_alter_table("serialized_dag", schema=None) as batch_op:
         # add server_default
         batch_op.alter_column(
-            'dag_hash',
+            "dag_hash",
             existing_type=sa.String(32),
-            server_default='Hash not calculated yet',
+            server_default="Hash not calculated yet",
             type_=sa.String(32),
             existing_nullable=False,
         )
-    with op.batch_alter_table('trigger', schema=None) as batch_op:
+    with op.batch_alter_table("trigger", schema=None) as batch_op:
         batch_op.alter_column(
-            'created_date', existing_type=TIMESTAMP(), type_=sa.DateTime(), existing_nullable=False
+            "created_date", existing_type=TIMESTAMP(), type_=sa.DateTime(), existing_nullable=False
         )
     conn = op.get_bind()
 
-    if conn.dialect.name != 'sqlite':
+    if conn.dialect.name != "sqlite":
         return
-    with op.batch_alter_table('serialized_dag', schema=None) as batch_op:
-        batch_op.alter_column('fileloc_hash', existing_type=sa.BigInteger, type_=sa.Integer())
+    with op.batch_alter_table("serialized_dag", schema=None) as batch_op:
+        batch_op.alter_column("fileloc_hash", existing_type=sa.BigInteger, type_=sa.Integer())
     # Change these column back to sa.DATETIME()
-    with op.batch_alter_table('task_instance', schema=None) as batch_op:
+    with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.alter_column(
-            'queued_dttm', existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
+            "queued_dttm", existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
         )
         batch_op.alter_column(
-            'end_date', existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
+            "end_date", existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
         )
         batch_op.alter_column(
-            'start_date', existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
-        )
-
-    with op.batch_alter_table('task_fail', schema=None) as batch_op:
-        batch_op.alter_column(
-            'end_date', existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
-        )
-        batch_op.alter_column(
-            'start_date', existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
+            "start_date", existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
         )
 
-    with op.batch_alter_table('sla_miss', schema=None) as batch_op:
+    with op.batch_alter_table("task_fail", schema=None) as batch_op:
         batch_op.alter_column(
-            'timestamp', existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
+            "end_date", existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
         )
         batch_op.alter_column(
-            'execution_date', existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=False
-        )
-
-    with op.batch_alter_table('serialized_dag', schema=None) as batch_op:
-        batch_op.alter_column(
-            'last_updated', existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=False
+            "start_date", existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
         )
 
-    with op.batch_alter_table('log', schema=None) as batch_op:
+    with op.batch_alter_table("sla_miss", schema=None) as batch_op:
         batch_op.alter_column(
-            'execution_date', existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
-        )
-        batch_op.alter_column('dttm', existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True)
-
-    with op.batch_alter_table('job', schema=None) as batch_op:
-        batch_op.alter_column(
-            'latest_heartbeat', existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
+            "timestamp", existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
         )
         batch_op.alter_column(
-            'end_date', existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
-        )
-        batch_op.alter_column(
-            'start_date', existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
+            "execution_date", existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=False
         )
 
-    with op.batch_alter_table('import_error', schema=None) as batch_op:
+    with op.batch_alter_table("serialized_dag", schema=None) as batch_op:
         batch_op.alter_column(
-            'timestamp', existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
+            "last_updated", existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=False
         )
 
-    with op.batch_alter_table('dag_run', schema=None) as batch_op:
+    with op.batch_alter_table("log", schema=None) as batch_op:
         batch_op.alter_column(
-            'end_date', existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
+            "execution_date", existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
+        )
+        batch_op.alter_column("dttm", existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True)
+
+    with op.batch_alter_table("job", schema=None) as batch_op:
+        batch_op.alter_column(
+            "latest_heartbeat", existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
         )
         batch_op.alter_column(
-            'start_date', existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
+            "end_date", existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
         )
         batch_op.alter_column(
-            'execution_date', existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=False
+            "start_date", existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
         )
 
-    with op.batch_alter_table('dag_pickle', schema=None) as batch_op:
+    with op.batch_alter_table("import_error", schema=None) as batch_op:
         batch_op.alter_column(
-            'created_dttm', existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
+            "timestamp", existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
         )
 
-    with op.batch_alter_table('dag', schema=None) as batch_op:
+    with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.alter_column(
-            'last_expired', existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
+            "end_date", existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
         )
         batch_op.alter_column(
-            'last_pickled', existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
+            "start_date", existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
+        )
+        batch_op.alter_column(
+            "execution_date", existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=False
+        )
+
+    with op.batch_alter_table("dag_pickle", schema=None) as batch_op:
+        batch_op.alter_column(
+            "created_dttm", existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
+        )
+
+    with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.alter_column(
+            "last_expired", existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
+        )
+        batch_op.alter_column(
+            "last_pickled", existing_type=TIMESTAMP(), type_=sa.DATETIME(), existing_nullable=True
         )

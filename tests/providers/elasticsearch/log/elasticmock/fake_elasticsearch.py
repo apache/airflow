@@ -62,31 +62,31 @@ class FakeElasticsearch(Elasticsearch):
     @query_params()
     def info(self, params=None):
         return {
-            'status': 200,
-            'cluster_name': 'elasticmock',
-            'version': {
-                'lucene_version': '4.10.4',
-                'build_hash': '00f95f4ffca6de89d68b7ccaf80d148f1f70e4d4',
-                'number': '1.7.5',
-                'build_timestamp': '2016-02-02T09:55:30Z',
-                'build_snapshot': False,
+            "status": 200,
+            "cluster_name": "elasticmock",
+            "version": {
+                "lucene_version": "4.10.4",
+                "build_hash": "00f95f4ffca6de89d68b7ccaf80d148f1f70e4d4",
+                "number": "1.7.5",
+                "build_timestamp": "2016-02-02T09:55:30Z",
+                "build_snapshot": False,
             },
-            'name': 'Nightwatch',
-            'tagline': 'You Know, for Search',
+            "name": "Nightwatch",
+            "tagline": "You Know, for Search",
         }
 
     @query_params(
-        'consistency',
-        'op_type',
-        'parent',
-        'refresh',
-        'replication',
-        'routing',
-        'timeout',
-        'timestamp',
-        'ttl',
-        'version',
-        'version_type',
+        "consistency",
+        "op_type",
+        "parent",
+        "refresh",
+        "replication",
+        "routing",
+        "timeout",
+        "timestamp",
+        "ttl",
+        "version",
+        "version_type",
     )
     def index(self, index, doc_type, body, id=None, params=None, headers=None):
         if index not in self.__documents_dict:
@@ -99,118 +99,118 @@ class FakeElasticsearch(Elasticsearch):
 
         self.__documents_dict[index].append(
             {
-                '_type': doc_type,
-                '_id': id,
-                '_source': body,
-                '_index': index,
-                '_version': version,
-                '_headers': headers,
+                "_type": doc_type,
+                "_id": id,
+                "_source": body,
+                "_index": index,
+                "_version": version,
+                "_headers": headers,
             }
         )
 
         return {
-            '_type': doc_type,
-            '_id': id,
-            'created': True,
-            '_version': version,
-            '_index': index,
-            '_headers': headers,
+            "_type": doc_type,
+            "_id": id,
+            "created": True,
+            "_version": version,
+            "_index": index,
+            "_headers": headers,
         }
 
-    @query_params('parent', 'preference', 'realtime', 'refresh', 'routing')
+    @query_params("parent", "preference", "realtime", "refresh", "routing")
     def exists(self, index, doc_type, id, params=None):
         result = False
         if index in self.__documents_dict:
             for document in self.__documents_dict[index]:
-                if document.get('_id') == id and document.get('_type') == doc_type:
+                if document.get("_id") == id and document.get("_type") == doc_type:
                     result = True
                     break
         return result
 
     @query_params(
-        '_source',
-        '_source_exclude',
-        '_source_include',
-        'fields',
-        'parent',
-        'preference',
-        'realtime',
-        'refresh',
-        'routing',
-        'version',
-        'version_type',
+        "_source",
+        "_source_exclude",
+        "_source_include",
+        "fields",
+        "parent",
+        "preference",
+        "realtime",
+        "refresh",
+        "routing",
+        "version",
+        "version_type",
     )
-    def get(self, index, id, doc_type='_all', params=None):
+    def get(self, index, id, doc_type="_all", params=None):
         result = None
         if index in self.__documents_dict:
             result = self.find_document(doc_type, id, index, result)
 
         if result:
-            result['found'] = True
+            result["found"] = True
         else:
-            error_data = {'_index': index, '_type': doc_type, '_id': id, 'found': False}
+            error_data = {"_index": index, "_type": doc_type, "_id": id, "found": False}
             raise NotFoundError(404, json.dumps(error_data))
 
         return result
 
     def find_document(self, doc_type, id, index, result):
         for document in self.__documents_dict[index]:
-            if document.get('_id') == id:
-                if doc_type == '_all' or document.get('_type') == doc_type:
+            if document.get("_id") == id:
+                if doc_type == "_all" or document.get("_type") == doc_type:
                     result = document
                     break
         return result
 
     @query_params(
-        '_source',
-        '_source_exclude',
-        '_source_include',
-        'parent',
-        'preference',
-        'realtime',
-        'refresh',
-        'routing',
-        'version',
-        'version_type',
+        "_source",
+        "_source_exclude",
+        "_source_include",
+        "parent",
+        "preference",
+        "realtime",
+        "refresh",
+        "routing",
+        "version",
+        "version_type",
     )
     def get_source(self, index, doc_type, id, params=None):
         document = self.get(index=index, doc_type=doc_type, id=id, params=params)
-        return document.get('_source')
+        return document.get("_source")
 
     @query_params(
-        '_source',
-        '_source_exclude',
-        '_source_include',
-        'allow_no_indices',
-        'analyze_wildcard',
-        'analyzer',
-        'default_operator',
-        'df',
-        'expand_wildcards',
-        'explain',
-        'fielddata_fields',
-        'fields',
-        'from_',
-        'ignore_unavailable',
-        'lenient',
-        'lowercase_expanded_terms',
-        'preference',
-        'q',
-        'request_cache',
-        'routing',
-        'scroll',
-        'search_type',
-        'size',
-        'sort',
-        'stats',
-        'suggest_field',
-        'suggest_mode',
-        'suggest_size',
-        'suggest_text',
-        'terminate_after',
-        'timeout',
-        'track_scores',
-        'version',
+        "_source",
+        "_source_exclude",
+        "_source_include",
+        "allow_no_indices",
+        "analyze_wildcard",
+        "analyzer",
+        "default_operator",
+        "df",
+        "expand_wildcards",
+        "explain",
+        "fielddata_fields",
+        "fields",
+        "from_",
+        "ignore_unavailable",
+        "lenient",
+        "lowercase_expanded_terms",
+        "preference",
+        "q",
+        "request_cache",
+        "routing",
+        "scroll",
+        "search_type",
+        "size",
+        "sort",
+        "stats",
+        "suggest_field",
+        "suggest_mode",
+        "suggest_size",
+        "suggest_text",
+        "terminate_after",
+        "timeout",
+        "track_scores",
+        "version",
     )
     def count(self, index=None, doc_type=None, body=None, params=None, headers=None):
         searchable_indexes = self._normalize_index_to_list(index)
@@ -219,47 +219,47 @@ class FakeElasticsearch(Elasticsearch):
         i = 0
         for searchable_index in searchable_indexes:
             for document in self.__documents_dict[searchable_index]:
-                if searchable_doc_types and document.get('_type') not in searchable_doc_types:
+                if searchable_doc_types and document.get("_type") not in searchable_doc_types:
                     continue
                 i += 1
-        result = {'count': i, '_shards': {'successful': 1, 'failed': 0, 'total': 1}}
+        result = {"count": i, "_shards": {"successful": 1, "failed": 0, "total": 1}}
 
         return result
 
     @query_params(
-        '_source',
-        '_source_exclude',
-        '_source_include',
-        'allow_no_indices',
-        'analyze_wildcard',
-        'analyzer',
-        'default_operator',
-        'df',
-        'expand_wildcards',
-        'explain',
-        'fielddata_fields',
-        'fields',
-        'from_',
-        'ignore_unavailable',
-        'lenient',
-        'lowercase_expanded_terms',
-        'preference',
-        'q',
-        'request_cache',
-        'routing',
-        'scroll',
-        'search_type',
-        'size',
-        'sort',
-        'stats',
-        'suggest_field',
-        'suggest_mode',
-        'suggest_size',
-        'suggest_text',
-        'terminate_after',
-        'timeout',
-        'track_scores',
-        'version',
+        "_source",
+        "_source_exclude",
+        "_source_include",
+        "allow_no_indices",
+        "analyze_wildcard",
+        "analyzer",
+        "default_operator",
+        "df",
+        "expand_wildcards",
+        "explain",
+        "fielddata_fields",
+        "fields",
+        "from_",
+        "ignore_unavailable",
+        "lenient",
+        "lowercase_expanded_terms",
+        "preference",
+        "q",
+        "request_cache",
+        "routing",
+        "scroll",
+        "search_type",
+        "size",
+        "sort",
+        "stats",
+        "suggest_field",
+        "suggest_mode",
+        "suggest_size",
+        "suggest_text",
+        "terminate_after",
+        "timeout",
+        "track_scores",
+        "version",
     )
     def search(self, index=None, doc_type=None, body=None, params=None, headers=None):
         searchable_indexes = self._normalize_index_to_list(index)
@@ -267,27 +267,27 @@ class FakeElasticsearch(Elasticsearch):
         matches = self._find_match(index, doc_type, body)
 
         result = {
-            'hits': {'total': len(matches), 'max_score': 1.0},
-            '_shards': {
+            "hits": {"total": len(matches), "max_score": 1.0},
+            "_shards": {
                 # Simulate indexes with 1 shard each
-                'successful': len(searchable_indexes),
-                'failed': 0,
-                'total': len(searchable_indexes),
+                "successful": len(searchable_indexes),
+                "failed": 0,
+                "total": len(searchable_indexes),
             },
-            'took': 1,
-            'timed_out': False,
+            "took": 1,
+            "timed_out": False,
         }
 
         hits = []
         for match in matches:
-            match['_score'] = 1.0
+            match["_score"] = 1.0
             hits.append(match)
-        result['hits']['hits'] = hits
+        result["hits"]["hits"] = hits
 
         return result
 
     @query_params(
-        'consistency', 'parent', 'refresh', 'replication', 'routing', 'timeout', 'version', 'version_type'
+        "consistency", "parent", "refresh", "replication", "routing", "timeout", "version", "version_type"
     )
     def delete(self, index, doc_type, id, params=None, headers=None):
 
@@ -295,17 +295,17 @@ class FakeElasticsearch(Elasticsearch):
 
         if index in self.__documents_dict:
             for document in self.__documents_dict[index]:
-                if document.get('_type') == doc_type and document.get('_id') == id:
+                if document.get("_type") == doc_type and document.get("_id") == id:
                     found = True
                     self.__documents_dict[index].remove(document)
                     break
 
         result_dict = {
-            'found': found,
-            '_index': index,
-            '_type': doc_type,
-            '_id': id,
-            '_version': 1,
+            "found": found,
+            "_index": index,
+            "_type": doc_type,
+            "_id": id,
+            "_version": 1,
         }
 
         if found:
@@ -313,21 +313,21 @@ class FakeElasticsearch(Elasticsearch):
         else:
             raise NotFoundError(404, json.dumps(result_dict))
 
-    @query_params('allow_no_indices', 'expand_wildcards', 'ignore_unavailable', 'preference', 'routing')
+    @query_params("allow_no_indices", "expand_wildcards", "ignore_unavailable", "preference", "routing")
     def suggest(self, body, index=None):
         if index is not None and index not in self.__documents_dict:
-            raise NotFoundError(404, f'IndexMissingException[[{index}] missing]')
+            raise NotFoundError(404, f"IndexMissingException[[{index}] missing]")
 
         result_dict = {}
         for key, value in body.items():
-            text = value.get('text')
-            suggestion = int(text) + 1 if isinstance(text, int) else f'{text}_suggestion'
+            text = value.get("text")
+            suggestion = int(text) + 1 if isinstance(text, int) else f"{text}_suggestion"
             result_dict[key] = [
                 {
-                    'text': text,
-                    'length': 1,
-                    'options': [{'text': suggestion, 'freq': 1, 'score': 1.0}],
-                    'offset': 0,
+                    "text": text,
+                    "length": 1,
+                    "options": [{"text": suggestion, "freq": 1, "score": 1.0}],
+                    "offset": 0,
                 }
             ]
         return result_dict
@@ -336,7 +336,7 @@ class FakeElasticsearch(Elasticsearch):
         searchable_indexes = self._normalize_index_to_list(index)
         searchable_doc_types = self._normalize_doc_type_to_list(doc_type)
 
-        must = body['query']['bool']['must'][0]  # only support one must
+        must = body["query"]["bool"]["must"][0]  # only support one must
 
         matches = []
         for searchable_index in searchable_indexes:
@@ -346,20 +346,20 @@ class FakeElasticsearch(Elasticsearch):
 
     def find_document_in_searchable_index(self, matches, must, searchable_doc_types, searchable_index):
         for document in self.__documents_dict[searchable_index]:
-            if searchable_doc_types and document.get('_type') not in searchable_doc_types:
+            if searchable_doc_types and document.get("_type") not in searchable_doc_types:
                 continue
 
-            if 'match_phrase' in must:
+            if "match_phrase" in must:
                 self.match_must_phrase(document, matches, must)
             else:
                 matches.append(document)
 
     @staticmethod
     def match_must_phrase(document, matches, must):
-        for query_id in must['match_phrase']:
-            query_val = must['match_phrase'][query_id]
-            if query_id in document['_source']:
-                if query_val in document['_source'][query_id]:
+        for query_id in must["match_phrase"]:
+            query_val = must["match_phrase"][query_id]
+            if query_id in document["_source"]:
+                if query_val in document["_source"][query_id]:
                     # use in as a proxy for match_phrase
                     matches.append(document)
 
@@ -378,7 +378,7 @@ class FakeElasticsearch(Elasticsearch):
         # Check index(es) exists
         for searchable_index in searchable_indexes:
             if searchable_index not in self.__documents_dict:
-                raise NotFoundError(404, f'IndexMissingException[[{searchable_index}] missing]')
+                raise NotFoundError(404, f"IndexMissingException[[{searchable_index}] missing]")
 
         return searchable_indexes
 

@@ -120,7 +120,7 @@ class TestGetExtraLinks:
         ],
     )
     def test_should_respond_404(self, url, expected_title, expected_detail):
-        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
 
         assert 404 == response.status_code
         assert {
@@ -133,7 +133,7 @@ class TestGetExtraLinks:
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
             "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
-            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
@@ -148,7 +148,7 @@ class TestGetExtraLinks:
         )
         response = self.client.get(
             "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
 
         assert 200 == response.status_code, response.data
@@ -160,7 +160,7 @@ class TestGetExtraLinks:
     def test_should_respond_200_missing_xcom(self):
         response = self.client.get(
             "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
 
         assert 200 == response.status_code, response.data
@@ -177,7 +177,7 @@ class TestGetExtraLinks:
         )
         response = self.client.get(
             "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_MULTIPLE_QUERY/links",
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
 
         assert 200 == response.status_code, response.data
@@ -190,7 +190,7 @@ class TestGetExtraLinks:
     def test_should_respond_200_multiple_links_missing_xcom(self):
         response = self.client.get(
             "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_MULTIPLE_QUERY/links",
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
 
         assert 200 == response.status_code, response.data
@@ -225,7 +225,7 @@ class TestGetExtraLinks:
         with mock_plugin_manager(plugins=[AirflowTestPlugin]):
             response = self.client.get(
                 "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
-                environ_overrides={'REMOTE_USER': "test"},
+                environ_overrides={"REMOTE_USER": "test"},
             )
 
             assert 200 == response.status_code, response.data

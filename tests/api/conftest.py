@@ -28,7 +28,7 @@ def minimal_app_for_experimental_api():
     with conf_vars(
         {
             ("api", "auth_backends"): "airflow.api.auth.backend.basic_auth",
-            ('api', 'enable_experimental_api'): 'true',
+            ("api", "enable_experimental_api"): "true",
         }
     ):
 

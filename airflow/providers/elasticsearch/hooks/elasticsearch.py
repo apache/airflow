@@ -39,10 +39,10 @@ class ElasticsearchSQLHook(DbApiHook):
         used for Elasticsearch credentials.
     """
 
-    conn_name_attr = 'elasticsearch_conn_id'
-    default_conn_name = 'elasticsearch_default'
-    conn_type = 'elasticsearch'
-    hook_name = 'Elasticsearch'
+    conn_name_attr = "elasticsearch_conn_id"
+    default_conn_name = "elasticsearch_default"
+    conn_type = "elasticsearch"
+    hook_name = "Elasticsearch"
 
     def __init__(self, schema: str = "http", connection: AirflowConnection | None = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -62,10 +62,10 @@ class ElasticsearchSQLHook(DbApiHook):
             scheme=conn.schema or "http",
         )
 
-        if conn.extra_dejson.get('http_compress', False):
+        if conn.extra_dejson.get("http_compress", False):
             conn_args["http_compress"] = bool(["http_compress"])
 
-        if conn.extra_dejson.get('timeout', False):
+        if conn.extra_dejson.get("timeout", False):
             conn_args["timeout"] = conn.extra_dejson["timeout"]
 
         conn = connect(**conn_args)
@@ -76,26 +76,26 @@ class ElasticsearchSQLHook(DbApiHook):
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.connection or self.get_connection(conn_id)
 
-        login = ''
+        login = ""
         if conn.login:
-            login = '{conn.login}:{conn.password}@'.format(conn=conn)
+            login = "{conn.login}:{conn.password}@".format(conn=conn)
         host = conn.host
         if conn.port is not None:
-            host += f':{conn.port}'
-        uri = '{conn.conn_type}+{conn.schema}://{login}{host}/'.format(conn=conn, login=login, host=host)
+            host += f":{conn.port}"
+        uri = "{conn.conn_type}+{conn.schema}://{login}{host}/".format(conn=conn, login=login, host=host)
 
         extras_length = len(conn.extra_dejson)
         if not extras_length:
             return uri
 
-        uri += '?'
+        uri += "?"
 
         for arg_key, arg_value in conn.extra_dejson.items():
             extras_length -= 1
             uri += f"{arg_key}={arg_value}"
 
             if extras_length:
-                uri += '&'
+                uri += "&"
 
         return uri
 
@@ -152,4 +152,4 @@ class ElasticsearchPythonHook(BaseHook):
         """
         es_client = self.get_conn
         result = es_client.search(index=index, body=query)
-        return result['hits']
+        return result["hits"]

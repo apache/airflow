@@ -39,29 +39,29 @@ RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
 TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/delete")
 
-RUN_NOW_ENDPOINT = ('POST', 'api/2.1/jobs/run-now')
-SUBMIT_RUN_ENDPOINT = ('POST', 'api/2.1/jobs/runs/submit')
-GET_RUN_ENDPOINT = ('GET', 'api/2.1/jobs/runs/get')
-CANCEL_RUN_ENDPOINT = ('POST', 'api/2.1/jobs/runs/cancel')
-OUTPUT_RUNS_JOB_ENDPOINT = ('GET', 'api/2.1/jobs/runs/get-output')
+RUN_NOW_ENDPOINT = ("POST", "api/2.1/jobs/run-now")
+SUBMIT_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/submit")
+GET_RUN_ENDPOINT = ("GET", "api/2.1/jobs/runs/get")
+CANCEL_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/cancel")
+OUTPUT_RUNS_JOB_ENDPOINT = ("GET", "api/2.1/jobs/runs/get-output")
 
-INSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/install')
-UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/uninstall')
+INSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/install")
+UNINSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/uninstall")
 
-LIST_JOBS_ENDPOINT = ('GET', 'api/2.1/jobs/list')
+LIST_JOBS_ENDPOINT = ("GET", "api/2.1/jobs/list")
 
-WORKSPACE_GET_STATUS_ENDPOINT = ('GET', 'api/2.0/workspace/get-status')
+WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "api/2.0/workspace/get-status")
 
-RUN_LIFE_CYCLE_STATES = ['PENDING', 'RUNNING', 'TERMINATING', 'TERMINATED', 'SKIPPED', 'INTERNAL_ERROR']
+RUN_LIFE_CYCLE_STATES = ["PENDING", "RUNNING", "TERMINATING", "TERMINATED", "SKIPPED", "INTERNAL_ERROR"]
 
-SPARK_VERSIONS_ENDPOINT = ('GET', 'api/2.0/clusters/spark-versions')
+SPARK_VERSIONS_ENDPOINT = ("GET", "api/2.0/clusters/spark-versions")
 
 
 class RunState:
     """Utility class for the run state concept of Databricks runs."""
 
     def __init__(
-        self, life_cycle_state: str, result_state: str = '', state_message: str = '', *args, **kwargs
+        self, life_cycle_state: str, result_state: str = "", state_message: str = "", *args, **kwargs
     ) -> None:
         self.life_cycle_state = life_cycle_state
         self.result_state = result_state
@@ -73,17 +73,17 @@ class RunState:
         if self.life_cycle_state not in RUN_LIFE_CYCLE_STATES:
             raise AirflowException(
                 (
-                    'Unexpected life cycle state: {}: If the state has '
-                    'been introduced recently, please check the Databricks user '
-                    'guide for troubleshooting information'
+                    "Unexpected life cycle state: {}: If the state has "
+                    "been introduced recently, please check the Databricks user "
+                    "guide for troubleshooting information"
                 ).format(self.life_cycle_state)
             )
-        return self.life_cycle_state in ('TERMINATED', 'SKIPPED', 'INTERNAL_ERROR')
+        return self.life_cycle_state in ("TERMINATED", "SKIPPED", "INTERNAL_ERROR")
 
     @property
     def is_successful(self) -> bool:
         """True if the result state is SUCCESS"""
-        return self.result_state == 'SUCCESS'
+        return self.result_state == "SUCCESS"
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, RunState):
@@ -119,7 +119,7 @@ class DatabricksHook(BaseDatabricksHook):
     :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     """
 
-    hook_name = 'Databricks'
+    hook_name = "Databricks"
 
     def __init__(
         self,
@@ -138,10 +138,9 @@ class DatabricksHook(BaseDatabricksHook):
 
         :param json: The data used in the body of the request to the ``run-now`` endpoint.
         :return: the run_id as an int
-        :rtype: str
         """
         response = self._do_api_call(RUN_NOW_ENDPOINT, json)
-        return response['run_id']
+        return response["run_id"]
 
     def submit_run(self, json: dict) -> int:
         """
@@ -149,36 +148,44 @@ class DatabricksHook(BaseDatabricksHook):
 
         :param json: The data used in the body of the request to the ``submit`` endpoint.
         :return: the run_id as an int
-        :rtype: str
         """
         response = self._do_api_call(SUBMIT_RUN_ENDPOINT, json)
-        return response['run_id']
+        return response["run_id"]
 
-    def list_jobs(self, limit: int = 25, offset: int = 0, expand_tasks: bool = False) -> list[dict[str, Any]]:
+    def list_jobs(
+        self, limit: int = 25, offset: int = 0, expand_tasks: bool = False, job_name: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         Lists the jobs in the Databricks Job Service.
 
         :param limit: The limit/batch size used to retrieve jobs.
         :param offset: The offset of the first job to return, relative to the most recently created job.
         :param expand_tasks: Whether to include task and cluster details in the response.
+        :param job_name: Optional name of a job to search.
         :return: A list of jobs.
         """
         has_more = True
-        jobs = []
+        all_jobs = []
 
         while has_more:
-            json = {
-                'limit': limit,
-                'offset': offset,
-                'expand_tasks': expand_tasks,
+            payload: dict[str, Any] = {
+                "limit": limit,
+                "expand_tasks": expand_tasks,
+                "offset": offset,
             }
-            response = self._do_api_call(LIST_JOBS_ENDPOINT, json)
-            jobs += response['jobs'] if 'jobs' in response else []
-            has_more = response.get('has_more', False)
+            if job_name:
+                payload["name"] = job_name
+            response = self._do_api_call(LIST_JOBS_ENDPOINT, payload)
+            jobs = response.get("jobs", [])
+            if job_name:
+                all_jobs += [j for j in jobs if j["settings"]["name"] == job_name]
+            else:
+                all_jobs += jobs
+            has_more = response.get("has_more", False)
             if has_more:
-                offset += len(response['jobs'])
+                offset += len(jobs)
 
-        return jobs
+        return all_jobs
 
     def find_job_id_by_name(self, job_name: str) -> int | None:
         """
@@ -187,8 +194,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param job_name: The name of the job to look up.
         :return: The job_id as an int or None if no job was found.
         """
-        all_jobs = self.list_jobs()
-        matching_jobs = [j for j in all_jobs if j['settings']['name'] == job_name]
+        matching_jobs = self.list_jobs(job_name=job_name)
 
         if len(matching_jobs) > 1:
             raise AirflowException(
@@ -198,7 +204,7 @@ class DatabricksHook(BaseDatabricksHook):
         if not matching_jobs:
             return None
         else:
-            return matching_jobs[0]['job_id']
+            return matching_jobs[0]["job_id"]
 
     def get_run_page_url(self, run_id: int) -> str:
         """
@@ -207,9 +213,9 @@ class DatabricksHook(BaseDatabricksHook):
         :param run_id: id of the run
         :return: URL of the run page
         """
-        json = {'run_id': run_id}
+        json = {"run_id": run_id}
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
-        return response['run_page_url']
+        return response["run_page_url"]
 
     async def a_get_run_page_url(self, run_id: int) -> str:
         """
@@ -217,9 +223,9 @@ class DatabricksHook(BaseDatabricksHook):
         :param run_id: id of the run
         :return: URL of the run page
         """
-        json = {'run_id': run_id}
+        json = {"run_id": run_id}
         response = await self._a_do_api_call(GET_RUN_ENDPOINT, json)
-        return response['run_page_url']
+        return response["run_page_url"]
 
     def get_job_id(self, run_id: int) -> int:
         """
@@ -228,9 +234,9 @@ class DatabricksHook(BaseDatabricksHook):
         :param run_id: id of the run
         :return: Job id for given Databricks run
         """
-        json = {'run_id': run_id}
+        json = {"run_id": run_id}
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
-        return response['job_id']
+        return response["job_id"]
 
     def get_run_state(self, run_id: int) -> RunState:
         """
@@ -247,9 +253,9 @@ class DatabricksHook(BaseDatabricksHook):
         :param run_id: id of the run
         :return: state of the run
         """
-        json = {'run_id': run_id}
+        json = {"run_id": run_id}
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
-        state = response['state']
+        state = response["state"]
         return RunState(**state)
 
     async def a_get_run_state(self, run_id: int) -> RunState:
@@ -258,9 +264,9 @@ class DatabricksHook(BaseDatabricksHook):
         :param run_id: id of the run
         :return: state of the run
         """
-        json = {'run_id': run_id}
+        json = {"run_id": run_id}
         response = await self._a_do_api_call(GET_RUN_ENDPOINT, json)
-        state = response['state']
+        state = response["state"]
         return RunState(**state)
 
     def get_run(self, run_id: int) -> dict[str, Any]:
@@ -270,7 +276,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param run_id: id of the run
         :return: state of the run
         """
-        json = {'run_id': run_id}
+        json = {"run_id": run_id}
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
         return response
 
@@ -281,7 +287,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param run_id: id of the run
         :return: state of the run
         """
-        json = {'run_id': run_id}
+        json = {"run_id": run_id}
         response = await self._a_do_api_call(GET_RUN_ENDPOINT, json)
         return response
 
@@ -332,7 +338,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param run_id: id of the run
         :return: output of the run
         """
-        json = {'run_id': run_id}
+        json = {"run_id": run_id}
         run_output = self._do_api_call(OUTPUT_RUNS_JOB_ENDPOINT, json)
         return run_output
 
@@ -342,7 +348,7 @@ class DatabricksHook(BaseDatabricksHook):
 
         :param run_id: id of the run
         """
-        json = {'run_id': run_id}
+        json = {"run_id": run_id}
         self._do_api_call(CANCEL_RUN_ENDPOINT, json)
 
     def restart_cluster(self, json: dict) -> None:
@@ -397,7 +403,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: payload
         :return: metadata from update
         """
-        repos_endpoint = ('PATCH', f'api/2.0/repos/{repo_id}')
+        repos_endpoint = ("PATCH", f"api/2.0/repos/{repo_id}")
         return self._do_api_call(repos_endpoint, json)
 
     def delete_repo(self, repo_id: str):
@@ -407,7 +413,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param repo_id: ID of Databricks Repos
         :return:
         """
-        repos_endpoint = ('DELETE', f'api/2.0/repos/{repo_id}')
+        repos_endpoint = ("DELETE", f"api/2.0/repos/{repo_id}")
         self._do_api_call(repos_endpoint)
 
     def create_repo(self, json: dict[str, Any]) -> dict:
@@ -417,7 +423,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: payload
         :return:
         """
-        repos_endpoint = ('POST', 'api/2.0/repos')
+        repos_endpoint = ("POST", "api/2.0/repos")
         return self._do_api_call(repos_endpoint, json)
 
     def get_repo_by_path(self, path: str) -> str | None:
@@ -427,22 +433,22 @@ class DatabricksHook(BaseDatabricksHook):
         :return: Repos ID if it exists, None if doesn't.
         """
         try:
-            result = self._do_api_call(WORKSPACE_GET_STATUS_ENDPOINT, {'path': path}, wrap_http_errors=False)
-            if result.get('object_type', '') == 'REPO':
-                return str(result['object_id'])
+            result = self._do_api_call(WORKSPACE_GET_STATUS_ENDPOINT, {"path": path}, wrap_http_errors=False)
+            if result.get("object_type", "") == "REPO":
+                return str(result["object_id"])
         except requests_exceptions.HTTPError as e:
             if e.response.status_code != 404:
                 raise e
 
         return None
 
-    def test_connection(self):
+    def test_connection(self) -> tuple[bool, str]:
         """Test the Databricks connectivity from UI"""
         hook = DatabricksHook(databricks_conn_id=self.databricks_conn_id)
         try:
-            hook._do_api_call(endpoint_info=SPARK_VERSIONS_ENDPOINT).get('versions')
+            hook._do_api_call(endpoint_info=SPARK_VERSIONS_ENDPOINT).get("versions")
             status = True
-            message = 'Connection successfully tested'
+            message = "Connection successfully tested"
         except Exception as e:
             status = False
             message = str(e)

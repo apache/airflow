@@ -39,10 +39,10 @@ def insert_content(file_path: Path, content: list[str], header: str, footer: str
         file_path.write_text("".join(result))
 
 
-if __name__ == '__main__':
-    DOCKERFILE_FILE = AIRFLOW_SOURCES_DIR / 'Dockerfile'
-    DOCKERFILE_CI_FILE = AIRFLOW_SOURCES_DIR / 'Dockerfile.ci'
-    SCRIPTS_DOCKER_DIR = AIRFLOW_SOURCES_DIR / 'scripts' / 'docker'
+if __name__ == "__main__":
+    DOCKERFILE_FILE = AIRFLOW_SOURCES_DIR / "Dockerfile"
+    DOCKERFILE_CI_FILE = AIRFLOW_SOURCES_DIR / "Dockerfile.ci"
+    SCRIPTS_DOCKER_DIR = AIRFLOW_SOURCES_DIR / "scripts" / "docker"
 
     for file in [DOCKERFILE_FILE, DOCKERFILE_CI_FILE]:
         for script in listdir(SCRIPTS_DOCKER_DIR):
@@ -54,7 +54,7 @@ if __name__ == '__main__':
             insert_content(
                 file_path=file,
                 content=no_comments_script_content,
-                header='# The content below is automatically copied from scripts/docker/',
-                footer='EOF',
+                header="# The content below is automatically copied from scripts/docker/",
+                footer="EOF",
                 file_name=script,
             )

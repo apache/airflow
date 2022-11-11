@@ -44,14 +44,14 @@ class HttpHook(BaseHook):
         ``socket.TCP_KEEPINTVL``)
     """
 
-    conn_name_attr = 'http_conn_id'
-    default_conn_name = 'http_default'
-    conn_type = 'http'
-    hook_name = 'HTTP'
+    conn_name_attr = "http_conn_id"
+    default_conn_name = "http_default"
+    conn_type = "http"
+    hook_name = "HTTP"
 
     def __init__(
         self,
-        method: str = 'POST',
+        method: str = "POST",
         http_conn_id: str = default_conn_name,
         auth_type: Any = HTTPBasicAuth,
         tcp_keep_alive: bool = True,
@@ -99,7 +99,7 @@ class HttpHook(BaseHook):
                 try:
                     session.headers.update(conn.extra_dejson)
                 except TypeError:
-                    self.log.warning('Connection to %s has invalid extra field.', conn.host)
+                    self.log.warning("Connection to %s has invalid extra field.", conn.host)
         if headers:
             session.headers.update(headers)
 
@@ -136,10 +136,10 @@ class HttpHook(BaseHook):
                 idle=self.keep_alive_idle, count=self.keep_alive_count, interval=self.keep_alive_interval
             )
             session.mount(url, keep_alive_adapter)
-        if self.method == 'GET':
+        if self.method == "GET":
             # GET uses params
             req = requests.Request(self.method, url, params=data, headers=headers, **request_kwargs)
-        elif self.method == 'HEAD':
+        elif self.method == "HEAD":
             # HEAD doesn't use params
             req = requests.Request(self.method, url, headers=headers, **request_kwargs)
         else:
@@ -200,12 +200,12 @@ class HttpHook(BaseHook):
         try:
             response = session.send(prepped_request, **send_kwargs)
 
-            if extra_options.get('check_response', True):
+            if extra_options.get("check_response", True):
                 self.check_response(response)
             return response
 
         except requests.exceptions.ConnectionError as ex:
-            self.log.warning('%s Tenacity will retry to execute the operation', ex)
+            self.log.warning("%s Tenacity will retry to execute the operation", ex)
             raise ex
 
     def run_with_advanced_retry(self, _retry_args: dict[Any, Any], *args: Any, **kwargs: Any) -> Any:
@@ -235,14 +235,14 @@ class HttpHook(BaseHook):
 
     def url_from_endpoint(self, endpoint: str | None) -> str:
         """Combine base url with endpoint"""
-        if self.base_url and not self.base_url.endswith('/') and endpoint and not endpoint.startswith('/'):
-            return self.base_url + '/' + endpoint
-        return (self.base_url or '') + (endpoint or '')
+        if self.base_url and not self.base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
+            return self.base_url + "/" + endpoint
+        return (self.base_url or "") + (endpoint or "")
 
     def test_connection(self):
         """Test HTTP Connection"""
         try:
             self.run()
-            return True, 'Connection successfully tested'
+            return True, "Connection successfully tested"
         except Exception as e:
             return False, str(e)

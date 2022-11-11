@@ -29,7 +29,7 @@ from airflow import DAG
 from airflow.providers.papermill.operators.papermill import PapermillOperator
 
 START_DATE = datetime(2021, 1, 1)
-SCHEDULE_INTERVAL = '0 0 * * *'
+SCHEDULE_INTERVAL = "0 0 * * *"
 DAGRUN_TIMEOUT = timedelta(minutes=60)
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_papermill_operator"
@@ -39,7 +39,7 @@ with DAG(
     schedule=SCHEDULE_INTERVAL,
     start_date=START_DATE,
     dagrun_timeout=DAGRUN_TIMEOUT,
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     # [START howto_operator_papermill]

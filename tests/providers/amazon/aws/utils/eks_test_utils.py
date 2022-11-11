@@ -54,7 +54,6 @@ def attributes_to_test(
     :param fargate_profile_name: The name of the Fargate profile under test if applicable.
     :param nodegroup_name: The name of the nodegroup under test if applicable.
     :return: Returns a list of tuples containing the keys and values to be validated in testing.
-    :rtype: List[Tuple]
     """
     result: list[tuple] = deepcopy(inputs.REQUIRED + inputs.OPTIONAL + [STATUS])  # type: ignore
     if inputs == ClusterInputs:
@@ -65,7 +64,7 @@ def attributes_to_test(
         # The below tag is mandatory and must have a value of either 'owned' or 'shared'
         # A value of 'owned' denotes that the subnets are exclusive to the nodegroup.
         # The 'shared' value allows more than one resource to use the subnet.
-        required_tag: dict = {f'kubernetes.io/cluster/{cluster_name}': 'owned'}
+        required_tag: dict = {f"kubernetes.io/cluster/{cluster_name}": "owned"}
         # Find the user-submitted tag set and append the required tag to it.
         final_tag_set: dict = required_tag
         for key, value in result:
@@ -90,7 +89,6 @@ def generate_clusters(eks_hook: EksHook, num_clusters: int, minimal: bool) -> li
     :param num_clusters: Number of clusters to generate.
     :param minimal: If True, only the required values are generated; if False all values are generated.
     :return: Returns a list of the names of the generated clusters.
-    :rtype: List[str]
     """
     # Generates N clusters named cluster0, cluster1, .., clusterN
     return [
@@ -112,7 +110,6 @@ def generate_fargate_profiles(
     :param num_profiles: Number of Fargate profiles to generate.
     :param minimal: If True, only the required values are generated; if False all values are generated.
     :return: Returns a list of the names of the generated nodegroups.
-    :rtype: List[str]
     """
     # Generates N Fargate profiles named profile0, profile1, .., profileN
     return [
@@ -136,7 +133,6 @@ def generate_nodegroups(
     :param num_nodegroups: Number of clusters to generate.
     :param minimal: If True, only the required values are generated; if False all values are generated.
     :return: Returns a list of the names of the generated nodegroups.
-    :rtype: List[str]
     """
     # Generates N nodegroups named nodegroup0, nodegroup1, .., nodegroupN
     return [
@@ -156,7 +152,6 @@ def region_matches_partition(region: str, partition: str) -> bool:
     :param region: AWS region code to test.
     :param partition: AWS partition code to test.
     :return: Returns True if the provided region and partition are a valid pair.
-    :rtype: bool
     """
     valid_matches: list[tuple[str, str]] = [
         ("cn-", "aws-cn"),
@@ -179,7 +174,6 @@ def _input_builder(options: InputTypes, minimal: bool) -> dict:
     the cluster or nodegroup used in testing.
     :param minimal: If True, only the required values are generated; if False all values are generated.
     :return: Returns a dict containing the keys and values to be validated in testing.
-    :rtype: Dict
     """
     values: list[tuple] = deepcopy(options.REQUIRED)  # type: ignore
     if not minimal:
@@ -193,7 +187,6 @@ def string_to_regex(value: str) -> Pattern[str]:
 
     :param value: The template string to convert.
     :returns: Returns a regex pattern
-    :rtype: Pattern[str]
     """
     return re.compile(re.sub(r"[{](.*?)[}]", r"(?P<\1>.+)", value))
 
@@ -209,33 +202,33 @@ def convert_keys(original: dict) -> dict:
     :param original: Dict which needs the keys converted.
     :value original: Dict
     """
-    if 'nodegroup_name' in original.keys():
+    if "nodegroup_name" in original.keys():
         conversion_map = {
-            'cluster_name': 'clusterName',
-            'cluster_role_arn': 'roleArn',
-            'nodegroup_subnets': 'subnets',
-            'subnets': 'subnets',
-            'nodegroup_name': 'nodegroupName',
-            'nodegroup_role_arn': 'nodeRole',
+            "cluster_name": "clusterName",
+            "cluster_role_arn": "roleArn",
+            "nodegroup_subnets": "subnets",
+            "subnets": "subnets",
+            "nodegroup_name": "nodegroupName",
+            "nodegroup_role_arn": "nodeRole",
         }
-    elif 'fargate_profile_name' in original.keys():
+    elif "fargate_profile_name" in original.keys():
         conversion_map = {
-            'cluster_name': 'clusterName',
-            'fargate_profile_name': 'fargateProfileName',
-            'subnets': 'subnets',
+            "cluster_name": "clusterName",
+            "fargate_profile_name": "fargateProfileName",
+            "subnets": "subnets",
             # The following are "duplicated" because we used the more verbose/descriptive version
             # in the CreateCluster Operator when creating a cluster alongside a Fargate profile, but
             # the more terse version in the CreateFargateProfile Operator for the sake of convenience.
-            'pod_execution_role_arn': 'podExecutionRoleArn',
-            'fargate_pod_execution_role_arn': 'podExecutionRoleArn',
-            'selectors': 'selectors',
-            'fargate_selectors': 'selectors',
+            "pod_execution_role_arn": "podExecutionRoleArn",
+            "fargate_pod_execution_role_arn": "podExecutionRoleArn",
+            "selectors": "selectors",
+            "fargate_selectors": "selectors",
         }
     else:
         conversion_map = {
-            'cluster_name': 'name',
-            'cluster_role_arn': 'roleArn',
-            'resources_vpc_config': 'resourcesVpcConfig',
+            "cluster_name": "name",
+            "cluster_role_arn": "roleArn",
+            "resources_vpc_config": "resourcesVpcConfig",
         }
 
     return {conversion_map[k] if k in conversion_map else k: v for (k, v) in deepcopy(original).items()}

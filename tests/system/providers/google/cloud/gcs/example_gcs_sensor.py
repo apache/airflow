@@ -69,7 +69,7 @@ def dummy_mode_property():
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["gcs", "example"],
@@ -127,7 +127,7 @@ with models.DAG(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
-    sleep = BashOperator(task_id='sleep', bash_command='sleep 5')
+    sleep = BashOperator(task_id="sleep", bash_command="sleep 5")
 
     chain(
         # TEST SETUP

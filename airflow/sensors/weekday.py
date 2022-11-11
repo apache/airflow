@@ -76,6 +76,11 @@ class DayOfWeekSensor(BaseSensorOperator):
         If ``False``, uses system's day of the week. Useful when you
         don't want to run anything on weekdays on the system.
     :param use_task_execution_day: deprecated parameter, same effect as `use_task_logical_date`
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/operator:DayOfWeekSensor`
+
     """
 
     def __init__(
@@ -100,11 +105,11 @@ class DayOfWeekSensor(BaseSensorOperator):
 
     def poke(self, context: Context) -> bool:
         self.log.info(
-            'Poking until weekday is in %s, Today is %s',
+            "Poking until weekday is in %s, Today is %s",
             self.week_day,
             WeekDay(timezone.utcnow().isoweekday()).name,
         )
         if self.use_task_logical_date:
-            return context['logical_date'].isoweekday() in self._week_day_num
+            return context["logical_date"].isoweekday() in self._week_day_num
         else:
             return timezone.utcnow().isoweekday() in self._week_day_num

@@ -32,23 +32,23 @@ from airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake impor
 
 class TestOracleToAzureDataLakeTransfer(unittest.TestCase):
 
-    mock_module_path = 'airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake'
+    mock_module_path = "airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake"
 
     def test_write_temp_file(self):
         task_id = "some_test_id"
         sql = "some_sql"
-        sql_params = {':p_data': "2018-01-01"}
+        sql_params = {":p_data": "2018-01-01"}
         oracle_conn_id = "oracle_conn_id"
         filename = "some_filename"
-        azure_data_lake_conn_id = 'azure_data_lake_conn_id'
-        azure_data_lake_path = 'azure_data_lake_path'
-        delimiter = '|'
-        encoding = 'utf-8'
+        azure_data_lake_conn_id = "azure_data_lake_conn_id"
+        azure_data_lake_path = "azure_data_lake_path"
+        delimiter = "|"
+        encoding = "utf-8"
         cursor_description = [
-            ('id', "<class 'oracledb.NUMBER'>", 39, None, 38, 0, 0),
-            ('description', "<class 'oracledb.STRING'>", 60, 240, None, None, 1),
+            ("id", "<class 'oracledb.NUMBER'>", 39, None, 38, 0, 0),
+            ("description", "<class 'oracledb.STRING'>", 60, 240, None, None, 1),
         ]
-        cursor_rows = [[1, 'description 1'], [2, 'description 2']]
+        cursor_rows = [[1, "description 1"], [2, "description 2"]]
         mock_cursor = MagicMock()
         mock_cursor.description = cursor_description
         mock_cursor.__iter__.return_value = cursor_rows
@@ -65,41 +65,41 @@ class TestOracleToAzureDataLakeTransfer(unittest.TestCase):
             encoding=encoding,
         )
 
-        with TemporaryDirectory(prefix='airflow_oracle_to_azure_op_') as temp:
+        with TemporaryDirectory(prefix="airflow_oracle_to_azure_op_") as temp:
             op._write_temp_file(mock_cursor, os.path.join(temp, filename))
 
             assert os.path.exists(os.path.join(temp, filename)) == 1
 
-            with open(os.path.join(temp, filename), 'rb') as csvfile:
+            with open(os.path.join(temp, filename), "rb") as csvfile:
                 temp_file = csv.reader(csvfile, delimiter=delimiter, encoding=encoding)
 
                 rownum = 0
                 for row in temp_file:
                     if rownum == 0:
-                        assert row[0] == 'id'
-                        assert row[1] == 'description'
+                        assert row[0] == "id"
+                        assert row[1] == "description"
                     else:
                         assert row[0] == str(cursor_rows[rownum - 1][0])
                         assert row[1] == cursor_rows[rownum - 1][1]
                     rownum = rownum + 1
 
-    @mock.patch(mock_module_path + '.OracleHook', autospec=True)
-    @mock.patch(mock_module_path + '.AzureDataLakeHook', autospec=True)
+    @mock.patch(mock_module_path + ".OracleHook", autospec=True)
+    @mock.patch(mock_module_path + ".AzureDataLakeHook", autospec=True)
     def test_execute(self, mock_data_lake_hook, mock_oracle_hook):
         task_id = "some_test_id"
         sql = "some_sql"
-        sql_params = {':p_data': "2018-01-01"}
+        sql_params = {":p_data": "2018-01-01"}
         oracle_conn_id = "oracle_conn_id"
         filename = "some_filename"
-        azure_data_lake_conn_id = 'azure_data_lake_conn_id'
-        azure_data_lake_path = 'azure_data_lake_path'
-        delimiter = '|'
-        encoding = 'latin-1'
+        azure_data_lake_conn_id = "azure_data_lake_conn_id"
+        azure_data_lake_path = "azure_data_lake_path"
+        delimiter = "|"
+        encoding = "latin-1"
         cursor_description = [
-            ('id', "<class 'oracledb.NUMBER'>", 39, None, 38, 0, 0),
-            ('description', "<class 'oracledb.STRING'>", 60, 240, None, None, 1),
+            ("id", "<class 'oracledb.NUMBER'>", 39, None, 38, 0, 0),
+            ("description", "<class 'oracledb.STRING'>", 60, 240, None, None, 1),
         ]
-        cursor_rows = [[1, 'description 1'], [2, 'description 2']]
+        cursor_rows = [[1, "description 1"], [2, "description 2"]]
         cursor_mock = MagicMock()
         cursor_mock.description.return_value = cursor_description
         cursor_mock.__iter__.return_value = cursor_rows

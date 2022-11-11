@@ -88,13 +88,13 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
     def __init__(
         self,
-        connections_path: str = 'connections',
-        variables_path: str = 'variables',
-        config_path: str = 'config',
+        connections_path: str = "connections",
+        variables_path: str = "variables",
+        config_path: str = "config",
         url: str | None = None,
-        auth_type: str = 'token',
+        auth_type: str = "token",
         auth_mount_point: str | None = None,
-        mount_point: str = 'secret',
+        mount_point: str = "secret",
         kv_engine_version: int = 2,
         token: str | None = None,
         token_path: str | None = None,
@@ -104,7 +104,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         secret_id: str | None = None,
         role_id: str | None = None,
         kubernetes_role: str | None = None,
-        kubernetes_jwt_path: str = '/var/run/secrets/kubernetes.io/serviceaccount/token',
+        kubernetes_jwt_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/token",
         gcp_key_path: str | None = None,
         gcp_keyfile_dict: dict | None = None,
         gcp_scopes: str | None = None,
@@ -117,15 +117,15 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     ):
         super().__init__()
         if connections_path is not None:
-            self.connections_path = connections_path.rstrip('/')
+            self.connections_path = connections_path.rstrip("/")
         else:
             self.connections_path = connections_path
         if variables_path is not None:
-            self.variables_path = variables_path.rstrip('/')
+            self.variables_path = variables_path.rstrip("/")
         else:
             self.variables_path = variables_path
         if config_path is not None:
-            self.config_path = config_path.rstrip('/')
+            self.config_path = config_path.rstrip("/")
         else:
             self.config_path = config_path
         self.mount_point = mount_point
@@ -160,7 +160,6 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         """
         Get data from Vault
 
-        :rtype: dict
         :return: The data from the Vault path if exists
         """
         if self.connections_path is None:
@@ -174,7 +173,6 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         Get serialized representation of connection
 
         :param conn_id: The connection id
-        :rtype: str
         :return: The connection uri retrieved from the secret
         """
         # Since VaultBackend implements `get_connection`, `get_conn_uri` is not used. So we
@@ -198,7 +196,6 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         Get connection from Vault as secret. Prioritize conn_uri if exists,
         if not fall back to normal Connection creation.
 
-        :rtype: Connection
         :return: A Connection object constructed from Vault data
         """
         # The Connection needs to be locally imported because otherwise we get into cyclic import
@@ -220,7 +217,6 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         Get Airflow Variable
 
         :param key: Variable Key
-        :rtype: str
         :return: Variable Value retrieved from the vault
         """
         if self.variables_path is None:
@@ -235,7 +231,6 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         Get Airflow Configuration
 
         :param key: Configuration Option Key
-        :rtype: str
         :return: Configuration Option Value retrieved from the vault
         """
         if self.config_path is None:

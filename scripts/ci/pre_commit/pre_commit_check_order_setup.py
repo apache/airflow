@@ -42,11 +42,11 @@ class ConsoleDiff(difflib.Differ):
         """Generate comparison results for a same-tagged range."""
         for i in range(lo, hi):
             if tag == "+":
-                yield f'[green]{tag} {x[i]}[/]'
+                yield f"[green]{tag} {x[i]}[/]"
             elif tag == "-":
-                yield f'[red]{tag} {x[i]}[/]'
+                yield f"[red]{tag} {x[i]}[/]"
             else:
-                yield f'{tag} {x[i]}'
+                yield f"{tag} {x[i]}"
 
 
 def _check_list_sorted(the_list: list[str], message: str) -> None:
@@ -68,14 +68,14 @@ def check_main_dependent_group(setup_contents: str) -> None:
     """
     print("[info]Checking main dependency group[/]")
     pattern_main_dependent_group = re.compile(
-        '# Start dependencies group\n(.*)# End dependencies group', re.DOTALL
+        "# Start dependencies group\n(.*)# End dependencies group", re.DOTALL
     )
     main_dependent_group = pattern_main_dependent_group.findall(setup_contents)[0]
 
-    pattern_sub_dependent = re.compile(r' = \[.*?]\n', re.DOTALL)
-    main_dependent = pattern_sub_dependent.sub(',', main_dependent_group)
+    pattern_sub_dependent = re.compile(r" = \[.*?]\n", re.DOTALL)
+    main_dependent = pattern_sub_dependent.sub(",", main_dependent_group)
 
-    src = main_dependent.strip(',').split(',')
+    src = main_dependent.strip(",").split(",")
     _check_list_sorted(src, "Order of dependencies")
 
     for group in src:
@@ -96,12 +96,12 @@ def check_alias_dependent_group(setup_context: str) -> None:
     Test for an order of each dependencies groups declare like
     `alias_dependent_group = dependent_group_1 + ... + dependent_group_n` in setup.py
     """
-    pattern = re.compile('^\\w+ = (\\w+ \\+.*)', re.MULTILINE)
+    pattern = re.compile("^\\w+ = (\\w+ \\+.*)", re.MULTILINE)
     dependents = pattern.findall(setup_context)
 
     for dependent in dependents:
         print(f"[info]Checking alias-dependent group {dependent}[/]")
-        src = dependent.split(' + ')
+        src = dependent.split(" + ")
         _check_list_sorted(src, f"Order of alias dependencies group: {dependent}")
 
 
@@ -124,19 +124,19 @@ def check_install_and_setup_requires() -> None:
 
     from setuptools.config import read_configuration
 
-    path = abspath(os.path.join(dirname(__file__), os.pardir, os.pardir, os.pardir, 'setup.cfg'))
+    path = abspath(os.path.join(dirname(__file__), os.pardir, os.pardir, os.pardir, "setup.cfg"))
     config = read_configuration(path)
 
-    pattern_dependent_version = re.compile('[~|><=;].*')
+    pattern_dependent_version = re.compile("[~|><=;].*")
 
-    for key in ('install_requires', 'setup_requires'):
+    for key in ("install_requires", "setup_requires"):
         print(f"[info]Checking setup.cfg group {key}[/]")
-        deps = config['options'][key]
-        dists = [pattern_dependent_version.sub('', p) for p in deps]
+        deps = config["options"][key]
+        dists = [pattern_dependent_version.sub("", p) for p in deps]
         _check_list_sorted(dists, f"Order of dependencies in do_setup section: {key}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import setup
 
     with open(setup.__file__) as setup_file:

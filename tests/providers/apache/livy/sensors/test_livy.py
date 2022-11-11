@@ -30,14 +30,14 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 class TestLivySensor(unittest.TestCase):
     def setUp(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        self.dag = DAG('test_dag_id', default_args=args)
-        db.merge_conn(Connection(conn_id='livyunittest', conn_type='livy', host='http://localhost:8998'))
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        self.dag = DAG("test_dag_id", default_args=args)
+        db.merge_conn(Connection(conn_id="livyunittest", conn_type="livy", host="http://localhost:8998"))
 
-    @patch('airflow.providers.apache.livy.hooks.livy.LivyHook.get_batch_state')
+    @patch("airflow.providers.apache.livy.hooks.livy.LivyHook.get_batch_state")
     def test_poke(self, mock_state):
         sensor = LivySensor(
-            livy_conn_id='livyunittest', task_id='livy_sensor_test', dag=self.dag, batch_id=100
+            livy_conn_id="livyunittest", task_id="livy_sensor_test", dag=self.dag, batch_id=100
         )
 
         for state in BatchState:

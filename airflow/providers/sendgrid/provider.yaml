@@ -22,7 +22,7 @@ description: |
     `Sendgrid <https://sendgrid.com/>`__
 
 dependencies:
-  - apache-airflow>=2.2.0
+  - apache-airflow>=2.3.0
   - sendgrid>=6.0.0
 
 versions:

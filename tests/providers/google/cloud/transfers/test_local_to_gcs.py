@@ -31,16 +31,16 @@ from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesyste
 
 class TestFileToGcsOperator(unittest.TestCase):
 
-    _config = {'bucket': 'dummy', 'mime_type': 'application/octet-stream', 'gzip': False}
+    _config = {"bucket": "dummy", "mime_type": "application/octet-stream", "gzip": False}
 
     def setUp(self):
-        args = {'owner': 'airflow', 'start_date': datetime.datetime(2017, 1, 1)}
-        self.dag = DAG('test_dag_id', default_args=args)
-        self.testfile1 = '/tmp/fake1.csv'
-        with open(self.testfile1, 'wb') as f:
+        args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
+        self.dag = DAG("test_dag_id", default_args=args)
+        self.testfile1 = "/tmp/fake1.csv"
+        with open(self.testfile1, "wb") as f:
             f.write(b"x" * 393216)
-        self.testfile2 = '/tmp/fake2.csv'
-        with open(self.testfile2, 'wb') as f:
+        self.testfile2 = "/tmp/fake2.csv"
+        with open(self.testfile2, "wb") as f:
             f.write(b"x" * 393216)
         self.testfiles = [self.testfile1, self.testfile2]
 
@@ -50,102 +50,102 @@ class TestFileToGcsOperator(unittest.TestCase):
 
     def test_init(self):
         operator = LocalFilesystemToGCSOperator(
-            task_id='file_to_gcs_operator',
+            task_id="file_to_gcs_operator",
             dag=self.dag,
             src=self.testfile1,
-            dst='test/test1.csv',
+            dst="test/test1.csv",
             **self._config,
         )
         assert operator.src == self.testfile1
-        assert operator.dst == 'test/test1.csv'
-        assert operator.bucket == self._config['bucket']
-        assert operator.mime_type == self._config['mime_type']
-        assert operator.gzip == self._config['gzip']
+        assert operator.dst == "test/test1.csv"
+        assert operator.bucket == self._config["bucket"]
+        assert operator.mime_type == self._config["mime_type"]
+        assert operator.gzip == self._config["gzip"]
 
-    @mock.patch('airflow.providers.google.cloud.transfers.local_to_gcs.GCSHook', autospec=True)
+    @mock.patch("airflow.providers.google.cloud.transfers.local_to_gcs.GCSHook", autospec=True)
     def test_execute(self, mock_hook):
         mock_instance = mock_hook.return_value
         operator = LocalFilesystemToGCSOperator(
-            task_id='gcs_to_file_sensor',
+            task_id="gcs_to_file_sensor",
             dag=self.dag,
             src=self.testfile1,
-            dst='test/test1.csv',
+            dst="test/test1.csv",
             **self._config,
         )
         operator.execute(None)
         mock_instance.upload.assert_called_once_with(
-            bucket_name=self._config['bucket'],
+            bucket_name=self._config["bucket"],
             filename=self.testfile1,
-            gzip=self._config['gzip'],
-            mime_type=self._config['mime_type'],
-            object_name='test/test1.csv',
+            gzip=self._config["gzip"],
+            mime_type=self._config["mime_type"],
+            object_name="test/test1.csv",
         )
 
     def test_execute_with_empty_src(self):
         operator = LocalFilesystemToGCSOperator(
-            task_id='local_to_sensor',
+            task_id="local_to_sensor",
             dag=self.dag,
             src="no_file.txt",
-            dst='test/no_file.txt',
+            dst="test/no_file.txt",
             **self._config,
         )
         with pytest.raises(FileNotFoundError):
             operator.execute(None)
 
-    @mock.patch('airflow.providers.google.cloud.transfers.local_to_gcs.GCSHook', autospec=True)
+    @mock.patch("airflow.providers.google.cloud.transfers.local_to_gcs.GCSHook", autospec=True)
     def test_execute_multiple(self, mock_hook):
         mock_instance = mock_hook.return_value
         operator = LocalFilesystemToGCSOperator(
-            task_id='gcs_to_file_sensor', dag=self.dag, src=self.testfiles, dst='test/', **self._config
+            task_id="gcs_to_file_sensor", dag=self.dag, src=self.testfiles, dst="test/", **self._config
         )
         operator.execute(None)
         files_objects = zip(
-            self.testfiles, ['test/' + os.path.basename(testfile) for testfile in self.testfiles]
+            self.testfiles, ["test/" + os.path.basename(testfile) for testfile in self.testfiles]
         )
         calls = [
             mock.call(
-                bucket_name=self._config['bucket'],
+                bucket_name=self._config["bucket"],
                 filename=filepath,
-                gzip=self._config['gzip'],
-                mime_type=self._config['mime_type'],
+                gzip=self._config["gzip"],
+                mime_type=self._config["mime_type"],
                 object_name=object_name,
             )
             for filepath, object_name in files_objects
         ]
         mock_instance.upload.assert_has_calls(calls)
 
-    @mock.patch('airflow.providers.google.cloud.transfers.local_to_gcs.GCSHook', autospec=True)
+    @mock.patch("airflow.providers.google.cloud.transfers.local_to_gcs.GCSHook", autospec=True)
     def test_execute_wildcard(self, mock_hook):
         mock_instance = mock_hook.return_value
         operator = LocalFilesystemToGCSOperator(
-            task_id='gcs_to_file_sensor', dag=self.dag, src='/tmp/fake*.csv', dst='test/', **self._config
+            task_id="gcs_to_file_sensor", dag=self.dag, src="/tmp/fake*.csv", dst="test/", **self._config
         )
         operator.execute(None)
-        object_names = ['test/' + os.path.basename(fp) for fp in glob('/tmp/fake*.csv')]
-        files_objects = zip(glob('/tmp/fake*.csv'), object_names)
+        object_names = ["test/" + os.path.basename(fp) for fp in glob("/tmp/fake*.csv")]
+        files_objects = zip(glob("/tmp/fake*.csv"), object_names)
         calls = [
             mock.call(
-                bucket_name=self._config['bucket'],
+                bucket_name=self._config["bucket"],
                 filename=filepath,
-                gzip=self._config['gzip'],
-                mime_type=self._config['mime_type'],
+                gzip=self._config["gzip"],
+                mime_type=self._config["mime_type"],
                 object_name=object_name,
             )
             for filepath, object_name in files_objects
         ]
         mock_instance.upload.assert_has_calls(calls)
 
-    @mock.patch('airflow.providers.google.cloud.transfers.local_to_gcs.GCSHook', autospec=True)
+    @mock.patch("airflow.providers.google.cloud.transfers.local_to_gcs.GCSHook", autospec=True)
     def test_execute_negative(self, mock_hook):
         mock_instance = mock_hook.return_value
         operator = LocalFilesystemToGCSOperator(
-            task_id='gcs_to_file_sensor',
+            task_id="gcs_to_file_sensor",
             dag=self.dag,
-            src='/tmp/fake*.csv',
-            dst='test/test1.csv',
+            src="/tmp/fake*.csv",
+            dst="test/test1.csv",
             **self._config,
         )
-        print(glob('/tmp/fake*.csv'))
+        print(glob("/tmp/fake*.csv"))
         with pytest.raises(ValueError):
             operator.execute(None)
         mock_instance.assert_not_called()

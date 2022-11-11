@@ -39,4 +39,4 @@ class CloudDataFusionExampleDagsSystemTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_DATAFUSION_KEY)
     def test_run_example_dag_function(self):
-        self.run_dag('example_data_fusion', CLOUD_DAG_FOLDER)
+        self.run_dag("example_data_fusion", CLOUD_DAG_FOLDER)

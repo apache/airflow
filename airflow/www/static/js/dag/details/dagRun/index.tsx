@@ -187,7 +187,8 @@ const DagRun = ({ runId }: Props) => {
                     <Td>
                       <ReactJson
                         src={JSON.parse(conf ?? '')}
-                        theme="tomorrow"
+                        name={false}
+                        theme="rjv-default"
                         iconStyle="triangle"
                         indentWidth={2}
                         displayDataTypes={false}

@@ -28,6 +28,8 @@ include airflow/providers/amazon/aws/hooks/batch_waiters.json
 {% elif PROVIDER_PACKAGE_ID == 'google' %}
 include airflow/providers/google/cloud/example_dags/*.yaml
 include airflow/providers/google/cloud/example_dags/*.sql
+{% elif PROVIDER_PACKAGE_ID == 'cncf.kubernetes' %}
+include airflow/providers/cncf/kubernetes/*.jinja2
 {% endif %}
 
 include NOTICE

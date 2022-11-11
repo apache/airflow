@@ -129,7 +129,7 @@ class TestCli:
         parser = argparse.ArgumentParser()
         arg.add_to_parser(parser)
 
-        args = parser.parse_args(['--test', '10'])
+        args = parser.parse_args(["--test", "10"])
         assert args.test == 10
 
         args = parser.parse_args([])
@@ -140,7 +140,7 @@ class TestCli:
 
         with contextlib.redirect_stdout(io.StringIO()) as stdout:
             with pytest.raises(SystemExit):
-                parser.parse_args(['--help'])
+                parser.parse_args(["--help"])
             stdout = stdout.getvalue()
         assert "Commands" in stdout
         assert "Groups" in stdout
@@ -150,7 +150,7 @@ class TestCli:
 
         with contextlib.redirect_stdout(io.StringIO()) as stdout:
             with pytest.raises(SystemExit):
-                parser.parse_args(['--help'])
+                parser.parse_args(["--help"])
             stdout = stdout.getvalue()
         assert "Commands" in stdout
         assert "Groups" in stdout
@@ -169,7 +169,7 @@ class TestCli:
         ]
         for cmd_args in all_command_as_args:
             with pytest.raises(SystemExit):
-                parser.parse_args([*cmd_args, '--help'])
+                parser.parse_args([*cmd_args, "--help"])
 
     def test_dag_cli_should_display_help(self):
         parser = cli_parser.get_parser(dag_parser=True)
@@ -185,23 +185,23 @@ class TestCli:
         ]
         for cmd_args in all_command_as_args:
             with pytest.raises(SystemExit):
-                parser.parse_args([*cmd_args, '--help'])
+                parser.parse_args([*cmd_args, "--help"])
 
     def test_positive_int(self):
-        assert 1 == cli_parser.positive_int(allow_zero=True)('1')
-        assert 0 == cli_parser.positive_int(allow_zero=True)('0')
+        assert 1 == cli_parser.positive_int(allow_zero=True)("1")
+        assert 0 == cli_parser.positive_int(allow_zero=True)("0")
 
         with pytest.raises(argparse.ArgumentTypeError):
-            cli_parser.positive_int(allow_zero=False)('0')
-            cli_parser.positive_int(allow_zero=True)('-1')
+            cli_parser.positive_int(allow_zero=False)("0")
+            cli_parser.positive_int(allow_zero=True)("-1")
 
     def test_dag_parser_celery_command_require_celery_executor(self):
-        with conf_vars({('core', 'executor'): 'SequentialExecutor'}), contextlib.redirect_stderr(
+        with conf_vars({("core", "executor"): "SequentialExecutor"}), contextlib.redirect_stderr(
             io.StringIO()
         ) as stderr:
             parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
-                parser.parse_args(['celery'])
+                parser.parse_args(["celery"])
             stderr = stderr.getvalue()
         assert (
             "airflow command error: argument GROUP_OR_COMMAND: celery subcommand "
@@ -219,19 +219,19 @@ class TestCli:
         ],
     )
     def test_dag_parser_celery_command_accept_celery_executor(self, executor):
-        with conf_vars({('core', 'executor'): executor}), contextlib.redirect_stderr(io.StringIO()) as stderr:
+        with conf_vars({("core", "executor"): executor}), contextlib.redirect_stderr(io.StringIO()) as stderr:
             parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
-                parser.parse_args(['celery'])
+                parser.parse_args(["celery"])
             stderr = stderr.getvalue()
         assert (
             "airflow celery command error: the following arguments are required: COMMAND, see help above."
         ) in stderr
 
     def test_dag_parser_config_command_dont_required_celery_executor(self):
-        with conf_vars({('core', 'executor'): "CeleryExecutor"}), contextlib.redirect_stderr(
+        with conf_vars({("core", "executor"): "CeleryExecutor"}), contextlib.redirect_stderr(
             io.StringIO()
         ) as stdout:
             parser = cli_parser.get_parser()
-            parser.parse_args(['config', 'get-value', 'celery', 'broker-url'])
+            parser.parse_args(["config", "get-value", "celery", "broker-url"])
         assert stdout is not None

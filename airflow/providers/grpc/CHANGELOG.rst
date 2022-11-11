@@ -24,6 +24,21 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.3+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+Misc
+~~~~
+
+* In GrpcHook, non-prefixed extra fields are supported and are preferred.  E.g. ``auth_type`` will
+  be preferred if ``extra__grpc__auth_type`` is also present.
+
 3.0.0
 .....
 

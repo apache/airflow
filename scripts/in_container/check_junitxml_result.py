@@ -20,38 +20,38 @@ from __future__ import annotations
 import sys
 import xml.etree.ElementTree as ET
 
-TEXT_RED = '\033[31m'
-TEXT_GREEN = '\033[32m'
-TEXT_RESET = '\033[0m'
+TEXT_RED = "\033[31m"
+TEXT_GREEN = "\033[32m"
+TEXT_RESET = "\033[0m"
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     fname = sys.argv[1]
     try:
         with open(fname) as fh:
             root = ET.parse(fh)
-        testsuite = root.find('.//testsuite')
+        testsuite = root.find(".//testsuite")
         if testsuite:
-            num_failures = testsuite.get('failures')
-            num_errors = testsuite.get('errors')
+            num_failures = testsuite.get("failures")
+            num_errors = testsuite.get("errors")
             if num_failures == "0" and num_errors == "0":
-                print(f'\n{TEXT_GREEN}==== No errors, no failures. Good to go! ===={TEXT_RESET}\n')
+                print(f"\n{TEXT_GREEN}==== No errors, no failures. Good to go! ===={TEXT_RESET}\n")
                 sys.exit(0)
             else:
                 print(
-                    f'\n{TEXT_RED}==== Errors: {num_errors}, Failures: {num_failures}. '
-                    f'Failing the test! ===={TEXT_RESET}\n'
+                    f"\n{TEXT_RED}==== Errors: {num_errors}, Failures: {num_failures}. "
+                    f"Failing the test! ===={TEXT_RESET}\n"
                 )
                 sys.exit(1)
         else:
             print(
-                f'\n{TEXT_RED}==== The testsuite element does not exist in file {fname!r}. '
-                f'Cannot evaluate status of the test! ===={TEXT_RESET}\n'
+                f"\n{TEXT_RED}==== The testsuite element does not exist in file {fname!r}. "
+                f"Cannot evaluate status of the test! ===={TEXT_RESET}\n"
             )
             sys.exit(1)
     except Exception as e:
         print(
-            f'\n{TEXT_RED}==== There was an error when parsing the junitxml file.'
-            f' Likely the file was corrupted ===={TEXT_RESET}\n'
+            f"\n{TEXT_RED}==== There was an error when parsing the junitxml file."
+            f" Likely the file was corrupted ===={TEXT_RESET}\n"
         )
-        print(f'\n{TEXT_RED}==== Error: {e} {TEXT_RESET}\n')
+        print(f"\n{TEXT_RED}==== Error: {e} {TEXT_RESET}\n")
         sys.exit(2)

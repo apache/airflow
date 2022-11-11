@@ -54,3 +54,53 @@ class GlacierCreateJobOperator(BaseOperator):
     def execute(self, context: Context):
         hook = GlacierHook(aws_conn_id=self.aws_conn_id)
         return hook.retrieve_inventory(vault_name=self.vault_name)
+
+
+class GlacierUploadArchiveOperator(BaseOperator):
+    """
+    This operator add an archive to an Amazon S3 Glacier vault
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GlacierUploadArchiveOperator`
+
+    :param vault_name: The name of the vault
+    :param body: A bytes or seekable file-like object. The data to upload.
+    :param checksum: The SHA256 tree hash of the data being uploaded.
+        This parameter is automatically populated if it is not provided
+    :param archive_description: The description of the archive you are uploading
+    :param account_id: (Optional) AWS account ID of the account that owns the vault.
+        Defaults to the credentials used to sign the request
+    :param aws_conn_id: The reference to the AWS connection details
+    """
+
+    template_fields: Sequence[str] = ("vault_name",)
+
+    def __init__(
+        self,
+        *,
+        vault_name: str,
+        body: object,
+        checksum: str | None = None,
+        archive_description: str | None = None,
+        account_id: str | None = None,
+        aws_conn_id="aws_default",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.aws_conn_id = aws_conn_id
+        self.account_id = account_id
+        self.vault_name = vault_name
+        self.body = body
+        self.checksum = checksum
+        self.archive_description = archive_description
+
+    def execute(self, context: Context):
+        hook = GlacierHook(aws_conn_id=self.aws_conn_id)
+        return hook.get_conn().upload_archive(
+            accountId=self.account_id,
+            vaultName=self.vault_name,
+            archiveDescription=self.archive_description,
+            body=self.body,
+            checksum=self.checksum,
+        )

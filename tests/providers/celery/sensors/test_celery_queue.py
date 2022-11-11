@@ -31,33 +31,33 @@ class TestCeleryQueueSensor(unittest.TestCase):
 
         self.sensor = TestCeleryqueueSensor
 
-    @patch('celery.app.control.Inspect')
+    @patch("celery.app.control.Inspect")
     def test_poke_success(self, mock_inspect):
         mock_inspect_result = mock_inspect.return_value
         # test success
-        mock_inspect_result.reserved.return_value = {'test_queue': []}
+        mock_inspect_result.reserved.return_value = {"test_queue": []}
 
-        mock_inspect_result.scheduled.return_value = {'test_queue': []}
+        mock_inspect_result.scheduled.return_value = {"test_queue": []}
 
-        mock_inspect_result.active.return_value = {'test_queue': []}
-        test_sensor = self.sensor(celery_queue='test_queue', task_id='test-task')
+        mock_inspect_result.active.return_value = {"test_queue": []}
+        test_sensor = self.sensor(celery_queue="test_queue", task_id="test-task")
         assert test_sensor.poke(None)
 
-    @patch('celery.app.control.Inspect')
+    @patch("celery.app.control.Inspect")
     def test_poke_fail(self, mock_inspect):
         mock_inspect_result = mock_inspect.return_value
         # test success
-        mock_inspect_result.reserved.return_value = {'test_queue': []}
+        mock_inspect_result.reserved.return_value = {"test_queue": []}
 
-        mock_inspect_result.scheduled.return_value = {'test_queue': []}
+        mock_inspect_result.scheduled.return_value = {"test_queue": []}
 
-        mock_inspect_result.active.return_value = {'test_queue': ['task']}
-        test_sensor = self.sensor(celery_queue='test_queue', task_id='test-task')
+        mock_inspect_result.active.return_value = {"test_queue": ["task"]}
+        test_sensor = self.sensor(celery_queue="test_queue", task_id="test-task")
         assert not test_sensor.poke(None)
 
-    @patch('celery.app.control.Inspect')
+    @patch("celery.app.control.Inspect")
     def test_poke_success_with_taskid(self, mock_inspect):
         test_sensor = self.sensor(
-            celery_queue='test_queue', task_id='test-task', target_task_id='target-task'
+            celery_queue="test_queue", task_id="test-task", target_task_id="target-task"
         )
         assert test_sensor.poke(None)

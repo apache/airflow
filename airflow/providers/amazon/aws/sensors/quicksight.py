@@ -46,7 +46,7 @@ class QuickSightSensor(BaseSensorOperator):
          maintained on each worker node).
     """
 
-    template_fields: Sequence[str] = ('data_set_id', 'ingestion_id', 'aws_conn_id')
+    template_fields: Sequence[str] = ("data_set_id", "ingestion_id", "aws_conn_id")
 
     def __init__(
         self,
@@ -65,13 +65,12 @@ class QuickSightSensor(BaseSensorOperator):
         self.quicksight_hook: QuickSightHook | None = None
         self.sts_hook: StsHook | None = None
 
-    def poke(self, context: Context):
+    def poke(self, context: Context) -> bool:
         """
         Pokes until the QuickSight Ingestion has successfully finished.
 
         :param context: The task context during execution.
         :return: True if it COMPLETED and False if not.
-        :rtype: bool
         """
         quicksight_hook = self.get_quicksight_hook
         sts_hook = self.get_sts_hook

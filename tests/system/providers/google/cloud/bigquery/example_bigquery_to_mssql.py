@@ -49,7 +49,7 @@ with models.DAG(
 ) as dag:
     bigquery_to_mssql = BigQueryToMsSqlOperator(
         task_id="bigquery_to_mssql",
-        source_project_dataset_table=f'{PROJECT_ID}.{DATASET_NAME}.{TABLE}',
+        source_project_dataset_table=f"{PROJECT_ID}.{DATASET_NAME}.{TABLE}",
         mssql_table=destination_table,
         replace=False,
     )

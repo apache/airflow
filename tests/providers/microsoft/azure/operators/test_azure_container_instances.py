@@ -67,7 +67,7 @@ def make_mock_cg_with_missing_events(container_state):
 class TestACIOperator(unittest.TestCase):
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute(self, aci_mock):
-        expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
+        expected_c_state = ContainerState(state="Terminated", exit_code=0, detail_status="test")
         expected_cg = make_mock_cg(expected_c_state)
 
         aci_mock.return_value.get_state.return_value = expected_cg
@@ -76,34 +76,34 @@ class TestACIOperator(unittest.TestCase):
         aci = AzureContainerInstancesOperator(
             ci_conn_id=None,
             registry_conn_id=None,
-            resource_group='resource-group',
-            name='container-name',
-            image='container-image',
-            region='region',
-            task_id='task',
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
         )
         aci.execute(None)
 
         assert aci_mock.return_value.create_or_update.call_count == 1
         (called_rg, called_cn, called_cg), _ = aci_mock.return_value.create_or_update.call_args
 
-        assert called_rg == 'resource-group'
-        assert called_cn == 'container-name'
+        assert called_rg == "resource-group"
+        assert called_cn == "container-name"
 
-        assert called_cg.location == 'region'
+        assert called_cg.location == "region"
         assert called_cg.image_registry_credentials is None
-        assert called_cg.restart_policy == 'Never'
-        assert called_cg.os_type == 'Linux'
+        assert called_cg.restart_policy == "Never"
+        assert called_cg.os_type == "Linux"
 
         called_cg_container = called_cg.containers[0]
-        assert called_cg_container.name == 'container-name'
-        assert called_cg_container.image == 'container-image'
+        assert called_cg_container.name == "container-name"
+        assert called_cg_container.image == "container-image"
 
         assert aci_mock.return_value.delete.call_count == 1
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_with_failures(self, aci_mock):
-        expected_c_state = ContainerState(state='Terminated', exit_code=1, detail_status='test')
+        expected_c_state = ContainerState(state="Terminated", exit_code=1, detail_status="test")
         expected_cg = make_mock_cg(expected_c_state)
 
         aci_mock.return_value.get_state.return_value = expected_cg
@@ -112,11 +112,11 @@ class TestACIOperator(unittest.TestCase):
         aci = AzureContainerInstancesOperator(
             ci_conn_id=None,
             registry_conn_id=None,
-            resource_group='resource-group',
-            name='container-name',
-            image='container-image',
-            region='region',
-            task_id='task',
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
         )
         with pytest.raises(AirflowException):
             aci.execute(None)
@@ -125,7 +125,7 @@ class TestACIOperator(unittest.TestCase):
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_with_tags(self, aci_mock):
-        expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
+        expected_c_state = ContainerState(state="Terminated", exit_code=0, detail_status="test")
         expected_cg = make_mock_cg(expected_c_state)
         tags = {"testKey": "testValue"}
 
@@ -135,11 +135,11 @@ class TestACIOperator(unittest.TestCase):
         aci = AzureContainerInstancesOperator(
             ci_conn_id=None,
             registry_conn_id=None,
-            resource_group='resource-group',
-            name='container-name',
-            image='container-image',
-            region='region',
-            task_id='task',
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
             tags=tags,
         )
         aci.execute(None)
@@ -147,29 +147,29 @@ class TestACIOperator(unittest.TestCase):
         assert aci_mock.return_value.create_or_update.call_count == 1
         (called_rg, called_cn, called_cg), _ = aci_mock.return_value.create_or_update.call_args
 
-        assert called_rg == 'resource-group'
-        assert called_cn == 'container-name'
+        assert called_rg == "resource-group"
+        assert called_cn == "container-name"
 
-        assert called_cg.location == 'region'
+        assert called_cg.location == "region"
         assert called_cg.image_registry_credentials is None
-        assert called_cg.restart_policy == 'Never'
-        assert called_cg.os_type == 'Linux'
+        assert called_cg.restart_policy == "Never"
+        assert called_cg.os_type == "Linux"
         assert called_cg.tags == tags
 
         called_cg_container = called_cg.containers[0]
-        assert called_cg_container.name == 'container-name'
-        assert called_cg_container.image == 'container-image'
+        assert called_cg_container.name == "container-name"
+        assert called_cg_container.image == "container-image"
 
         assert aci_mock.return_value.delete.call_count == 1
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_with_messages_logs(self, aci_mock):
         events = [Event(message="test"), Event(message="messages")]
-        expected_c_state1 = ContainerState(state='Succeeded', exit_code=0, detail_status='test')
+        expected_c_state1 = ContainerState(state="Succeeded", exit_code=0, detail_status="test")
         expected_cg1 = make_mock_cg(expected_c_state1, events)
-        expected_c_state2 = ContainerState(state='Running', exit_code=0, detail_status='test')
+        expected_c_state2 = ContainerState(state="Running", exit_code=0, detail_status="test")
         expected_cg2 = make_mock_cg(expected_c_state2, events)
-        expected_c_state3 = ContainerState(state='Terminated', exit_code=0, detail_status='test')
+        expected_c_state3 = ContainerState(state="Terminated", exit_code=0, detail_status="test")
         expected_cg3 = make_mock_cg(expected_c_state3, events)
 
         aci_mock.return_value.get_state.side_effect = [expected_cg1, expected_cg2, expected_cg3]
@@ -179,11 +179,11 @@ class TestACIOperator(unittest.TestCase):
         aci = AzureContainerInstancesOperator(
             ci_conn_id=None,
             registry_conn_id=None,
-            resource_group='resource-group',
-            name='container-name',
-            image='container-image',
-            region='region',
-            task_id='task',
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
         )
         aci.execute(None)
 
@@ -194,13 +194,13 @@ class TestACIOperator(unittest.TestCase):
         assert aci_mock.return_value.delete.call_count == 1
 
     def test_name_checker(self):
-        valid_names = ['test-dash', 'name-with-length---63' * 3]
+        valid_names = ["test-dash", "name-with-length---63" * 3]
 
         invalid_names = [
-            'test_underscore',
-            'name-with-length---84' * 4,
-            'name-ending-with-dash-',
-            '-name-starting-with-dash',
+            "test_underscore",
+            "name-with-length---84" * 4,
+            "name-ending-with-dash-",
+            "-name-starting-with-dash",
         ]
         for name in invalid_names:
             with pytest.raises(AirflowException):
@@ -212,7 +212,7 @@ class TestACIOperator(unittest.TestCase):
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_with_ipaddress(self, aci_mock):
-        expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
+        expected_c_state = ContainerState(state="Terminated", exit_code=0, detail_status="test")
         expected_cg = make_mock_cg(expected_c_state)
         ipaddress = MagicMock()
 
@@ -222,11 +222,11 @@ class TestACIOperator(unittest.TestCase):
         aci = AzureContainerInstancesOperator(
             ci_conn_id=None,
             registry_conn_id=None,
-            resource_group='resource-group',
-            name='container-name',
-            image='container-image',
-            region='region',
-            task_id='task',
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
             ip_address=ipaddress,
         )
         aci.execute(None)
@@ -237,7 +237,7 @@ class TestACIOperator(unittest.TestCase):
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_with_windows_os_and_diff_restart_policy(self, aci_mock):
-        expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
+        expected_c_state = ContainerState(state="Terminated", exit_code=0, detail_status="test")
         expected_cg = make_mock_cg(expected_c_state)
 
         aci_mock.return_value.get_state.return_value = expected_cg
@@ -246,24 +246,24 @@ class TestACIOperator(unittest.TestCase):
         aci = AzureContainerInstancesOperator(
             ci_conn_id=None,
             registry_conn_id=None,
-            resource_group='resource-group',
-            name='container-name',
-            image='container-image',
-            region='region',
-            task_id='task',
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
             restart_policy="Always",
-            os_type='Windows',
+            os_type="Windows",
         )
         aci.execute(None)
         assert aci_mock.return_value.create_or_update.call_count == 1
         (_, _, called_cg), _ = aci_mock.return_value.create_or_update.call_args
 
-        assert called_cg.restart_policy == 'Always'
-        assert called_cg.os_type == 'Windows'
+        assert called_cg.restart_policy == "Always"
+        assert called_cg.os_type == "Windows"
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_fails_with_incorrect_os_type(self, aci_mock):
-        expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
+        expected_c_state = ContainerState(state="Terminated", exit_code=0, detail_status="test")
         expected_cg = make_mock_cg(expected_c_state)
 
         aci_mock.return_value.get_state.return_value = expected_cg
@@ -273,12 +273,12 @@ class TestACIOperator(unittest.TestCase):
             AzureContainerInstancesOperator(
                 ci_conn_id=None,
                 registry_conn_id=None,
-                resource_group='resource-group',
-                name='container-name',
-                image='container-image',
-                region='region',
-                task_id='task',
-                os_type='MacOs',
+                resource_group="resource-group",
+                name="container-name",
+                image="container-image",
+                region="region",
+                task_id="task",
+                os_type="MacOs",
             )
 
         assert (
@@ -289,7 +289,7 @@ class TestACIOperator(unittest.TestCase):
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_fails_with_incorrect_restart_policy(self, aci_mock):
-        expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
+        expected_c_state = ContainerState(state="Terminated", exit_code=0, detail_status="test")
         expected_cg = make_mock_cg(expected_c_state)
 
         aci_mock.return_value.get_state.return_value = expected_cg
@@ -299,12 +299,12 @@ class TestACIOperator(unittest.TestCase):
             AzureContainerInstancesOperator(
                 ci_conn_id=None,
                 registry_conn_id=None,
-                resource_group='resource-group',
-                name='container-name',
-                image='container-image',
-                region='region',
-                task_id='task',
-                restart_policy='Everyday',
+                resource_group="resource-group",
+                name="container-name",
+                image="container-image",
+                region="region",
+                task_id="task",
+                restart_policy="Everyday",
             )
 
         assert (
@@ -314,11 +314,11 @@ class TestACIOperator(unittest.TestCase):
         )
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
-    @mock.patch('airflow.providers.microsoft.azure.operators.container_instances.sleep')
+    @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.sleep")
     def test_execute_correct_sleep_cycle(self, sleep_mock, aci_mock):
-        expected_c_state1 = ContainerState(state='Running', exit_code=0, detail_status='test')
+        expected_c_state1 = ContainerState(state="Running", exit_code=0, detail_status="test")
         expected_cg1 = make_mock_cg(expected_c_state1)
-        expected_c_state2 = ContainerState(state='Terminated', exit_code=0, detail_status='test')
+        expected_c_state2 = ContainerState(state="Terminated", exit_code=0, detail_status="test")
         expected_cg2 = make_mock_cg(expected_c_state2)
 
         aci_mock.return_value.get_state.side_effect = [expected_cg1, expected_cg1, expected_cg2]
@@ -327,11 +327,11 @@ class TestACIOperator(unittest.TestCase):
         aci = AzureContainerInstancesOperator(
             ci_conn_id=None,
             registry_conn_id=None,
-            resource_group='resource-group',
-            name='container-name',
-            image='container-image',
-            region='region',
-            task_id='task',
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
         )
         aci.execute(None)
 
@@ -341,9 +341,9 @@ class TestACIOperator(unittest.TestCase):
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     @mock.patch("logging.Logger.exception")
     def test_execute_with_missing_events(self, log_mock, aci_mock):
-        expected_c_state1 = ContainerState(state='Running', exit_code=0, detail_status='test')
+        expected_c_state1 = ContainerState(state="Running", exit_code=0, detail_status="test")
         expected_cg1 = make_mock_cg_with_missing_events(expected_c_state1)
-        expected_c_state2 = ContainerState(state='Terminated', exit_code=0, detail_status='test')
+        expected_c_state2 = ContainerState(state="Terminated", exit_code=0, detail_status="test")
         expected_cg2 = make_mock_cg(expected_c_state2)
 
         aci_mock.return_value.get_state.side_effect = [expected_cg1, expected_cg2]
@@ -352,11 +352,11 @@ class TestACIOperator(unittest.TestCase):
         aci = AzureContainerInstancesOperator(
             ci_conn_id=None,
             registry_conn_id=None,
-            resource_group='resource-group',
-            name='container-name',
-            image='container-image',
-            region='region',
-            task_id='task',
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
         )
 
         aci.execute(None)

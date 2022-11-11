@@ -26,18 +26,18 @@ from airflow.www import validators
 
 class TestGreaterEqualThan:
     def setup_method(self):
-        self.form_field_mock = mock.MagicMock(data='2017-05-06')
+        self.form_field_mock = mock.MagicMock(data="2017-05-06")
         self.form_field_mock.gettext.side_effect = lambda msg: msg
-        self.other_field_mock = mock.MagicMock(data='2017-05-05')
+        self.other_field_mock = mock.MagicMock(data="2017-05-05")
         self.other_field_mock.gettext.side_effect = lambda msg: msg
-        self.other_field_mock.label.text = 'other field'
-        self.form_stub = {'other_field': self.other_field_mock}
+        self.other_field_mock.label.text = "other field"
+        self.form_stub = {"other_field": self.other_field_mock}
         self.form_mock = mock.MagicMock(spec_set=dict)
         self.form_mock.__getitem__.side_effect = self.form_stub.__getitem__
 
     def _validate(self, fieldname=None, message=None):
         if fieldname is None:
-            fieldname = 'other_field'
+            fieldname = "other_field"
 
         validator = validators.GreaterEqualThan(fieldname=fieldname, message=message)
 
@@ -46,7 +46,7 @@ class TestGreaterEqualThan:
     def test_field_not_found(self):
         with pytest.raises(validators.ValidationError, match="^Invalid field name 'some'.$"):
             self._validate(
-                fieldname='some',
+                fieldname="some",
             )
 
     def test_form_field_is_none(self):
@@ -69,7 +69,7 @@ class TestGreaterEqualThan:
         assert self._validate() is None
 
     def test_validation_raises(self):
-        self.form_field_mock.data = '2017-05-04'
+        self.form_field_mock.data = "2017-05-04"
 
         with pytest.raises(
             validators.ValidationError, match="^Field must be greater than or equal to other field.$"
@@ -77,7 +77,7 @@ class TestGreaterEqualThan:
             self._validate()
 
     def test_validation_raises_custom_message(self):
-        self.form_field_mock.data = '2017-05-04'
+        self.form_field_mock.data = "2017-05-04"
 
         with pytest.raises(
             validators.ValidationError, match="^This field must be greater than or equal to MyField.$"
@@ -108,13 +108,13 @@ class TestValidJson:
         assert self._validate() is None
 
     def test_validation_raises_default_message(self):
-        self.form_field_mock.data = '2017-05-04'
+        self.form_field_mock.data = "2017-05-04"
 
         with pytest.raises(validators.ValidationError, match="JSON Validation Error:.*"):
             self._validate()
 
     def test_validation_raises_custom_message(self):
-        self.form_field_mock.data = '2017-05-04'
+        self.form_field_mock.data = "2017-05-04"
 
         with pytest.raises(validators.ValidationError, match="Invalid JSON"):
             self._validate(

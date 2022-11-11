@@ -36,8 +36,8 @@ SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
 
 
 def _parse_version(val):
-    val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), val)
-    return tuple(int(x) for x in val.split('.'))
+    val = re.sub(r"(\d+\.\d+\.\d+).*", lambda x: x.group(1), val)
+    return tuple(int(x) for x in val.split("."))
 
 
 class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
@@ -107,9 +107,9 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
             )
         except (DefaultCredentialsError, FileNotFoundError):
             log.exception(
-                'Unable to load credentials for GCP Secret Manager. '
-                'Make sure that the keyfile path, dictionary, or GOOGLE_APPLICATION_CREDENTIALS '
-                'environment variable is correct and properly configured.'
+                "Unable to load credentials for GCP Secret Manager. "
+                "Make sure that the keyfile path, dictionary, or GOOGLE_APPLICATION_CREDENTIALS "
+                "environment variable is correct and properly configured."
             )
 
         # In case project id provided

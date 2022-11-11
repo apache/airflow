@@ -62,8 +62,8 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
 
     # [START gcp_transfer_job_sensor_template_fields]
     template_fields: Sequence[str] = (
-        'job_name',
-        'impersonation_chain',
+        "job_name",
+        "impersonation_chain",
     )
     # [END gcp_transfer_job_sensor_template_fields]
     operator_extra_links = (CloudStorageTransferJobLink(),)
@@ -74,7 +74,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         job_name: str,
         expected_statuses: set[str] | str,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -93,7 +93,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
             impersonation_chain=self.impersonation_chain,
         )
         operations = hook.list_transfer_operations(
-            request_filter={'project_id': self.project_id, 'job_names': [self.job_name]}
+            request_filter={"project_id": self.project_id, "job_names": [self.job_name]}
         )
 
         for operation in operations:

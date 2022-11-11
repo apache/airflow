@@ -107,14 +107,14 @@ CONFIG = {
     },
     "software_config": {"properties": {"properties": "data"}, "optional_components": ["optional_components"]},
     "lifecycle_config": {
-        "idle_delete_ttl": {'seconds': 60},
+        "idle_delete_ttl": {"seconds": 60},
         "auto_delete_time": "2019-09-12T00:00:00.000000Z",
     },
     "encryption_config": {"gce_pd_kms_key_name": "customer_managed_key"},
     "autoscaling_config": {"policy_uri": "autoscaling_policy"},
     "config_bucket": "storage_bucket",
     "initialization_actions": [
-        {"executable_file": "init_actions_uris", "execution_timeout": {'seconds': 600}}
+        {"executable_file": "init_actions_uris", "execution_timeout": {"seconds": 600}}
     ],
     "endpoint_config": {},
 }
@@ -129,7 +129,7 @@ VIRTUAL_CLUSTER_CONFIG = {
                 }
             ],
         },
-        "kubernetes_software_config": {"component_version": {"SPARK": b'3'}},
+        "kubernetes_software_config": {"component_version": {"SPARK": b"3"}},
     },
     "staging_bucket": "test-staging-bucket",
 }
@@ -167,14 +167,14 @@ CONFIG_WITH_CUSTOM_IMAGE_FAMILY = {
     },
     "software_config": {"properties": {"properties": "data"}, "optional_components": ["optional_components"]},
     "lifecycle_config": {
-        "idle_delete_ttl": {'seconds': 60},
+        "idle_delete_ttl": {"seconds": 60},
         "auto_delete_time": "2019-09-12T00:00:00.000000Z",
     },
     "encryption_config": {"gce_pd_kms_key_name": "customer_managed_key"},
     "autoscaling_config": {"policy_uri": "autoscaling_policy"},
     "config_bucket": "storage_bucket",
     "initialization_actions": [
-        {"executable_file": "init_actions_uris", "execution_timeout": {'seconds': 600}}
+        {"executable_file": "init_actions_uris", "execution_timeout": {"seconds": 600}}
     ],
     "endpoint_config": {
         "enable_http_port_access": True,
@@ -183,7 +183,7 @@ CONFIG_WITH_CUSTOM_IMAGE_FAMILY = {
 
 LABELS = {"labels": "data", "airflow-version": AIRFLOW_VERSION}
 
-LABELS.update({'airflow-version': 'v' + airflow_version.replace('.', '-').replace('+', '-')})
+LABELS.update({"airflow-version": "v" + airflow_version.replace(".", "-").replace("+", "-")})
 
 CLUSTER = {"project_id": "project_id", "cluster_name": CLUSTER_NAME, "config": CONFIG, "labels": LABELS}
 
@@ -208,7 +208,7 @@ WORKFLOW_TEMPLATE = {
     },
     "jobs": [{"step_id": "pig_job_1", "pig_job": {}}],
 }
-TEST_DAG_ID = 'test-dataproc-operators'
+TEST_DAG_ID = "test-dataproc-operators"
 DEFAULT_DATE = datetime(2020, 1, 1)
 TEST_JOB_ID = "test-job"
 
@@ -255,13 +255,13 @@ class DataprocTestBase(unittest.TestCase):
         self.mock_ti = MagicMock()
         self.mock_context = {"ti": self.mock_ti}
         self.extra_links_manager_mock = Mock()
-        self.extra_links_manager_mock.attach_mock(self.mock_ti, 'ti')
+        self.extra_links_manager_mock.attach_mock(self.mock_ti, "ti")
 
     def tearDown(self):
         self.mock_ti = MagicMock()
         self.mock_context = {"ti": self.mock_ti}
         self.extra_links_manager_mock = Mock()
-        self.extra_links_manager_mock.attach_mock(self.mock_ti, 'ti')
+        self.extra_links_manager_mock.attach_mock(self.mock_ti, "ti")
 
     @classmethod
     def tearDownClass(cls):
@@ -274,7 +274,7 @@ class DataprocJobTestBase(DataprocTestBase):
     def setUpClass(cls):
         super().setUpClass()
         cls.extra_links_expected_calls = [
-            call.ti.xcom_push(execution_date=None, key='conf', value=DATAPROC_JOB_CONF_EXPECTED),
+            call.ti.xcom_push(execution_date=None, key="conf", value=DATAPROC_JOB_CONF_EXPECTED),
             call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_LOCATION, project_id=GCP_PROJECT),
         ]
 
@@ -284,7 +284,7 @@ class DataprocClusterTestBase(DataprocTestBase):
     def setUpClass(cls):
         super().setUpClass()
         cls.extra_links_expected_calls_base = [
-            call.ti.xcom_push(execution_date=None, key='conf', value=DATAPROC_CLUSTER_CONF_EXPECTED)
+            call.ti.xcom_push(execution_date=None, key="conf", value=DATAPROC_CLUSTER_CONF_EXPECTED)
         ]
 
 
@@ -417,25 +417,25 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
 
         assert op.project_id == GCP_PROJECT
         assert op.cluster_name == "cluster_name"
-        assert op.cluster_config['worker_config']['num_instances'] == 2
-        assert "zones/zone" in op.cluster_config['master_config']["machine_type_uri"]
+        assert op.cluster_config["worker_config"]["num_instances"] == 2
+        assert "zones/zone" in op.cluster_config["master_config"]["machine_type_uri"]
 
     @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook, to_dict_mock):
-        self.extra_links_manager_mock.attach_mock(mock_hook, 'hook')
+        self.extra_links_manager_mock.attach_mock(mock_hook, "hook")
         mock_hook.return_value.create_cluster.result.return_value = None
         create_cluster_args = {
-            'region': GCP_LOCATION,
-            'project_id': GCP_PROJECT,
-            'cluster_name': CLUSTER_NAME,
-            'request_id': REQUEST_ID,
-            'retry': RETRY,
-            'timeout': TIMEOUT,
-            'metadata': METADATA,
-            'cluster_config': CONFIG,
-            'labels': LABELS,
-            'virtual_cluster_config': None,
+            "region": GCP_LOCATION,
+            "project_id": GCP_PROJECT,
+            "cluster_name": CLUSTER_NAME,
+            "request_id": REQUEST_ID,
+            "retry": RETRY,
+            "timeout": TIMEOUT,
+            "metadata": METADATA,
+            "cluster_config": CONFIG,
+            "labels": LABELS,
+            "virtual_cluster_config": None,
         }
         expected_calls = self.extra_links_expected_calls_base + [
             call.hook().create_cluster(**create_cluster_args),
@@ -472,19 +472,19 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
     @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_in_gke(self, mock_hook, to_dict_mock):
-        self.extra_links_manager_mock.attach_mock(mock_hook, 'hook')
+        self.extra_links_manager_mock.attach_mock(mock_hook, "hook")
         mock_hook.return_value.create_cluster.result.return_value = None
         create_cluster_args = {
-            'region': GCP_LOCATION,
-            'project_id': GCP_PROJECT,
-            'cluster_name': CLUSTER_NAME,
-            'request_id': REQUEST_ID,
-            'retry': RETRY,
-            'timeout': TIMEOUT,
-            'metadata': METADATA,
-            'cluster_config': None,
-            'labels': LABELS,
-            'virtual_cluster_config': VIRTUAL_CLUSTER_CONFIG,
+            "region": GCP_LOCATION,
+            "project_id": GCP_PROJECT,
+            "cluster_name": CLUSTER_NAME,
+            "request_id": REQUEST_ID,
+            "retry": RETRY,
+            "timeout": TIMEOUT,
+            "metadata": METADATA,
+            "cluster_config": None,
+            "labels": LABELS,
+            "virtual_cluster_config": VIRTUAL_CLUSTER_CONFIG,
         }
         expected_calls = self.extra_links_expected_calls_base + [
             call.hook().create_cluster(**create_cluster_args),
@@ -702,18 +702,18 @@ class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
-        self.extra_links_manager_mock.attach_mock(mock_hook, 'hook')
+        self.extra_links_manager_mock.attach_mock(mock_hook, "hook")
         mock_hook.return_value.update_cluster.result.return_value = None
         cluster_update = {
             "config": {"worker_config": {"num_instances": 3}, "secondary_worker_config": {"num_instances": 4}}
         }
         update_cluster_args = {
-            'project_id': GCP_PROJECT,
-            'region': GCP_LOCATION,
-            'cluster_name': CLUSTER_NAME,
-            'cluster': cluster_update,
-            'graceful_decommission_timeout': {"seconds": 600},
-            'update_mask': UPDATE_MASK,
+            "project_id": GCP_PROJECT,
+            "region": GCP_LOCATION,
+            "cluster_name": CLUSTER_NAME,
+            "cluster": cluster_update,
+            "graceful_decommission_timeout": {"seconds": 600},
+            "update_mask": UPDATE_MASK,
         }
         expected_calls = self.extra_links_expected_calls_base + [
             call.hook().update_cluster(**update_cluster_args)
@@ -819,7 +819,7 @@ class TestDataprocClusterDeleteOperator(unittest.TestCase):
 class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
-        xcom_push_call = call.ti.xcom_push(execution_date=None, key='conf', value=DATAPROC_JOB_CONF_EXPECTED)
+        xcom_push_call = call.ti.xcom_push(execution_date=None, key="conf", value=DATAPROC_JOB_CONF_EXPECTED)
         wait_for_job_call = call.hook().wait_for_job(
             job_id=TEST_JOB_ID, region=GCP_LOCATION, project_id=GCP_PROJECT, timeout=None
         )
@@ -827,7 +827,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         job = {}
         mock_hook.return_value.wait_for_job.return_value = None
         mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
-        self.extra_links_manager_mock.attach_mock(mock_hook, 'hook')
+        self.extra_links_manager_mock.attach_mock(mock_hook, "hook")
 
         op = DataprocSubmitJobOperator(
             task_id=TASK_ID,
@@ -849,7 +849,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         self.assertLess(
             self.extra_links_manager_mock.mock_calls.index(xcom_push_call),
             self.extra_links_manager_mock.mock_calls.index(wait_for_job_call),
-            msg='Xcom push for Job Link has to be done before polling for job status',
+            msg="Xcom push for Job Link has to be done before polling for job status",
         )
 
         mock_hook.return_value.submit_job.assert_called_once_with(
@@ -1073,20 +1073,20 @@ def test_submit_job_operator_extra_links(mock_hook, dag_maker, create_task_insta
 class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
-        self.extra_links_manager_mock.attach_mock(mock_hook, 'hook')
+        self.extra_links_manager_mock.attach_mock(mock_hook, "hook")
         mock_hook.return_value.update_cluster.result.return_value = None
         cluster_decommission_timeout = {"graceful_decommission_timeout": "600s"}
         update_cluster_args = {
-            'region': GCP_LOCATION,
-            'project_id': GCP_PROJECT,
-            'cluster_name': CLUSTER_NAME,
-            'cluster': CLUSTER,
-            'update_mask': UPDATE_MASK,
-            'graceful_decommission_timeout': cluster_decommission_timeout,
-            'request_id': REQUEST_ID,
-            'retry': RETRY,
-            'timeout': TIMEOUT,
-            'metadata': METADATA,
+            "region": GCP_LOCATION,
+            "project_id": GCP_PROJECT,
+            "cluster_name": CLUSTER_NAME,
+            "cluster": CLUSTER,
+            "update_mask": UPDATE_MASK,
+            "graceful_decommission_timeout": cluster_decommission_timeout,
+            "request_id": REQUEST_ID,
+            "retry": RETRY,
+            "timeout": TIMEOUT,
+            "metadata": METADATA,
         }
         expected_calls = self.extra_links_expected_calls_base + [
             call.hook().update_cluster(**update_cluster_args)
@@ -1497,7 +1497,7 @@ class TestDataProcSparkOperator(DataprocJobTestBase):
         mock_hook.return_value.project_id = GCP_PROJECT
         mock_uuid.return_value = TEST_JOB_ID
         mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
-        self.extra_links_manager_mock.attach_mock(mock_hook, 'hook')
+        self.extra_links_manager_mock.attach_mock(mock_hook, "hook")
 
         op = DataprocSubmitSparkJobOperator(
             job_name=self.job_name,

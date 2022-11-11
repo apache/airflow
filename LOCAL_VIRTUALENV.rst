@@ -205,14 +205,14 @@ Activate your virtualenv, e.g. by using ``workon``, and once you are in it, run:
 
 .. code-block:: bash
 
-  ./scripts/ci/tools/initialize_virtualenv.py
+  ./scripts/tools/initialize_virtualenv.py
 
 By default Breeze installs the ``devel`` extra only. You can optionally control which extras are
 Adding extra dependencies as parameter.
 
 .. code-block:: bash
 
-  ./scripts/ci/tools/initialize_virtualenv.py devel,google,postgres
+  ./scripts/tools/initialize_virtualenv.py devel,google,postgres
 
 
 Developing Providers

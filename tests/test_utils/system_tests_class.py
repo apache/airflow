@@ -35,7 +35,7 @@ DEFAULT_DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "example_dags"
 
 def get_default_logs_if_none(logs: str | None) -> str:
     if logs is None:
-        return os.path.join(AIRFLOW_HOME, 'logs')
+        return os.path.join(AIRFLOW_HOME, "logs")
     return logs
 
 

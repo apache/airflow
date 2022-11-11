@@ -39,7 +39,6 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_image_pull_secrets,
     convert_pod_runtime_info_env,
     convert_port,
-    convert_resources,
     convert_toleration,
     convert_volume,
     convert_volume_mount,
@@ -61,6 +60,31 @@ if TYPE_CHECKING:
     import jinja2
 
     from airflow.utils.context import Context
+
+
+def _task_id_to_pod_name(val: str) -> str:
+    """
+    Given a task_id, convert it to a pod name.
+    Adds a 0 if start or end char is invalid.
+    Replaces any other invalid char with `-`.
+
+    :param val: non-empty string, presumed to be a task id
+    :return valid kubernetes object name.
+    """
+    if not val:
+        raise ValueError("_task_id_to_pod_name requires non-empty string.")
+    val = val.lower()
+    if not re.match(r"[a-z0-9]", val[0]):
+        val = f"0{val}"
+    if not re.match(r"[a-z0-9]", val[-1]):
+        val = f"{val}0"
+    val = re.sub(r"[^a-z0-9\-.]", "-", val)
+    if len(val) > 253:
+        raise ValueError(
+            f"Pod name {val} is longer than 253 characters. "
+            "See https://kubernetes.io/docs/concepts/overview/working-with-objects/names/."
+        )
+    return val
 
 
 class PodReattachFailure(AirflowException):
@@ -113,12 +137,10 @@ class KubernetesPodOperator(BaseOperator):
     :param annotations: non-identifying metadata you can attach to the Pod.
         Can be a large range of data, and can include characters
         that are not permitted by labels.
-    :param container_resources: resources for the launched pod.
+    :param container_resources: resources for the launched pod. (templated)
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
-    :param node_selectors: (Deprecated) A dict containing a group of scheduling rules.
-        Please use node_selector instead.
     :param node_selector: A dict containing a group of scheduling rules.
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
         If more than one secret is required, provide a
@@ -151,20 +173,21 @@ class KubernetesPodOperator(BaseOperator):
         Extends env_from.
     """
 
-    BASE_CONTAINER_NAME = 'base'
-    POD_CHECKED_KEY = 'already_checked'
+    BASE_CONTAINER_NAME = "base"
+    POD_CHECKED_KEY = "already_checked"
 
     template_fields: Sequence[str] = (
-        'image',
-        'cmds',
-        'arguments',
-        'env_vars',
-        'labels',
-        'config_file',
-        'pod_template_file',
-        'namespace',
+        "image",
+        "cmds",
+        "arguments",
+        "env_vars",
+        "labels",
+        "config_file",
+        "pod_template_file",
+        "namespace",
+        "container_resources",
     )
-    template_fields_renderers = {'env_vars': 'py'}
+    template_fields_renderers = {"env_vars": "py"}
 
     def __init__(
         self,
@@ -193,7 +216,6 @@ class KubernetesPodOperator(BaseOperator):
         container_resources: k8s.V1ResourceRequirements | None = None,
         affinity: k8s.V1Affinity | None = None,
         config_file: str | None = None,
-        node_selectors: dict | None = None,
         node_selector: dict | None = None,
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
@@ -213,21 +235,23 @@ class KubernetesPodOperator(BaseOperator):
         pod_runtime_info_envs: list[k8s.V1EnvVar] | None = None,
         termination_grace_period: int | None = None,
         configmaps: list[str] | None = None,
-        resources: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
-
-        if isinstance(resources, k8s.V1ResourceRequirements):
-            warnings.warn(
+        # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
+        # container_resources parameter.
+        if isinstance(kwargs.get("resources"), k8s.V1ResourceRequirements):
+            raise AirflowException(
                 "Specifying resources for the launched pod with 'resources' is deprecated. "
-                "Use 'container_resources' instead.",
-                category=DeprecationWarning,
-                stacklevel=2,
+                "Use 'container_resources' instead."
             )
-            container_resources = resources
-            resources = None
-
-        super().__init__(resources=resources, **kwargs)
+        # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
+        # node_selector parameter.
+        if "node_selectors" in kwargs:
+            raise ValueError(
+                "Param `node_selectors` supplied. This param is no longer supported. "
+                "Use `node_selector` instead."
+            )
+        super().__init__(**kwargs)
         self.kubernetes_conn_id = kubernetes_conn_id
         self.do_xcom_push = do_xcom_push
         self.image = image
@@ -251,19 +275,10 @@ class KubernetesPodOperator(BaseOperator):
         self.reattach_on_restart = reattach_on_restart
         self.get_logs = get_logs
         self.image_pull_policy = image_pull_policy
-        if node_selectors:
-            # Node selectors is incorrect based on k8s API
-            warnings.warn(
-                "node_selectors is deprecated. Please use node_selector instead.", DeprecationWarning
-            )
-            self.node_selector = node_selectors
-        elif node_selector:
-            self.node_selector = node_selector
-        else:
-            self.node_selector = {}
+        self.node_selector = node_selector or {}
         self.annotations = annotations or {}
         self.affinity = convert_affinity(affinity) if affinity else {}
-        self.k8s_resources = convert_resources(container_resources) if container_resources else {}
+        self.container_resources = container_resources
         self.config_file = config_file
         self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.service_account_name = service_account_name
@@ -287,6 +302,13 @@ class KubernetesPodOperator(BaseOperator):
         self.pod_request_obj: k8s.V1Pod | None = None
         self.pod: k8s.V1Pod | None = None
 
+    @cached_property
+    def _incluster_namespace(self):
+        from pathlib import Path
+
+        path = Path("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+        return path.exists() and path.read_text() or None
+
     def _render_nested_template_fields(
         self,
         content: Any,
@@ -296,7 +318,12 @@ class KubernetesPodOperator(BaseOperator):
     ) -> None:
         if id(content) not in seen_oids and isinstance(content, k8s.V1EnvVar):
             seen_oids.add(id(content))
-            self._do_render_template_fields(content, ('value', 'name'), context, jinja_env, seen_oids)
+            self._do_render_template_fields(content, ("value", "name"), context, jinja_env, seen_oids)
+            return
+
+        if id(content) not in seen_oids and isinstance(content, k8s.V1ResourceRequirements):
+            seen_oids.add(id(content))
+            self._do_render_template_fields(content, ("limits", "requests"), context, jinja_env, seen_oids)
             return
 
         super()._render_nested_template_fields(content, context, jinja_env, seen_oids)
@@ -312,26 +339,25 @@ class KubernetesPodOperator(BaseOperator):
         if not context:
             return {}
 
-        ti = context['ti']
-        run_id = context['run_id']
+        ti = context["ti"]
+        run_id = context["run_id"]
 
         labels = {
-            'dag_id': ti.dag_id,
-            'task_id': ti.task_id,
-            'run_id': run_id,
-            'kubernetes_pod_operator': 'True',
+            "dag_id": ti.dag_id,
+            "task_id": ti.task_id,
+            "run_id": run_id,
+            "kubernetes_pod_operator": "True",
         }
 
-        # If running on Airflow 2.3+:
-        map_index = getattr(ti, 'map_index', -1)
+        map_index = ti.map_index
         if map_index >= 0:
-            labels['map_index'] = map_index
+            labels["map_index"] = map_index
 
         if include_try_number:
             labels.update(try_number=ti.try_number)
         # In the case of sub dags this is just useful
-        if context['dag'].parent_dag:
-            labels['parent_dag_id'] = context['dag'].parent_dag.dag_id
+        if context["dag"].parent_dag:
+            labels["parent_dag_id"] = context["dag"].parent_dag.dag_id
         # Ensure that label is valid for Kube,
         # and if not truncate/remove invalid chars and replace with short hash.
         for label_id, label in labels.items():
@@ -372,12 +398,12 @@ class KubernetesPodOperator(BaseOperator):
         pod = None
         num_pods = len(pod_list)
         if num_pods > 1:
-            raise AirflowException(f'More than one pod running with labels {label_selector}')
+            raise AirflowException(f"More than one pod running with labels {label_selector}")
         elif num_pods == 1:
             pod = pod_list[0]
             self.log.info("Found matching pod %s with labels %s", pod.metadata.name, pod.metadata.labels)
-            self.log.info("`try_number` of task_instance: %s", context['ti'].try_number)
-            self.log.info("`try_number` of pod: %s", pod.metadata.labels['try_number'])
+            self.log.info("`try_number` of task_instance: %s", context["ti"].try_number)
+            self.log.info("`try_number` of pod: %s", pod.metadata.labels["try_number"])
         return pod
 
     def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context: Context) -> k8s.V1Pod:
@@ -401,7 +427,7 @@ class KubernetesPodOperator(BaseOperator):
     def extract_xcom(self, pod: k8s.V1Pod):
         """Retrieves xcom value and kills xcom sidecar container"""
         result = self.pod_manager.extract_xcom(pod)
-        if isinstance(result, str) and result.rstrip() == '__airflow_xcom_result_empty__':
+        if isinstance(result, str) and result.rstrip() == "__airflow_xcom_result_empty__":
             self.log.info("Result file is empty.")
             return None
         else:
@@ -440,14 +466,14 @@ class KubernetesPodOperator(BaseOperator):
                 pod=self.pod or self.pod_request_obj,
                 remote_pod=remote_pod,
             )
-        ti = context['ti']
-        ti.xcom_push(key='pod_name', value=self.pod.metadata.name)
-        ti.xcom_push(key='pod_namespace', value=self.pod.metadata.namespace)
+        ti = context["ti"]
+        ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
+        ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
         if self.do_xcom_push:
             return result
 
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
-        pod_phase = remote_pod.status.phase if hasattr(remote_pod, 'status') else None
+        pod_phase = remote_pod.status.phase if hasattr(remote_pod, "status") else None
         if not self.is_delete_operator_pod:
             with _suppress(Exception):
                 self.patch_already_checked(remote_pod)
@@ -461,7 +487,7 @@ class KubernetesPodOperator(BaseOperator):
             error_message = get_container_termination_message(remote_pod, self.BASE_CONTAINER_NAME)
             error_message = "\n" + error_message if error_message else ""
             raise AirflowException(
-                f'Pod {pod and pod.metadata.name} returned a failure:{error_message}\n{remote_pod}'
+                f"Pod {pod and pod.metadata.name} returned a failure:{error_message}\n{remote_pod}"
             )
         else:
             with _suppress(Exception):
@@ -477,21 +503,19 @@ class KubernetesPodOperator(BaseOperator):
 
     def _build_find_pod_label_selector(self, context: Context | None = None, *, exclude_checked=True) -> str:
         labels = self._get_ti_pod_labels(context, include_try_number=False)
-        label_strings = [f'{label_id}={label}' for label_id, label in sorted(labels.items())]
-        labels_value = ','.join(label_strings)
+        label_strings = [f"{label_id}={label}" for label_id, label in sorted(labels.items())]
+        labels_value = ",".join(label_strings)
         if exclude_checked:
-            labels_value += f',{self.POD_CHECKED_KEY}!=True'
-        labels_value += ',!airflow-worker'
+            labels_value += f",{self.POD_CHECKED_KEY}!=True"
+        labels_value += ",!airflow-worker"
         return labels_value
 
-    def _set_name(self, name: str | None) -> str | None:
-        if name is None:
-            if self.pod_template_file or self.full_pod_spec:
-                return None
-            raise AirflowException("`name` is required unless `pod_template_file` or `full_pod_spec` is set")
-
-        validate_key(name, max_length=220)
-        return re.sub(r'[^a-z0-9-]+', '-', name.lower())
+    @staticmethod
+    def _set_name(name: str | None) -> str | None:
+        if name is not None:
+            validate_key(name, max_length=220)
+            return re.sub(r"[^a-z0-9-]+", "-", name.lower())
+        return None
 
     def patch_already_checked(self, pod: k8s.V1Pod):
         """Add an "already checked" annotation to ensure we don't reattach on retries"""
@@ -526,7 +550,7 @@ class KubernetesPodOperator(BaseOperator):
         elif self.full_pod_spec:
             pod_template = self.full_pod_spec
         else:
-            pod_template = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="name"))
+            pod_template = k8s.V1Pod(metadata=k8s.V1ObjectMeta())
 
         pod = k8s.V1Pod(
             api_version="v1",
@@ -549,7 +573,7 @@ class KubernetesPodOperator(BaseOperator):
                         command=self.cmds,
                         ports=self.ports,
                         image_pull_policy=self.image_pull_policy,
-                        resources=self.k8s_resources,
+                        resources=self.container_resources,
                         volume_mounts=self.volume_mounts,
                         args=self.arguments,
                         env=self.env_vars,
@@ -563,7 +587,7 @@ class KubernetesPodOperator(BaseOperator):
                 security_context=self.security_context,
                 dns_policy=self.dnspolicy,
                 scheduler_name=self.schedulername,
-                restart_policy='Never',
+                restart_policy="Never",
                 priority_class_name=self.priority_class_name,
                 volumes=self.volumes,
             ),
@@ -571,18 +595,30 @@ class KubernetesPodOperator(BaseOperator):
 
         pod = PodGenerator.reconcile_pods(pod_template, pod)
 
+        if not pod.metadata.name:
+            pod.metadata.name = _task_id_to_pod_name(self.task_id)
+
         if self.random_name_suffix:
             pod.metadata.name = PodGenerator.make_unique_pod_id(pod.metadata.name)
+
+        if not pod.metadata.namespace:
+            # todo: replace with call to `hook.get_namespace` in 6.0, when it doesn't default to `default`.
+            # if namespace not actually defined in hook, we want to check k8s if in cluster
+            hook_namespace = self.hook._get_namespace()
+            pod_namespace = self.namespace or hook_namespace or self._incluster_namespace or "default"
+            pod.metadata.namespace = pod_namespace
 
         for secret in self.secrets:
             self.log.debug("Adding secret to task %s", self.task_id)
             pod = secret.attach_to_pod(pod)
         if self.do_xcom_push:
             self.log.debug("Adding xcom sidecar to task %s", self.task_id)
-            pod = xcom_sidecar.add_xcom_sidecar(pod)
+            pod = xcom_sidecar.add_xcom_sidecar(
+                pod, sidecar_container_image=self.hook.get_xcom_sidecar_container_image()
+            )
 
         labels = self._get_ti_pod_labels(context)
-        self.log.info("Creating pod %s with labels: %s", pod.metadata.name, labels)
+        self.log.info("Building pod %s with labels: %s", pod.metadata.name, labels)
 
         # Merge Pod Identifying labels with labels passed to operator
         pod.metadata.labels.update(labels)
@@ -590,8 +626,8 @@ class KubernetesPodOperator(BaseOperator):
         # And a label to identify that pod is launched by KubernetesPodOperator
         pod.metadata.labels.update(
             {
-                'airflow_version': airflow_version.replace('+', '-'),
-                'airflow_kpo_in_cluster': str(self.hook.is_in_cluster),
+                "airflow_version": airflow_version.replace("+", "-"),
+                "airflow_kpo_in_cluster": str(self.hook.is_in_cluster),
             }
         )
         pod_mutation_hook(pod)
@@ -604,7 +640,7 @@ class KubernetesPodOperator(BaseOperator):
         one in a dry_run) and excludes all empty elements.
         """
         pod = self.build_pod_request_obj()
-        print(yaml.dump(prune_dict(pod.to_dict(), mode='strict')))
+        print(yaml.dump(prune_dict(pod.to_dict(), mode="strict")))
 
 
 class _suppress(AbstractContextManager):
@@ -628,5 +664,5 @@ class _suppress(AbstractContextManager):
         if caught_error:
             self.exception = excinst
             logger = logging.getLogger(__name__)
-            logger.error(str(excinst), exc_info=True)
+            logger.exception(excinst)
         return caught_error

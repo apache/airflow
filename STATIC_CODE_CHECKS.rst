@@ -59,7 +59,7 @@ After installation, pre-commit hooks are run automatically when you commit the c
 only run on the files that you change during your commit, so they are usually pretty fast and do
 not slow down your iteration speed on your changes. There are also ways to disable the ``pre-commits``
 temporarily when you commit your code with ``--no-verify`` switch or skip certain checks that you find
-to much disturbing your local workflow. See `Available pre-commit checks<#available-pre-commit-checks>`_
+to much disturbing your local workflow. See `Available pre-commit checks <#available-pre-commit-checks>`_
 and `Using pre-commit <#using-pre-commit>`_
 
 .. note:: Additional prerequisites might be needed
@@ -76,7 +76,7 @@ The current list of prerequisites is limited to ``xmllint``:
 
 Some pre-commit hooks also require the Docker Engine to be configured as the static
 checks are executed in the Docker environment (See table in the
-Available pre-commit checks<#available-pre-commit-checks>`_ . You should build the images
+`Available pre-commit checks <#available-pre-commit-checks>`_ . You should build the images
 locally before installing pre-commit checks as described in `BREEZE.rst <BREEZE.rst>`__.
 
 Sometimes your image is outdated and needs to be rebuilt because some dependencies have been changed.
@@ -132,13 +132,13 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | ID                                                     | Description                                                      | Image   |
 +========================================================+==================================================================+=========+
-| black                                                  | Run Black (the uncompromising Python code formatter)             |         |
+| black                                                  | Run black (python formatter)                                     |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | blacken-docs                                           | Run black on python code blocks in documentation files           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| check-airflow-2-2-compatibility                        | Check that providers are 2.2 compatible.                         |         |
-+--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-airflow-config-yaml-consistent                   | Checks for consistency between config.yml and default_config.cfg |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-airflow-provider-compatibility                   | Check compatibility of Providers with Airflow                    |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-apache-license-rat                               | Check if licenses are OK for Apache                              |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+

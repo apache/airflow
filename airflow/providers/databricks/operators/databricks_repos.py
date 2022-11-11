@@ -56,7 +56,7 @@ class DatabricksReposCreateOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ('repo_path', 'tag', 'branch', 'databricks_conn_id')
+    template_fields: Sequence[str] = ("repo_path", "tag", "branch", "databricks_conn_id")
 
     __git_providers__ = {
         "github.com": "gitHub",
@@ -76,7 +76,7 @@ class DatabricksReposCreateOperator(BaseOperator):
         tag: str | None = None,
         repo_path: str | None = None,
         ignore_existing_repo: bool = False,
-        databricks_conn_id: str = 'databricks_default',
+        databricks_conn_id: str = "databricks_default",
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
         **kwargs,
@@ -156,9 +156,9 @@ class DatabricksReposCreateOperator(BaseOperator):
             repo_id = existing_repo_id
         # update repo if necessary
         if self.branch is not None:
-            self._hook.update_repo(str(repo_id), {'branch': str(self.branch)})
+            self._hook.update_repo(str(repo_id), {"branch": str(self.branch)})
         elif self.tag is not None:
-            self._hook.update_repo(str(repo_id), {'tag': str(self.tag)})
+            self._hook.update_repo(str(repo_id), {"tag": str(self.tag)})
 
         return repo_id
 
@@ -184,7 +184,7 @@ class DatabricksReposUpdateOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ('repo_path', 'tag', 'branch', 'databricks_conn_id')
+    template_fields: Sequence[str] = ("repo_path", "tag", "branch", "databricks_conn_id")
 
     def __init__(
         self,
@@ -193,7 +193,7 @@ class DatabricksReposUpdateOperator(BaseOperator):
         tag: str | None = None,
         repo_id: str | None = None,
         repo_path: str | None = None,
-        databricks_conn_id: str = 'databricks_default',
+        databricks_conn_id: str = "databricks_default",
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
         **kwargs,
@@ -231,12 +231,12 @@ class DatabricksReposUpdateOperator(BaseOperator):
             if self.repo_id is None:
                 raise AirflowException(f"Can't find Repo ID for path '{self.repo_path}'")
         if self.branch is not None:
-            payload = {'branch': str(self.branch)}
+            payload = {"branch": str(self.branch)}
         else:
-            payload = {'tag': str(self.tag)}
+            payload = {"tag": str(self.tag)}
 
         result = self._hook.update_repo(str(self.repo_id), payload)
-        return result['head_commit_id']
+        return result["head_commit_id"]
 
 
 class DatabricksReposDeleteOperator(BaseOperator):
@@ -258,14 +258,14 @@ class DatabricksReposDeleteOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ('repo_path', 'databricks_conn_id')
+    template_fields: Sequence[str] = ("repo_path", "databricks_conn_id")
 
     def __init__(
         self,
         *,
         repo_id: str | None = None,
         repo_path: str | None = None,
-        databricks_conn_id: str = 'databricks_default',
+        databricks_conn_id: str = "databricks_default",
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
         **kwargs,

@@ -42,17 +42,17 @@ def dagbag():
 
 @pytest.fixture(scope="module")
 def bash_dag(dagbag):
-    return dagbag.get_dag('example_bash_operator')
+    return dagbag.get_dag("example_bash_operator")
 
 
 @pytest.fixture(scope="module")
 def sub_dag(dagbag):
-    return dagbag.get_dag('example_subdag_operator')
+    return dagbag.get_dag("example_subdag_operator")
 
 
 @pytest.fixture(scope="module")
 def xcom_dag(dagbag):
-    return dagbag.get_dag('example_xcom')
+    return dagbag.get_dag("example_xcom")
 
 
 @pytest.fixture(autouse=True)
@@ -116,11 +116,11 @@ def _check_last_log(session, dag_id, event, execution_date):
 
 def test_action_logging_get(session, admin_client):
     url = (
-        f'dags/example_bash_operator/graph?'
-        f'execution_date={urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))}'
+        f"dags/example_bash_operator/graph?"
+        f"execution_date={urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))}"
     )
     resp = admin_client.get(url, follow_redirects=True)
-    check_content_in_response('runme_1', resp)
+    check_content_in_response("runme_1", resp)
 
     # In mysql backend, this commit() is needed to write down the logs
     session.commit()
@@ -134,11 +134,11 @@ def test_action_logging_get(session, admin_client):
 
 def test_action_logging_get_legacy_view(session, admin_client):
     url = (
-        f'graph?dag_id=example_bash_operator&'
-        f'execution_date={urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))}'
+        f"graph?dag_id=example_bash_operator&"
+        f"execution_date={urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))}"
     )
     resp = admin_client.get(url, follow_redirects=True)
-    check_content_in_response('runme_1', resp)
+    check_content_in_response("runme_1", resp)
 
     # In mysql backend, this commit() is needed to write down the logs
     session.commit()
@@ -162,7 +162,7 @@ def test_action_logging_post(session, admin_client):
         only_failed="false",
     )
     resp = admin_client.post("clear", data=form)
-    check_content_in_response(['example_bash_operator', 'Wait a minute'], resp)
+    check_content_in_response(["example_bash_operator", "Wait a minute"], resp)
     # In mysql backend, this commit() is needed to write down the logs
     session.commit()
     _check_last_log(
@@ -174,13 +174,13 @@ def test_action_logging_post(session, admin_client):
 
 
 def test_calendar(admin_client, dagruns):
-    url = 'calendar?dag_id=example_bash_operator'
+    url = "calendar?dag_id=example_bash_operator"
     resp = admin_client.get(url, follow_redirects=True)
 
     bash_dagrun, _, _ = dagruns
 
     datestr = bash_dagrun.execution_date.date().isoformat()
-    expected = rf'{{\"date\":\"{datestr}\",\"state\":\"running\",\"count\":1}}'
+    expected = rf"{{\"date\":\"{datestr}\",\"state\":\"running\",\"count\":1}}"
     check_content_in_response(expected, resp)
 
 
