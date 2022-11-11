@@ -3722,17 +3722,17 @@
                     "default": []
                 },
                 "networkPolicy": {
-                    "description": "Webserver NetworkPolicy configuration",
+                    "description": "Webserver network policy configuration",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "ingress": {
-                            "description": "Webserver NetworkPolicy ingress configuration",
+                            "description": "Webserver network policy ingress configuration",
                             "type": "object",
                             "additionalProperties": false,
                             "properties": {
                                 "from": {
-                                    "description": "Peers for webserver NetworkPolicy ingress.",
+                                    "description": "Peers for webserver network policy ingress.",
                                     "type": "array",
                                     "default": [],
                                     "items": {
@@ -3740,7 +3740,7 @@
                                     }
                                 },
                                 "ports": {
-                                    "description": "Ports for webserver NetworkPolicy ingress (if `from` is set).",
+                                    "description": "Ports for webserver network policy ingress (if `from` is set).",
                                     "type": "array",
                                     "items": {
                                         "$ref": "#/definitions/io.k8s.api.networking.v1.NetworkPolicyPort"
@@ -4194,17 +4194,17 @@
                     "default": []
                 },
                 "networkPolicy": {
-                    "description": "Flower NetworkPolicy configuration",
+                    "description": "Flower network policy configuration",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "ingress": {
-                            "description": "Flower NetworkPolicy ingress configuration",
+                            "description": "Flower network policy ingress configuration",
                             "type": "object",
                             "additionalProperties": false,
                             "properties": {
                                 "from": {
-                                    "description": "Peers for flower NetworkPolicy ingress.",
+                                    "description": "Peers for flower network policy ingress.",
                                     "type": "array",
                                     "default": [],
                                     "items": {
@@ -4212,7 +4212,7 @@
                                     }
                                 },
                                 "ports": {
-                                    "description": "Ports for flower NetworkPolicy ingress (if `from` is set).",
+                                    "description": "Ports for flower network policy ingress (if `from` is set).",
                                     "type": "array",
                                     "items": {
                                         "$ref": "#/definitions/io.k8s.api.networking.v1.NetworkPolicyPort"
@@ -4359,7 +4359,7 @@
                     "type": "object",
                     "properties": {
                         "create": {
-                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "description": "Specifies whether a service account should be created.",
                             "type": "boolean",
                             "default": true
                         },
