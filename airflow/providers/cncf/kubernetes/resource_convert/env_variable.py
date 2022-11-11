@@ -14,15 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
+from typing import List
 
 from kubernetes.client import models as k8s
 
 from airflow import AirflowException
 
 
-def convert_env_vars(env_vars) -> list[k8s.V1EnvVar]:
+def convert_env_vars(env_vars) -> List[k8s.V1EnvVar]:
     """
     Converts a dictionary of key:value into a list of env_vars
 

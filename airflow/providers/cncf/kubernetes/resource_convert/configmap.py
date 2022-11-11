@@ -14,9 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
 from kubernetes.client import models as k8s
+from typing import Dict, List, Tuple
 
 
 def convert_configmap(configmap_name) -> k8s.V1EnvFromSource:
@@ -30,8 +29,8 @@ def convert_configmap(configmap_name) -> k8s.V1EnvFromSource:
 
 
 def convert_configmap_to_volume(
-    configmap_info: dict[str, str]
-) -> tuple[list[k8s.V1Volume], list[k8s.V1VolumeMount]]:
+    configmap_info: Dict[str, str]
+) -> Tuple[List[k8s.V1Volume], List[k8s.V1VolumeMount]]:
     """
     Converts a dictionary of config_map_name and mounth_path into k8s.V1VolumeMount and k8s.V1Volume
 
