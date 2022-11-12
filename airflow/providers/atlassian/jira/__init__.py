@@ -14,3 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module is deprecated. Please use :mod:`airflow.providers.atlassian.operators.jira`."""
+from __future__ import annotations
+
+import warnings
+
+from airflow.providers.atlassian.operators.jira import JiraOperator  # noqa
+
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.atlassian.operators.jira`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

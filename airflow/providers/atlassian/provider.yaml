@@ -27,7 +27,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.3.0
-  - JIRA>1.0.7
+  - atlassian-python-api>=1.14.2
 
 integrations:
   - integration-name: Atlassian Jira
@@ -38,18 +38,18 @@ integrations:
 operators:
   - integration-name: Atlassian Jira
     python-modules:
-      - airflow.providers.atlassian.jira.operators.jira
+      - airflow.providers.atlassian.operators.jira
 
 sensors:
   - integration-name: Atlassian Jira
     python-modules:
-      - airflow.providers.atlassian.jira.sensors.jira
+      - airflow.providers.atlassian.sensors.jira
 
 hooks:
   - integration-name: Atlassian Jira
     python-modules:
-      - airflow.providers.atlassian.jira.hooks.jira
+      - airflow.providers.atlassian.hooks.jira
 
 connection-types:
-  - hook-class-name: airflow.providers.atlassian.jira.hooks.jira.JiraHook
+  - hook-class-name: airflow.providers.atlassian.hooks.jira.JiraHook
     connection-type: jira

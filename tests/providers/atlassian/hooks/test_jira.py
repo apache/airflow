@@ -20,7 +20,7 @@ from __future__ import annotations
 from unittest.mock import Mock, patch
 
 from airflow.models import Connection
-from airflow.providers.atlassian.jira.hooks.jira import JiraHook
+from airflow.providers.atlassian.hooks.jira import JiraHook
 from airflow.utils import db
 
 jira_client_mock = Mock(name="jira_client")
@@ -38,7 +38,7 @@ class TestJiraHook:
             )
         )
 
-    @patch("airflow.providers.atlassian.jira.hooks.jira.JIRA", autospec=True, return_value=jira_client_mock)
+    @patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True, return_value=jira_client_mock)
     def test_jira_client_connection(self, jira_mock):
         jira_hook = JiraHook()
 

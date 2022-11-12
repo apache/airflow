@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.atlassian.jira.hooks.jira import JIRAError, JiraHook
+from airflow.providers.atlassian.hooks.jira import JiraHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -30,10 +30,10 @@ if TYPE_CHECKING:
 class JiraOperator(BaseOperator):
     """
     JiraOperator to interact and perform action on Jira issue tracking system.
-    This operator is designed to use Jira Python SDK: http://jira.readthedocs.io
+    This operator is designed to use Atlassian Python SDK: https://atlassian-python-api.readthedocs.io/jira.html
 
     :param jira_conn_id: reference to a pre-defined Jira Connection
-    :param jira_method: method name from Jira Python SDK to be called
+    :param jira_method: method name from Atlassian Jira Python SDK to be called
     :param jira_method_args: required method parameters for the jira_method. (templated)
     :param result_processor: function to further process the response from Jira
     :param get_jira_resource_method: function or operator to get jira resource
@@ -64,9 +64,9 @@ class JiraOperator(BaseOperator):
             if self.get_jira_resource_method is not None:
                 # if get_jira_resource_method is provided, jira_method will be executed on
                 # resource returned by executing the get_jira_resource_method.
-                # This makes all the provided methods of JIRA sdk accessible and usable
+                # This makes all the provided methods of atlassian-python-api JIRA sdk accessible and usable
                 # directly at the JiraOperator without additional wrappers.
-                # ref: http://jira.readthedocs.io/en/latest/api.html
+                # ref: https://atlassian-python-api.readthedocs.io/jira.html
                 if isinstance(self.get_jira_resource_method, JiraOperator):
                     resource = self.get_jira_resource_method.execute(**context)
                 else:
@@ -76,16 +76,11 @@ class JiraOperator(BaseOperator):
                 hook = JiraHook(jira_conn_id=self.jira_conn_id)
                 resource = hook.client
 
-            # Current Jira-Python SDK (1.0.7) has issue with pickling the jira response.
-            # ex: self.xcom_push(context, key='operator_response', value=jira_response)
-            # This could potentially throw error if jira_result is not picklable
             jira_result = getattr(resource, self.method_name)(**self.jira_method_args)
             if self.result_processor:
                 return self.result_processor(context, jira_result)
 
             return jira_result
 
-        except JIRAError as jira_error:
-            raise AirflowException(f"Failed to execute jiraOperator, error: {str(jira_error)}")
         except Exception as e:
             raise AirflowException(f"Jira operator error: {str(e)}")
