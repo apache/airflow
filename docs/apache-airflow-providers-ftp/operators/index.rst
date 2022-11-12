@@ -17,21 +17,21 @@
 
 
 
-.. _howto/operator:FTPOperator:
+.. _howto/operator:FTPFileTransmitOperator:
 
-FTPOperator
-===============
+FTPFileTransmitOperator
+=========================
 
 
-Use the FTPOperator to get or
+Use the FTPFileTransmitOperator to get or
 pull files to/from an FTP server.
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
-For parameter definition take a look at :class:`~airflow.providers.ftp.operators.FTPOperator`.
+For parameter definition take a look at :class:`~airflow.providers.ftp.operators.FTPFileTransmitOperator`.
 
-The below example shows how to use the FTPOperator to transfer a locally stored file to a remote FTP Server:
+The below example shows how to use the FTPFileTransmitOperator to transfer a locally stored file to a remote FTP Server:
 
 .. exampleinclude:: /../../airflow/providers/ftp/example_dags/example_ftp.py
     :language: python
@@ -39,7 +39,7 @@ The below example shows how to use the FTPOperator to transfer a locally stored 
     :start-after: [START howto_ftp_put]
     :end-before: [END howto_ftp_put]
 
-The below example shows how to use the FTPOperator to pull a file from a remote FTP Server.
+The below example shows how to use the FTPFileTransmitOperator to pull a file from a remote FTP Server.
 
 .. exampleinclude:: /../../airflow/providers/ftp/example_dags/example_ftp.py
     :language: python

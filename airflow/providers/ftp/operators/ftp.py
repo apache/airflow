@@ -34,15 +34,15 @@ class FTPOperation:
     GET = "get"
 
 
-class FTPOperator(BaseOperator):
+class FTPFileTransmitOperator(BaseOperator):
     """
-    FTPOperator for transferring files from remote host to local or vice a versa.
+    FTPFileTransmitOperator for transferring files from remote host to local or vice a versa.
     This operator uses an FTPHook to open ftp transport channel that serve as basis
     for file transfer.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:FTPOperator`
+        :ref:`howto/operator:FTPFileTransmitOperator`
 
     :param ftp_conn_id: :ref:`ftp connection id<howto/connection:ftp>`
         from airflow Connections.
@@ -57,7 +57,7 @@ class FTPOperator(BaseOperator):
         don't exist. If the ``create_intermediate_dirs`` parameter is not passed it would error
         as the directory does not exist. ::
 
-            put_file = FTPOperator(
+            put_file = FTPFileTransmitOperator(
                 task_id="test_ftp",
                 ftp_conn_id="ftp_default",
                 local_filepath="/tmp/file.txt",

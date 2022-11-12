@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import models
-from airflow.providers.ftp.operators.ftp import FTPOperation, FTPOperator
+from airflow.providers.ftp.operators.ftp import FTPFileTransmitOperator, FTPOperation
 
 with models.DAG(
     "example_ftp_put_get",
@@ -29,7 +29,7 @@ with models.DAG(
     catchup=False,
 ) as dag:
     # [START howto_ftp_put]
-    ftp_put = FTPOperator(
+    ftp_put = FTPFileTransmitOperator(
         task_id="test_ftp_put",
         ftp_conn_id="ftp_default",
         local_filepath="/tmp/filepath",
@@ -40,7 +40,7 @@ with models.DAG(
     # [END howto_ftp_put]
 
     # [START howto_ftp_get]
-    ftp_get = FTPOperator(
+    ftp_get = FTPFileTransmitOperator(
         task_id="test_ftp_get",
         ftp_conn_id="ftp_default",
         local_filepath="/tmp/filepath",
