@@ -67,14 +67,14 @@ class JiraHook(BaseHook):
                 # validate
                 if "validate" in extra_options:
                     warnings.warn(
-                        f"Passing 'validate' in the connection is no longer supported.",
+                        "Passing 'validate' in the connection is no longer supported.",
                         DeprecationWarning,
                         stacklevel=2,
                     )
 
                 if "get_server_info" in extra_options:
                     warnings.warn(
-                        f"Passing 'get_server_info' in the connection is no longer supported.",
+                        "Passing 'get_server_info' in the connection is no longer supported.",
                         DeprecationWarning,
                         stacklevel=2,
                     )

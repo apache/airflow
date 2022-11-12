@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.atlassian.hooks.jira import JiraHook
+from airflow.providers.atlassian.jira.hooks.jira import JiraHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 class JiraOperator(BaseOperator):
     """
     JiraOperator to interact and perform action on Jira issue tracking system.
-    This operator is designed to use Atlassian Python SDK: https://atlassian-python-api.readthedocs.io/jira.html
+    This operator is designed to use Atlassian Jira SDK: https://atlassian-python-api.readthedocs.io/jira.html
 
     :param jira_conn_id: reference to a pre-defined Jira Connection
     :param jira_method: method name from Atlassian Jira Python SDK to be called

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
-from airflow.providers.atlassian.hooks.jira import JiraHook
+from airflow.providers.atlassian.jira.hooks.jira import JiraHook
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -117,7 +117,7 @@ class JiraTicketSensor(JiraSensor):
                     elif isinstance(field_val, str):
                         result = self.expected_value.lower() == field_val.lower()
                     elif isinstance(field_val, dict) and field_val.get("name", None):
-                        result = self.expected_value.lower() == field_val.get("name").lower()
+                        result = self.expected_value.lower() == field_val.get("name", "").lower()
                     else:
                         self.log.warning(
                             "Not implemented checker for issue field %s which "

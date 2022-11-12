@@ -20,14 +20,29 @@ from __future__ import annotations
 from unittest.mock import Mock, patch
 
 from airflow.models import Connection
-from airflow.providers.atlassian.hooks.jira import JiraHook
-from airflow.utils import db
+from airflow.models.dag import DAG
+from airflow.providers.atlassian.jira.sensors.jira import JiraTicketSensor
+from airflow.utils import db, timezone
 
-jira_client_mock = Mock(name="jira_client")
+DEFAULT_DATE = timezone.datetime(2017, 1, 1)
+jira_client_mock = Mock(name="jira_client_for_test")
+
+minimal_test_ticket = {
+    "id": "911539",
+    "self": "https://sandbox.localhost/jira/rest/api/2/issue/911539",
+    "key": "TEST-1226",
+    "fields": {
+        "labels": ["test-label-1", "test-label-2"],
+        "description": "this is a test description",
+    },
+}
 
 
-class TestJiraHook:
+class TestJiraSensor:
     def setup_method(self):
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        dag = DAG("test_dag_id", default_args=args)
+        self.dag = dag
         db.merge_conn(
             Connection(
                 conn_id="jira_default",
@@ -39,9 +54,20 @@ class TestJiraHook:
         )
 
     @patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True, return_value=jira_client_mock)
-    def test_jira_client_connection(self, jira_mock):
-        jira_hook = JiraHook()
+    def test_issue_label_set(self, jira_mock):
+        jira_mock.return_value.issue.return_value = minimal_test_ticket
+
+        ticket_label_sensor = JiraTicketSensor(
+            task_id="search-ticket-test",
+            ticket_id="TEST-1226",
+            field="labels",
+            expected_value="test-label-1",
+            timeout=518400,
+            poke_interval=10,
+            dag=self.dag,
+        )
+
+        ticket_label_sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         assert jira_mock.called
-        assert isinstance(jira_hook.client, Mock)
-        assert jira_hook.client.name == jira_mock.return_value.name
+        assert jira_mock.return_value.issue.called

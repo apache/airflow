@@ -21,7 +21,7 @@ from unittest.mock import Mock, patch
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.providers.atlassian.operators.jira import JiraOperator
+from airflow.providers.atlassian.jira.operators.jira import JiraOperator
 from airflow.utils import db, timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
