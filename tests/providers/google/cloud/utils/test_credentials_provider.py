@@ -40,6 +40,7 @@ from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_target_principal_and_delegates,
     build_gcp_conn,
     get_credentials_and_project_id,
+    get_id_token_credentials,
     provide_gcp_conn_and_credentials,
     provide_gcp_connection,
     provide_gcp_credentials,
@@ -278,6 +279,20 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
             result = get_credentials_and_project_id(keyfile_dict=service_account)
         mock_from_service_account_info.assert_called_once_with(service_account, scopes=None)
         assert (mock_from_service_account_info.return_value, self.test_project_id) == result
+        assert [
+            "DEBUG:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting "
+            "connection using JSON Dict"
+        ] == cm.output
+
+    @mock.patch(
+        "google.oauth2.service_account.IDTokenCredentials.from_service_account_info",
+    )
+    def test_get_id_token_credentials_with_service_account_info(self, mock_from_service_account_info):
+        service_account = {"private_key": "PRIVATE_KEY"}
+        with self.assertLogs(level="DEBUG", logger=CRED_PROVIDER_LOGGER_NAME) as cm:
+            result = get_id_token_credentials(keyfile_dict=service_account)
+        mock_from_service_account_info.assert_called_once_with(service_account, target_audience=None)
+        assert mock_from_service_account_info.return_value == result
         assert [
             "DEBUG:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting "
             "connection using JSON Dict"

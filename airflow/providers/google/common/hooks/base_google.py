@@ -52,6 +52,7 @@ from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_scopes,
     _get_target_principal_and_delegates,
     get_credentials_and_project_id,
+    get_id_token_credentials,
 )
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils.process_utils import patch_environ
@@ -232,11 +233,7 @@ class GoogleBaseHook(BaseHook):
         self._cached_credentials: google.auth.credentials.Credentials | None = None
         self._cached_project_id: str | None = None
 
-    def get_credentials_and_project_id(self) -> tuple[google.auth.credentials.Credentials, str | None]:
-        """Returns the Credentials object for Google API and the associated project_id"""
-        if self._cached_credentials is not None:
-            return self._cached_credentials, self._cached_project_id
-
+    def get_connection_info(self):
         key_path: str | None = self._get_field("key_path", None)
         try:
             keyfile_dict: str | None = self._get_field("keyfile_dict", None)
@@ -247,14 +244,24 @@ class GoogleBaseHook(BaseHook):
             raise AirflowException("Invalid key JSON.")
         key_secret_name: str | None = self._get_field("key_secret_name", None)
         key_secret_project_id: str | None = self._get_field("key_secret_project_id", None)
+        return {
+            "key_path": key_path,
+            "keyfile_dict": keyfile_dict_json,
+            "key_secret_name": key_secret_name,
+            "key_secret_project_id": key_secret_project_id,
+        }
+
+    def get_credentials_and_project_id(self) -> tuple[google.auth.credentials.Credentials, str | None]:
+        """Returns the Credentials object for Google API and the associated project_id"""
+        if self._cached_credentials is not None:
+            return self._cached_credentials, self._cached_project_id
+
+        connection_info = self.get_connection_info()
 
         target_principal, delegates = _get_target_principal_and_delegates(self.impersonation_chain)
 
         credentials, project_id = get_credentials_and_project_id(
-            key_path=key_path,
-            keyfile_dict=keyfile_dict_json,
-            key_secret_name=key_secret_name,
-            key_secret_project_id=key_secret_project_id,
+            **connection_info,
             scopes=self.scopes,
             delegate_to=self.delegate_to,
             target_principal=target_principal,
@@ -269,6 +276,15 @@ class GoogleBaseHook(BaseHook):
         self._cached_project_id = project_id
 
         return credentials, project_id
+
+    def get_id_token_credentials(self, target_audience: str = "") -> google.auth.credentials.Credentials:
+        connection_info = self.get_connection_info()
+        return get_id_token_credentials(
+            **connection_info,
+            scopes=self.scopes,
+            delegate_to=self.delegate_to,
+            target_audience=target_audience,
+        )
 
     def get_credentials(self) -> google.auth.credentials.Credentials:
         """Returns the Credentials object for Google API"""

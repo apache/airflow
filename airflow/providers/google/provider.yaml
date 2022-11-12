@@ -58,6 +58,7 @@ versions:
 dependencies:
   - apache-airflow>=2.3.0
   - apache-airflow-providers-common-sql>=1.3.1
+  - apache-airflow-providers-http>=4.0.0
   # Google has very clear rules on what dependencies should be used. All the limits below
   # follow strict guidelines of Google Libraries as quoted here:
   # While this issue is open, dependents of google-api-core, google-cloud-core. and google-auth
@@ -209,6 +210,11 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_memorystore.rst
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_memorystore_memcached.rst
     logo: /integration-logos/gcp/Cloud-Memorystore.png
+    tags: [gcp]
+  - integration-name: Google Cloud Run
+    external-doc-url: https://cloud.google.com/run/
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/cloud_run.rst
     tags: [gcp]
   - integration-name: Google Cloud OS Login
     external-doc-url: https://cloud.google.com/compute/docs/oslogin/
@@ -466,6 +472,9 @@ operators:
   - integration-name: Google Cloud Memorystore
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_memorystore
+  - integration-name: Google Cloud Run
+    python-modules:
+      - airflow.providers.google.cloud.operators.cloud_run
   - integration-name: Google Cloud SQL
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_sql
@@ -676,6 +685,9 @@ hooks:
   - integration-name: Google Cloud Memorystore
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_memorystore
+  - integration-name: Google Cloud Run
+    python-modules:
+      - airflow.providers.google.cloud.hooks.cloud_run
   - integration-name: Google Cloud SQL
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_sql

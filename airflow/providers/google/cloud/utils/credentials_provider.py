@@ -33,6 +33,7 @@ import google.auth.credentials
 import google.oauth2.service_account
 from google.auth import impersonated_credentials
 from google.auth.environment_vars import CREDENTIALS, LEGACY_PROJECT, PROJECT
+from google.oauth2 import service_account
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
@@ -199,10 +200,12 @@ class _CredentialProvider(LoggingMixin):
         key_secret_name: str | None = None,
         key_secret_project_id: str | None = None,
         scopes: Collection[str] | None = None,
+        target_audience: str | None = None,
         delegate_to: str | None = None,
         disable_logging: bool = False,
         target_principal: str | None = None,
         delegates: Sequence[str] | None = None,
+        is_id_token_credentials: bool = False,
     ) -> None:
         super().__init__()
         key_options = [key_path, key_secret_name, keyfile_dict]
@@ -216,10 +219,12 @@ class _CredentialProvider(LoggingMixin):
         self.key_secret_name = key_secret_name
         self.key_secret_project_id = key_secret_project_id
         self.scopes = scopes
+        self.target_audience = target_audience
         self.delegate_to = delegate_to
         self.disable_logging = disable_logging
         self.target_principal = target_principal
         self.delegates = delegates
+        self.is_id_token_credentials = is_id_token_credentials
 
     def get_credentials_and_project(self) -> tuple[google.auth.credentials.Credentials, str]:
         """
@@ -263,10 +268,7 @@ class _CredentialProvider(LoggingMixin):
         # Depending on how the JSON was formatted, it may contain
         # escaped newlines. Convert those to actual newlines.
         self.keyfile_dict["private_key"] = self.keyfile_dict["private_key"].replace("\\n", "\n")
-        credentials = google.oauth2.service_account.Credentials.from_service_account_info(
-            self.keyfile_dict, scopes=self.scopes
-        )
-        project_id = credentials.project_id
+        credentials, project_id = self._get_credentials_using_info(self.keyfile_dict)
         return credentials, project_id
 
     def _get_credentials_using_key_path(self):
@@ -277,10 +279,7 @@ class _CredentialProvider(LoggingMixin):
             raise AirflowException("Unrecognised extension for key file.")
 
         self._log_debug("Getting connection using JSON key file %s", self.key_path)
-        credentials = google.oauth2.service_account.Credentials.from_service_account_file(
-            self.key_path, scopes=self.scopes
-        )
-        project_id = credentials.project_id
+        credentials, project_id = self._get_credentials_using_file(self.key_path)
         return credentials, project_id
 
     def _get_credentials_using_key_secret_name(self):
@@ -305,10 +304,7 @@ class _CredentialProvider(LoggingMixin):
         except json.decoder.JSONDecodeError:
             raise AirflowException("Key data read from GCP Secret Manager is not valid JSON.")
 
-        credentials = google.oauth2.service_account.Credentials.from_service_account_info(
-            keyfile_dict, scopes=self.scopes
-        )
-        project_id = credentials.project_id
+        credentials, project_id = self._get_credentials_using_info(keyfile_dict)
         return credentials, project_id
 
     def _get_credentials_using_adc(self):
@@ -316,6 +312,34 @@ class _CredentialProvider(LoggingMixin):
             "Getting connection using `google.auth.default()` since no key file is defined for hook."
         )
         credentials, project_id = google.auth.default(scopes=self.scopes)
+        return credentials, project_id
+
+    def _get_credentials_using_file(self, file):
+        if self.is_id_token_credentials:
+            credentials = service_account.IDTokenCredentials.from_service_account_file(
+                file,
+                target_audience=self.target_audience,
+            )
+            project_id = None
+        else:
+            credentials = google.oauth2.service_account.Credentials.from_service_account_file(
+                file, scopes=self.scopes
+            )
+            project_id = credentials.project_id
+        return credentials, project_id
+
+    def _get_credentials_using_info(self, info):
+        if self.is_id_token_credentials:
+            credentials = service_account.IDTokenCredentials.from_service_account_info(
+                info,
+                target_audience=self.target_audience,
+            )
+            project_id = None
+        else:
+            credentials = google.oauth2.service_account.Credentials.from_service_account_info(
+                info, scopes=self.scopes
+            )
+            project_id = credentials.project_id
         return credentials, project_id
 
     def _log_info(self, *args, **kwargs) -> None:
@@ -330,6 +354,16 @@ class _CredentialProvider(LoggingMixin):
 def get_credentials_and_project_id(*args, **kwargs) -> tuple[google.auth.credentials.Credentials, str]:
     """Returns the Credentials object for Google API and the associated project_id."""
     return _CredentialProvider(*args, **kwargs).get_credentials_and_project()
+
+
+def get_id_token_credentials(*args, **kwargs) -> tuple[google.auth.credentials.Credentials]:
+    """Returns the ID Token type Credentials object for Google API."""
+    kwargs = {**kwargs, "is_id_token_credentials": True}
+    id_token_credentials, _ = _CredentialProvider(
+        *args,
+        **kwargs,
+    ).get_credentials_and_project()
+    return id_token_credentials
 
 
 def _get_scopes(scopes: str | None = None) -> Sequence[str]:
