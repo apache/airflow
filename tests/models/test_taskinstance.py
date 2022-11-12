@@ -60,7 +60,7 @@ from airflow.models import (
     XCom,
 )
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
-from airflow.models.expandinput import EXPAND_INPUT_EMPTY
+from airflow.models.expandinput import EXPAND_INPUT_EMPTY, NotFullyPopulated
 from airflow.models.param import process_params
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
@@ -3413,7 +3413,8 @@ class TestMappedTaskInstanceReceiveValue:
         ti.run()
 
         show_task = dag.get_task("show")
-        assert show_task.parse_time_mapped_ti_count is None
+        with pytest.raises(NotFullyPopulated):
+            assert show_task.get_parse_time_mapped_ti_count()
         mapped_tis, max_map_index = show_task.expand_mapped_task(dag_run.run_id, session=session)
         assert max_map_index + 1 == len(mapped_tis) == 4
 
@@ -3437,7 +3438,7 @@ class TestMappedTaskInstanceReceiveValue:
         dag_run = dag_maker.create_dagrun()
 
         show_task = dag.get_task("show")
-        assert show_task.parse_time_mapped_ti_count == 6
+        assert show_task.get_parse_time_mapped_ti_count() == 6
         mapped_tis, max_map_index = show_task.expand_mapped_task(dag_run.run_id, session=session)
         assert len(mapped_tis) == 0  # Expanded at parse!
         assert max_map_index == 5

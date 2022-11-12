@@ -31,7 +31,7 @@ from airflow.utils.trigger_rule import TriggerRule
 class EmptySkipOperator(EmptyOperator):
     """Empty operator which always skips the task."""
 
-    ui_color = '#e8b7e4'
+    ui_color = "#e8b7e4"
 
     def execute(self, context: Context):
         raise AirflowSkipException
@@ -45,10 +45,10 @@ def create_test_pipeline(suffix, trigger_rule):
     :param str trigger_rule: TriggerRule for the join task
     :param DAG dag_: The DAG to run the operators on
     """
-    skip_operator = EmptySkipOperator(task_id=f'skip_operator_{suffix}')
-    always_true = EmptyOperator(task_id=f'always_true_{suffix}')
+    skip_operator = EmptySkipOperator(task_id=f"skip_operator_{suffix}")
+    always_true = EmptyOperator(task_id=f"always_true_{suffix}")
     join = EmptyOperator(task_id=trigger_rule, trigger_rule=trigger_rule)
-    final = EmptyOperator(task_id=f'final_{suffix}')
+    final = EmptyOperator(task_id=f"final_{suffix}")
 
     skip_operator >> join
     always_true >> join
@@ -56,10 +56,10 @@ def create_test_pipeline(suffix, trigger_rule):
 
 
 with DAG(
-    dag_id='example_skip_dag',
+    dag_id="example_skip_dag",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
-    create_test_pipeline('1', TriggerRule.ALL_SUCCESS)
-    create_test_pipeline('2', TriggerRule.ONE_SUCCESS)
+    create_test_pipeline("1", TriggerRule.ALL_SUCCESS)
+    create_test_pipeline("2", TriggerRule.ONE_SUCCESS)

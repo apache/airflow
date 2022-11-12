@@ -84,28 +84,28 @@ class _TableConfig:
 
 
 config_list: list[_TableConfig] = [
-    _TableConfig(table_name='job', recency_column_name='latest_heartbeat'),
-    _TableConfig(table_name='dag', recency_column_name='last_parsed_time'),
+    _TableConfig(table_name="job", recency_column_name="latest_heartbeat"),
+    _TableConfig(table_name="dag", recency_column_name="last_parsed_time"),
     _TableConfig(
-        table_name='dag_run',
-        recency_column_name='start_date',
-        extra_columns=['dag_id', 'external_trigger'],
+        table_name="dag_run",
+        recency_column_name="start_date",
+        extra_columns=["dag_id", "external_trigger"],
         keep_last=True,
-        keep_last_filters=[column('external_trigger') == false()],
-        keep_last_group_by=['dag_id'],
+        keep_last_filters=[column("external_trigger") == false()],
+        keep_last_group_by=["dag_id"],
     ),
-    _TableConfig(table_name='dataset_event', recency_column_name='created_at'),
-    _TableConfig(table_name='import_error', recency_column_name='timestamp'),
-    _TableConfig(table_name='log', recency_column_name='dttm'),
-    _TableConfig(table_name='rendered_task_instance_fields', recency_column_name='execution_date'),
-    _TableConfig(table_name='sla_miss', recency_column_name='timestamp'),
-    _TableConfig(table_name='task_fail', recency_column_name='start_date'),
-    _TableConfig(table_name='task_instance', recency_column_name='start_date'),
-    _TableConfig(table_name='task_reschedule', recency_column_name='start_date'),
-    _TableConfig(table_name='xcom', recency_column_name='timestamp'),
-    _TableConfig(table_name='callback_request', recency_column_name='created_at'),
-    _TableConfig(table_name='celery_taskmeta', recency_column_name='date_done'),
-    _TableConfig(table_name='celery_tasksetmeta', recency_column_name='date_done'),
+    _TableConfig(table_name="dataset_event", recency_column_name="created_at"),
+    _TableConfig(table_name="import_error", recency_column_name="timestamp"),
+    _TableConfig(table_name="log", recency_column_name="dttm"),
+    _TableConfig(table_name="rendered_task_instance_fields", recency_column_name="execution_date"),
+    _TableConfig(table_name="sla_miss", recency_column_name="timestamp"),
+    _TableConfig(table_name="task_fail", recency_column_name="start_date"),
+    _TableConfig(table_name="task_instance", recency_column_name="start_date"),
+    _TableConfig(table_name="task_reschedule", recency_column_name="start_date"),
+    _TableConfig(table_name="xcom", recency_column_name="timestamp"),
+    _TableConfig(table_name="callback_request", recency_column_name="created_at"),
+    _TableConfig(table_name="celery_taskmeta", recency_column_name="date_done"),
+    _TableConfig(table_name="celery_tasksetmeta", recency_column_name="date_done"),
 ]
 
 config_dict: dict[str, _TableConfig] = {x.orm_model.name: x for x in sorted(config_list)}
@@ -131,8 +131,8 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     print("Performing Delete...")
     # using bulk delete
     # create a new table and copy the rows there
-    timestamp_str = re.sub(r'[^\d]', '', datetime.utcnow().isoformat())[:14]
-    target_table_name = f'_airflow_deleted__{orm_model.name}__{timestamp_str}'
+    timestamp_str = re.sub(r"[^\d]", "", datetime.utcnow().isoformat())[:14]
+    target_table_name = f"_airflow_deleted__{orm_model.name}__{timestamp_str}"
     print(f"Moving data to table {target_table_name}")
     stmt = CreateTableAs(target_table_name, query.selectable)
     logger.debug("ctas query:\n%s", stmt.compile())
@@ -146,7 +146,7 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     logger.debug("rows moved; purging from %s", source_table.name)
     bind = session.get_bind()
     dialect_name = bind.dialect.name
-    if dialect_name == 'sqlite':
+    if dialect_name == "sqlite":
         pk_cols = source_table.primary_key.columns
         delete = source_table.delete().where(
             tuple_(*pk_cols).in_(
@@ -176,7 +176,7 @@ def _subquery_keep_last(*, recency_column, keep_last_filters, group_by_columns, 
     if group_by_columns is not None:
         subquery = subquery.group_by(*group_by_columns)
 
-    return subquery.subquery(name='latest')
+    return subquery.subquery(name="latest")
 
 
 class CreateTableAs(Executable, ClauseElement):
@@ -192,7 +192,7 @@ def _compile_create_table_as__other(element, compiler, **kw):
     return f"CREATE TABLE {element.name} AS {compiler.process(element.query)}"
 
 
-@compiles(CreateTableAs, 'mssql')
+@compiles(CreateTableAs, "mssql")
 def _compile_create_table_as__mssql(element, compiler, **kw):
     return f"WITH cte AS ( {compiler.process(element.query)} ) SELECT * INTO {element.name} FROM cte"
 
@@ -208,13 +208,13 @@ def _build_query(
     session,
     **kwargs,
 ):
-    base_table_alias = 'base'
+    base_table_alias = "base"
     base_table = aliased(orm_model, name=base_table_alias)
     query = session.query(base_table).with_entities(text(f"{base_table_alias}.*"))
     base_table_recency_col = base_table.c[recency_column.name]
     conditions = [base_table_recency_col < clean_before_timestamp]
     if keep_last:
-        max_date_col_name = 'max_date_per_group'
+        max_date_col_name = "max_date_per_group"
         group_by_columns = [column(x) for x in keep_last_group_by]
         subquery = _subquery_keep_last(
             recency_column=recency_column,
@@ -272,7 +272,7 @@ def _cleanup_table(
 
 
 def _confirm_delete(*, date: DateTime, tables: list[str]):
-    for_tables = f" for tables {tables!r}" if tables else ''
+    for_tables = f" for tables {tables!r}" if tables else ""
     question = (
         f"You have requested that we purge all data prior to {date}{for_tables}.\n"
         f"This is irreversible.  Consider backing up the tables first and / or doing a dry run "
@@ -281,7 +281,7 @@ def _confirm_delete(*, date: DateTime, tables: list[str]):
     )
     print(question)
     answer = input().strip()
-    if not answer == 'delete rows':
+    if not answer == "delete rows":
         raise SystemExit("User did not confirm; exiting.")
 
 
@@ -302,7 +302,7 @@ def _suppress_with_logging(table, session):
         logger.warning("Encountered error when attempting to clean table '%s'. ", table)
         logger.debug("Traceback for table '%s'", table, exc_info=True)
         if session.is_active:
-            logger.debug('Rolling back transaction')
+            logger.debug("Rolling back transaction")
             session.rollback()
 
 
@@ -340,7 +340,7 @@ def run_cleanup(
     effective_table_names = table_names if table_names else list(config_dict.keys())
     effective_config_dict = {k: v for k, v in config_dict.items() if k in effective_table_names}
     if dry_run:
-        print('Performing dry run for db cleanup.')
+        print("Performing dry run for db cleanup.")
         print(
             f"Data prior to {clean_before_timestamp} would be purged "
             f"from tables {effective_table_names} with the following config:\n"

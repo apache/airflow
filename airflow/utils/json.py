@@ -56,7 +56,7 @@ class AirflowJsonEncoder(json.JSONEncoder):
                 obj = convert_to_utc(obj)
             return obj.isoformat()
         elif isinstance(obj, date):
-            return obj.strftime('%Y-%m-%d')
+            return obj.strftime("%Y-%m-%d")
         elif isinstance(obj, Decimal):
             _, _, exponent = obj.as_tuple()
             if exponent >= 0:  # No digits after the decimal point.
@@ -117,8 +117,8 @@ class AirflowJsonProvider(JSONProvider):
     sort_keys: bool = True
 
     def dumps(self, obj, **kwargs):
-        kwargs.setdefault('ensure_ascii', self.ensure_ascii)
-        kwargs.setdefault('sort_keys', self.sort_keys)
+        kwargs.setdefault("ensure_ascii", self.ensure_ascii)
+        kwargs.setdefault("sort_keys", self.sort_keys)
         return json.dumps(obj, **kwargs, cls=AirflowJsonEncoder)
 
     def loads(self, s: str | bytes, **kwargs):

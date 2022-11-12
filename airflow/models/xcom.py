@@ -60,7 +60,7 @@ log = logging.getLogger(__name__)
 # MAX XCOM Size is 48KB
 # https://github.com/apache/airflow/pull/1618#discussion_r68249677
 MAX_XCOM_SIZE = 49344
-XCOM_RETURN_KEY = 'return_value'
+XCOM_RETURN_KEY = "return_value"
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
@@ -524,7 +524,7 @@ class BaseXCom(Base, LoggingMixin):
             xcoms = [xcoms]
         for xcom in xcoms:
             if not isinstance(xcom, XCom):
-                raise TypeError(f'Expected XCom; received {xcom.__class__.__name__}')
+                raise TypeError(f"Expected XCom; received {xcom.__class__.__name__}")
             session.delete(xcom)
         session.commit()
 
@@ -617,10 +617,10 @@ class BaseXCom(Base, LoggingMixin):
         map_index: int | None = None,
     ) -> Any:
         """Serialize XCom value to str or pickled object."""
-        if conf.getboolean('core', 'enable_xcom_pickling'):
+        if conf.getboolean("core", "enable_xcom_pickling"):
             return pickle.dumps(value)
         try:
-            return json.dumps(value).encode('UTF-8')
+            return json.dumps(value).encode("UTF-8")
         except (ValueError, TypeError):
             log.error(
                 "Could not serialize the XCom value into JSON."
@@ -635,14 +635,14 @@ class BaseXCom(Base, LoggingMixin):
         """Deserialize XCom value from str or pickle object"""
         if result.value is None:
             return None
-        if conf.getboolean('core', 'enable_xcom_pickling'):
+        if conf.getboolean("core", "enable_xcom_pickling"):
             try:
                 return pickle.loads(result.value)
             except pickle.UnpicklingError:
-                return json.loads(result.value.decode('UTF-8'))
+                return json.loads(result.value.decode("UTF-8"))
         else:
             try:
-                return json.loads(result.value.decode('UTF-8'))
+                return json.loads(result.value.decode("UTF-8"))
             except (json.JSONDecodeError, UnicodeDecodeError):
                 return pickle.loads(result.value)
 

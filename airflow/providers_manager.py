@@ -61,17 +61,17 @@ def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: 
     and consistency between the `get_ui_field_behaviour` method and the extra dict itself,
     we allow users to supply the unprefixed name.
     """
-    conn_attrs = {'host', 'schema', 'login', 'password', 'port', 'extra'}
+    conn_attrs = {"host", "schema", "login", "password", "port", "extra"}
 
     def ensure_prefix(field):
-        if field not in conn_attrs and not field.startswith('extra__'):
+        if field not in conn_attrs and not field.startswith("extra__"):
             return f"extra__{conn_type}__{field}"
         else:
             return field
 
-    if 'placeholders' in field_behaviors:
-        placeholders = field_behaviors['placeholders']
-        field_behaviors['placeholders'] = {ensure_prefix(k): v for k, v in placeholders.items()}
+    if "placeholders" in field_behaviors:
+        placeholders = field_behaviors["placeholders"]
+        field_behaviors["placeholders"] = {ensure_prefix(k): v for k, v in placeholders.items()}
 
     return field_behaviors
 
@@ -87,7 +87,7 @@ class LazyDictWithCache(MutableMapping):
     at first use - and returns and caches the result.
     """
 
-    __slots__ = ['_resolved', '_raw_dict']
+    __slots__ = ["_resolved", "_raw_dict"]
 
     def __init__(self, *args, **kw):
         self._resolved = set()
@@ -173,15 +173,15 @@ class ProviderInfo:
 
     version: str
     data: dict
-    package_or_source: Literal['source'] | Literal['package']
+    package_or_source: Literal["source"] | Literal["package"]
 
     def __post_init__(self):
-        if self.package_or_source not in ('source', 'package'):
+        if self.package_or_source not in ("source", "package"):
             raise ValueError(
                 f"Received {self.package_or_source!r} for `package_or_source`. "
                 "Must be either 'package' or 'source'."
             )
-        self.is_source = self.package_or_source == 'source'
+        self.is_source = self.package_or_source == "source"
 
 
 class HookClassProvider(NamedTuple):
@@ -453,22 +453,22 @@ class ProvidersManager(LoggingMixin):
         together with the code. The runtime version is more relaxed (allows for additional properties)
         and verifies only the subset of fields that are needed at runtime.
         """
-        for entry_point, dist in entry_points_with_dist('apache_airflow_provider'):
-            package_name = dist.metadata['name']
+        for entry_point, dist in entry_points_with_dist("apache_airflow_provider"):
+            package_name = dist.metadata["name"]
             if self._provider_dict.get(package_name) is not None:
                 continue
             log.debug("Loading %s from package %s", entry_point, package_name)
             version = dist.version
             provider_info = entry_point.load()()
             self._provider_schema_validator.validate(provider_info)
-            provider_info_package_name = provider_info['package-name']
+            provider_info_package_name = provider_info["package-name"]
             if package_name != provider_info_package_name:
                 raise Exception(
                     f"The package '{package_name}' from setuptools and "
                     f"{provider_info_package_name} do not match. Please make sure they are aligned"
                 )
             if package_name not in self._provider_dict:
-                self._provider_dict[package_name] = ProviderInfo(version, provider_info, 'package')
+                self._provider_dict[package_name] = ProviderInfo(version, provider_info, "package")
             else:
                 log.warning(
                     "The provider for package '%s' could not be registered from because providers for that "
@@ -522,9 +522,9 @@ class ProvidersManager(LoggingMixin):
                 provider_info = yaml.safe_load(provider_yaml_file)
             self._provider_schema_validator.validate(provider_info)
 
-            version = provider_info['versions'][0]
+            version = provider_info["versions"][0]
             if package_name not in self._provider_dict:
-                self._provider_dict[package_name] = ProviderInfo(version, provider_info, 'source')
+                self._provider_dict[package_name] = ProviderInfo(version, provider_info, "source")
             else:
                 log.warning(
                     "The providers for package '%s' could not be registered because providers for that "
@@ -557,8 +557,8 @@ class ProvidersManager(LoggingMixin):
         connection_types = provider.data.get("connection-types")
         if connection_types:
             for connection_type_dict in connection_types:
-                connection_type = connection_type_dict['connection-type']
-                hook_class_name = connection_type_dict['hook-class-name']
+                connection_type = connection_type_dict["connection-type"]
+                hook_class_name = connection_type_dict["hook-class-name"]
                 hook_class_names_registered.add(hook_class_name)
                 already_registered = self._hook_provider_dict.get(connection_type)
                 if already_registered:
@@ -705,7 +705,7 @@ class ProvidersManager(LoggingMixin):
         if name in self._taskflow_decorators:
             try:
                 existing = self._taskflow_decorators[name]
-                other_name = f'{existing.__module__}.{existing.__name__}'
+                other_name = f"{existing.__module__}.{existing.__name__}"
             except Exception:
                 # If problem importing, then get the value from the functools.partial
                 other_name = self._taskflow_decorators._raw_dict[name].args[0]  # type: ignore[attr-defined]
@@ -770,11 +770,11 @@ class ProvidersManager(LoggingMixin):
         if hook_class is None:
             return None
         try:
-            module, class_name = hook_class_name.rsplit('.', maxsplit=1)
+            module, class_name = hook_class_name.rsplit(".", maxsplit=1)
             # Do not use attr here. We want to check only direct class fields not those
             # inherited from parent hook. This way we add form fields only once for the whole
             # hierarchy and we add it only from the parent hook that provides those!
-            if 'get_connection_form_widgets' in hook_class.__dict__:
+            if "get_connection_form_widgets" in hook_class.__dict__:
                 widgets = hook_class.get_connection_form_widgets()
 
                 if widgets:
@@ -789,7 +789,7 @@ class ProvidersManager(LoggingMixin):
                             )
                             return None
                     self._add_widgets(package_name, hook_class, widgets)
-            if 'get_ui_field_behaviour' in hook_class.__dict__:
+            if "get_ui_field_behaviour" in hook_class.__dict__:
                 field_behaviours = hook_class.get_ui_field_behaviour()
                 if field_behaviours:
                     self._add_customized_fields(package_name, hook_class, field_behaviours)
@@ -801,7 +801,7 @@ class ProvidersManager(LoggingMixin):
                 e,
             )
             return None
-        hook_connection_type = self._get_attr(hook_class, 'conn_type')
+        hook_connection_type = self._get_attr(hook_class, "conn_type")
         if connection_type:
             if hook_connection_type != connection_type:
                 log.warning(
@@ -814,8 +814,8 @@ class ProvidersManager(LoggingMixin):
                     connection_type,
                 )
         connection_type = hook_connection_type
-        connection_id_attribute_name: str = self._get_attr(hook_class, 'conn_name_attr')
-        hook_name: str = self._get_attr(hook_class, 'hook_name')
+        connection_id_attribute_name: str = self._get_attr(hook_class, "conn_name_attr")
+        hook_name: str = self._get_attr(hook_class, "hook_name")
 
         if not connection_type or not connection_id_attribute_name or not hook_name:
             log.warning(
@@ -833,13 +833,13 @@ class ProvidersManager(LoggingMixin):
             package_name=package_name,
             hook_name=hook_name,
             connection_type=connection_type,
-            connection_testable=hasattr(hook_class, 'test_connection'),
+            connection_testable=hasattr(hook_class, "test_connection"),
         )
 
     def _add_widgets(self, package_name: str, hook_class: type, widgets: dict[str, Any]):
         conn_type = hook_class.conn_type  # type: ignore
         for field_identifier, field in widgets.items():
-            if field_identifier.startswith('extra__'):
+            if field_identifier.startswith("extra__"):
                 prefixed_field_name = field_identifier
             else:
                 prefixed_field_name = f"extra__{conn_type}__{field_identifier}"
