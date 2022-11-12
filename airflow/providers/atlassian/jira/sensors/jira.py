@@ -31,7 +31,7 @@ class JiraSensor(BaseSensorOperator):
     Monitors a jira ticket for any change.
 
     :param jira_conn_id: reference to a pre-defined Jira Connection
-    :param method_name: method name from atlassian-python-api jira-sdk to execute
+    :param method_name: method name from atlassian-python-api JIRA sdk to execute
     :param method_params: parameters for the method method_name
     :param result_processor: function that return boolean and act as a sensor response
     """
