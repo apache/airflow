@@ -127,6 +127,8 @@ class MySqlHook(DbApiHook):
             if isinstance(dejson_ssl, str):
                 dejson_ssl = json.loads(dejson_ssl)
             conn_config["ssl"] = dejson_ssl
+        if conn.extra_dejson.get("ssl_mode", False):
+            conn_config["ssl_mode"] = conn.extra_dejson["ssl_mode"]
         if conn.extra_dejson.get("unix_socket"):
             conn_config["unix_socket"] = conn.extra_dejson["unix_socket"]
         if local_infile:
@@ -144,6 +146,11 @@ class MySqlHook(DbApiHook):
 
         if conn.extra_dejson.get("allow_local_infile", False):
             conn_config["allow_local_infile"] = True
+        # Adding 'ssl_mode' key to keep it consistent with mysql_client
+        if conn.extra_dejson.get("ssl_mode", False):
+            conn_config["ssl-mode"] = conn.extra_dejson["ssl_mode"]
+        if conn.extra_dejson.get("ssl_ca", False):
+            conn_config["ssl-ca"] = conn.extra_dejson["ssl_ca"]
 
         return conn_config
 
