@@ -192,8 +192,8 @@ const DagRun = ({ runId }: Props) => {
                         iconStyle="triangle"
                         indentWidth={2}
                         displayDataTypes={false}
-                        enableClipboard={true}
                         style={{ backgroundColor: 'inherit' }}
+                        enableClipboard
                       />
                     </Td>
                   )
