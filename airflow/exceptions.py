@@ -190,7 +190,7 @@ class DagRunAlreadyExists(AirflowBadRequest):
 
     def __init__(self, dag_run: DagRun, execution_date: datetime.datetime, run_id: str) -> None:
         super().__init__(
-            f"A DAG Run already exists for DAG {dag_run.dag_id} " f"at {execution_date} with run id {run_id}"
+            f"A DAG Run already exists for DAG {dag_run.dag_id} at {execution_date} with run id {run_id}"
         )
         self.dag_run = dag_run
 
