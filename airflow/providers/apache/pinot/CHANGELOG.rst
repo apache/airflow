@@ -24,6 +24,28 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+This release of provider is only available for Airflow 2.3+ as explained in the Apache Airflow
+providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The admin command is now hard-coded to ``pinot-admin.sh``. The ``pinot-admin.sh`` command must be available
+on the path in order to use PinotAdminHook.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+* ``Bump pinotdb version (#27201)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable string normalization in python formatting - providers (#27205)``
+
 3.2.1
 .....
 
