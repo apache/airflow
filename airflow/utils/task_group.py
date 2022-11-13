@@ -35,7 +35,6 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
-from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
@@ -43,6 +42,7 @@ from airflow.utils.helpers import validate_group_key
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.models.abstractoperator import AbstractOperator
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
     from airflow.models.expandinput import ExpandInput
@@ -480,6 +480,8 @@ class TaskGroup(DAGNode):
 
     def iter_tasks(self) -> Iterator[AbstractOperator]:
         """Returns an iterator of the child tasks."""
+        from airflow.models.abstractoperator import AbstractOperator
+
         groups_to_visit = [self]
 
         while groups_to_visit:

@@ -2071,7 +2071,7 @@ class Airflow(AirflowBaseView):
 
             # Lock the related dag runs to prevent from possible dead lock.
             # https://github.com/apache/airflow/pull/26658
-            dag_runs_query = session.query(DagRun).filter(DagRun.dag_id == dag_id).with_for_update()
+            dag_runs_query = session.query(DagRun.id).filter(DagRun.dag_id == dag_id).with_for_update()
             if start_date is None and end_date is None:
                 dag_runs_query = dag_runs_query.filter(DagRun.execution_date == start_date)
             else:

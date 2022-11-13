@@ -23,6 +23,8 @@ import {
   Flex,
   ButtonGroup,
   useDisclosure,
+  Alert,
+  AlertIcon,
 } from '@chakra-ui/react';
 
 import ConfirmDialog from 'src/components/ConfirmDialog';
@@ -126,7 +128,17 @@ const Run = ({
         isLoading={isLoading}
         description={`Task instances you are about to clear (${affectedTasks.length}):`}
         body={affectedTasks}
-      />
+      >
+        { isGroup && (past || future) && (
+          <Alert status="warning" mb={3}>
+            <AlertIcon />
+            Clearing a TaskGroup in the future and/or past will affect all the tasks of this group
+            across multiple dag runs.
+            <br />
+            This can take a while to complete.
+          </Alert>
+        )}
+      </ConfirmDialog>
     </Flex>
   );
 };
