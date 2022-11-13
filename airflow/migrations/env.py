@@ -92,7 +92,7 @@ def run_migrations_online():
 
     """
     with contextlib.ExitStack() as stack:
-        connection = config.attributes.get('connection', None)
+        connection = config.attributes.get("connection", None)
 
         if not connection:
             connection = stack.push(settings.engine.connect())
@@ -116,7 +116,7 @@ if context.is_offline_mode():
 else:
     run_migrations_online()
 
-if 'airflow.www.app' in sys.modules:
+if "airflow.www.app" in sys.modules:
     # Already imported, make sure we clear out any cached app
     from airflow.www.app import purge_cached_app
 

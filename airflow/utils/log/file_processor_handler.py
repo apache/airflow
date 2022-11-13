@@ -94,12 +94,12 @@ class FileProcessorHandler(logging.Handler):
             filename = os.path.join("native_dags", os.path.relpath(filename, airflow_directory))
         else:
             filename = os.path.relpath(filename, self.dag_dir)
-        ctx = {'filename': filename}
+        ctx = {"filename": filename}
 
         if self.filename_jinja_template:
             return self.filename_jinja_template.render(**ctx)
 
-        return self.filename_template.format(filename=ctx['filename'])
+        return self.filename_template.format(filename=ctx["filename"])
 
     def _get_log_directory(self):
         now = datetime.utcnow()

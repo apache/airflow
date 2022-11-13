@@ -82,7 +82,7 @@ class StandaloneCommand:
             env=env,
         )
 
-        self.web_server_port = conf.getint('webserver', 'WEB_SERVER_PORT', fallback=8080)
+        self.web_server_port = conf.getint("webserver", "WEB_SERVER_PORT", fallback=8080)
         # Run subcommand threads
         for command in self.subcommands.values():
             command.start()

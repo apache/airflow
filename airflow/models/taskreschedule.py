@@ -50,7 +50,7 @@ class TaskReschedule(Base):
     reschedule_date = Column(UtcDateTime, nullable=False)
 
     __table_args__ = (
-        Index('idx_task_reschedule_dag_task_run', dag_id, task_id, run_id, map_index, unique=False),
+        Index("idx_task_reschedule_dag_task_run", dag_id, task_id, run_id, map_index, unique=False),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
             [
@@ -62,12 +62,12 @@ class TaskReschedule(Base):
             name="task_reschedule_ti_fkey",
             ondelete="CASCADE",
         ),
-        Index('idx_task_reschedule_dag_run', dag_id, run_id),
+        Index("idx_task_reschedule_dag_run", dag_id, run_id),
         ForeignKeyConstraint(
             [dag_id, run_id],
-            ['dag_run.dag_id', 'dag_run.run_id'],
-            name='task_reschedule_dr_fkey',
-            ondelete='CASCADE',
+            ["dag_run.dag_id", "dag_run.run_id"],
+            name="task_reschedule_dr_fkey",
+            ondelete="CASCADE",
         ),
     )
     dag_run = relationship("DagRun")
@@ -146,5 +146,5 @@ def add_ondelete_for_mssql(table, conn, **kw):
     for constraint in table.constraints:
         if constraint.name != "task_reschedule_dr_fkey":
             continue
-        constraint.ondelete = 'NO ACTION'
+        constraint.ondelete = "NO ACTION"
         return

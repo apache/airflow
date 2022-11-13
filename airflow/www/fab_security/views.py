@@ -46,7 +46,7 @@ class ActionModelView(PermissionModelView):
     class_permission_name = permissions.RESOURCE_ACTION
     route_base = "/actions"
     method_permission_name = {
-        'list': 'read',
+        "list": "read",
     }
     base_permissions = [
         permissions.ACTION_CAN_READ,
@@ -66,7 +66,7 @@ class PermissionPairModelView(PermissionViewModelView):
     class_permission_name = permissions.RESOURCE_PERMISSION
     route_base = "/permissions"
     method_permission_name = {
-        'list': 'read',
+        "list": "read",
     }
     base_permissions = [
         permissions.ACTION_CAN_READ,
@@ -89,8 +89,8 @@ class CustomResetMyPasswordView(ResetMyPasswordView):
 
     class_permission_name = permissions.RESOURCE_MY_PASSWORD
     method_permission_name = {
-        'this_form_get': 'read',
-        'this_form_post': 'edit',
+        "this_form_get": "read",
+        "this_form_post": "edit",
     }
     base_permissions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
 
@@ -100,8 +100,8 @@ class CustomResetPasswordView(ResetPasswordView):
 
     class_permission_name = permissions.RESOURCE_PASSWORD
     method_permission_name = {
-        'this_form_get': 'read',
-        'this_form_post': 'edit',
+        "this_form_get": "read",
+        "this_form_post": "edit",
     }
 
     base_permissions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
@@ -112,13 +112,13 @@ class CustomRoleModelView(RoleModelView):
 
     class_permission_name = permissions.RESOURCE_ROLE
     method_permission_name = {
-        'delete': 'delete',
-        'download': 'read',
-        'show': 'read',
-        'list': 'read',
-        'edit': 'edit',
-        'add': 'create',
-        'copy_role': 'create',
+        "delete": "delete",
+        "download": "read",
+        "show": "read",
+        "list": "read",
+        "edit": "edit",
+        "add": "create",
+        "copy_role": "create",
     }
     base_permissions = [
         permissions.ACTION_CAN_CREATE,
@@ -134,7 +134,7 @@ class ResourceModelView(ViewMenuModelView):
     class_permission_name = permissions.RESOURCE_RESOURCE
     route_base = "/resources"
     method_permission_name = {
-        'list': 'read',
+        "list": "read",
     }
     base_permissions = [
         permissions.ACTION_CAN_READ,
@@ -154,8 +154,8 @@ class CustomUserInfoEditView(UserInfoEditView):
     class_permission_name = permissions.RESOURCE_MY_PROFILE
     route_base = "/userinfoeditview"
     method_permission_name = {
-        'this_form_get': 'edit',
-        'this_form_post': 'edit',
+        "this_form_get": "edit",
+        "this_form_post": "edit",
     }
     base_permissions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
 
@@ -166,8 +166,8 @@ class CustomUserStatsChartView(UserStatsChartView):
     class_permission_name = permissions.RESOURCE_USER_STATS_CHART
     route_base = "/userstatschartview"
     method_permission_name = {
-        'chart': 'read',
-        'list': 'read',
+        "chart": "read",
+        "list": "read",
     }
     base_permissions = [permissions.ACTION_CAN_READ]
 
@@ -178,18 +178,18 @@ class MultiResourceUserMixin:
     _class_permission_name = permissions.RESOURCE_USER
 
     class_permission_name_mapping = {
-        'userinfoedit': permissions.RESOURCE_MY_PROFILE,
-        'userinfo': permissions.RESOURCE_MY_PROFILE,
+        "userinfoedit": permissions.RESOURCE_MY_PROFILE,
+        "userinfo": permissions.RESOURCE_MY_PROFILE,
     }
 
     method_permission_name = {
-        'userinfo': 'read',
-        'download': 'read',
-        'show': 'read',
-        'list': 'read',
-        'edit': 'edit',
-        'userinfoedit': 'edit',
-        'delete': 'delete',
+        "userinfo": "read",
+        "download": "read",
+        "show": "read",
+        "list": "read",
+        "edit": "edit",
+        "userinfoedit": "edit",
+        "delete": "delete",
     }
 
     base_permissions = [
@@ -204,7 +204,7 @@ class MultiResourceUserMixin:
         if request:
             action_name = request.view_args.get("name")
             _, method_name = request.url_rule.endpoint.rsplit(".", 1)
-            if method_name == 'action' and action_name:
+            if method_name == "action" and action_name:
                 return self.class_permission_name_mapping.get(action_name, self._class_permission_name)
             if method_name:
                 return self.class_permission_name_mapping.get(method_name, self._class_permission_name)
@@ -219,7 +219,7 @@ class MultiResourceUserMixin:
     def show(self, pk):
         pk = self._deserialize_pk_if_composite(pk)
         widgets = self._show(pk)
-        widgets['show'].template_args['actions'].pop('userinfoedit', None)
+        widgets["show"].template_args["actions"].pop("userinfoedit", None)
         return self.render_template(
             self.show_template,
             pk=pk,
@@ -235,23 +235,23 @@ class CustomUserDBModelView(MultiResourceUserMixin, UserDBModelView):
     _class_permission_name = permissions.RESOURCE_USER
 
     class_permission_name_mapping = {
-        'resetmypassword': permissions.RESOURCE_MY_PASSWORD,
-        'resetpasswords': permissions.RESOURCE_PASSWORD,
-        'userinfoedit': permissions.RESOURCE_MY_PROFILE,
-        'userinfo': permissions.RESOURCE_MY_PROFILE,
+        "resetmypassword": permissions.RESOURCE_MY_PASSWORD,
+        "resetpasswords": permissions.RESOURCE_PASSWORD,
+        "userinfoedit": permissions.RESOURCE_MY_PROFILE,
+        "userinfo": permissions.RESOURCE_MY_PROFILE,
     }
 
     method_permission_name = {
-        'add': 'create',
-        'download': 'read',
-        'show': 'read',
-        'list': 'read',
-        'edit': 'edit',
-        'delete': 'delete',
-        'resetmypassword': 'read',
-        'resetpasswords': 'read',
-        'userinfo': 'read',
-        'userinfoedit': 'read',
+        "add": "create",
+        "download": "read",
+        "show": "read",
+        "list": "read",
+        "edit": "edit",
+        "delete": "delete",
+        "resetmypassword": "read",
+        "resetpasswords": "read",
+        "userinfo": "read",
+        "userinfoedit": "read",
     }
 
     base_permissions = [
@@ -268,19 +268,19 @@ class CustomUserLDAPModelView(MultiResourceUserMixin, UserLDAPModelView):
     _class_permission_name = permissions.RESOURCE_USER
 
     class_permission_name_mapping = {
-        'userinfoedit': permissions.RESOURCE_MY_PROFILE,
-        'userinfo': permissions.RESOURCE_MY_PROFILE,
+        "userinfoedit": permissions.RESOURCE_MY_PROFILE,
+        "userinfo": permissions.RESOURCE_MY_PROFILE,
     }
 
     method_permission_name = {
-        'add': 'create',
-        'userinfo': 'read',
-        'download': 'read',
-        'show': 'read',
-        'list': 'read',
-        'edit': 'edit',
-        'userinfoedit': 'edit',
-        'delete': 'delete',
+        "add": "create",
+        "userinfo": "read",
+        "download": "read",
+        "show": "read",
+        "list": "read",
+        "edit": "edit",
+        "userinfoedit": "edit",
+        "delete": "delete",
     }
 
     base_permissions = [
@@ -305,19 +305,19 @@ class CustomUserRemoteUserModelView(MultiResourceUserMixin, UserRemoteUserModelV
     _class_permission_name = permissions.RESOURCE_USER
 
     class_permission_name_mapping = {
-        'userinfoedit': permissions.RESOURCE_MY_PROFILE,
-        'userinfo': permissions.RESOURCE_MY_PROFILE,
+        "userinfoedit": permissions.RESOURCE_MY_PROFILE,
+        "userinfo": permissions.RESOURCE_MY_PROFILE,
     }
 
     method_permission_name = {
-        'add': 'create',
-        'userinfo': 'read',
-        'download': 'read',
-        'show': 'read',
-        'list': 'read',
-        'edit': 'edit',
-        'userinfoedit': 'edit',
-        'delete': 'delete',
+        "add": "create",
+        "userinfo": "read",
+        "download": "read",
+        "show": "read",
+        "list": "read",
+        "edit": "edit",
+        "userinfoedit": "edit",
+        "delete": "delete",
     }
 
     base_permissions = [

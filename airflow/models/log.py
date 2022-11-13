@@ -40,8 +40,8 @@ class Log(Base):
     extra = Column(Text)
 
     __table_args__ = (
-        Index('idx_log_dag', dag_id),
-        Index('idx_log_event', event),
+        Index("idx_log_dag", dag_id),
+        Index("idx_log_event", event),
     )
 
     def __init__(self, event, task_instance=None, owner=None, extra=None, **kwargs):
@@ -56,16 +56,16 @@ class Log(Base):
             self.task_id = task_instance.task_id
             self.execution_date = task_instance.execution_date
             self.map_index = task_instance.map_index
-            if getattr(task_instance, 'task', None):
+            if getattr(task_instance, "task", None):
                 task_owner = task_instance.task.owner
 
-        if 'task_id' in kwargs:
-            self.task_id = kwargs['task_id']
-        if 'dag_id' in kwargs:
-            self.dag_id = kwargs['dag_id']
-        if kwargs.get('execution_date'):
-            self.execution_date = kwargs['execution_date']
-        if 'map_index' in kwargs:
-            self.map_index = kwargs['map_index']
+        if "task_id" in kwargs:
+            self.task_id = kwargs["task_id"]
+        if "dag_id" in kwargs:
+            self.dag_id = kwargs["dag_id"]
+        if kwargs.get("execution_date"):
+            self.execution_date = kwargs["execution_date"]
+        if "map_index" in kwargs:
+            self.map_index = kwargs["map_index"]
 
         self.owner = owner or task_owner
