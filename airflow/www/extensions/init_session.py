@@ -26,14 +26,14 @@ from airflow.www.session import AirflowDatabaseSessionInterface, AirflowSecureCo
 def init_airflow_session_interface(app):
     """Set airflow session interface"""
     config = app.config.copy()
-    selected_backend = conf.get('webserver', 'SESSION_BACKEND')
+    selected_backend = conf.get("webserver", "SESSION_BACKEND")
     # A bit of a misnomer - normally cookies expire whenever the browser is closed
     # or when they hit their expiry datetime, whichever comes first. "Permanent"
     # cookies only expire when they hit their expiry datetime, and can outlive
     # the browser being closed.
-    permanent_cookie = config.get('SESSION_PERMANENT', True)
+    permanent_cookie = config.get("SESSION_PERMANENT", True)
 
-    if selected_backend == 'securecookie':
+    if selected_backend == "securecookie":
         app.session_interface = AirflowSecureCookieSessionInterface()
         if permanent_cookie:
 
@@ -41,7 +41,7 @@ def init_airflow_session_interface(app):
                 builtin_flask_session.permanent = True
 
             app.before_request(make_session_permanent)
-    elif selected_backend == 'database':
+    elif selected_backend == "database":
         app.session_interface = AirflowDatabaseSessionInterface(
             app=app,
             db=None,
@@ -49,8 +49,8 @@ def init_airflow_session_interface(app):
             # Typically these would be configurable with Flask-Session,
             # but we will set them explicitly instead as they don't make
             # sense to have configurable in Airflow's use case
-            table='session',
-            key_prefix='',
+            table="session",
+            key_prefix="",
             use_signer=True,
         )
     else:

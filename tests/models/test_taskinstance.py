@@ -60,7 +60,7 @@ from airflow.models import (
     XCom,
 )
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
-from airflow.models.expandinput import EXPAND_INPUT_EMPTY
+from airflow.models.expandinput import EXPAND_INPUT_EMPTY, NotFullyPopulated
 from airflow.models.param import process_params
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
@@ -1914,6 +1914,43 @@ class TestTaskInstance:
         # check that no dataset events were generated
         assert session.query(DatasetEvent).count() == 0
 
+    def test_changing_of_dataset_when_ddrq_is_already_populated(self, dag_maker, session):
+        """
+        Test that when a task that produces dataset has ran, that changing the consumer
+        dag dataset will not cause primary key blank-out
+        """
+        from airflow import Dataset
+
+        with dag_maker(schedule=None, serialized=True) as dag1:
+
+            @task(outlets=Dataset("test/1"))
+            def test_task1():
+                print(1)
+
+            test_task1()
+
+        dr1 = dag_maker.create_dagrun()
+        test_task1 = dag1.get_task("test_task1")
+
+        with dag_maker(dag_id="testdag", schedule=[Dataset("test/1")], serialized=True):
+
+            @task
+            def test_task2():
+                print(1)
+
+            test_task2()
+
+        ti = dr1.get_task_instance(task_id="test_task1")
+        ti.run()
+        # Change the dataset.
+        with dag_maker(dag_id="testdag", schedule=[Dataset("test2/1")], serialized=True):
+
+            @task
+            def test_task2():
+                print(1)
+
+            test_task2()
+
     @staticmethod
     def _test_previous_dates_setup(
         schedule_interval: str | datetime.timedelta | None,
@@ -3376,7 +3413,8 @@ class TestMappedTaskInstanceReceiveValue:
         ti.run()
 
         show_task = dag.get_task("show")
-        assert show_task.parse_time_mapped_ti_count is None
+        with pytest.raises(NotFullyPopulated):
+            assert show_task.get_parse_time_mapped_ti_count()
         mapped_tis, max_map_index = show_task.expand_mapped_task(dag_run.run_id, session=session)
         assert max_map_index + 1 == len(mapped_tis) == 4
 
@@ -3400,7 +3438,7 @@ class TestMappedTaskInstanceReceiveValue:
         dag_run = dag_maker.create_dagrun()
 
         show_task = dag.get_task("show")
-        assert show_task.parse_time_mapped_ti_count == 6
+        assert show_task.get_parse_time_mapped_ti_count() == 6
         mapped_tis, max_map_index = show_task.expand_mapped_task(dag_run.run_id, session=session)
         assert len(mapped_tis) == 0  # Expanded at parse!
         assert max_map_index == 5
@@ -3576,3 +3614,86 @@ def test_expand_non_templated_field(dag_maker, session):
 
     echo_task = dag.get_task("echo")
     assert "get_extra_env" in echo_task.upstream_task_ids
+
+
+def test_mapped_task_does_not_error_in_mini_scheduler_if_upstreams_are_not_done(dag_maker, caplog, session):
+    """
+    This tests that when scheduling child tasks of a task and there's a mapped downstream task,
+    if the mapped downstream task has upstreams that are not yet done, the mapped downstream task is
+    not marked as `upstream_failed'
+    """
+    with dag_maker() as dag:
+
+        @dag.task
+        def second_task():
+            return [0, 1, 2]
+
+        @dag.task
+        def first_task():
+            print(2)
+
+        @dag.task
+        def middle_task(id):
+            return id
+
+        middle = middle_task.expand(id=second_task())
+
+        @dag.task
+        def last_task():
+            print(3)
+
+        [first_task(), middle] >> last_task()
+
+    dag_run = dag_maker.create_dagrun()
+    first_ti = dag_run.get_task_instance(task_id="first_task")
+    second_ti = dag_run.get_task_instance(task_id="second_task")
+    first_ti.state = State.SUCCESS
+    second_ti.state = State.RUNNING
+    session.merge(first_ti)
+    session.merge(second_ti)
+    session.commit()
+    first_ti.schedule_downstream_tasks(session=session)
+    middle_ti = dag_run.get_task_instance(task_id="middle_task")
+    assert middle_ti.state != State.UPSTREAM_FAILED
+    assert "0 downstream tasks scheduled from follow-on schedule" in caplog.text
+
+
+def test_mapped_task_expands_in_mini_scheduler_if_upstreams_are_done(dag_maker, caplog, session):
+    """Test that mini scheduler expands mapped task"""
+    with dag_maker() as dag:
+
+        @dag.task
+        def second_task():
+            return [0, 1, 2]
+
+        @dag.task
+        def first_task():
+            print(2)
+
+        @dag.task
+        def middle_task(id):
+            return id
+
+        middle = middle_task.expand(id=second_task())
+
+        @dag.task
+        def last_task():
+            print(3)
+
+        [first_task(), middle] >> last_task()
+
+    dr = dag_maker.create_dagrun()
+
+    first_ti = dr.get_task_instance(task_id="first_task")
+    first_ti.state = State.SUCCESS
+    session.merge(first_ti)
+    session.commit()
+    second_task = dag.get_task("second_task")
+    second_ti = dr.get_task_instance(task_id="second_task")
+    second_ti.refresh_from_task(second_task)
+    second_ti.run()
+    second_ti.schedule_downstream_tasks(session=session)
+    for i in range(3):
+        middle_ti = dr.get_task_instance(task_id="middle_task", map_index=i)
+        assert middle_ti.state == State.SCHEDULED
+    assert "3 downstream tasks scheduled from follow-on schedule" in caplog.text

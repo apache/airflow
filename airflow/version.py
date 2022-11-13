@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-__all__ = ['version']
+__all__ = ["version"]
 
 try:
     import importlib_metadata as metadata
@@ -25,7 +25,7 @@ except ImportError:
     from importlib import metadata  # type: ignore[no-redef]
 
 try:
-    version = metadata.version('apache-airflow')
+    version = metadata.version("apache-airflow")
 except metadata.PackageNotFoundError:
     import logging
 

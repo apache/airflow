@@ -77,7 +77,7 @@ class NotFound(ProblemException):
 
     def __init__(
         self,
-        title: str = 'Not Found',
+        title: str = "Not Found",
         detail: str | None = None,
         headers: dict | None = None,
         **kwargs: Any,
