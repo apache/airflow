@@ -1229,6 +1229,7 @@ class TestDataprocWorkflowTemplateInstantiateOperator(unittest.TestCase):
             metadata=METADATA,
         )
 
+
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
 def test_instantiate_workflow_operator_extra_links(mock_hook, dag_maker, create_task_instance_of_operator):
@@ -1299,9 +1300,12 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator(unittest.TestCase):
             metadata=METADATA,
         )
 
+
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-def test_instantiate_inline_workflow_operator_extra_links(mock_hook, dag_maker, create_task_instance_of_operator):
+def test_instantiate_inline_workflow_operator_extra_links(
+    mock_hook, dag_maker, create_task_instance_of_operator
+):
     mock_hook.return_value.project_id = GCP_PROJECT
     ti = create_task_instance_of_operator(
         DataprocInstantiateInlineWorkflowTemplateOperator,
