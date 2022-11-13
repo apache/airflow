@@ -71,6 +71,7 @@ Committers
 - Malthe Borch (@malthe)
 - Maxime "Max" Beauchemin (@mistercrunch)
 - Patrick Leo Tardif (@pltardif)
+- Pierre Jeambrun (@pierrejeambrun)
 - Ping Zhang (@pingzh)
 - Qian Yu (@yuqian90)
 - Qingping Hou (@houqp)
