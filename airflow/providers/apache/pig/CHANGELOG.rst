@@ -24,6 +24,20 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+You cannot use ``pig_properties`` any more as connection extras. If you want to add extra parameters
+to ``pig`` command, you need to do it via ``pig_properties`` (string list) of the PigCliHook (new parameter)
+or via ``pig_opts`` (string with options separated by spaces) or ``pig_properties`` (string list) in
+the PigOperator . Any use of ``pig_properties`` extras in connection will raise an exception,
+informing that you need to remove them and pass them as parameters.
+
+Both ``pig_properties`` and ``pig_opts`` are now templated fields in the PigOperator.
+
 3.0.0
 .....
 
