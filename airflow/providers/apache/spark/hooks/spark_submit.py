@@ -33,12 +33,13 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 with contextlib.suppress(ImportError, NameError):
     from airflow.kubernetes import kube_client
 
+ALLOWED_SPARK_BINARIES = ["spark-submit", "spark2-submit"]
+
 
 class SparkSubmitHook(BaseHook, LoggingMixin):
     """
     This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
-    It requires that the "spark-submit" binary is in the PATH or the spark_home to be
-    supplied.
+    It requires that the "spark-submit" binary is in the PATH.
 
     :param conf: Arbitrary Spark configuration properties
     :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>` as configured
@@ -150,6 +151,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._yarn_application_id: str | None = None
         self._kubernetes_driver_pod: str | None = None
         self._spark_binary = spark_binary
+        if self._spark_binary is not None and self._spark_binary not in ALLOWED_SPARK_BINARIES:
+            raise RuntimeError(
+                f"The spark-binary extra can be on of {ALLOWED_SPARK_BINARIES} and it"
+                f" was `{spark_binary}`. Please make sure your spark binary is one of the"
+                f" allowed ones and that it is available on the PATH"
+            )
 
         self._connection = self._resolve_connection()
         self._is_yarn = "yarn" in self._connection["master"]
@@ -167,7 +174,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     def _resolve_should_track_driver_status(self) -> bool:
         """
-        Determines whether or not this hook should poll the spark driver status through
+        Determines whether this hook should poll the spark driver status through
         subsequent spark-submit status requests after the initial spark-submit request
         :return: if the driver status should be tracked
         """
@@ -179,7 +186,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             "master": "yarn",
             "queue": None,
             "deploy_mode": None,
-            "spark_home": None,
             "spark_binary": self._spark_binary or "spark-submit",
             "namespace": None,
         }
@@ -197,8 +203,20 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             extra = conn.extra_dejson
             conn_data["queue"] = extra.get("queue")
             conn_data["deploy_mode"] = extra.get("deploy-mode")
-            conn_data["spark_home"] = extra.get("spark-home")
-            conn_data["spark_binary"] = self._spark_binary or extra.get("spark-binary", "spark-submit")
+            spark_binary = self._spark_binary or extra.get("spark-binary", "spark-submit")
+            if spark_binary not in ALLOWED_SPARK_BINARIES:
+                raise RuntimeError(
+                    f"The `spark-binary` extra can be on of {ALLOWED_SPARK_BINARIES} and it"
+                    f" was `{spark_binary}`. Please make sure your spark binary is one of the"
+                    " allowed ones and that it is available on the PATH"
+                )
+            conn_spark_home = extra.get("spark-home")
+            if conn_spark_home:
+                raise RuntimeError(
+                    "The `spark-home` extra is not allowed any more. Please make sure your `spark-submit` or"
+                    " `spark2-submit` are available on the PATH."
+                )
+            conn_data["spark_binary"] = spark_binary
             conn_data["namespace"] = extra.get("namespace")
         except AirflowException:
             self.log.info(
@@ -214,17 +232,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         pass
 
     def _get_spark_binary_path(self) -> list[str]:
-        # If the spark_home is passed then build the spark-submit executable path using
-        # the spark_home; otherwise assume that spark-submit is present in the path to
-        # the executing user
-        if self._connection["spark_home"]:
-            connection_cmd = [
-                os.path.join(self._connection["spark_home"], "bin", self._connection["spark_binary"])
-            ]
-        else:
-            connection_cmd = [self._connection["spark_binary"]]
-
-        return connection_cmd
+        # Assume that spark-submit is present in the path to the executing user
+        return [self._connection["spark_binary"]]
 
     def _mask_cmd(self, connection_cmd: str | list[str]) -> str:
         # Mask any password related fields in application args with key value pair
@@ -580,15 +589,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         Construct the spark-submit command to kill a driver.
         :return: full command to kill a driver
         """
-        # If the spark_home is passed then build the spark-submit executable path using
-        # the spark_home; otherwise assume that spark-submit is present in the path to
-        # the executing user
-        if self._connection["spark_home"]:
-            connection_cmd = [
-                os.path.join(self._connection["spark_home"], "bin", self._connection["spark_binary"])
-            ]
-        else:
-            connection_cmd = [self._connection["spark_binary"]]
+        # Assume that spark-submit is present in the path to the executing user
+        connection_cmd = [self._connection["spark_binary"]]
 
         # The url to the spark master
         connection_cmd += ["--master", self._connection["master"]]

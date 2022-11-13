@@ -89,11 +89,7 @@ class TestSparkSubmitHook(unittest.TestCase):
                 conn_id="spark_k8s_cluster",
                 conn_type="spark",
                 host="k8s://https://k8s-master",
-                extra=(
-                    '{"spark-home": "/opt/spark", '
-                    ' "deploy-mode": "cluster", '
-                    ' "namespace": "mynamespace"}'
-                ),
+                extra='{"deploy-mode": "cluster", "namespace": "mynamespace"}',
             )
         )
         db.merge_conn(
@@ -102,28 +98,26 @@ class TestSparkSubmitHook(unittest.TestCase):
 
         db.merge_conn(
             Connection(
-                conn_id="spark_home_set",
-                conn_type="spark",
-                host="yarn://yarn-master",
-                extra='{"spark-home": "/opt/myspark"}',
-            )
-        )
-
-        db.merge_conn(Connection(conn_id="spark_home_not_set", conn_type="spark", host="yarn://yarn-master"))
-        db.merge_conn(
-            Connection(
                 conn_id="spark_binary_set",
                 conn_type="spark",
                 host="yarn",
-                extra='{"spark-binary": "custom-spark-submit"}',
+                extra='{"spark-binary": "spark2-submit"}',
             )
         )
         db.merge_conn(
             Connection(
-                conn_id="spark_binary_and_home_set",
+                conn_id="spark_custom_binary_set",
                 conn_type="spark",
                 host="yarn",
-                extra='{"spark-home": "/path/to/spark_home", "spark-binary": "custom-spark-submit"}',
+                extra='{"spark-binary": "spark-other-submit"}',
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id="spark_home_set",
+                conn_type="spark",
+                host="yarn",
+                extra='{"spark-home": "/custom/spark-home/path"}',
             )
         )
         db.merge_conn(
@@ -131,7 +125,7 @@ class TestSparkSubmitHook(unittest.TestCase):
                 conn_id="spark_standalone_cluster",
                 conn_type="spark",
                 host="spark://spark-standalone-master:6066",
-                extra='{"spark-home": "/path/to/spark_home", "deploy-mode": "cluster"}',
+                extra='{"deploy-mode": "cluster"}',
             )
         )
         db.merge_conn(
@@ -139,7 +133,7 @@ class TestSparkSubmitHook(unittest.TestCase):
                 conn_id="spark_standalone_cluster_client_mode",
                 conn_type="spark",
                 host="spark://spark-standalone-master:6066",
-                extra='{"spark-home": "/path/to/spark_home", "deploy-mode": "client"}',
+                extra='{"deploy-mode": "client"}',
             )
         )
 
@@ -265,10 +259,7 @@ class TestSparkSubmitHook(unittest.TestCase):
         hook_spark_yarn_cluster = SparkSubmitHook(conn_id="spark_yarn_cluster")
         hook_spark_k8s_cluster = SparkSubmitHook(conn_id="spark_k8s_cluster")
         hook_spark_default_mesos = SparkSubmitHook(conn_id="spark_default_mesos")
-        hook_spark_home_set = SparkSubmitHook(conn_id="spark_home_set")
-        hook_spark_home_not_set = SparkSubmitHook(conn_id="spark_home_not_set")
         hook_spark_binary_set = SparkSubmitHook(conn_id="spark_binary_set")
-        hook_spark_binary_and_home_set = SparkSubmitHook(conn_id="spark_binary_and_home_set")
         hook_spark_standalone_cluster = SparkSubmitHook(conn_id="spark_standalone_cluster")
 
         # When
@@ -282,15 +273,8 @@ class TestSparkSubmitHook(unittest.TestCase):
         should_track_driver_status_spark_default_mesos = (
             hook_spark_default_mesos._resolve_should_track_driver_status()
         )
-        should_track_driver_status_spark_home_set = hook_spark_home_set._resolve_should_track_driver_status()
-        should_track_driver_status_spark_home_not_set = (
-            hook_spark_home_not_set._resolve_should_track_driver_status()
-        )
         should_track_driver_status_spark_binary_set = (
             hook_spark_binary_set._resolve_should_track_driver_status()
-        )
-        should_track_driver_status_spark_binary_and_home_set = (
-            hook_spark_binary_and_home_set._resolve_should_track_driver_status()
         )
         should_track_driver_status_spark_standalone_cluster = (
             hook_spark_standalone_cluster._resolve_should_track_driver_status()
@@ -301,10 +285,7 @@ class TestSparkSubmitHook(unittest.TestCase):
         assert should_track_driver_status_spark_yarn_cluster is False
         assert should_track_driver_status_spark_k8s_cluster is False
         assert should_track_driver_status_spark_default_mesos is False
-        assert should_track_driver_status_spark_home_set is False
-        assert should_track_driver_status_spark_home_not_set is False
         assert should_track_driver_status_spark_binary_set is False
-        assert should_track_driver_status_spark_binary_and_home_set is False
         assert should_track_driver_status_spark_standalone_cluster is True
 
     def test_resolve_connection_yarn_default(self):
@@ -322,7 +303,6 @@ class TestSparkSubmitHook(unittest.TestCase):
             "spark_binary": "spark-submit",
             "deploy_mode": None,
             "queue": None,
-            "spark_home": None,
             "namespace": None,
         }
         assert connection == expected_spark_connection
@@ -343,7 +323,6 @@ class TestSparkSubmitHook(unittest.TestCase):
             "spark_binary": "spark-submit",
             "deploy_mode": None,
             "queue": "root.default",
-            "spark_home": None,
             "namespace": None,
         }
         assert connection == expected_spark_connection
@@ -365,7 +344,6 @@ class TestSparkSubmitHook(unittest.TestCase):
             "spark_binary": "spark-submit",
             "deploy_mode": None,
             "queue": None,
-            "spark_home": None,
             "namespace": None,
         }
         assert connection == expected_spark_connection
@@ -386,7 +364,6 @@ class TestSparkSubmitHook(unittest.TestCase):
             "spark_binary": "spark-submit",
             "deploy_mode": "cluster",
             "queue": "root.etl",
-            "spark_home": None,
             "namespace": None,
         }
         assert connection == expected_spark_connection
@@ -405,7 +382,6 @@ class TestSparkSubmitHook(unittest.TestCase):
         # Then
         dict_cmd = self.cmd_args_to_dict(cmd)
         expected_spark_connection = {
-            "spark_home": "/opt/spark",
             "queue": None,
             "spark_binary": "spark-submit",
             "master": "k8s://https://k8s-master",
@@ -430,7 +406,6 @@ class TestSparkSubmitHook(unittest.TestCase):
         # Then
         dict_cmd = self.cmd_args_to_dict(cmd)
         expected_spark_connection = {
-            "spark_home": "/opt/spark",
             "queue": None,
             "spark_binary": "spark-submit",
             "master": "k8s://https://k8s-master",
@@ -441,46 +416,6 @@ class TestSparkSubmitHook(unittest.TestCase):
         assert dict_cmd["--master"] == "k8s://https://k8s-master"
         assert dict_cmd["--deploy-mode"] == "cluster"
         assert dict_cmd["--conf"] == "spark.kubernetes.namespace=airflow"
-
-    def test_resolve_connection_spark_home_set_connection(self):
-        # Given
-        hook = SparkSubmitHook(conn_id="spark_home_set")
-
-        # When
-        connection = hook._resolve_connection()
-        cmd = hook._build_spark_submit_command(self._spark_job_file)
-
-        # Then
-        expected_spark_connection = {
-            "master": "yarn://yarn-master",
-            "spark_binary": "spark-submit",
-            "deploy_mode": None,
-            "queue": None,
-            "spark_home": "/opt/myspark",
-            "namespace": None,
-        }
-        assert connection == expected_spark_connection
-        assert cmd[0] == "/opt/myspark/bin/spark-submit"
-
-    def test_resolve_connection_spark_home_not_set_connection(self):
-        # Given
-        hook = SparkSubmitHook(conn_id="spark_home_not_set")
-
-        # When
-        connection = hook._resolve_connection()
-        cmd = hook._build_spark_submit_command(self._spark_job_file)
-
-        # Then
-        expected_spark_connection = {
-            "master": "yarn://yarn-master",
-            "spark_binary": "spark-submit",
-            "deploy_mode": None,
-            "queue": None,
-            "spark_home": None,
-            "namespace": None,
-        }
-        assert connection == expected_spark_connection
-        assert cmd[0] == "spark-submit"
 
     def test_resolve_connection_spark_binary_set_connection(self):
         # Given
@@ -493,18 +428,29 @@ class TestSparkSubmitHook(unittest.TestCase):
         # Then
         expected_spark_connection = {
             "master": "yarn",
-            "spark_binary": "custom-spark-submit",
+            "spark_binary": "spark2-submit",
             "deploy_mode": None,
             "queue": None,
-            "spark_home": None,
             "namespace": None,
         }
         assert connection == expected_spark_connection
-        assert cmd[0] == "custom-spark-submit"
+        assert cmd[0] == "spark2-submit"
+
+    def test_resolve_connection_custom_spark_binary_not_allowed_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            SparkSubmitHook(conn_id="spark_binary_set", spark_binary="another-custom-spark-submit")
+
+    def test_resolve_connection_spark_binary_extra_not_allowed_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            SparkSubmitHook(conn_id="spark_custom_binary_set")
+
+    def test_resolve_connection_spark_home_not_allowed_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            SparkSubmitHook(conn_id="spark_home_set")
 
     def test_resolve_connection_spark_binary_default_value_override(self):
         # Given
-        hook = SparkSubmitHook(conn_id="spark_binary_set", spark_binary="another-custom-spark-submit")
+        hook = SparkSubmitHook(conn_id="spark_binary_set", spark_binary="spark2-submit")
 
         # When
         connection = hook._resolve_connection()
@@ -513,14 +459,13 @@ class TestSparkSubmitHook(unittest.TestCase):
         # Then
         expected_spark_connection = {
             "master": "yarn",
-            "spark_binary": "another-custom-spark-submit",
+            "spark_binary": "spark2-submit",
             "deploy_mode": None,
             "queue": None,
-            "spark_home": None,
             "namespace": None,
         }
         assert connection == expected_spark_connection
-        assert cmd[0] == "another-custom-spark-submit"
+        assert cmd[0] == "spark2-submit"
 
     def test_resolve_connection_spark_binary_default_value(self):
         # Given
@@ -536,31 +481,10 @@ class TestSparkSubmitHook(unittest.TestCase):
             "spark_binary": "spark-submit",
             "deploy_mode": None,
             "queue": "root.default",
-            "spark_home": None,
             "namespace": None,
         }
         assert connection == expected_spark_connection
         assert cmd[0] == "spark-submit"
-
-    def test_resolve_connection_spark_binary_and_home_set_connection(self):
-        # Given
-        hook = SparkSubmitHook(conn_id="spark_binary_and_home_set")
-
-        # When
-        connection = hook._resolve_connection()
-        cmd = hook._build_spark_submit_command(self._spark_job_file)
-
-        # Then
-        expected_spark_connection = {
-            "master": "yarn",
-            "spark_binary": "custom-spark-submit",
-            "deploy_mode": None,
-            "queue": None,
-            "spark_home": "/path/to/spark_home",
-            "namespace": None,
-        }
-        assert connection == expected_spark_connection
-        assert cmd[0] == "/path/to/spark_home/bin/custom-spark-submit"
 
     def test_resolve_connection_spark_standalone_cluster_connection(self):
         # Given
@@ -576,11 +500,10 @@ class TestSparkSubmitHook(unittest.TestCase):
             "spark_binary": "spark-submit",
             "deploy_mode": "cluster",
             "queue": None,
-            "spark_home": "/path/to/spark_home",
             "namespace": None,
         }
         assert connection == expected_spark_connection
-        assert cmd[0] == "/path/to/spark_home/bin/spark-submit"
+        assert cmd[0] == "spark-submit"
 
     def test_resolve_spark_submit_env_vars_standalone_client_mode(self):
         # Given
@@ -820,7 +743,7 @@ class TestSparkSubmitHook(unittest.TestCase):
         kill_cmd = hook._build_spark_driver_kill_command()
 
         # Then
-        assert kill_cmd[0] == "/path/to/spark_home/bin/spark-submit"
+        assert kill_cmd[0] == "spark-submit"
         assert kill_cmd[1] == "--master"
         assert kill_cmd[2] == "spark://spark-standalone-master:6066"
         assert kill_cmd[3] == "--kill"
