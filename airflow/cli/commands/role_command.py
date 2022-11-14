@@ -84,7 +84,7 @@ def roles_delete(args):
 
 def __roles_add_or_remove_permissions(args):
     asm: AirflowSecurityManager = cached_app().appbuilder.sm
-    is_add: bool = args.subcommand.startswith('add')
+    is_add: bool = args.subcommand.startswith("add")
 
     role_map = {}
     perm_map: dict[tuple[str, str], set[str]] = collections.defaultdict(set)
@@ -155,8 +155,8 @@ def roles_export(args):
     roles = appbuilder.sm.get_all_roles()
     exporting_roles = [role.name for role in roles if role.name not in EXISTING_ROLES]
     filename = os.path.expanduser(args.file)
-    kwargs = {} if not args.pretty else {'sort_keys': True, 'indent': 4}
-    with open(filename, 'w', encoding='utf-8') as f:
+    kwargs = {} if not args.pretty else {"sort_keys": True, "indent": 4}
+    with open(filename, "w", encoding="utf-8") as f:
         json.dump(exporting_roles, f, **kwargs)
     print(f"{len(exporting_roles)} roles successfully exported to {filename}")
 

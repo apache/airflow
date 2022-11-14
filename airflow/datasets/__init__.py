@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 import attr
 
@@ -32,11 +32,11 @@ class Dataset:
     @uri.validator
     def _check_uri(self, attr, uri: str):
         if uri.isspace():
-            raise ValueError(f'{attr.name} cannot be just whitespace')
+            raise ValueError(f"{attr.name} cannot be just whitespace")
         try:
-            uri.encode('ascii')
+            uri.encode("ascii")
         except UnicodeEncodeError:
-            raise ValueError(f'{attr.name!r} must be ascii')
-        parsed = urlparse(uri)
-        if parsed.scheme and parsed.scheme.lower() == 'airflow':
-            raise ValueError(f'{attr.name!r} scheme `airflow` is reserved')
+            raise ValueError(f"{attr.name!r} must be ascii")
+        parsed = urlsplit(uri)
+        if parsed.scheme and parsed.scheme.lower() == "airflow":
+            raise ValueError(f"{attr.name!r} scheme `airflow` is reserved")

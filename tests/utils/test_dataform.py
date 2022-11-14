@@ -14,15 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use :mod:`airflow.providers.microsoft.azure.operators.cosmos`."""
+
 from __future__ import annotations
 
-import warnings
+import pytest
 
-from airflow.providers.microsoft.azure.operators.cosmos import AzureCosmosInsertDocumentOperator  # noqa
+from airflow.providers.google.cloud.utils.dataform import DataformLocations, define_default_location
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.cosmos`.",
-    DeprecationWarning,
-    stacklevel=2,
+
+@pytest.mark.parametrize(
+    "region, expected",
+    [
+        ("us-central1", DataformLocations.US),
+        ("europe-west4", DataformLocations.EUROPE),
+    ],
 )
+def test_define_default_location(region, expected):
+    actual = define_default_location(region)
+    assert actual == expected

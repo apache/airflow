@@ -55,13 +55,9 @@ from airflow.models.expandinput import (
     ListOfDictsExpandInput,
     OperatorExpandArgument,
     OperatorExpandKwargsArgument,
+    is_mappable,
 )
-from airflow.models.mappedoperator import (
-    MappedOperator,
-    ValidationSource,
-    ensure_xcomarg_return_value,
-    get_mappable_types,
-)
+from airflow.models.mappedoperator import MappedOperator, ValidationSource, ensure_xcomarg_return_value
 from airflow.models.pool import Pool
 from airflow.models.xcom_arg import XComArg
 from airflow.typing_compat import ParamSpec, Protocol
@@ -100,7 +96,7 @@ class ExpandableFactory(Protocol):
         kwargs_left = kwargs.copy()
         for arg_name in self._mappable_function_argument_names:
             value = kwargs_left.pop(arg_name, NOTSET)
-            if func != "expand" or value is NOTSET or isinstance(value, get_mappable_types()):
+            if func != "expand" or value is NOTSET or is_mappable(value):
                 continue
             tname = type(value).__name__
             raise ValueError(f"expand() got an unexpected type {tname!r} for keyword argument {arg_name!r}")
@@ -169,12 +165,12 @@ class DecoratedOperator(BaseOperator):
         PythonOperator). This gives a user the option to upstream kwargs as needed.
     """
 
-    template_fields: Sequence[str] = ('op_args', 'op_kwargs')
+    template_fields: Sequence[str] = ("op_args", "op_kwargs")
     template_fields_renderers = {"op_args": "py", "op_kwargs": "py"}
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
-    shallow_copy_attrs: Sequence[str] = ('python_callable',)
+    shallow_copy_attrs: Sequence[str] = ("python_callable",)
 
     def __init__(
         self,
@@ -187,7 +183,7 @@ class DecoratedOperator(BaseOperator):
         kwargs_to_upstream: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
-        task_id = get_unique_task_id(task_id, kwargs.get('dag'), kwargs.get('task_group'))
+        task_id = get_unique_task_id(task_id, kwargs.get("dag"), kwargs.get("task_group"))
         self.python_callable = python_callable
         kwargs_to_upstream = kwargs_to_upstream or {}
         op_args = op_args or []
@@ -227,29 +223,29 @@ class DecoratedOperator(BaseOperator):
             for key in return_value.keys():
                 if not isinstance(key, str):
                     raise AirflowException(
-                        'Returned dictionary keys must be strings when using '
-                        f'multiple_outputs, found {key} ({type(key)}) instead'
+                        "Returned dictionary keys must be strings when using "
+                        f"multiple_outputs, found {key} ({type(key)}) instead"
                     )
             for key, value in return_value.items():
                 xcom_push(context, key, value)
         else:
             raise AirflowException(
-                f'Returned output was type {type(return_value)} expected dictionary for multiple_outputs'
+                f"Returned output was type {type(return_value)} expected dictionary for multiple_outputs"
             )
         return return_value
 
     def _hook_apply_defaults(self, *args, **kwargs):
-        if 'python_callable' not in kwargs:
+        if "python_callable" not in kwargs:
             return args, kwargs
 
-        python_callable = kwargs['python_callable']
-        default_args = kwargs.get('default_args') or {}
-        op_kwargs = kwargs.get('op_kwargs') or {}
+        python_callable = kwargs["python_callable"]
+        default_args = kwargs.get("default_args") or {}
+        op_kwargs = kwargs.get("op_kwargs") or {}
         f_sig = inspect.signature(python_callable)
         for arg in f_sig.parameters:
             if arg not in op_kwargs and arg in default_args:
                 op_kwargs[arg] = default_args[arg]
-        kwargs['op_kwargs'] = op_kwargs
+        kwargs["op_kwargs"] = op_kwargs
         return args, kwargs
 
 
@@ -291,7 +287,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
     def __attrs_post_init__(self):
         if "self" in self.function_signature.parameters:
             raise TypeError(f"@{self.decorator_name} does not support methods")
-        self.kwargs.setdefault('task_id', self.function.__name__)
+        self.kwargs.setdefault("task_id", self.function.__name__)
 
     def __call__(self, *args: FParams.args, **kwargs: FParams.kwargs) -> XComArg:
         op = self.operator_class(
@@ -563,7 +559,7 @@ def task_decorator_factory(
         )
         return cast(TaskDecorator, decorator)
     elif python_callable is not None:
-        raise TypeError('No args allowed while using @task, use kwargs instead')
+        raise TypeError("No args allowed while using @task, use kwargs instead")
 
     def decorator_factory(python_callable):
         return _TaskDecorator(

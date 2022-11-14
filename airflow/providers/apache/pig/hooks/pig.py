@@ -26,13 +26,10 @@ from airflow.hooks.base import BaseHook
 
 
 class PigCliHook(BaseHook):
-    """
-    Simple wrapper around the pig CLI.
+    """Simple wrapper around the pig CLI.
 
-    Note that you can also set default pig CLI properties using the
-    ``pig_properties`` to be used in your connection as in
-    ``{"pig_properties": "-Dpig.tmpfilecompression=true"}``
-
+    :param pig_cli_conn_id: Connection id used by the hook
+    :param pig_properties: additional properties added after pig cli command as list of strings.
     """
 
     conn_name_attr = "pig_cli_conn_id"
@@ -40,16 +37,27 @@ class PigCliHook(BaseHook):
     conn_type = "pig_cli"
     hook_name = "Pig Client Wrapper"
 
-    def __init__(self, pig_cli_conn_id: str = default_conn_name) -> None:
+    def __init__(
+        self, pig_cli_conn_id: str = default_conn_name, pig_properties: list[str] | None = None
+    ) -> None:
         super().__init__()
         conn = self.get_connection(pig_cli_conn_id)
-        self.pig_properties = conn.extra_dejson.get("pig_properties", "")
+        conn_pig_properties = conn.extra_dejson.get("pig_properties")
+        if conn_pig_properties:
+            raise RuntimeError(
+                "The PigCliHook used to have possibility of passing `pig_properties` to the Hook,"
+                " however with the 4.0.0 version of `apache-pig` provider it has been removed. You should"
+                " use ``pig_opts`` (space separated string) or ``pig_properties`` (string list) in the"
+                " PigOperator. You can also pass ``pig-properties`` in the PigCliHook `init`. Currently,"
+                f" the {pig_cli_conn_id} connection has those extras: `{conn_pig_properties}`."
+            )
+        self.pig_properties = pig_properties if pig_properties else []
         self.conn = conn
         self.sub_process = None
 
     def run_cli(self, pig: str, pig_opts: str | None = None, verbose: bool = True) -> Any:
         """
-        Run an pig script using the pig cli
+        Run a pig script using the pig cli
 
         >>> ph = PigCliHook()
         >>> result = ph.run_cli("ls /;", pig_opts="-x mapreduce")
@@ -67,8 +75,7 @@ class PigCliHook(BaseHook):
                 pig_cmd = [pig_bin]
 
                 if self.pig_properties:
-                    pig_properties_list = self.pig_properties.split()
-                    pig_cmd.extend(pig_properties_list)
+                    pig_cmd.extend(self.pig_properties)
                 if pig_opts:
                     pig_opts_list = pig_opts.split()
                     pig_cmd.extend(pig_opts_list)

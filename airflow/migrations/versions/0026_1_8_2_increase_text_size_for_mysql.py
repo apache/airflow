@@ -28,20 +28,20 @@ from alembic import op
 from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
-revision = 'd2ae31099d61'
-down_revision = '947454bf1dff'
+revision = "d2ae31099d61"
+down_revision = "947454bf1dff"
 branch_labels = None
 depends_on = None
-airflow_version = '1.8.2'
+airflow_version = "1.8.2"
 
 
 def upgrade():
     conn = op.get_bind()
     if conn.dialect.name == "mysql":
-        op.alter_column(table_name='variable', column_name='val', type_=mysql.MEDIUMTEXT)
+        op.alter_column(table_name="variable", column_name="val", type_=mysql.MEDIUMTEXT)
 
 
 def downgrade():
     conn = op.get_bind()
     if conn.dialect.name == "mysql":
-        op.alter_column(table_name='variable', column_name='val', type_=mysql.TEXT)
+        op.alter_column(table_name="variable", column_name="val", type_=mysql.TEXT)

@@ -24,10 +24,12 @@ import {
   Button,
   Link,
   Divider,
+  Spacer,
   Table,
   Tbody,
   Tr,
   Td,
+  useClipboard,
 } from '@chakra-ui/react';
 
 import { MdOutlineAccountTree } from 'react-icons/md';
@@ -59,6 +61,7 @@ interface Props {
 const DagRun = ({ runId }: Props) => {
   const { data: { dagRuns } } = useGridData();
   const run = dagRuns.find((dr) => dr.runId === runId);
+  const { onCopy, hasCopied } = useClipboard(run?.conf || '');
   if (!run) return null;
   const {
     executionDate,
@@ -185,16 +188,20 @@ const DagRun = ({ runId }: Props) => {
                 confIsJson
                   ? (
                     <Td>
-                      <ReactJson
-                        src={JSON.parse(conf ?? '')}
-                        name={false}
-                        theme="rjv-default"
-                        iconStyle="triangle"
-                        indentWidth={2}
-                        displayDataTypes={false}
-                        enableClipboard={false}
-                        style={{ backgroundColor: 'inherit' }}
-                      />
+                      <Flex>
+                        <ReactJson
+                          src={JSON.parse(conf ?? '')}
+                          name={false}
+                          theme="rjv-default"
+                          iconStyle="triangle"
+                          indentWidth={2}
+                          displayDataTypes={false}
+                          enableClipboard={false}
+                          style={{ backgroundColor: 'inherit' }}
+                        />
+                        <Spacer />
+                        <Button aria-label="Copy" onClick={onCopy}>{hasCopied ? 'Copied!' : 'Copy'}</Button>
+                      </Flex>
                     </Td>
                   )
                   : <Td>{conf ?? 'None'}</Td>

@@ -44,7 +44,7 @@ class LatestOnlyOperator(BaseBranchOperator):
     marked as externally triggered.
     """
 
-    ui_color = '#e9ffdb'  # nyanza
+    ui_color = "#e9ffdb"  # nyanza
 
     def choose_branch(self, context: Context) -> str | Iterable[str]:
         # If the DAG Run is externally triggered, then return without
@@ -52,29 +52,29 @@ class LatestOnlyOperator(BaseBranchOperator):
         dag_run: DagRun = context["dag_run"]
         if dag_run.external_trigger:
             self.log.info("Externally triggered DAG_Run: allowing execution to proceed.")
-            return list(context['task'].get_direct_relative_ids(upstream=False))
+            return list(context["task"].get_direct_relative_ids(upstream=False))
 
         dag: DAG = context["dag"]
         next_info = dag.next_dagrun_info(dag.get_run_data_interval(dag_run), restricted=False)
-        now = pendulum.now('UTC')
+        now = pendulum.now("UTC")
 
         if next_info is None:
             self.log.info("Last scheduled execution: allowing execution to proceed.")
-            return list(context['task'].get_direct_relative_ids(upstream=False))
+            return list(context["task"].get_direct_relative_ids(upstream=False))
 
         left_window, right_window = next_info.data_interval
         self.log.info(
-            'Checking latest only with left_window: %s right_window: %s now: %s',
+            "Checking latest only with left_window: %s right_window: %s now: %s",
             left_window,
             right_window,
             now,
         )
 
         if not left_window < now <= right_window:
-            self.log.info('Not latest execution, skipping downstream.')
+            self.log.info("Not latest execution, skipping downstream.")
             # we return an empty list, thus the parent BaseBranchOperator
             # won't exclude any downstream tasks from skipping.
             return []
         else:
-            self.log.info('Latest, allowing execution to proceed.')
-            return list(context['task'].get_direct_relative_ids(upstream=False))
+            self.log.info("Latest, allowing execution to proceed.")
+            return list(context["task"].get_direct_relative_ids(upstream=False))

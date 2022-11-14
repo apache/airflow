@@ -54,7 +54,7 @@ def get_xcom_entries(
 ) -> APIResponse:
     """Get all XCom values"""
     query = session.query(XCom)
-    if dag_id == '~':
+    if dag_id == "~":
         appbuilder = get_airflow_app().appbuilder
         readable_dag_ids = appbuilder.sm.get_readable_dag_ids(g.user)
         query = query.filter(XCom.dag_id.in_(readable_dag_ids))
@@ -63,9 +63,9 @@ def get_xcom_entries(
         query = query.filter(XCom.dag_id == dag_id)
         query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.run_id == DR.run_id))
 
-    if task_id != '~':
+    if task_id != "~":
         query = query.filter(XCom.task_id == task_id)
-    if dag_run_id != '~':
+    if dag_run_id != "~":
         query = query.filter(DR.run_id == dag_run_id)
     query = query.order_by(DR.execution_date, XCom.task_id, XCom.dag_id, XCom.key)
     total_entries = query.count()

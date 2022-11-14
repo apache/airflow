@@ -34,6 +34,15 @@ Previously KubernetesPodOperator considered some settings from the Airflow confi
 
 Drop support for providing ``resource`` as dict in ``KubernetesPodOperator``. You should use ``container_resources`` with ``V1ResourceRequirements``.
 
+Param ``node_selectors`` has been removed in ``KubernetesPodOperator``; use ``node_selector`` instead.
+
+The following backcompat modules for KubernetesPodOperator are removed and you must now use the corresponding objects from the kubernetes library:
+* ``airflow.providers.cncf.kubernetes.backcompat.pod``
+* ``airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env``
+* ``airflow.providers.cncf.kubernetes.backcompat.volume``
+* ``airflow.providers.cncf.kubernetes.backcompat.volume_mount``
+
+
 Features
 ~~~~~~~~
 
