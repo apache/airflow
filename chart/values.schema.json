@@ -4871,12 +4871,12 @@
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                 },
                 "securityContexts": {
-                    "description": "Security context definition for the pgbouncer. If not set, the values from global `securityContexts` will be used.",
+                    "description": "Security context definition for the PgBouncer. If not set, the values from global `securityContexts` will be used.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {
                         "container": {
-                            "description": "Container security context definition for the pgbouncer.",
+                            "description": "Container security context definition for the PgBouncer.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                             "default": {},
