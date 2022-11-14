@@ -1561,6 +1561,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "enabled": {
+                            "description": "Whether to deploy the Airflow worker log groomer sidecar.",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "command": {
                             "description": "Command to use when running the Airflow workers log groomer sidecar (templated).",
                             "type": [

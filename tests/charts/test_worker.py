@@ -523,6 +523,23 @@ class TestWorker:
         assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
+    def test_log_groomer_collector_default_enabled(self):
+        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
+        assert 2 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+        assert "worker-log-groomer" in [
+            c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
+        ]
+
+    def test_log_groomer_collector_can_be_disabled(self):
+        docs = render_chart(
+            values={"workers": {"logGroomerSidecar": {"enabled": False}}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+        assert "worker-log-groomer" not in [
+            c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
+        ]
+
     def test_log_groomer_default_command_and_args(self):
         docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
 
