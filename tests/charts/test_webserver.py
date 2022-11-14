@@ -719,6 +719,35 @@ class TestWebserverService:
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
+    @pytest.mark.parametrize(
+        "ports, expected_ports",
+        [
+            (
+                [{"nodePort": "31000", "port": "8080"}],
+                [{"nodePort": 31000, "port": 8080}],
+            ),
+            (
+                [{"port": "8080"}],
+                [{"port": 8080}],
+            ),
+        ],
+    )
+    def test_nodeport_service(self, ports, expected_ports):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "service": {
+                        "type": "NodePort",
+                        "ports": ports,
+                    }
+                },
+            },
+            show_only=["templates/webserver/webserver-service.yaml"],
+        )
+
+        assert "NodePort" == jmespath.search("spec.type", docs[0])
+        assert expected_ports == jmespath.search("spec.ports", docs[0])
+
 
 class TestWebserverConfigmap:
     def test_no_webserver_config_configmap_by_default(self):
