@@ -28,6 +28,39 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.0.0
+.....
+
+Latest change: 2022-11-11
+
+=================================================================================================  ===========  ============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================================================
+`52593b061c <https://github.com/apache/airflow/commit/52593b061c32d071243c46fe45784a78b57a04b6>`_  2022-11-11   ``Enable template rendering for env_vars field for the @task.kubernetes decorator (#27433)``
+`47a2b9ee7f <https://github.com/apache/airflow/commit/47a2b9ee7f1ff2cc1cc1aa1c3d1b523c88ba29fb>`_  2022-11-09   ``Add container_resources as KubernetesPodOperator templatable (#27457)``
+`aefadb8c5b <https://github.com/apache/airflow/commit/aefadb8c5b9272613d5806b054a1b46edf29d82e>`_  2022-11-08   ``Allow xcom sidecar container image to be configurable in KPO (#26766)``
+`2d2f0daad6 <https://github.com/apache/airflow/commit/2d2f0daad66416d565e874e35b6a487a21e5f7b1>`_  2022-11-08   ``Fix KubernetesHook fail on an attribute absence (#25787)``
+`eee3df4570 <https://github.com/apache/airflow/commit/eee3df457063df04d0fa2e57431786c6f223f700>`_  2022-11-07   ``Improve task_id to pod name conversion (#27524)``
+`8c15b0a6d1 <https://github.com/apache/airflow/commit/8c15b0a6d1a846cc477618e326a50cd96f76380f>`_  2022-11-07   ``Use log.exception where more economical than log.error (#27517)``
+`20ecefa416 <https://github.com/apache/airflow/commit/20ecefa416640bc9a3afc2c86848ca2e2436f6a4>`_  2022-11-05   ``KPO should use hook's get namespace method to get namespace (#27516)``
+`701239abc3 <https://github.com/apache/airflow/commit/701239abc372cb235b1c313198ae2ec429be4f91>`_  2022-11-05   ``Remove deprecated backcompat objects for KPO (#27518)``
+`9337aa92c0 <https://github.com/apache/airflow/commit/9337aa92c082db36e82eb314585591394fe8ff27>`_  2022-11-05   ``Remove support for node_selectors param in KPO (#27515)``
+`3aadc44a13 <https://github.com/apache/airflow/commit/3aadc44a13d0d100778792691a0341818723c51c>`_  2022-11-03   ``Remove unused backcompat method in k8s hook (#27490)``
+`0c26ec07be <https://github.com/apache/airflow/commit/0c26ec07be96ae250dd2052f3c3bf552221d0e03>`_  2022-10-28   ``Drop support for providing ''resource'' as dict in ''KubernetesPodOperator'' (#27197)``
+`4797a0322e <https://github.com/apache/airflow/commit/4797a0322ed4b73bc34d3967376479a42d9ba190>`_  2022-10-28   ``Fix log message for kubernetes hooks (#26999)``
+`9ab1a6a3e7 <https://github.com/apache/airflow/commit/9ab1a6a3e70b32a3cddddf0adede5d2f3f7e29ea>`_  2022-10-27   ``Update old style typing (#26872)``
+`734995ff26 <https://github.com/apache/airflow/commit/734995ff26d97bcb63b0c8c3bfc1ab7f4bc4b010>`_  2022-10-26   ``Add deprecation warning re unset namespace in k8s hook (#27202)``
+`78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``
+`2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``
+`14a45872e2 <https://github.com/apache/airflow/commit/14a45872e24a367ffc29df393f68e57fe3a089c6>`_  2022-10-22   ``Remove extra__kubernetes__ prefix from k8s hook extras (#27021)``
+`3ecb8dd025 <https://github.com/apache/airflow/commit/3ecb8dd0259abfce37513509e8f67b9ede72af21>`_  2022-10-22   ``Make namespace optional for KPO (#27116)``
+`c9e57687b0 <https://github.com/apache/airflow/commit/c9e57687b03807a36fac1c2c03ccf8ebb2e802b9>`_  2022-10-21   ``Make pod name optional in KubernetesPodOperator (#27120)``
+`2752f2add1 <https://github.com/apache/airflow/commit/2752f2add1746a1b9fa005860d65ac3496770200>`_  2022-10-12   ``Deprecate use of core get_kube_client in PodManager (#26848)``
+`5c97e5be48 <https://github.com/apache/airflow/commit/5c97e5be484ff572070b0ad320c5936bc028be93>`_  2022-10-10   ``add container_name option for SparkKubernetesSensor (#26560)``
+`53d68049d9 <https://github.com/apache/airflow/commit/53d68049d9bf4cec6b7d57545f15409dab0caed1>`_  2022-10-04   ``Don't consider airflow core conf for KPO (#26849)``
+`f8db64c35c <https://github.com/apache/airflow/commit/f8db64c35c8589840591021a48901577cff39c07>`_  2022-09-28   ``Update docs for September Provider's release (#26731)``
+=================================================================================================  ===========  ============================================================================================
+
 4.4.0
 .....
 

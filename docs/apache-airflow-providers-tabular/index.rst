@@ -60,7 +60,7 @@ Package apache-airflow-providers-tabular
 `Tabular <https://tabular.io/>`__
 
 
-Release: 1.0.1
+Release: 1.1.0
 
 Provider package
 ----------------
@@ -81,7 +81,7 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.2.0``
+``apache-airflow``  ``>=2.3.0``
 ==================  ==================
 
 .. include:: ../../airflow/providers/tabular/CHANGELOG.rst

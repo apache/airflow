@@ -51,7 +51,7 @@ Package apache-airflow-providers-facebook
 `Facebook Ads <http://business.facebook.com/>`__
 
 
-Release: 3.0.1
+Release: 3.1.0
 
 Provider package
 ----------------
@@ -72,7 +72,7 @@ Requirements
 =====================  ==================
 PIP package            Version required
 =====================  ==================
-``apache-airflow``     ``>=2.2.0``
+``apache-airflow``     ``>=2.3.0``
 ``facebook-business``  ``>=6.0.2``
 =====================  ==================
 

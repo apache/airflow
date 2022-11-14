@@ -64,7 +64,7 @@ Package apache-airflow-providers-apache-spark
 `Apache Spark <https://spark.apache.org/>`__
 
 
-Release: 3.0.0
+Release: 4.0.0
 
 Provider package
 ----------------
@@ -85,7 +85,7 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.2.0``
+``apache-airflow``  ``>=2.3.0``
 ``pyspark``
 ==================  ==================
 

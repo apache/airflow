@@ -59,7 +59,7 @@ This package provides remote execution capabilities via the
 <https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-psrp/>`__.
 
 
-Release: 2.0.0
+Release: 2.1.0
 
 Provider package
 ----------------
@@ -81,7 +81,6 @@ Requirements
 PIP package    Version required
 =============  ==================
 ``pypsrp``     ``>=0.8.0``
-``pypsrp``     ``>=0.8``
 =============  ==================
 
 .. include:: ../../airflow/providers/microsoft/psrp/CHANGELOG.rst

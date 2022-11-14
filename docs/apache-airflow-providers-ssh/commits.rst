@@ -28,14 +28,33 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.3.0
+.....
+
+Latest change: 2022-11-08
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`8f152a102b <https://github.com/apache/airflow/commit/8f152a102baf6851a719e4ad10fbb15e928fa72b>`_  2022-11-08   ``Apply log formatter on every ouput line in SSHOperator (#27442)``
+`dc760b45ea <https://github.com/apache/airflow/commit/dc760b45eaeccc3ff35a5acdfe70968ca0451331>`_  2022-11-07   ``SSHOperator ignores cmd_timeout (#27182) (#27184)``
+`9ab1a6a3e7 <https://github.com/apache/airflow/commit/9ab1a6a3e70b32a3cddddf0adede5d2f3f7e29ea>`_  2022-10-27   ``Update old style typing (#26872)``
+`13b6b3b078 <https://github.com/apache/airflow/commit/13b6b3b0780036ff47a92757d960468f628aa578>`_  2022-10-26   ``Added docs regarding templated field (#27301)``
+`a8a67a3f40 <https://github.com/apache/airflow/commit/a8a67a3f40cdb206676a167829b61a4207ae1fe9>`_  2022-10-26   ``Added environment to templated SSHOperator fields (#26824)``
+`78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``
+`2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``
+`674f9ce6ea <https://github.com/apache/airflow/commit/674f9ce6eaae533cfe31bc92cc92fa75ed7223fc>`_  2022-10-01   ``A few docs fixups (#26788)``
+=================================================================================================  ===========  =========================================================================
+
 3.2.0
 .....
 
-Latest change: 2022-09-13
+Latest change: 2022-09-28
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`f8db64c35c <https://github.com/apache/airflow/commit/f8db64c35c8589840591021a48901577cff39c07>`_  2022-09-28   ``Update docs for September Provider's release (#26731)``
 `06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
 `2f26da7023 <https://github.com/apache/airflow/commit/2f26da70230d7d1cf7dfb3a20d38e9a5844862a7>`_  2022-08-27   ``feat: load host keys to save new host key (#25979)``
 =================================================================================================  ===========  ====================================================================================

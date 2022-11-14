@@ -64,7 +64,7 @@ Package apache-airflow-providers-presto
 `Presto <https://prestodb.github.io/>`__
 
 
-Release: 4.0.1
+Release: 4.1.0
 
 Provider package
 ----------------
@@ -85,8 +85,8 @@ Requirements
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``apache-airflow``                       ``>=2.2.0``
-``apache-airflow-providers-common-sql``  ``>=1.2.0``
+``apache-airflow``                       ``>=2.3.0``
+``apache-airflow-providers-common-sql``  ``>=1.3.0``
 ``presto-python-client``                 ``>=0.8.2``
 ``pandas``                               ``>=0.17.1``
 =======================================  ==================
@@ -117,7 +117,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-presto 4.0.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-presto-4.0.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-presto-4.0.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-presto-4.0.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-presto 4.0.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-4.0.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-4.0.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-4.0.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-presto 4.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-presto-4.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-presto-4.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-presto-4.1.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-presto 4.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-4.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-4.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-4.1.0-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/presto/CHANGELOG.rst
