@@ -539,14 +539,13 @@ class KubernetesExecutor(BaseExecutor):
             self._check_worker_pods_pending_timeout,
         )
 
-        if self.job_id != 'manual':
-            self.event_scheduler.call_regular_interval(
-                self.kube_config.worker_pods_queued_check_interval,
-                self.clear_not_launched_queued_tasks,
-            )
-            # We also call this at startup as that's the most likely time to see
-            # stuck queued tasks
-            self.clear_not_launched_queued_tasks()
+        self.event_scheduler.call_regular_interval(
+            self.kube_config.worker_pods_queued_check_interval,
+            self.clear_not_launched_queued_tasks,
+        )
+        # We also call this at startup as that's the most likely time to see
+        # stuck queued tasks
+        self.clear_not_launched_queued_tasks()
 
     def execute_async(
         self,
