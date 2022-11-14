@@ -3470,6 +3470,12 @@
                                             "integer"
                                         ]
                                     },
+                                    "nodePort": {
+                                        "type": [
+                                            "string",
+                                            "integer"
+                                        ]
+                                    },
                                     "protocol": {
                                         "type": "string"
                                     }
