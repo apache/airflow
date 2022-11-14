@@ -1618,7 +1618,7 @@ class TestTaskInstance:
         now = pendulum.now("Europe/Brussels")
         ti = create_task_instance(dag_id="dag", task_id="op", execution_date=now)
         query = urllib.parse.parse_qs(
-            urllib.parse.urlparse(ti.mark_success_url).query, keep_blank_values=True, strict_parsing=True
+            urllib.parse.urlsplit(ti.mark_success_url).query, keep_blank_values=True, strict_parsing=True
         )
         assert query["dag_id"][0] == "dag"
         assert query["task_id"][0] == "op"

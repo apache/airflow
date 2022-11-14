@@ -30,7 +30,7 @@ from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
 from typing import IO, Callable, Generator, Sequence, TypeVar, cast, overload
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 from google.api_core.exceptions import NotFound
 
@@ -1161,7 +1161,7 @@ def _parse_gcs_url(gsurl: str) -> tuple[str, str]:
     Given a Google Cloud Storage URL (gs://<bucket>/<blob>), returns a
     tuple containing the corresponding bucket and blob.
     """
-    parsed_url = urlparse(gsurl)
+    parsed_url = urlsplit(gsurl)
     if not parsed_url.netloc:
         raise AirflowException("Please provide a bucket name")
     if parsed_url.scheme.lower() != "gs":

@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 import sqlalchemy_jsonfield
 from sqlalchemy import (
@@ -83,7 +83,7 @@ class DatasetModel(Base):
             uri.encode("ascii")
         except UnicodeEncodeError:
             raise ValueError("URI must be ascii")
-        parsed = urlparse(uri)
+        parsed = urlsplit(uri)
         if parsed.scheme and parsed.scheme.lower() == "airflow":
             raise ValueError("Scheme `airflow` is reserved.")
         super().__init__(uri=uri, **kwargs)

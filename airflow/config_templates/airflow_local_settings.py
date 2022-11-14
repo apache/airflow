@@ -21,7 +21,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -221,7 +221,7 @@ if REMOTE_LOGGING:
 
         DEFAULT_LOGGING_CONFIG["handlers"].update(S3_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith("cloudwatch://"):
-        url_parts = urlparse(REMOTE_BASE_LOG_FOLDER)
+        url_parts = urlsplit(REMOTE_BASE_LOG_FOLDER)
         CLOUDWATCH_REMOTE_HANDLERS: dict[str, dict[str, str | None]] = {
             "task": {
                 "class": "airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler",
@@ -264,7 +264,7 @@ if REMOTE_LOGGING:
     elif REMOTE_BASE_LOG_FOLDER.startswith("stackdriver://"):
         key_path = conf.get_mandatory_value("logging", "GOOGLE_KEY_PATH", fallback=None)
         # stackdriver:///airflow-tasks => airflow-tasks
-        log_name = urlparse(REMOTE_BASE_LOG_FOLDER).path[1:]
+        log_name = urlsplit(REMOTE_BASE_LOG_FOLDER).path[1:]
         STACKDRIVER_REMOTE_HANDLERS = {
             "task": {
                 "class": "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler",

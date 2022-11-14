@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 from unittest import mock
-from urllib.parse import quote_plus, urlparse
+from urllib.parse import quote_plus, urlsplit
 
 import pyodbc
 
@@ -191,14 +191,14 @@ class TestOdbcHook:
     def test_sqlalchemy_scheme_default(self):
         hook = self.get_hook()
         uri = hook.get_uri()
-        assert urlparse(uri).scheme == "mssql+pyodbc"
+        assert urlsplit(uri).scheme == "mssql+pyodbc"
 
     def test_sqlalchemy_scheme_param(self):
         hook = self.get_hook(hook_params=dict(sqlalchemy_scheme="my-scheme"))
         uri = hook.get_uri()
-        assert urlparse(uri).scheme == "my-scheme"
+        assert urlsplit(uri).scheme == "my-scheme"
 
     def test_sqlalchemy_scheme_extra(self):
         hook = self.get_hook(conn_params=dict(extra=json.dumps(dict(sqlalchemy_scheme="my-scheme"))))
         uri = hook.get_uri()
-        assert urlparse(uri).scheme == "my-scheme"
+        assert urlsplit(uri).scheme == "my-scheme"

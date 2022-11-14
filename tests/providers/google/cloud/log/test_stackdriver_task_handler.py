@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 from unittest import mock
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from google.cloud.logging import Resource
@@ -364,7 +364,7 @@ labels.try_number="3"'''
         stackdriver_task_handler = StackdriverTaskHandler(gcp_key_path="KEY_PATH")
         url = stackdriver_task_handler.get_external_log_url(self.ti, self.ti.try_number)
 
-        parsed_url = urlparse(url)
+        parsed_url = urlsplit(url)
         parsed_qs = parse_qs(parsed_url.query)
         assert "https" == parsed_url.scheme
         assert "console.cloud.google.com" == parsed_url.netloc

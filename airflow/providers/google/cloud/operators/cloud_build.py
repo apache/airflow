@@ -22,7 +22,7 @@ import json
 import re
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Sequence
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote, urlsplit
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -972,7 +972,7 @@ class BuildProcessor:
             https://source.cloud.google.com/airflow-project/airflow-repo/+/branch-name:
 
         """
-        url_parts = urlparse(source)
+        url_parts = urlsplit(source)
 
         match = REGEX_REPO_PATH.search(url_parts.path)
 
@@ -1006,7 +1006,7 @@ class BuildProcessor:
             gs://bucket-name/object-name.tar.gz
 
         """
-        url_parts = urlparse(storage_url)
+        url_parts = urlsplit(storage_url)
 
         if url_parts.scheme != "gs" or not url_parts.hostname or not url_parts.path or url_parts.path == "/":
             raise AirflowException(

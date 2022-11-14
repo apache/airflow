@@ -23,7 +23,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from typing import Callable
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 from airflow import models
 from airflow.exceptions import AirflowException
@@ -53,7 +53,7 @@ GCS_OUTPUT = os.environ.get("GCP_DATAFLOW_GCS_OUTPUT", "gs://INVALID BUCKET NAME
 GCS_JAR = os.environ.get("GCP_DATAFLOW_JAR", "gs://INVALID BUCKET NAME/word-count-beam-bundled-0.1.jar")
 GCS_PYTHON = os.environ.get("GCP_DATAFLOW_PYTHON", "gs://INVALID BUCKET NAME/wordcount_debugging.py")
 
-GCS_JAR_PARTS = urlparse(GCS_JAR)
+GCS_JAR_PARTS = urlsplit(GCS_JAR)
 GCS_JAR_BUCKET_NAME = GCS_JAR_PARTS.netloc
 GCS_JAR_OBJECT_NAME = GCS_JAR_PARTS.path[1:]
 

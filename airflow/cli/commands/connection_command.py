@@ -24,7 +24,7 @@ import sys
 import warnings
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlsplit, urlunsplit
 
 from sqlalchemy.orm import exc
 
@@ -133,12 +133,12 @@ def _is_stdout(fileio: io.TextIOWrapper) -> bool:
 
 def _valid_uri(uri: str) -> bool:
     """Check if a URI is valid, by checking if both scheme and netloc are available"""
-    uri_parts = urlparse(uri)
+    uri_parts = urlsplit(uri)
     return uri_parts.scheme != "" and uri_parts.netloc != ""
 
 
 @cache
-def _get_connection_types():
+def _get_connection_types() -> list[str]:
     """Returns connection types available."""
     _connection_types = ["fs", "mesos_framework-id", "email", "generic"]
     providers_manager = ProvidersManager()
@@ -146,10 +146,6 @@ def _get_connection_types():
         if provider_info:
             _connection_types.append(connection_type)
     return _connection_types
-
-
-def _valid_conn_type(conn_type: str) -> bool:
-    return conn_type in _get_connection_types()
 
 
 def connections_export(args):
@@ -269,13 +265,12 @@ def connections_add(args):
             msg = msg.format(
                 conn_id=new_conn.conn_id,
                 uri=args.conn_uri
-                or urlunparse(
+                or urlunsplit(
                     (
                         new_conn.conn_type,
                         f"{new_conn.login or ''}:{'******' if new_conn.password else ''}"
                         f"@{new_conn.host or ''}:{new_conn.port or ''}",
                         new_conn.schema or "",
-                        "",
                         "",
                         "",
                     )

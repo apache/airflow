@@ -22,7 +22,7 @@ from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from unittest import mock
-from urllib.parse import ParseResult, urlparse
+from urllib.parse import ParseResult, urlsplit
 
 import pytest
 import yaml
@@ -1347,7 +1347,7 @@ def assert_result_matches_expected_list(
 
 
 def assert_is_valid_uri(value: str) -> None:
-    result: ParseResult = urlparse(value)
+    result: ParseResult = urlsplit(value)
 
     assert all([result.scheme, result.netloc, result.path])
     assert REGION in value

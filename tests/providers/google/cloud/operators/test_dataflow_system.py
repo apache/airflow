@@ -22,7 +22,7 @@ import os
 import shlex
 import textwrap
 from tempfile import NamedTemporaryFile
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 import pytest
 import requests
@@ -68,7 +68,7 @@ GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 GCR_FLEX_TEMPLATE_IMAGE = f"gcr.io/{GCP_PROJECT_ID}/samples-dataflow-streaming-beam-sql:latest"
 
 # https://github.com/GoogleCloudPlatform/java-docs-samples/tree/954553c/dataflow/flex-templates/streaming_beam_sql
-GCS_TEMPLATE_PARTS = urlparse(GCS_FLEX_TEMPLATE_TEMPLATE_PATH)
+GCS_TEMPLATE_PARTS = urlsplit(GCS_FLEX_TEMPLATE_TEMPLATE_PATH)
 GCS_FLEX_TEMPLATE_BUCKET_NAME = GCS_TEMPLATE_PARTS.netloc
 
 

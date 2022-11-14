@@ -21,7 +21,7 @@ import json
 import warnings
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 from slack_sdk import WebhookClient
 
@@ -285,7 +285,7 @@ class SlackWebhookHook(BaseHook):
 
             base_url = base_url.rstrip("/")
             if not webhook_token:
-                parsed_token = (urlparse(base_url).path or "").strip("/")
+                parsed_token = (urlsplit(base_url).path or "").strip("/")
                 if base_url == DEFAULT_SLACK_WEBHOOK_ENDPOINT or not parsed_token:
                     # Raise an error in case of password not specified and
                     # 1. Result of constructing base_url equal https://hooks.slack.com/services
