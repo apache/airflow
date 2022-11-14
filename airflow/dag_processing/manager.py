@@ -18,6 +18,7 @@
 """Processes DAGs."""
 from __future__ import annotations
 
+import collections
 import enum
 import importlib
 import inspect
@@ -118,7 +119,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         async_mode: bool,
     ):
         super().__init__()
-        self._file_path_queue: list[str] = []
         self._dag_directory: os.PathLike = dag_directory
         self._max_runs = max_runs
         self._processor_timeout = processor_timeout
@@ -381,7 +381,7 @@ class DagFileProcessorManager(LoggingMixin):
     ):
         super().__init__()
         self._file_paths: list[str] = []
-        self._file_path_queue: list[str] = []
+        self._file_path_queue: collections.deque[str] = collections.deque()
         self._max_runs = max_runs
         # signal_conn is None for dag_processor_standalone mode.
         self._direct_scheduler_conn = signal_conn
@@ -601,7 +601,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self._fetch_callbacks(max_callbacks_per_loop)
             self._deactivate_stale_dags()
             DagWarning.purge_inactive_dag_warnings()
-            self._refresh_dag_dir()
+            refreshed_dag_dir = self._refresh_dag_dir()
 
             self._kill_timed_out_processors()
 
@@ -610,6 +610,8 @@ class DagFileProcessorManager(LoggingMixin):
             if not self._file_path_queue:
                 self.emit_metrics()
                 self.prepare_file_path_queue()
+            elif refreshed_dag_dir:
+                self.add_new_file_path_to_queue()
 
             self.start_new_processes()
 
@@ -710,10 +712,10 @@ class DagFileProcessorManager(LoggingMixin):
                 # Remove file paths matching request.full_filepath from self._file_path_queue
                 # Since we are already going to use that filepath to run callback,
                 # there is no need to have same file path again in the queue
-                self._file_path_queue = [
+                self._file_path_queue = collections.deque(
                     file_path for file_path in self._file_path_queue if file_path != request.full_filepath
-                ]
-            self._file_path_queue.insert(0, request.full_filepath)
+                )
+            self._file_path_queue.appendleft(request.full_filepath)
 
     def _refresh_dag_dir(self):
         """Refresh file paths from dag dir if we haven't done it for too long."""
@@ -759,6 +761,9 @@ class DagFileProcessorManager(LoggingMixin):
             from airflow.models.dagcode import DagCode
 
             DagCode.remove_deleted_code(dag_filelocs)
+
+            return True
+        return False
 
     def _print_stat(self):
         """Occasionally print out stats about how fast the files are getting processed"""
@@ -932,7 +937,7 @@ class DagFileProcessorManager(LoggingMixin):
         :return: None
         """
         self._file_paths = new_file_paths
-        self._file_path_queue = [x for x in self._file_path_queue if x in new_file_paths]
+        self._file_path_queue = collections.deque(x for x in self._file_path_queue if x in new_file_paths)
         # Stop processors that are working on deleted files
         filtered_processors = {}
         for file_path, processor in self._processors.items():
@@ -1010,7 +1015,7 @@ class DagFileProcessorManager(LoggingMixin):
     def start_new_processes(self):
         """Start more processors if we have enough slots and files to process"""
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
-            file_path = self._file_path_queue.pop(0)
+            file_path = self._file_path_queue.popleft()
             # Stop creating duplicate processor i.e. processor with the same filepath
             if file_path in self._processors.keys():
                 continue
@@ -1031,6 +1036,16 @@ class DagFileProcessorManager(LoggingMixin):
             self.log.debug("Started a process (PID: %s) to generate tasks for %s", processor.pid, file_path)
             self._processors[file_path] = processor
             self.waitables[processor.waitable_handle] = processor
+
+    def add_new_file_path_to_queue(self):
+        for file_path in self.file_paths:
+            if file_path not in self._file_stats:
+                # We found new file after refreshing dir. add to parsing queue at start
+                self.log.info('Adding new file %s to parsing queue', file_path)
+                self._file_stats[file_path] = DagFileStat(
+                    num_dags=0, import_errors=0, last_finish_time=None, last_duration=None, run_count=0
+                )
+                self._file_path_queue.appendleft(file_path)
 
     def prepare_file_path_queue(self):
         """Generate more file paths to process. Result are saved in _file_path_queue."""
