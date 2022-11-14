@@ -5958,7 +5958,7 @@
                             "default": "git-sync"
                         },
                         "securityContext": {
-                            "description": "Security context for the gitSync container. If not set, the values from `securityContext` will be used.",
+                            "description": "Security context for the `gitSync` container. If not set, the values from `securityContext` will be used.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                             "default": {},
