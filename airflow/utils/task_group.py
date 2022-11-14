@@ -474,10 +474,6 @@ class TaskGroup(DAGNode):
                 yield group
             group = group.task_group
 
-    def get_task_dict(self) -> dict[str, AbstractOperator]:
-        """Returns a flat dictionary of task_id: AbstractOperator"""
-        task_map: dict[str, AbstractOperator] = {}
-
     def iter_tasks(self) -> Iterator[AbstractOperator]:
         """Returns an iterator of the child tasks."""
         from airflow.models.abstractoperator import AbstractOperator

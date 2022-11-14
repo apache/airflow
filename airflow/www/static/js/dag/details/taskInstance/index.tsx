@@ -178,19 +178,17 @@ const TaskInstance = ({
                   key={dagId + runId + taskId + instance.mapIndex}
                 />
               )}
-              {!isGroup && (
-                <Box mb={8}>
-                  <TaskActions
-                    title={taskActionsTitle}
-                    runId={runId}
-                    taskId={taskId}
-                    dagId={dagId}
-                    executionDate={executionDate}
-                    mapIndexes={actionsMapIndexes}
-                    isGroup={isGroup}
-                  />
-                </Box>
-              )}
+              <Box mb={8}>
+                <TaskActions
+                  title={taskActionsTitle}
+                  runId={runId}
+                  taskId={taskId}
+                  dagId={dagId}
+                  executionDate={executionDate}
+                  mapIndexes={actionsMapIndexes}
+                  isGroup={isGroup}
+                />
+              </Box>
               <Details instance={instance} group={group} dagId={dagId} />
               {!isMapped && (
                 <ExtraLinks
