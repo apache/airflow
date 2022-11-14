@@ -3932,7 +3932,7 @@ class SlaMissModelView(AirflowModelView):
         "map_index": wwwutils.format_map_index,
     }
 
-    @action('muldelete', 'Delete', "Are you sure you want to delete selected records?", single=False)
+    @action("muldelete", "Delete", "Are you sure you want to delete selected records?", single=False)
     def action_muldelete(self, items):
         """Multiple delete action."""
         self.datamodel.delete_all(items)
@@ -3986,8 +3986,8 @@ class SlaMissModelView(AirflowModelView):
             session.commit()
             flash(f"{count} SLAMisses had {attr} set to {new_value}.")
         except Exception as ex:
-            flash(str(ex), 'error')
-            flash('Failed to set state', 'error')
+            flash(str(ex), "error")
+            flash("Failed to set state", "error")
         self.update_redirect()
         return redirect(self.get_default_url())
 
