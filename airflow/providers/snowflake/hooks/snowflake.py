@@ -304,20 +304,8 @@ class SnowflakeHook(DbApiHook):
 
     def get_snowpark_session(self) -> snowflake.snowpark.Session:
         if SnowparkSession is None:
-            # Snowpark is an optional feature and if imports are missing, it should be silently ignored
-            # As of Airflow 2.3 and above we can throw OptionalProviderFeatureException
-            try:
-                from airflow.exceptions import AirflowOptionalProviderFeatureException
-            except ImportError:
-                # However, in order to keep backwards-compatibility with Airflow 2.1 and 2.2, if the
-                # 2.3 exception cannot be imported, the original AirflowException should be raised.
-                # This try/except can be removed when the provider depends on Airflow >= 2.3.0
-                from airflow.exceptions import (  # type: ignore
-                    AirflowException as AirflowOptionalProviderFeatureException,
-                )
-            raise AirflowOptionalProviderFeatureException(
-                "Optional feature - Snowpark is disabled. "
-                "To use, install `apache-airflow-providers-snowflake[snowpark]` package."
+            raise AirflowException(
+                "The snowflake-snowpark-python package is not installed. Make sure you are using Python 3.8."
             )
 
         connection_parameters = self._get_conn_params()

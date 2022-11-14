@@ -107,7 +107,7 @@ class _SnowparkDecoratedOperator(DecoratedOperator, PythonOperator):
             python_callable=python_callable,
             op_args=op_args,
             # airflow.decorators.base.DecoratedOperator checks if the functions are bindable, so we have to
-            # add an artificial value to pass the validations. The real value is determined at runtime.
+            # add an artificial value to pass the validation. The real value is determined at runtime.
             op_kwargs={**op_kwargs, "snowpark_session": None},
             **kwargs,
         )
@@ -125,9 +125,10 @@ class _SnowparkDecoratedOperator(DecoratedOperator, PythonOperator):
         )
         snowpark_session = hook.get_snowpark_session()
         try:
-            return self.python_callable(
-                *self.op_args, **{**self.op_kwargs, "snowpark_session": snowpark_session}
-            )
+            op_kwargs = dict(self.op_kwargs)
+            # Set real sessions as an argument to the function.
+            op_kwargs["snowpark_session"] = snowpark_session
+            return self.python_callable(*self.op_args, **self.op_kwargs)
         finally:
             snowpark_session.close()
 

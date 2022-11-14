@@ -33,7 +33,9 @@ except ImportError:
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 
 
-@pytest.mark.skipif(snowpark is None, reason="snowflake-snowpark-python package not installed")
+@pytest.mark.skipif(
+    snowpark is None, reason="The snowflake-snowpark-python package is not installed. Python 3.8 is required."
+)
 class TestDockerDecorator:
     @mock.patch("airflow.providers.snowflake.decorators.snowpark.SnowflakeHook")
     def test_basic_docker_operator(self, mock_snowflake_hook, dag_maker):

@@ -45,7 +45,7 @@
   "apache.beam": {
     "deps": [
       "apache-airflow>=2.3.0",
-      "apache-beam>=2.33.0,<2.41.0"
+      "apache-beam>=2.33.0"
     ],
     "cross-providers-deps": [
       "google"
@@ -541,7 +541,7 @@
   "pagerduty": {
     "deps": [
       "apache-airflow>=2.3.0",
-      "pdpyras>=4.5.2"
+      "pdpyras>=4.1.2"
     ],
     "cross-providers-deps": []
   },

@@ -17,7 +17,7 @@
 
 .. _howto/decorators:snowpark:
 
-@task.snowpark
+``@task.snowpark``
 ==============
 
 Use the :func:`@task.decorator <airflow.providers.snowflake.decorators.snowpark.snowpark_task>` to execute
@@ -28,11 +28,12 @@ Prerequisite Tasks
 
 To use this decorator, you must do a few things:
 
-  * Install provider packages via **pip**.
+  * Make sure you are using Python 3.8 as it is required for the `snowflake-snowpark-python <https://pypi.org/project/snowflake-snowpark-python/>`__ package
+  * Install provider package via **pip**.
 
     .. code-block:: bash
 
-      pip install 'apache-airflow-providers-snowflake[snowpark]'
+      pip install 'apache-airflow-providers-snowflake'
 
     Detailed information is available for :doc:`Installation <apache-airflow:installation/index>`.
 
@@ -50,7 +51,7 @@ An example usage of the ``@task.snowpark`` is as follows:
     :start-after: [START howto_decorator_snowpark]
     :end-before: [END howto_decorator_snowpark]
 
-You can also create your own stored procedures, but then the procedure should be defined as an internal function for your task function.
+You can also create stored procedures or user-defined function, but then the procedure should be defined as an internal function for your task function.
 
 .. exampleinclude:: /../../tests/system/providers/snowflake/example_snowflake_snowpark.py
     :language: python
