@@ -80,7 +80,7 @@ const DagRun = ({ runId }: Props) => {
     execution_date: executionDate,
   }).toString();
   const graphLink = appendSearchParams(graphUrl, graphParams);
-  const { onCopy, value, setValue, hasCopied } = useClipboard(conf);
+  const { onCopy, hasCopied } = useClipboard(conf);
 
   return (
     <>
