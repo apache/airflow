@@ -27,15 +27,47 @@ Changelog
 5.0.0
 .....
 
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* This release of provider is only available for Airflow 2.3+ as explained in the Apache Airflow
-  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
 * In AzureFileShareHook, if both ``extra__azure_fileshare__foo`` and ``foo`` existed in connection extra
   dict, the prefixed version would be used; now, the non-prefixed version will be preferred.
 * ``Remove deprecated classes (#27417)``
 * In Azure Batch ``vm_size`` and ``vm_node_agent_sku_id`` parameters are required.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+
+Features
+~~~~~~~~
+
+* ``Add azure, google, authentication library limits to eaager upgrade (#27535)``
+* ``Allow and prefer non-prefixed extra fields for remaining azure (#27220)``
+* ``Allow and prefer non-prefixed extra fields for AzureFileShareHook (#27041)``
+* ``Allow and prefer non-prefixed extra fields for AzureDataExplorerHook (#27219)``
+* ``Allow and prefer non-prefixed extra fields for AzureDataFactoryHook (#27047)``
+* ``Update WasbHook to reflect preference for unprefixed extra (#27024)``
+* ``Look for 'extra__' instead of 'extra_' in 'get_field' (#27489)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Azure Batch errors revealed by added typing to azure batch lib (#27601)``
+* ``Fix separator getting added to variables_prefix when empty (#26749)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+  * ``Upgrade dependencies in order to avoid backtracking (#27531)``
+  * ``Suppress any Exception in wasb task handler (#27495)``
+  * ``Update old style typing (#26872)``
+  * ``Enable string normalization in python formatting - providers (#27205)``
+  * ``Update azure-storage-blob version (#25426)``
+
 
 4.3.0
 .....

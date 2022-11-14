@@ -392,7 +392,7 @@ The important dependencies are:
 
 ### Approach for dependencies in Airflow Providers and extras
 
-Those `extras` and `providers` dependencies are maintained in `setup.py`.
+Those `extras` and `providers` dependencies are maintained in `provider.yaml` of each provider.
 
 By default, we should not upper-bound dependencies for providers, however each provider's maintainer
 might decide to add additional limits (and justify them with comment)
@@ -410,6 +410,14 @@ first release for the MINOR version of Airflow.
 For example this means that by default we upgrade the minimum version of Airflow supported by providers
 to 2.4.0 in the first Provider's release after 30th of April 2023. The 30th of April 2022 is the date when the
 first `PATCHLEVEL` of 2.3 (2.3.0) has been released.
+
+When we increase the minimum Airflow version, this is not a reason to bump `MAJOR` version of the providers
+(unless there are other breaking changes in the provider). The reason for that is that people who use
+older version of Airflow will not be able to use that provider (so it is not a breaking change for them)
+and for people who are using supported version of Airflow this is not a breaking change on its own - they
+will be able to use the new version without breaking their workflows. When we upgraded min-version to
+2.2+, our approach was different but as of 2.3+ upgrade (November 2022) we only bump `MINOR` version of the
+provider when we increase minimum Airflow version.
 
 Providers are often connected with some stakeholders that are vitally interested in maintaining backwards
 compatibilities in their integrations (for example cloud providers, or specific service providers). But,
