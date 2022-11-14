@@ -37,7 +37,7 @@ from contextlib import suppress
 from json.decoder import JSONDecodeError
 from re import Pattern
 from typing import IO, Any, Dict, Iterable, Tuple, Union
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 from typing_extensions import overload
 
@@ -403,7 +403,7 @@ class AirflowConfigParser(ConfigParser):
         old_value = self.get(section, key)
         bad_schemes = ["postgres+psycopg2", "postgres"]
         good_scheme = "postgresql"
-        parsed = urlparse(old_value)
+        parsed = urlsplit(old_value)
         if parsed.scheme in bad_schemes:
             warnings.warn(
                 f"Bad scheme in Airflow configuration core > sql_alchemy_conn: `{parsed.scheme}`. "
