@@ -31,11 +31,11 @@ from sqlalchemy.dialects import mysql
 from airflow.migrations.db_types import StringID
 
 # revision identifiers, used by Alembic.
-revision = 'd38e04c12aa2'
-down_revision = '6e96a59344a4'
+revision = "d38e04c12aa2"
+down_revision = "6e96a59344a4"
 branch_labels = None
 depends_on = None
-airflow_version = '1.10.7'
+airflow_version = "1.10.7"
 
 
 def upgrade():
@@ -52,15 +52,15 @@ def upgrade():
             json_type = sa.Text
 
     op.create_table(
-        'serialized_dag',
-        sa.Column('dag_id', StringID(), nullable=False),
-        sa.Column('fileloc', sa.String(length=2000), nullable=False),
-        sa.Column('fileloc_hash', sa.Integer(), nullable=False),
-        sa.Column('data', json_type(), nullable=False),
-        sa.Column('last_updated', sa.DateTime(), nullable=False),
-        sa.PrimaryKeyConstraint('dag_id'),
+        "serialized_dag",
+        sa.Column("dag_id", StringID(), nullable=False),
+        sa.Column("fileloc", sa.String(length=2000), nullable=False),
+        sa.Column("fileloc_hash", sa.Integer(), nullable=False),
+        sa.Column("data", json_type(), nullable=False),
+        sa.Column("last_updated", sa.DateTime(), nullable=False),
+        sa.PrimaryKeyConstraint("dag_id"),
     )
-    op.create_index('idx_fileloc_hash', 'serialized_dag', ['fileloc_hash'])
+    op.create_index("idx_fileloc_hash", "serialized_dag", ["fileloc_hash"])
 
     if conn.dialect.name == "mysql":
         conn.execute("SET time_zone = '+00:00'")
@@ -94,4 +94,4 @@ def upgrade():
 
 def downgrade():
     """Downgrade version."""
-    op.drop_table('serialized_dag')
+    op.drop_table("serialized_dag")

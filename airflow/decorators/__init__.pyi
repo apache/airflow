@@ -14,12 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 # This file provides better type hinting and editor autocompletion support for
 # dynamically generated task decorators. Functions declared in this stub do not
 # necessarily exist at run time. See "Creating Custom @task Decorators"
 # documentation for more details.
 
+from datetime import timedelta
 from typing import Any, Callable, Iterable, Mapping, Union, overload
 
 from kubernetes.client import models as k8s
@@ -421,6 +421,7 @@ class TaskDecoratorCollection:
         soft_fail: bool = False,
         mode: str = ...,
         exponential_backoff: bool = False,
+        max_wait: timedelta | float | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """
@@ -444,6 +445,7 @@ class TaskDecoratorCollection:
             prevent too much load on the scheduler.
         :param exponential_backoff: allow progressive longer waits between
             pokes by using exponential backoff algorithm
+        :param max_wait: maximum wait interval between pokes, can be ``timedelta`` or ``float`` seconds
         """
     @overload
     def sensor(self, python_callable: Optional[FParams, FReturn] = None) -> Task[FParams, FReturn]: ...

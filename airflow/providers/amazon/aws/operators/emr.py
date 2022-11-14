@@ -593,7 +593,8 @@ class EmrServerlessStartJobOperator(BaseOperator):
       Its value must be unique for each request.
     :param config: Optional dictionary for arbitrary parameters to the boto API start_job_run call.
     :param wait_for_completion: If true, waits for the job to start before returning. Defaults to True.
-    :param aws_conn_id: AWS connection to use
+    :param aws_conn_id: AWS connection to use.
+    :param name: Name for the EMR Serverless job. If not provided, a default name will be assigned.
     """
 
     template_fields: Sequence[str] = (
@@ -613,6 +614,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         config: dict | None = None,
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
+        name: str | None = None,
         **kwargs,
     ):
         self.aws_conn_id = aws_conn_id
@@ -622,6 +624,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.configuration_overrides = configuration_overrides
         self.wait_for_completion = wait_for_completion
         self.config = config or {}
+        self.name = name or self.config.pop("name", f"emr_serverless_job_airflow_{uuid4()}")
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
@@ -654,6 +657,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
             executionRoleArn=self.execution_role_arn,
             jobDriver=self.job_driver,
             configurationOverrides=self.configuration_overrides,
+            name=self.name,
             **self.config,
         )
 

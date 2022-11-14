@@ -91,6 +91,9 @@ class KubernetesHook(BaseHook):
             "cluster_context": StringField(lazy_gettext("Cluster context"), widget=BS3TextFieldWidget()),
             "disable_verify_ssl": BooleanField(lazy_gettext("Disable SSL")),
             "disable_tcp_keepalive": BooleanField(lazy_gettext("Disable TCP keepalive")),
+            "xcom_sidecar_container_image": StringField(
+                lazy_gettext("XCom sidecar image"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @staticmethod
@@ -340,6 +343,10 @@ class KubernetesHook(BaseHook):
         if self.conn_id:
             return self._get_field("namespace")
         return None
+
+    def get_xcom_sidecar_container_image(self):
+        """Returns the xcom sidecar image that defined in the connection"""
+        return self._get_field("xcom_sidecar_container_image")
 
     def get_pod_log_stream(
         self,

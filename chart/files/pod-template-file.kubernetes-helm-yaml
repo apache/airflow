@@ -90,6 +90,10 @@ spec:
   imagePullSecrets:
     - name: {{ template "registry_secret" . }}
   {{- end }}
+{{- if .Values.workers.hostAliases }}
+  hostAliases:
+{{ toYaml .Values.workers.hostAliases | indent 4 }}
+{{- end }}
   restartPolicy: Never
   securityContext: {{ $securityContext | nindent 4 }}
   nodeSelector: {{ toYaml $nodeSelector | nindent 4 }}

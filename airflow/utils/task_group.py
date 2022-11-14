@@ -26,6 +26,7 @@ import re
 import weakref
 from typing import TYPE_CHECKING, Any, Generator, Sequence
 
+from airflow.compat.functools import cache
 from airflow.exceptions import (
     AirflowDagCycleException,
     AirflowException,
@@ -37,6 +38,8 @@ from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
     from airflow.models.expandinput import ExpandInput
@@ -157,16 +160,16 @@ class TaskGroup(DAGNode):
         if self._group_id in self.used_group_ids:
             if not add_suffix_on_collision:
                 raise DuplicateTaskIdFound(f"group_id '{self._group_id}' has already been added to the DAG")
-            base = re.split(r'__\d+$', self._group_id)[0]
+            base = re.split(r"__\d+$", self._group_id)[0]
             suffixes = sorted(
-                int(re.split(r'^.+__', used_group_id)[1])
+                int(re.split(r"^.+__", used_group_id)[1])
                 for used_group_id in self.used_group_ids
-                if used_group_id is not None and re.match(rf'^{base}__\d+$', used_group_id)
+                if used_group_id is not None and re.match(rf"^{base}__\d+$", used_group_id)
             )
             if not suffixes:
-                self._group_id += '__1'
+                self._group_id += "__1"
             else:
-                self._group_id = f'{base}__{suffixes[-1] + 1}'
+                self._group_id = f"{base}__{suffixes[-1] + 1}"
 
     @classmethod
     def create_root(cls, dag: DAG) -> TaskGroup:
@@ -209,7 +212,7 @@ class TaskGroup(DAGNode):
         key = task.node_id
 
         if key in self.children:
-            node_type = "Task" if hasattr(task, 'task_id') else "Task Group"
+            node_type = "Task" if hasattr(task, "task_id") else "Task Group"
             raise DuplicateTaskIdFound(f"{node_type} id '{key}' has already been added to the DAG")
 
         if isinstance(task, TaskGroup):
@@ -469,6 +472,34 @@ class MappedTaskGroup(TaskGroup):
         super().__init__(**kwargs)
         self._expand_input = expand_input
 
+    @cache
+    def get_parse_time_mapped_ti_count(self) -> int:
+        """Number of instances a task in this group should be mapped to, when a DAG run is created.
+
+        This only considers literal mapped arguments, and would return *None*
+        when any non-literal values are used for mapping. This also does not
+        account for nested mapped groups; only the number expanded due to this
+        specific group is returned, regardless of whether any of its parent
+        groups are mapped.
+
+        :raise NotFullyPopulated: If any non-literal mapped arguments are encountered.
+        :return: The total number of mapped instances each task should have.
+        """
+        return self._expand_input.get_parse_time_mapped_ti_count()
+
+    def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
+        """Number of instances a task in this group should be mapped to at run time.
+
+        This considers both literal and non-literal mapped arguments, and the
+        result is therefore available when all depended tasks have finished. The
+        return value should be identical to ``parse_time_mapped_ti_count`` if
+        all mapped arguments are literal.
+
+        :raise NotFullyPopulated: If upstream tasks are not all complete yet.
+        :return: Total number of mapped TIs this task should have.
+        """
+        return self._expand_input.get_total_map_length(run_id, session=session)
+
 
 class TaskGroupContext:
     """TaskGroup context is used to keep the current TaskGroup when TaskGroup is used as ContextManager."""
@@ -516,13 +547,13 @@ def task_group_to_dict(task_item_or_group):
 
     if isinstance(task_item_or_group, AbstractOperator):
         return {
-            'id': task_item_or_group.task_id,
-            'value': {
-                'label': task_item_or_group.label,
-                'labelStyle': f"fill:{task_item_or_group.ui_fgcolor};",
-                'style': f"fill:{task_item_or_group.ui_color};",
-                'rx': 5,
-                'ry': 5,
+            "id": task_item_or_group.task_id,
+            "value": {
+                "label": task_item_or_group.label,
+                "labelStyle": f"fill:{task_item_or_group.ui_fgcolor};",
+                "style": f"fill:{task_item_or_group.ui_color};",
+                "rx": 5,
+                "ry": 5,
             },
         }
     task_group = task_item_or_group
@@ -533,12 +564,12 @@ def task_group_to_dict(task_item_or_group):
     if task_group.upstream_group_ids or task_group.upstream_task_ids:
         children.append(
             {
-                'id': task_group.upstream_join_id,
-                'value': {
-                    'label': '',
-                    'labelStyle': f"fill:{task_group.ui_fgcolor};",
-                    'style': f"fill:{task_group.ui_color};",
-                    'shape': 'circle',
+                "id": task_group.upstream_join_id,
+                "value": {
+                    "label": "",
+                    "labelStyle": f"fill:{task_group.ui_fgcolor};",
+                    "style": f"fill:{task_group.ui_color};",
+                    "shape": "circle",
                 },
             }
         )
@@ -547,26 +578,26 @@ def task_group_to_dict(task_item_or_group):
         # This is the join node used to reduce the number of edges between two TaskGroup.
         children.append(
             {
-                'id': task_group.downstream_join_id,
-                'value': {
-                    'label': '',
-                    'labelStyle': f"fill:{task_group.ui_fgcolor};",
-                    'style': f"fill:{task_group.ui_color};",
-                    'shape': 'circle',
+                "id": task_group.downstream_join_id,
+                "value": {
+                    "label": "",
+                    "labelStyle": f"fill:{task_group.ui_fgcolor};",
+                    "style": f"fill:{task_group.ui_color};",
+                    "shape": "circle",
                 },
             }
         )
 
     return {
         "id": task_group.group_id,
-        'value': {
-            'label': task_group.label,
-            'labelStyle': f"fill:{task_group.ui_fgcolor};",
-            'style': f"fill:{task_group.ui_color}",
-            'rx': 5,
-            'ry': 5,
-            'clusterLabelPos': 'top',
-            'tooltip': task_group.tooltip,
+        "value": {
+            "label": task_group.label,
+            "labelStyle": f"fill:{task_group.ui_fgcolor};",
+            "style": f"fill:{task_group.ui_color}",
+            "rx": 5,
+            "ry": 5,
+            "clusterLabelPos": "top",
+            "tooltip": task_group.tooltip,
         },
-        'children': children,
+        "children": children,
     }

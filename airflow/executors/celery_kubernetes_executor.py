@@ -41,7 +41,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
     supports_ad_hoc_ti_run: bool = True
     callback_sink: BaseCallbackSink | None = None
 
-    KUBERNETES_QUEUE = conf.get('celery_kubernetes_executor', 'kubernetes_queue')
+    KUBERNETES_QUEUE = conf.get("celery_kubernetes_executor", "kubernetes_queue")
 
     def __init__(self, celery_executor: CeleryExecutor, kubernetes_executor: KubernetesExecutor):
         super().__init__()

@@ -39,12 +39,12 @@ class DecoratedSensorOperator(PythonSensor):
         PythonOperator). This gives a user the option to upstream kwargs as needed.
     """
 
-    template_fields: Sequence[str] = ('op_args', 'op_kwargs')
+    template_fields: Sequence[str] = ("op_args", "op_kwargs")
     template_fields_renderers: dict[str, str] = {"op_args": "py", "op_kwargs": "py"}
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
-    shallow_copy_attrs: Sequence[str] = ('python_callable',)
+    shallow_copy_attrs: Sequence[str] = ("python_callable",)
 
     def __init__(
         self,
@@ -52,8 +52,8 @@ class DecoratedSensorOperator(PythonSensor):
         task_id: str,
         **kwargs,
     ) -> None:
-        kwargs.pop('multiple_outputs')
-        kwargs['task_id'] = get_unique_task_id(task_id, kwargs.get('dag'), kwargs.get('task_group'))
+        kwargs.pop("multiple_outputs")
+        kwargs["task_id"] = get_unique_task_id(task_id, kwargs.get("dag"), kwargs.get("task_group"))
         super().__init__(**kwargs)
 
     def poke(self, context: Context) -> PokeReturnValue:
