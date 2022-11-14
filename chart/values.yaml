@@ -1780,8 +1780,7 @@ dags:
     enabled: false
 
     # git repo clone url
-    # ssh examples ssh://git@github.com/apache/airflow.git
-    # git@github.com:apache/airflow.git
+    # ssh example: git@github.com:apache/airflow.git
     # https example: https://github.com/apache/airflow.git
     repo: https://github.com/apache/airflow.git
     branch: v2-2-stable
