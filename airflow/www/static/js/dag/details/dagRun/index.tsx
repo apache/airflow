@@ -61,6 +61,7 @@ interface Props {
 const DagRun = ({ runId }: Props) => {
   const { data: { dagRuns } } = useGridData();
   const run = dagRuns.find((dr) => dr.runId === runId);
+  const { onCopy, hasCopied } = useClipboard(run?.conf || '');
   if (!run) return null;
   const {
     executionDate,
@@ -80,7 +81,6 @@ const DagRun = ({ runId }: Props) => {
     execution_date: executionDate,
   }).toString();
   const graphLink = appendSearchParams(graphUrl, graphParams);
-  const { onCopy, hasCopied } = useClipboard(conf);
 
   return (
     <>
