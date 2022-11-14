@@ -608,6 +608,7 @@ class SQLCheckOperator(BaseSQLOperator):
     :param sql: the sql to be executed. (templated)
     :param conn_id: the connection ID used to connect to the database.
     :param database: name of database which overwrite the defined one in connection
+    :param parameters: (optional) the parameters to render the SQL query with.
     """
 
     template_fields: Sequence[str] = ("sql",)
@@ -619,14 +620,21 @@ class SQLCheckOperator(BaseSQLOperator):
     ui_color = "#fff7e6"
 
     def __init__(
-        self, *, sql: str, conn_id: str | None = None, database: str | None = None, **kwargs
+        self,
+        *,
+        sql: str,
+        conn_id: str | None = None,
+        database: str | None = None,
+        parameters: Iterable | Mapping | None = None,
+        **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
         self.sql = sql
+        self.parameters = parameters
 
     def execute(self, context: Context):
         self.log.info("Executing SQL check: %s", self.sql)
-        records = self.get_db_hook().get_first(self.sql)
+        records = self.get_db_hook().get_first(self.sql, self.parameters)
 
         self.log.info("Record: %s", records)
         if not records:
