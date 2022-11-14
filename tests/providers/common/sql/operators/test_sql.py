@@ -483,7 +483,7 @@ class TestSQLCheckOperatorDbHook:
 
 class TestCheckOperator(unittest.TestCase):
     def setUp(self):
-        self._operator = SQLCheckOperator(task_id="test_task", sql="sql")
+        self._operator = SQLCheckOperator(task_id="test_task", sql="sql", parameters="parameters")
 
     @mock.patch.object(SQLCheckOperator, "get_db_hook")
     def test_execute_no_records(self, mock_get_db_hook):
@@ -498,6 +498,11 @@ class TestCheckOperator(unittest.TestCase):
 
         with pytest.raises(AirflowException, match=r"Test failed."):
             self._operator.execute({})
+
+    @mock.patch.object(SQLCheckOperator, "get_db_hook")
+    def test_sqlcheckoperator_parameters(self, mock_get_db_hook):
+        self._operator.execute({})
+        mock_get_db_hook.return_value.get_first.assert_called_once_with("sql", "parameters")
 
 
 class TestValueCheckOperator(unittest.TestCase):
