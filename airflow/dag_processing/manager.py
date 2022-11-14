@@ -1041,7 +1041,7 @@ class DagFileProcessorManager(LoggingMixin):
         for file_path in self.file_paths:
             if file_path not in self._file_stats:
                 # We found new file after refreshing dir. add to parsing queue at start
-                self.log.info('Adding new file %s to parsing queue', file_path)
+                self.log.info("Adding new file %s to parsing queue", file_path)
                 self._file_stats[file_path] = DagFileStat(
                     num_dags=0, import_errors=0, last_finish_time=None, last_duration=None, run_count=0
                 )
