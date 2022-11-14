@@ -1235,7 +1235,7 @@ ARG ADDITIONAL_PYTHON_DEPS=""
 # * authlib, gcloud_aio_auth, adal are needed to generate constraints for PyPI packages and can be removed after we release
 #   new google, azure providers
 # * cloudpickle==2.0.0 is required by snowfalke-snowpark-python, which conflicts with new versions of apache beam, so
-#   we pin pinning apache-beam also to the latest version which uses cloudpickle==2.0.0.
+#   we pin apache-beam also to the latest version which uses cloudpickle==2.0.0.
 # !!! MAKE SURE YOU SYNCHRONIZE THE LIST BETWEEN: Dockerfile, Dockerfile.ci, find_newer_dependencies.py
 ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3 pyarrow>=6.0.0 protobuf<4.21.0 authlib>=1.0.0 gcloud_aio_auth>=4.0.0 adal>=1.2.7 cloudpickle==2.0.0 apache-beam==2.39.0"
 
