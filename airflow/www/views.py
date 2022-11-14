@@ -3932,6 +3932,65 @@ class SlaMissModelView(AirflowModelView):
         "map_index": wwwutils.format_map_index,
     }
 
+    @action('muldelete', 'Delete', "Are you sure you want to delete selected records?", single=False)
+    def action_muldelete(self, items):
+        """Multiple delete action."""
+        self.datamodel.delete_all(items)
+        self.update_redirect()
+        return redirect(self.get_redirect())
+
+    @action(
+        "mulnotificationsent",
+        "Set notification sent to true",
+        "Are you sure you want to set all these notifications to sent?",
+        single=False,
+    )
+    def action_mulnotificationsent(self, items: list[SlaMiss]):
+        return self._set_notification_property(items, "notification_sent", True)
+
+    @action(
+        "mulnotificationsentfalse",
+        "Set notification sent to false",
+        "Are you sure you want to mark these SLA alerts as notification not sent yet?",
+        single=False,
+    )
+    def action_mulnotificationsentfalse(self, items: list[SlaMiss]):
+        return self._set_notification_property(items, "notification_sent", False)
+
+    @action(
+        "mulemailsent",
+        "Set email sent to true",
+        "Are you sure you want to mark these SLA alerts as emails were sent?",
+        single=False,
+    )
+    def action_mulemailsent(self, items: list[SlaMiss]):
+        return self._set_notification_property(items, "email_sent", True)
+
+    @action(
+        "mulemailsentfalse",
+        "Set email sent to false",
+        "Are you sure you want to mark these SLA alerts as emails not sent yet?",
+        single=False,
+    )
+    def action_mulemailsentfalse(self, items: list[SlaMiss]):
+        return self._set_notification_property(items, "email_sent", False)
+
+    @provide_session
+    def _set_notification_property(self, items: list[SlaMiss], attr: str, new_value: bool, session=None):
+        try:
+            count = 0
+            for sla in items:
+                count += 1
+                setattr(sla, attr, new_value)
+                session.merge(sla)
+            session.commit()
+            flash(f"{count} SLAMisses had {attr} set to {new_value}.")
+        except Exception as ex:
+            flash(str(ex), 'error')
+            flash('Failed to set state', 'error')
+        self.update_redirect()
+        return redirect(self.get_default_url())
+
 
 class XComModelView(AirflowModelView):
     """View to show records from XCom table"""
