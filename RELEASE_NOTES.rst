@@ -21,7 +21,53 @@
 
 .. towncrier release notes start
 
-Airflow 2.4.2 (2022-10-24)
+Airflow 2.4.3 (2022-11-14)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Make ``RotatingFilehandler`` used in ``DagProcessor`` non-caching (#27223)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+  In case you want to decrease cache memory when ``CONFIG_PROCESSOR_MANAGER_LOGGER=True``, and you have your local settings created before,
+  you can update ``processor_manager_handler`` to use ``airflow.utils.log.non_caching_file_handler.NonCachingRotatingFileHandler`` handler instead of ``logging.RotatingFileHandler``. (#27065)
+
+Bug Fixes
+^^^^^^^^^
+- Fix double logging with some task logging handler (#27591)
+- Replace FAB url filtering function with Airflow's (#27576)
+- Fix mini scheduler expansion of mapped task  (#27506)
+- ``SLAMiss`` is nullable and not always given back when pulling task instances (#27423)
+- Fix behavior of ``_`` when searching for DAGs (#27448)
+- Fix getting the ``dag/task`` ids from BaseExecutor (#27550)
+- Fix SQLAlchemy primary key black-out error on DDRQ (#27538)
+- Fix IntegrityError during webserver startup (#27297)
+- Add case insensitive constraint to username (#27266)
+- Fix python external template keys (#27256)
+- Reduce extraneous task log requests (#27233)
+- Make ``RotatingFilehandler`` used in ``DagProcessor`` non-caching (#27223)
+- Listener: Set task on SQLAlchemy TaskInstance object (#27167)
+- Fix dags list page auto-refresh & jump search null state (#27141)
+- Set ``executor.job_id`` to ``BackfillJob.id`` for backfills (#27020)
+
+Misc/Internal
+^^^^^^^^^^^^^
+- Bump loader-utils from ``1.4.0`` to ``1.4.1`` in ``/airflow/www`` (#27552)
+- Reduce log level for k8s ``TCP_KEEPALIVE`` etc warnings (#26981)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+- Use correct executable in docker compose docs (#27529)
+- Fix wording in DAG Runs description (#27470)
+- Document that ``KubernetesExecutor`` overwrites container args (#27450)
+- Fix ``BaseOperator`` links (#27441)
+- Correct timer units to seconds from milliseconds. (#27360)
+- Add missed import in the Trigger Rules example (#27309)
+- Update SLA wording to reflect it is relative to ``Dag Run`` start. (#27111)
+- Add ``kerberos`` environment variables to the docs (#27028)
+
+Airflow 2.4.2 (2022-10-23)
 --------------------------
 
 Significant Changes
