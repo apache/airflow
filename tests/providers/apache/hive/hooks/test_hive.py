@@ -37,6 +37,7 @@ from airflow.utils import timezone
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 from tests.providers.apache.hive import (
     BaseMockConnectionCursor,
+    InvalidHiveCliHook,
     MockHiveCliHook,
     MockHiveServer2Hook,
     MockSubProcess,
@@ -130,6 +131,11 @@ class TestHiveCliHook(unittest.TestCase):
             cwd="/tmp/airflow_hiveop_test_run_cli",
             close_fds=True,
         )
+
+    def test_hive_cli_hook_invalid_schema(self):
+        with pytest.raises(RuntimeError):
+            hook = InvalidHiveCliHook()
+            hook.run_cli("SHOW DATABASES")
 
     @mock.patch("subprocess.Popen")
     def test_run_cli_with_hive_conf(self, mock_popen):

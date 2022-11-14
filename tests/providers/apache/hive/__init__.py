@@ -73,6 +73,21 @@ class MockHiveCliHook(HiveCliHook):
         self.get_connection = MagicMock(return_value=MockDBConnection({}))
 
 
+class InvalidHiveCliHook(HiveCliHook):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.conn = MockConnectionCursor()
+        self.conn.schema = "default;"
+        self.conn.host = "localhost"
+        self.conn.port = 10000
+        self.conn.login = None
+        self.conn.password = None
+
+        self.conn.execute = MagicMock()
+        self.get_conn = MagicMock(return_value=self.conn)
+        self.get_connection = MagicMock(return_value=MockDBConnection({}))
+
+
 class MockHiveServer2Hook(HiveServer2Hook):
     def __init__(self, *args, **kwargs):
         super().__init__()
