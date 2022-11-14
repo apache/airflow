@@ -608,6 +608,7 @@ class SQLCheckOperator(BaseSQLOperator):
     :param sql: the sql to be executed. (templated)
     :param conn_id: the connection ID used to connect to the database.
     :param database: name of database which overwrite the defined one in connection
+    :param parameters: (optional) the parameters to render the SQL query with.
     """
 
     template_fields: Sequence[str] = ("sql",)
