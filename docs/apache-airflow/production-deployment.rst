@@ -149,7 +149,7 @@ a volume where the temporary token should be written by the ``airflow kerberos``
 In the Kubernetes environment, this can be realized by the concept of side-car, where both Kerberos
 token refresher and worker are part of the same Pod. Only the Kerberos side-car has access to
 Keytab secret and both containers in the same Pod share the volume, where temporary token is written by
-the side-care container and read by the worker container.
+the side-car container and read by the worker container.
 
 This concept is implemented in :doc:`the Helm Chart for Apache Airflow <helm-chart:index>`.
 
