@@ -25,7 +25,8 @@ from google.auth.exceptions import DefaultCredentialsError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
-from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
+from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id, \
+    _get_target_principal_and_delegates
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.version import version as airflow_version
@@ -87,6 +88,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         gcp_key_path: str | None = None,
         gcp_scopes: str | None = None,
         project_id: str | None = None,
+        impersonation_chain: str | None = None,
         sep: str = "-",
         **kwargs,
     ) -> None:
@@ -95,6 +97,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         self.variables_prefix = variables_prefix
         self.config_prefix = config_prefix
         self.sep = sep
+        self.impersonation_chain = impersonation_chain
         if connections_prefix is not None:
             if not self._is_valid_prefix_and_sep():
                 raise AirflowException(
@@ -102,8 +105,12 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
                     f"follows that pattern {SECRET_ID_PATTERN}"
                 )
         try:
+            target_principal, delegates = _get_target_principal_and_delegates(
+                self.impersonation_chain
+            )
             self.credentials, self.project_id = get_credentials_and_project_id(
-                keyfile_dict=gcp_keyfile_dict, key_path=gcp_key_path, scopes=gcp_scopes
+                target_principal=target_principal, delegates=delegates, keyfile_dict=gcp_keyfile_dict,
+                key_path=gcp_key_path, scopes=gcp_scopes
             )
         except (DefaultCredentialsError, FileNotFoundError):
             log.exception(
