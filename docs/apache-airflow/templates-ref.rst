@@ -75,6 +75,8 @@ Variable                                    Description
 ``{{ dag_run }}``                           A reference to the DagRun object.
 ``{{ test_mode }}``                         Whether the task instance was called using the CLI's test
                                             subcommand.
+``{{ expanded_ti_count }}``                 Number of task instances that a mapped task was expanded into. If
+                                            the current task is not mapped, this should be ``None``.
 ==========================================  ====================================
 
 .. note::
