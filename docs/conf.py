@@ -189,7 +189,7 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
             "sphinx_jinja",
         ]
     )
-    exclude_patterns = ["operators/_partials", "**/google/cloud/dataflow/resources"]
+    exclude_patterns = ["operators/_partials"]
 else:
     exclude_patterns = []
 

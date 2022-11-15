@@ -46,7 +46,7 @@ DAG_ID = "dataflow_native_python_async"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
-PYTHON_FILE_NAME = "wordcount_debugging.py"
+PYTHON_FILE_NAME = "wordcount_debugging.txt"
 GCS_TMP = f"gs://{BUCKET_NAME}/temp/"
 GCS_STAGING = f"gs://{BUCKET_NAME}/staging/"
 GCS_OUTPUT = f"gs://{BUCKET_NAME}/output"
