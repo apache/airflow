@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
 
 import { getMetaValue } from 'src/utils';
@@ -43,10 +43,10 @@ export default function useSetDagRunNotes({
 
   return useMutation(
     ['setDagRunNotes', dagId, runId],
-    (notes: string | null) => axios.patch(setDagRunNotes, { notes }),
+    (notes: string | null) => axios.patch<AxiosResponse, API.DAGRun>(setDagRunNotes, { notes }),
     {
       onSuccess: async (data) => {
-        const notes = (data as API.DAGRun).notes ?? null;
+        const notes = data.notes ?? null;
 
         const updateGridData = (oldGridData: GridData | undefined) => (
           !oldGridData

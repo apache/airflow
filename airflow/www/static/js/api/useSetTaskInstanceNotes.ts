@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
 
 import { getMetaValue } from 'src/utils';
@@ -50,10 +50,10 @@ export default function useSetTaskInstanceNotes({
 
   return useMutation(
     ['setTaskInstanceNotes', dagId, runId, taskId, mapIndex],
-    (notes: string | null) => axios.patch(url, { notes }),
+    (notes: string | null) => axios.patch<AxiosResponse, API.TaskInstance>(url, { notes }),
     {
       onSuccess: async (data) => {
-        const notes = (data as API.TaskInstance).notes ?? null;
+        const notes = data.notes ?? null;
 
         const updateMappedInstancesResult = (oldMappedInstances?: API.TaskInstanceCollection) => {
           if (!oldMappedInstances) {
