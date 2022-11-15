@@ -2047,3 +2047,47 @@ def test_mapped_task_group_expands(dag_maker, session):
         ("tg.task_2", 4, None),
         ("tg.task_2", 5, None),
     }
+
+
+def test_operator_mapped_task_group_receives_value(dag_maker, session):
+    with dag_maker(session=session):
+
+        @task
+        def t(value, *, ti=None):
+            results[(ti.task_id, ti.map_index)] = value
+            return value
+
+        @task_group
+        def tg(va):
+            # Each expanded group has one t1 and t2 each.
+            t1 = t.override(task_id="t1")(va)
+            t2 = t.override(task_id="t2")(t1)
+
+            return t2
+
+        # The group is mapped by 3.
+        t2 = tg.expand(va=["x", "y", "z"])
+
+        # Aggregates results from task group.
+        t.override(task_id="t3")(t2)
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    results = {}
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    for ti in decision.schedulable_tis:
+        ti.run()
+    assert results == {("tg.t1", 0): "x", ("tg.t1", 1): "y", ("tg.t1", 2): "z"}
+
+    results = {}
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    for ti in decision.schedulable_tis:
+        ti.run()
+    assert results == {("tg.t2", 0): "x", ("tg.t2", 1): "y", ("tg.t2", 2): "z"}
+
+    results = {}
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    for ti in decision.schedulable_tis:
+        ti.run()
+    assert len(results) == 1
+    assert list(results[("t3", -1)]) == ["x", "y", "z"]

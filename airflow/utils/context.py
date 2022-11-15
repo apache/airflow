@@ -54,6 +54,7 @@ KNOWN_CONTEXT_KEYS = {
     "ds_nodash",
     "execution_date",
     "exception",
+    "expanded_ti_count",
     "inlets",
     "logical_date",
     "macros",

@@ -18,9 +18,7 @@
 from __future__ import annotations
 
 import datetime
-import functools
 import inspect
-import operator
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
 from airflow.compat.functools import cache, cached_property
@@ -34,7 +32,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
-from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
@@ -49,6 +46,7 @@ if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.utils.task_group import MappedTaskGroup
 
 DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
 DEFAULT_POOL_SLOTS: int = 1
@@ -285,14 +283,6 @@ class AbstractOperator(LoggingMixin, DAGNode):
             if any(p.node_id == self.node_id for p in downstream.iter_mapped_dependencies())
         )
 
-    def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
-        """Return mapped task groups this task belongs to."""
-        parent = self.task_group
-        while parent is not None:
-            if isinstance(parent, MappedTaskGroup):
-                yield parent
-            parent = parent.task_group
-
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
         """Get the "normal" operator from current abstract operator.
 
@@ -387,6 +377,11 @@ class AbstractOperator(LoggingMixin, DAGNode):
             return link.get_link(self.unmap(None), ti.dag_run.logical_date)  # type: ignore[misc]
         return link.get_link(self.unmap(None), ti_key=ti.key)
 
+    def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
+        if self.task_group is None:
+            return None
+        return next(self.task_group.iter_mapped_task_groups(), None)
+
     @cache
     def get_parse_time_mapped_ti_count(self) -> int:
         """Number of mapped task instances that can be created on DAG run creation.
@@ -399,11 +394,10 @@ class AbstractOperator(LoggingMixin, DAGNode):
             mapped task groups.
         :return: Total number of mapped TIs this task should have.
         """
-        mapped_task_groups = list(self.iter_mapped_task_groups())
-        if not mapped_task_groups:
+        group = self.get_closest_mapped_task_group()
+        if group is None:
             raise NotMapped
-        counts = (g.get_parse_time_mapped_ti_count() for g in mapped_task_groups)
-        return functools.reduce(operator.mul, counts)
+        return group.get_parse_time_mapped_ti_count()
 
     def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
         """Number of mapped TaskInstances that can be created at run time.
@@ -413,16 +407,15 @@ class AbstractOperator(LoggingMixin, DAGNode):
         return value should be identical to ``parse_time_mapped_ti_count`` if
         all mapped arguments are literal.
 
-        :raise NotFullyPopulated: If upstream tasks are not all complete yet.
-        :raise NotMapped: If the operator is neither mapped, nor has any parent
+        :raise NotFullyPopulated: Upstream tasks are not all complete yet.
+        :raise NotMapped: The operator is neither mapped, nor has any parent
             mapped task groups.
         :return: Total number of mapped TIs this task should have.
         """
-        mapped_task_groups = list(self.iter_mapped_task_groups())
-        if not mapped_task_groups:
+        group = self.get_closest_mapped_task_group()
+        if group is None:
             raise NotMapped
-        counts = (g.get_mapped_ti_count(run_id, session=session) for g in mapped_task_groups)
-        return functools.reduce(operator.mul, counts)
+        return group.get_mapped_ti_count(run_id, session=session)
 
     def expand_mapped_task(self, run_id: str, *, session: Session) -> tuple[Sequence[TaskInstance], int]:
         """Create the mapped task instances for mapped task.

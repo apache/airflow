@@ -22,9 +22,11 @@ together when the DAG is displayed graphically.
 from __future__ import annotations
 
 import copy
+import functools
+import operator
 import re
 import weakref
-from typing import TYPE_CHECKING, Any, Generator, Sequence
+from typing import TYPE_CHECKING, Any, Generator, Iterator, Sequence
 
 from airflow.compat.functools import cache
 from airflow.exceptions import (
@@ -75,6 +77,7 @@ class TaskGroup(DAGNode):
     """
 
     used_group_ids: set[str | None]
+    is_mapped = False
 
     def __init__(
         self,
@@ -457,6 +460,20 @@ class TaskGroup(DAGNode):
 
         return graph_sorted
 
+    def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
+        """Return mapped task groups in the hierarchy.
+
+        Groups are returned from the closest to the outmost. If this group is
+        itself mapped, it is returned first.
+
+        :meta private:
+        """
+        group: TaskGroup | None = self
+        while group is not None:
+            if isinstance(group, MappedTaskGroup):
+                yield group
+            group = group.task_group
+
 
 class MappedTaskGroup(TaskGroup):
     """A mapped task group.
@@ -468,6 +485,8 @@ class MappedTaskGroup(TaskGroup):
     a ``@task_group`` function instead.
     """
 
+    is_mapped = True
+
     def __init__(self, *, expand_input: ExpandInput, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._expand_input = expand_input
@@ -477,15 +496,18 @@ class MappedTaskGroup(TaskGroup):
         """Number of instances a task in this group should be mapped to, when a DAG run is created.
 
         This only considers literal mapped arguments, and would return *None*
-        when any non-literal values are used for mapping. This also does not
-        account for nested mapped groups; only the number expanded due to this
-        specific group is returned, regardless of whether any of its parent
-        groups are mapped.
+        when any non-literal values are used for mapping.
+
+        If this group is inside mapped task groups, all the nested counts are
+        multiplied and accounted.
 
         :raise NotFullyPopulated: If any non-literal mapped arguments are encountered.
         :return: The total number of mapped instances each task should have.
         """
-        return self._expand_input.get_parse_time_mapped_ti_count()
+        return functools.reduce(
+            operator.mul,
+            (g._expand_input.get_parse_time_mapped_ti_count() for g in self.iter_mapped_task_groups()),
+        )
 
     def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
         """Number of instances a task in this group should be mapped to at run time.
@@ -495,10 +517,17 @@ class MappedTaskGroup(TaskGroup):
         return value should be identical to ``parse_time_mapped_ti_count`` if
         all mapped arguments are literal.
 
+        If this group is inside mapped task groups, all the nested counts are
+        multiplied and accounted.
+
         :raise NotFullyPopulated: If upstream tasks are not all complete yet.
         :return: Total number of mapped TIs this task should have.
         """
-        return self._expand_input.get_total_map_length(run_id, session=session)
+        groups = self.iter_mapped_task_groups()
+        return functools.reduce(
+            operator.mul,
+            (g._expand_input.get_total_map_length(run_id, session=session) for g in groups),
+        )
 
 
 class TaskGroupContext:
@@ -601,3 +630,13 @@ def task_group_to_dict(task_item_or_group):
         },
         'children': children,
     }
+
+
+def find_common_mapped_ancestor(tg1: TaskGroup, tg2: TaskGroup) -> MappedTaskGroup | None:
+    if tg1.dag_id != tg2.dag_id:
+        return None
+    for tg1p in tg1.iter_mapped_task_groups():
+        for tg2p in tg2.iter_mapped_task_groups():
+            if tg1p.group_id == tg2p.group_id:
+                return tg1p
+    return None

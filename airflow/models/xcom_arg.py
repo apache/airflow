@@ -32,11 +32,14 @@ from airflow.utils.context import Context
 from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.task_group import find_common_mapped_ancestor
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.utils.task_group import MappedTaskGroup
 
 # Callable objects contained by MapXComArg. We only accept callables from
 # the user, but deserialize them into strings in a serialized XComArg for
@@ -300,7 +303,7 @@ class PlainXComArg(XComArg):
         from airflow.models.xcom import XCom
 
         task = self.operator
-        if task.is_mapped:
+        if task.is_mapped or task.get_closest_mapped_task_group() is not None:
             query = session.query(func.count(XCom.map_index)).filter(
                 XCom.dag_id == task.dag_id,
                 XCom.run_id == run_id,
@@ -317,15 +320,101 @@ class PlainXComArg(XComArg):
             )
         return query.scalar()
 
+    def _get_map_indexes_to_pull(
+        self,
+        ti: TaskInstance,
+        ti_count: int | None,
+        *,
+        session: Session,
+    ) -> int | range | None:
+        # No special logic needed if there are no mapped task groups involved.
+        task_group = self.operator.task_group
+        if task_group is None or next(task_group.iter_mapped_task_groups(), None) is None:
+            return None
+
+        # Otherwise we need serious logic to figure out task group expansion!
+        # We also need to know how many task instances the current task is
+        # mapped into. Note that since we know there's a mapped task group
+        # somewhere, the current task is definitely mapped, so the ``is None``
+        # case is not possible, but we still check to satisfy Mypy.
+        if ti_count is None:
+            return None
+
+        # Now we need to inspect surrounding mapped task groups. we essentially
+        # want to handle the following problem, where 'val' needs to resolve to
+        # different values depending on where the reference is being used:
+        #
+        #     @task
+        #     def operator(v):
+        #         return v * 2
+        #
+        #     @task_group
+        #     def tg1(inp):
+        #         val = referenced_task(inp)  # This task is self.operator.
+        #         this_task(val)  # When inp is 1, val should resolve to 2.
+        #         return val
+        #
+        #     val = tg1.expand(inp=[1, 2, 3])  # val goes out of the group.
+        #
+        #     @task_group
+        #     def tg2(inp):
+        #         another_task(inp, val)  # But val here should resolve to [2, 4, 6].
+        #
+        #     tg2.expand(inp=["a", "b"])
+
+        # Find the innermost common mapped task group between the current task
+        # and the referenced task. If no such group is found, the two tasks are
+        # in different task mapping contexts (like another_task above), and we
+        # should use the "whole" value.
+        if ti.task.task_group is None or self.operator.task_group is None:
+            return None
+        common_ancestor = find_common_mapped_ancestor(ti.task.task_group, self.operator.task_group)
+        if common_ancestor is None:
+            return None
+
+        # At this point we know the two tasks share a mapped task group, and we
+        # should use a "partial" value. Let's break down the mapped ti count
+        # between the ancestor and further expansion happened inside.
+        ancestor_ti_count = common_ancestor.get_mapped_ti_count(ti.run_id, session=session)
+        ancestor_map_index = ti.map_index * ancestor_ti_count // ti_count
+
+        def _is_further_mapped_inside(container: MappedTaskGroup) -> bool:
+            if self.operator.is_mapped:
+                return True
+            task_group = self.operator.task_group
+            while task_group is not None and task_group.group_id != container.group_id:
+                if task_group.is_mapped:
+                    return True
+                task_group = task_group.parent_group
+            return False
+
+        # If the task is NOT further mapped inside the common ancestor, we only
+        # want to reference one single ti.
+        if not _is_further_mapped_inside(common_ancestor):
+            return ancestor_map_index
+
+        # Otherwise we need an aggregation for values from multiple task
+        # instances in the ancestor's expansion context.
+        further_count = ti_count // ancestor_ti_count
+        map_index_start = ancestor_map_index * further_count
+        return range(map_index_start, map_index_start + further_count)
+
     @provide_session
     def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
+        ti = context["ti"]
         task_id = self.operator.task_id
-        result = context["ti"].xcom_pull(task_ids=task_id, key=str(self.key), default=NOTSET, session=session)
+        result = ti.xcom_pull(
+            task_ids=task_id,
+            map_indexes=self._get_map_indexes_to_pull(ti, context["expanded_ti_count"], session=session),
+            key=self.key,
+            default=NOTSET,
+            session=session,
+        )
         if not isinstance(result, ArgNotSet):
             return result
         if self.key == XCOM_RETURN_KEY:
             return None
-        raise XComNotFound(context["ti"].dag_id, task_id, self.key)
+        raise XComNotFound(ti.dag_id, task_id, self.key)
 
 
 def _get_callable_name(f: Callable | str) -> str:

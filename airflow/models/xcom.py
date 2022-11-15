@@ -495,7 +495,9 @@ class BaseXCom(Base, LoggingMixin):
         elif dag_ids is not None:
             query = query.filter(cls.dag_id == dag_ids)
 
-        if is_container(map_indexes):
+        if isinstance(map_indexes, range) and map_indexes.step in (1, -1):
+            query = query.filter(cls.map_index >= map_indexes.start, cls.map_index < map_indexes.stop)
+        elif is_container(map_indexes):
             query = query.filter(cls.map_index.in_(map_indexes))
         elif map_indexes is not None:
             query = query.filter(cls.map_index == map_indexes)

@@ -25,7 +25,7 @@
 # undefined attribute errors from Mypy. Hopefully there will be a mechanism to
 # declare "these are defined, but don't error if others are accessed" someday.
 
-from typing import Any, Container, Iterable, Mapping, Union, overload
+from typing import Any, Collection, Container, Iterable, Mapping, Union, overload
 
 from pendulum import DateTime
 
@@ -63,6 +63,7 @@ class Context(TypedDict, total=False):
     ds_nodash: str
     execution_date: DateTime
     exception: Union[KeyboardInterrupt, Exception, str, None]
+    expanded_ti_count: int | None
     inlets: list
     logical_date: DateTime
     macros: Any
