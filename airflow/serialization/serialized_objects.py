@@ -451,7 +451,7 @@ class BaseSerialization:
         else:
             log.debug("Cast type %s to str in serialization.", type(var))
             if strict:
-                raise ValueError("Encountered unexpected type")
+                raise SerializationError("Encountered unexpected type")
             return str(var)
 
     @classmethod
