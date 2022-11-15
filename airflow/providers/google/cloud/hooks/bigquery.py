@@ -1769,7 +1769,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 "nullMarker",
                 "quote",
                 "encoding",
-                "preserveAsciiControlCharacters"
+                "preserveAsciiControlCharacters",
             ],
             "DATASTORE_BACKUP": ["projectionFields"],
             "NEWLINE_DELIMITED_JSON": ["autodetect", "ignoreUnknownValues"],
