@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.trino.transfers.gcs_to_trino import GCSToTrinoOperator
@@ -33,7 +32,7 @@ SCHEMA_FIELDS = ["colA", "colB", "colC"]
 SCHEMA_JSON = "path/to/file.json"
 
 
-class TestGCSToTrinoOperator(unittest.TestCase):
+class TestGCSToTrinoOperator:
     @mock.patch("airflow.providers.trino.transfers.gcs_to_trino.TrinoHook")
     @mock.patch("airflow.providers.trino.transfers.gcs_to_trino.GCSHook")
     @mock.patch("airflow.providers.trino.transfers.gcs_to_trino.NamedTemporaryFile")

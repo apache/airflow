@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import MagicMock
 
 import pytest
@@ -31,7 +30,7 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
 @pytest.mark.integration("redis")
-class TestRedisPublishOperator(unittest.TestCase):
+class TestRedisPublishOperator:
     def setUp(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 

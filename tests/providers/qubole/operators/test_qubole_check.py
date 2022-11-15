@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from datetime import datetime
 from unittest import mock
 from unittest.mock import MagicMock
@@ -95,8 +94,8 @@ class TestQuboleCheckMixin:
             mock_handle_airflow_exception.assert_called_once()
 
 
-class TestQuboleValueCheckOperator(unittest.TestCase):
-    def setUp(self):
+class TestQuboleValueCheckOperator:
+    def setup_method(self):
         self.task_id = "test_task"
         self.conn_id = "default_conn"
 

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest.mock import patch
 
 import pytest
@@ -550,8 +549,8 @@ TEST_POD_LOG_RESULT = "LOG LINE 1\nLOG LINE 2"
 
 
 @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_conn")
-class TestSparkKubernetesSensor(unittest.TestCase):
-    def setUp(self):
+class TestSparkKubernetesSensor:
+    def setup_method(self):
         db.merge_conn(Connection(conn_id="kubernetes_default", conn_type="kubernetes", extra=json.dumps({})))
         db.merge_conn(
             Connection(

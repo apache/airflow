@@ -16,25 +16,21 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import MagicMock, patch
 
-from parameterized import parameterized
+import pytest
 
 from airflow import configuration, models
 from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode
 from airflow.utils import db
 
 
-class TestTableauHook(unittest.TestCase):
+class TestTableauHook:
     """
     Test class for TableauHook
     """
 
-    def setUp(self):
-        """
-        setup
-        """
+    def setup_method(self):
         configuration.conf.load_test_config()
 
         db.merge_conn(
@@ -222,15 +218,16 @@ class TestTableauHook(unittest.TestCase):
 
         mock_pager.assert_called_once_with(mock_server.return_value.jobs.get)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "finish_code, expected_status",
         [
-            (0, TableauJobFinishCode.SUCCESS),
-            (1, TableauJobFinishCode.ERROR),
-            (2, TableauJobFinishCode.CANCELED),
-        ]
+            pytest.param(0, TableauJobFinishCode.SUCCESS, id="SUCCESS"),
+            pytest.param(1, TableauJobFinishCode.ERROR, id="ERROR"),
+            pytest.param(2, TableauJobFinishCode.CANCELED, id="CANCELED"),
+        ],
     )
     @patch("airflow.providers.tableau.hooks.tableau.Server")
-    def test_get_job_status(self, finish_code, expected_status, mock_tableau_server):
+    def test_get_job_status(self, mock_tableau_server, finish_code, expected_status):
         """
         Test get job status
         """

@@ -20,13 +20,11 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import unittest
 from io import StringIO
 from unittest import mock
 
 import paramiko
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -58,7 +56,7 @@ TEST_HOST_KEY = generate_host_key(pkey=TEST_PKEY)
 TEST_KEY_FILE = "~/.ssh/id_rsa"
 
 
-class TestSFTPHook(unittest.TestCase):
+class TestSFTPHook:
     @provide_session
     def update_connection(self, login, session=None):
         connection = session.query(Connection).filter(Connection.conn_id == "sftp_default").first()
@@ -72,7 +70,7 @@ class TestSFTPHook(unittest.TestCase):
         with open(os.path.join(TMP_PATH, file_name), "a") as file:
             file.write("Test file")
 
-    def setUp(self):
+    def setup_method(self):
         self.old_login = self.update_connection(SFTP_CONNECTION_USER)
         self.hook = SFTPHook()
         os.makedirs(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR))
@@ -290,19 +288,21 @@ class TestSFTPHook(unittest.TestCase):
         hook = SFTPHook()
         assert hook.key_file == TEST_KEY_FILE
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "path, exists",
         [
             (os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS), True),
             (os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS), True),
             (os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS + "abc"), False),
             (os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, "abc"), False),
-        ]
+        ],
     )
     def test_path_exists(self, path, exists):
         result = self.hook.path_exists(path)
         assert result == exists
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "path, prefix, delimiter, match",
         [
             ("test/path/file.bin", None, None, True),
             ("test/path/file.bin", "test", None, True),
@@ -315,7 +315,7 @@ class TestSFTPHook(unittest.TestCase):
             ("test/path/file.bin", "test//", None, False),
             ("test/path/file.bin", None, ".txt", False),
             ("test/path/file.bin", "diff", ".txt", False),
-        ]
+        ],
     )
     def test_path_match(self, path, prefix, delimiter, match):
         result = self.hook._is_path_match(path=path, prefix=prefix, delimiter=delimiter)
@@ -366,11 +366,11 @@ class TestSFTPHook(unittest.TestCase):
         connection = Connection(conn_id="ftp_default", login="login", host="host")
         mock_get_connection.return_value = connection
         # If `ftp_conn_id` is provided, it will be used but would show a deprecation warning.
-        with self.assertWarnsRegex(DeprecationWarning, "Parameter `ftp_conn_id` is deprecated"):
+        with pytest.warns(DeprecationWarning, match=r"Parameter `ftp_conn_id` is deprecated"):
             assert SFTPHook(ftp_conn_id="ftp_default").ssh_conn_id == "ftp_default"
 
         # If both are provided, ftp_conn_id  will be used but would show a deprecation warning.
-        with self.assertWarnsRegex(DeprecationWarning, "Parameter `ftp_conn_id` is deprecated"):
+        with pytest.warns(DeprecationWarning, match=r"Parameter `ftp_conn_id` is deprecated"):
             assert (
                 SFTPHook(ftp_conn_id="ftp_default", ssh_conn_id="sftp_default").ssh_conn_id == "ftp_default"
             )
@@ -397,29 +397,29 @@ class TestSFTPHook(unittest.TestCase):
 
     def test_get_suffix_pattern_match(self):
         output = self.hook.get_file_by_pattern(TMP_PATH, "*.txt")
-        self.assertTrue(output, TMP_FILE_FOR_TESTS)
+        assert output == TMP_FILE_FOR_TESTS
 
     def test_get_prefix_pattern_match(self):
         output = self.hook.get_file_by_pattern(TMP_PATH, "test*")
-        self.assertTrue(output, TMP_FILE_FOR_TESTS)
+        assert output == TMP_FILE_FOR_TESTS
 
     def test_get_pattern_not_match(self):
         output = self.hook.get_file_by_pattern(TMP_PATH, "*.text")
-        self.assertFalse(output)
+        assert output == ""
 
     def test_get_several_pattern_match(self):
         output = self.hook.get_file_by_pattern(TMP_PATH, "*.log")
-        self.assertEqual(LOG_FILE_FOR_TESTS, output)
+        assert LOG_FILE_FOR_TESTS == output
 
     def test_get_first_pattern_match(self):
         output = self.hook.get_file_by_pattern(TMP_PATH, "test_*.txt")
-        self.assertEqual(TMP_FILE_FOR_TESTS, output)
+        assert TMP_FILE_FOR_TESTS == output
 
     def test_get_middle_pattern_match(self):
         output = self.hook.get_file_by_pattern(TMP_PATH, "*_file_*.txt")
-        self.assertEqual(ANOTHER_FILE_FOR_TESTS, output)
+        assert ANOTHER_FILE_FOR_TESTS == output
 
-    def tearDown(self):
+    def teardown_method(self):
         shutil.rmtree(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         for file_name in [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS, LOG_FILE_FOR_TESTS]:
             os.remove(os.path.join(TMP_PATH, file_name))

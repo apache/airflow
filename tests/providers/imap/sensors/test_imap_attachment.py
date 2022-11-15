@@ -17,16 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import Mock, patch
 
-from parameterized import parameterized
+import pytest
 
 from airflow.providers.imap.sensors.imap_attachment import ImapAttachmentSensor
 
 
-class TestImapAttachmentSensor(unittest.TestCase):
-    def setUp(self):
+class TestImapAttachmentSensor:
+    def setup_method(self):
         self.kwargs = dict(
             attachment_name="test_file",
             check_regex=False,
@@ -36,9 +35,9 @@ class TestImapAttachmentSensor(unittest.TestCase):
             dag=None,
         )
 
-    @parameterized.expand([(True,), (False,)])
+    @pytest.mark.parametrize("has_attachment_return_value", [True, False])
     @patch("airflow.providers.imap.sensors.imap_attachment.ImapHook")
-    def test_poke(self, has_attachment_return_value, mock_imap_hook):
+    def test_poke(self, mock_imap_hook, has_attachment_return_value):
         mock_imap_hook.return_value.__enter__ = Mock(return_value=mock_imap_hook)
         mock_imap_hook.has_mail_attachment.return_value = has_attachment_return_value
 

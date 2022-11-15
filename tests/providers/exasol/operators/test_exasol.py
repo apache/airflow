@@ -17,14 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.exasol.operators.exasol import ExasolOperator
 
 
-class TestExasol(unittest.TestCase):
+class TestExasol:
     @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
     def test_overwrite_autocommit(self, mock_get_db_hook):
         operator = ExasolOperator(task_id="TEST", sql="SELECT 1", autocommit=True)
