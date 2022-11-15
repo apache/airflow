@@ -20,7 +20,7 @@ from __future__ import annotations
 from functools import wraps
 from inspect import signature
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 import oss2
 from oss2.exceptions import ClientError
@@ -108,7 +108,7 @@ class OSSHook(BaseHook):
         :param ossurl: The OSS Url to parse.
         :return: the parsed bucket name and key
         """
-        parsed_url = urlparse(ossurl)
+        parsed_url = urlsplit(ossurl)
 
         if not parsed_url.netloc:
             raise AirflowException(f'Please provide a bucket_name instead of "{ossurl}"')

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import collections
 import logging
 import multiprocessing
 import os
@@ -219,7 +220,7 @@ class TestDagFileProcessorManager:
         file_1 = "file_1.py"
         file_2 = "file_2.py"
         file_3 = "file_3.py"
-        manager._file_path_queue = [file_1, file_2, file_3]
+        manager._file_path_queue = collections.deque([file_1, file_2, file_3])
 
         # Mock that only one processor exists. This processor runs with 'file_1'
         manager._processors[file_1] = MagicMock()
@@ -234,7 +235,7 @@ class TestDagFileProcessorManager:
 
         assert file_1 in manager._processors.keys()
         assert file_2 in manager._processors.keys()
-        assert [file_3] == manager._file_path_queue
+        assert collections.deque([file_3]) == manager._file_path_queue
 
     def test_set_file_paths_when_processor_file_path_not_in_new_file_paths(self):
         manager = DagFileProcessorManager(
@@ -300,9 +301,11 @@ class TestDagFileProcessorManager:
         )
 
         manager.set_file_paths(dag_files)
-        assert manager._file_path_queue == []
+        assert manager._file_path_queue == collections.deque()
         manager.prepare_file_path_queue()
-        assert manager._file_path_queue == ["file_1.py", "file_2.py", "file_3.py", "file_4.py"]
+        assert manager._file_path_queue == collections.deque(
+            ["file_1.py", "file_2.py", "file_3.py", "file_4.py"]
+        )
 
     @conf_vars({("scheduler", "file_parsing_sort_mode"): "random_seeded_by_host"})
     @mock.patch("zipfile.is_zipfile", return_value=True)
@@ -327,10 +330,10 @@ class TestDagFileProcessorManager:
         )
 
         manager.set_file_paths(dag_files)
-        assert manager._file_path_queue == []
+        assert manager._file_path_queue == collections.deque()
         manager.prepare_file_path_queue()
 
-        expected_order = dag_files
+        expected_order = collections.deque(dag_files)
         random.Random(get_hostname()).shuffle(expected_order)
         assert manager._file_path_queue == expected_order
 
@@ -365,9 +368,11 @@ class TestDagFileProcessorManager:
         )
 
         manager.set_file_paths(dag_files)
-        assert manager._file_path_queue == []
+        assert manager._file_path_queue == collections.deque()
         manager.prepare_file_path_queue()
-        assert manager._file_path_queue == ["file_4.py", "file_1.py", "file_3.py", "file_2.py"]
+        assert manager._file_path_queue == collections.deque(
+            ["file_4.py", "file_1.py", "file_3.py", "file_2.py"]
+        )
 
     @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("zipfile.is_zipfile", return_value=True)
@@ -395,7 +400,41 @@ class TestDagFileProcessorManager:
 
         manager.set_file_paths(dag_files)
         manager.prepare_file_path_queue()
-        assert manager._file_path_queue == ["file_2.py", "file_3.py"]
+        assert manager._file_path_queue == collections.deque(["file_2.py", "file_3.py"])
+
+    @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
+    @mock.patch("zipfile.is_zipfile", return_value=True)
+    @mock.patch("airflow.utils.file.might_contain_dag", return_value=True)
+    @mock.patch("airflow.utils.file.find_path_from_directory", return_value=True)
+    @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
+    @mock.patch("airflow.utils.file.os.path.getmtime")
+    def test_add_new_file_to_parsing_queue(
+        self, mock_getmtime, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile
+    ):
+        """Check that new file is added to parsing queue"""
+        dag_files = ["file_1.py", "file_2.py", "file_3.py"]
+        mock_getmtime.side_effect = [1.0, 2.0, 3.0]
+        mock_find_path.return_value = dag_files
+
+        manager = DagFileProcessorManager(
+            dag_directory="directory",
+            max_runs=1,
+            processor_timeout=timedelta(days=365),
+            signal_conn=MagicMock(),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True,
+        )
+
+        manager.set_file_paths(dag_files)
+        manager.prepare_file_path_queue()
+        assert manager._file_path_queue == collections.deque(["file_3.py", "file_2.py", "file_1.py"])
+
+        manager.set_file_paths(dag_files + ["file_4.py"])
+        manager.add_new_file_path_to_queue()
+        assert manager._file_path_queue == collections.deque(
+            ["file_4.py", "file_3.py", "file_2.py", "file_1.py"]
+        )
 
     @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("zipfile.is_zipfile", return_value=True)
@@ -432,10 +471,10 @@ class TestDagFileProcessorManager:
         }
         with freeze_time(freezed_base_time):
             manager.set_file_paths(dag_files)
-            assert manager._file_path_queue == []
+            assert manager._file_path_queue == collections.deque()
             # File Path Queue will be empty as the "modified time" < "last finish time"
             manager.prepare_file_path_queue()
-            assert manager._file_path_queue == []
+            assert manager._file_path_queue == collections.deque()
 
         # Simulate the DAG modification by using modified_time which is greater
         # than the last_parse_time but still less than now - min_file_process_interval
@@ -443,12 +482,12 @@ class TestDagFileProcessorManager:
         file_1_new_mtime_ts = file_1_new_mtime.timestamp()
         with freeze_time(freezed_base_time):
             manager.set_file_paths(dag_files)
-            assert manager._file_path_queue == []
+            assert manager._file_path_queue == collections.deque()
             # File Path Queue will be empty as the "modified time" < "last finish time"
             mock_getmtime.side_effect = [file_1_new_mtime_ts]
             manager.prepare_file_path_queue()
             # Check that file is added to the queue even though file was just recently passed
-            assert manager._file_path_queue == ["file_1.py"]
+            assert manager._file_path_queue == collections.deque(["file_1.py"])
             assert last_finish_time < file_1_new_mtime
             assert (
                 manager._file_process_interval
@@ -1038,7 +1077,9 @@ class TestDagFileProcessorManager:
         manager._add_callback_to_queue(dag2_req1)
 
         # then - requests should be in manager's queue, with dag2 ahead of dag1 (because it was added last)
-        assert manager._file_path_queue == [dag2_req1.full_filepath, dag1_req1.full_filepath]
+        assert manager._file_path_queue == collections.deque(
+            [dag2_req1.full_filepath, dag1_req1.full_filepath]
+        )
         assert set(manager._callback_to_execute.keys()) == {dag1_req1.full_filepath, dag2_req1.full_filepath}
         assert manager._callback_to_execute[dag1_req1.full_filepath] == [dag1_req1, dag1_sla1]
         assert manager._callback_to_execute[dag2_req1.full_filepath] == [dag2_req1]
@@ -1047,14 +1088,18 @@ class TestDagFileProcessorManager:
         manager._add_callback_to_queue(dag1_sla2)
 
         # then - since sla2 == sla1, should not have brought dag1 to the fore
-        assert manager._file_path_queue == [dag2_req1.full_filepath, dag1_req1.full_filepath]
+        assert manager._file_path_queue == collections.deque(
+            [dag2_req1.full_filepath, dag1_req1.full_filepath]
+        )
         assert manager._callback_to_execute[dag1_req1.full_filepath] == [dag1_req1, dag1_sla1]
 
         # when
         manager._add_callback_to_queue(dag1_req2)
 
         # then - non-sla callback should have brought dag1 to the fore
-        assert manager._file_path_queue == [dag1_req1.full_filepath, dag2_req1.full_filepath]
+        assert manager._file_path_queue == collections.deque(
+            [dag1_req1.full_filepath, dag2_req1.full_filepath]
+        )
         assert manager._callback_to_execute[dag1_req1.full_filepath] == [dag1_req1, dag1_sla1, dag1_req2]
 
 

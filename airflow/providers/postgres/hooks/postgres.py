@@ -262,9 +262,9 @@ class PostgresHook(DbApiHook):
         pk_columns = [row[0] for row in self.get_records(sql, (schema, table))]
         return pk_columns or None
 
-    @staticmethod
+    @classmethod
     def _generate_insert_sql(
-        table: str, values: tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
+        cls, table: str, values: tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
     ) -> str:
         """
         Static helper method that generates the INSERT SQL statement.
@@ -279,7 +279,7 @@ class PostgresHook(DbApiHook):
         :return: The generated INSERT or REPLACE SQL statement
         """
         placeholders = [
-            "%s",
+            cls.placeholder,
         ] * len(values)
         replace_index = kwargs.get("replace_index")
 
@@ -292,16 +292,20 @@ class PostgresHook(DbApiHook):
         sql = f"INSERT INTO {table} {target_fields_fragment} VALUES ({','.join(placeholders)})"
 
         if replace:
-            if target_fields is None:
+            if not target_fields:
                 raise ValueError("PostgreSQL ON CONFLICT upsert syntax requires column names")
-            if replace_index is None:
+            if not replace_index:
                 raise ValueError("PostgreSQL ON CONFLICT upsert syntax requires an unique index")
             if isinstance(replace_index, str):
                 replace_index = [replace_index]
-            replace_index_set = set(replace_index)
 
-            replace_target = [
-                "{0} = excluded.{0}".format(col) for col in target_fields if col not in replace_index_set
-            ]
-            sql += f" ON CONFLICT ({', '.join(replace_index)}) DO UPDATE SET {', '.join(replace_target)}"
+            on_conflict_str = f" ON CONFLICT ({', '.join(replace_index)})"
+            replace_target = [f for f in target_fields if f not in replace_index]
+
+            if replace_target:
+                replace_target_str = ", ".join(f"{col} = excluded.{col}" for col in replace_target)
+                sql += f"{on_conflict_str} DO UPDATE SET {replace_target_str}"
+            else:
+                sql += f"{on_conflict_str} DO NOTHING"
+
         return sql

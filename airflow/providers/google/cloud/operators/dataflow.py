@@ -80,6 +80,11 @@ class DataflowConfiguration:
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+
+        .. warning::
+
+            This option requires Apache Beam 2.39.0 or newer.
+
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
         instead of canceling during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
