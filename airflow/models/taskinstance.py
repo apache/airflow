@@ -2571,6 +2571,7 @@ class SimpleTaskInstance:
         return NotImplemented
 
     def as_dict(self):
+        warnings.warn("This method is deprecated.  Use BaseSerialization.serialize.", DeprecationWarning)
         new_dict = dict(self.__dict__)
         for key in ["start_date", "end_date"]:
             val = new_dict.get(key)
@@ -2601,18 +2602,9 @@ class SimpleTaskInstance:
 
     @classmethod
     def from_dict(cls, obj_dict: dict) -> SimpleTaskInstance:
+        warnings.warn("This method is deprecated.  Use BaseSerialization.deserialize.", DeprecationWarning)
         ti_key = TaskInstanceKey(*obj_dict.pop("key"))
-        start_date = None
-        end_date = None
-        start_date_str: str | None = obj_dict.pop("start_date")
-        end_date_str: str | None = obj_dict.pop("end_date")
-        if start_date_str:
-            start_date = timezone.parse(start_date_str)
-        if end_date_str:
-            end_date = timezone.parse(end_date_str)
-        executor_config = obj_dict["executor_config"]
-        obj_dict["executor_config"] = ExecutorConfigType.deserialize_pod_override(executor_config)
-        return cls(**obj_dict, start_date=start_date, end_date=end_date, key=ti_key)
+        return cls(**obj_dict, key=ti_key)
 
 
 STATICA_HACK = True
