@@ -27,7 +27,7 @@ import os
 import signal
 import warnings
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from functools import partial
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, NamedTuple, Tuple
@@ -2574,7 +2574,7 @@ class SimpleTaskInstance:
         new_dict = dict(self.__dict__)
         for key in ["start_date", "end_date"]:
             val = new_dict.get(key)
-            if hasattr(val, "isoformat"):
+            if isinstance(val, date):
                 new_dict[key] = val.isoformat()
         executor_config = new_dict["executor_config"]
         new_dict["executor_config"] = ExecutorConfigType.serialize_pod_override(executor_config)
