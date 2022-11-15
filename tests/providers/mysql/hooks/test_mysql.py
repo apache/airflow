@@ -30,6 +30,7 @@ from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils import timezone
+from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 SSL_DICT = {"cert": "/tmp/client-cert.pem", "ca": "/tmp/server-ca.pem", "key": "/tmp/client-key.pem"}
 
@@ -436,11 +437,9 @@ class TestMySql:
             tmp_file = "/path/to/output/file"
             hook.bulk_dump(table, tmp_file)
 
-            from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
-
             assert mock_execute.call_count == 1
             query = f"""
                 SELECT * INTO OUTFILE '{tmp_file}'
                 FROM {table}
             """
-            assert_equal_ignore_multiple_spaces(self, mock_execute.call_args[0][0], query)
+            assert_equal_ignore_multiple_spaces(None, mock_execute.call_args[0][0], query)
