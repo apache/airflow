@@ -49,10 +49,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.4.2"
+defaultAirflowTag: "2.4.3"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.4.2"
+airflowVersion: "2.4.3"
 
 # Images
 images:
@@ -600,6 +600,8 @@ workers:
   labels: {}
 
   logGroomerSidecar:
+    # Whether to deploy the Airflow worker log groomer sidecar.
+    enabled: true
     # Command to use when running the Airflow worker log groomer sidecar (templated).
     command: ~
     # Args to use when running the Airflow worker log groomer sidecar (templated).

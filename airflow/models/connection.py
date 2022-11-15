@@ -21,7 +21,7 @@ import json
 import logging
 import warnings
 from json import JSONDecodeError
-from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.ext.declarative import declared_attr
@@ -188,7 +188,7 @@ class Connection(Base, LoggingMixin):
         return conn_type
 
     def _parse_from_uri(self, uri: str):
-        uri_parts = urlparse(uri)
+        uri_parts = urlsplit(uri)
         conn_type = uri_parts.scheme
         self.conn_type = self._normalize_conn_type(conn_type)
         self.host = _parse_netloc_to_hostname(uri_parts)

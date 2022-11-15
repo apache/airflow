@@ -27,6 +27,9 @@ Changelog
 7.0.0
 .....
 
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
@@ -35,6 +38,19 @@ Breaking changes
 * In SlackHook and SlackWebhookHook, if both ``extra__<conn type>__foo`` and ``foo`` existed in connection extra
   dict, the prefixed version would be used; now, the non-prefixed version will be preferred.  You'll see a warning
   if there is such a collision.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+* ``Allow and prefer non-prefixed extra fields for slack hooks (#27070)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable string normalization in python formatting - providers (#27205)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Replace urlparse with urlsplit (#27389)``
 
 6.0.0
 .....

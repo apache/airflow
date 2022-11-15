@@ -65,7 +65,7 @@ Package apache-airflow-providers-asana
 `Asana <https://app.asana.com/>`__
 
 
-Release: 2.0.1
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -86,7 +86,7 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.2.0``
+``apache-airflow``  ``>=2.3.0``
 ``asana``           ``>=0.10``
 ==================  ==================
 
