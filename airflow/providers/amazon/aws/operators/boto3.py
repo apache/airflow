@@ -30,7 +30,11 @@ if TYPE_CHECKING:
 class Boto3BaseOperator(BaseOperator):
     """Base boto3 operator for interating with AWS via boto3"""
 
-    template_fields: Sequence[str] = ("client_type", "client_method", "method_kwargs",)
+    template_fields: Sequence[str] = (
+        "client_type",
+        "client_method",
+        "method_kwargs",
+    )
 
     def __init__(
         self,
@@ -50,7 +54,7 @@ class Boto3BaseOperator(BaseOperator):
             method_kwargs (dict, optional): Parameters to pass to the client_method. Example: {"DBInstanceIdentifier": "my-database"} Defaults to None.
         """
         if not client_method.isidentifier():
-            raise ParamValidationError(f"\"{client_method}\" is not valid client_method")
+            raise ParamValidationError(f'"{client_method}" is not valid client_method')
 
         self.client_type = client_type
         self.client_method = client_method
@@ -70,7 +74,9 @@ class Boto3BaseOperator(BaseOperator):
     ):
         method = getattr(self.hook.conn, self.client_method)
         if not callable(method):
-            raise ParamValidationError(f"Method \"{self.client_method}\" does not exist on boto3 client \"{self.client_type}\"")
+            raise ParamValidationError(
+                f'Method "{self.client_method}" does not exist on boto3 client "{self.client_type}"'
+            )
         return method
 
 

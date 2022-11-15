@@ -34,6 +34,13 @@ def generate_db_instance_identifier(**kwargs):
 
 with DAG(
     dag_id="example-boto3-dag",
+    tags=["example", "rds"],
+    catchup=False,
+    params={
+        # Database whose snapshot will be used to restore from. Can be overrided when DAG triggered manually
+        "target_database": "my-database",
+        "db_instance_class": "db.t3.small",
+    },
 ) as dag:
     """Example for boto3 DAG, in the case it interacts with RDS only. Can be used for any client that boto3 supports.
     What it does:
@@ -46,9 +53,10 @@ with DAG(
     latest_snapshot_arn = Boto3Operator(
         task_id="get_latest_snapshot",
         aws_conn_id=AWS_CONNECTION_ID,
-        boto3_callable="rds.describe_db_snapshots",
-        boto3_kwargs={
-            "DBInstanceIdentifier": "my-database",
+        client_type="rds",
+        client_method="describe_db_snapshots",
+        method_kwargs={
+            "DBInstanceIdentifier": dag.param("target_database"),
         },
         # The operator itself lists all the snapshots, `result_handler` takes ARN of last one by creation date.
         # The result will be saved as xcom and will be available for consequent tasks
@@ -62,11 +70,12 @@ with DAG(
     restore_db_from_snapshot = Boto3Operator(
         task_id="restore_db_from_snapshot",
         aws_conn_id=AWS_CONNECTION_ID,
-        boto3_callable="rds.restore_db_instance_from_db_snapshot",
-        boto3_kwargs={
+        client_type="rds",
+        client_method="restore_db_instance_from_db_snapshot",
+        method_kwargs={
             "DBInstanceIdentifier": db_instance_identifier,
             "DBSnapshotIdentifier": latest_snapshot_arn.output,
-            "DBInstanceClass": "db.t2.small",
+            "DBInstanceClass": dag.param("db_instance_class"),
             "DBSubnetGroupName": "my-subnet-group",
             "VpcSecurityGroupIds": ["sg-my-security-group"],
             "Tags": [
@@ -80,8 +89,9 @@ with DAG(
     wait_until_rds_instance_available = Boto3Sensor(
         task_id="wait_until_rds_instance_available",
         aws_conn_id=AWS_CONNECTION_ID,
-        boto3_callable="rds.describe_db_instances",
-        boto3_kwargs={"DBInstanceIdentifier": db_instance_identifier},
+        client_type="rds",
+        client_method="describe_db_instances",
+        method_kwargs={"DBInstanceIdentifier": db_instance_identifier},
         # Lambda function that returns True once criteria met
         poke_handler=lambda x: x["DBInstances"][0]["DBInstanceStatus"] == "available",
         mode="reschedule",
@@ -91,8 +101,9 @@ with DAG(
     get_rds_endpoint_hostname = Boto3Operator(
         task_id="get_rds_endpoint_hostname",
         aws_conn_id=AWS_CONNECTION_ID,
-        boto3_callable="rds.describe_db_instances",
-        boto3_kwargs={"DBInstanceIdentifier": db_instance_identifier},
+        client_type="rds",
+        client_method="describe_db_instances",
+        method_kwargs={"DBInstanceIdentifier": db_instance_identifier},
         # Extract endpoint address that we can connect to
         result_handler=lambda result: result["DBInstances"][0]["Endpoint"]["Address"],
     )
@@ -104,8 +115,9 @@ with DAG(
     destroy_db_instance = Boto3Operator(
         task_id="destroy_db_instance",
         aws_conn_id=AWS_CONNECTION_ID,
-        boto3_callable="rds.delete_db_instance",
-        boto3_kwargs={
+        client_type="rds",
+        client_method="delete_db_instance",
+        method_kwargs={
             "DBInstanceIdentifier": db_instance_identifier,
             "SkipFinalSnapshot": True,
         },
@@ -119,3 +131,8 @@ with DAG(
         >> get_rds_endpoint_hostname
         >> destroy_db_instance
     )
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
