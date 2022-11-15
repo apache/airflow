@@ -170,7 +170,7 @@ with DAG(
     # [END howto_operator_glue]
 
     # GlueJobOperator waits by default, setting as False to test the Sensor below.
-    submit_glue_job.wait_for_completion - False
+    submit_glue_job.wait_for_completion = False
 
     # [START howto_sensor_glue]
     wait_for_job = GlueJobSensor(
