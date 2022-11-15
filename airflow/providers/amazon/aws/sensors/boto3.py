@@ -32,22 +32,23 @@ class Boto3Sensor(BaseSensorOperator, Boto3BaseOperator):
         Boto3Sensor(
             task_id="wait_until_rds_instance_available",
             aws_conn_id=AWS_CONNECTION_ID,
-            boto3_callable="rds.describe_db_instances",
-            boto3_kwargs={"DBInstanceIdentifier": db_instance_identifier},
+            client_type="rds",
+            client_method="describe_db_instances",
+            method_kwargs={"DBInstanceIdentifier": db_instance_identifier},
             poke_handler=lambda x: x["DBInstances"][0]["DBInstanceStatus"] == "available",
             mode="reschedule",
             poke_interval=120,
         )
     """
 
-    def __init__(self, *args, poke_handler: Callable, **kwargs) -> None:
+    def __init__(self, poke_handler: Callable, **kwargs) -> None:
         """
         Args:
             poke_handler (Callable): python function that accepts boto3 call result and returns True if criteria met, False otherwise.
         """
         self.poke_handler = poke_handler
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def poke(self, context: Context) -> bool:
-        result = self.boto3_action(**self.boto3_kwargs)
+        result = self.boto3_action(**self.method_kwargs)
         return self.poke_handler(result)

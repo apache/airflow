@@ -18,9 +18,10 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable, Sequence
-from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-
+from airflow.compat.functools import cached_property
+from airflow.exceptions import ParamValidationError
 from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -29,64 +30,65 @@ if TYPE_CHECKING:
 class Boto3BaseOperator(BaseOperator):
     """Base boto3 operator for interating with AWS via boto3"""
 
-    template_fields: Sequence[str] = ("boto3_kwargs",)
+    template_fields: Sequence[str] = ("client_type", "client_method", "method_kwargs",)
 
     def __init__(
         self,
-        *args,
-        aws_conn_id: str = "aws_conn_id",
-        hook_params: dict = None,
-        boto3_callable: str = None,
-        boto3_kwargs: dict = None,
+        aws_conn_id: str | None = AwsBaseHook.default_conn_name,
+        hook_params: dict | None = None,
+        client_type: str | None = None,
+        client_method: str | None = None,
+        method_kwargs: dict | None = None,
         **kwargs,
     ):
         """
         Args:
             aws_conn_id (str, optional): AWS connection id. Defaults to "aws_conn_id".
             hook_params (dict, optional): Parameters to pass to AwsBaseHook. Defaults to None.
-            boto3_callable (str, optional): boto3 function that the operator should call. Format: <client>.<function>. Example: "rds.describe_db_snapshots". Defaults to None.
-            boto3_kwargs (dict, optional): Parameters to pass to the boto3_callable. Example: {"DBInstanceIdentifier": "my-database"} Defaults to None.
+            client_type (str, optional): boto3 client. Ex: "rds", "ec2", "s3", etc. Defaults to None.
+            client_method (str, optional): boto3 function that the operator should call on the client. Example: "describe_db_snapshots" (with `client_type`="rds"). Defaults to None.
+            method_kwargs (dict, optional): Parameters to pass to the client_method. Example: {"DBInstanceIdentifier": "my-database"} Defaults to None.
         """
-        assert (
-            boto3_callable and len(boto3_callable.split(".")) == 2
-        ), f"Wrong boto3_callable: Got '{boto3_callable}' but expected format: '<boto3_client_type>.<function_to_call>'"
+        if not client_method.isidentifier():
+            raise ParamValidationError(f"\"{client_method}\" is not valid client_method")
 
-        client_type, self.client_callable = boto3_callable.split(".")
-        self.boto3_kwargs = boto3_kwargs or {}
+        self.client_type = client_type
+        self.client_method = client_method
+        self.method_kwargs = method_kwargs or {}
 
-        hook_params = hook_params or {}
-        self.hook = AwsBaseHook(aws_conn_id=aws_conn_id, **hook_params, client_type=client_type)
-        super().__init__(*args, **kwargs)
+        self.hook_params = hook_params or {}
+
+        super().__init__(**kwargs)
+
+    @cached_property
+    def hook(self) -> AwsBaseHook:
+        return AwsBaseHook(aws_conn_id=self.aws_conn_id, **self.hook_params, client_type=self.client_type)
 
     @property
     def boto3_action(
         self,
     ):
-        return getattr(self.hook.conn, self.client_callable)
+        method = getattr(self.hook.conn, self.client_method)
+        if not callable(method):
+            raise ParamValidationError(f"Method \"{self.client_method}\" does not exist on boto3 client \"{self.client_type}\"")
+        return method
 
 
 class Boto3Operator(Boto3BaseOperator):
     """boto3 operator that implements interacting with boto3 client"""
 
-    template_fields: Sequence[str] = ("boto3_kwargs",)
-
-    def __init__(self, *args, result_handler: Callable = None, **kwargs):
+    def __init__(self, result_handler: Callable = None, **kwargs):
         """
         Args:
             result_handler (Callable, optional): python function that accepts boto3 call result and does some data transformation. Return value from that function saved as xcom. Defaults to None.
         """
         self.handle_result = result_handler
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def execute(self, context: Context) -> Any:
-        result = self.boto3_action(**self.boto3_kwargs)
+        result = self.boto3_action(**self.method_kwargs)
 
         if self.handle_result is not None:
             result = self.handle_result(result)
-
-        if not isinstance(result, str):
-            import json
-
-            return json.dumps(result, default=str)
 
         return result
