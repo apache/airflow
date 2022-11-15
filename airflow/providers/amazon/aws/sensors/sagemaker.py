@@ -62,7 +62,8 @@ class SageMakerBaseSensor(BaseSensorOperator):
         if state in self.failed_states():
             failed_reason = self.get_failed_reason_from_response(response)
             raise AirflowException(
-                f"Sagemaker {self.resource_type} failed for the following reason: {failed_reason}")
+                f"Sagemaker {self.resource_type} failed for the following reason: {failed_reason}"
+            )
         return True
 
     def non_terminal_states(self) -> set[str]:
@@ -274,6 +275,18 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
 
 
 class SageMakerPipelineSensor(SageMakerBaseSensor):
+    """
+    Polls the pipeline until it reaches a terminal state.  Raises an
+    AirflowException with the failure reason if a failed state is reached.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:SageMakerPipelineSensor`
+
+    :param pipeline_exec_arn: ARN of the pipeline to watch.
+    """
+
+    template_fields: Sequence[str] = ("pipeline_exec_arn",)
 
     def __init__(self, *, pipeline_exec_arn: str, **kwargs):
         super().__init__(resource_type="pipeline", **kwargs)

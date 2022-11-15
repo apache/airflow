@@ -77,7 +77,6 @@ class TestSageMakerStartPipelineOperator:
     def test_execute(self, start_pipeline):
         op = SageMakerStartPipelineOperator(
             task_id="test_sagemaker_operator",
-            config={},
             pipeline_name="my_pipeline",
             display_name="test_disp_name",
             pipeline_params={"is_a_test": "yes"},
@@ -100,7 +99,7 @@ class TestSageMakerStopPipelineOperator:
     @mock.patch.object(SageMakerHook, "stop_pipeline")
     def test_execute(self, stop_pipeline):
         op = SageMakerStopPipelineOperator(
-            task_id="test_sagemaker_operator", config={}, pipeline_exec_arn="pipeline_arn"
+            task_id="test_sagemaker_operator", pipeline_exec_arn="pipeline_arn"
         )
 
         op.execute(None)

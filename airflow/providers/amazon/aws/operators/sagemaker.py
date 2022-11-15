@@ -753,6 +753,10 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
     """
     Starts a SageMaker pipeline execution.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerStartPipelineOperator`
+
     :param config: The configuration to start the pipeline execution.
     :param aws_conn_id: The AWS connection ID to use.
     :param pipeline_name: Name of the pipeline to start.
@@ -765,10 +769,11 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
     :return str: Returns The ARN of the pipeline execution created in Amazon SageMaker.
     """
 
+    template_fields: Sequence[str] = ("aws_conn_id", "pipeline_name", "display_name", "pipeline_params")
+
     def __init__(
         self,
         *,
-        config: dict,
         aws_conn_id: str = DEFAULT_CONN_ID,
         pipeline_name: str,
         display_name: str = "airflow-triggered-execution",
@@ -777,14 +782,14 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
         check_interval: int = CHECK_INTERVAL_SECOND,
         **kwargs,
     ):
-        super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
+        super().__init__(config={}, aws_conn_id=aws_conn_id, **kwargs)
         self.pipeline_name = pipeline_name
         self.display_name = display_name
         self.pipeline_params = pipeline_params
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
 
-    def execute(self, _: Context) -> str:
+    def execute(self, context: Context) -> str:
         arn = self.hook.start_pipeline(
             pipeline_name=self.pipeline_name,
             display_name=self.display_name,
@@ -802,6 +807,10 @@ class SageMakerStopPipelineOperator(SageMakerBaseOperator):
     """
     Stops a SageMaker pipeline execution.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerStopPipelineOperator`
+
     :param config: The configuration to start the pipeline execution.
     :param aws_conn_id: The AWS connection ID to use.
     :param pipeline_exec_arn: Amazon Resource Name of the pipeline execution to stop.
@@ -812,10 +821,14 @@ class SageMakerStopPipelineOperator(SageMakerBaseOperator):
     :return str: Returns the status of the pipeline execution after the operation has been done.
     """
 
+    template_fields: Sequence[str] = (
+        "aws_conn_id",
+        "pipeline_exec_arn",
+    )
+
     def __init__(
         self,
         *,
-        config: dict,
         aws_conn_id: str = DEFAULT_CONN_ID,
         pipeline_exec_arn: str,
         wait_for_completion: bool = False,
@@ -823,13 +836,13 @@ class SageMakerStopPipelineOperator(SageMakerBaseOperator):
         fail_if_not_running: bool = False,
         **kwargs,
     ):
-        super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
+        super().__init__(config={}, aws_conn_id=aws_conn_id, **kwargs)
         self.pipeline_exec_arn = pipeline_exec_arn
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
         self.fail_if_not_running = fail_if_not_running
 
-    def execute(self, _: Context) -> str:
+    def execute(self, context: Context) -> str:
         status = self.hook.stop_pipeline(
             pipeline_exec_arn=self.pipeline_exec_arn,
             wait_for_completion=self.wait_for_completion,
