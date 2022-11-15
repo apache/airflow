@@ -123,7 +123,6 @@ class BigQueryToBigQueryOperator(BaseOperator):
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
-        self.log.info("location: %s", self.location)
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
