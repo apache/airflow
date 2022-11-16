@@ -25,7 +25,7 @@ from airflow.models import DagBag, DagModel, DagRun
 
 
 def check_and_get_dag(dag_id: str, task_id: str | None = None) -> DagModel:
-    """Checks that DAG exists and in case it is specified that Task exists."""
+    """Check DAG existence and in case it is specified that Task exists."""
     dag_model = DagModel.get_current(dag_id)
     if dag_model is None:
         raise DagNotFound(f"Dag id {dag_id} not found in DagModel")

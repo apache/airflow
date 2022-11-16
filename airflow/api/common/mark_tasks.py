@@ -246,7 +246,7 @@ def verify_dagruns(
     session: SASession,
     current_task: Operator,
 ):
-    """Verifies integrity of dag_runs.
+    """Verify integrity of dag_runs.
 
     :param dag_runs: dag runs to verify
     :param commit: whether dag runs state should be updated
@@ -291,7 +291,7 @@ def find_task_relatives(tasks, downstream, upstream):
 def get_execution_dates(
     dag: DAG, execution_date: datetime, future: bool, past: bool, *, session: SASession = NEW_SESSION
 ) -> list[datetime]:
-    """Returns dates of DAG execution."""
+    """Return DAG execution dates."""
     latest_execution_date = dag.get_latest_execution_date(session=session)
     if latest_execution_date is None:
         raise ValueError(f"Received non-localized date {execution_date}")
@@ -319,7 +319,7 @@ def get_execution_dates(
 
 @provide_session
 def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASession = NEW_SESSION):
-    """Returns run_ids of DAG execution."""
+    """Return DAG executions' run_ids."""
     last_dagrun = dag.get_last_dagrun(include_externally_triggered=True, session=session)
     current_dagrun = dag.get_dagrun(run_id=run_id, session=session)
     first_dagrun = (
@@ -352,7 +352,7 @@ def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASess
 
 def _set_dag_run_state(dag_id: str, run_id: str, state: DagRunState, session: SASession = NEW_SESSION):
     """
-    Helper method that set dag run state in the DB.
+    Set dag run state in the DB.
 
     :param dag_id: dag_id of target dag run
     :param run_id: run id of target dag run
