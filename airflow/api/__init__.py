@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Authentication backend"""
+"""Authentication backend."""
 from __future__ import annotations
 
 import logging
@@ -28,7 +28,7 @@ log = logging.getLogger(__name__)
 
 
 def load_auth():
-    """Loads authentication backends"""
+    """Load authentication backends."""
     auth_backends = "airflow.api.auth.backend.default"
     try:
         auth_backends = conf.get("api", "auth_backends")

@@ -108,7 +108,7 @@ def trigger_dag(
     replace_microseconds: bool = True,
     notes: str | None = None,
 ) -> DagRun | None:
-    """Triggers execution of DAG specified by dag_id
+    """Triggers execution of DAG specified by dag_id.
 
     :param dag_id: DAG ID
     :param run_id: ID of the dag_run
