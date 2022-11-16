@@ -490,7 +490,8 @@ with DAG(
 
     # [START howto_sensor_sagemaker_pipeline]
     await_pipeline2 = SageMakerPipelineSensor(
-        task_id="await_pipeline2", pipeline_exec_arn=start_pipeline2.output
+        task_id="await_pipeline2",
+        pipeline_exec_arn=start_pipeline2.output,
     )
     # [END howto_sensor_sagemaker_pipeline]
 

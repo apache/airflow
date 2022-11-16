@@ -284,13 +284,16 @@ class SageMakerPipelineSensor(SageMakerBaseSensor):
         :ref:`howto/sensor:SageMakerPipelineSensor`
 
     :param pipeline_exec_arn: ARN of the pipeline to watch.
+    :param verbose: Whether to print steps details while waiting for completion.
+            Defaults to true, consider turning off for pipelines that have thousands of steps.
     """
 
     template_fields: Sequence[str] = ("pipeline_exec_arn",)
 
-    def __init__(self, *, pipeline_exec_arn: str, **kwargs):
+    def __init__(self, *, pipeline_exec_arn: str, verbose: bool = True, **kwargs):
         super().__init__(resource_type="pipeline", **kwargs)
         self.pipeline_exec_arn = pipeline_exec_arn
+        self.verbose = verbose
 
     def non_terminal_states(self) -> set[str]:
         return SageMakerHook.pipeline_non_terminal_states
@@ -300,7 +303,7 @@ class SageMakerPipelineSensor(SageMakerBaseSensor):
 
     def get_sagemaker_response(self) -> dict:
         self.log.info("Poking Sagemaker Pipeline Execution %s", self.pipeline_exec_arn)
-        return self.get_hook().describe_pipeline_exec(self.pipeline_exec_arn)
+        return self.get_hook().describe_pipeline_exec(self.pipeline_exec_arn, self.verbose)
 
     def state_from_response(self, response: dict) -> str:
         return response["PipelineExecutionStatus"]

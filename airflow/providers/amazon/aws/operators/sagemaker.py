@@ -765,6 +765,8 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
         All parameters supplied need to already be present in the pipeline definition.
     :param wait_for_completion: If true, this operator will only complete once the pipeline is complete.
     :param check_interval: How long to wait between checks for pipeline status when waiting for completion.
+    :param verbose: Whether to print steps details when waiting for completion.
+        Defaults to true, consider turning off for pipelines that have thousands of steps.
 
     :return str: Returns The ARN of the pipeline execution created in Amazon SageMaker.
     """
@@ -780,6 +782,7 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
         pipeline_params: dict = None,
         wait_for_completion: bool = False,
         check_interval: int = CHECK_INTERVAL_SECOND,
+        verbose: bool = True,
         **kwargs,
     ):
         super().__init__(config={}, aws_conn_id=aws_conn_id, **kwargs)
@@ -788,6 +791,7 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
         self.pipeline_params = pipeline_params
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
+        self.verbose = verbose
 
     def execute(self, context: Context) -> str:
         arn = self.hook.start_pipeline(
@@ -796,6 +800,7 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
             pipeline_params=self.pipeline_params,
             wait_for_completion=self.wait_for_completion,
             check_interval=self.check_interval,
+            verbose=self.verbose,
         )
         self.log.info(
             "Starting a new execution for pipeline %s, running with ARN %s", self.pipeline_name, arn
@@ -816,6 +821,8 @@ class SageMakerStopPipelineOperator(SageMakerBaseOperator):
     :param pipeline_exec_arn: Amazon Resource Name of the pipeline execution to stop.
     :param wait_for_completion: If true, this operator will only complete once the pipeline is fully stopped.
     :param check_interval: How long to wait between checks for pipeline status when waiting for completion.
+    :param verbose: Whether to print steps details when waiting for completion.
+        Defaults to true, consider turning off for pipelines that have thousands of steps.
     :param fail_if_not_running: raises an exception if the pipeline stopped or succeeded before this was run
 
     :return str: Returns the status of the pipeline execution after the operation has been done.
@@ -833,6 +840,7 @@ class SageMakerStopPipelineOperator(SageMakerBaseOperator):
         pipeline_exec_arn: str,
         wait_for_completion: bool = False,
         check_interval: int = CHECK_INTERVAL_SECOND,
+        verbose: bool = True,
         fail_if_not_running: bool = False,
         **kwargs,
     ):
@@ -840,6 +848,7 @@ class SageMakerStopPipelineOperator(SageMakerBaseOperator):
         self.pipeline_exec_arn = pipeline_exec_arn
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
+        self.verbose = verbose
         self.fail_if_not_running = fail_if_not_running
 
     def execute(self, context: Context) -> str:
@@ -847,6 +856,7 @@ class SageMakerStopPipelineOperator(SageMakerBaseOperator):
             pipeline_exec_arn=self.pipeline_exec_arn,
             wait_for_completion=self.wait_for_completion,
             check_interval=self.check_interval,
+            verbose=self.verbose,
             fail_if_not_running=self.fail_if_not_running,
         )
         self.log.info(

@@ -34,26 +34,13 @@ DESCRIBE_PIPELINE_EXECUTION_RESPONSE = {
     # Status can be: "Executing" | "Stopping" | "Stopped" | "Failed" | "Succeeded"
     "PipelineExecutionStatus": "-- to be set in test --",
     "PipelineExecutionDescription": "string",
-    "PipelineExperimentConfig": {
-        "ExperimentName": "string",
-        "TrialName": "string"
-    },
+    "PipelineExperimentConfig": {"ExperimentName": "string", "TrialName": "string"},
     "FailureReason": "string",
     "CreationTime": datetime(2015, 1, 1),
     "LastModifiedTime": datetime(2015, 1, 1),
-    "CreatedBy": {
-        "UserProfileArn": "string",
-        "UserProfileName": "string",
-        "DomainId": "string"
-    },
-    "LastModifiedBy": {
-        "UserProfileArn": "string",
-        "UserProfileName": "string",
-        "DomainId": "string"
-    },
-    "ParallelismConfiguration": {
-        "MaxParallelExecutionSteps": 123
-    },
+    "CreatedBy": {"UserProfileArn": "string", "UserProfileName": "string", "DomainId": "string"},
+    "LastModifiedBy": {"UserProfileArn": "string", "UserProfileName": "string", "DomainId": "string"},
+    "ParallelismConfiguration": {"MaxParallelExecutionSteps": 123},
     "ResponseMetadata": {
         "HTTPStatusCode": 200,
     },
@@ -79,7 +66,7 @@ class TestSageMakerPipelineSensor:
         with pytest.raises(AirflowException):
             sensor.execute(None)
 
-        mock_describe.assert_called_once_with("ARN")
+        mock_describe.assert_called_once_with("ARN", True)
 
     @mock.patch.object(SageMakerHook, "get_conn")
     @mock.patch.object(SageMakerHook, "describe_pipeline_exec")
@@ -94,7 +81,6 @@ class TestSageMakerPipelineSensor:
         ]
         sensor = SageMakerPipelineSensor(pipeline_exec_arn="ARN", task_id="test_task", poke_interval=0)
 
-        ret = sensor.execute(None)
+        sensor.execute(None)
 
-        assert ret
         assert mock_describe.call_count == 3

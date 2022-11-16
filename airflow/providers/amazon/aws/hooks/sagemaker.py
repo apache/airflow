@@ -23,6 +23,7 @@ import tarfile
 import tempfile
 import time
 import warnings
+from collections import Counter
 from datetime import datetime
 from functools import partial
 from typing import Any, Callable, Generator, cast
@@ -995,7 +996,21 @@ class SageMakerHook(AwsBaseHook):
             self.log.error("Failed to delete model, error: %s", general_error)
             raise
 
-    def describe_pipeline_exec(self, pipeline_exec_arn: str):
+    def describe_pipeline_exec(self, pipeline_exec_arn: str, verbose: bool = False):
+        """Get info about a SageMaker pipeline execution
+
+        :param pipeline_exec_arn: arn of the pipeline execution
+        :param verbose: Whether to log details about the steps status in the pipeline execution
+        """
+        if verbose:
+            res = self.conn.list_pipeline_execution_steps(PipelineExecutionArn=pipeline_exec_arn)
+            count_by_state = Counter(s["StepStatus"] for s in res["PipelineExecutionSteps"])
+            running_steps = [
+                s["StepName"] for s in res["PipelineExecutionSteps"] if s["StepStatus"] == "Executing"
+            ]
+            self.log.info("state of the pipeline steps: %s", count_by_state)
+            self.log.info("steps currently in progress: %s", running_steps)
+
         return self.conn.describe_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
 
     def start_pipeline(
@@ -1005,16 +1020,19 @@ class SageMakerHook(AwsBaseHook):
         pipeline_params: dict = None,
         wait_for_completion: bool = False,
         check_interval: int = 30,
+        verbose: bool = True,
     ) -> str:
         """
         Start a new execution for a SageMaker pipeline
 
         :param pipeline_name: Name of the pipeline to start (this is _not_ the ARN).
         :param display_name: The name this pipeline execution will have in the UI. Doesn't need to be unique.
-        :param pipeline_params: optional parameters for the pipeline.
+        :param pipeline_params: Optional parameters for the pipeline.
             All parameters supplied need to already be present in the pipeline definition.
-        :param wait_for_completion: will only return once the pipeline is complete if true
-        :param check_interval: how long to wait between checks for pipeline status when waiting for completion
+        :param wait_for_completion: Will only return once the pipeline is complete if true.
+        :param check_interval: How long to wait between checks for pipeline status when waiting for completion.
+        :param verbose: Whether to print steps details when waiting for completion.
+            Defaults to true, consider turning off for pipelines that have thousands of steps.
 
         :return: the ARN of the pipeline execution launched.
         """
@@ -1037,7 +1055,7 @@ class SageMakerHook(AwsBaseHook):
             self.check_status(
                 arn,
                 "PipelineExecutionStatus",
-                self.describe_pipeline_exec,
+                lambda p: self.describe_pipeline_exec(p, verbose),
                 check_interval,
                 non_terminal_states=self.pipeline_non_terminal_states,
             )
@@ -1048,6 +1066,7 @@ class SageMakerHook(AwsBaseHook):
         pipeline_exec_arn: str,
         wait_for_completion: bool = False,
         check_interval: int = 10,
+        verbose: bool = True,
         fail_if_not_running: bool = False,
     ) -> str:
         """Stop SageMaker pipeline execution
@@ -1058,6 +1077,8 @@ class SageMakerHook(AwsBaseHook):
             (i.e. either 'Stopped' or 'Failed')
         :param check_interval: How long to wait between checks for pipeline status when waiting for
             completion.
+        :param verbose: Whether to print steps details when waiting for completion.
+            Defaults to true, consider turning off for pipelines that have thousands of steps.
         :param fail_if_not_running: This method will raise an exception if the pipeline we're trying to stop
             is not in an "Executing" state when the call is sent (which would mean that the pipeline is
             already either stopping or stopped).
@@ -1086,7 +1107,7 @@ class SageMakerHook(AwsBaseHook):
             res = self.check_status(
                 pipeline_exec_arn,
                 "PipelineExecutionStatus",
-                self.describe_pipeline_exec,
+                lambda p: self.describe_pipeline_exec(p, verbose),
                 check_interval,
                 non_terminal_states=self.pipeline_non_terminal_states,
             )

@@ -82,6 +82,7 @@ class TestSageMakerStartPipelineOperator:
             pipeline_params={"is_a_test": "yes"},
             wait_for_completion=True,
             check_interval=12,
+            verbose=False,
         )
 
         op.execute(None)
@@ -92,6 +93,7 @@ class TestSageMakerStartPipelineOperator:
             pipeline_params={"is_a_test": "yes"},
             wait_for_completion=True,
             check_interval=12,
+            verbose=False,
         )
 
 
@@ -109,4 +111,5 @@ class TestSageMakerStopPipelineOperator:
             wait_for_completion=False,
             check_interval=30,
             fail_if_not_running=False,
+            verbose=True,
         )
