@@ -33,6 +33,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.base import BaseSensorOperator
+from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
@@ -262,7 +263,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         if not dag_to_wait:
             raise AirflowException(f"The external DAG {self.external_dag_id} does not exist.")
 
-        if not os.path.exists(dag_to_wait.fileloc):
+        if not os.path.exists(correct_maybe_zipped(dag_to_wait.fileloc)):
             raise AirflowException(f"The external DAG {self.external_dag_id} was deleted.")
 
         if self.external_task_ids:
