@@ -23,7 +23,10 @@ from __future__ import annotations
 import datetime
 import warnings
 from http import HTTPStatus
-from typing import Any, NamedTuple, Sized
+from typing import TYPE_CHECKING, Any, NamedTuple, Sized
+
+if TYPE_CHECKING:
+    from airflow.models import DagRun
 
 
 class AirflowException(Exception):
@@ -184,6 +187,12 @@ class DagRunNotFound(AirflowNotFoundException):
 
 class DagRunAlreadyExists(AirflowBadRequest):
     """Raise when creating a DAG run for DAG which already has DAG run entry."""
+
+    def __init__(self, dag_run: DagRun, execution_date: datetime.datetime, run_id: str) -> None:
+        super().__init__(
+            f"A DAG Run already exists for DAG {dag_run.dag_id} at {execution_date} with run id {run_id}"
+        )
+        self.dag_run = dag_run
 
 
 class DagFileExists(AirflowBadRequest):

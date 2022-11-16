@@ -180,6 +180,38 @@ class TestDagRunOperator:
             assert triggered_dag_run.execution_date == utc_now
             self.assert_extra_link(triggered_dag_run, task, session)
 
+    def test_trigger_dagrun_with_scheduled_dag_run(self):
+        """Test TriggerDagRunOperator with custom execution_date and scheduled dag_run."""
+        utc_now = timezone.utcnow()
+        task = TriggerDagRunOperator(
+            task_id="test_trigger_dagrun_with_execution_date",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            execution_date=utc_now,
+            dag=self.dag,
+            poke_interval=1,
+            reset_dag_run=True,
+            wait_for_completion=True,
+        )
+        run_id = f"scheduled__{utc_now.isoformat()}"
+        with create_session() as session:
+            dag_run = DagRun(
+                dag_id=TRIGGERED_DAG_ID,
+                execution_date=utc_now,
+                state=State.SUCCESS,
+                run_type="scheduled",
+                run_id=run_id,
+            )
+            session.add(dag_run)
+            session.commit()
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            assert len(dagruns) == 1
+            triggered_dag_run = dagruns[0]
+            assert triggered_dag_run.external_trigger
+            assert triggered_dag_run.execution_date == utc_now
+            self.assert_extra_link(triggered_dag_run, task, session)
+
     def test_trigger_dagrun_with_templated_execution_date(self):
         """Test TriggerDagRunOperator with templated execution_date."""
         task = TriggerDagRunOperator(
