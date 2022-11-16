@@ -26,6 +26,8 @@ from airflow.utils import timezone
 
 class DateTimeTrigger(BaseTrigger):
     """
+    Trigger based on a datetime.
+
     A trigger that fires exactly once, at the given datetime, give or take
     a few seconds.
 
@@ -68,6 +70,8 @@ class DateTimeTrigger(BaseTrigger):
 
 class TimeDeltaTrigger(DateTimeTrigger):
     """
+    Create DateTimeTriggers based on delays.
+
     Subclass to create DateTimeTriggers based on time delays rather
     than exact moments.
 
