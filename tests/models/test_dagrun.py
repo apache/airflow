@@ -1700,11 +1700,15 @@ def test_mapped_task_group_expands_at_create(dag_maker, session):
             # Normal operator in mapped task group, expands to 2 tis.
             MockOperator(task_id="t1")
             # Mapped operator expands *again* against mapped task group arguments to 4 tis.
-            MockOperator.partial(task_id="t2").expand(arg1=literal)
+            with pytest.raises(NotImplementedError) as ctx:
+                MockOperator.partial(task_id="t2").expand(arg1=literal)
+            assert str(ctx.value) == "operator expansion in an expanded task group is not yet supported"
             # Normal operator referencing mapped task group arguments does not further expand, only 2 tis.
             MockOperator(task_id="t3", arg1=x)
             # It can expand *again* (since each item in x is a list) but this is not done at parse time.
-            MockOperator.partial(task_id="t4").expand(arg1=x)
+            with pytest.raises(NotImplementedError) as ctx:
+                MockOperator.partial(task_id="t4").expand(arg1=x)
+            assert str(ctx.value) == "operator expansion in an expanded task group is not yet supported"
 
         tg.expand(x=literal)
 
@@ -1717,13 +1721,13 @@ def test_mapped_task_group_expands_at_create(dag_maker, session):
     assert query.all() == [
         ("tg.t1", 0, None),
         ("tg.t1", 1, None),
-        ("tg.t2", 0, None),
-        ("tg.t2", 1, None),
-        ("tg.t2", 2, None),
-        ("tg.t2", 3, None),
+        # ("tg.t2", 0, None),
+        # ("tg.t2", 1, None),
+        # ("tg.t2", 2, None),
+        # ("tg.t2", 3, None),
         ("tg.t3", 0, None),
         ("tg.t3", 1, None),
-        ("tg.t4", -1, None),
+        # ("tg.t4", -1, None),
     ]
 
 
