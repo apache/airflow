@@ -32,6 +32,7 @@ from sqlalchemy import (
     Integer,
     PickleType,
     String,
+    Text,
     UniqueConstraint,
     and_,
     func,
@@ -110,6 +111,7 @@ class DagRun(Base, LoggingMixin):
     # When a scheduler last attempted to schedule TIs for this DagRun
     last_scheduling_decision = Column(UtcDateTime)
     dag_hash = Column(String(32))
+    notes = Column(String(1000).with_variant(Text(1000), "mysql"))
     # Foreign key to LogTemplate. DagRun rows created prior to this column's
     # existence have this set to NULL. Later rows automatically populate this on
     # insert to point to the latest LogTemplate entry.
@@ -182,6 +184,7 @@ class DagRun(Base, LoggingMixin):
         dag_hash: str | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
+        notes: str | None = None,
     ):
         if data_interval is None:
             # Legacy: Only happen for runs created prior to Airflow 2.2.
@@ -204,6 +207,7 @@ class DagRun(Base, LoggingMixin):
         self.run_type = run_type
         self.dag_hash = dag_hash
         self.creating_job_id = creating_job_id
+        self.notes = notes
         super().__init__()
 
     def __repr__(self):
