@@ -1614,7 +1614,7 @@ class DAG(LoggingMixin):
         # Do we want full objects, or just the primary columns?
         if as_pk_tuple:
             # try number is needed here since its used to construct TaskInstanceKey
-            tis = session.query(TI.dag_id, TI.task_id, TI.run_id, TI._try_number, TI.map_index)
+            tis = session.query(TI.dag_id, TI.task_id, TI.run_id, TI.map_index)
         else:
             tis = session.query(TaskInstance)
         tis = tis.join(TaskInstance.dag_run)
@@ -1774,7 +1774,7 @@ class DAG(LoggingMixin):
         if result or as_pk_tuple:
             # Only execute the `ti` query if we have also collected some other results (i.e. subdags etc.)
             if as_pk_tuple:
-                result.update(TaskInstanceKey(*cols) for cols in tis.all())
+                result.update(TaskInstanceKey(**cols._mapping) for cols in tis.all())
             else:
                 result.update(ti.key for ti in tis)
 
