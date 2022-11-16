@@ -76,6 +76,8 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
     :param gcp_scopes: Comma-separated string containing OAuth2 scopes
     :param project_id: Project ID to read the secrets from. If not passed, the project ID from credentials
         will be used.
+    :param impersonation_chain: the service account to impersonate or a chained list leading to this
+    account
     :param sep: Separator used to concatenate connections_prefix and conn_id. Default: "-"
     """
 
