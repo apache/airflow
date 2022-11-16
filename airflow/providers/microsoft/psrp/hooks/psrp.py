@@ -219,7 +219,7 @@ class PsrpHook(BaseHook):
     def invoke_cmdlet(
         self,
         name: str,
-        use_local_scope=None,
+        use_local_scope: bool | None = None,
         arguments: list[str] | None = None,
         parameters: dict[str, str] | None = None,
         **kwargs: str,
