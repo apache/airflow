@@ -39,7 +39,6 @@ import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
-    Boolean,
     Column,
     DateTime,
     Float,
@@ -131,6 +130,9 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
+
+
+PAST_DEPENDS_MET = "past_depends_met"
 
 
 @contextlib.contextmanager
@@ -356,7 +358,6 @@ class TaskInstance(Base, LoggingMixin):
     pid = Column(Integer)
     executor_config = Column(ExecutorConfigType(pickler=dill))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
-    past_dep = Column(Boolean, default=True)
 
     external_executor_id = Column(StringID())
 

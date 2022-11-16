@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 
 
@@ -76,13 +77,16 @@ class NotPreviouslySkippedDep(BaseTIDep):
                     # ti should be skipped, set ti.state to SKIPPED and fail the rule so that the
                     # ti does not execute.
                     if not dep_context.ignore_depends_on_past_for_skipping:
-                        yield self._failing_status(
-                            reason=("Task should be skipped but the the past depends are not met")
+                        past_depends_met = ti.xcom_pull(
+                            task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False
                         )
-                    else:
-                        ti.set_state(State.SKIPPED, session)
-                        yield self._failing_status(
-                            reason="Skipping because of previous XCom result from parent task"
-                            f"{parent.task_id}"
-                        )
+                        if not past_depends_met:
+                            yield self._failing_status(
+                                reason=("Task should be skipped but the the past depends are not met")
+                            )
+                            return
+                    ti.set_state(State.SKIPPED, session)
+                    yield self._failing_status(
+                        reason=f"Skipping because of previous XCom result from parent task {parent.task_id}"
+                    )
                     return

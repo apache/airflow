@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import func
 
+from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -202,15 +203,15 @@ class TriggerRuleDep(BaseTIDep):
                     new_state = State.SKIPPED
 
         if new_state is not None:
-            if (
-                new_state == State.SKIPPED
-                and not dep_context.ignore_depends_on_past_for_skipping
-                and ti.past_dep
-            ):
-                yield self._failing_status(
-                    reason=("Task should be skipped but the the past depends are not met")
+            if new_state == State.SKIPPED and not dep_context.ignore_depends_on_past_for_skipping:
+                past_depends_met = ti.xcom_pull(
+                    task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False
                 )
-                return
+                if not past_depends_met:
+                    yield self._failing_status(
+                        reason=("Task should be skipped but the the past depends are not met")
+                    )
+                    return
             changed = ti.set_state(new_state, session)
 
         if changed:
