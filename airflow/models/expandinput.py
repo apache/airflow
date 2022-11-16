@@ -57,9 +57,9 @@ class MappedArgument(ResolveMixin):
     _key: str
 
     def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
-        # TODO (AIP-42): Implement run-time task map length inspection.
-        # This simply marks the value as un-expandable at parse-time.
-        return None
+        # TODO (AIP-42): Implement run-time task map length inspection. This is
+        # needed when we implement task mapping inside a mapped task group.
+        raise NotImplementedError()
 
     @provide_session
     def resolve(self, context: Context, *, session: Session = NEW_SESSION) -> Any:
