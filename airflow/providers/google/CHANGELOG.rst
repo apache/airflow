@@ -41,6 +41,11 @@ Misc
 Features
 ~~~~~~~~
 
+When defining a connection in environment variables or secrets backend, previously ``extra`` fields
+needed to be defined with prefix ``extra__google_cloud_platform__``.  Now this is no longer required.
+So for example you may store the keyfile json as ``keyfile_dict`` instead of
+``extra__google_cloud_platform__keyfile_dict``.  If both are present, the short name will be preferred.
+
 * ``Add backward compatibility with old versions of Apache Beam (#27263)``
 * ``Add deferrable mode to GCPToBigQueryOperator + tests (#27052)``
 * ``Add system tests for Vertex AI operators in new approach (#27053)``
@@ -48,14 +53,14 @@ Features
 * ``Allow values in WorkflowsCreateExecutionOperator execution argument to be dicts (#27361)``
 * ``DataflowStopJobOperator Operator (#27033)``
 * ``Allow for the overriding of stringify_dict for json/jsonb column data type in Postgres #26875 (#26876)``
+* ``Allow and prefer non-prefixed extra fields for dataprep hook (#27039)``
+* ``Update google hooks to prefer non-prefixed extra fields (#27023)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Add new Compute Engine Operators and fix system tests (#25608)``
-* ``Allow and prefer non-prefixed extra fields for dataprep hook (#27039)``
 * ``Common sql bugfixes and improvements (#26761)``
-* ``Update google hooks to prefer non-prefixed extra fields (#27023)``
 * ``Fix delay in Dataproc CreateBatch operator (#26126)``
 * ``Remove unnecessary newlines around single arg in signature (#27525)``
 * ``set project_id and location when canceling BigQuery job (#27521)``
