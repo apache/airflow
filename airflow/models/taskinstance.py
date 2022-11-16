@@ -2449,16 +2449,16 @@ class TaskInstance(Base, LoggingMixin):
             )
 
         filter_condition = []
-        # create 2 nested groups, both primarily grouped by dag_id and run_id, 
-        # and in the nested group 1 grouped by task_id the other by map_index
+        # create 2 nested groups, both primarily grouped by dag_id and run_id,
+        # and in the nested group 1 grouped by task_id the other by map_index.
         task_id_groups: dict[tuple, dict[Any, list[Any]]] = defaultdict(lambda: defaultdict(list))
         map_index_groups: dict[tuple, dict[Any, list[Any]]] = defaultdict(lambda: defaultdict(list))
         for t in tis:
             task_id_groups[(t.dag_id, t.run_id)][t.task_id].append(t.map_index)
             map_index_groups[(t.dag_id, t.run_id)][t.map_index].append(t.task_id)
 
-        # this assumes that most dags have dag_id as the largest grouping, followed by run_id. even if its not, this is still
-        # a significant optimization over querying for every single tuple key
+        # this assumes that most dags have dag_id as the largest grouping, followed by run_id. even
+        # if its not, this is still  a significant optimization over querying for every single tuple key
         for cur_dag_id in dag_ids:
             for cur_run_id in run_ids:
                 # we compare the group size between task_id and map_index and use the smaller group
@@ -2470,9 +2470,9 @@ class TaskInstance(Base, LoggingMixin):
                         filter_condition.append(
                             and_(
                                 TaskInstance.dag_id == cur_dag_id,
-                                TaskInstance.run_id == cur_run_id, 
+                                TaskInstance.run_id == cur_run_id,
                                 TaskInstance.task_id == cur_task_id,
-                                TaskInstance.map_index.in_(cur_map_indices)
+                                TaskInstance.map_index.in_(cur_map_indices),
                             )
                         )
                 else:
@@ -2484,10 +2484,9 @@ class TaskInstance(Base, LoggingMixin):
                                 TaskInstance.task_id.in_(cur_task_ids),
                                 TaskInstance.map_index == cur_map_index,
                             )
-                        )       
-                
-        return or_(*filter_condition)
+                        )
 
+        return or_(*filter_condition)
 
     @classmethod
     def ti_selector_condition(cls, vals: Collection[str | tuple[str, int]]) -> ColumnOperators:
