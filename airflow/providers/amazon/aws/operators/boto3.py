@@ -33,6 +33,7 @@ class Boto3BaseOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "client_type",
         "client_method",
+        "hook_params",
         "method_kwargs",
     )
 

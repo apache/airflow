@@ -22,10 +22,14 @@ from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.boto3 import Boto3Operator
 from airflow.providers.amazon.aws.sensors.boto3 import Boto3Sensor
+from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
+
+
+sys_test_context_task = SystemTestContextBuilder().build()
 
 
 AWS_CONNECTION_ID = "aws_default_conn"
-
+DB_CLASS = "db.t3.small"
 
 @task
 def generate_db_instance_identifier(**kwargs):
@@ -33,14 +37,10 @@ def generate_db_instance_identifier(**kwargs):
 
 
 with DAG(
-    dag_id="example-boto3-dag",
-    tags=["example", "rds"],
+    dag_id="example_boto3",
+    tags=["example"],
     catchup=False,
-    params={
-        # Database whose snapshot will be used to restore from. Can be overrided when DAG triggered manually
-        "target_database": "my-database",
-        "db_instance_class": "db.t3.small",
-    },
+    schedule="@once",
 ) as dag:
     """Example for boto3 DAG, in the case it interacts with RDS only. Can be used for any client that boto3 supports.
     What it does:
@@ -50,13 +50,17 @@ with DAG(
     - Destroys created DB instance
     """
 
+    test_context = sys_test_context_task()
+    env_id = test_context["ENV_ID"]
+    db_name = f"{env_id}-database"
+
     latest_snapshot_arn = Boto3Operator(
         task_id="get_latest_snapshot",
         aws_conn_id=AWS_CONNECTION_ID,
         client_type="rds",
         client_method="describe_db_snapshots",
         method_kwargs={
-            "DBInstanceIdentifier": dag.param("target_database"),
+            "DBInstanceIdentifier": db_name,
         },
         # The operator itself lists all the snapshots, `result_handler` takes ARN of last one by creation date.
         # The result will be saved as xcom and will be available for consequent tasks
@@ -75,7 +79,7 @@ with DAG(
         method_kwargs={
             "DBInstanceIdentifier": db_instance_identifier,
             "DBSnapshotIdentifier": latest_snapshot_arn.output,
-            "DBInstanceClass": dag.param("db_instance_class"),
+            "DBInstanceClass": DB_CLASS,
             "DBSubnetGroupName": "my-subnet-group",
             "VpcSecurityGroupIds": ["sg-my-security-group"],
             "Tags": [
@@ -109,7 +113,7 @@ with DAG(
     )
 
     ############################################
-    ### Data processing opearators goes here ###
+    ### Data processing operators goes here ###
     ############################################
 
     destroy_db_instance = Boto3Operator(
