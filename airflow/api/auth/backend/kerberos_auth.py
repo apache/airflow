@@ -60,7 +60,7 @@ CLIENT_AUTH: tuple[str, str] | Any | None = HTTPKerberosAuth(service="airflow")
 
 
 class KerberosService:
-    """Class to keep information about the Kerberos Service initialized"""
+    """Class to keep information about the Kerberos Service initialized."""
 
     def __init__(self):
         self.service_name = None
@@ -71,7 +71,7 @@ _KERBEROS_SERVICE = KerberosService()
 
 
 def init_app(app):
-    """Initializes application with kerberos"""
+    """Initialize application with kerberos."""
     hostname = app.config.get("SERVER_NAME")
     if not hostname:
         hostname = getfqdn()
@@ -95,7 +95,7 @@ def init_app(app):
 
 def _unauthorized():
     """
-    Indicate that authorization is required
+    Indicate that authorization is required.
     :return:
     """
     return Response("Unauthorized", 401, {"WWW-Authenticate": "Negotiate"})
@@ -131,7 +131,7 @@ T = TypeVar("T", bound=Callable)
 
 
 def requires_authentication(function: T):
-    """Decorator for functions that require authentication with Kerberos"""
+    """Decorate functions that require authentication with Kerberos."""
 
     @wraps(function)
     def decorated(*args, **kwargs):
