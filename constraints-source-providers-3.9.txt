@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-11-16T04:48:08Z
+# This constraints file was automatically generated on 2022-11-16T16:42:37Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -389,8 +389,8 @@ pygraphviz==1.10
 pyhcl==0.4.4
 pykerberos==1.2.4
 pymongo==3.13.0
-pymssql==2.2.6
-pyodbc==4.0.34
+pymssql==2.2.7
+pyodbc==4.0.35
 pyparsing==3.0.9
 pypsrp==0.8.1
 pyrsistent==0.19.2
@@ -524,7 +524,7 @@ types-setuptools==65.5.0.3
 types-tabulate==0.9.0.0
 types-termcolor==1.1.6
 types-toml==0.10.8.1
-types-urllib3==1.26.25.3
+types-urllib3==1.26.25.4
 typing_extensions==4.4.0
 tzdata==2022.6
 tzlocal==4.2
