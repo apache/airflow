@@ -69,7 +69,7 @@ def get_task_instance(
     task_id: str,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get task instance"""
+    """Get task instance."""
     query = (
         session.query(TI)
         .filter(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
@@ -118,7 +118,7 @@ def get_mapped_task_instance(
     map_index: int,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get task instance"""
+    """Get task instance."""
     query = (
         session.query(TI)
         .filter(

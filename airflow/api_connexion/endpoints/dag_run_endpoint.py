@@ -68,7 +68,7 @@ from airflow.utils.types import DagRunType
 )
 @provide_session
 def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
-    """Delete a DAG Run"""
+    """Delete a DAG Run."""
     if session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).delete() == 0:
         raise NotFound(detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found")
     return NoContent, HTTPStatus.NO_CONTENT
@@ -237,7 +237,7 @@ def get_dag_runs(
 )
 @provide_session
 def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
-    """Get list of DAG Runs"""
+    """Get list of DAG Runs."""
     body = get_json_request_dict()
     try:
         data = dagruns_batch_form_schema.load(body)

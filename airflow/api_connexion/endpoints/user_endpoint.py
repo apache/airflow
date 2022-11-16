@@ -41,7 +41,7 @@ from airflow.www.fab_security.sqla.models import Role, User
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_USER)])
 def get_user(*, username: str) -> APIResponse:
-    """Get a user"""
+    """Get a user."""
     ab_security_manager = get_airflow_app().appbuilder.sm
     user = ab_security_manager.find_user(username=username)
     if not user:
@@ -52,7 +52,7 @@ def get_user(*, username: str) -> APIResponse:
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_USER)])
 @format_parameters({"limit": check_limit})
 def get_users(*, limit: int, order_by: str = "id", offset: str | None = None) -> APIResponse:
-    """Get users"""
+    """Get users."""
     appbuilder = get_airflow_app().appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(User.id)).scalar()
@@ -83,7 +83,7 @@ def get_users(*, limit: int, order_by: str = "id", offset: str | None = None) ->
 
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER)])
 def post_user() -> APIResponse:
-    """Create a new user"""
+    """Create a new user."""
     try:
         data = user_schema.load(request.json)
     except ValidationError as e:
@@ -126,7 +126,7 @@ def post_user() -> APIResponse:
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER)])
 def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
-    """Update a user"""
+    """Update a user."""
     try:
         data = user_schema.load(request.json)
     except ValidationError as e:
@@ -195,7 +195,7 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
 
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER)])
 def delete_user(*, username: str) -> APIResponse:
-    """Delete a user"""
+    """Delete a user."""
     security_manager = get_airflow_app().appbuilder.sm
 
     user = security_manager.find_user(username=username)
