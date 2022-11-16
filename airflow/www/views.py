@@ -4823,7 +4823,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "run_id",
         "conf",
         "notes",
-        ]
+    ]
 
     # duration is not a DB column, its derived
     order_columns = [

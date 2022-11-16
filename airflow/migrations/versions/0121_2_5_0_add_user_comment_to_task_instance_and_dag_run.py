@@ -30,34 +30,34 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '65a852f26899'
-down_revision = 'ee8d93fcc81e'
+revision = "65a852f26899"
+down_revision = "ee8d93fcc81e"
 branch_labels = None
 depends_on = None
-airflow_version = '2.5.0'
+airflow_version = "2.5.0"
 
 
 def upgrade():
     """Apply add user comment to task_instance and dag_run"""
     conn = op.get_bind()
 
-    with op.batch_alter_table('dag_run') as batch_op:
+    with op.batch_alter_table("dag_run") as batch_op:
         if conn.dialect.name == "mysql":
-            batch_op.add_column(sa.Column('notes', sa.Text(length=1000), nullable=True))
+            batch_op.add_column(sa.Column("notes", sa.Text(length=1000), nullable=True))
         else:
-            batch_op.add_column(sa.Column('notes', sa.String(length=1000), nullable=True))
+            batch_op.add_column(sa.Column("notes", sa.String(length=1000), nullable=True))
 
-    with op.batch_alter_table('task_instance') as batch_op:
+    with op.batch_alter_table("task_instance") as batch_op:
         if conn.dialect.name == "mysql":
-            batch_op.add_column(sa.Column('notes', sa.Text(length=1000), nullable=True))
+            batch_op.add_column(sa.Column("notes", sa.Text(length=1000), nullable=True))
         else:
-            batch_op.add_column(sa.Column('notes', sa.String(length=1000), nullable=True))
+            batch_op.add_column(sa.Column("notes", sa.String(length=1000), nullable=True))
 
 
 def downgrade():
     """Unapply add user comment to task_instance and dag_run"""
-    with op.batch_alter_table('task_instance', schema=None) as batch_op:
-        batch_op.drop_column('notes')
+    with op.batch_alter_table("task_instance", schema=None) as batch_op:
+        batch_op.drop_column("notes")
 
-    with op.batch_alter_table('dag_run', schema=None) as batch_op:
-        batch_op.drop_column('notes')
+    with op.batch_alter_table("dag_run", schema=None) as batch_op:
+        batch_op.drop_column("notes")

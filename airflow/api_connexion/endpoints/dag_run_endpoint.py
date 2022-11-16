@@ -429,7 +429,7 @@ def set_dag_run_notes(*, dag_id: str, dag_run_id: str, session: Session = NEW_SE
         session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
     )
     if dag_run is None:
-        error_message = f'Dag Run id {dag_run_id} not found in dag {dag_id}'
+        error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
         raise NotFound(error_message)
     try:
         post_body = set_dagrun_note_form_schema.load(get_json_request_dict())

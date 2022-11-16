@@ -111,7 +111,7 @@ class DagRun(Base, LoggingMixin):
     # When a scheduler last attempted to schedule TIs for this DagRun
     last_scheduling_decision = Column(UtcDateTime)
     dag_hash = Column(String(32))
-    notes = Column(String(1000).with_variant(Text(1000), 'mysql'))
+    notes = Column(String(1000).with_variant(Text(1000), "mysql"))
     # Foreign key to LogTemplate. DagRun rows created prior to this column's
     # existence have this set to NULL. Later rows automatically populate this on
     # insert to point to the latest LogTemplate entry.

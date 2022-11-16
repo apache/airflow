@@ -666,7 +666,7 @@ def set_task_instance_notes(
             "Task instance not found", detail="Task instance is mapped, add the map_index value to the URL"
         )
     if result is None:
-        error_message = f'Task Instance not found for dag_id={dag_id}, run_id={dag_run_id}, task_id={task_id}'
+        error_message = f"Task Instance not found for dag_id={dag_id}, run_id={dag_run_id}, task_id={task_id}"
         raise NotFound(error_message)
 
     ti, sla_miss = result

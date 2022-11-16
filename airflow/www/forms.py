@@ -173,7 +173,7 @@ class TaskInstanceEditForm(DynamicForm):
         widget=AirflowDateTimePickerROWidget(),
         validators=[InputRequired()],
     )
-    notes = TextAreaField(lazy_gettext('User Note'), widget=BS3TextAreaFieldWidget())
+    notes = TextAreaField(lazy_gettext("User Note"), widget=BS3TextAreaFieldWidget())
 
 
 class ConnectionForm(DynamicForm):

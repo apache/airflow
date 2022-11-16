@@ -29,7 +29,6 @@ import {
   Tbody,
   Tr,
   Td,
-  Thead,
   useClipboard,
 } from '@chakra-ui/react';
 
