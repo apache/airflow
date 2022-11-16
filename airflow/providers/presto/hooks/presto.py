@@ -224,3 +224,15 @@ class PrestoHook(DbApiHook):
             commit_every = 0
 
         super().insert_rows(table, rows, target_fields, commit_every)
+
+    @staticmethod
+    def _serialize_cell(cell: Any, conn: Connection | None = None) -> Any:
+        """
+        Presto will adapt all arguments to the execute() method internally,
+        hence we return cell without any conversion.
+
+        :param cell: The cell to insert into the table
+        :param conn: The database connection
+        :return: The cell
+        """
+        return cell
