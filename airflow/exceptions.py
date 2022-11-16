@@ -225,7 +225,7 @@ class TaskAlreadyInTaskGroup(AirflowException):
 
 
 class SerializationError(AirflowException):
-    """A problem occurred when trying to serialize a DAG."""
+    """A problem occurred when trying to serialize something."""
 
 
 class ParamValidationError(AirflowException):
