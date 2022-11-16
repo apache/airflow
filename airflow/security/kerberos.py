@@ -32,7 +32,7 @@ from __future__ import annotations
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Kerberos security provider"""
+"""Kerberos security provider."""
 import logging
 import shlex
 import subprocess
@@ -49,7 +49,7 @@ log = logging.getLogger(__name__)
 
 def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True):
     """
-    Renew kerberos token from keytab
+    Renew kerberos token from keytab.
 
     :param principal: principal
     :param keytab: keytab file
@@ -159,7 +159,10 @@ def perform_krb181_workaround(principal: str):
 
 
 def detect_conf_var() -> bool:
-    """Return true if the ticket cache contains "conf" information as is found
+    """
+    Autodetect the Kerberos ticket configuration.
+
+    Return true if the ticket cache contains "conf" information as is found
     in ticket caches of Kerberos 1.8.1 or later. This is incompatible with the
     Sun Java Krb5LoginModule in Java6, so we need to take an action to work
     around it.

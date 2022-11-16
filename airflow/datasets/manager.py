@@ -46,6 +46,8 @@ class DatasetManager(LoggingMixin):
         self, *, task_instance: TaskInstance, dataset: Dataset, extra=None, session: Session, **kwargs
     ) -> None:
         """
+        Register dataset related changes.
+
         For local datasets, look them up, record the dataset event, queue dagruns, and broadcast
         the dataset event
         """
@@ -107,6 +109,7 @@ class DatasetManager(LoggingMixin):
 
 
 def resolve_dataset_manager() -> DatasetManager:
+    """Retrieve the dataset manager."""
     _dataset_manager_class = conf.getimport(
         section="core",
         key="dataset_manager_class",
