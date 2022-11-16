@@ -701,28 +701,12 @@ class LazyXComAccess(collections.abc.Sequence):
     for every function call with ``with_session()``.
     """
 
-    dag_id: str
-    run_id: str
-    task_id: str
     _query: Query = attr.ib(repr=False)
     _len: int | None = attr.ib(init=False, repr=False, default=None)
 
     @classmethod
-    def build_from_single_xcom(cls, first: XCom, query: Query) -> LazyXComAccess:
-        return cls(
-            dag_id=first.dag_id,
-            run_id=first.run_id,
-            task_id=first.task_id,
-            query=query.with_entities(XCom.value)
-            .filter(
-                XCom.run_id == first.run_id,
-                XCom.task_id == first.task_id,
-                XCom.dag_id == first.dag_id,
-                XCom.map_index >= 0,
-            )
-            .order_by(None)
-            .order_by(XCom.map_index.asc()),
-        )
+    def build_from_xcom_query(cls, query: Query) -> LazyXComAccess:
+        return cls(query=query.with_entities(XCom.value))
 
     def __len__(self):
         if self._len is None:
