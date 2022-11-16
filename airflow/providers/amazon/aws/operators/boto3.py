@@ -73,12 +73,11 @@ class Boto3BaseOperator(BaseOperator):
     def boto3_action(
         self,
     ):
-        method = getattr(self.hook.conn, self.client_method)
-        if not callable(method):
+        if self.client_method not in self.hook.conn.meta.method_to_api_mapping:
             raise ParamValidationError(
                 f'Method "{self.client_method}" does not exist on boto3 client "{self.client_type}"'
             )
-        return method
+        return getattr(self.hook.conn, self.client_method)
 
 
 class Boto3Operator(Boto3BaseOperator):
