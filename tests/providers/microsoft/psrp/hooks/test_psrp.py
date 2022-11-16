@@ -189,7 +189,7 @@ class TestPsrpHook:
 
     def test_invoke_cmdlet(self, *mocks):
         arguments = ("a", "b", "c")
-        parameters = {"bar": 1, "baz": "2"}
+        parameters = {"bar": "1", "baz": "2"}
         with PsrpHook(CONNECTION_ID) as hook:
             ps = hook.invoke_cmdlet("foo", arguments=arguments, parameters=parameters)
             assert [call("foo", use_local_scope=None)] == ps.add_cmdlet.mock_calls
