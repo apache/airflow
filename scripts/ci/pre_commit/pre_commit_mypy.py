@@ -33,12 +33,19 @@ GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY", "apache/airflow")
 os.environ["SKIP_GROUP_OUTPUT"] = "true"
 
 if __name__ == "__main__":
+    sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+    from common_precommit_utils import filter_out_providers_on_non_main_branch
+
     sys.path.insert(0, str(AIRFLOW_SOURCES / "dev" / "breeze" / "src"))
     from airflow_breeze.global_constants import MOUNT_SELECTED
     from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags
     from airflow_breeze.utils.path_utils import create_mypy_volume_if_needed
     from airflow_breeze.utils.run_utils import get_ci_image_for_pre_commits, run_command
 
+    files_to_test = filter_out_providers_on_non_main_branch(sys.argv[1:])
+    if files_to_test == ["--namespace-packages"]:
+        print("No files to tests. Quitting")
+        sys.exit(0)
     airflow_image = get_ci_image_for_pre_commits()
     create_mypy_volume_if_needed()
     cmd_result = run_command(
@@ -55,7 +62,7 @@ if __name__ == "__main__":
             "never",
             airflow_image,
             "/opt/airflow/scripts/in_container/run_mypy.sh",
-            *sys.argv[1:],
+            *files_to_test,
         ],
         check=False,
     )

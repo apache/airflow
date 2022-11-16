@@ -118,11 +118,11 @@ class AirflowAppBuilder:
         session=None,
         menu=None,
         indexview=None,
-        base_template='airflow/main.html',
+        base_template="airflow/main.html",
         static_folder="static/appbuilder",
         static_url_path="/appbuilder",
         security_manager_class=None,
-        update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'),
+        update_perms=conf.getboolean("webserver", "UPDATE_FAB_PERMS"),
     ):
         """
         App-builder constructor.
@@ -215,12 +215,24 @@ class AirflowAppBuilder:
         else:
             self.post_init()
         self._init_extension(app)
+        self._swap_url_filter()
 
     def _init_extension(self, app):
         app.appbuilder = self
         if not hasattr(app, "extensions"):
             app.extensions = {}
         app.extensions["appbuilder"] = self
+
+    def _swap_url_filter(self):
+        """
+        Use our url filtering util function so there is consistency between
+        FAB and Airflow routes
+        """
+        from flask_appbuilder.security import views as fab_sec_views
+
+        from airflow.www.views import get_safe_url
+
+        fab_sec_views.get_safe_redirect = get_safe_url
 
     def post_init(self):
         for baseview in self.baseviews:
@@ -293,7 +305,7 @@ class AirflowAppBuilder:
     def _add_global_static(self):
         bp = Blueprint(
             "appbuilder",
-            'flask_appbuilder.base',
+            "flask_appbuilder.base",
             url_prefix="/static",
             template_folder="templates",
             static_folder=self.static_folder,
@@ -327,7 +339,7 @@ class AirflowAppBuilder:
                     log.error(LOGMSG_ERR_FAB_ADDON_PROCESS.format(addon, e))
 
     def _check_and_init(self, baseview):
-        if hasattr(baseview, 'datamodel'):
+        if hasattr(baseview, "datamodel"):
             baseview.datamodel.session = self.session
         if hasattr(baseview, "__call__"):
             baseview = baseview()
@@ -625,7 +637,7 @@ def init_appbuilder(app):
     """Init `Flask App Builder <https://flask-appbuilder.readthedocs.io/en/latest/>`__."""
     from airflow.www.security import AirflowSecurityManager
 
-    security_manager_class = app.config.get('SECURITY_MANAGER_CLASS') or AirflowSecurityManager
+    security_manager_class = app.config.get("SECURITY_MANAGER_CLASS") or AirflowSecurityManager
 
     if not issubclass(security_manager_class, AirflowSecurityManager):
         raise Exception(
@@ -637,6 +649,6 @@ def init_appbuilder(app):
         app=app,
         session=settings.Session,
         security_manager_class=security_manager_class,
-        base_template='airflow/main.html',
-        update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'),
+        base_template="airflow/main.html",
+        update_perms=conf.getboolean("webserver", "UPDATE_FAB_PERMS"),
     )

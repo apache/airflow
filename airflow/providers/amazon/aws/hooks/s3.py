@@ -31,7 +31,7 @@ from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile, gettempdir
 from typing import Any, Callable, TypeVar, cast
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 from boto3.s3.transfer import S3Transfer, TransferConfig
@@ -153,7 +153,7 @@ class S3Hook(AwsBaseHook):
         """
         format = s3url.split("//")
         if format[0].lower() == "s3:":
-            parsed_url = urlparse(s3url)
+            parsed_url = urlsplit(s3url)
             if not parsed_url.netloc:
                 raise AirflowException(f'Please provide a bucket name using a valid format: "{s3url}"')
 
@@ -190,7 +190,7 @@ class S3Hook(AwsBaseHook):
         if bucket is None:
             return S3Hook.parse_s3_url(key)
 
-        parsed_url = urlparse(key)
+        parsed_url = urlsplit(key)
         if parsed_url.scheme != "" or parsed_url.netloc != "":
             raise TypeError(
                 f"If `{bucket_param_name}` is provided, {key_param_name} should be a relative path "

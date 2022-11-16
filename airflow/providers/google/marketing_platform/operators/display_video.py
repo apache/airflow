@@ -24,7 +24,7 @@ import shutil
 import tempfile
 import urllib.request
 from typing import TYPE_CHECKING, Any, Sequence
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -282,7 +282,7 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
 
         # If no custom report_name provided, use DV360 name
         file_url = resource["metadata"]["googleCloudStoragePathForLatestReport"]
-        report_name = self.report_name or urlparse(file_url).path.split("/")[-1]
+        report_name = self.report_name or urlsplit(file_url).path.split("/")[-1]
         report_name = self._resolve_file_name(report_name)
 
         # Download the report

@@ -28,14 +28,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.2.0
+.....
+
+Latest change: 2022-11-02
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`a3bfa25e67 <https://github.com/apache/airflow/commit/a3bfa25e6756222b6811e92c7a9e9f8de47ab630>`_  2022-11-02   ``Allow setting client tags for trino connection (#27213)``
+`5c37b503f1 <https://github.com/apache/airflow/commit/5c37b503f118b8ad2585dff9949dd8fdb96689ed>`_  2022-10-31   ``Use DbApiHook.run for DbApiHook.get_records and DbApiHook.get_first (#26944)``
+`09c045f081 <https://github.com/apache/airflow/commit/09c045f081feeeea09e4517d05904b38660f525c>`_  2022-10-26   ``Bump Trino version to fix non-working DML queries (#27168)``
+`78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``
+`2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``
+`17b97e755a <https://github.com/apache/airflow/commit/17b97e755a1e4b10b3bb47a3f334ed2677ac5ba5>`_  2022-10-21   ``Allow session properties for trino connection (#27095)``
+`ecd4d6654f <https://github.com/apache/airflow/commit/ecd4d6654ff8e0da4a7b8f29fd23c37c9c219076>`_  2022-10-18   ``Add SQLExecuteQueryOperator (#25717)``
+=================================================================================================  ===========  ================================================================================
+
 4.1.0
 .....
 
-Latest change: 2022-09-19
+Latest change: 2022-09-28
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`f8db64c35c <https://github.com/apache/airflow/commit/f8db64c35c8589840591021a48901577cff39c07>`_  2022-09-28   ``Update docs for September Provider's release (#26731)``
 `b2766d0515 <https://github.com/apache/airflow/commit/b2766d0515a33222f2c2c2281ef062ffbca36475>`_  2022-09-19   ``trino: Support CertificateAuthentication in the trino hook (#26246)``
 `06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
 =================================================================================================  ===========  ====================================================================================

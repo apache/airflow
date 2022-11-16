@@ -24,10 +24,12 @@ import {
   Button,
   Link,
   Divider,
+  Spacer,
   Table,
   Tbody,
   Tr,
   Td,
+  useClipboard,
 } from '@chakra-ui/react';
 
 import { MdOutlineAccountTree } from 'react-icons/md';
@@ -43,6 +45,8 @@ import Time from 'src/components/Time';
 import RunTypeIcon from 'src/components/RunTypeIcon';
 
 import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
+import NotesAccordion from 'src/dag/details/NotesAccordion';
+
 import MarkFailedRun from './MarkFailedRun';
 import MarkSuccessRun from './MarkSuccessRun';
 import QueueRun from './QueueRun';
@@ -59,6 +63,7 @@ interface Props {
 const DagRun = ({ runId }: Props) => {
   const { data: { dagRuns } } = useGridData();
   const run = dagRuns.find((dr) => dr.runId === runId);
+  const { onCopy, hasCopied } = useClipboard(run?.conf || '');
   if (!run) return null;
   const {
     executionDate,
@@ -73,6 +78,7 @@ const DagRun = ({ runId }: Props) => {
     externalTrigger,
     conf,
     confIsJson,
+    notes,
   } = run;
   const graphParams = new URLSearchParamsWrapper({
     execution_date: executionDate,
@@ -97,6 +103,15 @@ const DagRun = ({ runId }: Props) => {
         </Flex>
         <Divider my={3} />
       </Box>
+      <Box px={4}>
+        <NotesAccordion
+          dagId={dagId}
+          runId={runId}
+          initialValue={notes}
+          key={dagId + runId}
+        />
+      </Box>
+      <Divider my={0} />
       <Table variant="striped">
         <Tbody>
           <Tr>
@@ -185,16 +200,20 @@ const DagRun = ({ runId }: Props) => {
                 confIsJson
                   ? (
                     <Td>
-                      <ReactJson
-                        src={JSON.parse(conf ?? '')}
-                        name={false}
-                        theme="rjv-default"
-                        iconStyle="triangle"
-                        indentWidth={2}
-                        displayDataTypes={false}
-                        enableClipboard={false}
-                        style={{ backgroundColor: 'inherit' }}
-                      />
+                      <Flex>
+                        <ReactJson
+                          src={JSON.parse(conf ?? '')}
+                          name={false}
+                          theme="rjv-default"
+                          iconStyle="triangle"
+                          indentWidth={2}
+                          displayDataTypes={false}
+                          enableClipboard={false}
+                          style={{ backgroundColor: 'inherit' }}
+                        />
+                        <Spacer />
+                        <Button aria-label="Copy" onClick={onCopy}>{hasCopied ? 'Copied!' : 'Copy'}</Button>
+                      </Flex>
                     </Td>
                   )
                   : <Td>{conf ?? 'None'}</Td>

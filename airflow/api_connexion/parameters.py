@@ -43,8 +43,8 @@ def format_datetime(value: str) -> datetime:
     This should only be used within connection views because it raises 400
     """
     value = value.strip()
-    if value[-1] != 'Z':
-        value = value.replace(" ", '+')
+    if value[-1] != "Z":
+        value = value.replace(" ", "+")
     try:
         return timezone.parse(value)
     except (ParserError, TypeError) as err:
@@ -100,7 +100,7 @@ def apply_sorting(
     allowed_attrs: Container[str] | None = None,
 ) -> Query:
     """Apply sorting to query"""
-    lstriped_orderby = order_by.lstrip('-')
+    lstriped_orderby = order_by.lstrip("-")
     if allowed_attrs and lstriped_orderby not in allowed_attrs:
         raise BadRequest(
             detail=f"Ordering with '{lstriped_orderby}' is disallowed or "

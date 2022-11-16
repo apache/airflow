@@ -130,6 +130,7 @@ class TestCliDags:
             run_backwards=False,
             verbose=False,
             continue_on_failures=False,
+            disable_retry=False,
         )
         mock_run.reset_mock()
         dag = self.dagbag.get_dag("example_bash_operator")
@@ -202,6 +203,7 @@ class TestCliDags:
             run_backwards=False,
             verbose=False,
             continue_on_failures=False,
+            disable_retry=False,
         )
         mock_run.reset_mock()
 
@@ -337,6 +339,7 @@ class TestCliDags:
             run_backwards=False,
             verbose=False,
             continue_on_failures=False,
+            disable_retry=False,
         )
 
     @mock.patch("airflow.cli.commands.dag_command.DAG.run")
@@ -377,6 +380,7 @@ class TestCliDags:
             run_backwards=True,
             verbose=False,
             continue_on_failures=False,
+            disable_retry=False,
         )
 
     def test_next_execution(self):

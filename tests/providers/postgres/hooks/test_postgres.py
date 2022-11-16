@@ -427,6 +427,36 @@ class TestPostgresHook(unittest.TestCase):
         assert str(ctx.value) == "PostgreSQL ON CONFLICT upsert syntax requires an unique index"
 
     @pytest.mark.backend("postgres")
+    def test_insert_rows_replace_all_index(self):
+        table = "table"
+        rows = [
+            (
+                1,
+                "hello",
+            ),
+            (
+                2,
+                "world",
+            ),
+        ]
+        fields = ("id", "value")
+
+        self.db_hook.insert_rows(table, rows, fields, replace=True, replace_index=fields)
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+
+        commit_count = 2  # The first and last commit
+        assert commit_count == self.conn.commit.call_count
+
+        sql = (
+            f"INSERT INTO {table} ({', '.join(fields)}) VALUES (%s,%s) "
+            f"ON CONFLICT ({', '.join(fields)}) DO NOTHING"
+        )
+        for row in rows:
+            self.cur.execute.assert_any_call(sql, row)
+
+    @pytest.mark.backend("postgres")
     def test_rowcount(self):
         hook = PostgresHook()
         input_data = ["foo", "bar", "baz"]

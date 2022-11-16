@@ -65,7 +65,7 @@ Package apache-airflow-providers-alibaba
 Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com//>`__).
 
 
-Release: 2.1.0
+Release: 2.2.0
 
 Provider package
 ----------------
@@ -86,7 +86,7 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.2.0``
+``apache-airflow``  ``>=2.3.0``
 ``oss2``            ``>=2.14.0``
 ==================  ==================
 

@@ -33,11 +33,11 @@ from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 # revision identifiers, used by Alembic.
-revision = '6e96a59344a4'
-down_revision = '939bb1e647c8'
+revision = "6e96a59344a4"
+down_revision = "939bb1e647c8"
 branch_labels = None
 depends_on = None
-airflow_version = '1.10.4'
+airflow_version = "1.10.4"
 
 Base = declarative_base()
 ID_LEN = 250
@@ -58,45 +58,45 @@ def upgrade():
     """Make TaskInstance.pool field not nullable."""
     with create_session() as session:
         session.query(TaskInstance).filter(TaskInstance.pool.is_(None)).update(
-            {TaskInstance.pool: 'default_pool'}, synchronize_session=False
+            {TaskInstance.pool: "default_pool"}, synchronize_session=False
         )  # Avoid select updated rows
         session.commit()
 
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
-        op.drop_index('ti_pool', table_name='task_instance')
+        op.drop_index("ti_pool", table_name="task_instance")
 
     # use batch_alter_table to support SQLite workaround
-    with op.batch_alter_table('task_instance') as batch_op:
+    with op.batch_alter_table("task_instance") as batch_op:
         batch_op.alter_column(
-            column_name='pool',
+            column_name="pool",
             type_=sa.String(50),
             nullable=False,
         )
 
     if conn.dialect.name == "mssql":
-        op.create_index('ti_pool', 'task_instance', ['pool', 'state', 'priority_weight'])
+        op.create_index("ti_pool", "task_instance", ["pool", "state", "priority_weight"])
 
 
 def downgrade():
     """Make TaskInstance.pool field nullable."""
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
-        op.drop_index('ti_pool', table_name='task_instance')
+        op.drop_index("ti_pool", table_name="task_instance")
 
     # use batch_alter_table to support SQLite workaround
-    with op.batch_alter_table('task_instance') as batch_op:
+    with op.batch_alter_table("task_instance") as batch_op:
         batch_op.alter_column(
-            column_name='pool',
+            column_name="pool",
             type_=sa.String(50),
             nullable=True,
         )
 
     if conn.dialect.name == "mssql":
-        op.create_index('ti_pool', 'task_instance', ['pool', 'state', 'priority_weight'])
+        op.create_index("ti_pool", "task_instance", ["pool", "state", "priority_weight"])
 
     with create_session() as session:
-        session.query(TaskInstance).filter(TaskInstance.pool == 'default_pool').update(
+        session.query(TaskInstance).filter(TaskInstance.pool == "default_pool").update(
             {TaskInstance.pool: None}, synchronize_session=False
         )  # Avoid select updated rows
         session.commit()

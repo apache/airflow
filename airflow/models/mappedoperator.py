@@ -31,7 +31,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm.session import Session
 
 from airflow import settings
-from airflow.compat.functools import cache, cached_property
+from airflow.compat.functools import cache
 from airflow.exceptions import AirflowException, UnmappableOperator
 from airflow.models.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
@@ -44,6 +44,7 @@ from airflow.models.abstractoperator import (
     DEFAULT_TRIGGER_RULE,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
+    NotMapped,
     TaskStateChangeCallback,
 )
 from airflow.models.expandinput import (
@@ -53,7 +54,7 @@ from airflow.models.expandinput import (
     NotFullyPopulated,
     OperatorExpandArgument,
     OperatorExpandKwargsArgument,
-    get_mappable_types,
+    is_mappable,
 )
 from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
@@ -96,7 +97,7 @@ def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, valu
                 continue
             if value is NOTSET:
                 continue
-            if isinstance(value, get_mappable_types()):
+            if is_mappable(value):
                 continue
             type_name = type(value).__name__
             error = f"{op.__name__}.expand() got an unexpected type {type_name!r} for keyword argument {name}"
@@ -294,8 +295,8 @@ class MappedOperator(AbstractOperator):
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
         (
-            'parse_time_mapped_ti_count',
-            'operator_class',
+            "parse_time_mapped_ti_count",
+            "operator_class",
         )
     )
 
@@ -308,6 +309,9 @@ class MappedOperator(AbstractOperator):
     def __attrs_post_init__(self):
         from airflow.models.xcom_arg import XComArg
 
+        if next(self.iter_mapped_task_groups(), None) is not None:
+            raise NotImplementedError("operator expansion in an expanded task group is not yet supported")
+
         if self.task_group:
             self.task_group.add(self)
         if self.dag:
@@ -316,7 +320,7 @@ class MappedOperator(AbstractOperator):
         for k, v in self.partial_kwargs.items():
             if k in self.template_fields:
                 XComArg.apply_upstream_relationship(self, v)
-        if self.partial_kwargs.get('sla') is not None:
+        if self.partial_kwargs.get("sla") is not None:
             raise AirflowException(
                 f"SLAs are unsupported with mapped tasks. Please set `sla=None` for task "
                 f"{self.task_id!r}."
@@ -620,13 +624,18 @@ class MappedOperator(AbstractOperator):
         try:
             total_length = self._get_specified_expand_input().get_total_map_length(run_id, session=session)
         except NotFullyPopulated as e:
-            self.log.info(
-                "Cannot expand %r for run %s; missing upstream values: %s",
-                self,
-                run_id,
-                sorted(e.missing),
-            )
             total_length = None
+            # partial dags comes from the mini scheduler. It's
+            # possible that the upstream tasks are not yet done,
+            # but we don't have upstream of upstreams in partial dags,
+            # so we ignore this exception.
+            if not self.dag or not self.dag.partial:
+                self.log.error(
+                    "Cannot expand %r for run %s; missing upstream values: %s",
+                    self,
+                    run_id,
+                    sorted(e.missing),
+                )
 
         state: TaskInstanceState | None = None
         unmapped_ti: TaskInstance | None = (
@@ -647,10 +656,15 @@ class MappedOperator(AbstractOperator):
             # The unmapped task instance still exists and is unfinished, i.e. we
             # haven't tried to run it before.
             if total_length is None:
-                # If the map length cannot be calculated (due to unavailable
-                # upstream sources), fail the unmapped task.
-                unmapped_ti.state = TaskInstanceState.UPSTREAM_FAILED
-                indexes_to_map: Iterable[int] = ()
+                if self.dag and self.dag.partial:
+                    # If the DAG is partial, it's likely that the upstream tasks
+                    # are not done yet, so we do nothing
+                    indexes_to_map: Iterable[int] = ()
+                else:
+                    # If the map length cannot be calculated (due to unavailable
+                    # upstream sources), fail the unmapped task.
+                    unmapped_ti.state = TaskInstanceState.UPSTREAM_FAILED
+                    indexes_to_map = ()
             elif total_length < 1:
                 # If the upstream maps this to a zero-length value, simply mark
                 # the unmapped task instance as SKIPPED (if needed).
@@ -724,34 +738,22 @@ class MappedOperator(AbstractOperator):
             for operator, _ in ref.iter_references():
                 yield operator
 
-    @cached_property
-    def parse_time_mapped_ti_count(self) -> int | None:
-        """Number of mapped TaskInstances that can be created at DagRun create time.
-
-        This only considers literal mapped arguments, and would return *None*
-        when any non-literal values are used for mapping.
-
-        :return: None if non-literal mapped arg encountered, or the total
-            number of mapped TIs this task should have.
-        """
-        return self._get_specified_expand_input().get_parse_time_mapped_ti_count()
-
     @cache
-    def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int | None:
-        """Number of mapped TaskInstances that can be created at run time.
-
-        This considers both literal and non-literal mapped arguments, and the
-        result is therefore available when all depended tasks have finished. The
-        return value should be identical to ``parse_time_mapped_ti_count`` if
-        all mapped arguments are literal.
-
-        :return: None if upstream tasks are not complete yet, or the total
-            number of mapped TIs this task should have.
-        """
+    def get_parse_time_mapped_ti_count(self) -> int:
+        current_count = self._get_specified_expand_input().get_parse_time_mapped_ti_count()
         try:
-            return self._get_specified_expand_input().get_total_map_length(run_id, session=session)
-        except NotFullyPopulated:
-            return None
+            parent_count = super().get_parse_time_mapped_ti_count()
+        except NotMapped:
+            return current_count
+        return parent_count * current_count
+
+    def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
+        current_count = self._get_specified_expand_input().get_total_map_length(run_id, session=session)
+        try:
+            parent_count = super().get_mapped_ti_count(run_id, session=session)
+        except NotMapped:
+            return current_count
+        return parent_count * current_count
 
     def render_template_fields(
         self,

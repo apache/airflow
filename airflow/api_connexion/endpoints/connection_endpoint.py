@@ -49,7 +49,7 @@ def delete_connection(*, connection_id: str, session: Session = NEW_SESSION) -> 
     connection = session.query(Connection).filter_by(conn_id=connection_id).one_or_none()
     if connection is None:
         raise NotFound(
-            'Connection not found',
+            "Connection not found",
             detail=f"The Connection with connection_id: `{connection_id}` was not found",
         )
     session.delete(connection)
@@ -70,7 +70,7 @@ def get_connection(*, connection_id: str, session: Session = NEW_SESSION) -> API
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION)])
-@format_parameters({'limit': check_limit})
+@format_parameters({"limit": check_limit})
 @provide_session
 def get_connections(
     *,
@@ -81,7 +81,7 @@ def get_connections(
 ) -> APIResponse:
     """Get all connection entries"""
     to_replace = {"connection_id": "conn_id"}
-    allowed_filter_attrs = ['connection_id', 'conn_type', 'description', 'host', 'port', 'id']
+    allowed_filter_attrs = ["connection_id", "conn_type", "description", "host", "port", "id"]
 
     total_entries = session.query(func.count(Connection.id)).scalar()
     query = session.query(Connection)
@@ -106,14 +106,14 @@ def patch_connection(
     except ValidationError as err:
         # If validation get to here, it is extra field validation.
         raise BadRequest(detail=str(err.messages))
-    non_update_fields = ['connection_id', 'conn_id']
+    non_update_fields = ["connection_id", "conn_id"]
     connection = session.query(Connection).filter_by(conn_id=connection_id).first()
     if connection is None:
         raise NotFound(
             "Connection not found",
             detail=f"The Connection with connection_id: `{connection_id}` was not found",
         )
-    if data.get('conn_id') and connection.conn_id != data['conn_id']:
+    if data.get("conn_id") and connection.conn_id != data["conn_id"]:
         raise BadRequest(detail="The connection_id cannot be updated.")
     if update_mask:
         update_mask = [i.strip() for i in update_mask]
@@ -140,7 +140,7 @@ def post_connection(*, session: Session = NEW_SESSION) -> APIResponse:
         data = connection_schema.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
-    conn_id = data['conn_id']
+    conn_id = data["conn_id"]
     query = session.query(Connection)
     connection = query.filter_by(conn_id=conn_id).first()
     if not connection:
@@ -160,10 +160,10 @@ def test_connection() -> APIResponse:
     """
     body = request.json
     dummy_conn_id = get_random_string()
-    conn_env_var = f'{CONN_ENV_PREFIX}{dummy_conn_id.upper()}'
+    conn_env_var = f"{CONN_ENV_PREFIX}{dummy_conn_id.upper()}"
     try:
         data = connection_schema.load(body)
-        data['conn_id'] = dummy_conn_id
+        data["conn_id"] = dummy_conn_id
         conn = Connection(**data)
         os.environ[conn_env_var] = conn.get_uri()
         status, message = conn.test_connection()

@@ -132,6 +132,9 @@ spec:
               mountPath: {{ template "airflow_config_path" . }}
               subPath: airflow.cfg
               readOnly: true
+{{- if .Values.webserver.extraVolumeMounts }}
+{{ toYaml .Values.webserver.extraVolumeMounts | indent 12 }}
+{{- end }}
           args:
           {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom:

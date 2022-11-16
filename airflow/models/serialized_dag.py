@@ -61,24 +61,24 @@ class SerializedDagModel(Base):
     it solves the webserver scalability issue.
     """
 
-    __tablename__ = 'serialized_dag'
+    __tablename__ = "serialized_dag"
 
     dag_id = Column(String(ID_LEN), primary_key=True)
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
     fileloc_hash = Column(BigInteger(), nullable=False)
-    _data = Column('data', sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
-    _data_compressed = Column('data_compressed', LargeBinary, nullable=True)
+    _data = Column("data", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    _data_compressed = Column("data_compressed", LargeBinary, nullable=True)
     last_updated = Column(UtcDateTime, nullable=False)
     dag_hash = Column(String(32), nullable=False)
     processor_subdir = Column(String(2000), nullable=True)
 
-    __table_args__ = (Index('idx_fileloc_hash', fileloc_hash, unique=False),)
+    __table_args__ = (Index("idx_fileloc_hash", fileloc_hash, unique=False),)
 
     dag_runs = relationship(
         DagRun,
         primaryjoin=dag_id == foreign(DagRun.dag_id),  # type: ignore
-        backref=backref('serialized_dag', uselist=False, innerjoin=True),
+        backref=backref("serialized_dag", uselist=False, innerjoin=True),
     )
 
     dag_model = relationship(
@@ -87,7 +87,7 @@ class SerializedDagModel(Base):
         foreign_keys=dag_id,
         uselist=False,
         innerjoin=True,
-        backref=backref('serialized_dag', uselist=False, innerjoin=True),
+        backref=backref("serialized_dag", uselist=False, innerjoin=True),
     )
 
     load_op_links = True

@@ -61,7 +61,7 @@ class DAGRunSchema(SQLAlchemySchema):
         model = DagRun
         dateformat = "iso"
 
-    run_id = auto_field(data_key='dag_run_id')
+    run_id = auto_field(data_key="dag_run_id")
     dag_id = auto_field(dump_only=True)
     execution_date = auto_field(data_key="logical_date", validate=validate_istimezone)
     start_date = auto_field(dump_only=True)
@@ -73,6 +73,7 @@ class DAGRunSchema(SQLAlchemySchema):
     data_interval_end = auto_field(dump_only=True)
     last_scheduling_decision = auto_field(dump_only=True)
     run_type = auto_field(dump_only=True)
+    notes = auto_field(dump_only=True)
 
     @pre_load
     def autogenerate(self, data, **kwargs):
@@ -147,7 +148,7 @@ class DagRunsBatchFormSchema(Schema):
     class Meta:
         """Meta"""
 
-        datetimeformat = 'iso'
+        datetimeformat = "iso"
         strict = True
 
     order_by = fields.String()
@@ -163,8 +164,15 @@ class DagRunsBatchFormSchema(Schema):
     end_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
 
 
+class SetDagRunNoteFormSchema(Schema):
+    """Schema for handling the request of clearing a DAG run"""
+
+    notes = fields.String(allow_none=True, validate=validate.Length(max=1000))
+
+
 dagrun_schema = DAGRunSchema()
 dagrun_collection_schema = DAGRunCollectionSchema()
 set_dagrun_state_form_schema = SetDagRunStateFormSchema()
 clear_dagrun_form_schema = ClearDagRunStateFormSchema()
 dagruns_batch_form_schema = DagRunsBatchFormSchema()
+set_dagrun_note_form_schema = SetDagRunNoteFormSchema()
