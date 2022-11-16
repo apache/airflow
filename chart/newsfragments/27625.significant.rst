@@ -1,0 +1,4 @@
+Default ``dags.gitSync.wait`` reduced to ``5`` seconds
+
+The default for ``dags.gitSync.wait`` has been reduced from ``60`` seconds to ``5`` seconds to reduce the likelihood of DAGs
+becoming inconsistent between Airflow components. This will, however, increase traffic to the remote git repository.
