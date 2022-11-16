@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import os
-import unittest
 from tempfile import TemporaryDirectory
 from unittest import mock
 from unittest.mock import MagicMock
@@ -30,7 +29,7 @@ from airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake impor
 )
 
 
-class TestOracleToAzureDataLakeTransfer(unittest.TestCase):
+class TestOracleToAzureDataLakeTransfer:
 
     mock_module_path = "airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake"
 

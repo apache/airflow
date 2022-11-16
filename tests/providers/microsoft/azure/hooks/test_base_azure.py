@@ -16,14 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import Mock, patch
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
 
 
-class TestBaseAzureHook(unittest.TestCase):
+class TestBaseAzureHook:
     @patch("airflow.providers.microsoft.azure.hooks.base_azure.get_client_from_auth_file")
     @patch(
         "airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook.get_connection",
