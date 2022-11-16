@@ -38,16 +38,19 @@ class PrevDagrunDep(BaseTIDep):
     @provide_session
     def _get_dep_statuses(self, ti: TI, session, dep_context):
         if dep_context.ignore_depends_on_past:
+            ti.past_dep = False
             reason = "The context specified that the state of past DAGs could be ignored."
             yield self._passing_status(reason=reason)
             return
 
         if not ti.task.depends_on_past:
+            ti.past_dep = False
             yield self._passing_status(reason="The task did not have depends_on_past set.")
             return
 
         dr = ti.get_dagrun(session=session)
         if not dr:
+            ti.past_dep = False
             yield self._passing_status(reason="This task instance does not belong to a DAG.")
             return
 
@@ -60,11 +63,13 @@ class PrevDagrunDep(BaseTIDep):
 
         # First ever run for this DAG.
         if not last_dagrun:
+            ti.past_dep = False
             yield self._passing_status(reason="This task instance was the first task instance for its task.")
             return
 
         # There was a DAG run, but the task wasn't active back then.
         if catchup and last_dagrun.execution_date < ti.task.start_date:
+            ti.past_dep = False
             yield self._passing_status(reason="This task instance was the first task instance for its task.")
             return
 
@@ -82,6 +87,7 @@ class PrevDagrunDep(BaseTIDep):
                     > 0
                 )
                 if not has_historical_ti:
+                    ti.past_dep = False
                     yield self._passing_status(
                         reason="ignore_first_depends_on_past is true for this task "
                         "and it is the first task instance for its task."

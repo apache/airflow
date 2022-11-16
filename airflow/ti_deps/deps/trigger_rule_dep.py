@@ -160,45 +160,58 @@ class TriggerRuleDep(BaseTIDep):
             "done": done,
         }
         changed: bool = False
+        new_state = None
         if flag_upstream_failed:
             if trigger_rule == TR.ALL_SUCCESS:
                 if upstream_failed or failed:
-                    changed = ti.set_state(State.UPSTREAM_FAILED, session)
+                    new_state = State.UPSTREAM_FAILED
                 elif skipped:
-                    changed = ti.set_state(State.SKIPPED, session)
+                    new_state = State.SKIPPED
                 elif removed and successes and ti.map_index > -1:
                     if ti.map_index >= successes:
-                        changed = ti.set_state(State.REMOVED, session)
+                        new_state = State.REMOVED
             elif trigger_rule == TR.ALL_FAILED:
                 if successes or skipped:
-                    changed = ti.set_state(State.SKIPPED, session)
+                    new_state = State.SKIPPED
             elif trigger_rule == TR.ONE_SUCCESS:
                 if upstream_done and done == skipped:
                     # if upstream is done and all are skipped mark as skipped
-                    changed = ti.set_state(State.SKIPPED, session)
+                    new_state = State.SKIPPED
                 elif upstream_done and successes <= 0:
                     # if upstream is done and there are no successes mark as upstream failed
-                    changed = ti.set_state(State.UPSTREAM_FAILED, session)
+                    new_state = State.UPSTREAM_FAILED
             elif trigger_rule == TR.ONE_FAILED:
                 if upstream_done and not (failed or upstream_failed):
-                    changed = ti.set_state(State.SKIPPED, session)
+                    new_state = State.SKIPPED
             elif trigger_rule == TR.ONE_DONE:
                 if upstream_done and not (failed or successes):
-                    changed = ti.set_state(State.SKIPPED, session)
+                    new_state = State.SKIPPED
             elif trigger_rule == TR.NONE_FAILED:
                 if upstream_failed or failed:
-                    changed = ti.set_state(State.UPSTREAM_FAILED, session)
+                    new_state = State.UPSTREAM_FAILED
             elif trigger_rule == TR.NONE_FAILED_MIN_ONE_SUCCESS:
                 if upstream_failed or failed:
-                    changed = ti.set_state(State.UPSTREAM_FAILED, session)
+                    new_state = State.UPSTREAM_FAILED
                 elif skipped == upstream:
-                    changed = ti.set_state(State.SKIPPED, session)
+                    new_state = State.SKIPPED
             elif trigger_rule == TR.NONE_SKIPPED:
                 if skipped:
-                    changed = ti.set_state(State.SKIPPED, session)
+                    new_state = State.SKIPPED
             elif trigger_rule == TR.ALL_SKIPPED:
                 if successes or failed:
-                    changed = ti.set_state(State.SKIPPED, session)
+                    new_state = State.SKIPPED
+
+        if new_state is not None:
+            if (
+                new_state == State.SKIPPED
+                and not dep_context.ignore_depends_on_past_for_skipping
+                and ti.past_dep
+            ):
+                yield self._failing_status(
+                    reason=("Task should be skipped but the the past depends are not met")
+                )
+                return
+            changed = ti.set_state(new_state, session)
 
         if changed:
             dep_context.have_changed_ti_states = True

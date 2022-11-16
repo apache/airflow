@@ -67,6 +67,7 @@ class DepContext:
     flag_upstream_failed: bool = False
     ignore_all_deps: bool = False
     ignore_depends_on_past: bool = False
+    ignore_depends_on_past_for_skipping: bool = True
     ignore_in_retry_period: bool = False
     ignore_in_reschedule_period: bool = False
     ignore_task_deps: bool = False

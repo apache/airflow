@@ -35,6 +35,7 @@ from airflow.compat.functools import cache
 from airflow.exceptions import AirflowException, UnmappableOperator
 from airflow.models.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
+    DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST_FOR_SKIPPING,
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
     DEFAULT_PRIORITY_WEIGHT,
@@ -394,6 +395,13 @@ class MappedOperator(AbstractOperator):
     @property
     def ignore_first_depends_on_past(self) -> bool:
         value = self.partial_kwargs.get("ignore_first_depends_on_past", DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST)
+        return bool(value)
+
+    @property
+    def ignore_depends_on_past_for_skipping(self) -> bool:
+        value = self.partial_kwargs.get(
+            "ignore_depends_on_past_for_skipping", DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST_FOR_SKIPPING
+        )
         return bool(value)
 
     @property

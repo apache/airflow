@@ -75,8 +75,14 @@ class NotPreviouslySkippedDep(BaseTIDep):
                     # If the parent SkipMixin has run, and the XCom result stored indicates this
                     # ti should be skipped, set ti.state to SKIPPED and fail the rule so that the
                     # ti does not execute.
-                    ti.set_state(State.SKIPPED, session)
-                    yield self._failing_status(
-                        reason=f"Skipping because of previous XCom result from parent task {parent.task_id}"
-                    )
+                    if not dep_context.ignore_depends_on_past_for_skipping:
+                        yield self._failing_status(
+                            reason=("Task should be skipped but the the past depends are not met")
+                        )
+                    else:
+                        ti.set_state(State.SKIPPED, session)
+                        yield self._failing_status(
+                            reason="Skipping because of previous XCom result from parent task"
+                            f"{parent.task_id}"
+                        )
                     return
