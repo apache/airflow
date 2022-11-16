@@ -146,11 +146,10 @@ class MySqlHook(DbApiHook):
 
         if conn.extra_dejson.get("allow_local_infile", False):
             conn_config["allow_local_infile"] = True
-        # Adding 'ssl_mode' key to keep it consistent with mysql_client
-        if conn.extra_dejson.get("ssl_mode", False):
-            conn_config["ssl-mode"] = conn.extra_dejson["ssl_mode"]
-        if conn.extra_dejson.get("ssl_ca", False):
-            conn_config["ssl-ca"] = conn.extra_dejson["ssl_ca"]
+        # Ref: https://dev.mysql.com/doc/connector-python/en/connector-python-connectargs.html
+        for key, value in conn.extra_dejson.items():
+            if key.startswith("ssl_"):
+                conn_config[key] = value
 
         return conn_config
 

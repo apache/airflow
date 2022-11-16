@@ -228,13 +228,13 @@ class TestMySqlHookConnMySqlConnectorPython(unittest.TestCase):
     @mock.patch("mysql.connector.connect")
     def test_get_ssl_mode(self, mock_connect):
         extra_dict = self.connection.extra_dejson
-        extra_dict.update(ssl_mode="DISABLED")
+        extra_dict.update(ssl_disabled=True)
         self.connection.extra = json.dumps(extra_dict)
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         assert args == ()
-        assert kwargs["ssl-mode"] == "DISABLED"
+        assert kwargs["ssl_disabled"] == 1
 
 
 class MockMySQLConnectorConnection:
