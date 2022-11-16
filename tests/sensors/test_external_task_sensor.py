@@ -24,11 +24,11 @@ import tempfile
 import unittest
 import zipfile
 from datetime import time, timedelta
-from airflow.decorators import task
 
 import pytest
 
 from airflow import exceptions, settings
+from airflow.decorators import task as task_deco
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.models.dag import DAG
@@ -1193,7 +1193,8 @@ def dag_bag_head_tail_mapped_tasks():
     dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
 
     with DAG("head_tail", start_date=DEFAULT_DATE, schedule="@daily") as dag:
-        @task
+
+        @task_deco
         def dummy_task(x: int):
             return x
 
@@ -1204,7 +1205,7 @@ def dag_bag_head_tail_mapped_tasks():
             execution_delta=timedelta(days=1),
             mode="reschedule",
         )
-        
+
         body = dummy_task.expand(x=[i for i in range(5)])
         tail = ExternalTaskMarker(
             task_id="tail",
@@ -1252,14 +1253,16 @@ def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_m
         include_upstream=False,
     )
     task_ids = [tid for tid in dag.task_dict]
-    assert dag.clear(
-        start_date=DEFAULT_DATE, 
-        end_date=DEFAULT_DATE,
-        dag_bag=dag_bag_head_tail_mapped_tasks, 
-        session=session,
-        task_ids=task_ids,
-    ) == 70
-
+    assert (
+        dag.clear(
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            dag_bag=dag_bag_head_tail_mapped_tasks,
+            session=session,
+            task_ids=task_ids,
+        )
+        == 70
+    )
 
 
 class TestExternalTaskSensorLink:
