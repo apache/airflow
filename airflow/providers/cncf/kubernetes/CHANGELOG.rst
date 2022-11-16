@@ -79,7 +79,12 @@ template file or full pod spec, then we'll check the airflow conn,
 then if in a k8s pod, try to infer the namespace from the container, then finally
 will use the ``default`` namespace.
 
+When using an Airflow connection of type ``kubernetes``, if defining the connection in an env var
+or secrets backend, it's no longer necessary to prefix the "extra" fields with ``extra__kubernetes__``.
+If ``extra`` contains duplicate fields (one with prefix, one without) then the non-prefixed
+one will be used.
 
+* ``Remove extra__kubernetes__ prefix from k8s hook extras (#27021)``
 * ``Add container_resources as KubernetesPodOperator templatable (#27457)``
 * ``Add deprecation warning re unset namespace in k8s hook (#27202)``
 * ``add container_name option for SparkKubernetesSensor (#26560)``
@@ -94,7 +99,6 @@ Bug Fixes
 
 * ``Fix KubernetesHook fail on an attribute absence (#25787)``
 * ``Fix log message for kubernetes hooks (#26999)``
-* ``Remove extra__kubernetes__ prefix from k8s hook extras (#27021)``
 * ``KPO should use hook's get namespace method to get namespace (#27516)``
 
 .. Below changes are excluded from the changelog. Move them to
