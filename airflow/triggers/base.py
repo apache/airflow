@@ -71,7 +71,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     def cleanup(self) -> None:
         """
         Cleanup the trigger.
-        
+
         Called when the trigger is no longer needed, and it's being removed
         from the active triggerer process.
         """
