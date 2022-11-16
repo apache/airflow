@@ -136,7 +136,6 @@ class BigQueryToGCSOperator(BaseOperator):
         self.reattach_states: set[str] = reattach_states or set()
         self.hook: BigQueryHook | None = None
         self.deferrable = deferrable
-        self.configuration: dict = {}
 
     @staticmethod
     def _handle_job_error(job: ExtractJob) -> None:
@@ -178,11 +177,12 @@ class BigQueryToGCSOperator(BaseOperator):
         self,
         hook: BigQueryHook,
         job_id: str,
+        configuration: dict,
     ) -> BigQueryJob:
         # Submit a new job without waiting for it to complete.
 
         return hook.insert_job(
-            configuration=self.configuration,
+            configuration=configuration,
             project_id=hook.project_id,
             location=self.location,
             job_id=job_id,
@@ -205,19 +205,19 @@ class BigQueryToGCSOperator(BaseOperator):
         )
         self.hook = hook
 
-        self.configuration = self._prepare_configuration()
+        configuration = self._prepare_configuration()
         job_id = hook.generate_job_id(
             job_id=self.job_id,
             dag_id=self.dag_id,
             task_id=self.task_id,
             logical_date=context["logical_date"],
-            configuration=self.configuration,
+            configuration=configuration,
             force_rerun=self.force_rerun,
         )
 
         try:
-            self.log.info("Executing: %s", self.configuration)
-            job: ExtractJob = self._submit_job(hook=hook, job_id=job_id)
+            self.log.info("Executing: %s", configuration)
+            job: ExtractJob = self._submit_job(hook=hook, job_id=job_id, configuration=configuration)
         except Conflict:
             # If the job already exists retrieve it
             job = hook.get_job(
