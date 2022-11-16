@@ -28,14 +28,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.3.0
+.....
+
+Latest change: 2022-11-24
+
+=================================================================================================  ===========  ===================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================
+`80c327bd3b <https://github.com/apache/airflow/commit/80c327bd3b45807ff2e38d532325bccd6fe0ede0>`_  2022-11-24   ``Bump common.sql provider to 1.3.1 (#27888)``
+`e56adc8e41 <https://github.com/apache/airflow/commit/e56adc8e415059d17799638e0d56938edf74471d>`_  2022-11-16   ``Add _serialize_cell method to TrinoHook and PrestoHook (#27724)``
+=================================================================================================  ===========  ===================================================================
+
 4.2.0
 .....
 
-Latest change: 2022-11-02
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  ================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `a3bfa25e67 <https://github.com/apache/airflow/commit/a3bfa25e6756222b6811e92c7a9e9f8de47ab630>`_  2022-11-02   ``Allow setting client tags for trino connection (#27213)``
 `5c37b503f1 <https://github.com/apache/airflow/commit/5c37b503f118b8ad2585dff9949dd8fdb96689ed>`_  2022-10-31   ``Use DbApiHook.run for DbApiHook.get_records and DbApiHook.get_first (#26944)``
 `09c045f081 <https://github.com/apache/airflow/commit/09c045f081feeeea09e4517d05904b38660f525c>`_  2022-10-26   ``Bump Trino version to fix non-working DML queries (#27168)``
