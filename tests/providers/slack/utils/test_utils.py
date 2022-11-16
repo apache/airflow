@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.slack.utils import ConnectionExtraConfig
+from airflow.providers.slack.utils import ConnectionExtraConfig, parse_filename
 
 
 class TestConnectionExtra:
@@ -92,3 +92,55 @@ class TestConnectionExtra:
         )
         assert extra_config.getint("int_arg_1") == 42
         assert extra_config.getint("int_arg_2") == 9000
+
+
+class TestParseFilename:
+    SUPPORTED_FORMAT = ("so", "dll", "exe", "sh")
+
+    def test_error_parse_without_extension(self):
+        with pytest.raises(ValueError, match="No file extension specified in filename"):
+            assert parse_filename("Untitled File", self.SUPPORTED_FORMAT)
+
+    @pytest.mark.parametrize(
+        "filename,expected_format",
+        [
+            ("libc.so", "so"),
+            ("kernel32.dll", "dll"),
+            ("xxx.mp4.exe", "exe"),
+            ("init.sh", "sh"),
+        ],
+    )
+    def test_parse_first_level(self, filename, expected_format):
+        assert parse_filename(filename, self.SUPPORTED_FORMAT) == (expected_format, None)
+
+    @pytest.mark.parametrize("filename", ["New File.txt", "cats-memes.mp4"])
+    def test_error_parse_first_level(self, filename):
+        with pytest.raises(ValueError, match="Unsupported file format"):
+            assert parse_filename(filename, self.SUPPORTED_FORMAT)
+
+    @pytest.mark.parametrize(
+        "filename,expected",
+        [
+            ("libc.so.6", ("so", "6")),
+            ("kernel32.dll.zip", ("dll", "zip")),
+            ("explorer.exe.7z", ("exe", "7z")),
+            ("init.sh.gz", ("sh", "gz")),
+        ],
+    )
+    def test_parse_second_level(self, filename, expected):
+        assert parse_filename(filename, self.SUPPORTED_FORMAT) == expected
+
+    @pytest.mark.parametrize("filename", ["example.so.tar.gz", "w.i.e.r.d"])
+    def test_error_parse_second_level(self, filename):
+        with pytest.raises(ValueError, match="Unsupported file format.*with compression extension."):
+            assert parse_filename(filename, self.SUPPORTED_FORMAT)
+
+    @pytest.mark.parametrize("filename", ["Untitled File", "New File.txt", "example.so.tar.gz"])
+    @pytest.mark.parametrize("fallback", SUPPORTED_FORMAT)
+    def test_fallback(self, filename, fallback):
+        assert parse_filename(filename, self.SUPPORTED_FORMAT, fallback) == (fallback, None)
+
+    @pytest.mark.parametrize("filename", ["Untitled File", "New File.txt", "example.so.tar.gz"])
+    def test_wrong_fallback(self, filename):
+        with pytest.raises(ValueError, match="Invalid fallback value"):
+            assert parse_filename(filename, self.SUPPORTED_FORMAT, "mp4")
