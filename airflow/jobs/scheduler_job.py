@@ -34,6 +34,7 @@ from sqlalchemy import func, not_, or_, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
+from sqlalchemy.sql import expression
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
@@ -783,25 +784,46 @@ class SchedulerJob(BaseJob):
     @provide_session
     def _update_dag_run_state_for_paused_dags(self, session: Session = NEW_SESSION) -> None:
         try:
-            paused_dag_ids = DagModel.get_all_paused_dag_ids()
-            for dag_id in paused_dag_ids:
-                if dag_id in self._paused_dag_without_running_dagruns:
-                    continue
+            paused_dag_ids = {
+                paused_dag_id
+                for paused_dag_id, in session.query(DagModel.dag_id)
+                .join(DagRun.dag_model)
+                .filter(
+                    DagModel.is_paused == expression.true(),
+                    DagRun.state == DagRunState.RUNNING,
+                    DagRun.run_type != DagRunType.BACKFILL_JOB,
+                )
+                .all()
+            }
 
-                dag = SerializedDagModel.get_dag(dag_id)
-                if dag is None:
-                    continue
+            for dag_id in paused_dag_ids:
+                dag = None
                 dag_runs = session.query(DagRun).filter(
                     DagRun.dag_id == dag_id,
                     DagRun.state == DagRunState.RUNNING,
                     DagRun.run_type != DagRunType.BACKFILL_JOB,
                 )
                 for dag_run in dag_runs:
+                    ti_most_recently_updated_at = (
+                        session.query(func.max(TaskInstance.updated_at))
+                        .filter(
+                            TaskInstance.dag_id == dag_id,
+                            TaskInstance.run_id == dag_run.run_id,
+                        )
+                        .scalar()
+                    )
+                    if ti_most_recently_updated_at <= dag_run.last_scheduling_decision:
+                        continue
+
+                    if dag is None:
+                        dag = SerializedDagModel.get_dag(dag_id)
+                        if dag is None:
+                            break  # Go to the next DAG, not DagRun
+
                     dag_run.dag = dag
                     _, callback_to_run = dag_run.update_state(execute_callbacks=False)
                     if callback_to_run:
                         self._send_dag_callbacks_to_processor(dag, callback_to_run)
-                self._paused_dag_without_running_dagruns.add(dag_id)
         except Exception as e:  # should not fail the scheduler
             self.log.exception("Failed to update dag run state for paused dags due to %s", str(e))
 
