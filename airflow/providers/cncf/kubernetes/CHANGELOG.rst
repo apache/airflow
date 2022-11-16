@@ -52,14 +52,10 @@ the corresponding objects from the kubernetes library:
 * ``airflow.providers.cncf.kubernetes.backcompat.volume``
 * ``airflow.providers.cncf.kubernetes.backcompat.volume_mount``
 
-In ``KubernetesHook.get_namespace``, if a connection is defined but a namespace isn't set, we
-currently return 'default'; this behavior is deprecated. In the next release, we'll return ``None``.
-
 * ``Remove deprecated backcompat objects for KPO (#27518)``
 * ``Remove support for node_selectors param in KPO (#27515)``
 * ``Remove unused backcompat method in k8s hook (#27490)``
 * ``Drop support for providing ''resource'' as dict in ''KubernetesPodOperator'' (#27197)``
-* ``Deprecate use of core get_kube_client in PodManager (#26848)``
 * ``Don't consider airflow core conf for KPO (#26849)``
 
 Misc
@@ -86,7 +82,6 @@ one will be used.
 
 * ``Remove extra__kubernetes__ prefix from k8s hook extras (#27021)``
 * ``Add container_resources as KubernetesPodOperator templatable (#27457)``
-* ``Add deprecation warning re unset namespace in k8s hook (#27202)``
 * ``add container_name option for SparkKubernetesSensor (#26560)``
 * ``Allow xcom sidecar container image to be configurable in KPO (#26766)``
 * ``Improve task_id to pod name conversion (#27524)``
@@ -106,6 +101,14 @@ Bug Fixes
   * ``Update old style typing (#26872)``
   * ``Enable string normalization in python formatting - providers (#27205)``
   * ``Update docs for September Provider's release (#26731)``
+
+New deprecations
+~~~~~~~~~~~~~~~~
+
+* In ``KubernetesHook.get_namespace``, if a connection is defined but a namespace isn't set, we
+currently return 'default'; this behavior is deprecated (#27202). In the next release, we'll return ``None``.
+* ``Deprecate use of core get_kube_client in PodManager (#26848)``
+
 
 4.4.0
 .....
