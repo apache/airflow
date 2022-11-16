@@ -17,8 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import hashlib
 import logging
+import os
+import tempfile
 import unittest
+import zipfile
 from datetime import time, timedelta
 
 import pytest
@@ -33,11 +37,12 @@ from airflow.operators.empty import EmptyOperator
 from airflow.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor, ExternalTaskSensorLink
 from airflow.sensors.time_sensor import TimeSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
-from airflow.utils.session import provide_session
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
+from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.db import clear_db_runs
 
 DEFAULT_DATE = datetime(2015, 1, 1)
@@ -51,6 +56,35 @@ DEV_NULL = "/dev/null"
 @pytest.fixture(autouse=True)
 def clean_db():
     clear_db_runs()
+
+
+@pytest.fixture
+def dag_zip_maker():
+    class DagZipMaker:
+        def __call__(self, *dag_files):
+            self.__dag_files = [os.sep.join([TEST_DAGS_FOLDER.__str__(), dag_file]) for dag_file in dag_files]
+            dag_files_hash = hashlib.md5("".join(self.__dag_files).encode()).hexdigest()
+            self.__tmp_dir = os.sep.join([tempfile.tempdir, dag_files_hash])
+
+            self.__zip_file_name = os.sep.join([self.__tmp_dir, f"{dag_files_hash}.zip"])
+
+            if not os.path.exists(self.__tmp_dir):
+                os.mkdir(self.__tmp_dir)
+            return self
+
+        def __enter__(self):
+            with zipfile.ZipFile(self.__zip_file_name, "x") as zf:
+                for dag_file in self.__dag_files:
+                    zf.write(dag_file, os.path.basename(dag_file))
+            dagbag = DagBag(dag_folder=self.__tmp_dir, include_examples=False)
+            dagbag.sync_to_db()
+            return dagbag
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            os.unlink(self.__zip_file_name)
+            os.rmdir(self.__tmp_dir)
+
+    yield DagZipMaker()
 
 
 class TestExternalTaskSensor(unittest.TestCase):
@@ -598,6 +632,14 @@ exit 0
 
         with pytest.raises(AirflowException):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+
+def test_external_task_sensor_check_zipped_dag_existence(dag_zip_maker):
+    with dag_zip_maker("test_external_task_sensor_check_existense.py") as dagbag:
+        with create_session() as session:
+            dag = dagbag.dags["test_external_task_sensor_check_existence"]
+            op = dag.tasks[0]
+            op._check_for_existence(session)
 
 
 def test_external_task_sensor_templated(dag_maker, app):
