@@ -40,7 +40,7 @@ const TaskActions = ({
   title, runId, taskId, dagId, executionDate, mapIndexes,
 }: Props) => (
   <Box my={3}>
-    <Text as="strong">{title}</Text>
+    <Text as="strong" size="lg">{title}</Text>
     <Divider my={2} />
     <VStack justifyContent="center" divider={<StackDivider my={3} />}>
       <RunAction

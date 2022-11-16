@@ -57,6 +57,7 @@ class TestDAGRunSchema(TestDAGRunBase):
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             conf='{"start": "stop"}',
+            notes="my notes",
         )
         session.add(dagrun_model)
         session.commit()
@@ -77,6 +78,7 @@ class TestDAGRunSchema(TestDAGRunBase):
             "data_interval_start": None,
             "last_scheduling_decision": None,
             "run_type": "manual",
+            "notes": "my notes",
         }
 
     @pytest.mark.parametrize(
@@ -140,6 +142,7 @@ class TestDagRunCollection(TestDAGRunBase):
             run_type=DagRunType.MANUAL.value,
             start_date=timezone.parse(self.default_time),
             conf='{"start": "stop"}',
+            notes="Notes for first",
         )
         dagrun_model_2 = DagRun(
             dag_id="my-dag-run",
@@ -148,6 +151,7 @@ class TestDagRunCollection(TestDAGRunBase):
             execution_date=timezone.parse(self.second_time),
             start_date=timezone.parse(self.default_time),
             run_type=DagRunType.MANUAL.value,
+            notes="Notes for second",
         )
         dagruns = [dagrun_model_1, dagrun_model_2]
         session.add_all(dagruns)
@@ -170,6 +174,7 @@ class TestDagRunCollection(TestDAGRunBase):
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
                     "run_type": "manual",
+                    "notes": "Notes for first",
                 },
                 {
                     "dag_id": "my-dag-run",
@@ -185,6 +190,7 @@ class TestDagRunCollection(TestDAGRunBase):
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
                     "run_type": "manual",
+                    "notes": "Notes for second",
                 },
             ],
             "total_entries": 2,

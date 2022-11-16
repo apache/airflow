@@ -62,6 +62,7 @@ class TaskInstanceSchema(SQLAlchemySchema):
     queued_dttm = auto_field(data_key="queued_when")
     pid = auto_field()
     executor_config = auto_field()
+    notes = auto_field()
     sla_miss = fields.Nested(SlaMissSchema, dump_default=None)
     rendered_fields = JsonObjectField(dump_default={})
     trigger = fields.Nested(TriggerSchema)
@@ -194,6 +195,14 @@ class TaskInstanceReferenceCollectionSchema(Schema):
     task_instances = fields.List(fields.Nested(TaskInstanceReferenceSchema))
 
 
+class SetTaskInstanceNoteFormSchema(Schema):
+    """Schema for settings a note for a TaskInstance"""
+
+    # Note: We can't add map_index to the url as subpaths can't start with dashes.
+    map_index = fields.Int(allow_none=False)
+    notes = fields.String(allow_none=True, validate=validate.Length(max=1000))
+
+
 task_instance_schema = TaskInstanceSchema()
 task_instance_collection_schema = TaskInstanceCollectionSchema()
 task_instance_batch_form = TaskInstanceBatchFormSchema()
@@ -202,3 +211,4 @@ set_task_instance_state_form = SetTaskInstanceStateFormSchema()
 set_single_task_instance_state_form = SetSingleTaskInstanceStateFormSchema()
 task_instance_reference_schema = TaskInstanceReferenceSchema()
 task_instance_reference_collection_schema = TaskInstanceReferenceCollectionSchema()
+set_task_instance_notes_form_schema = SetTaskInstanceNoteFormSchema()

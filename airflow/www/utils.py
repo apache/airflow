@@ -159,6 +159,7 @@ def encode_dag_run(dag_run: DagRun | None) -> dict[str, Any] | None:
         "external_trigger": dag_run.external_trigger,
         "conf": conf,
         "conf_is_json": conf_is_json,
+        "notes": dag_run.notes,
     }
 
 

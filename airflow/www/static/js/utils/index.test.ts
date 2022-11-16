@@ -19,7 +19,9 @@
 
 import { isEmpty } from 'lodash';
 import type { DagRun } from 'src/types';
-import { getDagRunLabel, getTask, getTaskSummary } from '.';
+import {
+  getDagRunLabel, getTask, getTaskSummary,
+} from '.';
 
 const sampleTasks = {
   id: null,
@@ -130,6 +132,7 @@ describe('Test getDagRunLabel', () => {
     externalTrigger: false,
     conf: null,
     confIsJson: false,
+    notes: 'someRandomValue',
   } as DagRun;
 
   test('Defaults to dataIntervalEnd', async () => {

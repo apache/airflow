@@ -84,6 +84,7 @@ class TestLocalClient:
                 external_trigger=True,
                 dag_hash=expected_dag_hash,
                 data_interval=expected_data_interval,
+                notes=None,
             )
             mock.reset_mock()
 
@@ -97,6 +98,7 @@ class TestLocalClient:
                 external_trigger=True,
                 dag_hash=expected_dag_hash,
                 data_interval=expected_data_interval,
+                notes=None,
             )
             mock.reset_mock()
 
@@ -111,6 +113,7 @@ class TestLocalClient:
                 external_trigger=True,
                 dag_hash=expected_dag_hash,
                 data_interval=expected_data_interval,
+                notes=None,
             )
             mock.reset_mock()
 
@@ -125,6 +128,7 @@ class TestLocalClient:
                 external_trigger=True,
                 dag_hash=expected_dag_hash,
                 data_interval=expected_data_interval,
+                notes=None,
             )
             mock.reset_mock()
 

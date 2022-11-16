@@ -45,6 +45,7 @@ const generateRuns = (length: number): DagRun[] => (
     externalTrigger: false,
     conf: null,
     confIsJson: false,
+    notes: 'someRandomValue',
   }))
 );
 
@@ -65,6 +66,7 @@ describe('Test DagRuns', () => {
         externalTrigger: false,
         conf: null,
         confIsJson: false,
+        notes: 'someRandomValue',
       },
       {
         runId: 'run2',
@@ -72,7 +74,7 @@ describe('Test DagRuns', () => {
         dataIntervalEnd: datestring,
         state: 'success',
         runType: 'manual',
-        queuedAt: '2021-11-09T00:19:43.022122+00:00',
+        queuedAt: '2021-11-08T21:14:18.21521+00:00',
         startDate: '2021-11-09T00:19:43.023200+00:00',
         endDate: '2021-11-09T00:22:18.607167+00:00',
         executionDate: '2021-11-08T21:14:19.704433+00:00',
@@ -80,6 +82,7 @@ describe('Test DagRuns', () => {
         externalTrigger: false,
         conf: null,
         confIsJson: false,
+        notes: 'someRandomValue',
       },
     ];
     const data = {

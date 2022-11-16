@@ -42,7 +42,7 @@ export interface GridData {
   ordering: RunOrdering;
 }
 
-const emptyGridData: GridData = {
+export const emptyGridData: GridData = {
   dagRuns: [],
   groups: {
     id: null,

@@ -44,6 +44,7 @@ describe('Test renderTaskRows', () => {
               startDate: '2021-10-26T15:42:03.391917+00:00',
               state: 'success',
               taskId: 'group_1',
+              notes: '',
             },
           ],
           children: [
@@ -58,6 +59,7 @@ describe('Test renderTaskRows', () => {
                   startDate: '2021-10-26T15:42:03.391917+00:00',
                   state: 'success',
                   taskId: 'group_1.task_1',
+                  notes: '',
                 },
               ],
             },

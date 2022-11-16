@@ -225,6 +225,7 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
             "hostname": "",
             "map_index": 0,
             "max_tries": 0,
+            "notes": None,
             "operator": "MockOperator",
             "pid": None,
             "pool": "default_pool",

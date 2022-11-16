@@ -30,7 +30,7 @@ export default function useDatasetEvents({
   const query = useQuery(
     ['datasets-events', datasetId, sourceDagId, sourceRunId, sourceTaskId, sourceMapIndex, limit, offset, orderBy],
     () => {
-      const datasetsUrl = getMetaValue('dataset_events_api') || '/api/v1/datasets/events';
+      const datasetsUrl = getMetaValue('dataset_events_api');
 
       const params = new URLSearchParamsWrapper();
 

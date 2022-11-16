@@ -30,7 +30,7 @@ import type { Row, SortingRule } from 'react-table';
 
 import { formatDuration, getDuration } from 'src/datetime_utils';
 import { useMappedInstances } from 'src/api';
-import { SimpleStatus } from 'src/dag/StatusBox';
+import { StatusWithNotes } from 'src/dag/StatusBox';
 import { Table } from 'src/components/Table';
 import Time from 'src/components/Time';
 
@@ -63,7 +63,11 @@ const MappedInstances = ({
     ...mi,
     state: (
       <Flex alignItems="center">
-        <SimpleStatus state={mi.state === undefined || mi.state === 'none' ? null : mi.state} mx={2} />
+        <StatusWithNotes
+          state={mi.state === undefined || mi.state === 'none' ? null : mi.state}
+          mx={2}
+          containsNotes={!!mi.notes}
+        />
         {mi.state || 'no status'}
       </Flex>
     ),

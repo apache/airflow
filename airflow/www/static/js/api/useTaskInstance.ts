@@ -55,7 +55,7 @@ const useTaskInstance = ({
   const { isRefreshOn } = useAutoRefresh();
 
   return useQuery(
-    ['taskIntance', dagId, dagRunId, taskId, mapIndex],
+    ['taskInstance', dagId, dagRunId, taskId, mapIndex],
     () => axios.get<AxiosResponse, API.TaskInstance>(url, { headers: { Accept: 'text/plain' } }),
     {
       placeholderData: {},

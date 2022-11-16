@@ -138,6 +138,7 @@ class DagRunEditForm(DynamicForm):
         widget=AirflowDateTimePickerROWidget(),
     )
     conf = TextAreaField(lazy_gettext("Conf"), widget=BS3TextAreaROWidget())
+    notes = TextAreaField(lazy_gettext("User Note"), widget=BS3TextAreaFieldWidget())
 
     def populate_obj(self, item):
         """Populates the attributes of the passed obj with data from the form's fields."""
@@ -172,6 +173,7 @@ class TaskInstanceEditForm(DynamicForm):
         widget=AirflowDateTimePickerROWidget(),
         validators=[InputRequired()],
     )
+    notes = TextAreaField(lazy_gettext("User Note"), widget=BS3TextAreaFieldWidget())
 
 
 class ConnectionForm(DynamicForm):
