@@ -699,6 +699,8 @@ class LazyXComAccess(collections.abc.Sequence):
     Note that since the session bound to the parent query may have died when we
     actually access the sequence's content, we must create a new session
     for every function call with ``with_session()``.
+
+    :meta private:
     """
 
     _query: Query = attr.ib(repr=False)
