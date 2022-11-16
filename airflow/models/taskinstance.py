@@ -11,7 +11,7 @@
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF dict[dict[int, list[int]]]
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
@@ -2451,7 +2451,8 @@ class TaskInstance(Base, LoggingMixin):
         filter_condition = []
         # create 2 nested groups, both primarily grouped by dag_id and run_id, 
         # and in the nested group 1 grouped by task_id the other by map_index
-        task_id_groups, map_index_groups = defaultdict(lambda: defaultdict(list)), defaultdict(lambda: defaultdict(list))
+        task_id_groups: dict[tuple, dict[Any, list[Any]]] = defaultdict(lambda: defaultdict(list))
+        map_index_groups: dict[tuple, dict[Any, list[Any]]] = defaultdict(lambda: defaultdict(list))
         for t in tis:
             task_id_groups[(t.dag_id, t.run_id)][t.task_id].append(t.map_index)
             map_index_groups[(t.dag_id, t.run_id)][t.map_index].append(t.task_id)
