@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Lineage apis"""
+"""Lineage APIs."""
 from __future__ import annotations
 
 import collections
