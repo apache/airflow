@@ -39,10 +39,7 @@ def variables_list(args):
     airflow_console = AirflowConsole()
     if CUSTOM_BACKEND:
         warning = warn_list_secrets_alternative_backend(cli_or_ui="cli", connection_or_variable="variable")
-        airflow_console.print(
-            f'WARNING: {warning}',
-            style="magenta",
-        )
+        airflow_console.print(f"WARNING: {warning}", style="magenta")
     with create_session() as session:
         variables = session.query(Variable)
     airflow_console.print_as(data=variables, output=args.output, mapper=lambda x: {"key": x.key})

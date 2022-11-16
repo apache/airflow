@@ -82,10 +82,7 @@ def connections_list(args):
     airflow_console = AirflowConsole()
     if CUSTOM_BACKEND:
         warning = warn_list_secrets_alternative_backend(cli_or_ui="cli", connection_or_variable="connection")
-        airflow_console.print(
-            f'WARNING: {warning}',
-            style="magenta",
-        )
+        airflow_console.print(f"WARNING: {warning}", style="magenta")
     with create_session() as session:
         query = session.query(Connection)
         if args.conn_id:
