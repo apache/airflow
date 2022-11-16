@@ -1613,7 +1613,6 @@ class DAG(LoggingMixin):
 
         # Do we want full objects, or just the primary columns?
         if as_pk_tuple:
-            # try number is needed here since its used to construct TaskInstanceKey
             tis = session.query(TI.dag_id, TI.task_id, TI.run_id, TI.map_index)
         else:
             tis = session.query(TaskInstance)
