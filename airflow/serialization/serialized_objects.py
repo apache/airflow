@@ -44,6 +44,7 @@ from airflow.models.expandinput import EXPAND_INPUT_EMPTY, ExpandInput, create_e
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.operator import Operator
 from airflow.models.param import Param, ParamsDict
+from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.models.taskmixin import DAGNode
 from airflow.models.xcom_arg import XComArg, deserialize_xcom_arg, serialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
@@ -381,7 +382,9 @@ class BaseSerialization:
         return serialized_object
 
     @classmethod
-    def serialize(cls, var: Any) -> Any:  # Unfortunately there is no support for recursive types in mypy
+    def serialize(
+        cls, var: Any, *, strict: bool = False
+    ) -> Any:  # Unfortunately there is no support for recursive types in mypy
         """Helper function of depth first search for serialization.
 
         The serialization protocol is:
@@ -400,9 +403,11 @@ class BaseSerialization:
                 return var.value
             return var
         elif isinstance(var, dict):
-            return cls._encode({str(k): cls.serialize(v) for k, v in var.items()}, type_=DAT.DICT)
+            return cls._encode(
+                {str(k): cls.serialize(v, strict=strict) for k, v in var.items()}, type_=DAT.DICT
+            )
         elif isinstance(var, list):
-            return [cls.serialize(v) for v in var]
+            return [cls.serialize(v, strict=strict) for v in var]
         elif var.__class__.__name__ == "V1Pod" and _has_kubernetes() and isinstance(var, k8s.V1Pod):
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
@@ -427,12 +432,12 @@ class BaseSerialization:
         elif isinstance(var, set):
             # FIXME: casts set to list in customized serialization in future.
             try:
-                return cls._encode(sorted(cls.serialize(v) for v in var), type_=DAT.SET)
+                return cls._encode(sorted(cls.serialize(v, strict=strict) for v in var), type_=DAT.SET)
             except TypeError:
-                return cls._encode([cls.serialize(v) for v in var], type_=DAT.SET)
+                return cls._encode([cls.serialize(v, strict=strict) for v in var], type_=DAT.SET)
         elif isinstance(var, tuple):
             # FIXME: casts tuple to list in customized serialization in future.
-            return cls._encode([cls.serialize(v) for v in var], type_=DAT.TUPLE)
+            return cls._encode([cls.serialize(v, strict=strict) for v in var], type_=DAT.TUPLE)
         elif isinstance(var, TaskGroup):
             return TaskGroupSerialization.serialize_task_group(var)
         elif isinstance(var, Param):
@@ -441,8 +446,12 @@ class BaseSerialization:
             return cls._encode(serialize_xcom_arg(var), type_=DAT.XCOM_REF)
         elif isinstance(var, Dataset):
             return cls._encode(dict(uri=var.uri, extra=var.extra), type_=DAT.DATASET)
+        elif isinstance(var, SimpleTaskInstance):
+            return cls._encode(cls.serialize(var.__dict__, strict=strict), type_=DAT.SIMPLE_TASK_INSTANCE)
         else:
             log.debug("Cast type %s to str in serialization.", type(var))
+            if strict:
+                raise SerializationError("Encountered unexpected type")
             return str(var)
 
     @classmethod
@@ -491,6 +500,8 @@ class BaseSerialization:
             return _XComRef(var)  # Delay deserializing XComArg objects until we have the entire DAG.
         elif type_ == DAT.DATASET:
             return Dataset(**var)
+        elif type_ == DAT.SIMPLE_TASK_INSTANCE:
+            return SimpleTaskInstance(**cls.deserialize(var))
         else:
             raise TypeError(f"Invalid type {type_!s} in deserialization.")
 

@@ -84,17 +84,17 @@ class TaskCallbackRequest(CallbackRequest):
         self.is_failure_callback = is_failure_callback
 
     def to_json(self) -> str:
-        dict_obj = self.__dict__.copy()
-        dict_obj["simple_task_instance"] = self.simple_task_instance.as_dict()
-        return json.dumps(dict_obj)
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        val = BaseSerialization.serialize(self.__dict__, strict=True)
+        return json.dumps(val)
 
     @classmethod
     def from_json(cls, json_str: str):
-        from airflow.models.taskinstance import SimpleTaskInstance
+        from airflow.serialization.serialized_objects import BaseSerialization
 
-        kwargs = json.loads(json_str)
-        simple_ti = SimpleTaskInstance.from_dict(obj_dict=kwargs.pop("simple_task_instance"))
-        return cls(simple_task_instance=simple_ti, **kwargs)
+        val = json.loads(json_str)
+        return cls(**BaseSerialization.deserialize(val))
 
 
 class DagCallbackRequest(CallbackRequest):

@@ -92,3 +92,39 @@ class TestCallbackRequest:
         json_str = input.to_json()
         result = TaskCallbackRequest.from_json(json_str)
         assert input == result
+
+    def test_simple_ti_roundtrip_exec_config_pod(self):
+        """A callback request including a TI with an exec config with a V1Pod should safely roundtrip."""
+        from kubernetes.client import models as k8s
+
+        from airflow.callbacks.callback_requests import TaskCallbackRequest
+        from airflow.models import TaskInstance
+        from airflow.models.taskinstance import SimpleTaskInstance
+        from airflow.operators.bash import BashOperator
+
+        test_pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="hello", namespace="ns"))
+        op = BashOperator(task_id="hi", executor_config={"pod_override": test_pod}, bash_command="hi")
+        ti = TaskInstance(task=op)
+        s = SimpleTaskInstance.from_ti(ti)
+        data = TaskCallbackRequest("hi", s).to_json()
+        actual = TaskCallbackRequest.from_json(data).simple_task_instance.executor_config["pod_override"]
+        assert actual == test_pod
+
+    def test_simple_ti_roundtrip_dates(self):
+        """A callback request including a TI with an exec config with a V1Pod should safely roundtrip."""
+        from unittest.mock import MagicMock
+
+        from airflow.callbacks.callback_requests import TaskCallbackRequest
+        from airflow.models import TaskInstance
+        from airflow.models.taskinstance import SimpleTaskInstance
+        from airflow.operators.bash import BashOperator
+
+        op = BashOperator(task_id="hi", bash_command="hi")
+        ti = TaskInstance(task=op)
+        ti.set_state("SUCCESS", session=MagicMock())
+        start_date = ti.start_date
+        end_date = ti.end_date
+        s = SimpleTaskInstance.from_ti(ti)
+        data = TaskCallbackRequest("hi", s).to_json()
+        assert TaskCallbackRequest.from_json(data).simple_task_instance.start_date == start_date
+        assert TaskCallbackRequest.from_json(data).simple_task_instance.end_date == end_date
