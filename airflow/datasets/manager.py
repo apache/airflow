@@ -53,7 +53,7 @@ class DatasetManager(LoggingMixin):
         """
         dataset_model = session.query(DatasetModel).filter(DatasetModel.uri == dataset.uri).one_or_none()
         if not dataset_model:
-            self.log.warning("DatasetModel %s not found", dataset_model)
+            self.log.warning("DatasetModel %s not found", dataset)
             return
         session.add(
             DatasetEvent(

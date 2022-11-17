@@ -81,6 +81,104 @@ To use logging from your task functions, simply import and use Python's logging 
 
 Every logging line created this way will be recorded in the task log.
 
+Passing Arbitrary Objects As Arguments
+--------------------------------------
+
+.. versionadded:: 2.5.0
+
+As mentioned TaskFlow uses XCom to pass variables to each task. This requires that variables that are used as arguments
+need to be able to be serialized. Airflow out of the box supports all built-in types (like int or str) and it
+supports objects that are decorated with ``@dataclass`` or ``@attr.define``. The following example shows the use of
+a ``Dataset``, which is ``@attr.define`` decorated, together with TaskFlow.
+
+::
+
+  Note: An additional benefit of using ``Dataset`` is that it automatically registers as an ``inlet`` in case it is used as an input argument. It also auto registers as an ``outlet`` if the return value of your task is a ``dataset`` or a ``list[Dataset]]``.
+
+.. code-block:: python
+
+    import json
+    import pendulum
+    import requests
+
+    from airflow import Dataset
+    from airflow.decorators import dag, task
+
+    SRC = Dataset("https://www.ncei.noaa.gov/access/monitoring/climate-at-a-glance/global/time-series/globe/land_ocean/ytd/12/1880-2022.json")
+    now = pendulum.now()
+
+
+    @dag(start_date=now, schedule="@daily", catchup=False)
+    def etl():
+      @task()
+      def retrieve(src: Dataset) -> dict:
+        resp = requests.get(url=src.uri)
+        data = resp.json()
+        return data["data"]
+
+      @task()
+      def to_fahrenheit(temps: dict[int, float]) -> dict[int, float]:
+        ret: dict[int, float] = {}
+        for year, celsius in temps.items():
+          ret[year] = float(celsius)*1.8+32
+
+        return ret
+
+      @task()
+      def load(fahrenheit: dict[int, float]) -> Dataset:
+        filename = "/tmp/fahrenheit.json"
+        s = json.dumps(fahrenheit)
+        f = open(filename, "w")
+        f.write(s)
+        f.close()
+
+        return Dataset(f"file:///{filename}")
+
+      data = retrieve(SRC)
+      fahrenheit = to_fahrenheit(data)
+      load(fahrenheit)
+
+    etl()
+
+Custom Objects
+^^^^^^^^^^^^^^
+It could be that you would like to pass custom objects. Typically you would decorate your classes with ``@dataclass`` or
+``@attr.define`` and Airflow will figure out what it needs to do. Sometime you might want to control serialization
+yourself. To do so add the ``serialize()`` method to your class and the staticmethod
+``deserialize(data: dict, version: int)`` to your class. Like so:
+
+.. code-block:: python
+
+    from typing import ClassVar
+
+
+    class MyCustom:
+        version: ClassVar[int] = 1
+
+        def __init__(self, x):
+            self.x = x
+
+        def serialize(self) -> dict:
+            return dict({"x": self.x})
+
+        @staticmethod
+        def deserialize(data: dict, version: int):
+            if version > 1:
+                raise TypeError(f"version > {MyCustom.version}")
+            return MyCustom(data["x"])
+
+Object Versioning
+^^^^^^^^^^^^^^^^^
+
+It is good practice to version the objects that will be used in serialization. To do this add
+``version: ClassVar[int] = <x>`` to your class. Airflow assumes that your classes are backwards compatible,
+so that a version 2 is able to deserialize a version 1. In case you need custom logic
+for deserialization ensure that ``deserialize(data: dict, version: int)`` is specified.
+
+::
+
+  Note: Typing of ``version`` is required and needs to be ``ClassVar[int]``
+
 History
 -------
 

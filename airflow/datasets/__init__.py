@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 from urllib.parse import urlsplit
 
 import attr
@@ -28,6 +28,8 @@ class Dataset:
 
     uri: str = attr.field(validator=[attr.validators.min_len(1), attr.validators.max_len(3000)])
     extra: dict[str, Any] | None = None
+
+    version: ClassVar[int] = 1
 
     @uri.validator
     def _check_uri(self, attr, uri: str):

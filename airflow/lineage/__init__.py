@@ -23,11 +23,8 @@ import logging
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
-import attr
-
 from airflow.configuration import conf
 from airflow.lineage.backend import LineageBackend
-from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -60,36 +57,6 @@ def _render_object(obj: Any, context: Context) -> dict:
     return context["ti"].task.render_template(obj, context)
 
 
-def _deserialize(serialized: dict):
-    from airflow.serialization.serialized_objects import BaseSerialization
-
-    # This is only use in the worker side, so it is okay to "blindly" import the specified class here.
-    cls = import_string(serialized["__type"])
-    return cls(**BaseSerialization.deserialize(serialized["__var"]))
-
-
-def _serialize(objs: list[Any], source: str):
-    """Serialize an attrs-decorated class to JSON."""
-    from airflow.serialization.serialized_objects import BaseSerialization
-
-    for obj in objs:
-        if not attr.has(obj):
-            continue
-
-        type_name = obj.__module__ + "." + obj.__class__.__name__
-        # Only include attributes which we can pass back to the classes constructor
-        data = attr.asdict(obj, recurse=True, filter=lambda a, v: a.init)
-
-        yield {
-            k: BaseSerialization.serialize(v)
-            for k, v in (
-                ("__type", type_name),
-                ("__source", source),
-                ("__var", data),
-            )
-        }
-
-
 T = TypeVar("T", bound=Callable)
 
 
@@ -106,10 +73,11 @@ def apply_lineage(func: T) -> T:
     def wrapper(self, context, *args, **kwargs):
 
         self.log.debug("Lineage called with inlets: %s, outlets: %s", self.inlets, self.outlets)
+
         ret_val = func(self, context, *args, **kwargs)
 
-        outlets = list(_serialize(self.outlets, f"{self.dag_id}.{self.task_id}"))
-        inlets = list(_serialize(self.inlets, None))
+        outlets = list(self.outlets)
+        inlets = list(self.inlets)
 
         if outlets:
             self.xcom_push(
@@ -169,7 +137,7 @@ def prepare_lineage(func: T) -> T:
 
             # re-instantiate the obtained inlets
             # xcom_pull returns a list of items for each given task_id
-            _inlets = [_deserialize(item) for item in itertools.chain.from_iterable(_inlets)]
+            _inlets = [item for item in itertools.chain.from_iterable(_inlets)]
 
             self.inlets.extend(_inlets)
 
@@ -185,6 +153,7 @@ def prepare_lineage(func: T) -> T:
         self.outlets = [_render_object(i, context) for i in self.outlets]
 
         self.log.debug("inlets: %s, outlets: %s", self.inlets, self.outlets)
+
         return func(self, context, *args, **kwargs)
 
     return cast(T, wrapper)
