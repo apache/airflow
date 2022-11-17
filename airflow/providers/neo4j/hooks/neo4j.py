@@ -18,7 +18,9 @@
 """This module allows to connect to a Neo4j database."""
 from __future__ import annotations
 
-from neo4j import GraphDatabase, Neo4jDriver, Result
+from typing import Any
+
+from neo4j import Driver, GraphDatabase
 
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
@@ -42,9 +44,9 @@ class Neo4jHook(BaseHook):
         super().__init__(*args, **kwargs)
         self.neo4j_conn_id = conn_id
         self.connection = kwargs.pop("connection", None)
-        self.client = None
+        self.client: Driver | None = None
 
-    def get_conn(self) -> Neo4jDriver:
+    def get_conn(self) -> Driver:
         """
         Function that initiates a new Neo4j connection
         with username, password and database schema.
@@ -93,7 +95,7 @@ class Neo4jHook(BaseHook):
 
         return f"{scheme}{encryption_scheme}://{conn.host}:{7687 if conn.port is None else conn.port}"
 
-    def run(self, query) -> Result:
+    def run(self, query) -> list[Any]:
         """
         Function to create a neo4j session
         and execute the query in the session.
