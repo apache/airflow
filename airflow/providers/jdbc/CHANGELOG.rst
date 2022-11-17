@@ -34,16 +34,16 @@ Misc
 ~~~~
 
 * ``Move min airflow version to 2.3.0 for all providers (#27196)``
-* ``Allow and prefer non-prefixed extra fields for JdbcHook (#27044)``
 
 Features
 ~~~~~~~~
 
+* ``Allow and prefer non-prefixed extra fields for JdbcHook (#27044)``
 * ``Add SQLExecuteQueryOperator (#25717)``
-* ``Look for 'extra__' instead of 'extra_' in 'get_field' (#27489)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Look for 'extra__' instead of 'extra_' in 'get_field' (#27489)``
    * ``Update old style typing (#26872)``
    * ``Enable string normalization in python formatting - providers (#27205)``
 
