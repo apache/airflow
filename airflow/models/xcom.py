@@ -21,6 +21,7 @@ import collections.abc
 import contextlib
 import datetime
 import inspect
+import itertools
 import json
 import logging
 import pickle
@@ -703,12 +704,24 @@ class LazyXComAccess(collections.abc.Sequence):
     :meta private:
     """
 
-    _query: Query = attr.ib(repr=False)
-    _len: int | None = attr.ib(init=False, repr=False, default=None)
+    _query: Query
+    _len: int | None = attr.ib(init=False, default=None)
 
     @classmethod
     def build_from_xcom_query(cls, query: Query) -> LazyXComAccess:
         return cls(query=query.with_entities(XCom.value))
+
+    def __repr__(self) -> str:
+        return f"LazyXComAccess([{len(self)} items])"
+
+    def __str__(self) -> str:
+        return str(list(self))
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, (list, LazyXComAccess)):
+            z = itertools.zip_longest(iter(self), iter(other), fillvalue=object())
+            return all(x == y for x, y in z)
+        return NotImplemented
 
     def __len__(self):
         if self._len is None:
