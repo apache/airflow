@@ -17,26 +17,28 @@
  * under the License.
  */
 
-/* global document */
+/* global document, window */
 
-import React, { useEffect } from 'react';
+import { debounce } from 'lodash';
+import React, { useEffect, useState } from 'react';
 
-const useContentHeight = (contentRef: React.RefObject<HTMLDivElement>) => {
+const footerHeight = parseInt(getComputedStyle(document.getElementsByTagName('body')[0]).paddingBottom.replace('px', ''), 10) || 0;
+
+// For an html element, keep it within view height by calculating the top offset and footer height
+const useOffsetHeight = (
+  contentRef: React.RefObject<HTMLDivElement | HTMLPreElement>,
+  minHeight: number = 300,
+) => {
+  const [height, setHeight] = useState(0);
+
   useEffect(() => {
-    const calculateHeight = () => {
+    const calculateHeight = debounce(() => {
       if (contentRef.current) {
         const topOffset = contentRef.current.offsetTop;
-        const footerHeight = parseInt(getComputedStyle(document.getElementsByTagName('body')[0]).paddingBottom.replace('px', ''), 10) || 0;
-        const newHeight = window.innerHeight - topOffset - footerHeight;
-        const newHeightPx = `${newHeight}px`;
-
-        // only set a new height if it has changed
-        if (newHeightPx !== contentRef.current.style.height) {
-          // keep a minimum usable height of 300px
-          contentRef.current.style.height = newHeight > 300 ? newHeightPx : '300px';
-        }
+        const newHeight = window.innerHeight - (topOffset + footerHeight);
+        setHeight(newHeight > minHeight ? newHeight : minHeight);
       }
-    };
+    }, 25);
     // set height on load
     calculateHeight();
 
@@ -45,7 +47,9 @@ const useContentHeight = (contentRef: React.RefObject<HTMLDivElement>) => {
     return () => {
       window.removeEventListener('resize', calculateHeight);
     };
-  }, [contentRef]);
+  }, [contentRef, minHeight]);
+
+  return height;
 };
 
-export default useContentHeight;
+export default useOffsetHeight;

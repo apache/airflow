@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useRef } from 'react';
 import {
   Table,
   Tbody,
@@ -28,6 +28,7 @@ import {
   Flex,
   Heading,
   Text,
+  Box,
 } from '@chakra-ui/react';
 import { mean } from 'lodash';
 
@@ -35,6 +36,7 @@ import { getDuration, formatDuration } from 'src/datetime_utils';
 import { finalStatesMap, getMetaValue, getTaskSummary } from 'src/utils';
 import { useGridData } from 'src/api';
 import Time from 'src/components/Time';
+import useOffsetHeight from 'src/utils/useOffsetHeight';
 import type { TaskState } from 'src/types';
 
 import { SimpleStatus } from '../StatusBox';
@@ -43,6 +45,8 @@ const dagDetailsUrl = getMetaValue('dag_details_url');
 
 const Dag = () => {
   const { data: { dagRuns, groups } } = useGridData();
+  const detailsRef = useRef<HTMLDivElement>(null);
+  const offsetHeight = useOffsetHeight(detailsRef);
 
   const taskSummary = getTaskSummary({ task: groups });
   const numMap = finalStatesMap();
@@ -89,84 +93,91 @@ const Dag = () => {
       <Button as={Link} variant="ghost" colorScheme="blue" href={dagDetailsUrl}>
         DAG Details
       </Button>
-      <Table variant="striped">
-        <Tbody>
-          {durations.length > 0 && (
-          <>
+      <Box
+        height="100%"
+        maxHeight={offsetHeight}
+        ref={detailsRef}
+        overflowY="auto"
+      >
+        <Table variant="striped">
+          <Tbody>
+            {durations.length > 0 && (
+            <>
+              <Tr borderBottomWidth={2} borderBottomColor="gray.300">
+                <Td><Heading size="sm">DAG Runs Summary</Heading></Td>
+                <Td />
+              </Tr>
+              <Tr>
+                <Td>Total Runs Displayed</Td>
+                <Td>
+                  {durations.length}
+                </Td>
+              </Tr>
+              {stateSummary}
+              {firstStart && (
+                <Tr>
+                  <Td>First Run Start</Td>
+                  <Td>
+                    <Time dateTime={firstStart} />
+                  </Td>
+                </Tr>
+              )}
+              {lastStart && (
+                <Tr>
+                  <Td>Last Run Start</Td>
+                  <Td>
+                    <Time dateTime={lastStart} />
+                  </Td>
+                </Tr>
+              )}
+              <Tr>
+                <Td>Max Run Duration</Td>
+                <Td>
+                  {formatDuration(max)}
+                </Td>
+              </Tr>
+              <Tr>
+                <Td>Mean Run Duration</Td>
+                <Td>
+                  {formatDuration(avg)}
+                </Td>
+              </Tr>
+              <Tr>
+                <Td>Min Run Duration</Td>
+                <Td>
+                  {formatDuration(min)}
+                </Td>
+              </Tr>
+            </>
+            )}
             <Tr borderBottomWidth={2} borderBottomColor="gray.300">
-              <Td><Heading size="sm">DAG Runs Summary</Heading></Td>
+              <Td>
+                <Heading size="sm">DAG Summary</Heading>
+              </Td>
               <Td />
             </Tr>
             <Tr>
-              <Td>Total Runs Displayed</Td>
-              <Td>
-                {durations.length}
-              </Td>
+              <Td>Total Tasks</Td>
+              <Td>{taskSummary.taskCount}</Td>
             </Tr>
-            {stateSummary}
-            {firstStart && (
-              <Tr>
-                <Td>First Run Start</Td>
-                <Td>
-                  <Time dateTime={firstStart} />
-                </Td>
-              </Tr>
+            {!!taskSummary.groupCount && (
+            <Tr>
+              <Td>Total Task Groups</Td>
+              <Td>{taskSummary.groupCount}</Td>
+            </Tr>
             )}
-            {lastStart && (
-              <Tr>
-                <Td>Last Run Start</Td>
+            {Object.entries(taskSummary.operators).map(([key, value]) => (
+              <Tr key={key}>
                 <Td>
-                  <Time dateTime={lastStart} />
+                  {key}
+                  {value > 1 && 's'}
                 </Td>
+                <Td>{value}</Td>
               </Tr>
-            )}
-            <Tr>
-              <Td>Max Run Duration</Td>
-              <Td>
-                {formatDuration(max)}
-              </Td>
-            </Tr>
-            <Tr>
-              <Td>Mean Run Duration</Td>
-              <Td>
-                {formatDuration(avg)}
-              </Td>
-            </Tr>
-            <Tr>
-              <Td>Min Run Duration</Td>
-              <Td>
-                {formatDuration(min)}
-              </Td>
-            </Tr>
-          </>
-          )}
-          <Tr borderBottomWidth={2} borderBottomColor="gray.300">
-            <Td>
-              <Heading size="sm">DAG Summary</Heading>
-            </Td>
-            <Td />
-          </Tr>
-          <Tr>
-            <Td>Total Tasks</Td>
-            <Td>{taskSummary.taskCount}</Td>
-          </Tr>
-          {!!taskSummary.groupCount && (
-          <Tr>
-            <Td>Total Task Groups</Td>
-            <Td>{taskSummary.groupCount}</Td>
-          </Tr>
-          )}
-          {Object.entries(taskSummary.operators).map(([key, value]) => (
-            <Tr key={key}>
-              <Td>
-                {key}
-                {value > 1 && 's'}
-              </Td>
-              <Td>{value}</Td>
-            </Tr>
-          ))}
-        </Tbody>
-      </Table>
+            ))}
+          </Tbody>
+        </Table>
+      </Box>
     </>
   );
 };

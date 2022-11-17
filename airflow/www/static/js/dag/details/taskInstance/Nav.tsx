@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React from 'react';
+import React, { forwardRef } from 'react';
 import {
   Flex,
   Divider,
@@ -50,9 +50,17 @@ interface Props {
   mapIndex?: number;
 }
 
-const Nav = ({
-  runId, taskId, executionDate, operator, isMapped = false, mapIndex,
-}: Props) => {
+const Nav = forwardRef<HTMLDivElement, Props>((
+  {
+    runId,
+    taskId,
+    executionDate,
+    operator,
+    isMapped = false,
+    mapIndex,
+  },
+  ref,
+) => {
   if (!taskId) return null;
   const params = new URLSearchParamsWrapper({
     task_id: taskId,
@@ -92,7 +100,7 @@ const Nav = ({
 
   return (
     <>
-      <Flex flexWrap="wrap">
+      <Flex flexWrap="wrap" ref={ref}>
         {(!isMapped || mapIndex !== undefined) && (
         <>
           <LinkButton href={detailsLink}>Task Instance Details</LinkButton>
@@ -113,6 +121,6 @@ const Nav = ({
       <Divider mt={3} />
     </>
   );
-};
+});
 
 export default Nav;

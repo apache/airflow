@@ -26,7 +26,6 @@ import { useSearchParams } from 'react-router-dom';
 import { Flex, Box, useDimensions } from '@chakra-ui/react';
 
 import App from 'src/App';
-import useContentHeight from 'src/utils/useContentHeight';
 
 import DatasetsList from './List';
 import DatasetDetails from './Details';
@@ -61,16 +60,14 @@ const Datasets = () => {
 
   const datasetUri = decodeURIComponent(searchParams.get(DATASET_URI) || '');
 
-  useContentHeight(contentRef);
-
   return (
     <Flex alignItems="flex-start" justifyContent="space-between" ref={contentRef}>
-      <Box minWidth="450px" height="100%" overflowY="scroll">
+      <Box minWidth="450px" height="100%" overflowY="auto">
         {datasetUri
           ? <DatasetDetails uri={datasetUri} onBack={onBack} />
           : <DatasetsList onSelect={onSelect} />}
       </Box>
-      <Box flex={1} ref={graphRef} height="100%" borderColor="gray.200" borderWidth={1}>
+      <Box flex={1} ref={graphRef} height="calc(100vh - 68px)" borderColor="gray.200" borderWidth={1}>
         <Graph
           selectedUri={datasetUri}
           onSelect={onSelect}
