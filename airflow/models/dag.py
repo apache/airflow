@@ -3311,7 +3311,7 @@ class DagModel(Base):
 
     @classmethod
     @provide_session
-    def deactivate_deleted_dags(cls, alive_dag_filelocs: list[str], session=NEW_SESSION):
+    def deactivate_deleted_dags(cls, alive_dag_filelocs: set[str], session=NEW_SESSION):
         """
         Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
 

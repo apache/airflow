@@ -39,6 +39,15 @@ from typing import Any, NamedTuple, cast
 from setproctitle import setproctitle
 from sqlalchemy.orm import Session
 from tabulate import tabulate
+from watchdog.events import (
+    FileCreatedEvent,
+    FileDeletedEvent,
+    FileModifiedEvent,
+    FileMovedEvent,
+    FileSystemEvent,
+    PatternMatchingEventHandler,
+)
+from watchdog.observers import Observer
 
 import airflow.models
 from airflow.callbacks.callback_requests import CallbackRequest, SlaCallbackRequest
@@ -380,7 +389,7 @@ class DagFileProcessorManager(LoggingMixin):
         async_mode: bool = True,
     ):
         super().__init__()
-        self._file_paths: list[str] = []
+        self._file_paths: set[str] = set()
         self._file_path_queue: list[str] = []
         self._max_runs = max_runs
         # signal_conn is None for dag_processor_standalone mode.
@@ -453,6 +462,12 @@ class DagFileProcessorManager(LoggingMixin):
             else {}
         )
 
+        dags_directory_event_handler = AirflowFileSystemEventHandler(dag_file_processor_manager=self)
+        self.observer = Observer()  # Class watching for file system changes
+        self.observer.schedule(
+            event_handler=dags_directory_event_handler, path=str(self._dag_directory), recursive=True
+        )
+
     def register_exit_signals(self):
         """Register signals that stop child processes"""
         signal.signal(signal.SIGINT, self._exit_gracefully)
@@ -485,6 +500,9 @@ class DagFileProcessorManager(LoggingMixin):
         self.log.info(
             "Checking for new files in %s every %s seconds", self._dag_directory, self.dag_dir_list_interval
         )
+
+        self.observer.start()
+        self.log.info("Started watching file changes in %s", self._dag_directory)
 
         return self._run_parsing_loop()
 
@@ -715,6 +733,41 @@ class DagFileProcessorManager(LoggingMixin):
                 ]
             self._file_path_queue.insert(0, request.full_filepath)
 
+    # def _refresh_dag_dir(self):
+    #     # Build up a list of Python files that could contain DAGs
+    #     self.log.info("Searching for files containing DAGs in %s", self._dag_directory)
+    #     self._file_paths = list_py_file_paths(self._dag_directory)
+    #     self.log.info("Found %s file(s) in %s", len(self._file_paths), self._dag_directory)
+    #     self.set_file_paths(self._file_paths)
+    #
+    #     try:
+    #         self.log.debug("Removing old import errors")
+    #         self.clear_nonexistent_import_errors()
+    #     except Exception:
+    #         self.log.exception("Error removing old import errors")
+    #
+    #     # Check if file path is a zipfile and get the full path of the Python file. Without this,
+    #     # SerializedDagModel.remove_deleted_files and DagCode.remove_deleted_code would delete zipped DAGs.
+    #     dag_filelocs = []
+    #     for fileloc in self._file_paths:
+    #         if not fileloc.endswith(".py") and zipfile.is_zipfile(fileloc):
+    #             with zipfile.ZipFile(fileloc) as z:
+    #                 dag_filelocs.extend(
+    #                     [
+    #                         os.path.join(fileloc, info.filename)
+    #                         for info in z.infolist()
+    #                         if might_contain_dag(info.filename, True, z)
+    #                     ]
+    #                 )
+    #         else:
+    #             dag_filelocs.append(fileloc)
+    #
+    #     SerializedDagModel.remove_deleted_dags(alive_dag_filelocs=dag_filelocs,processor_subdir=self.get_dag_directory())
+    #     DagModel.deactivate_deleted_dags(self._file_paths)
+    #
+    #     from airflow.models.dagcode import DagCode
+    #     DagCode.remove_deleted_code(dag_filelocs)
+
     def _refresh_dag_dir(self):
         """Refresh file paths from dag dir if we haven't done it for too long."""
         now = timezone.utcnow()
@@ -722,7 +775,7 @@ class DagFileProcessorManager(LoggingMixin):
         if elapsed_time_since_refresh > self.dag_dir_list_interval:
             # Build up a list of Python files that could contain DAGs
             self.log.info("Searching for files in %s", self._dag_directory)
-            self._file_paths = list_py_file_paths(self._dag_directory)
+            self._file_paths = set(list_py_file_paths(self._dag_directory))
             self.last_dag_dir_refresh_time = now
             self.log.info("There are %s files in %s", len(self._file_paths), self._dag_directory)
             self.set_file_paths(self._file_paths)
@@ -760,6 +813,18 @@ class DagFileProcessorManager(LoggingMixin):
 
             DagCode.remove_deleted_code(dag_filelocs)
 
+    def parse_file(self, filepath):
+        """
+
+        :param filepath:
+        :return:
+        """
+        if might_contain_dag(file_path=filepath, safe_mode=True):
+            self.log.info("Found DAG in %s, adding to collection of observed files.", filepath)
+            self._file_paths.add(filepath)
+            self._file_path_queue.append(filepath)
+            self.start_new_processes()
+
     def _print_stat(self):
         """Occasionally print out stats about how fast the files are getting processed"""
         if 0 < self.print_stats_interval < time.monotonic() - self.last_stat_print_time:
@@ -780,12 +845,11 @@ class DagFileProcessorManager(LoggingMixin):
         query.delete(synchronize_session='fetch')
         session.commit()
 
-    def _log_file_processing_stats(self, known_file_paths):
+    def _log_file_processing_stats(self, known_file_paths: set[str]):
         """
         Print out stats about how files are getting processed.
 
-        :param known_file_paths: a list of file paths that may contain Airflow
-            DAG definitions
+        :param known_file_paths: a set of file paths that may contain Airflow DAG definitions
         :return: None
         """
         # File Path: Path to the file containing the DAG definition
@@ -924,7 +988,7 @@ class DagFileProcessorManager(LoggingMixin):
         else:
             return str(self._dag_directory)
 
-    def set_file_paths(self, new_file_paths):
+    def set_file_paths(self, new_file_paths: set[str]):
         """
         Update this with a new set of paths to DAG definition files.
 
@@ -1187,3 +1251,86 @@ class DagFileProcessorManager(LoggingMixin):
     @property
     def file_paths(self):
         return self._file_paths
+
+
+class AirflowFileSystemEventHandler(PatternMatchingEventHandler, LoggingMixin):
+    """This class is responsible for handling file system events, such as a file creation."""
+
+    def __init__(self, dag_file_processor_manager: DagFileProcessorManager):
+        # Events on directories are ignored because dir events also trigger events on the nested files.
+        PatternMatchingEventHandler.__init__(
+            self, patterns=["*.py", "*.zip", "*.airflowignore"], ignore_directories=True
+        )
+        self._dag_file_processor_manager = dag_file_processor_manager
+
+    def on_any_event(self, event: FileSystemEvent):
+        """
+        General activities on any event, such as logging & metrics.
+
+        :param event: Any event on the filesystem.
+        :return:
+        """
+        self.log.debug("Registered event [%s] on: [%s]", event.event_type, event.src_path)
+
+        # https://pythonhosted.org/watchdog/api.html#event-classes
+        Stats.incr(f"dag_processing.dags_directory.events.{event.event_type}")
+
+    def on_moved(self, event: FileMovedEvent):
+        """
+        Handle file moved events, e.g. "mv dag1.py dag2.py".
+        https://pythonhosted.org/watchdog/api.html#watchdog.events.FileSystemEventHandler.on_moved
+
+        :param event:
+        :return:
+        """
+        if event.src_path.endswith((".py", ".zip")):
+            self.log.info("Detected move of %s to %s, checking for changes.", event.src_path, event.dest_path)
+        elif event.src_path.endswith(".airflowignore"):
+            self.log.info(
+                "Detected move of %s to %s, checking changes to make in the list of observed DAG files.",
+                event.src_path,
+                event.dest_path,
+            )
+
+    def on_created(self, event: FileCreatedEvent):
+        """
+        Handle file creation events.
+        https://pythonhosted.org/watchdog/api.html#watchdog.events.FileSystemEventHandler.on_created
+
+        :param event: We ignore directories so only expect type FileCreatedEvent, not DirCreatedEvent.
+        :return:
+        """
+        if event.src_path.endswith((".py", ".zip")):
+            self.log.info("Detected creation of %s, checking for DAGs", event.src_path)
+            self._dag_file_processor_manager.parse_file(event.src_path)
+        elif event.src_path.endswith(".airflowignore"):
+            self.log.info("Detected creation of %s, checking for files to ignore.", event.src_path)
+
+    def on_deleted(self, event: FileDeletedEvent):
+        """
+        Handle file deletion events.
+        https://pythonhosted.org/watchdog/api.html#watchdog.events.FileSystemEventHandler.on_deleted
+
+        :param event: We ignore directories so only expect type FileDeletedEvent, not DirDeletedEvent.
+        :return:
+        """
+        if event.src_path.endswith((".py", ".zip")):
+            self.log.info("Detected deletion of %s, checking for DAGs to delete.", event.src_path)
+        elif event.src_path.endswith(".airflowignore"):
+            self.log.info("Detected deletion of %s, checking for files to un-ignore.", event.src_path)
+
+    def on_modified(self, event: FileModifiedEvent):
+        """
+        Handle file modification events, e.g. "touch dag.py".
+        https://pythonhosted.org/watchdog/api.html#watchdog.events.FileSystemEventHandler.on_modified
+
+        :param event: We ignore directories so only expect type FileModifiedEvent, not DirModifiedEvent.
+        :return:
+        """
+        if event.src_path.endswith((".py", ".zip")):
+            self.log.info("Detected modification of %s, checking for changes.", event.src_path)
+        elif event.src_path.endswith(".airflowignore"):
+            self.log.info(
+                "Detected modification of %s, checking changes to make in the list of observed DAG files.",
+                event.src_path,
+            )
