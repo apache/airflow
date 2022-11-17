@@ -21,6 +21,7 @@ import os
 import sys
 from enum import Enum
 
+from airflow_breeze.utils.exclude_from_matrix import excluded_combos
 from airflow_breeze.utils.github_actions import get_ga_output
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -353,19 +354,46 @@ class SelectiveChecks:
 
     @cached_property
     def postgres_exclude(self) -> list[dict[str, str]]:
-        return [{"python-version": "3.7"}] if self.full_tests_needed else []
+        if not self.full_tests_needed:
+            # Only basic combination so we do not need to exclude anything
+            return []
+        return [
+            # Exclude all combinations that are repeating python/postgres versions
+            {"python-version": python_version, "postgres-version": postgres_version}
+            for python_version, postgres_version in excluded_combos(
+                CURRENT_PYTHON_MAJOR_MINOR_VERSIONS, CURRENT_POSTGRES_VERSIONS
+            )
+        ]
 
     @cached_property
     def mssql_exclude(self) -> list[dict[str, str]]:
-        return [{"python-version": "3.8"}] if self.full_tests_needed else []
+        if not self.full_tests_needed:
+            # Only basic combination so we do not need to exclude anything
+            return []
+        return [
+            # Exclude all combinations that are repeating python/mssql versions
+            {"python-version": python_version, "mssql-version": mssql_version}
+            for python_version, mssql_version in excluded_combos(
+                CURRENT_PYTHON_MAJOR_MINOR_VERSIONS, CURRENT_MSSQL_VERSIONS
+            )
+        ]
 
     @cached_property
     def mysql_exclude(self) -> list[dict[str, str]]:
-        return [{"python-version": "3.10"}] if self.full_tests_needed else []
+        if not self.full_tests_needed:
+            # Only basic combination so we do not need to exclude anything
+            return []
+        return [
+            # Exclude all combinations that are repeating python/mysql versions
+            {"python-version": python_version, "mysql-version": mysql_version}
+            for python_version, mysql_version in excluded_combos(
+                CURRENT_PYTHON_MAJOR_MINOR_VERSIONS, CURRENT_MYSQL_VERSIONS
+            )
+        ]
 
     @cached_property
     def sqlite_exclude(self) -> list[dict[str, str]]:
-        return [{"python-version": "3.9"}] if self.full_tests_needed else []
+        return []
 
     @cached_property
     def kubernetes_versions(self) -> list[str]:
