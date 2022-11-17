@@ -15,10 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Defines the base entities that can be used for providing lineage
-information.
-"""
+"""Defines base entities used for providing lineage information."""
 from __future__ import annotations
 
 from typing import Any, ClassVar
@@ -28,7 +25,7 @@ import attr
 
 @attr.s(auto_attribs=True)
 class File:
-    """File entity. Refers to a file"""
+    """File entity. Refers to a file."""
 
     template_fields: ClassVar = ("url",)
 
@@ -38,7 +35,7 @@ class File:
 
 @attr.s(auto_attribs=True, kw_only=True)
 class User:
-    """User entity. Identifies a user"""
+    """User entity. Identifies a user."""
 
     email: str = attr.ib()
     first_name: str | None = None
@@ -58,7 +55,7 @@ class Tag:
 
 @attr.s(auto_attribs=True, kw_only=True)
 class Column:
-    """Column of a Table"""
+    """Column of a Table."""
 
     name: str = attr.ib()
     description: str | None = None
@@ -74,12 +71,13 @@ class Column:
 
 
 def default_if_none(arg: bool | None) -> bool:
+    """Get default value when None."""
     return arg or False
 
 
 @attr.s(auto_attribs=True, kw_only=True)
 class Table:
-    """Table entity"""
+    """Table entity."""
 
     database: str = attr.ib()
     cluster: str = attr.ib()
