@@ -32,10 +32,10 @@ from airflow.models.dataset import (
 
 
 class TaskOutletDatasetReferenceSchema(SQLAlchemySchema):
-    """TaskOutletDatasetReference DB schema"""
+    """TaskOutletDatasetReference DB schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = TaskOutletDatasetReference
 
@@ -46,10 +46,10 @@ class TaskOutletDatasetReferenceSchema(SQLAlchemySchema):
 
 
 class DagScheduleDatasetReferenceSchema(SQLAlchemySchema):
-    """DagScheduleDatasetReference DB schema"""
+    """DagScheduleDatasetReference DB schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = DagScheduleDatasetReference
 
@@ -59,10 +59,10 @@ class DagScheduleDatasetReferenceSchema(SQLAlchemySchema):
 
 
 class DatasetSchema(SQLAlchemySchema):
-    """Dataset DB schema"""
+    """Dataset DB schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = DatasetModel
 
@@ -76,14 +76,14 @@ class DatasetSchema(SQLAlchemySchema):
 
 
 class DatasetCollection(NamedTuple):
-    """List of Datasets with meta"""
+    """List of Datasets with meta."""
 
     datasets: list[DatasetModel]
     total_entries: int
 
 
 class DatasetCollectionSchema(Schema):
-    """Dataset Collection Schema"""
+    """Dataset Collection Schema."""
 
     datasets = fields.List(fields.Nested(DatasetSchema))
     total_entries = fields.Int()
@@ -94,10 +94,10 @@ dataset_collection_schema = DatasetCollectionSchema()
 
 
 class BasicDAGRunSchema(SQLAlchemySchema):
-    """Basic Schema for DAGRun"""
+    """Basic Schema for DAGRun."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = DagRun
         dateformat = "iso"
@@ -113,10 +113,10 @@ class BasicDAGRunSchema(SQLAlchemySchema):
 
 
 class DatasetEventSchema(SQLAlchemySchema):
-    """Dataset Event DB schema"""
+    """Dataset Event DB schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = DatasetEvent
 
@@ -133,14 +133,14 @@ class DatasetEventSchema(SQLAlchemySchema):
 
 
 class DatasetEventCollection(NamedTuple):
-    """List of Dataset events with meta"""
+    """List of Dataset events with meta."""
 
     dataset_events: list[DatasetEvent]
     total_entries: int
 
 
 class DatasetEventCollectionSchema(Schema):
-    """Dataset Event Collection Schema"""
+    """Dataset Event Collection Schema."""
 
     dataset_events = fields.List(fields.Nested(DatasetEventSchema))
     total_entries = fields.Int()

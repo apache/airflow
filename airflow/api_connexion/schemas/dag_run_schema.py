@@ -36,7 +36,7 @@ from airflow.utils.types import DagRunType
 
 
 class ConfObject(fields.Field):
-    """The conf field"""
+    """The conf field."""
 
     def _serialize(self, value, attr, obj, **kwargs):
         if not value:
@@ -53,10 +53,10 @@ _MISSING = object()
 
 
 class DAGRunSchema(SQLAlchemySchema):
-    """Schema for DAGRun"""
+    """Schema for DAGRun."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = DagRun
         dateformat = "iso"
@@ -113,7 +113,7 @@ class DAGRunSchema(SQLAlchemySchema):
 
 
 class SetDagRunStateFormSchema(Schema):
-    """Schema for handling the request of setting state of DAG run"""
+    """Schema for handling the request of setting state of DAG run."""
 
     state = DagStateField(
         validate=validate.OneOf(
@@ -123,30 +123,30 @@ class SetDagRunStateFormSchema(Schema):
 
 
 class ClearDagRunStateFormSchema(Schema):
-    """Schema for handling the request of clearing a DAG run"""
+    """Schema for handling the request of clearing a DAG run."""
 
     dry_run = fields.Boolean(load_default=True)
 
 
 class DAGRunCollection(NamedTuple):
-    """List of DAGRuns with metadata"""
+    """List of DAGRuns with metadata."""
 
     dag_runs: list[DagRun]
     total_entries: int
 
 
 class DAGRunCollectionSchema(Schema):
-    """DAGRun Collection schema"""
+    """DAGRun Collection schema."""
 
     dag_runs = fields.List(fields.Nested(DAGRunSchema))
     total_entries = fields.Int()
 
 
 class DagRunsBatchFormSchema(Schema):
-    """Schema to validate and deserialize the Form(request payload) submitted to DagRun Batch endpoint"""
+    """Schema to validate and deserialize the Form(request payload) submitted to DagRun Batch endpoint."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         datetimeformat = "iso"
         strict = True
@@ -165,7 +165,7 @@ class DagRunsBatchFormSchema(Schema):
 
 
 class SetDagRunNoteFormSchema(Schema):
-    """Schema for handling the request of clearing a DAG run"""
+    """Schema for handling the request of clearing a DAG run."""
 
     notes = fields.String(allow_none=True, validate=validate.Length(max=1000))
 
