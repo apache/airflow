@@ -813,7 +813,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             DagCode.remove_deleted_code(dag_filelocs)
 
-    def parse_file(self, filepath):
+    def handle_created_file(self, filepath: str):
         """
 
         :param filepath:
@@ -824,6 +824,30 @@ class DagFileProcessorManager(LoggingMixin):
             self._file_paths.add(filepath)
             self._file_path_queue.append(filepath)
             self.start_new_processes()
+
+    def handle_deleted_file(self, filepath: str):
+        """
+
+        :param filepath:
+        :return:
+        """
+        # Can't be certain this is an observed file (might not contain an Airflow DAG).
+        self._file_paths.discard(filepath)
+
+        if filepath in self._processors:
+            self._processors[filepath].terminate()
+            self._processors.pop(filepath)
+            self.log.info("Stopping processor for %s", filepath)
+            Stats.decr("dag_processing.processes")
+
+        self._file_stats.pop(filepath, None)
+
+        SerializedDagModel.remove_deleted_file(filepath=filepath, processor_subdir=self.get_dag_directory())
+        DagModel.deactivate_dags_deleted_filepath(deleted_filepath=filepath)
+
+        from airflow.models.dagcode import DagCode
+
+        DagCode.remove_code_deleted_file(filepath)
 
     def _print_stat(self):
         """Occasionally print out stats about how fast the files are getting processed"""
@@ -1302,7 +1326,7 @@ class AirflowFileSystemEventHandler(PatternMatchingEventHandler, LoggingMixin):
         """
         if event.src_path.endswith((".py", ".zip")):
             self.log.info("Detected creation of %s, checking for DAGs", event.src_path)
-            self._dag_file_processor_manager.parse_file(event.src_path)
+            self._dag_file_processor_manager.handle_created_file(filepath=event.src_path)
         elif event.src_path.endswith(".airflowignore"):
             self.log.info("Detected creation of %s, checking for files to ignore.", event.src_path)
 
@@ -1316,6 +1340,7 @@ class AirflowFileSystemEventHandler(PatternMatchingEventHandler, LoggingMixin):
         """
         if event.src_path.endswith((".py", ".zip")):
             self.log.info("Detected deletion of %s, checking for DAGs to delete.", event.src_path)
+            self._dag_file_processor_manager.handle_deleted_file(filepath=event.src_path)
         elif event.src_path.endswith(".airflowignore"):
             self.log.info("Detected deletion of %s, checking for files to un-ignore.", event.src_path)
 

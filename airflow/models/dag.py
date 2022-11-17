@@ -3329,6 +3329,18 @@ class DagModel(Base):
                 continue
 
     @classmethod
+    @provide_session
+    def deactivate_dags_deleted_filepath(cls, deleted_filepath: str, session: Session = NEW_SESSION):
+        """
+        Set ``is_active=False`` on DAGs for which the DAG file has been removed.
+
+        :param deleted_filepath: path of the deleted file
+        :param session: ORM Session
+        """
+        log.debug("Deactivating DAGs found in %s.", deleted_filepath)
+        session.query(cls).filter(cls.fileloc == deleted_filepath).update({"is_active": False})
+
+    @classmethod
     def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, tuple[datetime, datetime]]]:
         """
         Return (and lock) a list of Dag objects that are due to create a new DagRun.

@@ -260,6 +260,25 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
+    def remove_deleted_file(cls, filepath: str, processor_subdir: str | None = None, session: Session = None):
+        """
+        Delete DAG(s) found in the given filepath.
+
+        :param filepath: path of deleted file
+        :param processor_subdir:
+        :param session: ORM Session
+        """
+        log.debug("Deleting serialized DAGs in %s", filepath)
+        session.query(cls).filter(
+            and_(
+                cls.fileloc_hash == DagCode.dag_fileloc_hash(filepath),
+                cls.fileloc == filepath,
+                or_(cls.processor_subdir.is_(None), cls.processor_subdir == processor_subdir),
+            )
+        ).delete(synchronize_session="fetch")
+
+    @classmethod
+    @provide_session
     def has_dag(cls, dag_id: str, session: Session = None) -> bool:
         """Checks a DAG exist in serialized_dag table.
 

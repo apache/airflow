@@ -141,6 +141,22 @@ class DagCode(Base):
 
     @classmethod
     @provide_session
+    def remove_code_deleted_file(cls, filepath: str, session=None):
+        """
+        Delete DagCode records for a given filepath.
+
+        :param filepath: path of deleted file
+        :param session: ORM Session
+        """
+        log.debug("Deleting DagCode where filepath = %s.", filepath)
+
+        filepath_hash = cls.dag_fileloc_hash(filepath)
+        session.query(cls).filter(cls.fileloc_hash == filepath_hash, cls.fileloc == filepath).delete(
+            synchronize_session="fetch"
+        )
+
+    @classmethod
+    @provide_session
     def has_dag(cls, fileloc: str, session=None) -> bool:
         """Checks a file exist in dag_code table.
 
