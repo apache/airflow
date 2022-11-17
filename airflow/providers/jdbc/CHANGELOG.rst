@@ -38,6 +38,9 @@ Misc
 Features
 ~~~~~~~~
 
+In JdbcHook, non-prefixed extra fields are supported and are preferred.  E.g. ``drv_path`` will
+be preferred if ``extra__jdbc__drv_path`` is also present.
+
 * ``Allow and prefer non-prefixed extra fields for JdbcHook (#27044)``
 * ``Add SQLExecuteQueryOperator (#25717)``
 
@@ -46,21 +49,6 @@ Features
    * ``Look for 'extra__' instead of 'extra_' in 'get_field' (#27489)``
    * ``Update old style typing (#26872)``
    * ``Enable string normalization in python formatting - providers (#27205)``
-
-4.0.0
-.....
-
-Breaking changes
-~~~~~~~~~~~~~~~~
-
-* This release of provider is only available for Airflow 2.3+ as explained in the Apache Airflow
-  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
-
-Misc
-~~~~
-
-* In JdbcHook, non-prefixed extra fields are supported and are preferred.  E.g. ``drv_path`` will
-  be preferred if ``extra__jdbc__drv_path`` is also present.
 
 3.2.1
 .....
