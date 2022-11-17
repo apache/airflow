@@ -41,7 +41,6 @@ def get_health() -> APIResponse:
                 scheduler_status = HEALTHY
     except Exception:
         metadatabase_status = UNHEALTHY
- 
     try:
         triggerer_job = TriggererJob.most_recent_job()
 
