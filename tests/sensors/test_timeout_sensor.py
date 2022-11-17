@@ -55,9 +55,9 @@ class TimeoutTestSensor(BaseSensorOperator):
                 started_at -= time_jump
             if (timezone.utcnow() - started_at).total_seconds() > self.timeout:
                 if self.soft_fail:
-                    raise AirflowSkipException("Snap. Time is OUT.")
+                    raise AirflowSkipException("timeout")
                 else:
-                    raise AirflowSensorTimeout("Snap. Time is OUT.")
+                    raise AirflowSensorTimeout("timeout")
             time.sleep(self.poke_interval)
         self.log.info("Success criteria met. Exiting.")
 
