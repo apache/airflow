@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Rotate Fernet key command"""
+"""Rotate Fernet key command."""
 from __future__ import annotations
 
 from airflow.models import Connection, Variable
@@ -24,7 +24,7 @@ from airflow.utils.session import create_session
 
 @cli_utils.action_cli
 def rotate_fernet_key(args):
-    """Rotates all encrypted connection credentials and variables"""
+    """Rotates all encrypted connection credentials and variables."""
     with create_session() as session:
         for conn in session.query(Connection).filter(Connection.is_encrypted | Connection.is_extra_encrypted):
             conn.rotate_fernet_key()
