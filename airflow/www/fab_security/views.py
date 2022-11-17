@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from flask import request
+from flask import flash, redirect, request
 from flask_appbuilder import expose
 from flask_appbuilder.security.decorators import has_access
 from flask_appbuilder.security.views import (
@@ -217,14 +217,22 @@ class MultiResourceUserMixin:
     @expose("/show/<pk>", methods=["GET"])
     @has_access
     def show(self, pk):
-        pk = self._deserialize_pk_if_composite(pk)
-        widgets = self._show(pk)
-        widgets["show"].template_args["actions"].pop("userinfoedit", None)
+        actions = {}
+        actions["resetpasswords"] = self.actions.get("resetpasswords")
+        item = self.datamodel.get(pk, self._base_filters)
+        if not item:
+            flash("Can't find the user information", "warning")
+            self.update_redirect()
+            return redirect(self.get_redirect())
+
+        widgets = self._get_show_widget(pk, item, actions=actions)
+        self.update_redirect()
         return self.render_template(
             self.show_template,
             pk=pk,
             title=self.show_title,
             widgets=widgets,
+            appbuilder=self.appbuilder,
             related_views=self._related_views,
         )
 
