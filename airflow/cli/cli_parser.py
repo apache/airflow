@@ -536,6 +536,11 @@ ARG_IGNORE_DEPENDS_ON_PAST = Arg(
     help="Ignore depends_on_past dependencies (but respect upstream dependencies)",
     action="store_true",
 )
+ARG_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING = Arg(
+    ("-W", "--wait-for-past-depends-before-skipping"),
+    help="Wait for past dependencies before skipping the task when --ignore-depends-on-past is not set",
+    action="store_true",
+)
 ARG_SHIP_DAG = Arg(
     ("--ship-dag",), help="Pickles (serializes) the DAG and ships it to the worker", action="store_true"
 )
@@ -1315,6 +1320,7 @@ TASKS_COMMANDS = (
             ARG_IGNORE_ALL_DEPENDENCIES,
             ARG_IGNORE_DEPENDENCIES,
             ARG_IGNORE_DEPENDS_ON_PAST,
+            ARG_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
             ARG_SHIP_DAG,
             ARG_PICKLE,
             ARG_JOB_ID,

@@ -222,6 +222,7 @@ def _run_task_by_executor(args, dag, ti):
         pickle_id=pickle_id,
         ignore_all_deps=args.ignore_all_dependencies,
         ignore_depends_on_past=args.ignore_depends_on_past,
+        wait_for_past_depends_before_skipping=args.wait_for_past_depends_before_skipping,
         ignore_task_deps=args.ignore_dependencies,
         ignore_ti_state=args.force,
         pool=args.pool,
@@ -238,6 +239,7 @@ def _run_task_by_local_task_job(args, ti):
         pickle_id=args.pickle,
         ignore_all_deps=args.ignore_all_dependencies,
         ignore_depends_on_past=args.ignore_depends_on_past,
+        wait_for_past_depends_before_skipping=args.wait_for_past_depends_before_skipping,
         ignore_task_deps=args.ignore_dependencies,
         ignore_ti_state=args.force,
         pool=args.pool,
@@ -254,6 +256,7 @@ def _run_task_by_local_task_job(args, ti):
 RAW_TASK_UNSUPPORTED_OPTION = [
     "ignore_all_dependencies",
     "ignore_depends_on_past",
+    "wait_for_past_depends_before_skipping",
     "ignore_dependencies",
     "force",
 ]

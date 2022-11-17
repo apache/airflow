@@ -555,7 +555,7 @@ class TaskInstance(Base, LoggingMixin):
         ignore_all_deps=False,
         ignore_task_deps=False,
         ignore_depends_on_past=False,
-        ignore_depends_on_past_for_skipping=True,
+        wait_for_past_depends_before_skipping=False,
         ignore_ti_state=False,
         local=False,
         pickle_id=None,
@@ -597,7 +597,7 @@ class TaskInstance(Base, LoggingMixin):
             ignore_all_deps=ignore_all_deps,
             ignore_task_deps=ignore_task_deps,
             ignore_depends_on_past=ignore_depends_on_past,
-            ignore_depends_on_past_for_skipping=ignore_depends_on_past_for_skipping,
+            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
             ignore_ti_state=ignore_ti_state,
             local=local,
             pickle_id=pickle_id,
@@ -617,7 +617,7 @@ class TaskInstance(Base, LoggingMixin):
         mark_success: bool = False,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
-        ignore_depends_on_past_for_skipping: bool = True,
+        wait_for_past_depends_before_skipping: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         local: bool = False,
@@ -640,7 +640,7 @@ class TaskInstance(Base, LoggingMixin):
             Overrides the other ignore_* parameters.
         :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs
             (e.g. for Backfills)
-        :param ignore_depends_on_past_for_skipping: Ignore depends_on_past before marking the ti as skipped
+        :param wait_for_past_depends_before_skipping: Wait for past depends before marking the ti as skipped
         :param ignore_task_deps: Ignore task-specific dependencies such as depends_on_past
             and trigger rule
         :param ignore_ti_state: Ignore the task instance's previous failure/success
@@ -667,8 +667,8 @@ class TaskInstance(Base, LoggingMixin):
             cmd.extend(["--ignore-dependencies"])
         if ignore_depends_on_past:
             cmd.extend(["--ignore-depends-on-past"])
-        if ignore_depends_on_past_for_skipping:
-            cmd.extend(["--ignore_depends-on-past-for-skipping"])
+        if wait_for_past_depends_before_skipping:
+            cmd.extend(["--wait-for-past-depends-before-skipping"])
         if ignore_ti_state:
             cmd.extend(["--force"])
         if local:
@@ -1167,7 +1167,7 @@ class TaskInstance(Base, LoggingMixin):
         verbose: bool = True,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
-        ignore_depends_on_past_for_skipping: bool = True,
+        wait_for_past_depends_before_skipping: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
@@ -1185,7 +1185,7 @@ class TaskInstance(Base, LoggingMixin):
         :param verbose: whether to turn on more verbose logging
         :param ignore_all_deps: Ignore all of the non-critical dependencies, just runs
         :param ignore_depends_on_past: Ignore depends_on_past DAG attribute
-        :param ignore_depends_on_past_for_skipping: Ignore depends_on_past before mark the ti as skipped
+        :param wait_for_past_depends_before_skipping: Wait for past depends before mark the ti as skipped
         :param ignore_task_deps: Don't check the dependencies of this TaskInstance's task
         :param ignore_ti_state: Disregards previous task instance state
         :param mark_success: Don't run the task, mark its state as success
@@ -1218,7 +1218,7 @@ class TaskInstance(Base, LoggingMixin):
                 ignore_all_deps=ignore_all_deps,
                 ignore_ti_state=ignore_ti_state,
                 ignore_depends_on_past=ignore_depends_on_past,
-                ignore_depends_on_past_for_skipping=ignore_depends_on_past_for_skipping,
+                wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
                 ignore_task_deps=ignore_task_deps,
             )
             if not self.are_dependencies_met(
@@ -1246,7 +1246,7 @@ class TaskInstance(Base, LoggingMixin):
                 deps=REQUEUEABLE_DEPS,
                 ignore_all_deps=ignore_all_deps,
                 ignore_depends_on_past=ignore_depends_on_past,
-                ignore_depends_on_past_for_skipping=ignore_depends_on_past_for_skipping,
+                wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
                 ignore_task_deps=ignore_task_deps,
                 ignore_ti_state=ignore_ti_state,
             )
@@ -1633,7 +1633,7 @@ class TaskInstance(Base, LoggingMixin):
         verbose: bool = True,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
-        ignore_depends_on_past_for_skipping: bool = True,
+        wait_for_past_depends_before_skipping: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
@@ -1647,7 +1647,7 @@ class TaskInstance(Base, LoggingMixin):
             verbose=verbose,
             ignore_all_deps=ignore_all_deps,
             ignore_depends_on_past=ignore_depends_on_past,
-            ignore_depends_on_past_for_skipping=ignore_depends_on_past_for_skipping,
+            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
             ignore_task_deps=ignore_task_deps,
             ignore_ti_state=ignore_ti_state,
             mark_success=mark_success,

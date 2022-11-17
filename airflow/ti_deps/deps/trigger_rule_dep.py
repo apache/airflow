@@ -203,7 +203,7 @@ class TriggerRuleDep(BaseTIDep):
                     new_state = State.SKIPPED
 
         if new_state is not None:
-            if new_state == State.SKIPPED and not dep_context.ignore_depends_on_past_for_skipping:
+            if new_state == State.SKIPPED and dep_context.wait_for_past_depends_before_skipping:
                 past_depends_met = ti.xcom_pull(
                     task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False
                 )
