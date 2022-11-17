@@ -18,9 +18,7 @@
 from __future__ import annotations
 
 import datetime
-import functools
 import inspect
-import operator
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
 from airflow.compat.functools import cache, cached_property
@@ -286,12 +284,21 @@ class AbstractOperator(LoggingMixin, DAGNode):
         )
 
     def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
-        """Return mapped task groups this task belongs to."""
+        """Return mapped task groups this task belongs to.
+
+        Groups are returned from the closest to the outmost.
+
+        :meta private:
+        """
         parent = self.task_group
         while parent is not None:
             if isinstance(parent, MappedTaskGroup):
                 yield parent
             parent = parent.task_group
+
+    def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
+        """:meta private:"""
+        return next(self.iter_mapped_task_groups(), None)
 
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
         """Get the "normal" operator from current abstract operator.
@@ -399,11 +406,10 @@ class AbstractOperator(LoggingMixin, DAGNode):
             mapped task groups.
         :return: Total number of mapped TIs this task should have.
         """
-        mapped_task_groups = list(self.iter_mapped_task_groups())
-        if not mapped_task_groups:
+        group = self.get_closest_mapped_task_group()
+        if group is None:
             raise NotMapped
-        counts = (g.get_parse_time_mapped_ti_count() for g in mapped_task_groups)
-        return functools.reduce(operator.mul, counts)
+        return group.get_parse_time_mapped_ti_count()
 
     def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
         """Number of mapped TaskInstances that can be created at run time.
@@ -418,11 +424,10 @@ class AbstractOperator(LoggingMixin, DAGNode):
             mapped task groups.
         :return: Total number of mapped TIs this task should have.
         """
-        mapped_task_groups = list(self.iter_mapped_task_groups())
-        if not mapped_task_groups:
+        group = self.get_closest_mapped_task_group()
+        if group is None:
             raise NotMapped
-        counts = (g.get_mapped_ti_count(run_id, session=session) for g in mapped_task_groups)
-        return functools.reduce(operator.mul, counts)
+        return group.get_mapped_ti_count(run_id, session=session)
 
     def expand_mapped_task(self, run_id: str, *, session: Session) -> tuple[Sequence[TaskInstance], int]:
         """Create the mapped task instances for mapped task.
