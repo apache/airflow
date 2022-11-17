@@ -132,7 +132,7 @@ def apply_lineage(func: T) -> T:
 def prepare_lineage(func: T) -> T:
     """
     Prepares the lineage inlets and outlets.
-    
+
     Inlets can be:
 
     * "auto" -> picks up any outlets from direct upstream tasks that have outlets defined, as such that
