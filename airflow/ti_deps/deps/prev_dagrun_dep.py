@@ -35,22 +35,27 @@ class PrevDagrunDep(BaseTIDep):
     IGNORABLE = True
     IS_TASK_DEP = True
 
+    @staticmethod
+    def _push_past_deps_met_xcom_if_needed(ti: TI, dep_context):
+        if dep_context.wait_for_past_depends_before_skipping:
+            ti.xcom_push(key=PAST_DEPENDS_MET, value=True)
+
     @provide_session
     def _get_dep_statuses(self, ti: TI, session, dep_context):
         if dep_context.ignore_depends_on_past:
-            ti.xcom_push(key=PAST_DEPENDS_MET, value=True)
+            self._push_past_deps_met_xcom_if_needed(ti, dep_context)
             reason = "The context specified that the state of past DAGs could be ignored."
             yield self._passing_status(reason=reason)
             return
 
         if not ti.task.depends_on_past:
-            ti.xcom_push(key=PAST_DEPENDS_MET, value=True)
+            self._push_past_deps_met_xcom_if_needed(ti, dep_context)
             yield self._passing_status(reason="The task did not have depends_on_past set.")
             return
 
         dr = ti.get_dagrun(session=session)
         if not dr:
-            ti.xcom_push(key=PAST_DEPENDS_MET, value=True)
+            self._push_past_deps_met_xcom_if_needed(ti, dep_context)
             yield self._passing_status(reason="This task instance does not belong to a DAG.")
             return
 
@@ -63,13 +68,13 @@ class PrevDagrunDep(BaseTIDep):
 
         # First ever run for this DAG.
         if not last_dagrun:
-            ti.xcom_push(key=PAST_DEPENDS_MET, value=True)
+            self._push_past_deps_met_xcom_if_needed(ti, dep_context)
             yield self._passing_status(reason="This task instance was the first task instance for its task.")
             return
 
         # There was a DAG run, but the task wasn't active back then.
         if catchup and last_dagrun.execution_date < ti.task.start_date:
-            ti.xcom_push(key=PAST_DEPENDS_MET, value=True)
+            self._push_past_deps_met_xcom_if_needed(ti, dep_context)
             yield self._passing_status(reason="This task instance was the first task instance for its task.")
             return
 
@@ -87,7 +92,7 @@ class PrevDagrunDep(BaseTIDep):
                     > 0
                 )
                 if not has_historical_ti:
-                    ti.xcom_push(key=PAST_DEPENDS_MET, value=True)
+                    self._push_past_deps_met_xcom_if_needed(ti, dep_context)
                     yield self._passing_status(
                         reason="ignore_first_depends_on_past is true for this task "
                         "and it is the first task instance for its task."
