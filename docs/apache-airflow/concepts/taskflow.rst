@@ -108,7 +108,7 @@ a ``Dataset``, which is ``@attr.define`` decorated, together with TaskFlow.
     now = pendulum.now()
 
 
-    @dag(start_date=now, schedule="daily", catchup=False)
+    @dag(start_date=now, schedule="@daily", catchup=False)
     def etl():
       @task()
       def retrieve(src: Dataset) -> dict:
