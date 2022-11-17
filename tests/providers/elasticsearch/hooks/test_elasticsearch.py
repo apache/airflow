@@ -127,7 +127,7 @@ class MockElasticsearch:
 
 
 class TestElasticsearchPythonHook:
-    def setup(self):
+    def setup_method(self):
         self.elasticsearch_hook = ElasticsearchPythonHook(hosts=["http://localhost:9200"])
 
     def test_client(self):

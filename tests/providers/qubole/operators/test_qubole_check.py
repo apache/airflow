@@ -48,7 +48,7 @@ from airflow.providers.qubole.operators.qubole_check import (
     ],
 )
 class TestQuboleCheckMixin:
-    def setup(self):
+    def setup_method(self):
         self.task_id = "test_task"
 
     def __construct_operator(self, operator_class, **kwargs):
