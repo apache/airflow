@@ -61,6 +61,8 @@ class CallbackRequest:
 
 class TaskCallbackRequest(CallbackRequest):
     """
+    Task callback status information.
+
     A Class with information about the success/failure TI callback to be executed. Currently, only failure
     callbacks (when tasks are externally killed) and Zombies are run via DagFileProcessorProcess.
 

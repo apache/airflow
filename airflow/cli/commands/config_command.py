@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Config sub-commands"""
+"""Config sub-commands."""
 from __future__ import annotations
 
 import io
@@ -28,7 +28,7 @@ from airflow.utils.code_utils import get_terminal_formatter
 
 
 def show_config(args):
-    """Show current application configuration"""
+    """Show current application configuration."""
     with io.StringIO() as output:
         conf.write(output)
         code = output.getvalue()
@@ -38,7 +38,7 @@ def show_config(args):
 
 
 def get_value(args):
-    """Get one value from configuration"""
+    """Get one value from configuration."""
     if not conf.has_section(args.section):
         raise SystemExit(f"The section [{args.section}] is not found in config.")
 

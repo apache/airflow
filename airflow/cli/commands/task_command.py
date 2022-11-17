@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Task sub-commands"""
+"""Task sub-commands."""
 from __future__ import annotations
 
 import datetime
@@ -146,7 +146,7 @@ def _get_ti(
     create_if_necessary: CreateIfNecessary = False,
     session: Session = NEW_SESSION,
 ) -> tuple[TaskInstance, bool]:
-    """Get the task instance through DagRun.run_id, if that fails, get the TI the old way"""
+    """Get the task instance through DagRun.run_id, if that fails, get the TI the old way."""
     if not exec_date_or_run_id and not create_if_necessary:
         raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
     if task.is_mapped:
@@ -179,7 +179,9 @@ def _get_ti(
 
 def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None:
     """
-    Runs the task in one of 3 modes
+    Runs the task based on a mode.
+
+    Any of the 3 modes are available:
 
     - using LocalTaskJob
     - as raw task
@@ -195,8 +197,9 @@ def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None:
 
 def _run_task_by_executor(args, dag, ti):
     """
-    Sends the task to the executor for execution. This can result in the task being started by another host
-    if the executor implementation does
+    Sends the task to the executor for execution.
+
+    This can result in the task being started by another host if the executor implementation does.
     """
     pickle_id = None
     if args.ship_dag:
@@ -231,7 +234,7 @@ def _run_task_by_executor(args, dag, ti):
 
 
 def _run_task_by_local_task_job(args, ti):
-    """Run LocalTaskJob, which monitors the raw task execution process"""
+    """Run LocalTaskJob, which monitors the raw task execution process."""
     run_job = LocalTaskJob(
         task_instance=ti,
         mark_success=args.mark_success,
@@ -260,7 +263,7 @@ RAW_TASK_UNSUPPORTED_OPTION = [
 
 
 def _run_raw_task(args, ti: TaskInstance) -> None:
-    """Runs the main task handling code"""
+    """Runs the main task handling code."""
     ti._run_raw_task(
         mark_success=args.mark_success,
         job_id=args.job_id,
@@ -276,7 +279,8 @@ def _extract_external_executor_id(args) -> str | None:
 
 @contextmanager
 def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
-    """Manage logging context for a task run
+    """
+    Manage logging context for a task run.
 
     - Replace the root logger configuration with the airflow.task configuration
       so we can capture logs from any custom loggers used in the task.
@@ -311,7 +315,8 @@ def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
 
 @cli_utils.action_cli(check_db=False)
 def task_run(args, dag=None):
-    """Run a single task instance.
+    """
+    Run a single task instance.
 
     Note that there must be at least one DagRun for this to start,
     i.e. it must have been scheduled and/or triggered previously.
@@ -385,6 +390,8 @@ def task_run(args, dag=None):
 @cli_utils.action_cli(check_db=False)
 def task_failed_deps(args):
     """
+    Get task instance dependencies that were not met.
+
     Returns the unmet dependencies for a task instance from the perspective of the
     scheduler (i.e. why a task instance doesn't get scheduled and then queued by the
     scheduler, and then run by an executor).
@@ -426,7 +433,7 @@ def task_state(args):
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
 def task_list(args, dag=None):
-    """Lists the tasks within a DAG at the command line"""
+    """Lists the tasks within a DAG at the command line."""
     dag = dag or get_dag(args.subdir, args.dag_id)
     if args.tree:
         dag.tree_view()
@@ -445,8 +452,9 @@ SUPPORTED_DEBUGGER_MODULES: list[str] = [
 
 def _guess_debugger():
     """
-    Trying to guess the debugger used by the user. When it doesn't find any user-installed debugger,
-    returns ``pdb``.
+    Trying to guess the debugger used by the user.
+
+    When it doesn't find any user-installed debugger, returns ``pdb``.
 
     List of supported debuggers:
 
@@ -467,7 +475,7 @@ def _guess_debugger():
 @suppress_logs_and_warning
 @provide_session
 def task_states_for_dag_run(args, session=None):
-    """Get the status of all task instances in a DagRun"""
+    """Get the status of all task instances in a DagRun."""
     dag_run = (
         session.query(DagRun)
         .filter(DagRun.run_id == args.execution_date_or_run_id, DagRun.dag_id == args.dag_id)
@@ -510,7 +518,7 @@ def task_states_for_dag_run(args, session=None):
 
 @cli_utils.action_cli(check_db=False)
 def task_test(args, dag=None):
-    """Tests task for a given dag_id"""
+    """Tests task for a given dag_id."""
     # We want to log output from operators etc to show up here. Normally
     # airflow.task would redirect to a file, but here we want it to propagate
     # up to the normal airflow handler.
@@ -571,7 +579,7 @@ def task_test(args, dag=None):
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
 def task_render(args):
-    """Renders and displays templated fields for a given task"""
+    """Renders and displays templated fields for a given task."""
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(
@@ -592,7 +600,7 @@ def task_render(args):
 
 @cli_utils.action_cli(check_db=False)
 def task_clear(args):
-    """Clears all task instances or only those matched by regex for a DAG(s)"""
+    """Clears all task instances or only those matched by regex for a DAG(s)."""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
 
     if args.dag_id and not args.subdir and not args.dag_regex and not args.task_regex:

@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""User sub-commands"""
+"""User sub-commands."""
 from __future__ import annotations
 
 import functools
@@ -36,7 +36,7 @@ from airflow.www.app import cached_app
 
 
 class UserSchema(Schema):
-    """user collection item schema"""
+    """user collection item schema."""
 
     id = fields.Int()
     firstname = fields.Str(required=True)
@@ -48,7 +48,7 @@ class UserSchema(Schema):
 
 @suppress_logs_and_warning
 def users_list(args):
-    """Lists users at the command line"""
+    """Lists users at the command line."""
     appbuilder = cached_app().appbuilder
     users = appbuilder.sm.get_all_users()
     fields = ["id", "username", "email", "first_name", "last_name", "roles"]
@@ -60,7 +60,7 @@ def users_list(args):
 
 @cli_utils.action_cli(check_db=True)
 def users_create(args):
-    """Creates new user in the DB"""
+    """Creates new user in the DB."""
     appbuilder = cached_app().appbuilder
     role = appbuilder.sm.find_role(args.role)
     if not role:
@@ -104,7 +104,7 @@ def _find_user(args):
 
 @cli_utils.action_cli
 def users_delete(args):
-    """Deletes user from DB"""
+    """Deletes user from DB."""
     user = _find_user(args)
 
     appbuilder = cached_app().appbuilder
@@ -117,7 +117,7 @@ def users_delete(args):
 
 @cli_utils.action_cli
 def users_manage_role(args, remove=False):
-    """Deletes or appends user roles"""
+    """Deletes or appends user roles."""
     user = _find_user(args)
 
     appbuilder = cached_app().appbuilder
@@ -144,7 +144,7 @@ def users_manage_role(args, remove=False):
 
 
 def users_export(args):
-    """Exports all users to the json file"""
+    """Exports all users to the json file."""
     appbuilder = cached_app().appbuilder
     users = appbuilder.sm.get_all_users()
     fields = ["id", "username", "email", "first_name", "last_name", "roles"]
@@ -171,7 +171,7 @@ def users_export(args):
 
 @cli_utils.action_cli
 def users_import(args):
-    """Imports users from the json file"""
+    """Imports users from the json file."""
     json_file = getattr(args, "import")
     if not os.path.exists(json_file):
         raise SystemExit(f"File '{json_file}' does not exist")

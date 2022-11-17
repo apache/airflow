@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Connection sub-commands"""
+"""Connection sub-commands."""
 from __future__ import annotations
 
 import io
@@ -74,7 +74,7 @@ def connections_get(args):
 
 @suppress_logs_and_warning
 def connections_list(args):
-    """Lists all connections at the command line"""
+    """Lists all connections at the command line."""
     with create_session() as session:
         query = session.query(Connection)
         if args.conn_id:
@@ -132,7 +132,7 @@ def _is_stdout(fileio: io.TextIOWrapper) -> bool:
 
 
 def _valid_uri(uri: str) -> bool:
-    """Check if a URI is valid, by checking if both scheme and netloc are available"""
+    """Check if a URI is valid, by checking if both scheme and netloc are available."""
     uri_parts = urlsplit(uri)
     return uri_parts.scheme != "" and uri_parts.netloc != ""
 
@@ -149,7 +149,7 @@ def _get_connection_types() -> list[str]:
 
 
 def connections_export(args):
-    """Exports all connections to a file"""
+    """Exports all connections to a file."""
     file_formats = [".yaml", ".json", ".env"]
     if args.format:
         warnings.warn("Option `--format` is deprecated.  Use `--file-format` instead.", DeprecationWarning)
@@ -199,7 +199,7 @@ alternative_conn_specs = ["conn_type", "conn_host", "conn_login", "conn_password
 
 @cli_utils.action_cli
 def connections_add(args):
-    """Adds new connection"""
+    """Adds new connection."""
     has_uri = bool(args.conn_uri)
     has_json = bool(args.conn_json)
     has_type = bool(args.conn_type)
@@ -284,7 +284,7 @@ def connections_add(args):
 
 @cli_utils.action_cli
 def connections_delete(args):
-    """Deletes connection from DB"""
+    """Deletes connection from DB."""
     with create_session() as session:
         try:
             to_delete = session.query(Connection).filter(Connection.conn_id == args.conn_id).one()
@@ -299,7 +299,7 @@ def connections_delete(args):
 
 @cli_utils.action_cli(check_db=False)
 def connections_import(args):
-    """Imports connections from a file"""
+    """Imports connections from a file."""
     if os.path.exists(args.file):
         _import_helper(args.file)
     else:

@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""DagProcessor command"""
+"""DagProcessor command."""
 from __future__ import annotations
 
 import logging
@@ -47,7 +47,7 @@ def _create_dag_processor_manager(args) -> DagFileProcessorManager:
 
 @cli_utils.action_cli
 def dag_processor(args):
-    """Starts Airflow Dag Processor Job"""
+    """Starts Airflow Dag Processor Job."""
     if not conf.getboolean("scheduler", "standalone_dag_processor"):
         raise SystemExit("The option [scheduler/standalone_dag_processor] must be True.")
 

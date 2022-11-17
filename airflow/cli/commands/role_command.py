@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Roles sub-commands"""
+"""Roles sub-commands."""
 from __future__ import annotations
 
 import collections
@@ -33,7 +33,7 @@ from airflow.www.security import EXISTING_ROLES, AirflowSecurityManager
 
 @suppress_logs_and_warning
 def roles_list(args):
-    """Lists all existing roles"""
+    """Lists all existing roles."""
     appbuilder = cached_app().appbuilder
     roles = appbuilder.sm.get_all_roles()
 
@@ -58,7 +58,7 @@ def roles_list(args):
 @cli_utils.action_cli
 @suppress_logs_and_warning
 def roles_create(args):
-    """Creates new empty role in DB"""
+    """Creates new empty role in DB."""
     appbuilder = cached_app().appbuilder
     for role_name in args.role:
         appbuilder.sm.add_role(role_name)
@@ -68,7 +68,7 @@ def roles_create(args):
 @cli_utils.action_cli
 @suppress_logs_and_warning
 def roles_delete(args):
-    """Deletes role in DB"""
+    """Deletes role in DB."""
     appbuilder = cached_app().appbuilder
 
     for role_name in args.role:
@@ -133,21 +133,22 @@ def __roles_add_or_remove_permissions(args):
 @cli_utils.action_cli
 @suppress_logs_and_warning
 def roles_add_perms(args):
-    """Adds permissions to role in DB"""
+    """Adds permissions to role in DB."""
     __roles_add_or_remove_permissions(args)
 
 
 @cli_utils.action_cli
 @suppress_logs_and_warning
 def roles_del_perms(args):
-    """Deletes permissions from role in DB"""
+    """Deletes permissions from role in DB."""
     __roles_add_or_remove_permissions(args)
 
 
 @suppress_logs_and_warning
 def roles_export(args):
     """
-    Exports all the roles from the data base to a file.
+    Exports all the roles from the database to a file.
+
     Note, this function does not export the permissions associated for each role.
     Strictly, it exports the role names into the passed role json file.
     """
@@ -166,6 +167,7 @@ def roles_export(args):
 def roles_import(args):
     """
     Import all the roles into the db from the given json file.
+
     Note, this function does not import the permissions for different roles and import them as well.
     Strictly, it imports the role names in the role json file passed.
     """

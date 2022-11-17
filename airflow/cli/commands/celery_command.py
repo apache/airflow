@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Celery command"""
+"""Celery command."""
 from __future__ import annotations
 
 from multiprocessing import Process
@@ -39,7 +39,7 @@ WORKER_PROCESS_NAME = "worker"
 
 @cli_utils.action_cli
 def flower(args):
-    """Starts Flower, Celery monitoring tool"""
+    """Starts Flower, Celery monitoring tool."""
     options = [
         "flower",
         conf.get("celery", "BROKER_URL"),
@@ -84,7 +84,7 @@ def flower(args):
 
 
 def _serve_logs(skip_serve_logs: bool = False) -> Process | None:
-    """Starts serve_logs sub-process"""
+    """Starts serve_logs sub-process."""
     if skip_serve_logs is False:
         sub_proc = Process(target=serve_logs)
         sub_proc.start()
@@ -103,7 +103,7 @@ def _run_worker(options, skip_serve_logs):
 
 @cli_utils.action_cli
 def worker(args):
-    """Starts Airflow Celery worker"""
+    """Starts Airflow Celery worker."""
     # Disable connection pool so that celery worker does not hold an unnecessary db connection
     settings.reconfigure_orm(disable_connection_pool=True)
     if not settings.validate_session():
@@ -205,7 +205,7 @@ def worker(args):
 
 @cli_utils.action_cli
 def stop_worker(args):
-    """Sends SIGTERM to Celery worker"""
+    """Sends SIGTERM to Celery worker."""
     # Read PID from file
     if args.pid:
         pid_file_path = args.pid
