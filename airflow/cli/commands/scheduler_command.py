@@ -74,7 +74,7 @@ def scheduler(args):
 
 
 @contextmanager
-def _serve_logs(skip_serve_logs: bool = False) -> Process | None:
+def _serve_logs(skip_serve_logs: bool = False):
     """Starts serve_logs sub-process."""
     from airflow.configuration import conf
     from airflow.utils.serve_logs import serve_logs
@@ -90,7 +90,7 @@ def _serve_logs(skip_serve_logs: bool = False) -> Process | None:
 
 
 @contextmanager
-def _serve_health_check(enable_health_check: bool = False) -> Process | None:
+def _serve_health_check(enable_health_check: bool = False):
     """Starts serve_health_check sub-process."""
     sub_proc = None
     if enable_health_check:

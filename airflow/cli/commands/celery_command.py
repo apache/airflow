@@ -85,7 +85,7 @@ def flower(args):
 
 
 @contextmanager
-def _serve_logs(skip_serve_logs: bool = False) -> Process | None:
+def _serve_logs(skip_serve_logs: bool = False):
     """Starts serve_logs sub-process."""
     sub_proc = None
     if skip_serve_logs is False:
