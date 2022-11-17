@@ -1,0 +1,6 @@
+XCom API endpoint no longer supports ``deserialize`` option
+
+For security reasons the XCom API no longer supports the ``deserialize`` option
+to deserialize arbitrary XCom values in the webserver. Custom XCom backend can
+implement their own ``orm_deserialize_value`` if required. However it is strongly
+suggested to deserialize on the client side.

@@ -185,8 +185,6 @@ class TestGetXComEntry(TestXComEndpoint):
     @pytest.mark.parametrize(
         "query, expected_value",
         [
-            pytest.param("?deserialize=true", "real deserialized TEST_VALUE", id="true"),
-            pytest.param("?deserialize=false", "orm deserialized TEST_VALUE", id="false"),
             pytest.param("", "orm deserialized TEST_VALUE", id="default"),
         ],
     )
