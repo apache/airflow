@@ -31,7 +31,7 @@ LINE_SEP = "\n"  # `\n` cannot appear in f-strings
 
 
 def _conf_dict_to_config(conf_dict: dict) -> Config:
-    """Convert config dict to a Config object"""
+    """Convert config dict to a Config object."""
     config = Config(
         sections=[
             ConfigSection(
@@ -44,12 +44,12 @@ def _conf_dict_to_config(conf_dict: dict) -> Config:
 
 
 def _option_to_text(config_option: ConfigOption) -> str:
-    """Convert a single config option to text"""
+    """Convert a single config option to text."""
     return f"{config_option.key} = {config_option.value}"
 
 
 def _section_to_text(config_section: ConfigSection) -> str:
-    """Convert a single config section to text"""
+    """Convert a single config section to text."""
     return (
         f"[{config_section.name}]{LINE_SEP}"
         f"{LINE_SEP.join(_option_to_text(option) for option in config_section.options)}{LINE_SEP}"
@@ -57,12 +57,12 @@ def _section_to_text(config_section: ConfigSection) -> str:
 
 
 def _config_to_text(config: Config) -> str:
-    """Convert the entire config to text"""
+    """Convert the entire config to text."""
     return LINE_SEP.join(_section_to_text(s) for s in config.sections)
 
 
 def _config_to_json(config: Config) -> str:
-    """Convert a Config object to a JSON formatted string"""
+    """Convert a Config object to a JSON formatted string."""
     return json.dumps(config_schema.dump(config), indent=4)
 
 

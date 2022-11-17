@@ -27,7 +27,7 @@ from airflow.security import permissions
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN)])
 @format_parameters({"limit": check_limit})
 def get_plugins(*, limit: int, offset: int = 0) -> APIResponse:
-    """Get plugins endpoint"""
+    """Get plugins endpoint."""
     plugins_info = get_plugin_info()
     collection = PluginCollection(plugins=plugins_info[offset:][:limit], total_entries=len(plugins_info))
     return plugin_collection_schema.dump(collection)

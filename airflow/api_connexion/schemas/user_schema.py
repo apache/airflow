@@ -27,10 +27,10 @@ from airflow.www.fab_security.sqla.models import User
 
 
 class UserCollectionItemSchema(SQLAlchemySchema):
-    """user collection item schema"""
+    """user collection item schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = User
         dateformat = "iso"
@@ -49,20 +49,20 @@ class UserCollectionItemSchema(SQLAlchemySchema):
 
 
 class UserSchema(UserCollectionItemSchema):
-    """User schema"""
+    """User schema."""
 
     password = auto_field(load_only=True)
 
 
 class UserCollection(NamedTuple):
-    """User collection"""
+    """User collection."""
 
     users: list[User]
     total_entries: int
 
 
 class UserCollectionSchema(Schema):
-    """User collection schema"""
+    """User collection schema."""
 
     users = fields.List(fields.Nested(UserCollectionItemSchema))
     total_entries = fields.Int()

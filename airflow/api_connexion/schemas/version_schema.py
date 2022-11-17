@@ -20,7 +20,7 @@ from marshmallow import Schema, fields
 
 
 class VersionInfoSchema(Schema):
-    """Version information schema"""
+    """Version information schema."""
 
     version = fields.String(dump_only=True)
     git_version = fields.String(dump_only=True)

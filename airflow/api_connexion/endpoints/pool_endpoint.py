@@ -38,7 +38,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_POOL)])
 @provide_session
 def delete_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIResponse:
-    """Delete a pool"""
+    """Delete a pool."""
     if pool_name == "default_pool":
         raise BadRequest(detail="Default Pool can't be deleted")
     affected_count = session.query(Pool).filter(Pool.pool == pool_name).delete()
@@ -50,7 +50,7 @@ def delete_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIRespons
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL)])
 @provide_session
 def get_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIResponse:
-    """Get a pool"""
+    """Get a pool."""
     obj = session.query(Pool).filter(Pool.pool == pool_name).one_or_none()
     if obj is None:
         raise NotFound(detail=f"Pool with name:'{pool_name}' not found")
@@ -67,7 +67,7 @@ def get_pools(
     offset: int | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get all pools"""
+    """Get all pools."""
     to_replace = {"name": "pool"}
     allowed_filter_attrs = ["name", "slots", "id"]
     total_entries = session.query(func.count(Pool.id)).scalar()
@@ -85,7 +85,7 @@ def patch_pool(
     update_mask: UpdateMask = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Update a pool"""
+    """Update a pool."""
     request_dict = get_json_request_dict()
     # Only slots can be modified in 'default_pool'
     try:
@@ -136,7 +136,7 @@ def patch_pool(
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_POOL)])
 @provide_session
 def post_pool(*, session: Session = NEW_SESSION) -> APIResponse:
-    """Create a pool"""
+    """Create a pool."""
     required_fields = {"name", "slots"}  # Pool would require both fields in the post request
     fields_diff = required_fields - set(get_json_request_dict().keys())
     if fields_diff:

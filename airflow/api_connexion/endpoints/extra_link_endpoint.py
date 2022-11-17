@@ -44,7 +44,7 @@ def get_extra_links(
     task_id: str,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get extra links for task instance"""
+    """Get extra links for task instance."""
     from airflow.models.taskinstance import TaskInstance
 
     dagbag: DagBag = get_airflow_app().dag_bag

@@ -25,10 +25,10 @@ from airflow.www.fab_security.sqla.models import Action, Permission, Resource, R
 
 
 class ActionSchema(SQLAlchemySchema):
-    """Action Action Schema"""
+    """Action Schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = Action
 
@@ -36,10 +36,10 @@ class ActionSchema(SQLAlchemySchema):
 
 
 class ResourceSchema(SQLAlchemySchema):
-    """View menu Schema"""
+    """View menu Schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = Resource
 
@@ -47,24 +47,24 @@ class ResourceSchema(SQLAlchemySchema):
 
 
 class ActionCollection(NamedTuple):
-    """Action Action Collection"""
+    """Action Collection."""
 
     actions: list[Action]
     total_entries: int
 
 
 class ActionCollectionSchema(Schema):
-    """Permissions list schema"""
+    """Permissions list schema."""
 
     actions = fields.List(fields.Nested(ActionSchema))
     total_entries = fields.Int()
 
 
 class ActionResourceSchema(SQLAlchemySchema):
-    """Action View Schema"""
+    """Action View Schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = Permission
 
@@ -73,10 +73,10 @@ class ActionResourceSchema(SQLAlchemySchema):
 
 
 class RoleSchema(SQLAlchemySchema):
-    """Role item schema"""
+    """Role item schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = Role
 
@@ -85,14 +85,14 @@ class RoleSchema(SQLAlchemySchema):
 
 
 class RoleCollection(NamedTuple):
-    """List of roles"""
+    """List of roles."""
 
     roles: list[Role]
     total_entries: int
 
 
 class RoleCollectionSchema(Schema):
-    """List of roles"""
+    """List of roles."""
 
     roles = fields.List(fields.Nested(RoleSchema))
     total_entries = fields.Int()

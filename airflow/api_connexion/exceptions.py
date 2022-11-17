@@ -73,7 +73,7 @@ def common_error_handler(exception: BaseException) -> flask.Response:
 
 
 class NotFound(ProblemException):
-    """Raise when the object cannot be found"""
+    """Raise when the object cannot be found."""
 
     def __init__(
         self,
@@ -93,7 +93,7 @@ class NotFound(ProblemException):
 
 
 class BadRequest(ProblemException):
-    """Raise when the server processes a bad request"""
+    """Raise when the server processes a bad request."""
 
     def __init__(
         self,
@@ -113,7 +113,7 @@ class BadRequest(ProblemException):
 
 
 class Unauthenticated(ProblemException):
-    """Raise when the user is not authenticated"""
+    """Raise when the user is not authenticated."""
 
     def __init__(
         self,
@@ -133,7 +133,7 @@ class Unauthenticated(ProblemException):
 
 
 class PermissionDenied(ProblemException):
-    """Raise when the user does not have the required permissions"""
+    """Raise when the user does not have the required permissions."""
 
     def __init__(
         self,
@@ -153,7 +153,7 @@ class PermissionDenied(ProblemException):
 
 
 class AlreadyExists(ProblemException):
-    """Raise when the object already exists"""
+    """Raise when the object already exists."""
 
     def __init__(
         self,
@@ -173,7 +173,7 @@ class AlreadyExists(ProblemException):
 
 
 class Unknown(ProblemException):
-    """Returns a response body and status code for HTTP 500 exception"""
+    """Returns a response body and status code for HTTP 500 exception."""
 
     def __init__(
         self,

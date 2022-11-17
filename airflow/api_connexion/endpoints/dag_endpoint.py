@@ -102,7 +102,7 @@ def get_dags(
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)])
 @provide_session
 def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session = NEW_SESSION) -> APIResponse:
-    """Update the specific DAG"""
+    """Update the specific DAG."""
     try:
         patch_body = dag_schema.load(request.json, session=session)
     except ValidationError as err:

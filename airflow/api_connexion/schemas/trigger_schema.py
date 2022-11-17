@@ -23,10 +23,10 @@ from airflow.models import Trigger
 
 
 class TriggerSchema(SQLAlchemySchema):
-    """Sla Miss Schema"""
+    """Sla Miss Schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = Trigger
 

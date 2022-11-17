@@ -54,7 +54,7 @@ def get_log(
     token: str | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get logs for specific task instance"""
+    """Get logs for specific task instance."""
     key = get_airflow_app().config["SECRET_KEY"]
     if not token:
         metadata = {}
