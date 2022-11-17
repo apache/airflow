@@ -1099,10 +1099,10 @@ class DagRun(Base, LoggingMixin):
     def _revise_map_indexes_if_mapped(self, task: Operator, *, session: Session) -> Iterator[TI]:
         """Check if task increased or reduced in length and handle appropriately.
 
-        Currently missing tis are created and returned if possible. Expansion
-        only happens if depended upstreams are all ready; if not all of them
-        are, we delay expansion to the "last resort". See comments at the call
-        site for more details.
+        Task instances that do not already exist are created and returned if
+        possible. Expansion only happens if all upstreams are ready; otherwise
+        we delay expansion to the "last resort". See comments at the call site
+        for more details.
         """
         from airflow.settings import task_instance_mutation_hook
 

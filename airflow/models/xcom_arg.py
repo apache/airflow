@@ -191,10 +191,11 @@ class XComArg(ResolveMixin, DependencyMixin):
     def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
         """Pull XCom value.
 
-        This should only be called during ``op.execute()`` in respectable
-        context. Note that although the ``ResolveMixin`` parent mixin also has a
-        ``resolve`` protocol, this adds the optional ``session`` argument that
-        some XComArg usages need.
+        This should only be called during ``op.execute()`` with an appropriate
+        context (e.g. generated from ``TaskInstance.get_template_context()``).
+        Although the ``ResolveMixin`` parent mixin also has a ``resolve``
+        protocol, this adds the optional ``session`` argument that some of the
+        subclasses need.
 
         :meta private:
         """

@@ -527,8 +527,8 @@ class AbstractOperator(LoggingMixin, DAGNode):
         # except the unmapped ti (if exists) is marked to different states.
         total_expanded_ti_count = total_length or 0
 
-        # Set to "REMOVED" any (old) TaskInstances with map indices greater
-        # than the current map value
+        # Any (old) task instances with inapplicable indexes (>= the total
+        # number we need) are set to "REMOVED".
         session.query(TaskInstance).filter(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id == self.task_id,
