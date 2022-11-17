@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import re
 
 import pendulum
 from slugify import slugify
@@ -41,7 +42,32 @@ def _strip_unsafe_kubernetes_special_chars(string: str) -> str:
     return slugify(string, separator="", lowercase=True)
 
 
-def create_pod_id(dag_id: str, task_id: str) -> str:
+def _make_pod_name_safe(val: str) -> str:
+    """
+    Given a value, convert it to a pod name.
+    Adds a 0 if start or end char is invalid.
+    Replaces any other invalid char with `-`.
+
+    :param val: non-empty string, presumed to be a task id
+    :return valid kubernetes object name.
+    """
+    if not val:
+        raise ValueError("_task_id_to_pod_name requires non-empty string.")
+    val = val.lower()
+    if not re.match(r"[a-z0-9]", val[0]):
+        val = f"0{val}"
+    if not re.match(r"[a-z0-9]", val[-1]):
+        val = f"{val}0"
+    val = re.sub(r"[^a-z0-9\-.]", "-", val)
+    if len(val) > 253:
+        raise ValueError(
+            f"Pod name {val} is longer than 253 characters. "
+            "See https://kubernetes.io/docs/concepts/overview/working-with-objects/names/."
+        )
+    return val
+
+
+def create_pod_id(dag_id: str | None = None, task_id: str | None = None) -> str:
     """
     Generates the kubernetes safe pod_id. Note that this is
     NOT the full ID that will be launched to k8s. We will add a uuid
@@ -51,9 +77,14 @@ def create_pod_id(dag_id: str, task_id: str) -> str:
     :param task_id: Task ID
     :return: The non-unique pod_id for this task/DAG pairing
     """
-    safe_dag_id = _strip_unsafe_kubernetes_special_chars(dag_id)
-    safe_task_id = _strip_unsafe_kubernetes_special_chars(task_id)
-    return safe_dag_id + safe_task_id
+    name = ""
+    if dag_id:
+        name += dag_id.strip("-.")
+    if task_id:
+        if name:
+            name += "-"
+        name += task_id.strip("-.")
+    return _make_pod_name_safe(name).strip("-.")
 
 
 def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
