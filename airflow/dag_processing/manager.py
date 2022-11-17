@@ -733,41 +733,6 @@ class DagFileProcessorManager(LoggingMixin):
                 ]
             self._file_path_queue.insert(0, request.full_filepath)
 
-    # def _refresh_dag_dir(self):
-    #     # Build up a list of Python files that could contain DAGs
-    #     self.log.info("Searching for files containing DAGs in %s", self._dag_directory)
-    #     self._file_paths = list_py_file_paths(self._dag_directory)
-    #     self.log.info("Found %s file(s) in %s", len(self._file_paths), self._dag_directory)
-    #     self.set_file_paths(self._file_paths)
-    #
-    #     try:
-    #         self.log.debug("Removing old import errors")
-    #         self.clear_nonexistent_import_errors()
-    #     except Exception:
-    #         self.log.exception("Error removing old import errors")
-    #
-    #     # Check if file path is a zipfile and get the full path of the Python file. Without this,
-    #     # SerializedDagModel.remove_deleted_files and DagCode.remove_deleted_code would delete zipped DAGs.
-    #     dag_filelocs = []
-    #     for fileloc in self._file_paths:
-    #         if not fileloc.endswith(".py") and zipfile.is_zipfile(fileloc):
-    #             with zipfile.ZipFile(fileloc) as z:
-    #                 dag_filelocs.extend(
-    #                     [
-    #                         os.path.join(fileloc, info.filename)
-    #                         for info in z.infolist()
-    #                         if might_contain_dag(info.filename, True, z)
-    #                     ]
-    #                 )
-    #         else:
-    #             dag_filelocs.append(fileloc)
-    #
-    #     SerializedDagModel.remove_deleted_dags(alive_dag_filelocs=dag_filelocs,processor_subdir=self.get_dag_directory())
-    #     DagModel.deactivate_deleted_dags(self._file_paths)
-    #
-    #     from airflow.models.dagcode import DagCode
-    #     DagCode.remove_deleted_code(dag_filelocs)
-
     def _refresh_dag_dir(self):
         """Refresh file paths from dag dir if we haven't done it for too long."""
         now = timezone.utcnow()
