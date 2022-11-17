@@ -183,6 +183,7 @@ with DAG(
     delete_cluster = RedshiftDeleteClusterOperator(
         task_id="delete_cluster",
         cluster_identifier=redshift_cluster_identifier,
+        retry_running=True,
         trigger_rule=TriggerRule.ALL_DONE,
     )
 

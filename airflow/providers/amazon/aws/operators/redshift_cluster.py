@@ -483,6 +483,10 @@ class RedshiftDeleteClusterOperator(BaseOperator):
         The default value is ``True``
     :param aws_conn_id: aws connection to use
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check cluster state
+    :param retry: Whether to retry the delete operation if the cluster is in an invalid state
+        for deletion. Defaults to ``False``
+    :param retry_attempts: Number of retry attempts
+    :param retry_attempt_interval: Time (in seconds) to wait between two consecutive retries
     """
 
     template_fields: Sequence[str] = ("cluster_identifier",)
@@ -498,6 +502,9 @@ class RedshiftDeleteClusterOperator(BaseOperator):
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
         poll_interval: float = 30.0,
+        retry: bool = False,
+        retry_attempts: int = 10,
+        retry_attempt_interval: int = 15,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -505,15 +512,28 @@ class RedshiftDeleteClusterOperator(BaseOperator):
         self.skip_final_cluster_snapshot = skip_final_cluster_snapshot
         self.final_cluster_snapshot_identifier = final_cluster_snapshot_identifier
         self.wait_for_completion = wait_for_completion
-        self.redshift_hook = RedshiftHook(aws_conn_id=aws_conn_id)
         self.poll_interval = poll_interval
+        self.retry_attempts = retry_attempts if retry else 1
+        self.retry_attempt_interval = retry_attempt_interval
+        self.redshift_hook = RedshiftHook(aws_conn_id=aws_conn_id)
 
     def execute(self, context: Context):
-        self.redshift_hook.delete_cluster(
-            cluster_identifier=self.cluster_identifier,
-            skip_final_cluster_snapshot=self.skip_final_cluster_snapshot,
-            final_cluster_snapshot_identifier=self.final_cluster_snapshot_identifier,
-        )
+        while self.retry_attempts >= 1:
+            try:
+                self.redshift_hook.delete_cluster(
+                    cluster_identifier=self.cluster_identifier,
+                    skip_final_cluster_snapshot=self.skip_final_cluster_snapshot,
+                    final_cluster_snapshot_identifier=self.final_cluster_snapshot_identifier,
+                )
+                break
+            except self.redshift_hook.get_conn().exceptions.InvalidClusterStateFault:
+                self.retry_attempts = self.retry_attempts - 1
+
+                if self.retry_attempts > 0:
+                    self.log.error("Unable to delete cluster. %d attempts remaining.", self.retry_attempts)
+                    time.sleep(self.retry_attempt_interval)
+                else:
+                    raise
 
         if self.wait_for_completion:
             waiter = self.redshift_hook.get_conn().get_waiter("cluster_deleted")
