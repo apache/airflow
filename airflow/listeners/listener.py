@@ -35,7 +35,7 @@ _listener_manager = None
 
 
 class ListenerManager:
-    """Class that manages registration of listeners and provides hook property for calling them"""
+    """Manage listener registration and provides hook property for calling them."""
 
     def __init__(self):
         from airflow.listeners import spec
@@ -49,7 +49,7 @@ class ListenerManager:
 
     @property
     def hook(self) -> _HookRelay:
-        """Returns hook, on which plugin methods specified in spec can be called."""
+        """Return hook, on which plugin methods specified in spec can be called."""
         return self.pm.hook
 
     def add_listener(self, listener):
@@ -60,12 +60,13 @@ class ListenerManager:
         self.pm.register(listener)
 
     def clear(self):
-        """Remove registered plugins"""
+        """Remove registered plugins."""
         for plugin in self.pm.get_plugins():
             self.pm.unregister(plugin)
 
 
 def get_listener_manager() -> ListenerManager:
+    """Get singleton listener manager"""
     global _listener_manager
     if not _listener_manager:
         _listener_manager = ListenerManager()
