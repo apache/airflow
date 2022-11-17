@@ -33,11 +33,9 @@ This release of provider is only available for Airflow 2.3+ as explained in the
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* This release of provider is only available for Airflow 2.3+ as explained in the Apache Airflow
-  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
-* In SlackHook and SlackWebhookHook, if both ``extra__<conn type>__foo`` and ``foo`` existed in connection extra
-  dict, the prefixed version would be used; now, the non-prefixed version will be preferred.  You'll see a warning
-  if there is such a collision.
+* In SlackHook and SlackWebhookHook, if both ``extra__<conn type>__foo`` and ``foo`` existed
+  in connection extra dict, the prefixed version would be used; now, the non-prefixed version
+  will be preferred.  You'll see a warning if there is such a collision.
 
 Misc
 ~~~~
