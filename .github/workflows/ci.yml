@@ -764,6 +764,41 @@ jobs:
         run: breeze ci fix-ownership
         if: always()
 
+  test-airflow-release-commands:
+    timeout-minutes: 80
+    name: "Test Airflow release commands"
+    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    needs: [build-info, wait-for-ci-images]
+    if: needs.build-info.outputs.runs-on == 'self-hosted'
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: "Cleanup dist files"
+        run: rm -fv ./dist/*
+      - name: "Check Airflow RC process command"
+        run: |
+          breeze release-management start-rc-process --version 2.4.3rc1 --previous-version 2.4.2  --answer y
+      - name: "Check Airflow release command"
+        run: |
+          breeze release-management start-release -rc 2.4.3rc1 -prev-r 2.4.2 --answer y
+      - name: "Check creating minor branch command"
+        run: |
+          breeze release-management create-minor-branch --version-branch 2-4 --answer y
+      - name: "Fix ownership"
+        run: breeze ci fix-ownership
+        if: always()
+
+
   tests-helm:
     timeout-minutes: 80
     name: "Python unit tests for Helm chart"
