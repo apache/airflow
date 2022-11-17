@@ -161,7 +161,7 @@ class TestExternalTaskSensor(unittest.TestCase):
     def test_external_task_group_not_exists_without_check_existence(self):
         self.add_time_sensor()
         self.add_dummy_task_group()
-        with pytest.raises(AirflowException, match=f"Snap. Time is OUT. DAG id: {TEST_DAG_ID}"):
+        with pytest.raises(AirflowException, match="Sensor has timed out"):
             op = ExternalTaskSensor(
                 task_id="test_external_task_sensor_check",
                 external_dag_id=TEST_DAG_ID,
