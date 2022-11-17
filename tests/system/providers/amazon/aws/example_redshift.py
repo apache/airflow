@@ -26,7 +26,6 @@ from airflow import DAG, settings
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.baseoperator import chain
-from airflow.operators.python import get_current_context
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
@@ -90,24 +89,12 @@ def setup_security_group(sec_group_name: str, ip_permissions: list[dict]):
     client.authorize_security_group_ingress(
         GroupId=security_group["GroupId"], GroupName=sec_group_name, IpPermissions=ip_permissions
     )
-    ti = get_current_context()["ti"]
-    ti.xcom_push(key="security_group_id", value=security_group["GroupId"])
+    return security_group["GroupId"]
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_security_group(sec_group_id: str, sec_group_name: str):
     boto3.client("ec2").delete_security_group(GroupId=sec_group_id, GroupName=sec_group_name)
-
-
-@task
-def await_cluster_snapshot(cluster_identifier):
-    waiter = boto3.client("redshift").get_waiter("snapshot_available")
-    waiter.wait(
-        ClusterIdentifier=cluster_identifier,
-        WaiterConfig={
-            "MaxAttempts": 100,
-        },
-    )
 
 
 with DAG(
@@ -130,7 +117,7 @@ with DAG(
     create_cluster = RedshiftCreateClusterOperator(
         task_id="create_cluster",
         cluster_identifier=redshift_cluster_identifier,
-        vpc_security_group_ids=[set_up_sg["security_group_id"]],
+        vpc_security_group_ids=[set_up_sg],
         publicly_accessible=True,
         cluster_type="single-node",
         node_type="dc2.large",
@@ -145,7 +132,7 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         target_status="available",
         poke_interval=15,
-        timeout=60 * 30,
+        timeout=60 * 15,
     )
     # [END howto_sensor_redshift_cluster]
 
@@ -161,6 +148,14 @@ with DAG(
     )
     # [END howto_operator_redshift_create_cluster_snapshot]
 
+    wait_cluster_available_before_pause = RedshiftClusterSensor(
+        task_id="wait_cluster_available_before_pause",
+        cluster_identifier=redshift_cluster_identifier,
+        target_status="available",
+        poke_interval=15,
+        timeout=60 * 15,
+    )
+
     # [START howto_operator_redshift_pause_cluster]
     pause_cluster = RedshiftPauseClusterOperator(
         task_id="pause_cluster",
@@ -173,7 +168,7 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         target_status="paused",
         poke_interval=15,
-        timeout=60 * 30,
+        timeout=60 * 15,
     )
 
     # [START howto_operator_redshift_resume_cluster]
@@ -188,7 +183,7 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         target_status="available",
         poke_interval=15,
-        timeout=60 * 30,
+        timeout=60 * 15,
     )
 
     set_up_connection = create_connection(conn_id_name, cluster_id=redshift_cluster_identifier)
@@ -269,7 +264,7 @@ with DAG(
     # [END howto_operator_redshift_delete_cluster_snapshot]
 
     delete_sg = delete_security_group(
-        sec_group_id=set_up_sg["security_group_id"],
+        sec_group_id=set_up_sg,
         sec_group_name=sg_name,
     )
     chain(
@@ -280,7 +275,7 @@ with DAG(
         create_cluster,
         wait_cluster_available,
         create_cluster_snapshot,
-        await_cluster_snapshot(redshift_cluster_identifier),
+        wait_cluster_available_before_pause,
         pause_cluster,
         wait_cluster_paused,
         resume_cluster,
