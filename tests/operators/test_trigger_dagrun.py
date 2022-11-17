@@ -148,6 +148,18 @@ class TestDagRunOperator:
             assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, custom_execution_date)
             self.assert_extra_link(dagrun, task, session)
 
+    def test_trigger_dagrun_with_custom_note(self):
+        notes_value = "Custom note for newly created DagRun."
+        task = TriggerDagRunOperator(
+            task_id="test_task", trigger_dag_id=TRIGGERED_DAG_ID, dag=self.dag, dag_run_notes=notes_value
+        )
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        with create_session() as session:
+            dagrun = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
+            assert dagrun.external_trigger
+            assert dagrun.notes == notes_value
+
     def test_trigger_dagrun_twice(self):
         """Test TriggerDagRunOperator with custom execution_date."""
         utc_now = timezone.utcnow()

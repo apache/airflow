@@ -205,10 +205,15 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
             if run_duration() > self.timeout:
                 # If sensor is in soft fail mode but times out raise AirflowSkipException.
+                message = (
+                    f"Sensor has timed out; run duration of {run_duration()} seconds exceeds "
+                    f"the specified timeout of {self.timeout}."
+                )
+
                 if self.soft_fail:
-                    raise AirflowSkipException(f"Snap. Time is OUT. DAG id: {log_dag_id}")
+                    raise AirflowSkipException(message)
                 else:
-                    raise AirflowSensorTimeout(f"Snap. Time is OUT. DAG id: {log_dag_id}")
+                    raise AirflowSensorTimeout(message)
             if self.reschedule:
                 next_poke_interval = self._get_next_poke_interval(started_at, run_duration, try_number)
                 reschedule_date = timezone.utcnow() + timedelta(seconds=next_poke_interval)

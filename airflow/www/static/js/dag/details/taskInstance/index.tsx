@@ -35,6 +35,8 @@ import { getMetaValue, getTask } from 'src/utils';
 import type { DagRun, TaskInstance as TaskInstanceType } from 'src/types';
 
 import type { SelectionProps } from 'src/dag/useSelection';
+import NotesAccordion from 'src/dag/details/NotesAccordion';
+
 import ExtraLinks from './ExtraLinks';
 import Logs from './Logs';
 import TaskNav from './Nav';
@@ -151,15 +153,27 @@ const TaskInstance = ({
           {/* Details Tab */}
           <TabPanel pt={isMapIndexDefined ? '0px' : undefined}>
             <Box py="4px">
-              {!isGroup && (
-                <TaskActions
-                  title={taskActionsTitle}
+              {!isGroupOrMappedTaskSummary && (
+                <NotesAccordion
+                  dagId={dagId}
                   runId={runId}
                   taskId={taskId}
-                  dagId={dagId}
-                  executionDate={executionDate}
-                  mapIndexes={actionsMapIndexes}
+                  mapIndex={instance.mapIndex}
+                  initialValue={instance.notes}
+                  key={dagId + runId + taskId + instance.mapIndex}
                 />
+              )}
+              {!isGroup && (
+                <Box mb={8}>
+                  <TaskActions
+                    title={taskActionsTitle}
+                    runId={runId}
+                    taskId={taskId}
+                    dagId={dagId}
+                    executionDate={executionDate}
+                    mapIndexes={actionsMapIndexes}
+                  />
+                </Box>
               )}
               <Details instance={instance} group={group} dagId={dagId} />
               {!isMapped && (

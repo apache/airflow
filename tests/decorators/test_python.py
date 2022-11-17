@@ -831,3 +831,44 @@ def test_no_warnings(reset_logging_config, caplog):
     with DAG(dag_id="test", start_date=DEFAULT_DATE, schedule=None):
         other(some_task())
     assert caplog.messages == []
+
+
+def test_task_decorator_dataset(dag_maker, session):
+    from airflow import Dataset
+    from airflow.models.dagrun import DagRun
+
+    result = None
+    uri = "s3://test"
+
+    with dag_maker(session=session) as dag:
+
+        @dag.task()
+        def up1() -> Dataset:
+            return Dataset(uri)
+
+        @dag.task()
+        def up2(src: Dataset) -> str:
+            return src.uri
+
+        @dag.task()
+        def down(a: str):
+            nonlocal result
+            result = a
+
+        src = up1()
+        s = up2(src)
+        down(s)
+
+    dr: DagRun = dag_maker.create_dagrun()
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 1  # "up1"
+    decision.schedulable_tis[0].run(session=session)
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 1  # "up2"
+    decision.schedulable_tis[0].run(session=session)
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 1  # "down"
+    decision.schedulable_tis[0].run(session=session)
+    assert result == uri

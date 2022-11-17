@@ -47,6 +47,7 @@ from sqlalchemy import (
     Integer,
     PrimaryKeyConstraint,
     String,
+    Text,
     and_,
     false,
     func,
@@ -357,6 +358,7 @@ class TaskInstance(Base, LoggingMixin):
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
     executor_config = Column(ExecutorConfigType(pickler=dill))
+    notes = Column(String(1000).with_variant(Text(1000), "mysql"))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
 
     external_executor_id = Column(StringID())
@@ -801,6 +803,7 @@ class TaskInstance(Base, LoggingMixin):
             self.trigger_id = ti.trigger_id
             self.next_method = ti.next_method
             self.next_kwargs = ti.next_kwargs
+            self.notes = ti.notes
         else:
             self.state = None
 
@@ -1851,6 +1854,7 @@ class TaskInstance(Base, LoggingMixin):
             session = settings.Session()
 
         from airflow import macros
+        from airflow.models.abstractoperator import NotMapped
 
         integrate_macros_plugins()
 
@@ -1979,6 +1983,11 @@ class TaskInstance(Base, LoggingMixin):
 
             return triggering_events
 
+        try:
+            expanded_ti_count: int | None = task.get_mapped_ti_count(self.run_id, session=session)
+        except NotMapped:
+            expanded_ti_count = None
+
         # NOTE: If you add anything to this dict, make sure to also update the
         # definition in airflow/utils/context.pyi, and KNOWN_CONTEXT_KEYS in
         # airflow/utils/context.py!
@@ -1991,6 +2000,7 @@ class TaskInstance(Base, LoggingMixin):
             "ds": ds,
             "ds_nodash": ds_nodash,
             "execution_date": logical_date,
+            "expanded_ti_count": expanded_ti_count,
             "inlets": task.inlets,
             "logical_date": logical_date,
             "macros": macros,
@@ -2586,6 +2596,11 @@ class SimpleTaskInstance:
         return NotImplemented
 
     def as_dict(self):
+        warnings.warn(
+            "This method is deprecated. Use BaseSerialization.serialize.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
         new_dict = dict(self.__dict__)
         for key in new_dict:
             if key in ["start_date", "end_date"]:
@@ -2616,6 +2631,11 @@ class SimpleTaskInstance:
 
     @classmethod
     def from_dict(cls, obj_dict: dict) -> SimpleTaskInstance:
+        warnings.warn(
+            "This method is deprecated. Use BaseSerialization.deserialize.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
         ti_key = TaskInstanceKey(*obj_dict.pop("key"))
         start_date = None
         end_date = None
