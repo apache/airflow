@@ -1839,6 +1839,7 @@ class TaskInstance(Base, LoggingMixin):
             session = settings.Session()
 
         from airflow import macros
+        from airflow.models.abstractoperator import NotMapped
 
         integrate_macros_plugins()
 
@@ -1967,6 +1968,11 @@ class TaskInstance(Base, LoggingMixin):
 
             return triggering_events
 
+        try:
+            expanded_ti_count: int | None = task.get_mapped_ti_count(self.run_id, session=session)
+        except NotMapped:
+            expanded_ti_count = None
+
         # NOTE: If you add anything to this dict, make sure to also update the
         # definition in airflow/utils/context.pyi, and KNOWN_CONTEXT_KEYS in
         # airflow/utils/context.py!
@@ -1979,6 +1985,7 @@ class TaskInstance(Base, LoggingMixin):
             "ds": ds,
             "ds_nodash": ds_nodash,
             "execution_date": logical_date,
+            "expanded_ti_count": expanded_ti_count,
             "inlets": task.inlets,
             "logical_date": logical_date,
             "macros": macros,
