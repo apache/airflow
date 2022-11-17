@@ -505,7 +505,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         The task instance for the start_date is allowed to run.
     :param wait_for_past_depends_before_skipping: when set to true, if the task instance
         should be marked as skipped, and depends_on_past is true, the ti will stay on None state
-         waiting the task of the previous run
+        waiting the task of the previous run
     :param wait_for_downstream: when set to true, an instance of task
         X will wait for tasks immediately downstream of the previous instance
         of task X to finish successfully or be skipped before it runs. This is useful if the
