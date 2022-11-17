@@ -23,7 +23,7 @@
 Changelog
 ---------
 
-2.1.0
+3.0.0
 .....
 
 This release of provider is only available for Airflow 2.3+ as explained in the
@@ -32,9 +32,8 @@ This release of provider is only available for Airflow 2.3+ as explained in the
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* In AsanaHook, non-prefixed extra fields are supported and are preferred (#27196).
-  So you should update your connection to replace ``extra__asana__workspace`` with
-  ``workspace`` etc.
+* In AsanaHook, non-prefixed extra fields are supported and are preferred.  So if you should update your
+  connection to replace ``extra__asana__workspace`` with ``workspace`` etc.
 
 Misc
 ~~~~
