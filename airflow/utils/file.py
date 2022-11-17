@@ -282,7 +282,7 @@ def list_py_file_paths(
     directory: str | pathlib.Path,
     safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE', fallback=True),
     include_examples: bool | None = None,
-) -> list[str]:
+) -> set[str]:
     """
     Traverse a directory and look for Python files.
 
@@ -292,28 +292,33 @@ def list_py_file_paths(
         core.DAG_DISCOVERY_SAFE_MODE configuration setting. If not set, default
         to safe.
     :param include_examples: include example DAGs
-    :return: a list of paths to Python files in the specified directory
+    :return: a set of paths to Python files in the specified directory
     """
     if include_examples is None:
         include_examples = conf.getboolean('core', 'LOAD_EXAMPLES')
-    file_paths: list[str] = []
+
+    file_paths: set[str] = set()
     if directory is None:
-        file_paths = []
+        pass
     elif os.path.isfile(directory):
-        file_paths = [str(directory)]
+        file_paths.add(str(directory))
     elif os.path.isdir(directory):
-        file_paths.extend(find_dag_file_paths(directory, safe_mode))
+        file_paths = file_paths.union(find_dag_file_paths(directory, safe_mode))
+
     if include_examples:
         from airflow import example_dags
 
         example_dag_folder = example_dags.__path__[0]  # type: ignore
-        file_paths.extend(list_py_file_paths(example_dag_folder, safe_mode, include_examples=False))
+        file_paths = file_paths.union(
+            list_py_file_paths(example_dag_folder, safe_mode, include_examples=False)
+        )
+
     return file_paths
 
 
-def find_dag_file_paths(directory: str | pathlib.Path, safe_mode: bool) -> list[str]:
+def find_dag_file_paths(directory: str | pathlib.Path, safe_mode: bool) -> set[str]:
     """Finds file paths of all DAG files."""
-    file_paths = []
+    file_paths = set()
 
     for file_path in find_path_from_directory(str(directory), ".airflowignore"):
         try:
@@ -325,7 +330,7 @@ def find_dag_file_paths(directory: str | pathlib.Path, safe_mode: bool) -> list[
             if not might_contain_dag(file_path, safe_mode):
                 continue
 
-            file_paths.append(file_path)
+            file_paths.add(file_path)
         except Exception:
             log.exception("Error while examining %s", file_path)
 

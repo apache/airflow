@@ -775,7 +775,7 @@ class DagFileProcessorManager(LoggingMixin):
         if elapsed_time_since_refresh > self.dag_dir_list_interval:
             # Build up a list of Python files that could contain DAGs
             self.log.info("Searching for files in %s", self._dag_directory)
-            self._file_paths = set(list_py_file_paths(self._dag_directory))
+            self._file_paths = list_py_file_paths(self._dag_directory)
             self.last_dag_dir_refresh_time = now
             self.log.info("There are %s files in %s", len(self._file_paths), self._dag_directory)
             self.set_file_paths(self._file_paths)
