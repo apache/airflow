@@ -2890,6 +2890,11 @@
                     "type": "boolean",
                     "default": true
                 },
+                "applyCustomEnv": {
+                    "description": "Specify if you want additional configured env vars applied to this job",
+                    "type": "boolean",
+                    "default": true
+                },
                 "env": {
                     "description": "Add additional env vars to the create user job pod.",
                     "type": "array",
@@ -3082,6 +3087,11 @@
                 },
                 "useHelmHooks": {
                     "description": "Specify if you want to use the default Helm Hook annotations",
+                    "type": "boolean",
+                    "default": true
+                },
+                "applyCustomEnv": {
+                    "description": "Specify if you want additional configured env vars applied to this job",
                     "type": "boolean",
                     "default": true
                 }
