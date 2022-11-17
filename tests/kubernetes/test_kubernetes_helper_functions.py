@@ -31,16 +31,35 @@ pod_name_regex = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])
     [
         ("task-id", "task-id"),  # no problem
         ("task_id", "task-id"),  # underscores
-        ("task.id", "task.id"),  # dots ok
-        (".task.id", "task.id"),  # leading dot invalid
-        ("**task.id", "0--task.id"),  # leading dot invalid
-        ("-90Abc*&", "90abc--0"),  # invalid ends
-        ("90AçLbˆˆç˙ßß˜˜˙c*a", "90a-lb---------c-a"),  # weird unicode
+        ("---task.id---", "task-id"),  # dots
+        (".task.id", "task-id"),  # leading dot invalid
+        ("**task.id", "task-id"),  # leading dot invalid
+        ("-90Abc*&", "90abc"),  # invalid ends
+        ("90AçLbˆˆç˙ßß˜˜˙c*a", "90aclb-c-ssss-c-a"),  # weird unicode
     ],
 )
 def test_create_pod_id_task_only(val, expected):
-    assert create_pod_id(task_id=val) == expected
-    assert re.match(pod_name_regex, expected)
+    actual = create_pod_id(task_id=val)
+    assert actual == expected
+    assert re.match(pod_name_regex, actual)
+
+
+@pytest.mark.parametrize(
+    "val, expected",
+    [
+        ("dag-id", "dag-id"),  # no problem
+        ("dag_id", "dag-id"),  # underscores
+        ("---dag.id---", "dag-id"),  # dots
+        (".dag.id", "dag-id"),  # leading dot invalid
+        ("**dag.id", "dag-id"),  # leading dot invalid
+        ("-90Abc*&", "90abc"),  # invalid ends
+        ("90AçLbˆˆç˙ßß˜˜˙c*a", "90aclb-c-ssss-c-a"),  # weird unicode
+    ],
+)
+def test_create_pod_id_dag_only(val, expected):
+    actual = create_pod_id(dag_id=val)
+    assert actual == expected
+    assert re.match(pod_name_regex, actual)
 
 
 @pytest.mark.parametrize(
@@ -48,18 +67,20 @@ def test_create_pod_id_task_only(val, expected):
     [
         ("dag-id", "task-id", "dag-id-task-id"),  # no problem
         ("dag_id", "task_id", "dag-id-task-id"),  # underscores
-        ("dag.id", "task.id", "dag.id-task.id"),  # dots ok
-        (".dag.id", ".task.id", "dag.id-task.id"),  # leading dot invalid
-        ("**dag.id", "**task.id", "0--dag.id---task.id"),  # leading dot invalid
-        ("-90Abc*&", "-90Abc*&", "90abc---90abc--0"),  # invalid ends
-        ("90AçLbˆˆç˙ßß˜˜˙c*a", "90AçLbˆˆç˙ßß˜˜˙c*a", "90a-lb---------c-a-90a-lb---------c-a"),  # ugly
+        ("dag.id", "task.id", "dag-id-task-id"),  # dots
+        (".dag.id", ".---task.id", "dag-id-task-id"),  # leading dot invalid
+        ("**dag.id", "**task.id", "dag-id-task-id"),  # leading dot invalid
+        ("-90Abc*&", "-90Abc*&", "90abc-90abc"),  # invalid ends
+        ("90AçLbˆˆç˙ßß˜˜˙c*a", "90AçLbˆˆç˙ßß˜˜˙c*a", "90aclb-c-ssss-c-a-90aclb-c-ssss-c-a"),  # ugly
     ],
 )
 def test_create_pod_id_dag_only(dag_id, task_id, expected):
-    assert create_pod_id(dag_id=dag_id, task_id=task_id) == expected
-    assert re.match(pod_name_regex, expected)
+    actual = create_pod_id(dag_id=dag_id, task_id=task_id)
+    assert actual == expected
+    assert re.match(pod_name_regex, actual)
 
 
-def test_task_id_to_pod_name_long():
-    with pytest.raises(ValueError, match="longer than 253"):
-        create_pod_id("0" * 254)
+def test_create_pod_id_dag_too_long():
+    actual = create_pod_id("0" * 254)
+    assert actual == "0" * 253
+    assert re.match(pod_name_regex, actual)
