@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   Flex,
   Text,
@@ -43,6 +43,7 @@ import { ClipboardText } from 'src/components/Clipboard';
 import { formatDuration, getDuration } from 'src/datetime_utils';
 import Time from 'src/components/Time';
 import RunTypeIcon from 'src/components/RunTypeIcon';
+import useOffsetHeight from 'src/utils/useOffsetHeight';
 
 import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 import NotesAccordion from 'src/dag/details/NotesAccordion';
@@ -62,6 +63,8 @@ interface Props {
 
 const DagRun = ({ runId }: Props) => {
   const { data: { dagRuns } } = useGridData();
+  const detailsRef = useRef<HTMLDivElement>(null);
+  const offsetHeight = useOffsetHeight(detailsRef);
   const run = dagRuns.find((dr) => dr.runId === runId);
   const { onCopy, hasCopied } = useClipboard(run?.conf || '');
   if (!run) return null;
@@ -103,100 +106,107 @@ const DagRun = ({ runId }: Props) => {
         </Flex>
         <Divider my={3} />
       </Box>
-      <Box px={4}>
-        <NotesAccordion
-          dagId={dagId}
-          runId={runId}
-          initialValue={notes}
-          key={dagId + runId}
-        />
-      </Box>
-      <Divider my={0} />
-      <Table variant="striped">
-        <Tbody>
-          <Tr>
-            <Td>Status</Td>
-            <Td>
-              <Flex>
-                <SimpleStatus state={state} mx={2} />
-                {state || 'no status'}
-              </Flex>
-            </Td>
-          </Tr>
-          <Tr>
-            <Td>Run ID</Td>
-            <Td><ClipboardText value={runId} /></Td>
-          </Tr>
-          <Tr>
-            <Td>Run type</Td>
-            <Td>
-              <RunTypeIcon runType={runType} />
-              {runType}
-            </Td>
-          </Tr>
-          <Tr>
-            <Td>Run duration</Td>
-            <Td>
-              {formatDuration(getDuration(startDate, endDate))}
-            </Td>
-          </Tr>
-          {lastSchedulingDecision && (
+      <Box
+        height="100%"
+        maxHeight={offsetHeight}
+        ref={detailsRef}
+        overflowY="auto"
+        pb={4}
+      >
+        <Box px={4}>
+          <NotesAccordion
+            dagId={dagId}
+            runId={runId}
+            initialValue={notes}
+            key={dagId + runId}
+          />
+        </Box>
+        <Divider my={0} />
+        <Table variant="striped">
+          <Tbody>
             <Tr>
-              <Td>Last scheduling decision</Td>
+              <Td>Status</Td>
               <Td>
-                <Time dateTime={lastSchedulingDecision} />
+                <Flex>
+                  <SimpleStatus state={state} mx={2} />
+                  {state || 'no status'}
+                </Flex>
               </Td>
             </Tr>
-          )}
-          {queuedAt && (
             <Tr>
-              <Td>Queued at</Td>
+              <Td>Run ID</Td>
+              <Td><ClipboardText value={runId} /></Td>
+            </Tr>
+            <Tr>
+              <Td>Run type</Td>
               <Td>
-                <Time dateTime={queuedAt} />
+                <RunTypeIcon runType={runType} />
+                {runType}
               </Td>
             </Tr>
-          )}
-          {startDate && (
             <Tr>
-              <Td>Started</Td>
+              <Td>Run duration</Td>
               <Td>
-                <Time dateTime={startDate} />
+                {formatDuration(getDuration(startDate, endDate))}
               </Td>
             </Tr>
-          )}
-          {endDate && (
-            <Tr>
-              <Td>Ended</Td>
-              <Td>
-                <Time dateTime={endDate} />
-              </Td>
-            </Tr>
-          )}
-          {dataIntervalStart && dataIntervalEnd && (
-            <>
+            {lastSchedulingDecision && (
               <Tr>
-                <Td>Data interval start</Td>
+                <Td>Last scheduling decision</Td>
                 <Td>
-                  <Time dateTime={dataIntervalStart} />
+                  <Time dateTime={lastSchedulingDecision} />
                 </Td>
               </Tr>
+            )}
+            {queuedAt && (
               <Tr>
-                <Td>Data interval end</Td>
+                <Td>Queued at</Td>
                 <Td>
-                  <Time dateTime={dataIntervalEnd} />
+                  <Time dateTime={queuedAt} />
                 </Td>
               </Tr>
-            </>
-          )}
-          <Tr>
-            <Td>Externally triggered</Td>
-            <Td>
-              {externalTrigger ? 'True' : 'False'}
-            </Td>
-          </Tr>
-          <Tr>
-            <Td>Run config</Td>
-            {
+            )}
+            {startDate && (
+              <Tr>
+                <Td>Started</Td>
+                <Td>
+                  <Time dateTime={startDate} />
+                </Td>
+              </Tr>
+            )}
+            {endDate && (
+              <Tr>
+                <Td>Ended</Td>
+                <Td>
+                  <Time dateTime={endDate} />
+                </Td>
+              </Tr>
+            )}
+            {dataIntervalStart && dataIntervalEnd && (
+              <>
+                <Tr>
+                  <Td>Data interval start</Td>
+                  <Td>
+                    <Time dateTime={dataIntervalStart} />
+                  </Td>
+                </Tr>
+                <Tr>
+                  <Td>Data interval end</Td>
+                  <Td>
+                    <Time dateTime={dataIntervalEnd} />
+                  </Td>
+                </Tr>
+              </>
+            )}
+            <Tr>
+              <Td>Externally triggered</Td>
+              <Td>
+                {externalTrigger ? 'True' : 'False'}
+              </Td>
+            </Tr>
+            <Tr>
+              <Td>Run config</Td>
+              {
                 confIsJson
                   ? (
                     <Td>
@@ -218,12 +228,13 @@ const DagRun = ({ runId }: Props) => {
                   )
                   : <Td>{conf ?? 'None'}</Td>
               }
-          </Tr>
-        </Tbody>
-      </Table>
-      {runType === 'dataset_triggered' && (
-        <DatasetTriggerEvents runId={runId} />
-      )}
+            </Tr>
+          </Tbody>
+        </Table>
+        {runType === 'dataset_triggered' && (
+          <DatasetTriggerEvents runId={runId} />
+        )}
+      </Box>
     </>
   );
 };
