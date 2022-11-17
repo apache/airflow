@@ -185,15 +185,14 @@ def worker(args):
             stdout_handle.truncate(0)
             stderr_handle.truncate(0)
 
-            ctx = daemon.DaemonContext(
+            daemon_context = daemon.DaemonContext(
                 files_preserve=[handle],
                 umask=int(umask, 8),
                 stdout=stdout_handle,
                 stderr=stderr_handle,
             )
-            with ctx:
-                with _serve_logs(skip_serve_logs):
-                    celery_app.worker_main(options)
+            with daemon_context, _serve_logs(skip_serve_logs):
+                celery_app.worker_main(options)
 
     else:
         # Run Celery worker in the same process
