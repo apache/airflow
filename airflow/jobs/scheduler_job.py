@@ -849,7 +849,7 @@ class SchedulerJob(BaseJob):
             )
 
         for loop_count in itertools.count(start=1):
-            with Stats.timer() as timer:
+            with Stats.timer("scheduler.scheduler_loop_duration") as timer:
 
                 if self.using_sqlite and self.processor_agent:
                     self.processor_agent.run_single_parsing_loop()
