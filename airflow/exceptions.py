@@ -17,7 +17,7 @@
 # under the License.
 # Note: Any AirflowException raised is expected to cause the TaskInstance
 #       to be marked in an ERROR state
-"""Exceptions used by Airflow"""
+"""Exceptions used by Airflow."""
 from __future__ import annotations
 
 import datetime
@@ -84,7 +84,7 @@ class AirflowWebServerTimeout(AirflowException):
 
 
 class AirflowSkipException(AirflowException):
-    """Raise when the task should be skipped"""
+    """Raise when the task should be skipped."""
 
 
 class AirflowFailException(AirflowException):
@@ -225,11 +225,11 @@ class TaskAlreadyInTaskGroup(AirflowException):
 
 
 class SerializationError(AirflowException):
-    """A problem occurred when trying to serialize a DAG."""
+    """A problem occurred when trying to serialize something."""
 
 
 class ParamValidationError(AirflowException):
-    """Raise when DAG params is invalid"""
+    """Raise when DAG params is invalid."""
 
 
 class TaskNotFound(AirflowNotFoundException):
@@ -317,6 +317,8 @@ class ConnectionNotUnique(AirflowException):
 
 class TaskDeferred(BaseException):
     """
+    Signal an operator moving to deferred state.
+
     Special exception raised to signal that the operator it was raised from
     wishes to defer until a trigger fires.
     """
@@ -347,7 +349,7 @@ class TaskDeferralError(AirflowException):
 
 
 class PodMutationHookException(AirflowException):
-    """Raised when exception happens during Pod Mutation Hook execution"""
+    """Raised when exception happens during Pod Mutation Hook execution."""
 
 
 class PodReconciliationError(AirflowException):

@@ -34,7 +34,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 def get_lineage(
     dag_id: str, execution_date: datetime.datetime, *, session: Session = NEW_SESSION
 ) -> dict[str, dict[str, Any]]:
-    """Gets the lineage information for dag specified."""
+    """Get lineage information for dag specified."""
     dag = check_and_get_dag(dag_id)
     dagrun = check_and_get_dagrun(dag, execution_date)
 

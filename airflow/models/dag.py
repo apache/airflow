@@ -1773,7 +1773,7 @@ class DAG(LoggingMixin):
         if result or as_pk_tuple:
             # Only execute the `ti` query if we have also collected some other results (i.e. subdags etc.)
             if as_pk_tuple:
-                result.update(TaskInstanceKey(*cols) for cols in tis.all())
+                result.update(TaskInstanceKey(**cols._mapping) for cols in tis.all())
             else:
                 result.update(ti.key for ti in tis)
 

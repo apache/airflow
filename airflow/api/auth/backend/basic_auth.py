@@ -31,7 +31,7 @@ CLIENT_AUTH: tuple[str, str] | Any | None = None
 
 
 def init_app(_):
-    """Initializes authentication backend."""
+    """Initialize authentication backend."""
 
 
 T = TypeVar("T", bound=Callable)
@@ -55,7 +55,7 @@ def auth_current_user() -> User | None:
 
 
 def requires_authentication(function: T):
-    """Decorator for functions that require authentication."""
+    """Decorate functions that require authentication."""
 
     @wraps(function)
     def decorated(*args, **kwargs):

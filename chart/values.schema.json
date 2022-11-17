@@ -5244,9 +5244,9 @@
                             "default": "tests/dags"
                         },
                         "wait": {
-                            "description": "Interval between git sync attempts in seconds.",
+                            "description": "Interval between git sync attempts in seconds. High values are more likely to cause DAGs to become out of sync between different components. Low values cause more traffic to the remote git repository.",
                             "type": "integer",
-                            "default": 60
+                            "default": 5
                         },
                         "containerName": {
                             "description": "Git sync container name.",
