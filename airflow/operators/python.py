@@ -274,6 +274,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
     BASE_SERIALIZABLE_CONTEXT_KEYS = {
         "ds",
         "ds_nodash",
+        "expanded_ti_count",
         "inlets",
         "next_ds",
         "next_ds_nodash",
