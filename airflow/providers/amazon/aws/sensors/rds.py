@@ -18,9 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from botocore.exceptions import ClientError
-
-from airflow import AirflowException
+from airflow.exceptions import AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.sensors.base import BaseSensorOperator
@@ -40,40 +38,6 @@ class RdsBaseSensor(BaseSensorOperator):
         self.hook = RdsHook(aws_conn_id=aws_conn_id, **hook_params)
         self.target_statuses: list[str] = []
         super().__init__(*args, **kwargs)
-
-    def _describe_item(self, item_type: str, item_name: str) -> list:
-        if item_type == "instance_snapshot":
-            db_snaps = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=item_name)
-            return db_snaps["DBSnapshots"]
-        elif item_type == "cluster_snapshot":
-            cl_snaps = self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=item_name)
-            return cl_snaps["DBClusterSnapshots"]
-        elif item_type == "export_task":
-            exports = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=item_name)
-            return exports["ExportTasks"]
-        elif item_type == "db_instance":
-            instances = self.hook.conn.describe_db_instances(DBInstanceIdentifier=item_name)
-            return instances["DBInstances"]
-        elif item_type == "db_cluster":
-            clusters = self.hook.conn.describe_db_clusters(DBClusterIdentifier=item_name)
-            return clusters["DBClusters"]
-        else:
-            raise AirflowException(f"Method for {item_type} is not implemented")
-
-    def _check_item(self, item_type: str, item_name: str) -> bool:
-        """Get certain item from `_describe_item()` and check its status"""
-        if item_type == "db_instance":
-            status_field = "DBInstanceStatus"
-        else:
-            status_field = "Status"
-        try:
-            items = self._describe_item(item_type, item_name)
-        except ClientError:
-            return False
-        else:
-            return bool(items) and any(
-                map(lambda status: items[0][status_field].lower() == status, self.target_statuses)
-            )
 
 
 class RdsSnapshotExistenceSensor(RdsBaseSensor):
@@ -112,10 +76,14 @@ class RdsSnapshotExistenceSensor(RdsBaseSensor):
         self.log.info(
             "Poking for statuses : %s\nfor snapshot %s", self.target_statuses, self.db_snapshot_identifier
         )
-        if self.db_type.value == "instance":
-            return self._check_item(item_type="instance_snapshot", item_name=self.db_snapshot_identifier)
-        else:
-            return self._check_item(item_type="cluster_snapshot", item_name=self.db_snapshot_identifier)
+        try:
+            if self.db_type.value == "instance":
+                state = self.hook.get_db_snapshot_state(self.db_snapshot_identifier)
+            else:
+                state = self.hook.get_db_cluster_snapshot_state(self.db_snapshot_identifier)
+        except AirflowNotFoundException:
+            return False
+        return state in self.target_statuses
 
 
 class RdsExportTaskExistenceSensor(RdsBaseSensor):
@@ -158,7 +126,11 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
         self.log.info(
             "Poking for statuses : %s\nfor export task %s", self.target_statuses, self.export_task_identifier
         )
-        return self._check_item(item_type="export_task", item_name=self.export_task_identifier)
+        try:
+            state = self.hook.get_export_task_state(self.export_task_identifier)
+        except AirflowNotFoundException:
+            return False
+        return state in self.target_statuses
 
 
 class RdsDbSensor(RdsBaseSensor):
@@ -184,7 +156,7 @@ class RdsDbSensor(RdsBaseSensor):
         self,
         *,
         db_identifier: str,
-        db_type: str = "instance",
+        db_type: RdsDbType | str = RdsDbType.INSTANCE,
         target_statuses: list[str] | None = None,
         aws_conn_id: str = "aws_default",
         **kwargs,
@@ -192,19 +164,21 @@ class RdsDbSensor(RdsBaseSensor):
         super().__init__(aws_conn_id=aws_conn_id, **kwargs)
         self.db_identifier = db_identifier
         self.target_statuses = target_statuses or ["available"]
-        self.db_type = RdsDbType(db_type)
+        self.db_type = db_type
 
     def poke(self, context: Context):
+        db_type = RdsDbType(self.db_type)
         self.log.info(
             "Poking for statuses : %s\nfor db instance %s", self.target_statuses, self.db_identifier
         )
-        item_type = self._check_item_type()
-        return self._check_item(item_type=item_type, item_name=self.db_identifier)
-
-    def _check_item_type(self):
-        if self.db_type == RdsDbType.CLUSTER:
-            return "db_cluster"
-        return "db_instance"
+        try:
+            if db_type == RdsDbType.INSTANCE:
+                state = self.hook.get_db_instance_state(self.db_identifier)
+            else:
+                state = self.hook.get_db_cluster_state(self.db_identifier)
+        except AirflowNotFoundException:
+            return False
+        return state in self.target_statuses
 
 
 __all__ = [
