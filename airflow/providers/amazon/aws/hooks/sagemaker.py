@@ -962,7 +962,7 @@ class SageMakerHook(AwsBaseHook):
         job_name_suffix: str | None = None,
     ) -> bool:
         pattern = re.compile(f"^{processing_job_name}({job_name_suffix})?$")
-        return bool(pattern.search(found_name))
+        return pattern.fullmatch(found_name) is not None
 
     def count_processing_jobs_by_name(
         self,
