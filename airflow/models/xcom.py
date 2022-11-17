@@ -629,7 +629,7 @@ class BaseXCom(Base, LoggingMixin):
                 " then you need to enable pickle support for XCom"
                 " in your airflow config or make sure to decorate your"
                 " object with attr.",
-                ex
+                ex,
             )
             raise
 
