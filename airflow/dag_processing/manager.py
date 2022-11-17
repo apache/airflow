@@ -778,11 +778,11 @@ class DagFileProcessorManager(LoggingMixin):
 
             DagCode.remove_deleted_code(dag_filelocs)
 
-    def handle_created_file(self, filepath: str):
+    def handle_created_file(self, filepath: str) -> None:
         """
+        Process a new file in the DAGs folder.
 
-        :param filepath:
-        :return:
+        :param filepath: Path of the newly created file.
         """
         if might_contain_dag(file_path=filepath, safe_mode=True):
             self.log.info("Found DAG in %s, adding to collection of observed files.", filepath)
@@ -790,11 +790,11 @@ class DagFileProcessorManager(LoggingMixin):
             self._file_path_queue.append(filepath)
             self.start_new_processes()
 
-    def handle_deleted_file(self, filepath: str):
+    def handle_deleted_file(self, filepath: str) -> None:
         """
+        Process a deleted file in the DAGs folder.
 
-        :param filepath:
-        :return:
+        :param filepath: Path of the deleted file.
         """
         # Can't be certain this is an observed file (might not contain an Airflow DAG).
         self._file_paths.discard(filepath)
