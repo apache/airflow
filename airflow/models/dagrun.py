@@ -52,7 +52,6 @@ from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskN
 from airflow.models.abstractoperator import NotMapped
 from airflow.models.base import Base, StringID
 from airflow.models.expandinput import NotFullyPopulated
-from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
 from airflow.stats import Stats
@@ -734,6 +733,27 @@ class DagRun(Base, LoggingMixin):
             finished_tis=finished_tis,
         )
 
+        def _expand_mapped_task_if_needed(ti: TI) -> Iterable[TI] | None:
+            """Try to expand the ti, if needed.
+
+            If the ti needs expansion, newly created task instances are
+            returned. The original ti is modified in-place and assigned the
+            ``map_index`` of 0.
+
+            If the ti does not need expansion, either because the task is not
+            mapped, or has already been expanded, *None* is returned.
+            """
+            if ti.map_index >= 0:  # Already expanded, we're good.
+                return None
+            try:
+                expanded_tis, _ = ti.task.expand_mapped_task(self.run_id, session=session)
+            except NotMapped:  # Not a mapped task, nothing needed.
+                return None
+            if expanded_tis:
+                assert expanded_tis[0] is ti
+                return expanded_tis[1:]
+            return ()
+
         # Check dependencies.
         expansion_happened = False
         for schedulable in itertools.chain(schedulable_tis, additional_tis):
@@ -741,23 +761,19 @@ class DagRun(Base, LoggingMixin):
             if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
                 old_states[schedulable.key] = old_state
                 continue
-            # If schedulable is from a mapped task, but not yet expanded, do it
-            # now. This is called in two places: First and ideally in the mini
-            # scheduler at the end of LocalTaskJob, and then as an "expansion of
-            # last resort" in the scheduler to ensure that the mapped task is
-            # correctly expanded before executed.
-            if schedulable.map_index < 0 and isinstance(schedulable.task, MappedOperator):
-                expanded_tis, _ = schedulable.task.expand_mapped_task(self.run_id, session=session)
-                if expanded_tis:
-                    assert expanded_tis[0] is schedulable
-                    additional_tis.extend(expanded_tis[1:])
-                expansion_happened = True
+            # If schedulable is not yet expanded, try doing it now. This is
+            # called in two places: First and ideally in the mini scheduler at
+            # the end of LocalTaskJob, and then as an "expansion of last resort"
+            # in the scheduler to ensure that the mapped task is correctly
+            # expanded before executed. Also see _revise_map_indexes_if_mapped
+            # docstring for additional information.
+            if schedulable.map_index < 0:
+                new_tis = _expand_mapped_task_if_needed(schedulable)
+                if new_tis is not None:
+                    additional_tis.extend(new_tis)
+                    expansion_happened = True
             if schedulable.state in SCHEDULEABLE_STATES:
-                task = schedulable.task
-                if isinstance(task, MappedOperator):
-                    # Ensure the task indexes are complete
-                    created = self._revise_mapped_task_indexes(task, session=session)
-                    ready_tis.extend(created)
+                ready_tis.extend(self._revise_map_indexes_if_mapped(schedulable.task, session=session))
                 ready_tis.append(schedulable)
 
         # Check if any ti changed state
@@ -1084,14 +1100,22 @@ class DagRun(Base, LoggingMixin):
             # TODO[HA]: We probably need to savepoint this so we can keep the transaction alive.
             session.rollback()
 
-    def _revise_mapped_task_indexes(self, task: MappedOperator, session: Session) -> Iterable[TI]:
-        """Check if task increased or reduced in length and handle appropriately"""
+    def _revise_map_indexes_if_mapped(self, task: Operator, *, session: Session) -> Iterator[TI]:
+        """Check if task increased or reduced in length and handle appropriately.
+
+        Task instances that do not already exist are created and returned if
+        possible. Expansion only happens if all upstreams are ready; otherwise
+        we delay expansion to the "last resort". See comments at the call site
+        for more details.
+        """
         from airflow.settings import task_instance_mutation_hook
 
         try:
             total_length = task.get_mapped_ti_count(self.run_id, session=session)
-        except NotFullyPopulated:  # Upstreams not ready, don't need to revise this yet.
-            return []
+        except NotMapped:
+            return  # Not a mapped task, don't need to do anything.
+        except NotFullyPopulated:
+            return  # Upstreams not ready, don't need to revise this yet.
 
         query = session.query(TI.map_index).filter(
             TI.dag_id == self.dag_id,
@@ -1099,20 +1123,9 @@ class DagRun(Base, LoggingMixin):
             TI.run_id == self.run_id,
         )
         existing_indexes = {i for (i,) in query}
-        missing_indexes = set(range(total_length)).difference(existing_indexes)
-        removed_indexes = existing_indexes.difference(range(total_length))
-        created_tis = []
 
-        if missing_indexes:
-            for index in missing_indexes:
-                ti = TI(task, run_id=self.run_id, map_index=index, state=None)
-                self.log.debug("Expanding TIs upserted %s", ti)
-                task_instance_mutation_hook(ti)
-                ti = session.merge(ti)
-                ti.refresh_from_task(task)
-                session.flush()
-                created_tis.append(ti)
-        elif removed_indexes:
+        removed_indexes = existing_indexes.difference(range(total_length))
+        if removed_indexes:
             session.query(TI).filter(
                 TI.dag_id == self.dag_id,
                 TI.task_id == task.task_id,
@@ -1120,7 +1133,17 @@ class DagRun(Base, LoggingMixin):
                 TI.map_index.in_(removed_indexes),
             ).update({TI.state: TaskInstanceState.REMOVED})
             session.flush()
-        return created_tis
+
+        for index in range(total_length):
+            if index in existing_indexes:
+                continue
+            ti = TI(task, run_id=self.run_id, map_index=index, state=None)
+            self.log.debug("Expanding TIs upserted %s", ti)
+            task_instance_mutation_hook(ti)
+            ti = session.merge(ti)
+            ti.refresh_from_task(task)
+            session.flush()
+            yield ti
 
     @staticmethod
     def get_run(session: Session, dag_id: str, execution_date: datetime) -> DagRun | None:

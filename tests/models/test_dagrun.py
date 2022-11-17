@@ -2013,3 +2013,41 @@ def test_mapped_expand_against_params(dag_maker, partial_params, mapped_params, 
         ti.run()
 
     assert sorted(results) == expected
+
+
+def test_mapped_task_group_expands(dag_maker, session):
+    with dag_maker(session=session):
+
+        @task_group
+        def tg(x, y):
+            return MockOperator(task_id="task_2", arg1=x, arg2=y)
+
+        task_1 = BaseOperator(task_id="task_1")
+        tg.expand(x=task_1.output, y=[1, 2, 3])
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    # Not expanding task_2 yet since it depends on result from task_1.
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert {(ti.task_id, ti.map_index, ti.state) for ti in decision.tis} == {
+        ("task_1", -1, None),
+        ("tg.task_2", -1, None),
+    }
+
+    # Simulate task_1 execution to produce TaskMap.
+    (ti_1,) = decision.schedulable_tis
+    assert ti_1.task_id == "task_1"
+    ti_1.state = TaskInstanceState.SUCCESS
+    session.add(TaskMap.from_task_instance_xcom(ti_1, ["a", "b"]))
+    session.flush()
+
+    # Now task_2 in mapped tagk group is expanded.
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert {(ti.task_id, ti.map_index, ti.state) for ti in decision.schedulable_tis} == {
+        ("tg.task_2", 0, None),
+        ("tg.task_2", 1, None),
+        ("tg.task_2", 2, None),
+        ("tg.task_2", 3, None),
+        ("tg.task_2", 4, None),
+        ("tg.task_2", 5, None),
+    }

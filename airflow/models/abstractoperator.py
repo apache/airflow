@@ -26,12 +26,14 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable,
 from airflow.compat.functools import cache, cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.context import Context
 from airflow.utils.helpers import render_template_as_native, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
@@ -421,6 +423,121 @@ class AbstractOperator(LoggingMixin, DAGNode):
             raise NotMapped
         counts = (g.get_mapped_ti_count(run_id, session=session) for g in mapped_task_groups)
         return functools.reduce(operator.mul, counts)
+
+    def expand_mapped_task(self, run_id: str, *, session: Session) -> tuple[Sequence[TaskInstance], int]:
+        """Create the mapped task instances for mapped task.
+
+        :raise NotMapped: If this task does not need expansion.
+        :return: The newly created mapped task instances (if any) in ascending
+            order by map index, and the maximum map index value.
+        """
+        from sqlalchemy import func, or_
+
+        from airflow.models.baseoperator import BaseOperator
+        from airflow.models.mappedoperator import MappedOperator
+        from airflow.models.taskinstance import TaskInstance
+        from airflow.settings import task_instance_mutation_hook
+
+        if not isinstance(self, (BaseOperator, MappedOperator)):
+            raise RuntimeError(f"cannot expand unrecognized operator type {type(self).__name__}")
+
+        try:
+            total_length: int | None = self.get_mapped_ti_count(run_id, session=session)
+        except NotFullyPopulated as e:
+            # It's possible that the upstream tasks are not yet done, but we
+            # don't have upstream of upstreams in partial DAGs (possible in the
+            # mini-scheduler), so we ignore this exception.
+            if not self.dag or not self.dag.partial:
+                self.log.error(
+                    "Cannot expand %r for run %s; missing upstream values: %s",
+                    self,
+                    run_id,
+                    sorted(e.missing),
+                )
+            total_length = None
+
+        state: TaskInstanceState | None = None
+        unmapped_ti: TaskInstance | None = (
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.task_id == self.task_id,
+                TaskInstance.run_id == run_id,
+                TaskInstance.map_index == -1,
+                or_(TaskInstance.state.in_(State.unfinished), TaskInstance.state.is_(None)),
+            )
+            .one_or_none()
+        )
+
+        all_expanded_tis: list[TaskInstance] = []
+
+        if unmapped_ti:
+            # The unmapped task instance still exists and is unfinished, i.e. we
+            # haven't tried to run it before.
+            if total_length is None:
+                # If the DAG is partial, it's likely that the upstream tasks
+                # are not done yet, so the task can't fail yet.
+                if not self.dag or not self.dag.partial:
+                    unmapped_ti.state = TaskInstanceState.UPSTREAM_FAILED
+                indexes_to_map: Iterable[int] = ()
+            elif total_length < 1:
+                # If the upstream maps this to a zero-length value, simply mark
+                # the unmapped task instance as SKIPPED (if needed).
+                self.log.info(
+                    "Marking %s as SKIPPED since the map has %d values to expand",
+                    unmapped_ti,
+                    total_length,
+                )
+                unmapped_ti.state = TaskInstanceState.SKIPPED
+                indexes_to_map = ()
+            else:
+                # Otherwise convert this into the first mapped index, and create
+                # TaskInstance for other indexes.
+                unmapped_ti.map_index = 0
+                self.log.debug("Updated in place to become %s", unmapped_ti)
+                all_expanded_tis.append(unmapped_ti)
+                indexes_to_map = range(1, total_length)
+            state = unmapped_ti.state
+        elif not total_length:
+            # Nothing to fixup.
+            indexes_to_map = ()
+        else:
+            # Only create "missing" ones.
+            current_max_mapping = (
+                session.query(func.max(TaskInstance.map_index))
+                .filter(
+                    TaskInstance.dag_id == self.dag_id,
+                    TaskInstance.task_id == self.task_id,
+                    TaskInstance.run_id == run_id,
+                )
+                .scalar()
+            )
+            indexes_to_map = range(current_max_mapping + 1, total_length)
+
+        for index in indexes_to_map:
+            # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
+            ti = TaskInstance(self, run_id=run_id, map_index=index, state=state)
+            self.log.debug("Expanding TIs upserted %s", ti)
+            task_instance_mutation_hook(ti)
+            ti = session.merge(ti)
+            ti.refresh_from_task(self)  # session.merge() loses task information.
+            all_expanded_tis.append(ti)
+
+        # Coerce the None case to 0 -- these two are almost treated identically,
+        # except the unmapped ti (if exists) is marked to different states.
+        total_expanded_ti_count = total_length or 0
+
+        # Any (old) task instances with inapplicable indexes (>= the total
+        # number we need) are set to "REMOVED".
+        session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.dag_id,
+            TaskInstance.task_id == self.task_id,
+            TaskInstance.run_id == run_id,
+            TaskInstance.map_index >= total_expanded_ti_count,
+        ).update({TaskInstance.state: TaskInstanceState.REMOVED})
+
+        session.flush()
+        return all_expanded_tis, total_expanded_ti_count - 1
 
     def render_template_fields(
         self,
