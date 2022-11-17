@@ -2822,6 +2822,11 @@ class DAG(LoggingMixin):
         all_datasets = outlet_datasets
         all_datasets.update(input_datasets)
 
+        # Save this set of URIs for later, since we del all_datasets before we use this
+        datasets_to_remove = {_[0] for _ in session.query(DatasetModel.uri).all()} - {
+            k.uri for k in all_datasets.keys()
+        }
+
         # store datasets
         stored_datasets = {}
         for dataset in all_datasets:
@@ -2849,8 +2854,6 @@ class DAG(LoggingMixin):
             )
             dag_refs_to_add = {x for x in dag_refs_needed if x not in dag_refs_stored}
             session.bulk_save_objects(dag_refs_to_add)
-            for obj in dag_refs_stored - dag_refs_needed:
-                session.delete(obj)
 
         existing_task_outlet_refs_dict = collections.defaultdict(set)
         for dag_id, orm_dag in existing_dags.items():
@@ -2866,8 +2869,12 @@ class DAG(LoggingMixin):
             task_refs_stored = existing_task_outlet_refs_dict[(dag_id, task_id)]
             task_refs_to_add = {x for x in task_refs_needed if x not in task_refs_stored}
             session.bulk_save_objects(task_refs_to_add)
-            for obj in task_refs_stored - task_refs_needed:
-                session.delete(obj)
+
+        # reconcile orphaned datasets
+        if datasets_to_remove:
+            log.debug(f"Removing datasets without references: {', '.join(datasets_to_remove)}")
+            # this delete cascades to DagScheduleDatasetReference and TaskOutletDatasetReference
+            session.query(DatasetModel).where(DatasetModel.uri.in_(datasets_to_remove)).delete()
 
         # Issue SQL/finish "Unit of Work", but let @provide_session commit (or if passed a session, let caller
         # decide when to commit
