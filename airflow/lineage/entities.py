@@ -71,7 +71,7 @@ class Column:
 
 
 def default_if_none(arg: bool | None) -> bool:
-    "Get default value when None."
+    """Get default value when None."""
     return arg or False
 
 
