@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Provides lineage support functions"""
+"""Provides lineage support functions."""
 from __future__ import annotations
 
 import itertools
@@ -41,7 +41,7 @@ log = logging.getLogger(__name__)
 
 
 def get_backend() -> LineageBackend | None:
-    """Gets the lineage backend if defined in the configs"""
+    """Gets the lineage backend if defined in the configs."""
     clazz = conf.getimport("lineage", "backend", fallback=None)
 
     if clazz:
@@ -69,7 +69,7 @@ def _deserialize(serialized: dict):
 
 
 def _serialize(objs: list[Any], source: str):
-    """Serialize an attrs-decorated class to JSON"""
+    """Serialize an attrs-decorated class to JSON."""
     from airflow.serialization.serialized_objects import BaseSerialization
 
     for obj in objs:
@@ -95,6 +95,8 @@ T = TypeVar("T", bound=Callable)
 
 def apply_lineage(func: T) -> T:
     """
+    Conditionally send lineage to the backend.
+
     Saves the lineage to XCom and if configured to do so sends it
     to the backend.
     """
@@ -129,7 +131,9 @@ def apply_lineage(func: T) -> T:
 
 def prepare_lineage(func: T) -> T:
     """
-    Prepares the lineage inlets and outlets. Inlets can be:
+    Prepares the lineage inlets and outlets.
+
+    Inlets can be:
 
     * "auto" -> picks up any outlets from direct upstream tasks that have outlets defined, as such that
       if A -> B -> C and B does not have outlets but A does, these are provided as inlets.
