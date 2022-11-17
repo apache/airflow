@@ -117,6 +117,7 @@ class TestCeleryKubernetesExecutor:
             pickle_id=None,
             ignore_all_deps=False,
             ignore_depends_on_past=False,
+            wait_for_past_depends_before_skipping=False,
             ignore_task_deps=False,
             ignore_ti_state=False,
             pool=None,
