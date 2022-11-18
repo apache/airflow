@@ -38,8 +38,12 @@ with models.DAG(
     tags=["example", "cloud_run"],
 ) as dag:
     # [START howto_operator_cloud_run_call]
-    create_dataset = CloudRunOperator(
-        task_id="cloud_run_call", http_conn_id="cloud_run_http_conn", gcp_conn_id="gcp_conn", endpoint=""
+    call_cloud_run = CloudRunOperator(
+        task_id="cloud_run_call",
+        http_conn_id="cloud_run_http_conn",
+        gcp_conn_id="gcp_conn",
+        method="GET",
+        endpoint="/my-endpoint",
     )
     # [END howto_operator_cloud_run_call]
 

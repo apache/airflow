@@ -17,7 +17,7 @@
     under the License.
 
 Google CloudRun Operator
-===============================
+========================
 
 `Cloud Run <https://cloud.google.com/run/>`__ is Google's fully managed,
 Container as a Service (CaaS) Solution.
@@ -32,17 +32,17 @@ Prerequisite Tasks
 .. include:: ../_partials/prerequisite_tasks.rst
 
 Cloud Run call
-^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^
 
 .. _howto/operator:CloudRunOperator:
 
 Send Authenticated HTTP request
-""""""""""""""
+"""""""""""""""""""""""""""""""
 
 To send an authenticated HTTP request against a Cloud Run you can use
 :class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_cloud_run.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloud_run_call]

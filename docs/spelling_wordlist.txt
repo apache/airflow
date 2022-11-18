@@ -181,6 +181,7 @@ bugfixes
 buildType
 burstable
 bytestring
+CaaS
 cacert
 callables
 Cancelled
