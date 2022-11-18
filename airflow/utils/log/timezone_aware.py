@@ -19,9 +19,13 @@ from __future__ import annotations
 import logging
 
 import pendulum
+from logfmter import Logfmter
+from logfmter.formatter import RESERVED
+
+EXCLUDED = {*RESERVED, "__SecretsMasker_filtered"}
 
 
-class TimezoneAware(logging.Formatter):
+class TimezoneAware(Logfmter):
     """
     Override `default_time_format`, `default_msec_format` and `formatTime` to specify utc offset.
     utc offset is the matter, without it, time conversion could be wrong.
@@ -49,3 +53,10 @@ class TimezoneAware(logging.Formatter):
         if self.default_tz_format:
             s += dt.strftime(self.default_tz_format)
         return s
+
+    @classmethod
+    def get_extra(cls, record: logging.LogRecord) -> dict:
+        """Return a dictionary of logger extra parameters by filtering any reserved keys."""
+        return {
+            cls.normalize_key(key): value for key, value in record.__dict__.items() if key not in EXCLUDED
+        }

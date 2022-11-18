@@ -72,16 +72,14 @@ DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     "disable_existing_loggers": False,
     "formatters": {
         "airflow": {
-            "format": LOG_FORMAT,
-            "class": LOG_FORMATTER_CLASS,
-        },
-        "airflow_coloured": {
-            "format": COLORED_LOG_FORMAT if COLORED_LOG else LOG_FORMAT,
-            "class": COLORED_FORMATTER_CLASS if COLORED_LOG else LOG_FORMATTER_CLASS,
+            "()": LOG_FORMATTER_CLASS,
+            "keys": ["at", "when"],
+            "mapping": {"at": "levelname", "when": "asctime"},
         },
         "source_processor": {
-            "format": DAG_PROCESSOR_LOG_FORMAT,
-            "class": LOG_FORMATTER_CLASS,
+            "()": LOG_FORMATTER_CLASS,
+            "keys": ["at", "when"],
+            "mapping": {"at": "levelname", "when": "asctime"},
         },
     },
     "filters": {
@@ -142,6 +140,13 @@ DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
         "filters": ["mask_secrets"],
     },
 }
+if COLORED_LOG:
+    DEFAULT_LOGGING_CONFIG["formatters"]["airflow_coloured"] = {
+        "format": COLORED_LOG_FORMAT if COLORED_LOG else LOG_FORMAT,
+        "class": COLORED_FORMATTER_CLASS if COLORED_LOG else LOG_FORMATTER_CLASS,
+    }
+else:
+    DEFAULT_LOGGING_CONFIG["formatters"]["airflow_coloured"] = DEFAULT_LOGGING_CONFIG["formatters"]["airflow"]
 
 EXTRA_LOGGER_NAMES: str | None = conf.get("logging", "EXTRA_LOGGER_NAMES", fallback=None)
 if EXTRA_LOGGER_NAMES:

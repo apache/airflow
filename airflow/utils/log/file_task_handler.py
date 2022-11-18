@@ -350,3 +350,8 @@ class FileTaskHandler(logging.Handler):
                 logging.warning("OSError while change ownership of the log file")
 
         return full_path
+
+
+import structlog
+
+structlog.getLogger()
