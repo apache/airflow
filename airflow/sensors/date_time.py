@@ -77,9 +77,9 @@ class DateTimeSensor(BaseSensorOperator):
 
 class DateTimeSensorAsync(DateTimeSensor):
     """
-    Waits until the specified datetime, deferring itself to avoid taking up
-    a worker slot while it is waiting.
+    Waits until the specified datetime occurs.
 
+    Deferring itself to avoid taking up a worker slot while it is waiting.
     It is a drop-in replacement for DateTimeSensor.
 
     :param target_time: datetime after which the job succeeds. (templated)

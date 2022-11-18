@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 
 from airflow.models import Connection
@@ -27,8 +26,8 @@ from airflow.utils import db
 from tests.test_utils.providers import get_provider_min_airflow_version
 
 
-class TestAzureDataLakeHook(unittest.TestCase):
-    def setUp(self):
+class TestAzureDataLakeHook:
+    def setup_method(self):
         db.merge_conn(
             Connection(
                 conn_id="adl_test_key",

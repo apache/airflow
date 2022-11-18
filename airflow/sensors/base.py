@@ -57,6 +57,8 @@ def _is_metadatabase_mysql() -> bool:
 
 class PokeReturnValue:
     """
+    Optional return value for poke methods.
+
     Sensors can optionally return an instance of the PokeReturnValue class in the poke method.
     If an XCom value is supplied when the sensor is done, then the XCom value will be
     pushed through the operator return value.
@@ -158,10 +160,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 )
 
     def poke(self, context: Context) -> bool | PokeReturnValue:
-        """
-        Function that the sensors defined while deriving this class should
-        override.
-        """
+        """Function defined by the sensors while deriving this class should override."""
         raise AirflowException("Override me.")
 
     def execute(self, context: Context) -> Any:
@@ -278,8 +277,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
 def poke_mode_only(cls):
     """
-    Class Decorator for child classes of BaseSensorOperator to indicate
-    that instances of this class are only safe to use poke mode.
+    Decorate a subclass of BaseSensorOperator with poke.
+
+    Indicate that instances of this class are only safe to use poke mode.
 
     Will decorate all methods in the class to assert they did not change
     the mode from 'poke'.
