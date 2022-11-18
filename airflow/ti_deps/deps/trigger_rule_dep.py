@@ -35,9 +35,7 @@ if TYPE_CHECKING:
 
 
 class TriggerRuleDep(BaseTIDep):
-    """
-    Determines if the upstream tasks' state of a task instance will allow it to run.
-    """
+    """Determine if the upstream tasks' state of a task instance will allow it to run."""
 
     NAME = "Trigger Rule"
     IGNORABLE = True
