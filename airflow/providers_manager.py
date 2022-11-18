@@ -457,7 +457,7 @@ class ProvidersManager(LoggingMixin):
 
     def _discover_all_providers_from_packages(self) -> None:
         """
-        Discovers all providers by scanning packages installed.
+        Discover all providers by scanning packages installed.
 
         The list of providers should be returned via the 'apache_airflow_provider'
         entrypoint as a dictionary conforming to the 'airflow/provider_info.schema.json'
