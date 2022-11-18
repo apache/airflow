@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Launches Custom object"""
-import sys
 import time
 from copy import deepcopy
 from datetime import datetime as dt
@@ -44,7 +43,7 @@ def should_retry_start_spark_job(exception: BaseException) -> bool:
     return False
 
 
-class SparkJobSpec():
+class SparkJobSpec:
     def __init__(self, **entries):
         self.__dict__.update(entries)
         self.validate()
@@ -63,7 +62,7 @@ class SparkJobSpec():
         self.spec['executor'].update(spark_resources.resources['executor'])
 
 
-class KubernetesSpec():
+class KubernetesSpec:
     def __init__(self, **entries):
         self.__dict__.update(entries)
         self.set_attribute()
@@ -86,8 +85,8 @@ class SparkResources:
 
     def __init__(
         self,
-        driver=None,
-        executor=None
+        driver: dict | None = None,
+        executor: dict | None = None,
     ):
         self.default = {
             'gpu': {'name': None, 'quantity': 0},
@@ -188,10 +187,8 @@ class CustomObjectLauncher(LoggingMixin):
         template_body: Optional[str] = None,
     ):
         """
-        Creates the launcher.
-
+        Creates custom object launcher(sparkapplications crd).
         :param kube_client: kubernetes client
-        :param extract_xcom: whether we should extract xcom
         """
         super().__init__()
         self.name = name
@@ -205,7 +202,7 @@ class CustomObjectLauncher(LoggingMixin):
         self._client = kube_client
         self.custom_obj_api = custom_obj_api
         self.spark_obj_spec: dict = {}
-        self.pod_spec: dict = {}
+        self.pod_spec: Optional[k8s.V1Pod] = None
 
     @cached_property
     def pod_manager(self) -> PodManager:
