@@ -555,7 +555,7 @@ class ProvidersManager(LoggingMixin):
         provider: ProviderInfo,
     ):
         """
-        Discover  hooks from the "connection-types" property.
+        Discover hooks from the "connection-types" property.
 
         This is new, better method that replaces discovery from hook-class-names as it
         allows to lazy import individual Hook classes when they are accessed.
