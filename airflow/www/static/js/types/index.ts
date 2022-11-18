@@ -56,6 +56,7 @@ interface DagRun {
   externalTrigger: boolean;
   conf: string | null;
   confIsJson: boolean;
+  notes: string | null;
 }
 
 interface TaskInstance {
@@ -71,6 +72,7 @@ interface TaskInstance {
   tryNumber?: number;
   triggererJob?: Job;
   trigger?: Trigger;
+  notes: string | null;
 }
 
 interface Trigger {

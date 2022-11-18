@@ -17,13 +17,18 @@
 # under the License.
 from __future__ import annotations
 
+import hashlib
 import logging
+import os
+import tempfile
 import unittest
+import zipfile
 from datetime import time, timedelta
 
 import pytest
 
 from airflow import exceptions, settings
+from airflow.decorators import task as task_deco
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.models.dag import DAG
@@ -33,11 +38,12 @@ from airflow.operators.empty import EmptyOperator
 from airflow.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor, ExternalTaskSensorLink
 from airflow.sensors.time_sensor import TimeSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
-from airflow.utils.session import provide_session
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
+from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.db import clear_db_runs
 
 DEFAULT_DATE = datetime(2015, 1, 1)
@@ -51,6 +57,35 @@ DEV_NULL = "/dev/null"
 @pytest.fixture(autouse=True)
 def clean_db():
     clear_db_runs()
+
+
+@pytest.fixture
+def dag_zip_maker():
+    class DagZipMaker:
+        def __call__(self, *dag_files):
+            self.__dag_files = [os.sep.join([TEST_DAGS_FOLDER.__str__(), dag_file]) for dag_file in dag_files]
+            dag_files_hash = hashlib.md5("".join(self.__dag_files).encode()).hexdigest()
+            self.__tmp_dir = os.sep.join([tempfile.tempdir, dag_files_hash])
+
+            self.__zip_file_name = os.sep.join([self.__tmp_dir, f"{dag_files_hash}.zip"])
+
+            if not os.path.exists(self.__tmp_dir):
+                os.mkdir(self.__tmp_dir)
+            return self
+
+        def __enter__(self):
+            with zipfile.ZipFile(self.__zip_file_name, "x") as zf:
+                for dag_file in self.__dag_files:
+                    zf.write(dag_file, os.path.basename(dag_file))
+            dagbag = DagBag(dag_folder=self.__tmp_dir, include_examples=False)
+            dagbag.sync_to_db()
+            return dagbag
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            os.unlink(self.__zip_file_name)
+            os.rmdir(self.__tmp_dir)
+
+    yield DagZipMaker()
 
 
 class TestExternalTaskSensor(unittest.TestCase):
@@ -126,7 +161,7 @@ class TestExternalTaskSensor(unittest.TestCase):
     def test_external_task_group_not_exists_without_check_existence(self):
         self.add_time_sensor()
         self.add_dummy_task_group()
-        with pytest.raises(AirflowException, match=f"Snap. Time is OUT. DAG id: {TEST_DAG_ID}"):
+        with pytest.raises(AirflowException, match="Sensor has timed out"):
             op = ExternalTaskSensor(
                 task_id="test_external_task_sensor_check",
                 external_dag_id=TEST_DAG_ID,
@@ -418,6 +453,30 @@ exit 0
         with pytest.raises(AirflowSensorTimeout):
             task_with_failure.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+        # Test to ensure that if one task in a chain of tasks fails, the
+        # ExternalTaskSensor will also report a failure and return without
+        # waiting for a timeout.
+        task_chain_with_failure = ExternalTaskSensor(
+            task_id="task_chain_with_failure",
+            external_dag_id=dag_external_id,
+            external_task_id="task_external_with_failure",
+            execution_date_fn=lambda dt: [dt + timedelta(seconds=i) for i in range(3)],
+            allowed_states=["success"],
+            failed_states=["failed"],
+            retries=0,
+            timeout=5,
+            poke_interval=1,
+            dag=dag,
+        )
+
+        # We need to test for an AirflowException explicitly since
+        # AirflowSensorTimeout is a subclass that will be raised if this does
+        # not execute properly.
+        try:
+            task_chain_with_failure.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        except AirflowException as ex:
+            assert type(ex) == AirflowException
+
     def test_external_task_sensor_delta(self):
         self.add_time_sensor()
         op = ExternalTaskSensor(
@@ -574,6 +633,14 @@ exit 0
 
         with pytest.raises(AirflowException):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+
+def test_external_task_sensor_check_zipped_dag_existence(dag_zip_maker):
+    with dag_zip_maker("test_external_task_sensor_check_existense.py") as dagbag:
+        with create_session() as session:
+            dag = dagbag.dags["test_external_task_sensor_check_existence"]
+            op = dag.tasks[0]
+            op._check_for_existence(session)
 
 
 def test_external_task_sensor_templated(dag_maker, app):
@@ -1103,6 +1170,98 @@ def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
             session=session,
         )
         == 30
+    )
+
+
+@pytest.fixture
+def dag_bag_head_tail_mapped_tasks():
+    """
+    Create a DagBag containing one DAG, with task "head" depending on task "tail" of the
+    previous execution_date.
+
+    20200501     20200502                 20200510
+    +------+     +------+                 +------+
+    | head |    -->head |    -->         -->head |
+    |  |   |   / |  |   |   /           / |  |   |
+    |  v   |  /  |  v   |  /           /  |  v   |
+    | body | /   | body | /     ...   /   | body |
+    |  |   |/    |  |   |/           /    |  |   |
+    |  v   /     |  v   /           /     |  v   |
+    | tail/|     | tail/|          /      | tail |
+    +------+     +------+                 +------+
+    """
+    dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
+
+    with DAG("head_tail", start_date=DEFAULT_DATE, schedule="@daily") as dag:
+
+        @task_deco
+        def dummy_task(x: int):
+            return x
+
+        head = ExternalTaskSensor(
+            task_id="head",
+            external_dag_id=dag.dag_id,
+            external_task_id="tail",
+            execution_delta=timedelta(days=1),
+            mode="reschedule",
+        )
+
+        body = dummy_task.expand(x=[i for i in range(5)])
+        tail = ExternalTaskMarker(
+            task_id="tail",
+            external_dag_id=dag.dag_id,
+            external_task_id=head.task_id,
+            execution_date="{{ macros.ds_add(ds, 1) }}",
+        )
+        head >> body >> tail
+
+    dag_bag.bag_dag(dag=dag, root_dag=dag)
+
+    return dag_bag
+
+
+@provide_session
+def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_mapped_tasks, session):
+    dag: DAG = dag_bag_head_tail_mapped_tasks.get_dag("head_tail")
+
+    # "Run" 10 times.
+    for delta in range(0, 10):
+        execution_date = DEFAULT_DATE + timedelta(days=delta)
+        dagrun = DagRun(
+            dag_id=dag.dag_id,
+            state=DagRunState.SUCCESS,
+            execution_date=execution_date,
+            run_type=DagRunType.MANUAL,
+            run_id=f"test_{delta}",
+        )
+        session.add(dagrun)
+        for task in dag.tasks:
+            if task.task_id == "dummy_task":
+                for map_index in range(5):
+                    ti = TaskInstance(task=task, run_id=dagrun.run_id, map_index=map_index)
+                    ti.state = TaskInstanceState.SUCCESS
+                    dagrun.task_instances.append(ti)
+            else:
+                ti = TaskInstance(task=task, run_id=dagrun.run_id)
+                ti.state = TaskInstanceState.SUCCESS
+                dagrun.task_instances.append(ti)
+    session.flush()
+
+    dag = dag.partial_subset(
+        task_ids_or_regex=["head"],
+        include_downstream=True,
+        include_upstream=False,
+    )
+    task_ids = [tid for tid in dag.task_dict]
+    assert (
+        dag.clear(
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            dag_bag=dag_bag_head_tail_mapped_tasks,
+            session=session,
+            task_ids=task_ids,
+        )
+        == 70
     )
 
 

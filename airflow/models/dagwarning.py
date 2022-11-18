@@ -45,10 +45,10 @@ class DagWarning(Base):
     __tablename__ = "dag_warning"
     __table_args__ = (
         ForeignKeyConstraint(
-            ('dag_id',),
-            ['dag.dag_id'],
-            name='dcw_dag_id_fkey',
-            ondelete='CASCADE',
+            ("dag_id",),
+            ["dag.dag_id"],
+            name="dcw_dag_id_fkey",
+            ondelete="CASCADE",
         ),
     )
 
@@ -74,7 +74,7 @@ class DagWarning(Base):
         """
         from airflow.models.dag import DagModel
 
-        if session.get_bind().dialect.name == 'sqlite':
+        if session.get_bind().dialect.name == "sqlite":
             dag_ids = session.query(DagModel.dag_id).filter(DagModel.is_active == false())
             query = session.query(cls).filter(cls.dag_id.in_(dag_ids))
         else:
@@ -91,4 +91,4 @@ class DagWarningType(str, Enum):
     in the DagWarning model.
     """
 
-    NONEXISTENT_POOL = 'non-existent pool'
+    NONEXISTENT_POOL = "non-existent pool"

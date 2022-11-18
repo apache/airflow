@@ -35,7 +35,7 @@ def subdag(parent_dag_name, child_dag_name, args) -> DAG:
     :return: DAG to use as a subdag
     """
     dag_subdag = DAG(
-        dag_id=f'{parent_dag_name}.{child_dag_name}',
+        dag_id=f"{parent_dag_name}.{child_dag_name}",
         default_args=args,
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
@@ -44,7 +44,7 @@ def subdag(parent_dag_name, child_dag_name, args) -> DAG:
 
     for i in range(5):
         EmptyOperator(
-            task_id=f'{child_dag_name}-task-{i + 1}',
+            task_id=f"{child_dag_name}-task-{i + 1}",
             default_args=args,
             dag=dag_subdag,
         )

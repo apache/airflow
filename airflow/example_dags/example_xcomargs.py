@@ -42,11 +42,11 @@ def print_value(value, ts=None):
 
 
 with DAG(
-    dag_id='example_xcom_args',
+    dag_id="example_xcom_args",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     schedule=None,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     print_value(generate_value())
 
@@ -55,7 +55,7 @@ with DAG(
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     schedule=None,
-    tags=['example'],
+    tags=["example"],
 ) as dag2:
     bash_op1 = BashOperator(task_id="c", bash_command="echo c")
     bash_op2 = BashOperator(task_id="d", bash_command="echo c")

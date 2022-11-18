@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest.mock import patch
 
 from azure.mgmt.containerinstance.models import (
@@ -34,8 +33,8 @@ from airflow.providers.microsoft.azure.hooks.container_instance import AzureCont
 from airflow.utils import db
 
 
-class TestAzureContainerInstanceHook(unittest.TestCase):
-    def setUp(self):
+class TestAzureContainerInstanceHook:
+    def setup_method(self):
         db.merge_conn(
             Connection(
                 conn_id="azure_container_instance_test",

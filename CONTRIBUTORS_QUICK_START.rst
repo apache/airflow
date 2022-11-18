@@ -54,7 +54,7 @@ If you do not work with remote development environment, you need those prerequis
 2. Docker Compose
 3. pyenv (you can also use pyenv-virtualenv or virtualenvwrapper)
 
-The below setup describe Ubuntu installation. It might be slightly different on different machines.
+The below setup describe `Ubuntu installation <https://docs.docker.com/engine/install/ubuntu/>`_. It might be slightly different on different machines.
 
 Docker Community Edition
 ------------------------
@@ -66,25 +66,24 @@ Docker Community Edition
   $ sudo apt-get update
 
   $ sudo apt-get install \
-      apt-transport-https \
       ca-certificates \
       curl \
-      gnupg-agent \
-      software-properties-common
+      gnupg \
+      lsb-release
 
-  $ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+  $ sudo mkdir -p /etc/apt/keyrings
+  $ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
-  $ sudo add-apt-repository \
-     "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-     $(lsb_release -cs) \
-     stable"
+  $ echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+    $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-2. Install Docker
+2. Install Docker Engine, containerd, and Docker Compose Plugin.
 
 .. code-block:: bash
 
   $ sudo apt-get update
-  $ sudo apt-get install docker-ce docker-ce-cli containerd.io
+  $ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
 3. Creating group for docker and adding current user to it.
 
@@ -301,7 +300,7 @@ Using Breeze
      * 26379 -> forwarded to Redis broker -> redis:6379
 
    Here are links to those services that you can use on host:
-     * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 pw: airflow
+     * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 (password: airflow)
      * Webserver: http://127.0.0.1:28080
      * Flower:    http://127.0.0.1:25555
      * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
@@ -505,7 +504,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
 .. code-block:: bash
 
-  $ pre-commit run  --files airflow/decorators.py tests/utils/test_task_group.py
+  $ pre-commit run  --files airflow/utils/decorators.py tests/utils/test_task_group.py
 
 
 

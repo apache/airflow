@@ -152,6 +152,7 @@ class TestDockerOperator(unittest.TestCase):
             privileged=False,
             device_requests=[DeviceRequest(count=-1, capabilities=[["gpu"]])],
             log_config=LogConfig(config={"max-size": "10m", "max-file": "5"}),
+            ipc_mode=None,
         )
         self.tempdir_mock.assert_called_once_with(dir="/host/airflow", prefix="airflowtmp")
         self.client_mock.images.assert_called_once_with(name="ubuntu:latest")
@@ -224,6 +225,7 @@ class TestDockerOperator(unittest.TestCase):
             privileged=False,
             device_requests=None,
             log_config=LogConfig(config={}),
+            ipc_mode=None,
         )
         self.tempdir_mock.assert_not_called()
         self.client_mock.images.assert_called_once_with(name="ubuntu:latest")
@@ -328,6 +330,7 @@ class TestDockerOperator(unittest.TestCase):
                     privileged=False,
                     device_requests=None,
                     log_config=LogConfig(config={}),
+                    ipc_mode=None,
                 ),
                 call(
                     mounts=[
@@ -345,6 +348,7 @@ class TestDockerOperator(unittest.TestCase):
                     privileged=False,
                     device_requests=None,
                     log_config=LogConfig(config={}),
+                    ipc_mode=None,
                 ),
             ]
         )

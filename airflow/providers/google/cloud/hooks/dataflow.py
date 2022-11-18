@@ -237,6 +237,8 @@ class _DataflowJobsController(LoggingMixin):
         """
         if not self._multiple_jobs and self._job_id:
             return [self.fetch_job_by_id(self._job_id)]
+        elif self._jobs:
+            return [self.fetch_job_by_id(job["id"]) for job in self._jobs]
         elif self._job_name:
             jobs = self._fetch_jobs_by_prefix_name(self._job_name.lower())
             if len(jobs) == 1:
@@ -445,11 +447,11 @@ class _DataflowJobsController(LoggingMixin):
             job_states = {job["currentState"] for job in self._jobs}
             if not job_states.difference(expected_states):
                 return
-            unexpected_failed_end_states = expected_states - DataflowJobStatus.FAILED_END_STATES
+            unexpected_failed_end_states = DataflowJobStatus.FAILED_END_STATES - expected_states
             if unexpected_failed_end_states.intersection(job_states):
-                unexpected_failed_jobs = {
+                unexpected_failed_jobs = [
                     job for job in self._jobs if job["currentState"] in unexpected_failed_end_states
-                }
+                ]
                 raise AirflowException(
                     "Jobs failed: "
                     + ", ".join(
@@ -461,18 +463,19 @@ class _DataflowJobsController(LoggingMixin):
 
     def cancel(self) -> None:
         """Cancels or drains current job"""
-        jobs = self.get_jobs()
-        job_ids = [job["id"] for job in jobs if job["currentState"] not in DataflowJobStatus.TERMINAL_STATES]
+        self._jobs = [
+            job for job in self.get_jobs() if job["currentState"] not in DataflowJobStatus.TERMINAL_STATES
+        ]
+        job_ids = [job["id"] for job in self._jobs]
         if job_ids:
-            batch = self._dataflow.new_batch_http_request()
             self.log.info("Canceling jobs: %s", ", ".join(job_ids))
-            for job in jobs:
+            for job in self._jobs:
                 requested_state = (
                     DataflowJobStatus.JOB_STATE_DRAINED
                     if self.drain_pipeline and job["type"] == DataflowJobType.JOB_TYPE_STREAMING
                     else DataflowJobStatus.JOB_STATE_CANCELLED
                 )
-                batch.add(
+                request = (
                     self._dataflow.projects()
                     .locations()
                     .jobs()
@@ -483,14 +486,16 @@ class _DataflowJobsController(LoggingMixin):
                         body={"requestedState": requested_state},
                     )
                 )
-            batch.execute()
+                request.execute(num_retries=self._num_retries)
             if self._cancel_timeout and isinstance(self._cancel_timeout, int):
                 timeout_error_message = (
                     f"Canceling jobs failed due to timeout ({self._cancel_timeout}s): {', '.join(job_ids)}"
                 )
                 tm = timeout(seconds=self._cancel_timeout, error_message=timeout_error_message)
                 with tm:
-                    self._wait_for_states({DataflowJobStatus.JOB_STATE_CANCELLED})
+                    self._wait_for_states(
+                        {DataflowJobStatus.JOB_STATE_CANCELLED, DataflowJobStatus.JOB_STATE_DRAINED}
+                    )
         else:
             self.log.info("No jobs to cancel")
 

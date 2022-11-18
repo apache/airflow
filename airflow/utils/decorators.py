@@ -24,7 +24,7 @@ from typing import Callable, TypeVar, cast
 
 from airflow.exceptions import RemovedInAirflow3Warning
 
-T = TypeVar('T', bound=Callable)
+T = TypeVar("T", bound=Callable)
 
 
 def apply_defaults(func: T) -> T:
@@ -82,4 +82,4 @@ def _balance_parens(after_decorator):
             num_paren = num_paren + 1
         elif current == ")":
             num_paren = num_paren - 1
-    return ''.join(after_decorator)
+    return "".join(after_decorator)

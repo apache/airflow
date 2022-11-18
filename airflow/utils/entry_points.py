@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from typing import Iterator
 
 from packaging.utils import canonicalize_name
@@ -24,6 +25,8 @@ try:
     import importlib_metadata as metadata
 except ImportError:
     from importlib import metadata  # type: ignore[no-redef]
+
+log = logging.getLogger(__name__)
 
 
 def entry_points_with_dist(group: str) -> Iterator[tuple[metadata.EntryPoint, metadata.Distribution]]:
@@ -37,11 +40,14 @@ def entry_points_with_dist(group: str) -> Iterator[tuple[metadata.EntryPoint, me
     """
     loaded: set[str] = set()
     for dist in metadata.distributions():
-        key = canonicalize_name(dist.metadata["Name"])
-        if key in loaded:
-            continue
-        loaded.add(key)
-        for e in dist.entry_points:
-            if e.group != group:
+        try:
+            key = canonicalize_name(dist.metadata["Name"])
+            if key in loaded:
                 continue
-            yield e, dist
+            loaded.add(key)
+            for e in dist.entry_points:
+                if e.group != group:
+                    continue
+                yield e, dist
+        except Exception as e:
+            log.warning("Error when retrieving package metadata (skipping it): %s, %s", dist, e)

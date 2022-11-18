@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 from unittest.mock import PropertyMock
 
@@ -29,9 +28,9 @@ from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
 from airflow.utils import db
 
 
-class TestAzureBatchHook(unittest.TestCase):
+class TestAzureBatchHook:
     # set up the test environment
-    def setUp(self):
+    def setup_method(self):
         # set up the test variable
         self.test_vm_conn_id = "test_azure_batch_vm"
         self.test_cloud_conn_id = "test_azure_batch_cloud"
@@ -73,6 +72,7 @@ class TestAzureBatchHook(unittest.TestCase):
         pool = hook.configure_pool(
             pool_id="mypool",
             vm_size="test_vm_size",
+            vm_node_agent_sku_id=self.test_vm_sku,
             target_dedicated_nodes=1,
             vm_publisher="test.vm.publisher",
             vm_offer="test.vm.offer",
@@ -85,6 +85,7 @@ class TestAzureBatchHook(unittest.TestCase):
         pool = hook.configure_pool(
             pool_id="mypool",
             vm_size="test_vm_size",
+            vm_node_agent_sku_id=self.test_vm_sku,
             target_dedicated_nodes=1,
             vm_publisher="test.vm.publisher",
             vm_offer="test.vm.offer",
@@ -103,6 +104,7 @@ class TestAzureBatchHook(unittest.TestCase):
             pool = hook.configure_pool(
                 pool_id="mypool",
                 vm_size="test_vm_size",
+                vm_node_agent_sku_id=self.test_vm_sku,
                 use_latest_image_and_sku=True,
                 vm_publisher="test.vm.publisher",
                 vm_offer="test.vm.offer",
@@ -117,6 +119,7 @@ class TestAzureBatchHook(unittest.TestCase):
         pool = hook.configure_pool(
             pool_id="mypool",
             vm_size="test_vm_size",
+            vm_node_agent_sku_id=self.test_vm_sku,
             target_dedicated_nodes=1,
             vm_publisher="test.vm.publisher",
             vm_offer="test.vm.offer",
@@ -132,6 +135,7 @@ class TestAzureBatchHook(unittest.TestCase):
         pool = hook.configure_pool(
             pool_id="mypool",
             vm_size="test_vm_size",
+            vm_node_agent_sku_id=self.test_vm_sku,
             target_dedicated_nodes=1,
             vm_publisher="test.vm.publisher",
             vm_offer="test.vm.offer",

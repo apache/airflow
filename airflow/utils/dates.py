@@ -27,12 +27,12 @@ from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils import timezone
 
 cron_presets: dict[str, str] = {
-    '@hourly': '0 * * * *',
-    '@daily': '0 0 * * *',
-    '@weekly': '0 0 * * 0',
-    '@monthly': '0 0 1 * *',
-    '@quarterly': '0 0 1 */3 *',
-    '@yearly': '0 0 1 1 *',
+    "@hourly": "0 * * * *",
+    "@daily": "0 0 * * *",
+    "@weekly": "0 0 * * 0",
+    "@monthly": "0 0 1 * *",
+    "@quarterly": "0 0 1 */3 *",
+    "@yearly": "0 0 1 1 *",
 }
 
 
@@ -226,25 +226,25 @@ def infer_time_unit(time_seconds_arr):
     e.g. 5400 seconds => 'minutes', 36000 seconds => 'hours'
     """
     if len(time_seconds_arr) == 0:
-        return 'hours'
+        return "hours"
     max_time_seconds = max(time_seconds_arr)
     if max_time_seconds <= 60 * 2:
-        return 'seconds'
+        return "seconds"
     elif max_time_seconds <= 60 * 60 * 2:
-        return 'minutes'
+        return "minutes"
     elif max_time_seconds <= 24 * 60 * 60 * 2:
-        return 'hours'
+        return "hours"
     else:
-        return 'days'
+        return "days"
 
 
 def scale_time_units(time_seconds_arr, unit):
     """Convert an array of time durations in seconds to the specified time unit."""
-    if unit == 'minutes':
+    if unit == "minutes":
         return list(map(lambda x: x / 60, time_seconds_arr))
-    elif unit == 'hours':
+    elif unit == "hours":
         return list(map(lambda x: x / (60 * 60), time_seconds_arr))
-    elif unit == 'days':
+    elif unit == "days":
         return list(map(lambda x: x / (24 * 60 * 60), time_seconds_arr))
     return time_seconds_arr
 

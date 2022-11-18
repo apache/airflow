@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import subprocess
 from datetime import datetime
 
@@ -99,6 +100,24 @@ def get_execution_role_name() -> str:
 
 @task
 def update_trust_policy_execution_role(cluster_name, cluster_namespace, role_name):
+    # Remove any already existing trusted entities added with "update-role-trust-policy"
+    # Prevent getting an error "Cannot exceed quota for ACLSizePerRole"
+    client = boto3.client("iam")
+    role_trust_policy = client.get_role(RoleName=role_name)["Role"]["AssumeRolePolicyDocument"]
+    # We assume if the action is sts:AssumeRoleWithWebIdentity, the statement had been added with
+    # "update-role-trust-policy". Removing it to not exceed the quota
+    role_trust_policy["Statement"] = list(
+        filter(
+            lambda statement: statement["Action"] != "sts:AssumeRoleWithWebIdentity",
+            role_trust_policy["Statement"],
+        )
+    )
+
+    client.update_assume_role_policy(
+        RoleName=role_name,
+        PolicyDocument=json.dumps(role_trust_policy),
+    )
+
     # See https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-trust-policy.html
     # The action "update-role-trust-policy" is not available in boto3, thus we need to do it using AWS CLI
     commands = (

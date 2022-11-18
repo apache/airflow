@@ -145,8 +145,7 @@ class PrestoHook(DbApiHook):
         self,
         sql: str | list[str] = "",
         parameters: Iterable | Mapping | None = None,
-        **kwargs: dict,
-    ):
+    ) -> Any:
         if not isinstance(sql, str):
             raise ValueError(f"The sql in Presto Hook must be a string and is {sql}!")
         try:
@@ -154,7 +153,7 @@ class PrestoHook(DbApiHook):
         except DatabaseError as e:
             raise PrestoException(e)
 
-    def get_first(self, sql: str | list[str] = "", parameters: dict | None = None) -> Any:
+    def get_first(self, sql: str | list[str] = "", parameters: Iterable | Mapping | None = None) -> Any:
         if not isinstance(sql, str):
             raise ValueError(f"The sql in Presto Hook must be a string and is {sql}!")
         try:
@@ -225,3 +224,15 @@ class PrestoHook(DbApiHook):
             commit_every = 0
 
         super().insert_rows(table, rows, target_fields, commit_every)
+
+    @staticmethod
+    def _serialize_cell(cell: Any, conn: Connection | None = None) -> Any:
+        """
+        Presto will adapt all arguments to the execute() method internally,
+        hence we return cell without any conversion.
+
+        :param cell: The cell to insert into the table
+        :param conn: The database connection
+        :return: The cell
+        """
+        return cell

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Task runner for cgroup to run Airflow task"""
+"""Task runner for cgroup to run Airflow task."""
 from __future__ import annotations
 
 import datetime
@@ -33,9 +33,10 @@ from airflow.utils.process_utils import reap_process_group
 
 class CgroupTaskRunner(BaseTaskRunner):
     """
-    Runs the raw Airflow task in a cgroup that has containment for memory and
-    cpu. It uses the resource requirements defined in the task to construct
-    the settings for the cgroup.
+    Runs the raw Airflow task in a cgroup container.
+
+    With containment for memory and cpu. It uses the resource requirements
+     defined in the task to construct the settings for the cgroup.
 
     Cgroup must be mounted first otherwise CgroupTaskRunner
     will not be able to work.
@@ -160,7 +161,7 @@ class CgroupTaskRunner(BaseTaskRunner):
 
         # Start the process w/ cgroups
         self.log.debug("Starting task process with cgroups cpu,memory: %s", cgroup_name)
-        self.process = self.run_command(['cgexec', '-g', f'cpu,memory:{cgroup_name}'])
+        self.process = self.run_command(["cgexec", "-g", f"cpu,memory:{cgroup_name}"])
 
     def return_code(self, timeout: int = 0) -> int | None:
         return_code = self.process.poll()
@@ -188,7 +189,7 @@ class CgroupTaskRunner(BaseTaskRunner):
         def byte_to_gb(num_bytes, precision=2):
             return round(num_bytes / (1024 * 1024 * 1024), precision)
 
-        with open(mem_cgroup_node.full_path + '/memory.max_usage_in_bytes') as f:
+        with open(mem_cgroup_node.full_path + "/memory.max_usage_in_bytes") as f:
             max_usage_in_bytes = int(f.read().strip())
 
         used_gb = byte_to_gb(max_usage_in_bytes)
