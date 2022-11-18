@@ -925,7 +925,7 @@ class ProvidersManager(LoggingMixin):
                         self._secrets_backend_class_name_set.add(secrets_backends_class_name)
 
     def _discover_auth_backends(self) -> None:
-        """Retrieves all API auth backends defined in the providers."""
+        """Retrieve all API auth backends defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("auth-backends"):
                 for auth_backend_module_name in provider.data["auth-backends"]:
