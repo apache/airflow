@@ -31,10 +31,7 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import _suppress
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
 from airflow.utils.helpers import prune_dict
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
+from airflow.compat.functools import cached_property
 from airflow.kubernetes import kube_client, pod_generator
 from airflow.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
 

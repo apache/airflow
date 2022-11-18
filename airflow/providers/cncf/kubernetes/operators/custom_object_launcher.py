@@ -34,10 +34,7 @@ from airflow.providers.cncf.kubernetes.resource_convert.secret import convert_se
 from airflow.providers.cncf.kubernetes.resource_convert.configmap import convert_configmap, convert_configmap_to_volume
 from airflow.providers.cncf.kubernetes.resource_convert.env_variable import convert_env_vars
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
+from airflow.compat.functools import cached_property
 
 
 def should_retry_start_spark_job(exception: BaseException) -> bool:
