@@ -112,6 +112,7 @@ class PrevDagrunDep(BaseTIDep):
                     f"is in the state '{previous_ti.state}' which is not a successful state."
                 )
             )
+            return
 
         previous_ti.task = ti.task
         if ti.task.wait_for_downstream and not previous_ti.are_dependents_done(session=session):
@@ -121,3 +122,5 @@ class PrevDagrunDep(BaseTIDep):
                     f"(and wait_for_downstream is True)."
                 )
             )
+            return
+        self._push_past_deps_met_xcom_if_needed(ti, dep_context)
