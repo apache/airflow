@@ -724,6 +724,24 @@
                 }
             ]
         },
+        "volumes": {
+            "description": "Volumes for all Airflow containers.",
+            "x-docsSection": "Airflow",
+            "type": "array",
+            "default": [],
+            "items": {
+                "$ref": "#/definitions/io.k8s.api.core.v1.Volume"
+            }
+        },
+        "volumeMounts": {
+            "description": "VolumeMounts for all Airflow containers.",
+            "x-docsSection": "Airflow",
+            "type": "array",
+            "default": [],
+            "items": {
+                "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
+            }
+        },
         "secret": {
             "description": "Secrets for all Airflow containers.",
             "type": "array",
