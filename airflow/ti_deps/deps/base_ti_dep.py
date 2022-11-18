@@ -136,9 +136,7 @@ class BaseTIDep:
 
 
 class TIDepStatus(NamedTuple):
-    """
-    Dependency status for of a task instance indicating whether the task instance passed the dependency.
-    """
+    """Dependency status for a task instance indicating whether the task instance passed the dependency."""
 
     dep_name: str
     passed: bool
