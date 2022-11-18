@@ -941,7 +941,8 @@ class ProvidersManager(LoggingMixin):
     @property
     def hooks(self) -> MutableMapping[str, HookInfo | None]:
         """
-        Returns dictionary of connection_type-to-hook mapping.
+        Return dictionary of connection_type-to-hook mapping.
+
         Note that the dict can contain None values if a hook discovered cannot be imported!
         """
         self.initialize_providers_hooks()
