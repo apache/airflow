@@ -18,10 +18,9 @@
 from __future__ import annotations
 
 from logging import DEBUG, ERROR, INFO, WARNING
-from unittest import TestCase
 from unittest.mock import MagicMock, Mock, call, patch
 
-from parameterized import parameterized
+import pytest
 from pypsrp.host import PSHost
 from pypsrp.messages import MessageType
 from pypsrp.powershell import PSInvocationState
@@ -111,7 +110,7 @@ def mock_powershell_factory():
 @patch(f"{PsrpHook.__module__}.WSMan")
 @patch(f"{PsrpHook.__module__}.PowerShell", new_callable=mock_powershell_factory)
 @patch(f"{PsrpHook.__module__}.RunspacePool")
-class TestPsrpHook(TestCase):
+class TestPsrpHook:
     def test_get_conn(self, runspace_pool, powershell, ws_man):
         hook = PsrpHook(CONNECTION_ID)
         assert hook.get_conn() is runspace_pool.return_value
@@ -128,7 +127,9 @@ class TestPsrpHook(TestCase):
         with raises(AirflowException, match="Unexpected extra configuration keys: foo"):
             hook.get_conn()
 
-    @parameterized.expand([(None,), (ERROR,)])
+    @pytest.mark.parametrize(
+        "logging_level", [pytest.param(None, id="none"), pytest.param(ERROR, id="ERROR")]
+    )
     def test_invoke(self, runspace_pool, powershell, ws_man, logging_level):
         runspace_options = {"connection_name": "foo"}
         wsman_options = {"encryption": "auto"}

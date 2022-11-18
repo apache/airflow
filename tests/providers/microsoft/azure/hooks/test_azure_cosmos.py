@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import logging
-import unittest
 import uuid
 from unittest import mock
 from unittest.mock import PropertyMock
@@ -34,10 +33,10 @@ from airflow.utils import db
 from tests.test_utils.providers import get_provider_min_airflow_version
 
 
-class TestAzureCosmosDbHook(unittest.TestCase):
+class TestAzureCosmosDbHook:
 
     # Set up an environment to test with
-    def setUp(self):
+    def setup_method(self):
         # set up some test variables
         self.test_end_point = "https://test_endpoint:443"
         self.test_master_key = "magic_test_key"

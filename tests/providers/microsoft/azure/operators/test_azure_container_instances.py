@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from collections import namedtuple
 from unittest import mock
 from unittest.mock import MagicMock
@@ -64,7 +63,7 @@ def make_mock_cg_with_missing_events(container_state):
     return container_g
 
 
-class TestACIOperator(unittest.TestCase):
+class TestACIOperator:
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute(self, aci_mock):
         expected_c_state = ContainerState(state="Terminated", exit_code=0, detail_status="test")

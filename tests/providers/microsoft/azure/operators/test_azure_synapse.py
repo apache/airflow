@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -39,8 +38,8 @@ CONN_EXTRAS = {
 JOB_RUN_RESPONSE = {"id": 123}
 
 
-class TestAzureSynapseRunSparkBatchOperator(unittest.TestCase):
-    def setUp(self):
+class TestAzureSynapseRunSparkBatchOperator:
+    def setup_method(self):
         self.mock_ti = MagicMock()
         self.mock_context = {"ti": self.mock_ti}
         self.config = {

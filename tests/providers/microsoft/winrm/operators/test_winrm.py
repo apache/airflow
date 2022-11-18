@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -26,7 +25,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
 
 
-class TestWinRMOperator(unittest.TestCase):
+class TestWinRMOperator:
     def test_no_winrm_hook_no_ssh_conn_id(self):
         op = WinRMOperator(task_id="test_task_id", winrm_hook=None, ssh_conn_id=None)
         exception_msg = "Cannot operate without winrm_hook or ssh_conn_id."

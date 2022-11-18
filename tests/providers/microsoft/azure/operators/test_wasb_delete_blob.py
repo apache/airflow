@@ -18,21 +18,20 @@
 from __future__ import annotations
 
 import datetime
-import unittest
 from unittest import mock
 
 from airflow.models.dag import DAG
 from airflow.providers.microsoft.azure.operators.wasb_delete_blob import WasbDeleteBlobOperator
 
 
-class TestWasbDeleteBlobOperator(unittest.TestCase):
+class TestWasbDeleteBlobOperator:
 
     _config = {
         "container_name": "container",
         "blob_name": "blob",
     }
 
-    def setUp(self):
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
         self.dag = DAG("test_dag_id", default_args=args)
 

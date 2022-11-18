@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.microsoft.azure.sensors.cosmos import AzureCosmosDocumentSensor
@@ -26,7 +25,7 @@ COLLECTION_NAME = "test-db-collection-name"
 DOCUMENT_ID = "test-document-id"
 
 
-class TestAzureCosmosSensor(unittest.TestCase):
+class TestAzureCosmosSensor:
     @mock.patch("airflow.providers.microsoft.azure.sensors.cosmos.AzureCosmosDBHook")
     def test_should_call_hook_with_args(self, mock_hook):
         mock_instance = mock_hook.return_value

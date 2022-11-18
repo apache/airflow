@@ -18,14 +18,13 @@
 from __future__ import annotations
 
 import datetime
-import unittest
 from unittest import mock
 
 from airflow.models.dag import DAG
 from airflow.providers.microsoft.azure.sensors.wasb import WasbBlobSensor, WasbPrefixSensor
 
 
-class TestWasbBlobSensor(unittest.TestCase):
+class TestWasbBlobSensor:
     _config = {
         "container_name": "container",
         "blob_name": "blob",
@@ -33,7 +32,7 @@ class TestWasbBlobSensor(unittest.TestCase):
         "timeout": 100,
     }
 
-    def setUp(self):
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
         self.dag = DAG("test_dag_id", default_args=args)
 
@@ -60,7 +59,7 @@ class TestWasbBlobSensor(unittest.TestCase):
         mock_instance.check_for_blob.assert_called_once_with("container", "blob", timeout=2)
 
 
-class TestWasbPrefixSensor(unittest.TestCase):
+class TestWasbPrefixSensor:
     _config = {
         "container_name": "container",
         "prefix": "prefix",
@@ -68,7 +67,7 @@ class TestWasbPrefixSensor(unittest.TestCase):
         "timeout": 100,
     }
 
-    def setUp(self):
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
         self.dag = DAG("test_dag_id", default_args=args)
 

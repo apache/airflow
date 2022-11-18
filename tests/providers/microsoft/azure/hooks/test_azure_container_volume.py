@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.container_volume import AzureContainerVolumeHook
@@ -26,7 +25,7 @@ from airflow.utils import db
 from tests.test_utils.providers import get_provider_min_airflow_version
 
 
-class TestAzureContainerVolumeHook(unittest.TestCase):
+class TestAzureContainerVolumeHook:
     def test_get_file_volume(self):
         db.merge_conn(
             Connection(

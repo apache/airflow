@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.microsoft.azure.operators.adls import ADLSDeleteOperator
@@ -26,7 +25,7 @@ TASK_ID = "test-adls-list-operator"
 TEST_PATH = "test"
 
 
-class TestAzureDataLakeStorageDeleteOperator(unittest.TestCase):
+class TestAzureDataLakeStorageDeleteOperator:
     @mock.patch("airflow.providers.microsoft.azure.operators.adls.AzureDataLakeHook")
     def test_execute(self, mock_hook):
 

@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs import AzureBlobStorageToGCSOperator
@@ -35,7 +34,7 @@ IMPERSONATION_CHAIN = None
 TASK_ID = "transfer_file"
 
 
-class TestAzureBlobStorageToGCSTransferOperator(unittest.TestCase):
+class TestAzureBlobStorageToGCSTransferOperator:
     def test_init(self):
         operator = AzureBlobStorageToGCSOperator(
             wasb_conn_id=WASB_CONN_ID,

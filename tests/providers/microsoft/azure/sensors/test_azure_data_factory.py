@@ -16,11 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import patch
 
 import pytest
-from parameterized import parameterized
 
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
@@ -30,8 +28,8 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
 from airflow.providers.microsoft.azure.sensors.data_factory import AzureDataFactoryPipelineRunStatusSensor
 
 
-class TestPipelineRunStatusSensor(unittest.TestCase):
-    def setUp(self):
+class TestPipelineRunStatusSensor:
+    def setup_method(self):
         self.config = {
             "azure_data_factory_conn_id": "azure_data_factory_test",
             "run_id": "run_id",
@@ -50,7 +48,8 @@ class TestPipelineRunStatusSensor(unittest.TestCase):
         assert self.sensor.timeout == self.config["timeout"]
         assert self.sensor.poke_interval == self.config["poke_interval"]
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "pipeline_run_status, expected_status",
         [
             (AzureDataFactoryPipelineRunStatus.SUCCEEDED, True),
             (AzureDataFactoryPipelineRunStatus.FAILED, "exception"),
@@ -58,10 +57,10 @@ class TestPipelineRunStatusSensor(unittest.TestCase):
             (AzureDataFactoryPipelineRunStatus.CANCELING, False),
             (AzureDataFactoryPipelineRunStatus.QUEUED, False),
             (AzureDataFactoryPipelineRunStatus.IN_PROGRESS, False),
-        ]
+        ],
     )
     @patch.object(AzureDataFactoryHook, "get_pipeline_run")
-    def test_poke(self, pipeline_run_status, expected_status, mock_pipeline_run):
+    def test_poke(self, mock_pipeline_run, pipeline_run_status, expected_status):
         mock_pipeline_run.return_value.status = pipeline_run_status
 
         if expected_status != "exception":

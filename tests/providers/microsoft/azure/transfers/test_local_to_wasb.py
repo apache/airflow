@@ -36,7 +36,7 @@ class TestLocalFilesystemToWasbOperator:
         "retries": 3,
     }
 
-    def setup(self):
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
         self.dag = DAG("test_dag_id", default_args=args)
 

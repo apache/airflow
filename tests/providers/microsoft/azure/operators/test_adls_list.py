@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.microsoft.azure.operators.adls import ADLSListOperator
@@ -33,7 +32,7 @@ MOCK_FILES = [
 ]
 
 
-class TestAzureDataLakeStorageListOperator(unittest.TestCase):
+class TestAzureDataLakeStorageListOperator:
     @mock.patch("airflow.providers.microsoft.azure.operators.adls.AzureDataLakeHook")
     def test_execute(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES
