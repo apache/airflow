@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 class Validator(Protocol):
     """
-    This class is only used for TypeChecking.
+    This class is only used for type checking.
 
     A workaround for IDEs, mypy, etc. due to the way ``Draft7Validator`` is created.
     They are created or do not inherit from proper classes.

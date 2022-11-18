@@ -107,7 +107,7 @@ def _get_default_mapped_partial() -> dict[str, Any]:
 
 
 def encode_relativedelta(var: relativedelta.relativedelta) -> dict[str, Any]:
-    """Encode the relative time between days."""
+    """Encode a relativedelta object."""
     encoded = {k: v for k, v in var.__dict__.items() if not k.startswith("_") and v}
     if var.weekday and var.weekday.n:
         # Every n'th Friday for example
@@ -118,7 +118,7 @@ def encode_relativedelta(var: relativedelta.relativedelta) -> dict[str, Any]:
 
 
 def decode_relativedelta(var: dict[str, Any]) -> relativedelta.relativedelta:
-    """Dencode the relative time between days."""
+    """Dencode a relativedelta object."""
     if "weekday" in var:
         var["weekday"] = relativedelta.weekday(*var["weekday"])  # type: ignore
     return relativedelta.relativedelta(**var)
@@ -355,7 +355,7 @@ class BaseSerialization:
     def serialize_to_json(
         cls, object_to_serialize: BaseOperator | MappedOperator | DAG, decorated_fields: set
     ) -> dict[str, Any]:
-        """Serializes an object to json."""
+        """Serializes an object to JSON."""
         serialized_object: dict[str, Any] = {}
         keys_to_serialize = object_to_serialize.get_serialized_fields()
         for key in keys_to_serialize:
@@ -578,7 +578,7 @@ class BaseSerialization:
 
     @classmethod
     def _serialize_params_dict(cls, params: ParamsDict | dict):
-        """Serialize Params dict for a DAG/Task."""
+        """Serialize Params dict for a DAG or task."""
         serialized_params = {}
         for k, v in params.items():
             # TODO: As of now, we would allow serialization of params which are of type Param only.
@@ -1083,7 +1083,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         """
         Serialize Operator Links.
 
-        Store the import path of the OperatorLink and the arguments passed to it. Example
+        Store the import path of the OperatorLink and the arguments passed to it.
+        For example:
         ``[{'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink': {}}]``
 
         :param operator_extra_links: Operator Link
