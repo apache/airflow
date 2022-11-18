@@ -45,6 +45,7 @@ if TYPE_CHECKING:
 class ExternalDagLink(BaseOperatorLink):
     """
     Operator link for ExternalTaskSensor and ExternalTaskMarker.
+
     It allows users to access DAG waited with ExternalTaskSensor or cleared by ExternalTaskMarker.
     """
 
@@ -59,14 +60,13 @@ class ExternalDagLink(BaseOperatorLink):
 
 class ExternalTaskSensor(BaseSensorOperator):
     """
-    Waits for a different DAG, a task group, or a task in a different DAG to complete for a
-    specific logical date.
+    Waits for a different DAG, task group, or task to complete for a specific logical date.
 
     If both `external_task_group_id` and `external_task_id` are ``None`` (default), the sensor
     waits for the DAG.
     Values for `external_task_group_id` and `external_task_id` can't be set at the same time.
 
-    By default the ExternalTaskSensor will wait for the external task to
+    By default, the ExternalTaskSensor will wait for the external task to
     succeed, at which point it will also succeed. However, by default it will
     *not* fail if the external task fails, but will continue to check the status
     until the sensor times out (thus giving you time to retry the external task
@@ -287,7 +287,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     def get_count(self, dttm_filter, session, states) -> int:
         """
-        Get the count of records against dttm filter and states
+        Get the count of records against dttm filter and states.
 
         :param dttm_filter: date time filter for execution date
         :param session: airflow session object
@@ -337,6 +337,8 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     def _handle_execution_date_fn(self, context) -> Any:
         """
+        Handle backward compatibility.
+
         This function is to handle backwards compatibility with how this operator was
         previously where it only passes the execution date, but also allow for the newer
         implementation to pass all context variables as keyword arguments, to allow
@@ -359,6 +361,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 class ExternalTaskMarker(EmptyOperator):
     """
     Use this operator to indicate that a task on a different DAG depends on this task.
+
     When this task is cleared with "Recursive" selected, Airflow will clear the task on
     the other DAG and its downstream tasks recursively. Transitive dependencies are followed
     until the recursion_depth is reached.
