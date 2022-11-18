@@ -27,7 +27,7 @@ import jinja2
 from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
 
 from airflow.exceptions import AirflowException
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import _suppress
+from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import _suppress, KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
 from airflow.utils.helpers import prune_dict
 
@@ -37,7 +37,6 @@ else:
     from cached_property import cached_property
 from airflow.kubernetes import kube_client, pod_generator
 from airflow.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
-from airflow.models import BaseOperator
 
 from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import CustomObjectLauncher
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager, PodPhase
@@ -46,7 +45,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class SparkKubernetesOperator(BaseOperator):
+class SparkKubernetesOperator(KubernetesPodOperator):
     """
     Creates sparkApplication object in kubernetes cluster:
 
@@ -85,7 +84,7 @@ class SparkKubernetesOperator(BaseOperator):
         image: str,
         code_path: str,
         namespace: str = 'default',
-        name = None,
+        name: str = 'default',
         application_file: Optional[str] = None,
         template_spec=None,
         cluster_context: Optional[str] = None,
@@ -101,7 +100,7 @@ class SparkKubernetesOperator(BaseOperator):
     ) -> None:
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
-        super().__init__(**kwargs)
+        super().__init__(name=name, **kwargs)
         self.image = image
         self.code_path = code_path
         self.application_file = application_file
@@ -223,7 +222,6 @@ class SparkKubernetesOperator(BaseOperator):
             if driver_pod:
                 return driver_pod
 
-        # self.log.debug("Starting spark job:\n%s", yaml.safe_dump(launcher.body.to_dict()))
         driver_pod, spark_obj_spec = launcher.start_spark_job(
             image=self.image,
             code_path=self.code_path,
@@ -280,43 +278,18 @@ class SparkKubernetesOperator(BaseOperator):
 
     def execute(self, context: Context):
         self.log.info('Creating sparkApplication.')
-        # If yaml file used to create spark application
-        remote_pod = None
-        driver_pod = None
-        try:
-            self.launcher = CustomObjectLauncher(
-                name=self.name,
-                namespace=self.namespace,
-                kube_client=self.client,
-                custom_obj_api=self.custom_obj_api,
-                template_body=self.template_body,
-            )
-            driver_pod = self.get_or_create_spark_crd(self.launcher, context)
+        self.launcher = CustomObjectLauncher(
+            name=self.name,
+            namespace=self.namespace,
+            kube_client=self.client,
+            custom_obj_api=self.custom_obj_api,
+            template_body=self.template_body,
+        )
+        self.pod = self.get_or_create_spark_crd(self.launcher, context)
+        self.BASE_CONTAINER_NAME = 'spark-kubernetes-driver'
+        self.pod_request_obj = self.launcher.pod_spec
 
-            if self.get_logs:
-                self.pod_manager.fetch_container_logs(
-                    pod=driver_pod,
-                    container_name='spark-kubernetes-driver',
-                    follow=True,
-                )
-            else:
-                self.pod_manager.await_container_completion(
-                    pod=driver_pod, container_name='spark-kubernetes-driver'
-                )
-
-            if self.do_xcom_push:
-                result = self.extract_xcom(pod=driver_pod)
-            remote_pod = self.pod_manager.await_pod_completion(driver_pod)
-        finally:
-            self.cleanup(
-                pod=driver_pod or self.launcher.pod_spec,
-                remote_pod=remote_pod,
-            )
-        ti = context['ti']
-        ti.xcom_push(key='pod_name', value=driver_pod.metadata.name)
-        ti.xcom_push(key='pod_namespace', value=driver_pod.metadata.namespace)
-        if self.do_xcom_push:
-            return result
+        return super().execute(context=context)
 
     def on_kill(self) -> None:
         if self.launcher:

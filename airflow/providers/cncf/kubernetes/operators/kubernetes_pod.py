@@ -437,11 +437,13 @@ class KubernetesPodOperator(BaseOperator):
     def execute(self, context: Context):
         remote_pod = None
         try:
-            self.pod_request_obj = self.build_pod_request_obj(context)
-            self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
-                pod_request_obj=self.pod_request_obj,
-                context=context,
-            )
+            if self.pod_request_obj is None:
+                self.pod_request_obj = self.build_pod_request_obj(context)
+            if self.pod is None:
+                self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
+                    pod_request_obj=self.pod_request_obj,
+                    context=context,
+                )
             # get remote pod for use in cleanup methods
             remote_pod = self.find_pod(self.pod.metadata.namespace, context=context)
             self.await_pod_start(pod=self.pod)
