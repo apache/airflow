@@ -29,6 +29,7 @@ import pytest
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.jobs.local_task_job import LocalTaskJob
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
@@ -37,6 +38,7 @@ from airflow.utils.platform import getuser
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
+from tests.listeners.file_write_listener import FileWriteListener
 from tests.test_utils.db import clear_db_runs
 
 TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
@@ -110,6 +112,53 @@ class TestStandardTaskRunner:
             assert not psutil.pid_exists(process.pid), f"{process} is still alive"
 
         assert runner.return_code() is not None
+
+    def test_notifies_about_start_and_stop(self):
+        path_listener_writer = "/tmp/path_listener_writer"
+        try:
+            os.unlink(path_listener_writer)
+        except OSError:
+            pass
+
+        lm = get_listener_manager()
+        lm.add_listener(FileWriteListener(path_listener_writer))
+
+        dagbag = DagBag(
+            dag_folder=TEST_DAG_FOLDER,
+            include_examples=False,
+        )
+        dag = dagbag.dags.get("test_example_bash_operator")
+        task = dag.get_task("runme_1")
+
+        with create_session() as session:
+            dag.create_dagrun(
+                run_id="test",
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                state=State.RUNNING,
+                start_date=DEFAULT_DATE,
+                session=session,
+            )
+            ti = TaskInstance(task=task, run_id="test")
+            job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+            session.commit()
+            ti.refresh_from_task(task)
+
+            runner = StandardTaskRunner(job1)
+            runner.start()
+
+            # Wait until process sets its pgid to be equal to pid
+            with timeout(seconds=1):
+                while True:
+                    runner_pgid = os.getpgid(runner.process.pid)
+                    if runner_pgid == runner.process.pid:
+                        break
+                    time.sleep(0.01)
+
+                # Wait till process finishes
+            assert runner.return_code(timeout=10) is not None
+            with open(path_listener_writer) as f:
+                assert f.readline() == "on_starting\n"
+                assert f.readline() == "before_stopping\n"
 
     def test_start_and_terminate_run_as_user(self):
         local_task_job = mock.Mock()
