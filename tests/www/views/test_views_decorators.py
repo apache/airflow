@@ -22,14 +22,14 @@ from unittest import mock
 
 import pytest
 
-from airflow.models import DagBag, DagRun, Log, TaskInstance
+from airflow.models import DagBag, DagRun, TaskInstance, Variable
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from airflow.www import app
 from airflow.www.views import action_has_dag_edit_access
 from tests.test_utils.db import clear_db_runs
-from tests.test_utils.www import check_content_in_response
+from tests.test_utils.www import _check_last_log, check_content_in_response
 
 EXAMPLE_DAG_DEFAULT_DATE = timezone.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -91,29 +91,6 @@ def some_view_action_which_requires_dag_edit_access(*args) -> bool:
     return True
 
 
-def _check_last_log(session, dag_id, event, execution_date):
-    logs = (
-        session.query(
-            Log.dag_id,
-            Log.task_id,
-            Log.event,
-            Log.execution_date,
-            Log.owner,
-            Log.extra,
-        )
-        .filter(
-            Log.dag_id == dag_id,
-            Log.event == event,
-            Log.execution_date == execution_date,
-        )
-        .order_by(Log.dttm.desc())
-        .limit(5)
-        .all()
-    )
-    assert len(logs) >= 1
-    assert logs[0].extra
-
-
 def test_action_logging_get(session, admin_client):
     url = (
         f"dags/example_bash_operator/graph?"
@@ -171,6 +148,19 @@ def test_action_logging_post(session, admin_client):
         event="clear",
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
     )
+
+
+def delete_variable(session, key):
+    session.query(Variable).filter(Variable.key == key).delete()
+    session.commit()
+
+
+def test_action_logging_variables_post(session, admin_client):
+    form = dict(key="random", value="random")
+    admin_client.post("/variable/add", data=form)
+    session.commit()
+    _check_last_log(session, dag_id=None, event="variable.create", execution_date=None)
+    delete_variable(session, key="random")
 
 
 def test_calendar(admin_client, dagruns):
