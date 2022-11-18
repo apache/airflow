@@ -467,7 +467,9 @@ class KubernetesExecutor(BaseExecutor):
         if not self.kube_client:
             raise AirflowException(NOT_STARTED_MESSAGE)
 
-        query = session.query(TaskInstance).filter(TaskInstance.state == State.QUEUED)
+        query = session.query(TaskInstance).filter(
+            TaskInstance.state == State.QUEUED, TaskInstance.queued_by_job_id == self.job_id
+        )
         if self.kubernetes_queue:
             query = query.filter(TaskInstance.queue == self.kubernetes_queue)
         queued_tis: list[TaskInstance] = query.all()
@@ -536,6 +538,7 @@ class KubernetesExecutor(BaseExecutor):
             self.kube_config.worker_pods_pending_timeout_check_interval,
             self._check_worker_pods_pending_timeout,
         )
+
         self.event_scheduler.call_regular_interval(
             self.kube_config.worker_pods_queued_check_interval,
             self.clear_not_launched_queued_tasks,
