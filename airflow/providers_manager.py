@@ -917,7 +917,7 @@ class ProvidersManager(LoggingMixin):
                         self._logging_class_name_set.add(logging_class_name)
 
     def _discover_secrets_backends(self) -> None:
-        """Retrieves all secrets backends defined in the providers."""
+        """Retrieve all secrets backends defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("secrets-backends"):
                 for secrets_backends_class_name in provider.data["secrets-backends"]:
