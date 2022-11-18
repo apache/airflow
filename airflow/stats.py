@@ -184,7 +184,9 @@ ALLOWED_CHARACTERS = set(string.ascii_letters + string.digits + "_.-")
 
 def stat_name_default_handler(stat_name, max_length=250) -> str:
     """
-    Validate the StatsD stat name, apply changes when necessary and return the transformed stat name.
+    Validate the StatsD stat name.
+
+    Apply changes when necessary and return the transformed stat name.
     """
     if not isinstance(stat_name, str):
         raise InvalidStatsNameException("The stat_name has to be a string")

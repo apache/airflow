@@ -470,9 +470,7 @@ def validate_session():
 
 
 def configure_action_logging() -> None:
-    """
-    Any additional configuration (register callback) for airflow.utils.action_loggers module.
-    """
+    """Any additional configuration (register callback) for airflow.utils.action_loggers module."""
 
 
 def prepare_syspath():
