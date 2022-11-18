@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import inspect
 import re
+from itertools import chain
 from typing import (
     Any,
     Callable,
@@ -37,6 +38,7 @@ import attr
 import typing_extensions
 from sqlalchemy.orm import Session
 
+from airflow import Dataset
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
@@ -207,6 +209,11 @@ class DecoratedOperator(BaseOperator):
         super().__init__(task_id=task_id, **kwargs_to_upstream, **kwargs)
 
     def execute(self, context: Context):
+        # todo make this more generic (move to prepare_lineage) so it deals with non taskflow operators
+        #  as well
+        for arg in chain(self.op_args, self.op_kwargs.values()):
+            if isinstance(arg, Dataset):
+                self.inlets.append(arg)
         return_value = super().execute(context)
         return self._handle_output(return_value=return_value, context=context, xcom_push=self.xcom_push)
 
@@ -214,10 +221,18 @@ class DecoratedOperator(BaseOperator):
         """
         Handles logic for whether a decorator needs to push a single return value or multiple return values.
 
+        It sets outlets if any datasets are found in the returned value(s)
+
         :param return_value:
         :param context:
         :param xcom_push:
         """
+        if isinstance(return_value, Dataset):
+            self.outlets.append(return_value)
+        if isinstance(return_value, list):
+            for item in return_value:
+                if isinstance(item, Dataset):
+                    self.outlets.append(item)
         if not self.multiple_outputs:
             return return_value
         if isinstance(return_value, dict):
@@ -228,6 +243,8 @@ class DecoratedOperator(BaseOperator):
                         f"multiple_outputs, found {key} ({type(key)}) instead"
                     )
             for key, value in return_value.items():
+                if isinstance(value, Dataset):
+                    self.outlets.append(value)
                 xcom_push(context, key, value)
         else:
             raise AirflowException(
@@ -280,7 +297,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
     def _infer_multiple_outputs(self):
         try:
             return_type = typing_extensions.get_type_hints(self.function).get("return", Any)
-        except Exception:  # Can't evaluate retrurn type.
+        except TypeError:  # Can't evaluate return type.
             return False
         ttype = getattr(return_type, "__origin__", return_type)
         return ttype == dict or ttype == Dict

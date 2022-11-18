@@ -55,7 +55,7 @@ class StandaloneCommand:
         self.ready_delay = 3
 
     def run(self):
-        """Main run loop"""
+        """Main run loop."""
         self.print_output("standalone", "Starting Airflow Standalone")
         # Silence built-in logging at INFO
         logging.getLogger("").setLevel(logging.WARNING)
@@ -116,7 +116,7 @@ class StandaloneCommand:
         self.print_output("standalone", "Complete")
 
     def update_output(self):
-        """Drains the output queue and prints its contents to the screen"""
+        """Drains the output queue and prints its contents to the screen."""
         while self.output_queue:
             # Extract info
             name, line = self.output_queue.popleft()
@@ -126,8 +126,9 @@ class StandaloneCommand:
 
     def print_output(self, name: str, output):
         """
-        Prints an output line with name and colouring. You can pass multiple
-        lines to output if you wish; it will be split for you.
+        Prints an output line with name and colouring.
+
+        You can pass multiple lines to output if you wish; it will be split for you.
         """
         color = {
             "webserver": "green",
@@ -141,14 +142,16 @@ class StandaloneCommand:
 
     def print_error(self, name: str, output):
         """
-        Prints an error message to the console (this is the same as
-        print_output but with the text red)
+        Prints an error message to the console.
+
+        This is the same as print_output but with the text red
         """
         self.print_output(name, colored(output, "red"))
 
     def calculate_env(self):
         """
         Works out the environment variables needed to run subprocesses.
+
         We override some settings as part of being standalone.
         """
         env = dict(os.environ)
@@ -217,7 +220,8 @@ class StandaloneCommand:
     def port_open(self, port):
         """
         Checks if the given port is listening on the local machine.
-        (used to tell if webserver is alive)
+
+        Used to tell if webserver is alive.
         """
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -231,8 +235,9 @@ class StandaloneCommand:
 
     def job_running(self, job):
         """
-        Checks if the given job name is running and heartbeating correctly
-        (used to tell if scheduler is alive)
+        Checks if the given job name is running and heartbeating correctly.
+
+        Used to tell if scheduler is alive.
         """
         recent = job.most_recent_job()
         if not recent:
@@ -241,8 +246,9 @@ class StandaloneCommand:
 
     def print_ready(self):
         """
-        Prints the banner shown when Airflow is ready to go, with login
-        details.
+        Prints the banner shown when Airflow is ready to go.
+
+        Include with login details.
         """
         self.print_output("standalone", "")
         self.print_output("standalone", "Airflow is ready")
@@ -260,6 +266,8 @@ class StandaloneCommand:
 
 class SubCommand(threading.Thread):
     """
+    Execute a subcommand on another thread.
+
     Thread that launches a process and then streams its output back to the main
     command. We use threads to avoid using select() and raw filehandles, and the
     complex logic that brings doing line buffering.
@@ -273,7 +281,7 @@ class SubCommand(threading.Thread):
         self.env = env
 
     def run(self):
-        """Runs the actual process and captures it output to a queue"""
+        """Runs the actual process and captures it output to a queue."""
         self.process = subprocess.Popen(
             ["airflow"] + self.command,
             stdout=subprocess.PIPE,
@@ -284,7 +292,7 @@ class SubCommand(threading.Thread):
             self.parent.output_queue.append((self.name, line))
 
     def stop(self):
-        """Call to stop this process (and thus this thread)"""
+        """Call to stop this process (and thus this thread)."""
         self.process.terminate()
 
 

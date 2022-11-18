@@ -83,9 +83,10 @@ def expand_env_var(env_var: str) -> str:
 
 def expand_env_var(env_var: str | None) -> str | None:
     """
-    Expands (potentially nested) env vars by repeatedly applying
-    `expandvars` and `expanduser` until interpolation stops having
-    any effect.
+    Expands (potentially nested) env vars.
+
+    Repeat and apply `expandvars` and `expanduser` until
+    interpolation stops having any effect.
     """
     if not env_var:
         return env_var
@@ -98,7 +99,7 @@ def expand_env_var(env_var: str | None) -> str | None:
 
 
 def run_command(command: str) -> str:
-    """Runs command and returns stdout"""
+    """Runs command and returns stdout."""
     process = subprocess.Popen(
         shlex.split(command), stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True
     )
@@ -114,7 +115,7 @@ def run_command(command: str) -> str:
 
 
 def _get_config_value_from_secret_backend(config_key: str) -> str | None:
-    """Get Config option values from Secret Backend"""
+    """Get Config option values from Secret Backend."""
     try:
         secrets_client = get_custom_secret_backend()
         if not secrets_client:
@@ -136,7 +137,7 @@ def _default_config_file_path(file_name: str) -> str:
 
 def default_config_yaml() -> list[dict[str, Any]]:
     """
-    Read Airflow configs from YAML file
+    Read Airflow configs from YAML file.
 
     :return: Python dictionary containing configs & their info
     """
@@ -159,7 +160,7 @@ SENSITIVE_CONFIG_VALUES = {
 
 
 class AirflowConfigParser(ConfigParser):
-    """Custom Airflow Configparser supporting defaults and deprecated options"""
+    """Custom Airflow Configparser supporting defaults and deprecated options."""
 
     # These configuration elements can be fetched as the stdout of commands
     # following the "{section}__{name}_cmd" pattern, the idea behind this
@@ -370,8 +371,9 @@ class AirflowConfigParser(ConfigParser):
 
     def _upgrade_auth_backends(self):
         """
-        Ensure a custom auth_backends setting contains session,
-        which is needed by the UI for ajax queries.
+        Ensure a custom auth_backends setting contains session.
+
+        This is required by the UI for ajax queries.
         """
         old_value = self.get("api", "auth_backends", fallback="")
         if old_value in ("airflow.api.auth.backend.default", ""):
@@ -396,6 +398,8 @@ class AirflowConfigParser(ConfigParser):
 
     def _upgrade_postgres_metastore_conn(self):
         """
+        Upgrade SQL schemas.
+
         As of SQLAlchemy 1.4, schemes `postgres+psycopg2` and `postgres`
         must be replaced with `postgresql`.
         """
@@ -421,7 +425,7 @@ class AirflowConfigParser(ConfigParser):
             os.environ.pop(old_env_var, None)
 
     def _validate_enums(self):
-        """Validate that enum type config has an accepted value"""
+        """Validate that enum type config has an accepted value."""
         for (section_key, option_key), enum_options in self.enums_options.items():
             if self.has_option(section_key, option_key):
                 value = self.get(section_key, option_key)
@@ -433,7 +437,9 @@ class AirflowConfigParser(ConfigParser):
 
     def _validate_config_dependencies(self):
         """
-        Validate that config values aren't invalid given other config values
+        Validate that config based on condition.
+
+        Values are considered invalid when they conflict with other config values
         or system-level limitations and requirements.
         """
         is_executor_without_sqlite_support = self.get("core", "executor") not in (
@@ -521,7 +527,7 @@ class AirflowConfigParser(ConfigParser):
         return None
 
     def _get_secret_option(self, section: str, key: str) -> str | None:
-        """Get Config option values from Secret Backend"""
+        """Get Config option values from Secret Backend."""
         fallback_key = key + "_secret"
         if (section, key) in self.sensitive_config_values:
             if super().has_option(section, fallback_key):
@@ -756,6 +762,7 @@ class AirflowConfigParser(ConfigParser):
     ) -> datetime.timedelta | None:
         """
         Gets the config value for the given section and key, and converts it into datetime.timedelta object.
+
         If the key is missing, then it is considered as `None`.
 
         :param section: the section from the config
@@ -813,9 +820,10 @@ class AirflowConfigParser(ConfigParser):
 
     def remove_option(self, section: str, option: str, remove_default: bool = True):
         """
-        Remove an option if it exists in config from a file or
-        default config. If both of config have the same option, this removes
-        the option in both configs unless remove_default=False.
+        Remove an option if it exists in config from a file or default config.
+
+        If both of config have the same option, this removes the option
+        in both configs unless remove_default=False.
         """
         if super().has_option(section, option):
             super().remove_option(section, option)
@@ -825,8 +833,9 @@ class AirflowConfigParser(ConfigParser):
 
     def getsection(self, section: str) -> ConfigOptionsDictType | None:
         """
-        Returns the section as a dict. Values are converted to int, float, bool
-        as required.
+        Returns the section as a dict.
+
+        Values are converted to int, float, bool as required.
 
         :param section: section from the config
         """
@@ -1071,8 +1080,9 @@ class AirflowConfigParser(ConfigParser):
         getter_func,
     ):
         """
-        Deletes default configs from current configuration (an OrderedDict of
-        OrderedDicts) if it would conflict with special sensitive_config_values.
+        Deletes default configs from current configuration.
+
+        An OrderedDict of OrderedDicts, if it would conflict with special sensitive_config_values.
 
         This is necessary because bare configs take precedence over the command
         or secret key equivalents so if the current running config is
@@ -1300,12 +1310,12 @@ class AirflowConfigParser(ConfigParser):
 
 
 def get_airflow_home() -> str:
-    """Get path to Airflow Home"""
+    """Get path to Airflow Home."""
     return expand_env_var(os.environ.get("AIRFLOW_HOME", "~/airflow"))
 
 
 def get_airflow_config(airflow_home) -> str:
-    """Get Path to airflow.cfg path"""
+    """Get Path to airflow.cfg path."""
     airflow_config_var = os.environ.get("AIRFLOW_CONFIG")
     if airflow_config_var is None:
         return os.path.join(airflow_home, "airflow.cfg")
@@ -1326,8 +1336,7 @@ def _parameterized_config_from_template(filename) -> str:
 
 def parameterized_config(template) -> str:
     """
-    Generates a configuration from the provided template + variables defined in
-    current scope
+    Generates configuration from provided template & variables defined in current scope.
 
     :param template: a config content templated with {{variables}}
     """
@@ -1336,7 +1345,7 @@ def parameterized_config(template) -> str:
 
 
 def get_airflow_test_config(airflow_home) -> str:
-    """Get path to unittests.cfg"""
+    """Get path to unittests.cfg."""
     if "AIRFLOW_TEST_CONFIG" not in os.environ:
         return os.path.join(airflow_home, "unittests.cfg")
     # It will never return None
@@ -1432,7 +1441,7 @@ def initialize_config() -> AirflowConfigParser:
 
 # Historical convenience functions to access config entries
 def load_test_config():
-    """Historical load_test_config"""
+    """Historical load_test_config."""
     warnings.warn(
         "Accessing configuration method 'load_test_config' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
@@ -1444,7 +1453,7 @@ def load_test_config():
 
 
 def get(*args, **kwargs) -> ConfigType | None:
-    """Historical get"""
+    """Historical get."""
     warnings.warn(
         "Accessing configuration method 'get' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
@@ -1456,7 +1465,7 @@ def get(*args, **kwargs) -> ConfigType | None:
 
 
 def getboolean(*args, **kwargs) -> bool:
-    """Historical getboolean"""
+    """Historical getboolean."""
     warnings.warn(
         "Accessing configuration method 'getboolean' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
@@ -1468,7 +1477,7 @@ def getboolean(*args, **kwargs) -> bool:
 
 
 def getfloat(*args, **kwargs) -> float:
-    """Historical getfloat"""
+    """Historical getfloat."""
     warnings.warn(
         "Accessing configuration method 'getfloat' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
@@ -1480,7 +1489,7 @@ def getfloat(*args, **kwargs) -> float:
 
 
 def getint(*args, **kwargs) -> int:
-    """Historical getint"""
+    """Historical getint."""
     warnings.warn(
         "Accessing configuration method 'getint' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
@@ -1492,7 +1501,7 @@ def getint(*args, **kwargs) -> int:
 
 
 def getsection(*args, **kwargs) -> ConfigOptionsDictType | None:
-    """Historical getsection"""
+    """Historical getsection."""
     warnings.warn(
         "Accessing configuration method 'getsection' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
@@ -1504,7 +1513,7 @@ def getsection(*args, **kwargs) -> ConfigOptionsDictType | None:
 
 
 def has_option(*args, **kwargs) -> bool:
-    """Historical has_option"""
+    """Historical has_option."""
     warnings.warn(
         "Accessing configuration method 'has_option' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
@@ -1516,7 +1525,7 @@ def has_option(*args, **kwargs) -> bool:
 
 
 def remove_option(*args, **kwargs) -> bool:
-    """Historical remove_option"""
+    """Historical remove_option."""
     warnings.warn(
         "Accessing configuration method 'remove_option' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
@@ -1528,7 +1537,7 @@ def remove_option(*args, **kwargs) -> bool:
 
 
 def as_dict(*args, **kwargs) -> ConfigSourcesType:
-    """Historical as_dict"""
+    """Historical as_dict."""
     warnings.warn(
         "Accessing configuration method 'as_dict' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
@@ -1540,7 +1549,7 @@ def as_dict(*args, **kwargs) -> ConfigSourcesType:
 
 
 def set(*args, **kwargs) -> None:
-    """Historical set"""
+    """Historical set."""
     warnings.warn(
         "Accessing configuration method 'set' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
@@ -1563,7 +1572,7 @@ def ensure_secrets_loaded() -> list[BaseSecretsBackend]:
 
 
 def get_custom_secret_backend() -> BaseSecretsBackend | None:
-    """Get Secret Backend if defined in airflow.cfg"""
+    """Get Secret Backend if defined in airflow.cfg."""
     secrets_backend_cls = conf.getimport(section="secrets", key="backend")
 
     if not secrets_backend_cls:
@@ -1587,6 +1596,8 @@ def get_custom_secret_backend() -> BaseSecretsBackend | None:
 
 def initialize_secrets_backends() -> list[BaseSecretsBackend]:
     """
+    Initialize secrets backend.
+
     * import secrets backend classes
     * instantiate them and return them in a list
     """
