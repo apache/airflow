@@ -909,7 +909,7 @@ class ProvidersManager(LoggingMixin):
                         self._extra_link_class_name_set.add(extra_link_class_name)
 
     def _discover_logging(self) -> None:
-        """Retrieves all logging defined in the providers."""
+        """Retrieve all logging defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("logging"):
                 for logging_class_name in provider.data["logging"]:
