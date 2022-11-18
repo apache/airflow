@@ -146,10 +146,7 @@ spec:
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           volumeMounts:
-            - name: config
-              mountPath: {{ template "airflow_config_path" . }}
-              subPath: airflow.cfg
-              readOnly: true
+{{- include "airflow_config_mount" . | nindent 12 }}
 {{- if .Values.workers.extraVolumeMounts }}
 {{ toYaml .Values.workers.extraVolumeMounts | indent 12 }}
 {{- end }}
@@ -206,10 +203,7 @@ spec:
 {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
-            - name: config
-              mountPath: {{ template "airflow_config_path" . }}
-              subPath: airflow.cfg
-              readOnly: true
+{{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.workers.kerberosSidecar.enabled }}
             - name: config
               mountPath: {{ .Values.kerberos.configPath | quote }}
@@ -217,12 +211,6 @@ spec:
               readOnly: true
             - name: kerberos-ccache
               mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
-              readOnly: true
-            {{- end }}
-            {{- if .Values.airflowLocalSettings }}
-            - name: config
-              mountPath: {{ template "airflow_local_setting_path" . }}
-              subPath: airflow_local_settings.py
               readOnly: true
             {{- end }}
             {{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
@@ -280,20 +268,11 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
-            - name: config
-              mountPath: {{ template "airflow_config_path" . }}
-              subPath: airflow.cfg
-              readOnly: true
+{{- include "airflow_config_mount" . | nindent 12 }}
             - name: config
               mountPath: {{ .Values.kerberos.configPath | quote }}
               subPath: krb5.conf
               readOnly: true
-            {{- if .Values.airflowLocalSettings }}
-            - name: config
-              mountPath: {{ template "airflow_local_setting_path" . }}
-              subPath: airflow_local_settings.py
-              readOnly: true
-            {{- end }}
             - name: kerberos-keytab
               subPath: "kerberos.keytab"
               mountPath: {{ .Values.kerberos.keytabPath | quote }}

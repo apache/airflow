@@ -451,6 +451,19 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{ (printf "%s-airflow-config" .Release.Name) }}
 {{- end }}
 
+{{ define "airflow_config_mount" -}}
+- name: config
+  mountPath: {{ template "airflow_config_path" . }}
+  subPath: airflow.cfg
+  readOnly: true
+  {{- if .Values.airflowLocalSettings }}
+- name: config
+  mountPath: {{ template "airflow_local_setting_path" . }}
+  subPath: airflow_local_settings.py
+  readOnly: true
+  {{- end }}
+{{- end -}}
+
 {{/*
 Create the name of the webserver service account to use
 */}}

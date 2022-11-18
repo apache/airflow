@@ -116,10 +116,7 @@ spec:
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           volumeMounts:
-            - name: config
-              mountPath: {{ template "airflow_config_path" . }}
-              subPath: airflow.cfg
-              readOnly: true
+{{- include "airflow_config_mount" . | nindent 12 }}
           args:
           {{- include "wait-for-migrations-command" . | nindent 10 }}
           envFrom:
@@ -155,16 +152,7 @@ spec:
             {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
-            - name: config
-              mountPath: {{ template "airflow_config_path" . }}
-              subPath: airflow.cfg
-              readOnly: true
-            {{- if .Values.airflowLocalSettings }}
-            - name: config
-              mountPath: {{ template "airflow_local_setting_path" . }}
-              subPath: airflow_local_settings.py
-              readOnly: true
-            {{- end }}
+{{- include "airflow_config_mount" . | nindent 12 }}
             {{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
             {{- include "airflow_dags_mount" . | nindent 12 }}
             {{- end }}
