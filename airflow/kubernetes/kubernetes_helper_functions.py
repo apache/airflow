@@ -43,7 +43,7 @@ def create_pod_id(dag_id: str | None = None, task_id: str | None = None) -> str:
         if name:
             name += "-"
         name += task_id
-    return slugify(name, lowercase=True).strip("-.")[:253]
+    return slugify(name, lowercase=True)[:253].strip("-.")
 
 
 def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
