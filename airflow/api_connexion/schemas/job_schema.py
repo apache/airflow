@@ -23,10 +23,10 @@ from airflow.jobs.base_job import BaseJob
 
 
 class JobSchema(SQLAlchemySchema):
-    """Sla Miss Schema"""
+    """Sla Miss Schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = BaseJob
 

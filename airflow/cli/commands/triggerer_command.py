@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Triggerer command"""
+"""Triggerer command."""
 from __future__ import annotations
 
 import signal
@@ -30,7 +30,7 @@ from airflow.utils.cli import setup_locations, setup_logging, sigint_handler, si
 
 @cli_utils.action_cli
 def triggerer(args):
-    """Starts Airflow Triggerer"""
+    """Starts Airflow Triggerer."""
     settings.MASK_SECRETS_IN_LOGS = True
     print(settings.HEADER)
     job = TriggererJob(capacity=args.capacity)

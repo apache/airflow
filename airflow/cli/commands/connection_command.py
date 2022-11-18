@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Connection sub-commands"""
+"""Connection sub-commands."""
 from __future__ import annotations
 
 import io
@@ -24,7 +24,7 @@ import sys
 import warnings
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlsplit, urlunsplit
 
 from sqlalchemy.orm import exc
 
@@ -74,7 +74,7 @@ def connections_get(args):
 
 @suppress_logs_and_warning
 def connections_list(args):
-    """Lists all connections at the command line"""
+    """Lists all connections at the command line."""
     with create_session() as session:
         query = session.query(Connection)
         if args.conn_id:
@@ -132,13 +132,13 @@ def _is_stdout(fileio: io.TextIOWrapper) -> bool:
 
 
 def _valid_uri(uri: str) -> bool:
-    """Check if a URI is valid, by checking if both scheme and netloc are available"""
-    uri_parts = urlparse(uri)
+    """Check if a URI is valid, by checking if both scheme and netloc are available."""
+    uri_parts = urlsplit(uri)
     return uri_parts.scheme != "" and uri_parts.netloc != ""
 
 
 @cache
-def _get_connection_types():
+def _get_connection_types() -> list[str]:
     """Returns connection types available."""
     _connection_types = ["fs", "mesos_framework-id", "email", "generic"]
     providers_manager = ProvidersManager()
@@ -148,12 +148,8 @@ def _get_connection_types():
     return _connection_types
 
 
-def _valid_conn_type(conn_type: str) -> bool:
-    return conn_type in _get_connection_types()
-
-
 def connections_export(args):
-    """Exports all connections to a file"""
+    """Exports all connections to a file."""
     file_formats = [".yaml", ".json", ".env"]
     if args.format:
         warnings.warn("Option `--format` is deprecated.  Use `--file-format` instead.", DeprecationWarning)
@@ -203,7 +199,7 @@ alternative_conn_specs = ["conn_type", "conn_host", "conn_login", "conn_password
 
 @cli_utils.action_cli
 def connections_add(args):
-    """Adds new connection"""
+    """Adds new connection."""
     has_uri = bool(args.conn_uri)
     has_json = bool(args.conn_json)
     has_type = bool(args.conn_type)
@@ -269,13 +265,12 @@ def connections_add(args):
             msg = msg.format(
                 conn_id=new_conn.conn_id,
                 uri=args.conn_uri
-                or urlunparse(
+                or urlunsplit(
                     (
                         new_conn.conn_type,
                         f"{new_conn.login or ''}:{'******' if new_conn.password else ''}"
                         f"@{new_conn.host or ''}:{new_conn.port or ''}",
                         new_conn.schema or "",
-                        "",
                         "",
                         "",
                     )
@@ -289,7 +284,7 @@ def connections_add(args):
 
 @cli_utils.action_cli
 def connections_delete(args):
-    """Deletes connection from DB"""
+    """Deletes connection from DB."""
     with create_session() as session:
         try:
             to_delete = session.query(Connection).filter(Connection.conn_id == args.conn_id).one()
@@ -304,7 +299,7 @@ def connections_delete(args):
 
 @cli_utils.action_cli(check_db=False)
 def connections_import(args):
-    """Imports connections from a file"""
+    """Imports connections from a file."""
     if os.path.exists(args.file):
         _import_helper(args.file)
     else:

@@ -140,6 +140,9 @@ spec:
               mountPath: {{ template "airflow_config_path" . }}
               subPath: airflow.cfg
               readOnly: true
+{{- if .Values.scheduler.extraVolumeMounts }}
+{{ toYaml .Values.scheduler.extraVolumeMounts | indent 12 }}
+{{- end }}
           args:
           {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom:
@@ -242,6 +245,9 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+{{- if .Values.scheduler.extraVolumeMounts }}
+{{ toYaml .Values.scheduler.extraVolumeMounts | indent 12 }}
+{{- end }}
           {{- end }}
 {{- if .Values.scheduler.extraContainers }}
 {{- toYaml .Values.scheduler.extraContainers | nindent 8 }}

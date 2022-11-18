@@ -38,14 +38,24 @@ from airflow.api_connexion.types import APIResponse, UpdateMask
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.security import permissions
+from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.strings import get_random_string
+from airflow.www.decorators import action_logging
+
+RESOURCE_EVENT_PREFIX = "connection"
 
 
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_CONNECTION)])
 @provide_session
+@action_logging(
+    event=action_event_from_permission(
+        prefix=RESOURCE_EVENT_PREFIX,
+        permission=permissions.ACTION_CAN_DELETE,
+    ),
+)
 def delete_connection(*, connection_id: str, session: Session = NEW_SESSION) -> APIResponse:
-    """Delete a connection entry"""
+    """Delete a connection entry."""
     connection = session.query(Connection).filter_by(conn_id=connection_id).one_or_none()
     if connection is None:
         raise NotFound(
@@ -59,7 +69,7 @@ def delete_connection(*, connection_id: str, session: Session = NEW_SESSION) -> 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION)])
 @provide_session
 def get_connection(*, connection_id: str, session: Session = NEW_SESSION) -> APIResponse:
-    """Get a connection entry"""
+    """Get a connection entry."""
     connection = session.query(Connection).filter(Connection.conn_id == connection_id).one_or_none()
     if connection is None:
         raise NotFound(
@@ -79,7 +89,7 @@ def get_connections(
     order_by: str = "id",
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get all connection entries"""
+    """Get all connection entries."""
     to_replace = {"connection_id": "conn_id"}
     allowed_filter_attrs = ["connection_id", "conn_type", "description", "host", "port", "id"]
 
@@ -94,13 +104,19 @@ def get_connections(
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_CONNECTION)])
 @provide_session
+@action_logging(
+    event=action_event_from_permission(
+        prefix=RESOURCE_EVENT_PREFIX,
+        permission=permissions.ACTION_CAN_EDIT,
+    ),
+)
 def patch_connection(
     *,
     connection_id: str,
     update_mask: UpdateMask = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Update a connection entry"""
+    """Update a connection entry."""
     try:
         data = connection_schema.load(request.json, partial=True)
     except ValidationError as err:
@@ -133,8 +149,14 @@ def patch_connection(
 
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION)])
 @provide_session
+@action_logging(
+    event=action_event_from_permission(
+        prefix=RESOURCE_EVENT_PREFIX,
+        permission=permissions.ACTION_CAN_CREATE,
+    ),
+)
 def post_connection(*, session: Session = NEW_SESSION) -> APIResponse:
-    """Create connection entry"""
+    """Create connection entry."""
     body = request.json
     try:
         data = connection_schema.load(body)
@@ -154,7 +176,9 @@ def post_connection(*, session: Session = NEW_SESSION) -> APIResponse:
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION)])
 def test_connection() -> APIResponse:
     """
-    To test a connection, this method first creates an in-memory dummy conn_id & exports that to an
+    Test an API connection.
+
+    This method first creates an in-memory dummy conn_id & exports that to an
     env var, as some hook classes tries to find out the conn from their __init__ method & errors out
     if not found. It also deletes the conn id env variable after the test.
     """

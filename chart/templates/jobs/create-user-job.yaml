@@ -92,10 +92,14 @@ spec:
           {{- if .Values.createUserJob.args }}
           args: {{ tpl (toYaml .Values.createUserJob.args) . | nindent 12 }}
           {{- end }}
+          {{- if .Values.createUserJob.applyCustomEnv }}
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
+          {{ else }}
+          env:
+          {{- end }}
           {{- include "standard_airflow_environment" . | indent 10 }}
           {{- include "container_extra_envs" (list . .Values.createUserJob.env) | indent 10 }}
           resources:

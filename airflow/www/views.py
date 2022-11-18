@@ -263,6 +263,7 @@ def dag_to_grid(dag, dag_runs, session):
             TaskInstance.task_id,
             TaskInstance.run_id,
             TaskInstance.state,
+            TaskInstance.notes,
             sqla.func.count(sqla.func.coalesce(TaskInstance.state, sqla.literal("no_status"))).label(
                 "state_count"
             ),
@@ -274,7 +275,7 @@ def dag_to_grid(dag, dag_runs, session):
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs]),
         )
-        .group_by(TaskInstance.task_id, TaskInstance.run_id, TaskInstance.state)
+        .group_by(TaskInstance.task_id, TaskInstance.run_id, TaskInstance.state, TaskInstance.notes)
         .order_by(TaskInstance.task_id, TaskInstance.run_id)
     )
 
@@ -297,6 +298,7 @@ def dag_to_grid(dag, dag_runs, session):
                     "start_date": task_instance.start_date,
                     "end_date": task_instance.end_date,
                     "try_number": try_count,
+                    "notes": task_instance.notes,
                 }
 
             def _mapped_summary(ti_summaries):
@@ -3822,12 +3824,35 @@ class DagFilter(BaseFilter):
 
 
 class AirflowModelView(ModelView):
-    """Airflow Mode View."""
+    """Airflow Mode View.
+
+    Overridden `__getattribute__` to wraps REST methods with action_logger
+    """
 
     list_widget = AirflowModelListWidget
     page_size = PAGE_SIZE
 
     CustomSQLAInterface = wwwutils.CustomSQLAInterface
+
+    def __getattribute__(self, attr):
+        """Wraps action REST methods with `action_logging` wrapper
+        Overriding enables differentiating resource and generation of event name at the decorator level.
+
+        if attr in ["show", "list", "read", "get", "get_list"]:
+            return action_logging(event="RESOURCE_NAME"."action_name")(attr)
+        else:
+            return attr
+        """
+        attribute = object.__getattribute__(self, attr)
+        if (
+            callable(attribute)
+            and hasattr(attribute, "_permission_name")
+            and attribute._permission_name in self.method_permission_name
+        ):
+            permission_str = self.method_permission_name[attribute._permission_name]
+            if permission_str not in ["show", "list", "read", "get", "get_list"]:
+                return action_logging(event=f"{self.route_base.strip('/')}.{permission_str}")(attribute)
+        return attribute
 
 
 class AirflowPrivilegeVerifierModelView(AirflowModelView):
@@ -3931,6 +3956,65 @@ class SlaMissModelView(AirflowModelView):
         "dag_id": wwwutils.dag_link,
         "map_index": wwwutils.format_map_index,
     }
+
+    @action("muldelete", "Delete", "Are you sure you want to delete selected records?", single=False)
+    def action_muldelete(self, items):
+        """Multiple delete action."""
+        self.datamodel.delete_all(items)
+        self.update_redirect()
+        return redirect(self.get_redirect())
+
+    @action(
+        "mulnotificationsent",
+        "Set notification sent to true",
+        "Are you sure you want to set all these notifications to sent?",
+        single=False,
+    )
+    def action_mulnotificationsent(self, items: list[SlaMiss]):
+        return self._set_notification_property(items, "notification_sent", True)
+
+    @action(
+        "mulnotificationsentfalse",
+        "Set notification sent to false",
+        "Are you sure you want to mark these SLA alerts as notification not sent yet?",
+        single=False,
+    )
+    def action_mulnotificationsentfalse(self, items: list[SlaMiss]):
+        return self._set_notification_property(items, "notification_sent", False)
+
+    @action(
+        "mulemailsent",
+        "Set email sent to true",
+        "Are you sure you want to mark these SLA alerts as emails were sent?",
+        single=False,
+    )
+    def action_mulemailsent(self, items: list[SlaMiss]):
+        return self._set_notification_property(items, "email_sent", True)
+
+    @action(
+        "mulemailsentfalse",
+        "Set email sent to false",
+        "Are you sure you want to mark these SLA alerts as emails not sent yet?",
+        single=False,
+    )
+    def action_mulemailsentfalse(self, items: list[SlaMiss]):
+        return self._set_notification_property(items, "email_sent", False)
+
+    @provide_session
+    def _set_notification_property(self, items: list[SlaMiss], attr: str, new_value: bool, session=None):
+        try:
+            count = 0
+            for sla in items:
+                count += 1
+                setattr(sla, attr, new_value)
+                session.merge(sla)
+            session.commit()
+            flash(f"{count} SLAMisses had {attr} set to {new_value}.")
+        except Exception as ex:
+            flash(str(ex), "error")
+            flash("Failed to set state", "error")
+        self.update_redirect()
+        return redirect(self.get_default_url())
 
 
 class XComModelView(AirflowModelView):
@@ -4620,7 +4704,7 @@ class VariableModelView(AirflowModelView):
 
     @expose("/varimport", methods=["POST"])
     @auth.has_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)])
-    @action_logging
+    @action_logging(event=f"{permissions.RESOURCE_VARIABLE.lower()}.varimport")
     def varimport(self):
         """Import variables"""
         try:
@@ -4734,6 +4818,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "queued_at",
         "start_date",
         "end_date",
+        "notes",
         "external_trigger",
         "conf",
         "duration",
@@ -4746,12 +4831,22 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "run_type",
         "start_date",
         "end_date",
+        "notes",
         "external_trigger",
     ]
     label_columns = {
         "execution_date": "Logical Date",
     }
-    edit_columns = ["state", "dag_id", "execution_date", "start_date", "end_date", "run_id", "conf"]
+    edit_columns = [
+        "state",
+        "dag_id",
+        "execution_date",
+        "start_date",
+        "end_date",
+        "run_id",
+        "conf",
+        "notes",
+    ]
 
     # duration is not a DB column, its derived
     order_columns = [
@@ -4763,6 +4858,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "queued_at",
         "start_date",
         "end_date",
+        "notes",
         "external_trigger",
         "conf",
     ]
@@ -5095,6 +5191,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "start_date",
         "end_date",
         "duration",
+        "notes",
         "job_id",
         "hostname",
         "unixname",
@@ -5126,6 +5223,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "operator",
         "start_date",
         "end_date",
+        "notes",
         "hostname",
         "priority_weight",
         "queue",
@@ -5136,9 +5234,13 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     ]
 
     edit_columns = [
-        "state",
+        "dag_id",
+        "task_id",
+        "execution_date",
         "start_date",
         "end_date",
+        "state",
+        "notes",
     ]
 
     add_exclude_columns = ["next_method", "next_kwargs", "trigger_id"]

@@ -48,8 +48,9 @@ class TimeSensor(BaseSensorOperator):
 
 class TimeSensorAsync(BaseSensorOperator):
     """
-    Waits until the specified time of the day, freeing up a worker slot while
-    it is waiting.
+    Waits until the specified time of the day.
+
+    This frees up a worker slot while it is waiting.
 
     :param target_time: time after which the job succeeds
 

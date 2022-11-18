@@ -39,7 +39,7 @@ from kubernetes.client import Configuration, models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3.exceptions import ReadTimeoutError
 
-from airflow.exceptions import AirflowException, PodReconciliationError
+from airflow.exceptions import AirflowException, PodMutationHookException, PodReconciliationError
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor, CommandType
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.kube_client import get_kube_client
@@ -302,7 +302,10 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def run_pod_async(self, pod: k8s.V1Pod, **kwargs):
         """Runs POD asynchronously"""
-        pod_mutation_hook(pod)
+        try:
+            pod_mutation_hook(pod)
+        except Exception as e:
+            raise PodMutationHookException(e)
 
         sanitized_pod = self.kube_client.api_client.sanitize_for_serialization(pod)
         json_pod = json.dumps(sanitized_pod, indent=2)
@@ -520,7 +523,9 @@ class KubernetesExecutor(BaseExecutor):
         if not self.kube_client:
             raise AirflowException(NOT_STARTED_MESSAGE)
 
-        query = session.query(TaskInstance).filter(TaskInstance.state == State.QUEUED)
+        query = session.query(TaskInstance).filter(
+            TaskInstance.state == State.QUEUED, TaskInstance.queued_by_job_id == self.job_id
+        )
         if self.kubernetes_queue:
             query = query.filter(TaskInstance.queue == self.kubernetes_queue)
         queued_tis: list[TaskInstance] = query.all()
@@ -589,6 +594,7 @@ class KubernetesExecutor(BaseExecutor):
             self.kube_config.worker_pods_pending_timeout_check_interval,
             self._check_worker_pods_pending_timeout,
         )
+
         self.event_scheduler.call_regular_interval(
             self.kube_config.worker_pods_queued_check_interval,
             self.clear_not_launched_queued_tasks,
@@ -723,6 +729,14 @@ class KubernetesExecutor(BaseExecutor):
                             json.loads(e.body)["message"],
                         )
                         self.task_queue.put(task)
+                except PodMutationHookException as e:
+                    key, _, _, _ = task
+                    self.log.error(
+                        "Pod Mutation Hook failed for the task %s. Failing task. Details: %s",
+                        key,
+                        e,
+                    )
+                    self.fail(key, e)
                 finally:
                     self.task_queue.task_done()
             except Empty:
