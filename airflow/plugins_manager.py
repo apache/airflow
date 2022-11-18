@@ -378,7 +378,7 @@ def initialize_ti_deps_plugins():
 
 
 def initialize_extra_operators_links_plugins():
-    """Creates modules for loaded extension from extra operators links plugins."""
+    """Create modules for loaded extension from extra operators links plugins."""
     global global_operator_extra_links
     global operator_extra_links
     global registered_operator_link_classes
