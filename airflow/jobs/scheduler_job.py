@@ -788,25 +788,17 @@ class SchedulerJob(BaseJob):
             paused_runs = (
                 session.query(DagRun)
                 .join(DagRun.dag_model)
+                .join(TaskInstance)
                 .filter(
                     DagModel.is_paused == expression.true(),
                     DagRun.state == DagRunState.RUNNING,
                     DagRun.run_type != DagRunType.BACKFILL_JOB,
                 )
+                .having(DagRun.last_scheduling_decision <= func.max(TaskInstance.updated_at))
+                .group_by(DagRun)
                 .order_by(DagRun.dag_id)
             )
             for dag_run in paused_runs:
-                ti_most_recently_updated_at = (
-                    session.query(func.max(TaskInstance.updated_at))
-                    .filter(
-                        TaskInstance.dag_id == dag_run.dag_id,
-                        TaskInstance.run_id == dag_run.run_id,
-                    )
-                    .scalar()
-                )
-                if ti_most_recently_updated_at <= dag_run.last_scheduling_decision:
-                    continue
-
                 if dag is None or dag.dag_id != dag_run.dag_id:
                     dag = SerializedDagModel.get_dag(dag_run.dag_id)
                     if dag is None:
