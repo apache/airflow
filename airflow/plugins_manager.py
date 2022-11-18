@@ -357,7 +357,7 @@ def initialize_web_ui_plugins():
 
 
 def initialize_ti_deps_plugins():
-    """Creates modules for loaded extension from custom task instance dependency rule plugins."""
+    """Create modules for loaded extension from custom task instance dependency rule plugins."""
     global registered_ti_dep_classes
     if registered_ti_dep_classes is not None:
         return
