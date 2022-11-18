@@ -71,7 +71,7 @@ def on_task_instance_state_session_flush(session, flush_context):
 
 
 def register_task_instance_state_events():
-    """Register a task instance state event"""
+    """Register a task instance state event."""
     global _is_listening
     if not _is_listening:
         event.listen(Session, "after_flush", on_task_instance_state_session_flush)
@@ -79,7 +79,7 @@ def register_task_instance_state_events():
 
 
 def unregister_task_instance_state_events():
-    """Unregister a task instance state event"""
+    """Unregister a task instance state event."""
     global _is_listening
     event.remove(Session, "after_flush", on_task_instance_state_session_flush)
     _is_listening = False

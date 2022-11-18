@@ -66,7 +66,7 @@ class ListenerManager:
 
 
 def get_listener_manager() -> ListenerManager:
-    """Get singleton listener manager"""
+    """Get singleton listener manager."""
     global _listener_manager
     if not _listener_manager:
         _listener_manager = ListenerManager()

@@ -49,8 +49,9 @@ class TimeDeltaSensor(BaseSensorOperator):
 
 class TimeDeltaSensorAsync(TimeDeltaSensor):
     """
-    A drop-in replacement for TimeDeltaSensor that defers itself to avoid
-    taking up a worker slot while it is waiting.
+    A deferrable drop-in replacement for TimeDeltaSensor.
+
+    Will defers itself to avoid taking up a worker slot while it is waiting.
 
     :param delta: time length to wait after the data interval before succeeding.
 

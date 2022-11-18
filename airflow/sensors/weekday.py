@@ -29,9 +29,10 @@ from airflow.utils.weekday import WeekDay
 
 class DayOfWeekSensor(BaseSensorOperator):
     """
-    Waits until the first specified day of the week. For example, if the execution
-    day of the task is '2018-12-22' (Saturday) and you pass 'FRIDAY', the task will wait
-    until next Friday.
+    Waits until the first specified day of the week.
+
+    For example, if the execution day of the task is '2018-12-22' (Saturday)
+    and you pass 'FRIDAY', the task will wait until next Friday.
 
     **Example** (with single day): ::
 
