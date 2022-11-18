@@ -537,12 +537,10 @@ class PubSubHook(GoogleBaseHook):
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
         """
-        if ack_ids is not None and messages is None:
-            pass
-        elif ack_ids is None and messages is not None:
-            ack_ids = [message.ack_id for message in messages]
-        else:
+        if not (ack_ids is None) ^ (messages is None):
             raise ValueError("One and only one of 'ack_ids' and 'messages' arguments have to be provided")
+        elif ack_ids is None:
+            ack_ids = [message.ack_id for message in messages]  # type: ignore[union-attr]
 
         subscriber = self.subscriber_client
         # E501
