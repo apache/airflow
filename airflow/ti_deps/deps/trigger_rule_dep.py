@@ -36,8 +36,7 @@ if TYPE_CHECKING:
 
 class TriggerRuleDep(BaseTIDep):
     """
-    Determines if a task's upstream tasks are in a state that allows a given task instance
-    to run.
+    Determines if the upstream tasks' state of a task instance will allow it to run.
     """
 
     NAME = "Trigger Rule"
@@ -47,8 +46,9 @@ class TriggerRuleDep(BaseTIDep):
     @staticmethod
     def _get_states_count_upstream_ti(task, finished_tis):
         """
-        This function returns the states of the upstream tis for a specific ti in order to determine
-        whether this ti can run in this iteration
+        Return the states of the upstream tis og a given ti.
+
+        Determine whether this ti can run in this iteration.
 
         :param ti: the ti that we want to calculate deps for
         :param finished_tis: all the finished tasks of the dag_run
@@ -131,8 +131,7 @@ class TriggerRuleDep(BaseTIDep):
         session: Session = NEW_SESSION,
     ):
         """
-        Yields a dependency status that indicate whether the given task instance's trigger
-        rule was met.
+        Yield a dependency status indicating whether the given task instance's trigger rule was met.
 
         :param ti: the task instance to evaluate the trigger rule of
         :param successes: Number of successful upstream tasks
