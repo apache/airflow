@@ -610,7 +610,8 @@ class ProvidersManager(LoggingMixin):
         provider_uses_connection_types: bool,
     ):
         """
-        Discovers hooks from "hook-class-names' property.
+        Discover hooks from "hook-class-names' property.
+
         This property is deprecated but we should support it in Airflow 2.
         The hook-class-names array contained just Hook names without connection type,
         therefore we need to import all those classes immediately to know which connection types
