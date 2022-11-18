@@ -738,7 +738,7 @@ class ProvidersManager(LoggingMixin):
 
     @staticmethod
     def _get_attr(obj: Any, attr_name: str):
-        """Retrieves attributes of an object, or warns if not found."""
+        """Retrieve attributes of an object, or warn if not found."""
         if not hasattr(obj, attr_name):
             log.warning("The object '%s' is missing %s attribute and cannot be registered", obj, attr_name)
             return None
