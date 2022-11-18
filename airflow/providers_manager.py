@@ -678,7 +678,7 @@ class ProvidersManager(LoggingMixin):
             )
 
     def _discover_hooks(self) -> None:
-        """Retrieves all connections defined in the providers via Hooks."""
+        """Retrieve all connections defined in the providers via Hooks."""
         for package_name, provider in self._provider_dict.items():
             duplicated_connection_types: set[str] = set()
             hook_class_names_registered: set[str] = set()
