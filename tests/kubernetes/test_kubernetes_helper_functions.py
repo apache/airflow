@@ -74,7 +74,7 @@ def test_create_pod_id_dag_only(val, expected):
         ("90AçLbˆˆç˙ßß˜˜˙c*a", "90AçLbˆˆç˙ßß˜˜˙c*a", "90aclb-c-ssss-c-a-90aclb-c-ssss-c-a"),  # ugly
     ],
 )
-def test_create_pod_id_dag_only(dag_id, task_id, expected):
+def test_create_pod_id_dag_and_task(dag_id, task_id, expected):
     actual = create_pod_id(dag_id=dag_id, task_id=task_id)
     assert actual == expected
     assert re.match(pod_name_regex, actual)
