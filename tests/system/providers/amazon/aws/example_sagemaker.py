@@ -269,7 +269,7 @@ def set_up(env_id, role_arn):
         "ProcessingResources": {
             "ClusterConfig": resource_config,
         },
-        "StoppingCondition": {"MaxRuntimeInSeconds": 300},
+        "StoppingCondition": {"MaxRuntimeInSeconds": 60},
         "AppSpecification": {
             "ImageUri": ecr_repository_uri,
         },
@@ -307,7 +307,7 @@ def set_up(env_id, role_arn):
         "OutputDataConfig": {"S3OutputPath": f"s3://{bucket_name}/{training_output_s3_key}/"},
         "ResourceConfig": resource_config,
         "RoleArn": role_arn,
-        "StoppingCondition": {"MaxRuntimeInSeconds": 6000},
+        "StoppingCondition": {"MaxRuntimeInSeconds": 60},
         "TrainingJobName": training_job_name,
     }
     model_config = {
@@ -368,7 +368,7 @@ def set_up(env_id, role_arn):
             "OutputDataConfig": {"S3OutputPath": f"s3://{bucket_name}/{training_output_s3_key}"},
             "ResourceConfig": resource_config,
             "RoleArn": role_arn,
-            "StoppingCondition": {"MaxRuntimeInSeconds": 60000},
+            "StoppingCondition": {"MaxRuntimeInSeconds": 60},
         },
     }
     transform_config = {
