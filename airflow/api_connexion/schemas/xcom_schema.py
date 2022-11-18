@@ -25,10 +25,10 @@ from airflow.models import XCom
 
 
 class XComCollectionItemSchema(SQLAlchemySchema):
-    """Schema for a xcom item"""
+    """Schema for a xcom item."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = XCom
 
@@ -40,20 +40,20 @@ class XComCollectionItemSchema(SQLAlchemySchema):
 
 
 class XComSchema(XComCollectionItemSchema):
-    """XCom schema"""
+    """XCom schema."""
 
     value = auto_field()
 
 
 class XComCollection(NamedTuple):
-    """List of XComs with meta"""
+    """List of XComs with meta."""
 
     xcom_entries: list[XCom]
     total_entries: int
 
 
 class XComCollectionSchema(Schema):
-    """XCom Collection Schema"""
+    """XCom Collection Schema."""
 
     xcom_entries = fields.List(fields.Nested(XComCollectionItemSchema))
     total_entries = fields.Int()

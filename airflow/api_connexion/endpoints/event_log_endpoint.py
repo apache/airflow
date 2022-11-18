@@ -36,7 +36,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG)])
 @provide_session
 def get_event_log(*, event_log_id: int, session: Session = NEW_SESSION) -> APIResponse:
-    """Get a log entry"""
+    """Get a log entry."""
     event_log = session.query(Log).get(event_log_id)
     if event_log is None:
         raise NotFound("Event Log not found")
@@ -53,7 +53,7 @@ def get_event_logs(
     order_by: str = "event_log_id",
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get all log entries from event log"""
+    """Get all log entries from event log."""
     to_replace = {"event_log_id": "id", "when": "dttm"}
     allowed_filter_attrs = [
         "event_log_id",

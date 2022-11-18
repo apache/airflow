@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import re
 from typing import TYPE_CHECKING, Sequence
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
@@ -106,7 +106,7 @@ class DatabricksReposCreateOperator(BaseOperator):
     def __detect_repo_provider__(url):
         provider = None
         try:
-            netloc = urlparse(url).netloc
+            netloc = urlsplit(url).netloc
             idx = netloc.rfind("@")
             if idx != -1:
                 netloc = netloc[(idx + 1) :]

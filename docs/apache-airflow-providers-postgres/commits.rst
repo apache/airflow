@@ -28,14 +28,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.3.0
+.....
+
+Latest change: 2022-11-10
+
+=================================================================================================  ===========  =========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================================================
+`d7d206137b <https://github.com/apache/airflow/commit/d7d206137b2ff792b227e3549fcdf60469108992>`_  2022-11-10   ``PostgresHook: Added ON CONFLICT DO NOTHING statement when all target fields are primary keys (#26661)``
+`39caf1d5bc <https://github.com/apache/airflow/commit/39caf1d5bc5ec5ff653cf00b25d45e176709b59e>`_  2022-10-31   ``Rename schema to database in PostgresHook (#26744)``
+`9ab1a6a3e7 <https://github.com/apache/airflow/commit/9ab1a6a3e70b32a3cddddf0adede5d2f3f7e29ea>`_  2022-10-27   ``Update old style typing (#26872)``
+`78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``
+`2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``
+`ecd4d6654f <https://github.com/apache/airflow/commit/ecd4d6654ff8e0da4a7b8f29fd23c37c9c219076>`_  2022-10-18   ``Add SQLExecuteQueryOperator (#25717)``
+=================================================================================================  ===========  =========================================================================================================
+
 5.2.2
 .....
 
-Latest change: 2022-09-27
+Latest change: 2022-09-28
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`f8db64c35c <https://github.com/apache/airflow/commit/f8db64c35c8589840591021a48901577cff39c07>`_  2022-09-28   ``Update docs for September Provider's release (#26731)``
 `685f523044 <https://github.com/apache/airflow/commit/685f5230440d5d1c538acd80cdb0622f2791fad6>`_  2022-09-27   ``Revert "Rename schema to database in 'PostgresHook' (#26436)" (#26734)``
 `642375f97d <https://github.com/apache/airflow/commit/642375f97de133edba1a6c1fa9397d840e8b5936>`_  2022-09-27   ``Rename schema to database in 'PostgresHook' (#26436)``
 `06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``

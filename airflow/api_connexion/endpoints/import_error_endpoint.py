@@ -36,7 +36,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR)])
 @provide_session
 def get_import_error(*, import_error_id: int, session: Session = NEW_SESSION) -> APIResponse:
-    """Get an import error"""
+    """Get an import error."""
     error = session.query(ImportErrorModel).get(import_error_id)
 
     if error is None:
@@ -57,7 +57,7 @@ def get_import_errors(
     order_by: str = "import_error_id",
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get all import errors"""
+    """Get all import errors."""
     to_replace = {"import_error_id": "id"}
     allowed_filter_attrs = ["import_error_id", "timestamp", "filename"]
     total_entries = session.query(func.count(ImportErrorModel.id)).scalar()

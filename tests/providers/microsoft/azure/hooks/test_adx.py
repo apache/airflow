@@ -37,7 +37,7 @@ ADX_TEST_CONN_ID = "adx_test_connection_id"
 
 
 class TestAzureDataExplorerHook:
-    def teardown(self):
+    def teardown_method(self):
         with create_session() as session:
             session.query(Connection).filter(Connection.conn_id == ADX_TEST_CONN_ID).delete()
 

@@ -50,3 +50,4 @@ class DagAttributeTypes(str, Enum):
     PARAM = "param"
     XCOM_REF = "xcomref"
     DATASET = "dataset"
+    SIMPLE_TASK_INSTANCE = "simple_task_instance"

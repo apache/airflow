@@ -47,6 +47,7 @@ from sqlalchemy import (
     Integer,
     PrimaryKeyConstraint,
     String,
+    Text,
     and_,
     false,
     func,
@@ -354,6 +355,7 @@ class TaskInstance(Base, LoggingMixin):
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
     executor_config = Column(ExecutorConfigType(pickler=dill))
+    notes = Column(String(1000).with_variant(Text(1000), "mysql"))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
 
     external_executor_id = Column(StringID())
@@ -792,6 +794,7 @@ class TaskInstance(Base, LoggingMixin):
             self.trigger_id = ti.trigger_id
             self.next_method = ti.next_method
             self.next_kwargs = ti.next_kwargs
+            self.notes = ti.notes
         else:
             self.state = None
 
@@ -1836,6 +1839,7 @@ class TaskInstance(Base, LoggingMixin):
             session = settings.Session()
 
         from airflow import macros
+        from airflow.models.abstractoperator import NotMapped
 
         integrate_macros_plugins()
 
@@ -1964,6 +1968,11 @@ class TaskInstance(Base, LoggingMixin):
 
             return triggering_events
 
+        try:
+            expanded_ti_count: int | None = task.get_mapped_ti_count(self.run_id, session=session)
+        except NotMapped:
+            expanded_ti_count = None
+
         # NOTE: If you add anything to this dict, make sure to also update the
         # definition in airflow/utils/context.pyi, and KNOWN_CONTEXT_KEYS in
         # airflow/utils/context.py!
@@ -1976,6 +1985,7 @@ class TaskInstance(Base, LoggingMixin):
             "ds": ds,
             "ds_nodash": ds_nodash,
             "execution_date": logical_date,
+            "expanded_ti_count": expanded_ti_count,
             "inlets": task.inlets,
             "logical_date": logical_date,
             "macros": macros,
@@ -2405,34 +2415,78 @@ class TaskInstance(Base, LoggingMixin):
         run_id = first.run_id
         map_index = first.map_index
         first_task_id = first.task_id
+
+        # pre-compute the set of dag_id, run_id, map_indices and task_ids
+        dag_ids, run_ids, map_indices, task_ids = set(), set(), set(), set()
+        for t in tis:
+            dag_ids.add(t.dag_id)
+            run_ids.add(t.run_id)
+            map_indices.add(t.map_index)
+            task_ids.add(t.task_id)
+
         # Common path optimisations: when all TIs are for the same dag_id and run_id, or same dag_id
         # and task_id -- this can be over 150x faster for huge numbers of TIs (20k+)
-        if all(t.dag_id == dag_id and t.run_id == run_id and t.map_index == map_index for t in tis):
+        if dag_ids == {dag_id} and run_ids == {run_id} and map_indices == {map_index}:
             return and_(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id == run_id,
                 TaskInstance.map_index == map_index,
-                TaskInstance.task_id.in_(t.task_id for t in tis),
+                TaskInstance.task_id.in_(task_ids),
             )
-        if all(t.dag_id == dag_id and t.task_id == first_task_id and t.map_index == map_index for t in tis):
+        if dag_ids == {dag_id} and task_ids == {first_task_id} and map_indices == {map_index}:
             return and_(
                 TaskInstance.dag_id == dag_id,
-                TaskInstance.run_id.in_(t.run_id for t in tis),
+                TaskInstance.run_id.in_(run_ids),
                 TaskInstance.map_index == map_index,
                 TaskInstance.task_id == first_task_id,
             )
-        if all(t.dag_id == dag_id and t.run_id == run_id and t.task_id == first_task_id for t in tis):
+        if dag_ids == {dag_id} and run_ids == {run_id} and task_ids == {first_task_id}:
             return and_(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id == run_id,
-                TaskInstance.map_index.in_(t.map_index for t in tis),
+                TaskInstance.map_index.in_(map_indices),
                 TaskInstance.task_id == first_task_id,
             )
 
-        return tuple_in_condition(
-            (TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.run_id, TaskInstance.map_index),
-            (ti.key.primary for ti in tis),
-        )
+        filter_condition = []
+        # create 2 nested groups, both primarily grouped by dag_id and run_id,
+        # and in the nested group 1 grouped by task_id the other by map_index.
+        task_id_groups: dict[tuple, dict[Any, list[Any]]] = defaultdict(lambda: defaultdict(list))
+        map_index_groups: dict[tuple, dict[Any, list[Any]]] = defaultdict(lambda: defaultdict(list))
+        for t in tis:
+            task_id_groups[(t.dag_id, t.run_id)][t.task_id].append(t.map_index)
+            map_index_groups[(t.dag_id, t.run_id)][t.map_index].append(t.task_id)
+
+        # this assumes that most dags have dag_id as the largest grouping, followed by run_id. even
+        # if its not, this is still  a significant optimization over querying for every single tuple key
+        for cur_dag_id in dag_ids:
+            for cur_run_id in run_ids:
+                # we compare the group size between task_id and map_index and use the smaller group
+                dag_task_id_groups = task_id_groups[(cur_dag_id, cur_run_id)]
+                dag_map_index_groups = map_index_groups[(cur_dag_id, cur_run_id)]
+
+                if len(dag_task_id_groups) <= len(dag_map_index_groups):
+                    for cur_task_id, cur_map_indices in dag_task_id_groups.items():
+                        filter_condition.append(
+                            and_(
+                                TaskInstance.dag_id == cur_dag_id,
+                                TaskInstance.run_id == cur_run_id,
+                                TaskInstance.task_id == cur_task_id,
+                                TaskInstance.map_index.in_(cur_map_indices),
+                            )
+                        )
+                else:
+                    for cur_map_index, cur_task_ids in dag_map_index_groups.items():
+                        filter_condition.append(
+                            and_(
+                                TaskInstance.dag_id == cur_dag_id,
+                                TaskInstance.run_id == cur_run_id,
+                                TaskInstance.task_id.in_(cur_task_ids),
+                                TaskInstance.map_index == cur_map_index,
+                            )
+                        )
+
+        return or_(*filter_condition)
 
     @classmethod
     def ti_selector_condition(cls, vals: Collection[str | tuple[str, int]]) -> ColumnOperators:
@@ -2571,6 +2625,11 @@ class SimpleTaskInstance:
         return NotImplemented
 
     def as_dict(self):
+        warnings.warn(
+            "This method is deprecated. Use BaseSerialization.serialize.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
         new_dict = dict(self.__dict__)
         for key in new_dict:
             if key in ["start_date", "end_date"]:
@@ -2601,6 +2660,11 @@ class SimpleTaskInstance:
 
     @classmethod
     def from_dict(cls, obj_dict: dict) -> SimpleTaskInstance:
+        warnings.warn(
+            "This method is deprecated. Use BaseSerialization.deserialize.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
         ti_key = TaskInstanceKey(*obj_dict.pop("key"))
         start_date = None
         end_date = None

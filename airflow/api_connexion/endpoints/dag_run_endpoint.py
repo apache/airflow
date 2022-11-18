@@ -40,6 +40,7 @@ from airflow.api_connexion.schemas.dag_run_schema import (
     dagrun_collection_schema,
     dagrun_schema,
     dagruns_batch_form_schema,
+    set_dagrun_note_form_schema,
     set_dagrun_state_form_schema,
 )
 from airflow.api_connexion.schemas.dataset_schema import (
@@ -67,7 +68,7 @@ from airflow.utils.types import DagRunType
 )
 @provide_session
 def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
-    """Delete a DAG Run"""
+    """Delete a DAG Run."""
     if session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).delete() == 0:
         raise NotFound(detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found")
     return NoContent, HTTPStatus.NO_CONTENT
@@ -236,7 +237,7 @@ def get_dag_runs(
 )
 @provide_session
 def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
-    """Get list of DAG Runs"""
+    """Get list of DAG Runs."""
     body = get_json_request_dict()
     try:
         data = dagruns_batch_form_schema.load(body)
@@ -413,3 +414,29 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
         )
         dag_run.refresh_from_db()
         return dagrun_schema.dump(dag_run)
+
+
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
+    ],
+)
+@provide_session
+def set_dag_run_notes(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
+    """Set the note for a dag run."""
+    dag_run: DagRun | None = (
+        session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
+    )
+    if dag_run is None:
+        error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
+        raise NotFound(error_message)
+    try:
+        post_body = set_dagrun_note_form_schema.load(get_json_request_dict())
+        new_value_for_notes = post_body["notes"]
+    except ValidationError as err:
+        raise BadRequest(detail=str(err))
+
+    dag_run.notes = new_value_for_notes or None
+    session.commit()
+    return dagrun_schema.dump(dag_run)
