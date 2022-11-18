@@ -312,8 +312,7 @@ class BaseSerialization:
 
     @classmethod
     def from_dict(cls, serialized_obj: dict[Encoding, Any]) -> BaseSerialization | dict | list | set | tuple:
-        """Deserialize a dict of type decorators and reconstructs all DAGs and operators it contains.
-        """
+        """Deserialize a dict of type decorators and reconstructs all DAGs and operators it contains."""
         return cls.deserialize(serialized_obj)
 
     @classmethod
