@@ -136,6 +136,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/values\.json",
         ],
         FileGroupForCi.WWW_FILES: [
+            r"^airflow/www/.*\.ts[x]?$",
             r"^airflow/www/.*\.js[x]?$",
             r"^airflow/www/[^/]+\.json$",
             r"^airflow/www/.*\.lock$",
