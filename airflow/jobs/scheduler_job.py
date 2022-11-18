@@ -326,12 +326,21 @@ class SchedulerJob(BaseJob):
 
             query = query.limit(max_tis)
 
-            task_instances_to_examine: list[TI] = with_row_locks(
-                query,
-                of=TI,
-                session=session,
-                **skip_locked(session=session),
-            ).all()
+            timer = Stats.timer("scheduler.critical_section_query_duration")
+            timer.start()
+
+            try:
+                task_instances_to_examine: list[TI] = with_row_locks(
+                    query,
+                    of=TI,
+                    session=session,
+                    **skip_locked(session=session),
+                ).all()
+                timer.stop(send=True)
+            except OperationalError as e:
+                timer.stop(send=False)
+                raise e
+
             # TODO[HA]: This was wrong before anyway, as it only looked at a sub-set of dags, not everything.
             # Stats.gauge('scheduler.tasks.pending', len(task_instances_to_examine))
 
