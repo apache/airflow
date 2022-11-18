@@ -41,7 +41,7 @@ from tests.test_utils.providers import get_provider_min_airflow_version, object_
 
 
 class TestAzureFileshareHook:
-    def setup(self):
+    def setup_method(self):
         db.merge_conn(
             Connection(
                 conn_id="azure_fileshare_test_key",

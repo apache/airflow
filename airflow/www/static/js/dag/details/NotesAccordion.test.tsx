@@ -52,11 +52,6 @@ describe('Test DagRun / Task Instance Notes', () => {
     );
 
     await waitFor(() => expect(getByText('Add Note')).toBeVisible());
-
-    const accordion = getByText('DAG Run Notes:');
-
-    fireEvent.click(accordion);
-    await waitFor(() => expect(getByText('Add Note')).not.toBeVisible());
   });
 
   test('With initial value, accordion is open. And update button changed', () => {

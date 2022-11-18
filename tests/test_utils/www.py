@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+from airflow.models import Log
+
 
 def client_with_login(app, **kwargs):
     patch_path = "airflow.www.fab_security.manager.check_password_hash"
@@ -47,3 +49,27 @@ def check_content_not_in_response(text, resp, resp_code=200):
             assert line not in resp_html
     else:
         assert text not in resp_html
+
+
+def _check_last_log(session, dag_id, event, execution_date):
+    logs = (
+        session.query(
+            Log.dag_id,
+            Log.task_id,
+            Log.event,
+            Log.execution_date,
+            Log.owner,
+            Log.extra,
+        )
+        .filter(
+            Log.dag_id == dag_id,
+            Log.event == event,
+            Log.execution_date == execution_date,
+        )
+        .order_by(Log.dttm.desc())
+        .limit(5)
+        .all()
+    )
+    assert len(logs) >= 1
+    assert logs[0].extra
+    session.query(Log).delete()

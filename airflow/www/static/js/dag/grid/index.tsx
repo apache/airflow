@@ -27,7 +27,6 @@ import {
   Thead,
   Flex,
   IconButton,
-  useDimensions,
 } from '@chakra-ui/react';
 
 import { MdReadMore } from 'react-icons/md';
@@ -35,6 +34,7 @@ import { MdReadMore } from 'react-icons/md';
 import { useGridData } from 'src/api';
 import { getMetaValue } from 'src/utils';
 import AutoRefresh from 'src/components/AutoRefresh';
+import useOffsetHeight from 'src/utils/useOffsetHeight';
 
 import renderTaskRows from './renderTaskRows';
 import ResetRoot from './ResetRoot';
@@ -49,11 +49,14 @@ interface Props {
   hoveredTaskState?: string | null;
 }
 
-const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }: Props) => {
+const Grid = ({
+  isPanelOpen = false,
+  onPanelToggle,
+  hoveredTaskState,
+}: Props) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableSectionElement>(null);
-  const buttonsRef = useRef<HTMLDivElement>(null);
-  const dimensions = useDimensions(buttonsRef);
+  const offsetHeight = useOffsetHeight(scrollRef);
 
   const { data: { groups, dagRuns } } = useGridData();
   const dagRunIds = dagRuns.map((dr) => dr.runId);
@@ -103,7 +106,6 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }: Props) =
         p={1}
         pb={2}
         backgroundColor="white"
-        ref={buttonsRef}
       >
         <Flex alignItems="center">
           <AutoRefresh />
@@ -125,11 +127,13 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }: Props) =
         />
       </Flex>
       <Box
-        height={`calc(100% - ${dimensions?.borderBox.height || 0}px)`}
+        height="100%"
+        maxHeight={offsetHeight}
         ref={scrollRef}
         overflow="auto"
         position="relative"
         pr={4}
+        pb={4}
       >
         <Table pr="10px">
           <Thead>

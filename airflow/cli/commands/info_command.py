@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Config sub-commands"""
+"""Config sub-commands."""
 from __future__ import annotations
 
 import locale
@@ -43,13 +43,13 @@ class Anonymizer(Protocol):
     """Anonymizer protocol."""
 
     def process_path(self, value) -> str:
-        """Remove pii from paths"""
+        """Remove pii from paths."""
 
     def process_username(self, value) -> str:
-        """Remove pii from username"""
+        """Remove pii from username."""
 
     def process_url(self, value) -> str:
-        """Remove pii from URL"""
+        """Remove pii from URL."""
 
 
 class NullAnonymizer(Anonymizer):
@@ -125,7 +125,7 @@ class PiiAnonymizer(Anonymizer):
 
 
 class OperatingSystem:
-    """Operating system"""
+    """Operating system."""
 
     WINDOWS = "Windows"
     LINUX = "Linux"
@@ -134,7 +134,7 @@ class OperatingSystem:
 
     @staticmethod
     def get_current() -> str | None:
-        """Get current operating system"""
+        """Get current operating system."""
         if os.name == "nt":
             return OperatingSystem.WINDOWS
         elif "linux" in sys.platform:
@@ -147,7 +147,7 @@ class OperatingSystem:
 
 
 class Architecture:
-    """Compute architecture"""
+    """Compute architecture."""
 
     X86_64 = "x86_64"
     X86 = "x86"
@@ -156,7 +156,7 @@ class Architecture:
 
     @staticmethod
     def get_current():
-        """Get architecture"""
+        """Get architecture."""
         return _MACHINE_TO_ARCHITECTURE.get(platform.machine().lower())
 
 
@@ -180,7 +180,7 @@ _MACHINE_TO_ARCHITECTURE = {
 
 
 class AirflowInfo:
-    """Renders information about Airflow instance"""
+    """Renders information about Airflow instance."""
 
     def __init__(self, anonymizer):
         self.anonymizer = anonymizer
@@ -308,7 +308,7 @@ class AirflowInfo:
         return [(p.data["package-name"], p.version) for p in ProvidersManager().providers.values()]
 
     def show(self, output: str, console: AirflowConsole | None = None) -> None:
-        """Shows information about Airflow instance"""
+        """Shows information about Airflow instance."""
         all_info = {
             "Apache Airflow": self._airflow_info,
             "System info": self._system_info,
@@ -330,7 +330,7 @@ class AirflowInfo:
             )
 
     def render_text(self, output: str) -> str:
-        """Exports the info to string"""
+        """Exports the info to string."""
         console = AirflowConsole(record=True)
         with console.capture():
             self.show(output=output, console=console)
@@ -338,7 +338,7 @@ class AirflowInfo:
 
 
 class FileIoException(Exception):
-    """Raises when error happens in FileIo.io integration"""
+    """Raises when error happens in FileIo.io integration."""
 
 
 @tenacity.retry(
@@ -349,7 +349,7 @@ class FileIoException(Exception):
     after=tenacity.after_log(log, logging.DEBUG),
 )
 def _upload_text_to_fileio(content):
-    """Upload text file to File.io service and return lnk"""
+    """Upload text file to File.io service and return link."""
     resp = httpx.post("https://file.io", content=content)
     if resp.status_code not in [200, 201]:
         print(resp.json())

@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Dag sub-commands"""
+"""Dag sub-commands."""
 from __future__ import annotations
 
 import ast
@@ -49,7 +49,7 @@ log = logging.getLogger(__name__)
 
 @cli_utils.action_cli
 def dag_backfill(args, dag=None):
-    """Creates backfill job or dry run for a DAG or list of DAGs using regex"""
+    """Creates backfill job or dry run for a DAG or list of DAGs using regex."""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
 
     signal.signal(signal.SIGTERM, sigint_handler)
@@ -139,7 +139,7 @@ def dag_backfill(args, dag=None):
 
 @cli_utils.action_cli
 def dag_trigger(args):
-    """Creates a dag run for the specified dag"""
+    """Creates a dag run for the specified dag."""
     api_client = get_current_api_client()
     try:
         message = api_client.trigger_dag(
@@ -152,7 +152,7 @@ def dag_trigger(args):
 
 @cli_utils.action_cli
 def dag_delete(args):
-    """Deletes all DB records related to the specified dag"""
+    """Deletes all DB records related to the specified dag."""
     api_client = get_current_api_client()
     if (
         args.yes
@@ -170,18 +170,18 @@ def dag_delete(args):
 
 @cli_utils.action_cli
 def dag_pause(args):
-    """Pauses a DAG"""
+    """Pauses a DAG."""
     set_is_paused(True, args)
 
 
 @cli_utils.action_cli
 def dag_unpause(args):
-    """Unpauses a DAG"""
+    """Unpauses a DAG."""
     set_is_paused(False, args)
 
 
 def set_is_paused(is_paused, args):
-    """Sets is_paused for DAG by a given dag_id"""
+    """Sets is_paused for DAG by a given dag_id."""
     dag = DagModel.get_dagmodel(args.dag_id)
 
     if not dag:
@@ -193,7 +193,7 @@ def set_is_paused(is_paused, args):
 
 
 def dag_dependencies_show(args):
-    """Displays DAG dependencies, save to file or show as imgcat image"""
+    """Displays DAG dependencies, save to file or show as imgcat image."""
     dot = render_dag_dependencies(SerializedDagModel.get_dag_dependencies())
     filename = args.save
     imgcat = args.imgcat
@@ -212,7 +212,7 @@ def dag_dependencies_show(args):
 
 
 def dag_show(args):
-    """Displays DAG or saves it's graphic representation to the file"""
+    """Displays DAG or saves it's graphic representation to the file."""
     dag = get_dag(args.subdir, args.dag_id)
     dot = render_dag(dag)
     filename = args.save
@@ -323,7 +323,7 @@ def dag_next_execution(args):
 @cli_utils.action_cli
 @suppress_logs_and_warning
 def dag_list_dags(args):
-    """Displays dags with or without stats at the command line"""
+    """Displays dags with or without stats at the command line."""
     dagbag = DagBag(process_subdir(args.subdir))
     if dagbag.import_errors:
         from rich import print as rich_print
@@ -348,7 +348,7 @@ def dag_list_dags(args):
 @cli_utils.action_cli
 @suppress_logs_and_warning
 def dag_list_import_errors(args):
-    """Displays dags with import errors on the command line"""
+    """Displays dags with import errors on the command line."""
     dagbag = DagBag(process_subdir(args.subdir))
     data = []
     for filename, errors in dagbag.import_errors.items():
@@ -362,7 +362,7 @@ def dag_list_import_errors(args):
 @cli_utils.action_cli
 @suppress_logs_and_warning
 def dag_report(args):
-    """Displays dagbag stats at the command line"""
+    """Displays dagbag stats at the command line."""
     dagbag = DagBag(process_subdir(args.subdir))
     AirflowConsole().print_as(
         data=dagbag.dagbag_stats,
@@ -381,7 +381,7 @@ def dag_report(args):
 @suppress_logs_and_warning
 @provide_session
 def dag_list_jobs(args, dag=None, session=NEW_SESSION):
-    """Lists latest n jobs"""
+    """Lists latest n jobs."""
     queries = []
     if dag:
         args.dag_id = dag.dag_id
@@ -411,7 +411,7 @@ def dag_list_jobs(args, dag=None, session=NEW_SESSION):
 @suppress_logs_and_warning
 @provide_session
 def dag_list_dag_runs(args, dag=None, session=NEW_SESSION):
-    """Lists dag runs for a given DAG"""
+    """Lists dag runs for a given DAG."""
     if dag:
         args.dag_id = dag.dag_id
     else:
@@ -484,6 +484,7 @@ def dag_test(args, dag=None, session=None):
 @provide_session
 @cli_utils.action_cli
 def dag_reserialize(args, session: Session = NEW_SESSION):
+    """Serialize a DAG instance."""
     session.query(SerializedDagModel).delete(synchronize_session=False)
 
     if not args.clear_only:

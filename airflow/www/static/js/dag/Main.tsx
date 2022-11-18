@@ -34,7 +34,6 @@ import { isEmpty, debounce } from 'lodash';
 import useSelection from 'src/dag/useSelection';
 import { useGridData } from 'src/api';
 import { hoverDelay } from 'src/utils';
-import useContentHeight from 'src/utils/useContentHeight';
 
 import Details from './details';
 import Grid from './grid';
@@ -44,11 +43,14 @@ import LegendRow from './nav/LegendRow';
 const detailsPanelKey = 'hideDetailsPanel';
 const minPanelWidth = 300;
 
+const gridWidthKey = 'grid-width';
+const saveWidth = debounce((w) => localStorage.setItem(gridWidthKey, w), hoverDelay);
+
 const Main = () => {
   const { data: { groups }, isLoading } = useGridData();
   const resizeRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const detailsRef = useRef<HTMLDivElement>(null);
   const isPanelOpen = localStorage.getItem(detailsPanelKey) !== 'true';
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
   const { clearSelection } = useSelection();
@@ -62,6 +64,8 @@ const Main = () => {
     onStatusHover.cancel();
   };
 
+  const gridWidth = localStorage.getItem(gridWidthKey) || undefined;
+
   const onPanelToggle = () => {
     if (!isOpen) {
       localStorage.setItem(detailsPanelKey, 'false');
@@ -72,12 +76,12 @@ const Main = () => {
     onToggle();
   };
 
-  useContentHeight(contentRef);
-
   const resize = useCallback((e: MouseEvent) => {
     const gridEl = gridRef.current;
     if (gridEl && e.x > minPanelWidth && e.x < window.innerWidth - minPanelWidth) {
-      gridEl.style.width = `${e.x}px`;
+      const width = `${e.x}px`;
+      gridEl.style.width = width;
+      saveWidth(width);
     }
   }, [gridRef]);
 
@@ -106,7 +110,7 @@ const Main = () => {
       <FilterBar />
       <LegendRow onStatusHover={onStatusHover} onStatusLeave={onStatusLeave} />
       <Divider mb={5} borderBottomWidth={2} />
-      <Flex ref={contentRef} overflow="hidden">
+      <Flex>
         {isLoading || isEmpty(groups)
           ? (<Spinner />)
           : (
@@ -116,6 +120,7 @@ const Main = () => {
                 flex={isOpen ? undefined : 1}
                 ref={gridRef}
                 height="100%"
+                width={gridWidth}
               >
                 <Grid
                   isPanelOpen={isOpen}
@@ -138,6 +143,7 @@ const Main = () => {
                     zIndex={1}
                     bg="white"
                     height="100%"
+                    ref={detailsRef}
                   >
                     <Details />
                   </Box>
