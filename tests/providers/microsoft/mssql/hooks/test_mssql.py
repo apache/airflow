@@ -17,11 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from urllib.parse import quote_plus
 
-from parameterized import parameterized
+import pytest
 
 from airflow.models import Connection
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
@@ -52,7 +51,7 @@ PYMSSQL_CONN_ALT_2 = Connection(
 )
 
 
-class TestMsSqlHook(unittest.TestCase):
+class TestMsSqlHook:
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn")
     @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_connection")
     def test_get_conn_should_return_connection(self, get_connection, mssql_get_conn):
@@ -92,7 +91,8 @@ class TestMsSqlHook(unittest.TestCase):
         mssql_get_conn.assert_called_once()
         assert hook.get_autocommit(conn) == "autocommit_state"
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "conn, exp_uri",
         [
             (
                 PYMSSQL_CONN,
@@ -130,7 +130,7 @@ class TestMsSqlHook(unittest.TestCase):
         ],
     )
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection")
-    def test_get_uri_driver_rewrite(self, conn, exp_uri, get_connection):
+    def test_get_uri_driver_rewrite(self, get_connection, conn, exp_uri):
         get_connection.return_value = conn
 
         hook = MsSqlHook()

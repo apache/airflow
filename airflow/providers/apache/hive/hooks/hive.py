@@ -204,6 +204,8 @@ class HiveCliHook(BaseHook):
         """
         conn = self.conn
         schema = schema or conn.schema
+        if "!" in schema or ";" in schema:
+            raise RuntimeError(f"The schema `{schema}` contains invalid characters (!;)")
         if schema:
             hql = f"USE {schema};\n{hql}"
 

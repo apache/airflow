@@ -26,6 +26,7 @@ dependencies:
   - python-arango>=7.3.2
 
 versions:
+  - 2.1.0
   - 2.0.0
   - 1.0.0
 

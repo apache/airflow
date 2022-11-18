@@ -22,6 +22,7 @@ description: |
     `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/en-us/sql-server/sql-server-downloads>`__
 
 versions:
+  - 3.3.0
   - 3.2.1
   - 3.2.0
   - 3.1.0

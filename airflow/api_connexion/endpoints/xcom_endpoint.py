@@ -52,7 +52,7 @@ def get_xcom_entries(
     offset: int | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get all XCom values"""
+    """Get all XCom values."""
     query = session.query(XCom)
     if dag_id == "~":
         appbuilder = get_airflow_app().appbuilder
@@ -91,7 +91,7 @@ def get_xcom_entry(
     deserialize: bool = False,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get an XCom entry"""
+    """Get an XCom entry."""
     if deserialize:
         query = session.query(XCom, XCom.value)
     else:

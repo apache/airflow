@@ -40,7 +40,7 @@ def _join_plugins_names(value: list[Any] | Any) -> str:
 
 @suppress_logs_and_warning
 def dump_plugins(args):
-    """Dump plugins information"""
+    """Dump plugins information."""
     plugins_info: list[dict[str, str]] = get_plugin_info()
     if not plugins_manager.plugins:
         print("No plugins loaded")

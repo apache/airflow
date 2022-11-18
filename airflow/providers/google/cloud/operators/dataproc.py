@@ -1679,12 +1679,13 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        operation.result()
-        workflow_id = operation.operation.name.split("/")[-1]
+        self.workflow_id = operation.operation.name.split("/")[-1]
         DataprocLink.persist(
-            context=context, task_instance=self, url=DATAPROC_WORKFLOW_LINK, resource=workflow_id
+            context=context, task_instance=self, url=DATAPROC_WORKFLOW_LINK, resource=self.workflow_id
         )
-        self.log.info("Template instantiated.")
+        self.log.info("Template instantiated. Workflow Id : %s", self.workflow_id)
+        operation.result()
+        self.log.info("Workflow %s completed successfully", self.workflow_id)
 
 
 class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
@@ -1770,12 +1771,13 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        operation.result()
-        workflow_id = operation.operation.name.split("/")[-1]
+        self.workflow_id = operation.operation.name.split("/")[-1]
         DataprocLink.persist(
-            context=context, task_instance=self, url=DATAPROC_WORKFLOW_LINK, resource=workflow_id
+            context=context, task_instance=self, url=DATAPROC_WORKFLOW_LINK, resource=self.workflow_id
         )
-        self.log.info("Template instantiated.")
+        self.log.info("Template instantiated. Workflow Id : %s", self.workflow_id)
+        operation.result()
+        self.log.info("Workflow %s completed successfully", self.workflow_id)
 
 
 class DataprocSubmitJobOperator(BaseOperator):
