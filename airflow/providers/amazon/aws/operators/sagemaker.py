@@ -779,7 +779,7 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
         aws_conn_id: str = DEFAULT_CONN_ID,
         pipeline_name: str,
         display_name: str = "airflow-triggered-execution",
-        pipeline_params: dict = None,
+        pipeline_params: dict | None = None,
         wait_for_completion: bool = False,
         check_interval: int = CHECK_INTERVAL_SECOND,
         verbose: bool = True,

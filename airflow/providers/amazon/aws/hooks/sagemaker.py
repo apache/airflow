@@ -1017,7 +1017,7 @@ class SageMakerHook(AwsBaseHook):
         self,
         pipeline_name: str,
         display_name: str = "airflow-triggered-execution",
-        pipeline_params: dict = None,
+        pipeline_params: dict | None = None,
         wait_for_completion: bool = False,
         check_interval: int = 30,
         verbose: bool = True,
@@ -1030,7 +1030,8 @@ class SageMakerHook(AwsBaseHook):
         :param pipeline_params: Optional parameters for the pipeline.
             All parameters supplied need to already be present in the pipeline definition.
         :param wait_for_completion: Will only return once the pipeline is complete if true.
-        :param check_interval: How long to wait between checks for pipeline status when waiting for completion.
+        :param check_interval: How long to wait between checks for pipeline status when waiting for
+            completion.
         :param verbose: Whether to print steps details when waiting for completion.
             Defaults to true, consider turning off for pipelines that have thousands of steps.
 
