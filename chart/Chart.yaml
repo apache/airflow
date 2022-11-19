@@ -26,7 +26,7 @@ description: The official Helm chart to deploy Apache Airflow, a platform to
 home: https://airflow.apache.org/
 sources:
   - https://github.com/apache/airflow
-icon: https://airflow.apache.org/docs/apache-airflow/stable/_images/pin_large.png
+icon: https://airflow.apache.org/images/airflow_dark_bg.png
 keywords:
   - apache
   - airflow

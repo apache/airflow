@@ -19,7 +19,7 @@
 
 /* global localStorage */
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Box,
   Text,
@@ -32,9 +32,11 @@ import {
 
 import { useGridData, useTaskInstance } from 'src/api';
 import { getMetaValue, getTask } from 'src/utils';
+import useOffsetHeight from 'src/utils/useOffsetHeight';
 import type { DagRun, TaskInstance as TaskInstanceType } from 'src/types';
-
 import type { SelectionProps } from 'src/dag/useSelection';
+import NotesAccordion from 'src/dag/details/NotesAccordion';
+
 import ExtraLinks from './ExtraLinks';
 import Logs from './Logs';
 import TaskNav from './Nav';
@@ -60,6 +62,8 @@ const TaskInstance = ({
   const isMapIndexDefined = !(mapIndex === undefined);
   const actionsMapIndexes = isMapIndexDefined ? [mapIndex] : [];
   const { data: { dagRuns, groups } } = useGridData();
+  const detailsRef = useRef<HTMLDivElement>(null);
+  const offsetHeight = useOffsetHeight(detailsRef);
 
   const storageTabIndex = parseInt(localStorage.getItem(detailsPanelActiveTabIndex) || '0', 10);
   const [preferedTabIndex, setPreferedTabIndex] = useState(storageTabIndex);
@@ -113,7 +117,7 @@ const TaskInstance = ({
   }
 
   return (
-    <Box py="4px">
+    <Box py="4px" height="100%">
       {!isGroup && (
         <TaskNav
           taskId={taskId}
@@ -124,7 +128,13 @@ const TaskInstance = ({
           operator={operator}
         />
       )}
-      <Tabs size="lg" index={selectedTabIndex} onChange={handleTabsChange} isLazy>
+      <Tabs
+        size="lg"
+        index={selectedTabIndex}
+        onChange={handleTabsChange}
+        isLazy
+        height="100%"
+      >
         <TabList>
           <Tab>
             <Text as="strong">Details</Text>
@@ -147,19 +157,38 @@ const TaskInstance = ({
         />
 
         <TabPanels>
-
           {/* Details Tab */}
-          <TabPanel pt={isMapIndexDefined ? '0px' : undefined}>
+          <TabPanel
+            pt={isMapIndexDefined ? '0px' : undefined}
+            height="100%"
+            maxHeight={offsetHeight}
+            ref={detailsRef}
+            overflowY="auto"
+            py="4px"
+            pb={4}
+          >
             <Box py="4px">
-              {!isGroup && (
-                <TaskActions
-                  title={taskActionsTitle}
+              {!isGroupOrMappedTaskSummary && (
+                <NotesAccordion
+                  dagId={dagId}
                   runId={runId}
                   taskId={taskId}
-                  dagId={dagId}
-                  executionDate={executionDate}
-                  mapIndexes={actionsMapIndexes}
+                  mapIndex={instance.mapIndex}
+                  initialValue={instance.notes}
+                  key={dagId + runId + taskId + instance.mapIndex}
                 />
+              )}
+              {!isGroup && (
+                <Box mb={8}>
+                  <TaskActions
+                    title={taskActionsTitle}
+                    runId={runId}
+                    taskId={taskId}
+                    dagId={dagId}
+                    executionDate={executionDate}
+                    mapIndexes={actionsMapIndexes}
+                  />
+                </Box>
               )}
               <Details instance={instance} group={group} dagId={dagId} />
               {!isMapped && (

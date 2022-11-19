@@ -32,8 +32,8 @@ contributors in case of simpler changes.
 
 We have the following Groups of files for CI that determine which tests are run:
 
-* `Environment files` - if any of those changes, that forces 'run everything' mode, because changes there might
-  simply change the whole environment of what is going on in CI (Container image, dependencies)
+* `Environment files` - if any of those changes, that forces 'full tests needed' mode, because changes
+  there might simply change the whole environment of what is going on in CI (Container image, dependencies)
 * `Python and Javascript production files` - this area is useful in CodeQL Security scanning - if any of
   the python or javascript files for airflow "production" changed, this means that the security scans should run
 * `API tests and codegen files` - those are OpenAPI definition files that impact Open API specification and
@@ -74,13 +74,12 @@ usage in one big test run, but also not to increase the number of jobs per each 
 
 The logic implements the following rules:
 
-* `Full tests` mode is enabled when the event is PUSH, or SCHEDULE or when "full tests needed" label is set.
-  That enables all matrix combinations of variables, and all possible tests
+* `Full tests mode` is enabled when the event is PUSH, or SCHEDULE or we miss commit info or any of the
+  important environment files (setup.py, setup.cfg, provider.yaml, Dockerfile, build scripts) changed or
+  when `full tests needed` label is set.  That enables all matrix combinations of variables (representative)
+  and all possible test type. No further checks are performed.
 * Python, Kubernetes, Backend, Kind, Helm versions are limited to "defaults" only unless `Full tests` mode
   is enabled.
-* If "Commit" to work on cannot be determined, or `Full Test` mode is enabled or some of the important
-  environment files (setup.py, setup.cfg, Dockerfile, build scripts) changed - all unit tests are
-  executed - this is `run everything` mode. No further checks are performed.
 * `Python scans`, `Javascript scans`, `API tests/codegen`, `UI`, `WWW`, `Kubernetes` tests and `DOC builds`
   are enabled if any of the relevant files have been changed.
 * `Helm` tests are run only if relevant files have been changed and if current branch is `main`.

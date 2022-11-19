@@ -29,7 +29,7 @@ from airflow.utils.state import DagRunState
 
 def get_dag_runs(dag_id: str, state: str | None = None) -> list[dict[str, Any]]:
     """
-    Returns a list of Dag Runs for a specific DAG ID.
+    Return a list of Dag Runs for a specific DAG ID.
 
     :param dag_id: String identifier of a DAG
     :param state: queued|running|success...

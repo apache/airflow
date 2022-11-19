@@ -27,35 +27,81 @@ Changelog
 5.0.0
 .....
 
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-Previously KubernetesPodOperator considered some settings from the Airflow config's ``kubernetes`` section.  Such consideration was deprecated in 4.1.0 and is now removed.  If you previously relied on the Airflow config, and you want client generation to have non-default configuration, you will need to define your configuration in an Airflow connection and set KPO to use the connection.  See kubernetes provider documentation on defining a kubernetes Airflow connection for details.
+Previously KubernetesPodOperator considered some settings from the Airflow config's ``kubernetes`` section.
+Such consideration was deprecated in 4.1.0 and is now removed.  If you previously relied on the Airflow
+config, and you want client generation to have non-default configuration, you will need to define your
+configuration in an Airflow connection and set KPO to use the connection.  See kubernetes provider
+documentation on defining a kubernetes Airflow connection for details.
 
-Drop support for providing ``resource`` as dict in ``KubernetesPodOperator``. You should use ``container_resources`` with ``V1ResourceRequirements``.
+Drop support for providing ``resource`` as dict in ``KubernetesPodOperator``. You
+should use ``container_resources`` with ``V1ResourceRequirements``.
 
 Param ``node_selectors`` has been removed in ``KubernetesPodOperator``; use ``node_selector`` instead.
 
-The following backcompat modules for KubernetesPodOperator are removed and you must now use the corresponding objects from the kubernetes library:
+The following backcompat modules for KubernetesPodOperator are removed and you must now use
+the corresponding objects from the kubernetes library:
+
 * ``airflow.providers.cncf.kubernetes.backcompat.pod``
 * ``airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env``
 * ``airflow.providers.cncf.kubernetes.backcompat.volume``
 * ``airflow.providers.cncf.kubernetes.backcompat.volume_mount``
 
+In ``KubernetesHook.get_namespace``, if a connection is defined but a namespace isn't set, we
+currently return 'default'; this behavior is deprecated. In the next release, we'll return ``None``.
+
+* ``Remove deprecated backcompat objects for KPO (#27518)``
+* ``Remove support for node_selectors param in KPO (#27515)``
+* ``Remove unused backcompat method in k8s hook (#27490)``
+* ``Drop support for providing ''resource'' as dict in ''KubernetesPodOperator'' (#27197)``
+* ``Deprecate use of core get_kube_client in PodManager (#26848)``
+* ``Don't consider airflow core conf for KPO (#26849)``
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+* ``Use log.exception where more economical than log.error (#27517)``
 
 Features
 ~~~~~~~~
 
-* Previously, ``name`` was a required argument for KubernetesPodOperator (when also not supplying pod template or full pod spec). Now, if ``name`` is not supplied, ``task_id`` will be used.
-* KubernetsPodOperator argument ``namespace`` is now optional.  If not supplied via KPO param or pod template file or full pod spec, then we'll check the airflow conn,
-  then if in a k8s pod, try to infer the namespace from the container, then finally will use the ``default`` namespace.
+Previously, ``name`` was a required argument for KubernetesPodOperator (when also not supplying pod
+template or full pod spec). Now, if ``name`` is not supplied, ``task_id`` will be used.
 
-Deprecations
-~~~~~~~~~~~~
+KubernetsPodOperator argument ``namespace`` is now optional.  If not supplied via KPO param or pod
+template file or full pod spec, then we'll check the airflow conn,
+then if in a k8s pod, try to infer the namespace from the container, then finally
+will use the ``default`` namespace.
 
-* In ``KubernetesHook.get_namespace``, if a connection is defined but a namespace isn't set, we currently return 'default'; this behavior is deprecated. In the next release, we'll return ``None``.
 
+* ``Add container_resources as KubernetesPodOperator templatable (#27457)``
+* ``Add deprecation warning re unset namespace in k8s hook (#27202)``
+* ``add container_name option for SparkKubernetesSensor (#26560)``
+* ``Allow xcom sidecar container image to be configurable in KPO (#26766)``
+* ``Improve task_id to pod name conversion (#27524)``
+* ``Make pod name optional in KubernetesPodOperator (#27120)``
+* ``Make namespace optional for KPO (#27116)``
+* ``Enable template rendering for env_vars field for the @task.kubernetes decorator (#27433)``
 
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix KubernetesHook fail on an attribute absence (#25787)``
+* ``Fix log message for kubernetes hooks (#26999)``
+* ``Remove extra__kubernetes__ prefix from k8s hook extras (#27021)``
+* ``KPO should use hook's get namespace method to get namespace (#27516)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+  * ``Update old style typing (#26872)``
+  * ``Enable string normalization in python formatting - providers (#27205)``
+  * ``Update docs for September Provider's release (#26731)``
 
 4.4.0
 .....
@@ -76,9 +122,7 @@ Bug Fixes
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
     * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
-
-.. Review and move the new changes to one of the sections above:
-   * ``Prepare to release cncf.kubernetes provider (#26588)``
+    * ``Prepare to release cncf.kubernetes provider (#26588)``
 
 4.3.0
 .....

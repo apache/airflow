@@ -30,13 +30,15 @@ from airflow.utils import timezone
 
 
 def validate_istimezone(value: datetime) -> None:
-    """Validates that a datetime is not naive"""
+    """Validates that a datetime is not naive."""
     if not value.tzinfo:
         raise BadRequest("Invalid datetime format", detail="Naive datetime is disallowed")
 
 
 def format_datetime(value: str) -> datetime:
     """
+    Format datetime objects.
+
     Datetime format parser for args since connexion doesn't parse datetimes
     https://github.com/zalando/connexion/issues/476
 
@@ -53,6 +55,8 @@ def format_datetime(value: str) -> datetime:
 
 def check_limit(value: int) -> int:
     """
+    Check the limit does not exceed configured value.
+
     This checks the limit passed to view and raises BadRequest if
     limit exceed user configured value
     """
@@ -99,7 +103,7 @@ def apply_sorting(
     to_replace: dict[str, str] | None = None,
     allowed_attrs: Container[str] | None = None,
 ) -> Query:
-    """Apply sorting to query"""
+    """Apply sorting to query."""
     lstriped_orderby = order_by.lstrip("-")
     if allowed_attrs and lstriped_orderby not in allowed_attrs:
         raise BadRequest(

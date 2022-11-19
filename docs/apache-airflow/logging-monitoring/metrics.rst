@@ -93,6 +93,7 @@ Name                                        Description
 ``scheduler_heartbeat``                     Scheduler heartbeats
 ``dag_processing.processes``                Number of currently running DAG parsing processes
 ``dag_processing.processor_timeouts``       Number of file processors that have been killed due to taking too long
+``dag_file_processor_timeouts``             (DEPRECATED) same behavior as ``dag_processing.processor_timeouts``
 ``dag_processing.manager_stalls``           Number of stalled ``DagFileProcessorManager``
 ``dag_file_refresh_error``                  Number of failures loading any DAG files
 ``scheduler.tasks.killed_externally``       Number of tasks killed externally
@@ -161,6 +162,8 @@ Name                                                Description
                                                     start date and the actual DagRun start date
 ``scheduler.critical_section_duration``             Milliseconds spent in the critical section of scheduler loop --
                                                     only a single scheduler can enter this loop at a time
+``scheduler.critical_section_query_duration``       Milliseconds spent running the critical section task instance query
+``scheduler.scheduler_loop_duration``               Milliseconds spent running one scheduler loop
 ``dagrun.<dag_id>.first_task_scheduling_delay``     Seconds elapsed between first task start_date and dagrun expected start
 ``collect_db_dags``                                 Milliseconds taken for fetching all Serialized Dags from DB
 =================================================== ========================================================================

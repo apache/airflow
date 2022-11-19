@@ -24,6 +24,7 @@ description: |
     <https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-psrp/>`__.
 
 versions:
+  - 2.1.0
   - 2.0.0
   - 1.1.4
   - 1.1.3

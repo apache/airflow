@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Pools sub-commands"""
+"""Pools sub-commands."""
 from __future__ import annotations
 
 import json
@@ -43,7 +43,7 @@ def _show_pools(pools, output):
 
 @suppress_logs_and_warning
 def pool_list(args):
-    """Displays info of all the pools"""
+    """Displays info of all the pools."""
     api_client = get_current_api_client()
     pools = api_client.get_pools()
     _show_pools(pools=pools, output=args.output)
@@ -51,7 +51,7 @@ def pool_list(args):
 
 @suppress_logs_and_warning
 def pool_get(args):
-    """Displays pool info by a given name"""
+    """Displays pool info by a given name."""
     api_client = get_current_api_client()
     try:
         pools = [api_client.get_pool(name=args.pool)]
@@ -63,7 +63,7 @@ def pool_get(args):
 @cli_utils.action_cli
 @suppress_logs_and_warning
 def pool_set(args):
-    """Creates new pool with a given name and slots"""
+    """Creates new pool with a given name and slots."""
     api_client = get_current_api_client()
     api_client.create_pool(name=args.pool, slots=args.slots, description=args.description)
     print(f"Pool {args.pool} created")
@@ -72,7 +72,7 @@ def pool_set(args):
 @cli_utils.action_cli
 @suppress_logs_and_warning
 def pool_delete(args):
-    """Deletes pool by a given name"""
+    """Deletes pool by a given name."""
     api_client = get_current_api_client()
     try:
         api_client.delete_pool(name=args.pool)
@@ -84,7 +84,7 @@ def pool_delete(args):
 @cli_utils.action_cli
 @suppress_logs_and_warning
 def pool_import(args):
-    """Imports pools from the file"""
+    """Imports pools from the file."""
     if not os.path.exists(args.file):
         raise SystemExit(f"Missing pools file {args.file}")
     pools, failed = pool_import_helper(args.file)
@@ -94,13 +94,13 @@ def pool_import(args):
 
 
 def pool_export(args):
-    """Exports all of the pools to the file"""
+    """Exports all the pools to the file."""
     pools = pool_export_helper(args.file)
     print(f"Exported {len(pools)} pools to {args.file}")
 
 
 def pool_import_helper(filepath):
-    """Helps import pools from the json file"""
+    """Helps import pools from the json file."""
     api_client = get_current_api_client()
 
     with open(filepath) as poolfile:
@@ -120,7 +120,7 @@ def pool_import_helper(filepath):
 
 
 def pool_export_helper(filepath):
-    """Helps export all of the pools to the json file"""
+    """Helps export all the pools to the json file."""
     api_client = get_current_api_client()
     pool_dict = {}
     pools = api_client.get_pools()
