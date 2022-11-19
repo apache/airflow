@@ -126,8 +126,7 @@ class BaseTaskRunner(LoggingMixin):
         run_with = run_with or []
         full_cmd = run_with + self._command
 
-        self.log.info("Running on host: %s", get_hostname())
-        self.log.info("Running: %s", full_cmd)
+        self.log.info({"event": "running task", "hostname": get_hostname(), "command": full_cmd})
         with _airflow_parsing_context_manager(
             dag_id=self._task_instance.dag_id,
             task_id=self._task_instance.task_id,

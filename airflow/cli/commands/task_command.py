@@ -378,7 +378,7 @@ def task_run(args, dag=None):
 
     hostname = get_hostname()
 
-    log.info("Running %s on host %s", ti, hostname)
+    log.info({"event": "running task", "task_instance": ti, "hostname": hostname})
 
     if args.interactive:
         _run_task_by_selected_method(args, dag, ti)

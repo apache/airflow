@@ -79,8 +79,14 @@ class StandardTaskRunner(BaseTaskRunner):
             # We prefer the job_id passed on the command-line because at this time, the
             # task instance may not have been updated.
             job_id = getattr(args, "job_id", self._task_instance.job_id)
-            self.log.info("Running: %s", self._command)
-            self.log.info("Job %s: Subtask %s", job_id, self._task_instance.task_id)
+            self.log.info(
+                {
+                    "event": "running task",
+                    "command": self._command,
+                    "job": job_id,
+                    "subtask": self._task_instance.task_id,
+                }
+            )
 
             proc_title = "airflow task runner: {0.dag_id} {0.task_id} {0.execution_date_or_run_id}"
             if job_id is not None:

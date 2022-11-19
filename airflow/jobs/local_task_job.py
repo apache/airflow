@@ -156,7 +156,7 @@ class LocalTaskJob(BaseJob):
         """
         # Without setting this, heartbeat may get us
         self.terminating = True
-        self.log.info("Task exited with return code %s", return_code)
+        self.log.info({"event": "task exited", "return_code": return_code})
 
         if not self.task_instance.test_mode:
             if conf.getboolean("scheduler", "schedule_after_task_execution", fallback=True):

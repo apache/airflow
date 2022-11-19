@@ -60,7 +60,7 @@ class SubprocessHook(BaseHook):
         :return: :class:`namedtuple` containing ``exit_code`` and ``output``, the last line from stderr
             or stdout
         """
-        self.log.info("Tmp dir root location: \n %s", gettempdir())
+        self.log.info({"temp dir root": gettempdir()})
         with contextlib.ExitStack() as stack:
             if cwd is None:
                 cwd = stack.enter_context(TemporaryDirectory(prefix="airflowtmp"))
@@ -72,7 +72,7 @@ class SubprocessHook(BaseHook):
                         signal.signal(getattr(signal, sig), signal.SIG_DFL)
                 os.setsid()
 
-            self.log.info("Running command: %s", command)
+            self.log.info({"running command": command})
 
             self.sub_process = Popen(
                 command,
@@ -83,18 +83,17 @@ class SubprocessHook(BaseHook):
                 preexec_fn=pre_exec,
             )
 
-            self.log.info("Output:")
             line = ""
             if self.sub_process is None:
                 raise RuntimeError("The subprocess should be created here and is None!")
             if self.sub_process.stdout is not None:
                 for raw_line in iter(self.sub_process.stdout.readline, b""):
                     line = raw_line.decode(output_encoding, errors="backslashreplace").rstrip()
-                    self.log.info("%s", line)
+                    self.log.info({"process output": line})
 
             self.sub_process.wait()
 
-            self.log.info("Command exited with return code %s", self.sub_process.returncode)
+            self.log.info({"event": "command exited", "return code": self.sub_process.returncode})
             return_code: int = self.sub_process.returncode
 
         return SubprocessResult(exit_code=return_code, output=line)

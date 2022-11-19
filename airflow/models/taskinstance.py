@@ -1061,7 +1061,7 @@ class TaskInstance(Base, LoggingMixin):
         if failed:
             return False
 
-        verbose_aware_logger("Dependencies all met for %s", self)
+        verbose_aware_logger({"event": "dependencies all met", "task": self})
         return True
 
     @provide_session
@@ -1256,10 +1256,9 @@ class TaskInstance(Base, LoggingMixin):
                 session.commit()
                 return False
 
-        # print status message
-        self.log.info(hr_line_break)
-        self.log.info("Starting attempt %s of %s", self.try_number, self.max_tries + 1)
-        self.log.info(hr_line_break)
+        self.log.info(
+            {"event": "starting attempt", "try_number": self.try_number, "max_tries": self.max_tries + 1}
+        )
         self._try_number += 1
 
         if not test_mode:
@@ -1278,7 +1277,13 @@ class TaskInstance(Base, LoggingMixin):
             if mark_success:
                 self.log.info("Marking success for %s on %s", self.task, self.execution_date)
             else:
-                self.log.info("Executing %s on %s", self.task, self.execution_date)
+                self.log.info(
+                    {
+                        "event": "proceeding with task execution",
+                        "task": self.task,
+                        "execution_date": self.execution_date,
+                    }
+                )
         return True
 
     def _date_or_empty(self, attr: str) -> str:
@@ -1286,23 +1291,19 @@ class TaskInstance(Base, LoggingMixin):
         return result.strftime("%Y%m%dT%H%M%S") if result else ""
 
     def _log_state(self, lead_msg: str = "") -> None:
-        params = [
-            lead_msg,
-            str(self.state).upper(),
-            self.dag_id,
-            self.task_id,
-        ]
-        message = "%sMarking task as %s. dag_id=%s, task_id=%s, "
+        event = {
+            "state": str(self.state).upper(),
+            "execution_date": self._date_or_empty("execution_date"),
+            "start_date": self._date_or_empty("start_date"),
+            "end_date": self._date_or_empty("end_date"),
+            "dag_id": self.dag_id,
+            "task_id": self.task_id,
+        }
+        if lead_msg:
+            event["msg"] = lead_msg
         if self.map_index >= 0:
-            params.append(self.map_index)
-            message += "map_index=%d, "
-        self.log.info(
-            message + "execution_date=%s, start_date=%s, end_date=%s",
-            *params,
-            self._date_or_empty("execution_date"),
-            self._date_or_empty("start_date"),
-            self._date_or_empty("end_date"),
-        )
+            event.update(map_index=self.map_index)
+        self.log.info(event)
 
     # Ensure we unset next_method and next_kwargs to ensure that any
     # retries don't re-use them.
@@ -1485,10 +1486,7 @@ class TaskInstance(Base, LoggingMixin):
             # being that otherwise we're resuming a deferred task (in which
             # case there's no need to log these again).
             if not self.next_method:
-                self.log.info(
-                    "Exporting the following env vars:\n%s",
-                    "\n".join(f"{k}={v}" for k, v in airflow_context_vars.items()),
-                )
+                self.log.info({"exporting env vars": airflow_context_vars})
 
             # Run pre_execute callback
             self.task.pre_execute(context=context)
@@ -2561,7 +2559,7 @@ class TaskInstance(Base, LoggingMixin):
                     schedulable_ti.task = task.dag.get_task(schedulable_ti.task_id)
 
             num = dag_run.schedule_tis(schedulable_tis, session=session)
-            self.log.info("%d downstream tasks scheduled from follow-on schedule check", num)
+            self.log.info({"event": "follow-on schedule check", "downstream_tasks_scheduled": num})
 
             session.flush()
 
