@@ -212,7 +212,9 @@ class Connection(Base, LoggingMixin):
                 self.conn_type,
             )
 
-        uri = f"{str(self.conn_type).lower().replace('_', '-')}://"
+        # SQLAlchemy expects postgresql:// as scheme
+        scheme = "postgresql" if self.conn_type == "postgres" else self.conn_type
+        uri = f"{str(scheme).lower().replace('_', '-')}://"
 
         authority_block = ""
         if self.login is not None:

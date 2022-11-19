@@ -617,6 +617,10 @@ class TestConnection(unittest.TestCase):
         conn = BaseHook.get_connection(conn_id="test_uri")
         hook = conn.get_hook()
         assert "postgresql://username:password@ec2.compute.com:5432/the_database" == hook.get_uri()
+
+        # Conn and hook should return the same uri
+        assert hook.get_uri() == conn.get_uri()
+
         conn2 = BaseHook.get_connection(conn_id="test_uri_no_creds")
         hook2 = conn2.get_hook()
         assert "postgresql://ec2.compute.com/the_database" == hook2.get_uri()
