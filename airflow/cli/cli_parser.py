@@ -174,18 +174,6 @@ def string_lower_type(val):
     return val.strip().lower()
 
 
-def bool_type(val):
-    """Bool arg"""
-    if isinstance(val, bool):
-        return val
-    if val == "True":
-        return True
-    elif val == "False":
-        return False
-    else:
-        raise argparse.ArgumentTypeError(f"Boolean string expected, got={val}")
-
-
 # Shared
 ARG_DAG_ID = Arg(("dag_id",), help="The id of the dag")
 ARG_TASK_ID = Arg(("task_id",), help="The id of the task")
@@ -446,7 +434,10 @@ ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
 ARG_CONF = Arg(("-c", "--conf"), help="JSON string that gets pickled into the DagRun's conf attribute")
 ARG_EXEC_DATE = Arg(("-e", "--exec-date"), help="The execution date of the DAG", type=parsedate)
 ARG_REPLACE_MICRO = Arg(
-    ("--replace-microseconds",), help="whether microseconds should be zeroed", default=True, type=bool_type
+    ("--replace-microseconds",),
+    help="whether microseconds should be zeroed",
+    action="store_false",
+    default=True,
 )
 
 # db

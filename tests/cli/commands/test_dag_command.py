@@ -579,7 +579,7 @@ class TestCliDags:
                     "example_bash_operator",
                     "--run-id=test_trigger_dag_with_micro",
                     "--exec-date=2021-06-04T09:00:00.000001+08:00",
-                    "--replace-microseconds=False",
+                    "--replace-microseconds",
                 ],
             )
         )
