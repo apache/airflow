@@ -277,6 +277,20 @@ class TestPythonOperator(BasePythonTest):
             assert "Done. Returned value was: test_return_value" not in caplog.messages
             assert "Done. Returned value not shown" in caplog.messages
 
+    def test_python_operator_templates_exts(self):
+        def func():
+            return "test_return_value"
+
+        python_operator = PythonOperator(
+            task_id="python_operator",
+            python_callable=func,
+            dag=self.dag,
+            show_return_value_in_logs=False,
+            templates_exts=['test_ext']
+        )
+
+        assert python_operator.template_ext == ['test_ext']
+
 
 class TestBranchOperator(BasePythonTest):
     opcls = BranchPythonOperator
@@ -927,6 +941,20 @@ class TestPythonVirtualenvOperator(BasePythonTest):
 
         assert set(context) == declared_keys
 
+    def test_except_value_error(self):
+        def f():
+            return 1
+
+        task = PythonVirtualenvOperator(
+            python_callable=f,
+            task_id="task",
+            dag=self.dag,
+        )
+
+        task.log.error = unittest.mock.Mock()
+        task.pickling_library.loads = unittest.mock.Mock(side_effect=ValueError)
+        with pytest.raises(ValueError):
+            task._read_result(path=unittest.mock.Mock())
 
 DEFAULT_ARGS = {
     "owner": "test",
