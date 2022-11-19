@@ -93,6 +93,7 @@ Name                                        Description
 ``scheduler_heartbeat``                     Scheduler heartbeats
 ``dag_processing.processes``                Number of currently running DAG parsing processes
 ``dag_processing.processor_timeouts``       Number of file processors that have been killed due to taking too long
+``dag_file_processor_timeouts``             (DEPRECATED) same behavior as ``dag_processing.processor_timeouts``
 ``dag_processing.manager_stalls``           Number of stalled ``DagFileProcessorManager``
 ``dag_file_refresh_error``                  Number of failures loading any DAG files
 ``scheduler.tasks.killed_externally``       Number of tasks killed externally
