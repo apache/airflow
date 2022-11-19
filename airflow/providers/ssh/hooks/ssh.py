@@ -292,7 +292,7 @@ class SSHHook(BaseHook):
                 client.load_host_keys(known_hosts)
 
         elif self.host_key is not None:
-            # Get host key from connection extra if it not set or None than we fallback to system host keys
+            # Get host key from connection extra if it not set or None then we fallback to system host keys
             client_host_keys = client.get_host_keys()
             if self.port == SSH_PORT:
                 client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
