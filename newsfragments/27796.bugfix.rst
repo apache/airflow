@@ -1,0 +1,1 @@
+``Basehook.get_uri(connection_id)`` now correctly returns a ``postgresql://`` scheme URI instead of the deprecated ``postgres://`` scheme when used with a ``Postgres`` connection type
