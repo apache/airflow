@@ -27,7 +27,7 @@ from airflow.providers.amazon.aws.secrets.systems_manager import SystemsManagerP
 from tests.test_utils.config import conf_vars
 
 URI_CONNECTION = pytest.param(
-    "postgres://my-login:my-pass@my-host:5432/my-schema?param1=val1&param2=val2", id="uri-connection"
+    "postgresql://my-login:my-pass@my-host:5432/my-schema?param1=val1&param2=val2", id="uri-connection"
 )
 JSON_CONNECTION = pytest.param(
     json.dumps(
@@ -99,7 +99,7 @@ class TestSsmSecrets:
         with pytest.warns(DeprecationWarning, match=warning_message):
             returned_uri = ssm_backend.get_conn_uri(conn_id="test_postgres")
 
-        assert returned_uri == "postgres://my-login:my-pass@my-host:5432/my-schema?param1=val1&param2=val2"
+        assert returned_uri == "postgresql://my-login:my-pass@my-host:5432/my-schema?param1=val1&param2=val2"
 
     @mock_ssm
     def test_get_conn_value_non_existent_key(self):
