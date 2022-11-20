@@ -133,9 +133,11 @@ class TestHiveCliHook(unittest.TestCase):
         )
 
     def test_hive_cli_hook_invalid_schema(self):
-        with pytest.raises(RuntimeError):
+        with pytest.raises(RuntimeError) as error:
             hook = InvalidHiveCliHook()
             hook.run_cli("SHOW DATABASES")
+
+        assert ";" in str(error.value)
 
     @mock.patch("subprocess.Popen")
     def test_run_cli_with_hive_conf(self, mock_popen):
