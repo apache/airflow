@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import os
-from contextlib import closing
 from functools import wraps
 from io import StringIO
 from pathlib import Path
@@ -27,12 +26,12 @@ from typing import Any, Callable, Iterable, Mapping
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from snowflake import connector
-from snowflake.connector import DictCursor, SnowflakeConnection, util_text
+from snowflake.connector import SnowflakeConnection, util_text
 from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
 from airflow import AirflowException
-from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.strings import to_boolean
 
 
@@ -321,6 +320,11 @@ class SnowflakeHook(DbApiHook):
     def get_autocommit(self, conn):
         return getattr(conn, "autocommit_mode", False)
 
+    @staticmethod
+    def split_sql_string(sql: str) -> list[str]:
+        split_statements_tuple = util_text.split_statements(StringIO(sql))
+        return [sql_string for sql_string, _ in split_statements_tuple if sql_string]
+
     def run(
         self,
         sql: str | Iterable[str],
@@ -330,67 +334,15 @@ class SnowflakeHook(DbApiHook):
         split_statements: bool = True,
         return_last: bool = True,
     ) -> Any | list[Any] | None:
-        """
-        Runs a command or a list of commands. Pass a list of sql
-        statements to the sql parameter to get them to execute
-        sequentially. The variable execution_info is returned so that
-        it can be used in the Operators to modify the behavior
-        depending on the result of the query (i.e fail the operator
-        if the copy has processed 0 files)
-
-        :param sql: the sql string to be executed with possibly multiple statements,
-          or a list of sql statements to execute
-        :param autocommit: What to set the connection's autocommit setting to
-            before executing the query.
-        :param parameters: The parameters to render the SQL query with.
-        :param handler: The result handler which is called with the result of each statement.
-        :param split_statements: Whether to split a single SQL string into statements and run separately
-        :param return_last: Whether to return result for only last statement or for all after split
-        :return: return only result of the LAST SQL expression if handler was provided.
-        """
         self.query_ids = []
+        return super().run(
+            sql=sql,
+            autocommit=autocommit,
+            parameters=parameters,
+            handler=handler,
+            split_statements=split_statements,
+            return_last=return_last,
+        )
 
-        if isinstance(sql, str):
-            if split_statements:
-                split_statements_tuple = util_text.split_statements(StringIO(sql))
-                sql_list: Iterable[str] = [
-                    sql_string for sql_string, _ in split_statements_tuple if sql_string
-                ]
-            else:
-                sql_list = [self.strip_sql_string(sql)]
-        else:
-            sql_list = sql
-
-        if sql_list:
-            self.log.debug("Executing following statements against Snowflake DB: %s", sql_list)
-        else:
-            raise ValueError("List of SQL statements is empty")
-
-        with closing(self.get_conn()) as conn:
-            self.set_autocommit(conn, autocommit)
-
-            # SnowflakeCursor does not extend ContextManager, so we have to ignore mypy error here
-            with closing(conn.cursor(DictCursor)) as cur:  # type: ignore[type-var]
-                results = []
-                for sql_statement in sql_list:
-                    self._run_command(cur, sql_statement, parameters)
-
-                    if handler is not None:
-                        result = handler(cur)
-                        results.append(result)
-
-                    query_id = cur.sfqid
-                    self.log.info("Rows affected: %s", cur.rowcount)
-                    self.log.info("Snowflake query id: %s", query_id)
-                    self.query_ids.append(query_id)
-
-            # If autocommit was set to False or db does not support autocommit, we do a manual commit.
-            if not self.get_autocommit(conn):
-                conn.commit()
-
-        if handler is None:
-            return None
-        elif return_single_query_results(sql, return_last, split_statements):
-            return results[-1]
-        else:
-            return results
+    def _post_run_hook(self, cur, sql_statement, parameters) -> None:
+        self.query_ids.append(cur.sfqid)

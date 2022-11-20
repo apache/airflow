@@ -337,6 +337,7 @@ class DbApiHook(BaseForDbApiHook):
                 results = []
                 for sql_statement in sql_list:
                     self._run_command(cur, sql_statement, parameters)
+                    self._post_run_hook(cur, sql_statement, parameters)
 
                     if handler is not None:
                         result = handler(cur)
@@ -372,6 +373,10 @@ class DbApiHook(BaseForDbApiHook):
         # According to PEP 249, this is -1 when query result is not applicable.
         if cur.rowcount >= 0:
             self.log.info("Rows affected: %s", cur.rowcount)
+
+    def _post_run_hook(self, cur, sql_statement, parameters) -> None:
+        """This method is run after every statement execution"""
+        return None
 
     def set_autocommit(self, conn, autocommit):
         """Sets the autocommit flag on the connection"""

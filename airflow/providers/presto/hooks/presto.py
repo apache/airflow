@@ -90,6 +90,10 @@ class PrestoHook(DbApiHook):
     hook_name = "Presto"
     placeholder = "?"
 
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.query_ids: list[str] = []
+
     def get_conn(self) -> Connection:
         """Returns a connection object"""
         db = self.get_connection(self.presto_conn_id)  # type: ignore[attr-defined]
@@ -187,6 +191,7 @@ class PrestoHook(DbApiHook):
         split_statements: bool = False,
         return_last: bool = True,
     ) -> Any | list[Any] | None:
+        self.query_ids = []
         return super().run(
             sql=sql,
             autocommit=autocommit,
@@ -195,6 +200,9 @@ class PrestoHook(DbApiHook):
             split_statements=split_statements,
             return_last=return_last,
         )
+
+    def _post_run_hook(self, cur, sql_statement, parameters) -> None:
+        self.query_ids.append(cur.stats["queryId"])
 
     def insert_rows(
         self,
