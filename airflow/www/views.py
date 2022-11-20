@@ -231,7 +231,7 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     }
 
 
-def _safe_parse_datetime(v, allow_empty=False):
+def _safe_parse_datetime(v, allow_empty=False) -> datetime | None:
     """
     Parse datetime and return error message for invalid dates
 
@@ -1971,13 +1971,14 @@ class Airflow(AirflowBaseView):
     def _clear_dag_tis(
         self,
         dag: DAG,
-        start_date,
-        end_date,
-        origin,
+        start_date: datetime | None,
+        end_date: datetime | None,
+        origin: str,
         task_ids=None,
         recursive=False,
         confirmed=False,
         only_failed=False,
+        session: Session = NEW_SESSION,
     ):
         if confirmed:
             count = dag.clear(
@@ -1987,6 +1988,7 @@ class Airflow(AirflowBaseView):
                 include_subdags=recursive,
                 include_parentdag=recursive,
                 only_failed=only_failed,
+                session=session,
             )
 
             msg = f"{count} task instances have been cleared"
@@ -2001,6 +2003,7 @@ class Airflow(AirflowBaseView):
                 include_parentdag=recursive,
                 only_failed=only_failed,
                 dry_run=True,
+                session=session,
             )
         except AirflowException as ex:
             return redirect_or_json(origin, msg=str(ex), status="error", status_code=500)
@@ -2027,20 +2030,22 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
-    def clear(self):
-        """Clears the Dag."""
+    @provide_session
+    def clear(self, *, session: Session = NEW_SESSION):
+        """Clears DAG tasks."""
         dag_id = request.form.get("dag_id")
         task_id = request.form.get("task_id")
         origin = get_safe_url(request.form.get("origin"))
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
+        group_id = request.form.get("group_id")
 
         if "map_index" not in request.form:
             map_indexes: list[int] | None = None
         else:
             map_indexes = request.form.getlist("map_index", type=int)
 
-        execution_date = request.form.get("execution_date")
-        execution_date = _safe_parse_datetime(execution_date)
+        execution_date_str = request.form.get("execution_date")
+        execution_date = _safe_parse_datetime(execution_date_str)
         confirmed = request.form.get("confirmed") == "true"
         upstream = request.form.get("upstream") == "true"
         downstream = request.form.get("downstream") == "true"
@@ -2049,14 +2054,44 @@ class Airflow(AirflowBaseView):
         recursive = request.form.get("recursive") == "true"
         only_failed = request.form.get("only_failed") == "true"
 
-        task_ids: list[str | tuple[str, int]]
-        if map_indexes is None:
-            task_ids = [task_id]
-        else:
-            task_ids = [(task_id, map_index) for map_index in map_indexes]
+        task_ids: list[str | tuple[str, int]] = []
+
+        end_date = execution_date if not future else None
+        start_date = execution_date if not past else None
+
+        locked_dag_run_ids: list[int] = []
+
+        if group_id is not None:
+            task_group_dict = dag.task_group.get_task_group_dict()
+            task_group = task_group_dict.get(group_id)
+            if task_group is None:
+                return redirect_or_json(
+                    origin, msg=f"TaskGroup {group_id} could not be found", status="error", status_code=404
+                )
+            task_ids = task_ids_or_regex = [t.task_id for t in task_group.iter_tasks()]
+
+            # Lock the related dag runs to prevent from possible dead lock.
+            # https://github.com/apache/airflow/pull/26658
+            dag_runs_query = session.query(DagRun.id).filter(DagRun.dag_id == dag_id).with_for_update()
+            if start_date is None and end_date is None:
+                dag_runs_query = dag_runs_query.filter(DagRun.execution_date == start_date)
+            else:
+                if start_date is not None:
+                    dag_runs_query = dag_runs_query.filter(DagRun.execution_date >= start_date)
+
+                if end_date is not None:
+                    dag_runs_query = dag_runs_query.filter(DagRun.execution_date <= end_date)
+
+            locked_dag_run_ids = dag_runs_query.all()
+        elif task_id:
+            if map_indexes is None:
+                task_ids = [task_id]
+            else:
+                task_ids = [(task_id, map_index) for map_index in map_indexes]
+            task_ids_or_regex = [task_id]
 
         dag = dag.partial_subset(
-            task_ids_or_regex=[task_id],
+            task_ids_or_regex=task_ids_or_regex,
             include_downstream=downstream,
             include_upstream=upstream,
         )
@@ -2065,10 +2100,7 @@ class Airflow(AirflowBaseView):
             # If we had upstream/downstream etc then also include those!
             task_ids.extend(tid for tid in dag.task_dict if tid != task_id)
 
-        end_date = execution_date if not future else None
-        start_date = execution_date if not past else None
-
-        return self._clear_dag_tis(
+        response = self._clear_dag_tis(
             dag,
             start_date,
             end_date,
@@ -2077,7 +2109,12 @@ class Airflow(AirflowBaseView):
             recursive=recursive,
             confirmed=confirmed,
             only_failed=only_failed,
+            session=session,
         )
+
+        del locked_dag_run_ids
+
+        return response
 
     @expose("/dagrun_clear", methods=["POST"])
     @auth.has_access(
