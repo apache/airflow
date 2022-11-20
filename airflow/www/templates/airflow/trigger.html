@@ -31,7 +31,7 @@
   {{ super() }}
   <h2>Trigger DAG: {{ dag_id }}</h2>
   {{ dag_docs(doc_md) }}
-  <form method="POST">
+  <form id="dag-trigger" method="POST">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="dag_id" value="{{ dag_id }}">
     <input type="hidden" name="origin" value="{{ origin }}">
@@ -44,7 +44,14 @@
     <div class="form-group row">
       <div class="col-md-2">
         <label for="run_id">Run id (Optional)</label>
-        <input type="text" class="form-control" placeholder="Run ID" name="run_id" >
+        <input type="text" class="form-control" placeholder="Run ID" name="run_id">
+      </div>
+    </div>
+    <div class="form-group row">
+      <div class="col-md-2">
+        <label for="recent_configs">Recent Configurations</label>
+        <select class="form-control" name="recent_configs" id="recent_configs">
+        </select>
       </div>
     </div>
     <label for="conf">Configuration JSON (Optional, must be a dict object)</label>
