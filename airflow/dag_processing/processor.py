@@ -60,7 +60,8 @@ if TYPE_CHECKING:
 
 
 class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
-    """Runs DAG processing in a separate process using DagFileProcessor.
+    """
+    Runs DAG processing in a separate process using DagFileProcessor.
 
     :param file_path: a Python file containing Airflow DAG definitions
     :param pickle_dags: whether to serialize the DAG objects to the DB
