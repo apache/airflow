@@ -17,10 +17,16 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+
 from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy.orm import Session
 
 from airflow.models.base import Base
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+log = logging.getLogger(__name__)
 
 
 class ImportError(Base):
@@ -34,3 +40,15 @@ class ImportError(Base):
     timestamp = Column(UtcDateTime)
     filename = Column(String(1024))
     stacktrace = Column(Text)
+
+    @classmethod
+    @provide_session
+    def purge_filepath(cls, filepath: str, session: Session = NEW_SESSION) -> None:
+        """
+        Delete ImportError records for given filepath.
+
+        :param filepath: Path of the file for which to remove ImportErrors
+        :param session: SQLAlchemy session
+        """
+        log.debug("Removing ImportErrors where filepath = %s.", filepath)
+        session.query(cls).filter(cls.filename == filepath).delete()

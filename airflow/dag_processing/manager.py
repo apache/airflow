@@ -815,7 +815,9 @@ class DagFileProcessorManager(LoggingMixin):
 
         from airflow.models.dagcode import DagCode
 
-        DagCode.remove_code_deleted_file(filepath)
+        DagCode.remove_code_deleted_file(filepath=filepath)
+
+        errors.ImportError.purge_filepath(filepath=filepath)
 
     def _print_stat(self):
         """Occasionally print out stats about how fast the files are getting processed"""
