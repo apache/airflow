@@ -796,17 +796,20 @@ class DagFileProcessorManager(LoggingMixin):
 
         :param filepath: Path of the deleted file.
         """
-        # Can't be certain this is an observed file (might not contain an Airflow DAG).
+        # Remove from observed file paths
         self._file_paths.discard(filepath)
 
+        # Terminate file processors
         if filepath in self._processors:
             self._processors[filepath].terminate()
             self._processors.pop(filepath)
             self.log.info("Stopping processor for %s", filepath)
             Stats.decr("dag_processing.processes")
 
+        # Remove from file statistics collection
         self._file_stats.pop(filepath, None)
 
+        # Remove from DB
         SerializedDagModel.remove_deleted_file(filepath=filepath, processor_subdir=self.get_dag_directory())
         DagModel.deactivate_dags_deleted_filepath(deleted_filepath=filepath)
 
