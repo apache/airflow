@@ -42,6 +42,7 @@ from airflow.utils.helpers import validate_group_key
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.models.abstractoperator import AbstractOperator
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
     from airflow.models.expandinput import ExpandInput
@@ -472,6 +473,25 @@ class TaskGroup(DAGNode):
             if isinstance(group, MappedTaskGroup):
                 yield group
             group = group.task_group
+
+    def iter_tasks(self) -> Iterator[AbstractOperator]:
+        """Returns an iterator of the child tasks."""
+        from airflow.models.abstractoperator import AbstractOperator
+
+        groups_to_visit = [self]
+
+        while groups_to_visit:
+            visiting = groups_to_visit.pop(0)
+
+            for child in visiting.children.values():
+                if isinstance(child, AbstractOperator):
+                    yield child
+                elif isinstance(child, TaskGroup):
+                    groups_to_visit.append(child)
+                else:
+                    raise ValueError(
+                        f"Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child)}"
+                    )
 
 
 class MappedTaskGroup(TaskGroup):

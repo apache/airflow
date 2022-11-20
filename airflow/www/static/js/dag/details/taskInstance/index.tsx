@@ -111,7 +111,7 @@ const TaskInstance = ({
 
   const { executionDate } = run;
 
-  let taskActionsTitle = 'Task Actions';
+  let taskActionsTitle = `${isGroup ? 'Task Group' : 'Task'} Actions`;
   if (isMapped) {
     taskActionsTitle += ` for ${actionsMapIndexes.length || 'all'} mapped task${actionsMapIndexes.length !== 1 ? 's' : ''}`;
   }
@@ -178,18 +178,17 @@ const TaskInstance = ({
                   key={dagId + runId + taskId + instance.mapIndex}
                 />
               )}
-              {!isGroup && (
-                <Box mb={8}>
-                  <TaskActions
-                    title={taskActionsTitle}
-                    runId={runId}
-                    taskId={taskId}
-                    dagId={dagId}
-                    executionDate={executionDate}
-                    mapIndexes={actionsMapIndexes}
-                  />
-                </Box>
-              )}
+              <Box mb={8}>
+                <TaskActions
+                  title={taskActionsTitle}
+                  runId={runId}
+                  taskId={taskId}
+                  dagId={dagId}
+                  executionDate={executionDate}
+                  mapIndexes={actionsMapIndexes}
+                  isGroup={isGroup}
+                />
+              </Box>
               <Details instance={instance} group={group} dagId={dagId} />
               {!isMapped && (
                 <ExtraLinks
