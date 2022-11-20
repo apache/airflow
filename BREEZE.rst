@@ -80,6 +80,8 @@ Here is an example configuration with more than 200GB disk space for Docker:
 
      sudo ln -sf "${HOME}/.docker/run/docker.sock" /var/run/docker.sock
 
+Note: If you use Colima, please follow instructions at: `Contributors Quick Start Guide <https://github.com/apache/airflow/blob/main
+/CONTRIBUTORS_QUICK_START.rst>`__
 
 Docker Compose
 --------------
