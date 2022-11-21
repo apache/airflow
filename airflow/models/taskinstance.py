@@ -61,7 +61,7 @@ from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
-from sqlalchemy.sql.expression import ColumnOperators
+from sqlalchemy.sql.expression import ColumnOperators, case
 
 from airflow import settings
 from airflow.compat.functools import cache
@@ -2350,35 +2350,34 @@ class TaskInstance(Base, LoggingMixin):
                 return default
             if map_indexes is not None or first.map_index < 0:
                 return XCom.deserialize_value(first)
-
-            return LazyXComAccess.build_from_single_xcom(first, query)
+            query = query.order_by(None).order_by(XCom.map_index.asc())
+            return LazyXComAccess.build_from_xcom_query(query)
 
         # At this point either task_ids or map_indexes is explicitly multi-value.
-
-        results = (
-            (r.task_id, r.map_index, XCom.deserialize_value(r))
-            for r in query.with_entities(XCom.task_id, XCom.map_index, XCom.value)
-        )
-
-        if task_ids is None:
-            task_id_pos: dict[str, int] = defaultdict(int)
-        elif isinstance(task_ids, str):
-            task_id_pos = {task_ids: 0}
+        # Order return values to match task_ids and map_indexes ordering.
+        query = query.order_by(None)
+        if task_ids is None or isinstance(task_ids, str):
+            query = query.order_by(XCom.task_id)
         else:
-            task_id_pos = {task_id: i for i, task_id in enumerate(task_ids)}
-        if map_indexes is None:
-            map_index_pos: dict[int, int] = defaultdict(int)
-        elif isinstance(map_indexes, int):
-            map_index_pos = {map_indexes: 0}
+            task_id_whens = {tid: i for i, tid in enumerate(task_ids)}
+            if task_id_whens:
+                query = query.order_by(case(task_id_whens, value=XCom.task_id))
+            else:
+                query = query.order_by(XCom.task_id)
+        if map_indexes is None or isinstance(map_indexes, int):
+            query = query.order_by(XCom.map_index)
+        elif isinstance(map_indexes, range):
+            order = XCom.map_index
+            if map_indexes.step < 0:
+                order = order.desc()
+            query = query.order_by(order)
         else:
-            map_index_pos = {map_index: i for i, map_index in enumerate(map_indexes)}
-
-        def _arg_pos(item: tuple[str, int, Any]) -> tuple[int, int]:
-            task_id, map_index, _ = item
-            return task_id_pos[task_id], map_index_pos[map_index]
-
-        results_sorted_by_arg_pos = sorted(results, key=_arg_pos)
-        return [value for _, _, value in results_sorted_by_arg_pos]
+            map_index_whens = {map_index: i for i, map_index in enumerate(map_indexes)}
+            if map_index_whens:
+                query = query.order_by(case(map_index_whens, value=XCom.map_index))
+            else:
+                query = query.order_by(XCom.map_index)
+        return LazyXComAccess.build_from_xcom_query(query)
 
     @provide_session
     def get_num_running_task_instances(self, session: Session) -> int:

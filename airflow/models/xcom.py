@@ -21,6 +21,7 @@ import collections.abc
 import contextlib
 import datetime
 import inspect
+import itertools
 import json
 import logging
 import pickle
@@ -496,7 +497,9 @@ class BaseXCom(Base, LoggingMixin):
         elif dag_ids is not None:
             query = query.filter(cls.dag_id == dag_ids)
 
-        if is_container(map_indexes):
+        if isinstance(map_indexes, range) and abs(map_indexes.step) == 1:
+            query = query.filter(cls.map_index >= map_indexes.start, cls.map_index < map_indexes.stop)
+        elif is_container(map_indexes):
             query = query.filter(cls.map_index.in_(map_indexes))
         elif map_indexes is not None:
             query = query.filter(cls.map_index == map_indexes)
@@ -697,30 +700,28 @@ class LazyXComAccess(collections.abc.Sequence):
     Note that since the session bound to the parent query may have died when we
     actually access the sequence's content, we must create a new session
     for every function call with ``with_session()``.
+
+    :meta private:
     """
 
-    dag_id: str
-    run_id: str
-    task_id: str
-    _query: Query = attr.ib(repr=False)
-    _len: int | None = attr.ib(init=False, repr=False, default=None)
+    _query: Query
+    _len: int | None = attr.ib(init=False, default=None)
 
     @classmethod
-    def build_from_single_xcom(cls, first: XCom, query: Query) -> LazyXComAccess:
-        return cls(
-            dag_id=first.dag_id,
-            run_id=first.run_id,
-            task_id=first.task_id,
-            query=query.with_entities(XCom.value)
-            .filter(
-                XCom.run_id == first.run_id,
-                XCom.task_id == first.task_id,
-                XCom.dag_id == first.dag_id,
-                XCom.map_index >= 0,
-            )
-            .order_by(None)
-            .order_by(XCom.map_index.asc()),
-        )
+    def build_from_xcom_query(cls, query: Query) -> LazyXComAccess:
+        return cls(query=query.with_entities(XCom.value))
+
+    def __repr__(self) -> str:
+        return f"LazyXComAccess([{len(self)} items])"
+
+    def __str__(self) -> str:
+        return str(list(self))
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, (list, LazyXComAccess)):
+            z = itertools.zip_longest(iter(self), iter(other), fillvalue=object())
+            return all(x == y for x, y in z)
+        return NotImplemented
 
     def __len__(self):
         if self._len is None:
