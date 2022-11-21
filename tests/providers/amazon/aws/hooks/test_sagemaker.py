@@ -721,12 +721,12 @@ class TestSageMakerHook:
 
         assert arn == "hellotest"
 
-        kwargs_passed = mock_conn().start_pipeline_execution.call_args.kwargs
-        assert kwargs_passed["PipelineName"] == "test_name"
+        args_passed = mock_conn().start_pipeline_execution.call_args[1]
+        assert args_passed["PipelineName"] == "test_name"
 
         # check conversion to the weird format for passing parameters (list of tuples)
-        assert len(kwargs_passed["PipelineParameters"]) == 2
-        for transformed_param in kwargs_passed["PipelineParameters"]:
+        assert len(args_passed["PipelineParameters"]) == 2
+        for transformed_param in args_passed["PipelineParameters"]:
             assert "Name" in transformed_param.keys()
             assert "Value" in transformed_param.keys()
             # Name contains the key
