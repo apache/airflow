@@ -810,6 +810,7 @@ class DagFileProcessorManager(LoggingMixin):
         self._file_stats.pop(filepath, None)
 
         # Remove from DB
+        # TODO batch all queries into one transaction
         SerializedDagModel.remove_deleted_file(filepath=filepath, processor_subdir=self.get_dag_directory())
         DagModel.deactivate_dags_deleted_filepath(deleted_filepath=filepath)
 
@@ -818,6 +819,8 @@ class DagFileProcessorManager(LoggingMixin):
         DagCode.remove_code_deleted_file(filepath=filepath)
 
         errors.ImportError.purge_filepath(filepath=filepath)
+
+        # TODO remove dagwarnings
 
     def _print_stat(self):
         """Occasionally print out stats about how fast the files are getting processed"""
