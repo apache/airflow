@@ -108,6 +108,7 @@ class TestDockerOperator(unittest.TestCase):
             host_tmp_dir="/host/airflow",
             container_name="test_container",
             tty=True,
+            hostname="test.contrainer.host",
             device_requests=[DeviceRequest(count=-1, capabilities=[["gpu"]])],
             log_opts_max_file="5",
             log_opts_max_size="10m",
