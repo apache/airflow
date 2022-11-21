@@ -137,7 +137,7 @@ class TestHiveCliHook(unittest.TestCase):
             hook = InvalidHiveCliHook()
             hook.run_cli("SHOW DATABASES")
 
-        assert ";" in str(error.value)
+        assert str(error.value) == "The schema `default;` contains invalid characters: ;"
 
     @mock.patch("subprocess.Popen")
     def test_run_cli_with_hive_conf(self, mock_popen):
