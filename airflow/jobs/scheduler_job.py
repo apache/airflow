@@ -800,12 +800,12 @@ class SchedulerJob(BaseJob):
             )
             for dag_run in paused_runs:
                 if dag is None or dag.dag_id != dag_run.dag_id:
-                    dag = SerializedDagModel.get_dag(dag_run.dag_id)
+                    dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
                     if dag is None:
                         continue
 
                 dag_run.dag = dag
-                _, callback_to_run = dag_run.update_state(execute_callbacks=False)
+                _, callback_to_run = dag_run.update_state(execute_callbacks=False, session=session)
                 if callback_to_run:
                     self._send_dag_callbacks_to_processor(dag, callback_to_run)
         except Exception as e:  # should not fail the scheduler
