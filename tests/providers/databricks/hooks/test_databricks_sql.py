@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -23,14 +23,15 @@ from unittest import mock
 import pytest
 
 from airflow.models import Connection
+from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.utils.session import provide_session
 
-TASK_ID = 'databricks-sql-operator'
-DEFAULT_CONN_ID = 'databricks_default'
-HOST = 'xx.cloud.databricks.com'
-HOST_WITH_SCHEME = 'https://xx.cloud.databricks.com'
-TOKEN = 'token'
+TASK_ID = "databricks-sql-operator"
+DEFAULT_CONN_ID = "databricks_default"
+HOST = "xx.cloud.databricks.com"
+HOST_WITH_SCHEME = "https://xx.cloud.databricks.com"
+TOKEN = "token"
 
 
 class TestDatabricksSqlHookQueryByName(unittest.TestCase):
@@ -49,8 +50,8 @@ class TestDatabricksSqlHookQueryByName(unittest.TestCase):
 
         self.hook = DatabricksSqlHook(sql_endpoint_name="Test")
 
-    @mock.patch('airflow.providers.databricks.hooks.databricks_sql.DatabricksSqlHook.get_conn')
-    @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
+    @mock.patch("airflow.providers.databricks.hooks.databricks_sql.DatabricksSqlHook.get_conn")
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_query(self, mock_requests, mock_conn):
         mock_requests.codes.ok = 200
         mock_requests.get.return_value.json.return_value = {
@@ -68,16 +69,16 @@ class TestDatabricksSqlHookQueryByName(unittest.TestCase):
         status_code_mock = mock.PropertyMock(return_value=200)
         type(mock_requests.get.return_value).status_code = status_code_mock
 
-        test_fields = ['id', 'value']
+        test_fields = ["id", "value"]
         test_schema = [(field,) for field in test_fields]
 
         conn = mock_conn.return_value
-        cur = mock.MagicMock(rowcount=0)
+        cur = mock.MagicMock(rowcount=0, description=test_schema)
+        cur.fetchall.return_value = []
         conn.cursor.return_value = cur
-        type(cur).description = mock.PropertyMock(return_value=test_schema)
 
-        query = "select * from test.test"
-        schema, results = self.hook.run(sql=query)
+        query = "select * from test.test;"
+        schema, results = self.hook.run(sql=query, handler=fetch_all_handler)
 
         assert schema == test_schema
         assert results == []
@@ -86,7 +87,7 @@ class TestDatabricksSqlHookQueryByName(unittest.TestCase):
         cur.close.assert_called()
 
     def test_no_query(self):
-        for empty_statement in ([], '', '\n'):
+        for empty_statement in ([], "", "\n"):
             with pytest.raises(ValueError) as err:
                 self.hook.run(sql=empty_statement)
             assert err.value.args[0] == "List of SQL statements is empty"

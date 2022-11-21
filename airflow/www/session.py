@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from flask import request
 from flask.sessions import SecureCookieSessionInterface
@@ -25,9 +26,9 @@ class SesssionExemptMixin:
 
     def save_session(self, *args, **kwargs):
         """Prevent creating session from REST API and health requests."""
-        if request.blueprint == '/api/v1':
+        if request.blueprint == "/api/v1":
             return None
-        if request.path == '/health':
+        if request.path == "/health":
             return None
         return super().save_session(*args, **kwargs)
 

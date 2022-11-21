@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from pluggy import HookspecMarker
 
@@ -30,20 +32,20 @@ hookspec = HookspecMarker("airflow")
 
 @hookspec
 def on_task_instance_running(
-    previous_state: "TaskInstanceState", task_instance: "TaskInstance", session: Optional["Session"]
+    previous_state: TaskInstanceState, task_instance: TaskInstance, session: Session | None
 ):
     """Called when task state changes to RUNNING. Previous_state can be State.NONE."""
 
 
 @hookspec
 def on_task_instance_success(
-    previous_state: "TaskInstanceState", task_instance: "TaskInstance", session: Optional["Session"]
+    previous_state: TaskInstanceState, task_instance: TaskInstance, session: Session | None
 ):
     """Called when task state changes to SUCCESS. Previous_state can be State.NONE."""
 
 
 @hookspec
 def on_task_instance_failed(
-    previous_state: "TaskInstanceState", task_instance: "TaskInstance", session: Optional["Session"]
+    previous_state: TaskInstanceState, task_instance: TaskInstance, session: Session | None
 ):
     """Called when task state changes to FAIL. Previous_state can be State.NONE."""

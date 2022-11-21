@@ -19,16 +19,16 @@
 This module is deprecated. Please use :mod:`airflow.utils.task_group`.
 The module which provides a way to nest your DAGs and so your levels of complexity.
 """
+from __future__ import annotations
 
 import warnings
 from datetime import datetime
 from enum import Enum
-from typing import Dict, Optional, Tuple
 
 from sqlalchemy.orm.session import Session
 
 from airflow.api.common.experimental.get_task_instance import get_task_instance
-from airflow.exceptions import AirflowException, TaskInstanceNotFound
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskInstanceNotFound
 from airflow.models import DagRun
 from airflow.models.dag import DAG, DagContext
 from airflow.models.pool import Pool
@@ -43,8 +43,8 @@ from airflow.utils.types import DagRunType
 class SkippedStatePropagationOptions(Enum):
     """Available options for skipped state propagation of subdag's tasks to parent dag tasks."""
 
-    ALL_LEAVES = 'all_leaves'
-    ANY_LEAF = 'any_leaf'
+    ALL_LEAVES = "all_leaves"
+    ANY_LEAF = "any_leaf"
 
 
 class SubDagOperator(BaseSensorOperator):
@@ -66,10 +66,10 @@ class SubDagOperator(BaseSensorOperator):
         parent dag's downstream task.
     """
 
-    ui_color = '#555'
-    ui_fgcolor = '#fff'
+    ui_color = "#555"
+    ui_fgcolor = "#fff"
 
-    subdag: "DAG"
+    subdag: DAG
 
     @provide_session
     def __init__(
@@ -77,8 +77,8 @@ class SubDagOperator(BaseSensorOperator):
         *,
         subdag: DAG,
         session: Session = NEW_SESSION,
-        conf: Optional[Dict] = None,
-        propagate_skipped_state: Optional[SkippedStatePropagationOptions] = None,
+        conf: dict | None = None,
+        propagate_skipped_state: SkippedStatePropagationOptions | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -91,17 +91,17 @@ class SubDagOperator(BaseSensorOperator):
 
         warnings.warn(
             """This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`.""",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=4,
         )
 
     def _validate_dag(self, kwargs):
-        dag = kwargs.get('dag') or DagContext.get_current_dag()
+        dag = kwargs.get("dag") or DagContext.get_current_dag()
 
         if not dag:
-            raise AirflowException('Please pass in the `dag` param or call within a DAG context manager')
+            raise AirflowException("Please pass in the `dag` param or call within a DAG context manager")
 
-        if dag.dag_id + '.' + kwargs['task_id'] != self.subdag.dag_id:
+        if dag.dag_id + "." + kwargs["task_id"] != self.subdag.dag_id:
             raise AirflowException(
                 f"The subdag's dag_id should have the form '{{parent_dag_id}}.{{this_task_id}}'. "
                 f"Expected '{dag.dag_id}.{kwargs['task_id']}'; received '{self.subdag.dag_id}'."
@@ -152,14 +152,14 @@ class SubDagOperator(BaseSensorOperator):
 
     def pre_execute(self, context):
         super().pre_execute(context)
-        execution_date = context['execution_date']
+        execution_date = context["execution_date"]
         dag_run = self._get_dagrun(execution_date)
 
         if dag_run is None:
-            if context['data_interval_start'] is None or context['data_interval_end'] is None:
-                data_interval: Optional[Tuple[datetime, datetime]] = None
+            if context["data_interval_start"] is None or context["data_interval_end"] is None:
+                data_interval: tuple[datetime, datetime] | None = None
             else:
-                data_interval = (context['data_interval_start'], context['data_interval_end'])
+                data_interval = (context["data_interval_start"], context["data_interval_end"])
             dag_run = self.subdag.create_dagrun(
                 run_type=DagRunType.SCHEDULED,
                 execution_date=execution_date,
@@ -175,13 +175,13 @@ class SubDagOperator(BaseSensorOperator):
                 self._reset_dag_run_and_task_instances(dag_run, execution_date)
 
     def poke(self, context: Context):
-        execution_date = context['execution_date']
+        execution_date = context["execution_date"]
         dag_run = self._get_dagrun(execution_date=execution_date)
         return dag_run.state != State.RUNNING
 
     def post_execute(self, context, result=None):
         super().post_execute(context)
-        execution_date = context['execution_date']
+        execution_date = context["execution_date"]
         dag_run = self._get_dagrun(execution_date=execution_date)
         self.log.info("Execution finished. State is %s", dag_run.state)
 
@@ -192,14 +192,14 @@ class SubDagOperator(BaseSensorOperator):
             self._skip_downstream_tasks(context)
 
     def _check_skipped_states(self, context):
-        leaves_tis = self._get_leaves_tis(context['execution_date'])
+        leaves_tis = self._get_leaves_tis(context["execution_date"])
 
         if self.propagate_skipped_state == SkippedStatePropagationOptions.ANY_LEAF:
             return any(ti.state == State.SKIPPED for ti in leaves_tis)
         if self.propagate_skipped_state == SkippedStatePropagationOptions.ALL_LEAVES:
             return all(ti.state == State.SKIPPED for ti in leaves_tis)
         raise AirflowException(
-            f'Unimplemented SkippedStatePropagationOptions {self.propagate_skipped_state} used.'
+            f"Unimplemented SkippedStatePropagationOptions {self.propagate_skipped_state} used."
         )
 
     def _get_leaves_tis(self, execution_date):
@@ -216,15 +216,15 @@ class SubDagOperator(BaseSensorOperator):
 
     def _skip_downstream_tasks(self, context):
         self.log.info(
-            'Skipping downstream tasks because propagate_skipped_state is set to %s '
-            'and skipped task(s) were found.',
+            "Skipping downstream tasks because propagate_skipped_state is set to %s "
+            "and skipped task(s) were found.",
             self.propagate_skipped_state,
         )
 
-        downstream_tasks = context['task'].downstream_list
-        self.log.debug('Downstream task_ids %s', downstream_tasks)
+        downstream_tasks = context["task"].downstream_list
+        self.log.debug("Downstream task_ids %s", downstream_tasks)
 
         if downstream_tasks:
-            self.skip(context['dag_run'], context['execution_date'], downstream_tasks)
+            self.skip(context["dag_run"], context["execution_date"], downstream_tasks)
 
-        self.log.info('Done.')
+        self.log.info("Done.")

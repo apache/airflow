@@ -22,8 +22,10 @@ DaskExecutor
     For more information on how the DaskExecutor works, take a look at the guide:
     :ref:`executor:DaskExecutor`
 """
+from __future__ import annotations
+
 import subprocess
-from typing import Any, Dict, Optional
+from typing import Any
 
 from distributed import Client, Future, as_completed
 from distributed.security import Security
@@ -35,7 +37,7 @@ from airflow.models.taskinstance import TaskInstanceKey
 
 # queue="default" is a special case since this is the base config default queue name,
 # with respect to DaskExecutor, treat it as if no queue is provided
-_UNDEFINED_QUEUES = {None, 'default'}
+_UNDEFINED_QUEUES = {None, "default"}
 
 
 class DaskExecutor(BaseExecutor):
@@ -44,16 +46,16 @@ class DaskExecutor(BaseExecutor):
     def __init__(self, cluster_address=None):
         super().__init__(parallelism=0)
         if cluster_address is None:
-            cluster_address = conf.get('dask', 'cluster_address')
+            cluster_address = conf.get("dask", "cluster_address")
         if not cluster_address:
-            raise ValueError('Please provide a Dask cluster address in airflow.cfg')
+            raise ValueError("Please provide a Dask cluster address in airflow.cfg")
         self.cluster_address = cluster_address
         # ssl / tls parameters
-        self.tls_ca = conf.get('dask', 'tls_ca')
-        self.tls_key = conf.get('dask', 'tls_key')
-        self.tls_cert = conf.get('dask', 'tls_cert')
-        self.client: Optional[Client] = None
-        self.futures: Optional[Dict[Future, TaskInstanceKey]] = None
+        self.tls_ca = conf.get("dask", "tls_ca")
+        self.tls_key = conf.get("dask", "tls_key")
+        self.tls_cert = conf.get("dask", "tls_cert")
+        self.client: Client | None = None
+        self.futures: dict[Future, TaskInstanceKey] | None = None
 
     def start(self) -> None:
         if self.tls_ca or self.tls_key or self.tls_cert:
@@ -73,11 +75,11 @@ class DaskExecutor(BaseExecutor):
         self,
         key: TaskInstanceKey,
         command: CommandType,
-        queue: Optional[str] = None,
-        executor_config: Optional[Any] = None,
+        queue: str | None = None,
+        executor_config: Any | None = None,
     ) -> None:
 
-        self.validate_command(command)
+        self.validate_airflow_tasks_run_command(command)
 
         def airflow_run():
             return subprocess.check_call(command, close_fds=True)
@@ -89,7 +91,7 @@ class DaskExecutor(BaseExecutor):
         if queue not in _UNDEFINED_QUEUES:
             scheduler_info = self.client.scheduler_info()
             avail_queues = {
-                resource for d in scheduler_info['workers'].values() for resource in d['resources']
+                resource for d in scheduler_info["workers"].values() for resource in d["resources"]
             }
 
             if queue not in avail_queues:

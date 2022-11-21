@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """
 This module contains a Google Kubernetes Engine Hook.
 
@@ -24,11 +23,12 @@ This module contains a Google Kubernetes Engine Hook.
     gapic
     enums
 """
+from __future__ import annotations
 
 import json
 import time
 import warnings
-from typing import Dict, Optional, Sequence, Union
+from typing import Sequence
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -58,22 +58,22 @@ class GKEHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        location: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        location: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._client = None  # type: Optional[ClusterManagerClient]
+        self._client: ClusterManagerClient | None = None
         self.location = location
 
     def get_cluster_manager_client(self) -> ClusterManagerClient:
         """Returns ClusterManagerClient."""
         if self._client is None:
-            self._client = ClusterManagerClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
+            self._client = ClusterManagerClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     # To preserve backward compatibility
@@ -94,7 +94,7 @@ class GKEHook(GoogleBaseHook):
         )
         return self.get_conn()
 
-    def wait_for_operation(self, operation: Operation, project_id: Optional[str] = None) -> Operation:
+    def wait_for_operation(self, operation: Operation, project_id: str | None = None) -> Operation:
         """
         Given an operation, continuously fetches the status from Google Cloud until either
         completion or an error occurring
@@ -114,7 +114,7 @@ class GKEHook(GoogleBaseHook):
             operation = self.get_operation(operation.name, project_id=project_id or self.project_id)
         return operation
 
-    def get_operation(self, operation_name: str, project_id: Optional[str] = None) -> Operation:
+    def get_operation(self, operation_name: str, project_id: str | None = None) -> Operation:
         """
         Fetches the operation from Google Cloud
 
@@ -124,8 +124,8 @@ class GKEHook(GoogleBaseHook):
         """
         return self.get_cluster_manager_client().get_operation(
             name=(
-                f'projects/{project_id or self.project_id}'
-                f'/locations/{self.location}/operations/{operation_name}'
+                f"projects/{project_id or self.project_id}"
+                f"/locations/{self.location}/operations/{operation_name}"
             )
         )
 
@@ -143,7 +143,7 @@ class GKEHook(GoogleBaseHook):
         :param val:
         :return: The cluster proto updated with new label
         """
-        val = val.replace('.', '-').replace('+', '-')
+        val = val.replace(".", "-").replace("+", "-")
         cluster_proto.resource_labels.update({key: val})
         return cluster_proto
 
@@ -152,9 +152,9 @@ class GKEHook(GoogleBaseHook):
         self,
         name: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-    ) -> Optional[str]:
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+    ) -> str | None:
         """
         Deletes the cluster, including the Kubernetes endpoint and all
         worker nodes. Firewalls and routes that were configured during
@@ -176,24 +176,24 @@ class GKEHook(GoogleBaseHook):
 
         try:
             resource = self.get_cluster_manager_client().delete_cluster(
-                name=f'projects/{project_id}/locations/{self.location}/clusters/{name}',
+                name=f"projects/{project_id}/locations/{self.location}/clusters/{name}",
                 retry=retry,
                 timeout=timeout,
             )
-            resource = self.wait_for_operation(resource)
+            resource = self.wait_for_operation(resource, project_id)
             # Returns server-defined url for the resource
             return resource.self_link
         except NotFound as error:
-            self.log.info('Assuming Success: %s', error.message)
+            self.log.info("Assuming Success: %s", error.message)
             return None
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_cluster(
         self,
-        cluster: Union[Dict, Cluster, None],
+        cluster: dict | Cluster | None,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
     ) -> str:
         """
         Creates a cluster, consisting of the specified number and type of Google Compute
@@ -219,7 +219,7 @@ class GKEHook(GoogleBaseHook):
         elif not isinstance(cluster, Cluster):
             raise AirflowException("cluster is not instance of Cluster proto or python dict")
 
-        self._append_label(cluster, 'airflow-version', 'v' + version.version)  # type: ignore
+        self._append_label(cluster, "airflow-version", "v" + version.version)  # type: ignore
 
         self.log.info(
             "Creating (project_id=%s, location=%s, cluster_name=%s)",
@@ -229,16 +229,16 @@ class GKEHook(GoogleBaseHook):
         )
         try:
             resource = self.get_cluster_manager_client().create_cluster(
-                parent=f'projects/{project_id}/locations/{self.location}',
+                parent=f"projects/{project_id}/locations/{self.location}",
                 cluster=cluster,  # type: ignore
                 retry=retry,
                 timeout=timeout,
             )
-            resource = self.wait_for_operation(resource)
+            resource = self.wait_for_operation(resource, project_id)
 
             return resource.target_link
         except AlreadyExists as error:
-            self.log.info('Assuming Success: %s', error.message)
+            self.log.info("Assuming Success: %s", error.message)
             return self.get_cluster(name=cluster.name, project_id=project_id)  # type: ignore
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -246,8 +246,8 @@ class GKEHook(GoogleBaseHook):
         self,
         name: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
     ) -> Cluster:
         """
         Gets details of specified cluster
@@ -271,7 +271,7 @@ class GKEHook(GoogleBaseHook):
         return (
             self.get_cluster_manager_client()
             .get_cluster(
-                name=f'projects/{project_id}/locations/{self.location}/clusters/{name}',
+                name=f"projects/{project_id}/locations/{self.location}/clusters/{name}",
                 retry=retry,
                 timeout=timeout,
             )

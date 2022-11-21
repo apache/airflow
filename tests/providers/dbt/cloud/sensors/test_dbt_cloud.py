@@ -14,16 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from unittest.mock import patch
 
 import pytest
 
+from airflow.models.connection import Connection
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunSensor
+from airflow.utils import db
 
 ACCOUNT_ID = 11111
 RUN_ID = 5555
+TOKEN = "token"
 
 
 class TestDbtCloudJobRunSensor:
@@ -36,6 +40,11 @@ class TestDbtCloudJobRunSensor:
             timeout=30,
             poke_interval=15,
         )
+
+        # Connection
+        conn = Connection(conn_id="dbt", conn_type=DbtCloudHook.conn_type, login=ACCOUNT_ID, password=TOKEN)
+
+        db.merge_conn(conn)
 
     def test_init(self):
         assert self.sensor.dbt_cloud_conn_id == "dbt"

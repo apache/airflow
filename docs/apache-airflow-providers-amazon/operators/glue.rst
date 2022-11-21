@@ -41,7 +41,7 @@ AWS Glue Crawlers allow you to easily extract data from various data sources.
 To create a new AWS Glue Crawler or run an existing one you can
 use :class:`~airflow.providers.amazon.aws.operators.glue_crawler.GlueCrawlerOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_glue.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_glue.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_glue_crawler]
@@ -59,7 +59,7 @@ Submit an AWS Glue job
 
 To submit a new AWS Glue job you can use :class:`~airflow.providers.amazon.aws.operators.glue.GlueJobOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_glue.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_glue.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_glue]
@@ -80,7 +80,7 @@ Wait on an AWS Glue crawler state
 To wait on the state of an AWS Glue crawler execution until it reaches a terminal state you can
 use :class:`~airflow.providers.amazon.aws.sensors.glue_crawler.GlueCrawlerSensor`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_glue.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_glue.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_glue_crawler]
@@ -94,7 +94,7 @@ Wait on an AWS Glue job state
 To wait on the state of an AWS Glue Job until it reaches a terminal state you can
 use :class:`~airflow.providers.amazon.aws.sensors.glue.GlueJobSensor`
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_glue.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_glue.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_glue]

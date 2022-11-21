@@ -15,16 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-
-import unittest
 from unittest.mock import Mock
 
 from airflow.models import TaskInstance
 from airflow.ti_deps.deps.dag_ti_slots_available_dep import DagTISlotsAvailableDep
 
 
-class TestDagTISlotsAvailableDep(unittest.TestCase):
+class TestDagTISlotsAvailableDep:
     def test_concurrency_reached(self):
         """
         Test max_active_tasks reached should fail dep

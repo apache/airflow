@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import List, NamedTuple, Optional, Tuple
+from typing import NamedTuple
 
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 from marshmallow.utils import get_value
@@ -24,17 +25,19 @@ from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.common_schema import JsonObjectField
 from airflow.api_connexion.schemas.enum_schemas import TaskInstanceStateField
+from airflow.api_connexion.schemas.job_schema import JobSchema
 from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
+from airflow.api_connexion.schemas.trigger_schema import TriggerSchema
 from airflow.models import SlaMiss, TaskInstance
 from airflow.utils.helpers import exactly_one
 from airflow.utils.state import State
 
 
 class TaskInstanceSchema(SQLAlchemySchema):
-    """Task instance schema"""
+    """Task instance schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = TaskInstance
 
@@ -59,8 +62,11 @@ class TaskInstanceSchema(SQLAlchemySchema):
     queued_dttm = auto_field(data_key="queued_when")
     pid = auto_field()
     executor_config = auto_field()
+    notes = auto_field()
     sla_miss = fields.Nested(SlaMissSchema, dump_default=None)
-    rendered_fields = JsonObjectField(default={})
+    rendered_fields = JsonObjectField(dump_default={})
+    trigger = fields.Nested(TriggerSchema)
+    triggerer_job = fields.Nested(JobSchema)
 
     def get_attribute(self, obj, attr, default):
         if attr == "sla_miss":
@@ -75,21 +81,21 @@ class TaskInstanceSchema(SQLAlchemySchema):
 
 
 class TaskInstanceCollection(NamedTuple):
-    """List of task instances with metadata"""
+    """List of task instances with metadata."""
 
-    task_instances: List[Tuple[TaskInstance, Optional[SlaMiss]]]
+    task_instances: list[tuple[TaskInstance, SlaMiss | None]]
     total_entries: int
 
 
 class TaskInstanceCollectionSchema(Schema):
-    """Task instance collection schema"""
+    """Task instance collection schema."""
 
     task_instances = fields.List(fields.Nested(TaskInstanceSchema))
     total_entries = fields.Int()
 
 
 class TaskInstanceBatchFormSchema(Schema):
-    """Schema for the request form passed to Task Instance Batch endpoint"""
+    """Schema for the request form passed to Task Instance Batch endpoint."""
 
     page_offset = fields.Int(load_default=0, validate=validate.Range(min=0))
     page_limit = fields.Int(load_default=100, validate=validate.Range(min=1))
@@ -108,7 +114,7 @@ class TaskInstanceBatchFormSchema(Schema):
 
 
 class ClearTaskInstanceFormSchema(Schema):
-    """Schema for handling the request of clearing task instance of a Dag"""
+    """Schema for handling the request of clearing task instance of a Dag."""
 
     dry_run = fields.Boolean(load_default=True)
     start_date = fields.DateTime(load_default=None, validate=validate_istimezone)
@@ -119,19 +125,30 @@ class ClearTaskInstanceFormSchema(Schema):
     include_parentdag = fields.Boolean(load_default=False)
     reset_dag_runs = fields.Boolean(load_default=False)
     task_ids = fields.List(fields.String(), validate=validate.Length(min=1))
+    dag_run_id = fields.Str(load_default=None)
+    include_upstream = fields.Boolean(load_default=False)
+    include_downstream = fields.Boolean(load_default=False)
+    include_future = fields.Boolean(load_default=False)
+    include_past = fields.Boolean(load_default=False)
 
     @validates_schema
     def validate_form(self, data, **kwargs):
-        """Validates clear task instance form"""
+        """Validates clear task instance form."""
         if data["only_failed"] and data["only_running"]:
             raise ValidationError("only_failed and only_running both are set to True")
         if data["start_date"] and data["end_date"]:
             if data["start_date"] > data["end_date"]:
                 raise ValidationError("end_date is sooner than start_date")
+        if data["start_date"] and data["end_date"] and data["dag_run_id"]:
+            raise ValidationError("Exactly one of dag_run_id or (start_date and end_date) must be provided")
+        if data["start_date"] and data["dag_run_id"]:
+            raise ValidationError("Exactly one of dag_run_id or start_date must be provided")
+        if data["end_date"] and data["dag_run_id"]:
+            raise ValidationError("Exactly one of dag_run_id or end_date must be provided")
 
 
 class SetTaskInstanceStateFormSchema(Schema):
-    """Schema for handling the request of setting state of task instance of a DAG"""
+    """Schema for handling the request of setting state of task instance of a DAG."""
 
     dry_run = fields.Boolean(dump_default=True)
     task_id = fields.Str(required=True)
@@ -145,13 +162,20 @@ class SetTaskInstanceStateFormSchema(Schema):
 
     @validates_schema
     def validate_form(self, data, **kwargs):
-        """Validates set task instance state form"""
+        """Validates set task instance state form."""
         if not exactly_one(data.get("execution_date"), data.get("dag_run_id")):
             raise ValidationError("Exactly one of execution_date or dag_run_id must be provided")
 
 
+class SetSingleTaskInstanceStateFormSchema(Schema):
+    """Schema for handling the request of updating state of a single task instance."""
+
+    dry_run = fields.Boolean(dump_default=True)
+    new_state = TaskInstanceStateField(required=True, validate=validate.OneOf([State.SUCCESS, State.FAILED]))
+
+
 class TaskInstanceReferenceSchema(Schema):
-    """Schema for the task instance reference schema"""
+    """Schema for the task instance reference schema."""
 
     task_id = fields.Str()
     run_id = fields.Str(data_key="dag_run_id")
@@ -160,15 +184,23 @@ class TaskInstanceReferenceSchema(Schema):
 
 
 class TaskInstanceReferenceCollection(NamedTuple):
-    """List of objects with metadata about taskinstance and dag_run_id"""
+    """List of objects with metadata about taskinstance and dag_run_id."""
 
-    task_instances: List[Tuple[TaskInstance, str]]
+    task_instances: list[tuple[TaskInstance, str]]
 
 
 class TaskInstanceReferenceCollectionSchema(Schema):
-    """Collection schema for task reference"""
+    """Collection schema for task reference."""
 
     task_instances = fields.List(fields.Nested(TaskInstanceReferenceSchema))
+
+
+class SetTaskInstanceNoteFormSchema(Schema):
+    """Schema for settings a note for a TaskInstance."""
+
+    # Note: We can't add map_index to the url as subpaths can't start with dashes.
+    map_index = fields.Int(allow_none=False)
+    notes = fields.String(allow_none=True, validate=validate.Length(max=1000))
 
 
 task_instance_schema = TaskInstanceSchema()
@@ -176,5 +208,7 @@ task_instance_collection_schema = TaskInstanceCollectionSchema()
 task_instance_batch_form = TaskInstanceBatchFormSchema()
 clear_task_instance_form = ClearTaskInstanceFormSchema()
 set_task_instance_state_form = SetTaskInstanceStateFormSchema()
+set_single_task_instance_state_form = SetSingleTaskInstanceStateFormSchema()
 task_instance_reference_schema = TaskInstanceReferenceSchema()
 task_instance_reference_collection_schema = TaskInstanceReferenceCollectionSchema()
+set_task_instance_notes_form_schema = SetTaskInstanceNoteFormSchema()

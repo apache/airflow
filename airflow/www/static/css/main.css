@@ -465,7 +465,16 @@ label[for="timezone-other"],
   z-index: 1070;
 }
 
+details summary {
+  display: list-item;
+}
+
 .menu-scroll {
   max-height: 300px;
   overflow-y: auto;
+}
+
+.next-dataset-triggered:hover {
+  cursor: pointer;
+  background-color: #cbcbcb;
 }

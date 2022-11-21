@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
@@ -24,10 +25,10 @@ from airflow.www.fab_security.sqla.models import Action, Permission, Resource, R
 
 
 class ActionSchema(SQLAlchemySchema):
-    """Action Action Schema"""
+    """Action Schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = Action
 
@@ -35,10 +36,10 @@ class ActionSchema(SQLAlchemySchema):
 
 
 class ResourceSchema(SQLAlchemySchema):
-    """View menu Schema"""
+    """View menu Schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = Resource
 
@@ -46,24 +47,24 @@ class ResourceSchema(SQLAlchemySchema):
 
 
 class ActionCollection(NamedTuple):
-    """Action Action Collection"""
+    """Action Collection."""
 
-    actions: List[Action]
+    actions: list[Action]
     total_entries: int
 
 
 class ActionCollectionSchema(Schema):
-    """Permissions list schema"""
+    """Permissions list schema."""
 
     actions = fields.List(fields.Nested(ActionSchema))
     total_entries = fields.Int()
 
 
 class ActionResourceSchema(SQLAlchemySchema):
-    """Action View Schema"""
+    """Action View Schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = Permission
 
@@ -72,26 +73,26 @@ class ActionResourceSchema(SQLAlchemySchema):
 
 
 class RoleSchema(SQLAlchemySchema):
-    """Role item schema"""
+    """Role item schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = Role
 
     name = auto_field()
-    permissions = fields.List(fields.Nested(ActionResourceSchema), data_key='actions')
+    permissions = fields.List(fields.Nested(ActionResourceSchema), data_key="actions")
 
 
 class RoleCollection(NamedTuple):
-    """List of roles"""
+    """List of roles."""
 
-    roles: List[Role]
+    roles: list[Role]
     total_entries: int
 
 
 class RoleCollectionSchema(Schema):
-    """List of roles"""
+    """List of roles."""
 
     roles = fields.List(fields.Nested(RoleSchema))
     total_entries = fields.Int()

@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.sensors.base import BaseSensorOperator
@@ -35,24 +37,24 @@ class RedshiftClusterSensor(BaseSensorOperator):
     :param target_status: The cluster status desired.
     """
 
-    template_fields: Sequence[str] = ('cluster_identifier', 'target_status')
+    template_fields: Sequence[str] = ("cluster_identifier", "target_status")
 
     def __init__(
         self,
         *,
         cluster_identifier: str,
-        target_status: str = 'available',
-        aws_conn_id: str = 'aws_default',
+        target_status: str = "available",
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.cluster_identifier = cluster_identifier
         self.target_status = target_status
         self.aws_conn_id = aws_conn_id
-        self.hook: Optional[RedshiftHook] = None
+        self.hook: RedshiftHook | None = None
 
-    def poke(self, context: 'Context'):
-        self.log.info('Poking for status : %s\nfor cluster %s', self.target_status, self.cluster_identifier)
+    def poke(self, context: Context):
+        self.log.info("Poking for status : %s\nfor cluster %s", self.target_status, self.cluster_identifier)
         return self.get_hook().cluster_status(self.cluster_identifier) == self.target_status
 
     def get_hook(self) -> RedshiftHook:

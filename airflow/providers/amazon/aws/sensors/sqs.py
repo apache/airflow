@@ -16,14 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """Reads and then deletes the message from SQS queue"""
+from __future__ import annotations
+
 import json
-import warnings
-from typing import TYPE_CHECKING, Any, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Collection, Sequence
 
 from jsonpath_ng import parse
 from typing_extensions import Literal
 
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -34,8 +36,12 @@ if TYPE_CHECKING:
 class SqsSensor(BaseSensorOperator):
     """
     Get messages from an Amazon SQS queue and then delete the messages from the queue.
-    If deletion of messages fails an AirflowException is thrown. Otherwise, the messages
+    If deletion of messages fails, an AirflowException is thrown. Otherwise, the messages
     are pushed through XCom with the key ``messages``.
+
+    By default,the sensor performs one and only one SQS call per poke, which limits the result to
+    a maximum of 10 messages. However, the total number of SQS API calls per poke can be controlled
+    by num_batches param.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -44,6 +50,7 @@ class SqsSensor(BaseSensorOperator):
     :param aws_conn_id: AWS connection id
     :param sqs_queue: The SQS queue url (templated)
     :param max_messages: The maximum number of messages to retrieve for each poke (templated)
+    :param num_batches: The number of times the sensor will call the SQS API to receive messages (default: 1)
     :param wait_time_seconds: The time in seconds to wait for receiving messages (default: 1 second)
     :param visibility_timeout: Visibility timeout, a period of time during which
         Amazon SQS prevents other consumers from receiving and processing the message.
@@ -64,17 +71,18 @@ class SqsSensor(BaseSensorOperator):
 
     """
 
-    template_fields: Sequence[str] = ('sqs_queue', 'max_messages', 'message_filtering_config')
+    template_fields: Sequence[str] = ("sqs_queue", "max_messages", "message_filtering_config")
 
     def __init__(
         self,
         *,
         sqs_queue,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         max_messages: int = 5,
+        num_batches: int = 1,
         wait_time_seconds: int = 1,
-        visibility_timeout: Optional[int] = None,
-        message_filtering: Optional[Literal["literal", "jsonpath"]] = None,
+        visibility_timeout: int | None = None,
+        message_filtering: Literal["literal", "jsonpath"] | None = None,
         message_filtering_match_values: Any = None,
         message_filtering_config: Any = None,
         delete_message_on_reception: bool = True,
@@ -84,6 +92,7 @@ class SqsSensor(BaseSensorOperator):
         self.sqs_queue = sqs_queue
         self.aws_conn_id = aws_conn_id
         self.max_messages = max_messages
+        self.num_batches = num_batches
         self.wait_time_seconds = wait_time_seconds
         self.visibility_timeout = visibility_timeout
 
@@ -96,39 +105,37 @@ class SqsSensor(BaseSensorOperator):
                 message_filtering_match_values = set(message_filtering_match_values)
         self.message_filtering_match_values = message_filtering_match_values
 
-        if self.message_filtering == 'literal':
+        if self.message_filtering == "literal":
             if self.message_filtering_match_values is None:
-                raise TypeError('message_filtering_match_values must be specified for literal matching')
+                raise TypeError("message_filtering_match_values must be specified for literal matching")
 
         self.message_filtering_config = message_filtering_config
 
-        self.hook: Optional[SqsHook] = None
+        self.hook: SqsHook | None = None
 
-    def poke(self, context: 'Context'):
+    def poll_sqs(self, sqs_conn: BaseAwsConnection) -> Collection:
         """
-        Check for message on subscribed queue and write to xcom the message with key ``messages``
+        Poll SQS queue to retrieve messages.
 
-        :param context: the context object
-        :return: ``True`` if message is available or ``False``
+        :param sqs_conn: SQS connection
+        :return: A list of messages retrieved from SQS
         """
-        sqs_conn = self.get_hook().get_conn()
-
-        self.log.info('SqsSensor checking for message on queue: %s', self.sqs_queue)
+        self.log.info("SqsSensor checking for message on queue: %s", self.sqs_queue)
 
         receive_message_kwargs = {
-            'QueueUrl': self.sqs_queue,
-            'MaxNumberOfMessages': self.max_messages,
-            'WaitTimeSeconds': self.wait_time_seconds,
+            "QueueUrl": self.sqs_queue,
+            "MaxNumberOfMessages": self.max_messages,
+            "WaitTimeSeconds": self.wait_time_seconds,
         }
         if self.visibility_timeout is not None:
-            receive_message_kwargs['VisibilityTimeout'] = self.visibility_timeout
+            receive_message_kwargs["VisibilityTimeout"] = self.visibility_timeout
 
         response = sqs_conn.receive_message(**receive_message_kwargs)
 
         if "Messages" not in response:
-            return False
+            return []
 
-        messages = response['Messages']
+        messages = response["Messages"]
         num_messages = len(messages)
         self.log.info("Received %d messages", num_messages)
 
@@ -136,28 +143,47 @@ class SqsSensor(BaseSensorOperator):
             messages = self.filter_messages(messages)
             num_messages = len(messages)
             self.log.info("There are %d messages left after filtering", num_messages)
+        return messages
 
-        if not num_messages:
+    def poke(self, context: Context):
+        """
+        Check subscribed queue for messages and write them to xcom with the ``messages`` key.
+
+        :param context: the context object
+        :return: ``True`` if message is available or ``False``
+        """
+        sqs_conn = self.get_hook().get_conn()
+
+        message_batch: list[Any] = []
+
+        # perform multiple SQS call to retrieve messages in series
+        for _ in range(self.num_batches):
+            messages = self.poll_sqs(sqs_conn=sqs_conn)
+
+            if not len(messages):
+                continue
+
+            message_batch.extend(messages)
+
+            if self.delete_message_on_reception:
+
+                self.log.info("Deleting %d messages", len(messages))
+
+                entries = [
+                    {"Id": message["MessageId"], "ReceiptHandle": message["ReceiptHandle"]}
+                    for message in messages
+                ]
+                response = sqs_conn.delete_message_batch(QueueUrl=self.sqs_queue, Entries=entries)
+
+                if "Successful" not in response:
+                    raise AirflowException(
+                        "Delete SQS Messages failed " + str(response) + " for messages " + str(messages)
+                    )
+        if not len(message_batch):
             return False
 
-        if not self.delete_message_on_reception:
-            context['ti'].xcom_push(key='messages', value=messages)
-            return True
-
-        self.log.info("Deleting %d messages", num_messages)
-
-        entries = [
-            {'Id': message['MessageId'], 'ReceiptHandle': message['ReceiptHandle']} for message in messages
-        ]
-        response = sqs_conn.delete_message_batch(QueueUrl=self.sqs_queue, Entries=entries)
-
-        if 'Successful' in response:
-            context['ti'].xcom_push(key='messages', value=messages)
-            return True
-        else:
-            raise AirflowException(
-                'Delete SQS Messages failed ' + str(response) + ' for messages ' + str(messages)
-            )
+        context["ti"].xcom_push(key="messages", value=message_batch)
+        return True
 
     def get_hook(self) -> SqsHook:
         """Create and return an SqsHook"""
@@ -168,17 +194,17 @@ class SqsSensor(BaseSensorOperator):
         return self.hook
 
     def filter_messages(self, messages):
-        if self.message_filtering == 'literal':
+        if self.message_filtering == "literal":
             return self.filter_messages_literal(messages)
-        if self.message_filtering == 'jsonpath':
+        if self.message_filtering == "jsonpath":
             return self.filter_messages_jsonpath(messages)
         else:
-            raise NotImplementedError('Override this method to define custom filters')
+            raise NotImplementedError("Override this method to define custom filters")
 
     def filter_messages_literal(self, messages):
         filtered_messages = []
         for message in messages:
-            if message['Body'] in self.message_filtering_match_values:
+            if message["Body"] in self.message_filtering_match_values:
                 filtered_messages.append(message)
         return filtered_messages
 
@@ -186,7 +212,7 @@ class SqsSensor(BaseSensorOperator):
         jsonpath_expr = parse(self.message_filtering_config)
         filtered_messages = []
         for message in messages:
-            body = message['Body']
+            body = message["Body"]
             # Body is a string, deserialize to an object and then parse
             body = json.loads(body)
             results = jsonpath_expr.find(body)
@@ -200,18 +226,3 @@ class SqsSensor(BaseSensorOperator):
                     filtered_messages.append(message)
                     break
         return filtered_messages
-
-
-class SQSSensor(SqsSensor):
-    """
-    This sensor is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.sensors.sqs.SqsSensor`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This class is deprecated. Please use `airflow.providers.amazon.aws.sensors.sqs.SqsSensor`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

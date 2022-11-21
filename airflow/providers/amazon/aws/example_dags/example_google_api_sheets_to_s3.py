@@ -18,6 +18,7 @@
 This is a basic example dag for using `GoogleApiToS3Operator` to retrieve Google Sheets data
 You need to set all env variables to request the data.
 """
+from __future__ import annotations
 
 from datetime import datetime
 from os import getenv
@@ -31,18 +32,17 @@ S3_DESTINATION_KEY = getenv("S3_DESTINATION_KEY", "s3://test-bucket/key.json")
 
 with DAG(
     dag_id="example_google_api_sheets_to_s3",
-    schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [START howto_transfer_google_api_sheets_to_s3]
     task_google_sheets_values_to_s3 = GoogleApiToS3Operator(
-        task_id='google_sheet_data_to_s3',
-        google_api_service_name='sheets',
-        google_api_service_version='v4',
-        google_api_endpoint_path='sheets.spreadsheets.values.get',
-        google_api_endpoint_params={'spreadsheetId': GOOGLE_SHEET_ID, 'range': GOOGLE_SHEET_RANGE},
+        task_id="google_sheet_data_to_s3",
+        google_api_service_name="sheets",
+        google_api_service_version="v4",
+        google_api_endpoint_path="sheets.spreadsheets.values.get",
+        google_api_endpoint_params={"spreadsheetId": GOOGLE_SHEET_ID, "range": GOOGLE_SHEET_RANGE},
         s3_destination_key=S3_DESTINATION_KEY,
     )
     # [END howto_transfer_google_api_sheets_to_s3]

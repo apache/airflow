@@ -15,10 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# mypy ignore arg types (for templated fields)
-# type: ignore[arg-type]
-
 """
 Example Airflow DAG that demonstrates operators for the Google Vertex AI service in the Google
 Cloud Platform.
@@ -26,21 +22,22 @@ Cloud Platform.
 This DAG relies on the following OS environment variables:
 
 * GCP_VERTEX_AI_BUCKET - Google Cloud Storage bucket where the model will be saved
-after training process was finished.
+  after training process was finished.
 * CUSTOM_CONTAINER_URI - path to container with model.
 * PYTHON_PACKAGE_GSC_URI - path to test model in archive.
 * LOCAL_TRAINING_SCRIPT_PATH - path to local training script.
 * DATASET_ID - ID of dataset which will be used in training process.
 * MODEL_ID - ID of model which will be used in predict process.
 * MODEL_ARTIFACT_URI - The artifact_uri should be the path to a GCS directory containing saved model
-artifacts.
+  artifacts.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 from uuid import uuid4
 
 from google.cloud import aiplatform
-from google.protobuf import json_format
 from google.protobuf.struct_pb2 import Value
 
 from airflow import models
@@ -93,6 +90,10 @@ from airflow.providers.google.cloud.operators.vertex_ai.model_service import (
     ListModelsOperator,
     UploadModelOperator,
 )
+
+# mypy ignore arg types (for templated fields)
+# type: ignore[arg-type]
+
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
 REGION = os.environ.get("GCP_LOCATION", "us-central1")
@@ -195,22 +196,22 @@ MODEL_NAME = f"projects/{PROJECT_ID}/locations/{REGION}/models/{MODEL_ID}"
 JOB_DISPLAY_NAME = f"temp_create_batch_prediction_job_test_{uuid4()}"
 BIGQUERY_SOURCE = f"bq://{PROJECT_ID}.test_iowa_liquor_sales_forecasting_us.2021_sales_predict"
 GCS_DESTINATION_PREFIX = "gs://test-vertex-ai-bucket-us/output"
-MODEL_PARAMETERS = json_format.ParseDict({}, Value())
+MODEL_PARAMETERS: dict | None = {}
 
 ENDPOINT_CONF = {
     "display_name": f"endpoint_test_{uuid4()}",
 }
 DEPLOYED_MODEL = {
     # format: 'projects/{project}/locations/{location}/models/{model}'
-    'model': f"projects/{PROJECT_ID}/locations/{REGION}/models/{MODEL_ID}",
-    'display_name': f"temp_endpoint_test_{uuid4()}",
+    "model": f"projects/{PROJECT_ID}/locations/{REGION}/models/{MODEL_ID}",
+    "display_name": f"temp_endpoint_test_{uuid4()}",
     "dedicated_resources": {
         "machine_spec": {
             "machine_type": "n1-standard-2",
             "accelerator_type": aiplatform.gapic.AcceleratorType.NVIDIA_TESLA_K80,
             "accelerator_count": 1,
         },
-        'min_replica_count': 1,
+        "min_replica_count": 1,
         "max_replica_count": 1,
     },
 }
@@ -237,7 +238,6 @@ MODEL_OBJ = {
 
 with models.DAG(
     "example_gcp_vertex_ai_custom_jobs",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as custom_jobs_dag:
@@ -327,7 +327,6 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_dataset",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dataset_dag:
@@ -367,7 +366,7 @@ with models.DAG(
     # [START how_to_cloud_vertex_ai_delete_dataset_operator]
     delete_dataset_job = DeleteDatasetOperator(
         task_id="delete_dataset",
-        dataset_id=create_text_dataset_job.output['dataset_id'],
+        dataset_id=create_text_dataset_job.output["dataset_id"],
         region=REGION,
         project_id=PROJECT_ID,
     )
@@ -378,14 +377,14 @@ with models.DAG(
         task_id="get_dataset",
         project_id=PROJECT_ID,
         region=REGION,
-        dataset_id=create_tabular_dataset_job.output['dataset_id'],
+        dataset_id=create_tabular_dataset_job.output["dataset_id"],
     )
     # [END how_to_cloud_vertex_ai_get_dataset_operator]
 
     # [START how_to_cloud_vertex_ai_export_data_operator]
     export_data_job = ExportDataOperator(
         task_id="export_data",
-        dataset_id=create_image_dataset_job.output['dataset_id'],
+        dataset_id=create_image_dataset_job.output["dataset_id"],
         region=REGION,
         project_id=PROJECT_ID,
         export_config=TEST_EXPORT_CONFIG,
@@ -395,7 +394,7 @@ with models.DAG(
     # [START how_to_cloud_vertex_ai_import_data_operator]
     import_data_job = ImportDataOperator(
         task_id="import_data",
-        dataset_id=create_image_dataset_job.output['dataset_id'],
+        dataset_id=create_image_dataset_job.output["dataset_id"],
         region=REGION,
         project_id=PROJECT_ID,
         import_configs=TEST_IMPORT_CONFIG,
@@ -415,7 +414,7 @@ with models.DAG(
         task_id="update_dataset",
         project_id=PROJECT_ID,
         region=REGION,
-        dataset_id=create_video_dataset_job.output['dataset_id'],
+        dataset_id=create_video_dataset_job.output["dataset_id"],
         dataset=DATASET_TO_UPDATE,
         update_mask=TEST_UPDATE_MASK,
     )
@@ -430,7 +429,6 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_auto_ml",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as auto_ml_dag:
@@ -547,7 +545,6 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_batch_prediction_job",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as batch_prediction_job_dag:
@@ -576,7 +573,7 @@ with models.DAG(
     # [START how_to_cloud_vertex_ai_delete_batch_prediction_job_operator]
     delete_batch_prediction_job = DeleteBatchPredictionJobOperator(
         task_id="delete_batch_prediction_job",
-        batch_prediction_job_id=create_batch_prediction_job.output['batch_prediction_job_id'],
+        batch_prediction_job_id=create_batch_prediction_job.output["batch_prediction_job_id"],
         region=REGION,
         project_id=PROJECT_ID,
     )
@@ -587,7 +584,6 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_endpoint",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as endpoint_dag:
@@ -603,7 +599,7 @@ with models.DAG(
     # [START how_to_cloud_vertex_ai_delete_endpoint_operator]
     delete_endpoint = DeleteEndpointOperator(
         task_id="delete_endpoint",
-        endpoint_id=create_endpoint.output['endpoint_id'],
+        endpoint_id=create_endpoint.output["endpoint_id"],
         region=REGION,
         project_id=PROJECT_ID,
     )
@@ -620,9 +616,9 @@ with models.DAG(
     # [START how_to_cloud_vertex_ai_deploy_model_operator]
     deploy_model = DeployModelOperator(
         task_id="deploy_model",
-        endpoint_id=create_endpoint.output['endpoint_id'],
+        endpoint_id=create_endpoint.output["endpoint_id"],
         deployed_model=DEPLOYED_MODEL,
-        traffic_split={'0': 100},
+        traffic_split={"0": 100},
         region=REGION,
         project_id=PROJECT_ID,
     )
@@ -631,8 +627,8 @@ with models.DAG(
     # [START how_to_cloud_vertex_ai_undeploy_model_operator]
     undeploy_model = UndeployModelOperator(
         task_id="undeploy_model",
-        endpoint_id=create_endpoint.output['endpoint_id'],
-        deployed_model_id=deploy_model.output['deployed_model_id'],
+        endpoint_id=create_endpoint.output["endpoint_id"],
+        deployed_model_id=deploy_model.output["deployed_model_id"],
         region=REGION,
         project_id=PROJECT_ID,
     )
@@ -643,7 +639,6 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_hyperparameter_tuning_job",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as hyperparameter_tuning_job_dag:
@@ -669,16 +664,16 @@ with models.DAG(
         region=REGION,
         project_id=PROJECT_ID,
         parameter_spec={
-            'learning_rate': aiplatform.hyperparameter_tuning.DoubleParameterSpec(
-                min=0.01, max=1, scale='log'
+            "learning_rate": aiplatform.hyperparameter_tuning.DoubleParameterSpec(
+                min=0.01, max=1, scale="log"
             ),
-            'momentum': aiplatform.hyperparameter_tuning.DoubleParameterSpec(min=0, max=1, scale='linear'),
-            'num_neurons': aiplatform.hyperparameter_tuning.DiscreteParameterSpec(
-                values=[64, 128, 512], scale='linear'
+            "momentum": aiplatform.hyperparameter_tuning.DoubleParameterSpec(min=0, max=1, scale="linear"),
+            "num_neurons": aiplatform.hyperparameter_tuning.DiscreteParameterSpec(
+                values=[64, 128, 512], scale="linear"
             ),
         },
         metric_spec={
-            'accuracy': 'maximize',
+            "accuracy": "maximize",
         },
         max_trial_count=15,
         parallel_trial_count=3,
@@ -716,7 +711,6 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_model_service",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as model_service_dag:

@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.asana.hooks.asana import AsanaHook
@@ -47,7 +48,7 @@ class AsanaCreateTaskOperator(BaseOperator):
         *,
         conn_id: str,
         name: str,
-        task_parameters: Optional[dict] = None,
+        task_parameters: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -56,7 +57,7 @@ class AsanaCreateTaskOperator(BaseOperator):
         self.name = name
         self.task_parameters = task_parameters
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         hook = AsanaHook(conn_id=self.conn_id)
         response = hook.create_task(self.name, self.task_parameters)
         self.log.info(response)
@@ -93,7 +94,7 @@ class AsanaUpdateTaskOperator(BaseOperator):
         self.asana_task_gid = asana_task_gid
         self.task_parameters = task_parameters
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = AsanaHook(conn_id=self.conn_id)
         response = hook.update_task(self.asana_task_gid, self.task_parameters)
         self.log.info(response)
@@ -123,7 +124,7 @@ class AsanaDeleteTaskOperator(BaseOperator):
         self.conn_id = conn_id
         self.asana_task_gid = asana_task_gid
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = AsanaHook(conn_id=self.conn_id)
         response = hook.delete_task(self.asana_task_gid)
         self.log.info(response)
@@ -148,7 +149,7 @@ class AsanaFindTaskOperator(BaseOperator):
         self,
         *,
         conn_id: str,
-        search_parameters: Optional[dict] = None,
+        search_parameters: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -156,7 +157,7 @@ class AsanaFindTaskOperator(BaseOperator):
         self.conn_id = conn_id
         self.search_parameters = search_parameters
 
-    def execute(self, context: 'Context') -> list:
+    def execute(self, context: Context) -> list:
         hook = AsanaHook(conn_id=self.conn_id)
         response = hook.find_task(self.search_parameters)
         self.log.info(response)

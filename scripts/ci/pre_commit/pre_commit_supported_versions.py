@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from pathlib import Path
 
 from tabulate import tabulate
@@ -25,7 +27,7 @@ AIRFLOW_SOURCES = Path(__file__).resolve().parent.parent.parent.parent
 HEADERS = ("Version", "Current Patch/Minor", "State", "First Release", "Limited Support", "EOL/Terminated")
 
 SUPPORTED_VERSIONS = (
-    ("2", "2.3.1", "Supported", "Dec 17, 2020", "TBD", "TBD"),
+    ("2", "2.4.3", "Supported", "Dec 17, 2020", "TBD", "TBD"),
     ("1.10", "1.10.15", "EOL", "Aug 27, 2018", "Dec 17, 2020", "June 17, 2021"),
     ("1.9", "1.9.0", "EOL", "Jan 03, 2018", "Aug 27, 2018", "Aug 27, 2018"),
     ("1.8", "1.8.2", "EOL", "Mar 19, 2017", "Jan 03, 2018", "Jan 03, 2018"),
@@ -40,7 +42,7 @@ def replace_text_between(file: Path, start: str, end: str, replacement_text: str
     file.write_text(leading_text + start + replacement_text + end + trailing_text)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     replace_text_between(
         file=AIRFLOW_SOURCES / "README.md",
         start="<!-- Beginning of auto-generated table -->\n",

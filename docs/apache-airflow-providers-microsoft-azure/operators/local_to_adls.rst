@@ -38,7 +38,7 @@ upload data from local filesystem to ADL.
 
 Below is an example of using this operator to upload a file to ADL.
 
-.. exampleinclude:: /../../airflow/providers/microsoft/azure/example_dags/example_local_to_adls.py
+.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_local_to_adls.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_local_to_adls]

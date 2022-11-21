@@ -16,9 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Analytics 360 operators."""
+from __future__ import annotations
+
 import csv
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -65,7 +67,7 @@ class GoogleAnalyticsListAccountsOperator(BaseOperator):
         *,
         api_version: str = "v3",
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -74,7 +76,7 @@ class GoogleAnalyticsListAccountsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> List[Dict[str, Any]]:
+    def execute(self, context: Context) -> list[dict[str, Any]]:
         hook = GoogleAnalyticsHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
@@ -126,7 +128,7 @@ class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
         web_property_id: str,
         api_version: str = "v3",
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -138,7 +140,7 @@ class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> Dict[str, Any]:
+    def execute(self, context: Context) -> dict[str, Any]:
         hook = GoogleAnalyticsHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
@@ -191,7 +193,7 @@ class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
         web_property_id: str,
         api_version: str = "v3",
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -202,7 +204,7 @@ class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> List[Dict[str, Any]]:
+    def execute(self, context: Context) -> list[dict[str, Any]]:
         hook = GoogleAnalyticsHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
@@ -259,9 +261,9 @@ class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
         custom_data_source_id: str,
         resumable_upload: bool = False,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         api_version: str = "v3",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -276,7 +278,7 @@ class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
         self.api_version = api_version
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -341,9 +343,9 @@ class GoogleAnalyticsDeletePreviousDataUploadsOperator(BaseOperator):
         web_property_id: str,
         custom_data_source_id: str,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         api_version: str = "v3",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -356,7 +358,7 @@ class GoogleAnalyticsDeletePreviousDataUploadsOperator(BaseOperator):
         self.api_version = api_version
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         ga_hook = GoogleAnalyticsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -420,9 +422,9 @@ class GoogleAnalyticsModifyFileHeadersDataImportOperator(BaseOperator):
         storage_bucket: str,
         storage_name_object: str,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        custom_dimension_header_mapping: Optional[Dict[str, str]] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        custom_dimension_header_mapping: dict[str, str] | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -434,7 +436,7 @@ class GoogleAnalyticsModifyFileHeadersDataImportOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def _modify_column_headers(
-        self, tmp_file_location: str, custom_dimension_header_mapping: Dict[str, str]
+        self, tmp_file_location: str, custom_dimension_header_mapping: dict[str, str]
     ) -> None:
         # Check headers
         self.log.info("Checking if file contains headers")
@@ -466,7 +468,7 @@ class GoogleAnalyticsModifyFileHeadersDataImportOperator(BaseOperator):
         with open(tmp_file_location, "w") as write_file:
             write_file.writelines(all_data)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

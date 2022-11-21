@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 import airflow
 from airflow.api_connexion.schemas.version_schema import version_info_schema
@@ -24,14 +25,14 @@ from airflow.utils.platform import get_airflow_git_version
 
 
 class VersionInfo(NamedTuple):
-    """Version information"""
+    """Version information."""
 
     version: str
-    git_version: Optional[str]
+    git_version: str | None
 
 
 def get_version() -> APIResponse:
-    """Get version information"""
+    """Get version information."""
     airflow_version = airflow.__version__
 
     git_version = get_airflow_git_version()

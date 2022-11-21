@@ -55,7 +55,7 @@ Deleting Databricks Repo by specifying path
 
 An example usage of the DatabricksReposDeleteOperator is as follows:
 
-.. exampleinclude:: /../../airflow/providers/databricks/example_dags/example_databricks_repos.py
+.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_repos.py
     :language: python
     :start-after: [START howto_operator_databricks_repo_delete]
     :end-before: [END howto_operator_databricks_repo_delete]

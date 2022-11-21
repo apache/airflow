@@ -14,14 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import inspect
 from textwrap import dedent
-from typing import Callable, Optional, Sequence, TypeVar
+from typing import Callable, Sequence
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.operators.python import BranchPythonOperator
-from airflow.utils.python_virtualenv import remove_task_decorator
+from airflow.utils.decorators import remove_task_decorator
 
 
 class _BranchPythonDecoratedOperator(DecoratedOperator, BranchPythonOperator):
@@ -38,12 +39,14 @@ class _BranchPythonDecoratedOperator(DecoratedOperator, BranchPythonOperator):
         Defaults to False.
     """
 
-    template_fields: Sequence[str] = ('op_args', 'op_kwargs')
+    template_fields: Sequence[str] = ("op_args", "op_kwargs")
     template_fields_renderers = {"op_args": "py", "op_kwargs": "py"}
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
-    shallow_copy_attrs: Sequence[str] = ('python_callable',)
+    shallow_copy_attrs: Sequence[str] = ("python_callable",)
+
+    custom_operator_name: str = "@task.branch"
 
     def __init__(
         self,
@@ -63,14 +66,12 @@ class _BranchPythonDecoratedOperator(DecoratedOperator, BranchPythonOperator):
         return res
 
 
-T = TypeVar("T", bound=Callable)
-
-
 def branch_task(
-    python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
+    python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs
 ) -> TaskDecorator:
     """
-    Wraps a python function into a BranchPythonOperator
+    Wraps a python function into a BranchPythonOperator.
+
     For more information on how to use this operator, take a look at the guide:
     :ref:`howto/operator:BranchPythonOperator`
 

@@ -16,15 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """Experimental APIs."""
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Optional
 
 from airflow.exceptions import DagNotFound, DagRunNotFound, TaskNotFound
 from airflow.models import DagBag, DagModel, DagRun
 
 
-def check_and_get_dag(dag_id: str, task_id: Optional[str] = None) -> DagModel:
-    """Checks that DAG exists and in case it is specified that Task exist"""
+def check_and_get_dag(dag_id: str, task_id: str | None = None) -> DagModel:
+    """Check DAG existence and in case it is specified that Task exists."""
     dag_model = DagModel.get_current(dag_id)
     if dag_model is None:
         raise DagNotFound(f"Dag id {dag_id} not found in DagModel")
@@ -35,15 +36,15 @@ def check_and_get_dag(dag_id: str, task_id: Optional[str] = None) -> DagModel:
         error_message = f"Dag id {dag_id} not found"
         raise DagNotFound(error_message)
     if task_id and not dag.has_task(task_id):
-        error_message = f'Task {task_id} not found in dag {dag_id}'
+        error_message = f"Task {task_id} not found in dag {dag_id}"
         raise TaskNotFound(error_message)
     return dag
 
 
 def check_and_get_dagrun(dag: DagModel, execution_date: datetime) -> DagRun:
-    """Get DagRun object and check that it exists"""
+    """Get DagRun object and check that it exists."""
     dagrun = dag.get_dagrun(execution_date=execution_date)
     if not dagrun:
-        error_message = f'Dag Run for date {execution_date} not found in dag {dag.dag_id}'
+        error_message = f"Dag Run for date {execution_date} not found in dag {dag.dag_id}"
         raise DagRunNotFound(error_message)
     return dagrun

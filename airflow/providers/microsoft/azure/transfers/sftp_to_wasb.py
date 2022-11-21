@@ -16,28 +16,24 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains SFTP to Azure Blob Storage operator."""
+from __future__ import annotations
+
 import os
-import sys
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 
 WILDCARD = "*"
-SftpFile = namedtuple('SftpFile', 'sftp_file_path, blob_name')
+SftpFile = namedtuple("SftpFile", "sftp_file_path, blob_name")
 
 
 class SFTPToWasbOperator(BaseOperator):
@@ -80,8 +76,8 @@ class SFTPToWasbOperator(BaseOperator):
         container_name: str,
         blob_prefix: str = "",
         sftp_conn_id: str = "sftp_default",
-        wasb_conn_id: str = 'wasb_default',
-        load_options: Optional[Dict] = None,
+        wasb_conn_id: str = "wasb_default",
+        load_options: dict | None = None,
         move_object: bool = False,
         wasb_overwrite_object: bool = False,
         create_container: bool = False,
@@ -101,10 +97,10 @@ class SFTPToWasbOperator(BaseOperator):
 
     def dry_run(self) -> None:
         super().dry_run()
-        sftp_files: List[SftpFile] = self.get_sftp_files_map()
+        sftp_files: list[SftpFile] = self.get_sftp_files_map()
         for file in sftp_files:
             self.log.info(
-                'Process will upload file from (SFTP) %s to wasb://%s as %s',
+                "Process will upload file from (SFTP) %s to wasb://%s as %s",
                 file.sftp_file_path,
                 self.container_name,
                 file.blob_name,
@@ -112,14 +108,14 @@ class SFTPToWasbOperator(BaseOperator):
             if self.move_object:
                 self.log.info("Executing delete of %s", file)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         """Upload a file from SFTP to Azure Blob Storage."""
-        sftp_files: List[SftpFile] = self.get_sftp_files_map()
+        sftp_files: list[SftpFile] = self.get_sftp_files_map()
         uploaded_files = self.copy_files_to_wasb(sftp_files)
         if self.move_object:
             self.delete_files(uploaded_files)
 
-    def get_sftp_files_map(self) -> List[SftpFile]:
+    def get_sftp_files_map(self) -> list[SftpFile]:
         """Get SFTP files from the source path, it may use a WILDCARD to this end."""
         sftp_files = []
 
@@ -137,7 +133,7 @@ class SFTPToWasbOperator(BaseOperator):
 
         return sftp_files
 
-    def get_tree_behavior(self) -> Tuple[str, Optional[str], Optional[str]]:
+    def get_tree_behavior(self) -> tuple[str, str | None, str | None]:
         """Extracts from source path the tree behavior to interact with the remote folder"""
         self.check_wildcards_limit()
 
@@ -174,7 +170,7 @@ class SFTPToWasbOperator(BaseOperator):
         """Get a blob name based on the previous name and a blob_prefix variable"""
         return self.blob_prefix + os.path.basename(file)
 
-    def copy_files_to_wasb(self, sftp_files: List[SftpFile]) -> List[str]:
+    def copy_files_to_wasb(self, sftp_files: list[SftpFile]) -> list[str]:
         """Upload a list of files from sftp_files to Azure Blob Storage with a new Blob Name."""
         uploaded_files = []
         wasb_hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
@@ -182,7 +178,7 @@ class SFTPToWasbOperator(BaseOperator):
             with NamedTemporaryFile("w") as tmp:
                 self.sftp_hook.retrieve_file(file.sftp_file_path, tmp.name)
                 self.log.info(
-                    'Uploading %s to wasb://%s as %s',
+                    "Uploading %s to wasb://%s as %s",
                     file.sftp_file_path,
                     self.container_name,
                     file.blob_name,
@@ -199,7 +195,7 @@ class SFTPToWasbOperator(BaseOperator):
 
         return uploaded_files
 
-    def delete_files(self, uploaded_files: List[str]) -> None:
+    def delete_files(self, uploaded_files: list[str]) -> None:
         """Delete files at SFTP which have been moved to Azure Blob Storage."""
         for sftp_file_path in uploaded_files:
             self.log.info("Executing delete of %s", sftp_file_path)

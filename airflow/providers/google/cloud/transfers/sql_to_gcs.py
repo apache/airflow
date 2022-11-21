@@ -16,10 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Base operator for SQL to GCS operators."""
+from __future__ import annotations
+
 import abc
 import json
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -34,7 +36,7 @@ if TYPE_CHECKING:
 
 class BaseSQLToGCSOperator(BaseOperator):
     """
-    Copy data from SQL to Google Cloud Storage in JSON or CSV format.
+    Copy data from SQL to Google Cloud Storage in JSON, CSV, or Parquet format.
 
     :param sql: The SQL to execute.
     :param bucket: The bucket to upload to.
@@ -50,7 +52,9 @@ class BaseSQLToGCSOperator(BaseOperator):
         filename param docs above). This param allows developers to specify the
         file size of the splits. Check https://cloud.google.com/storage/quotas
         to see the maximum allowed file size for a single object.
-    :param export_format: Desired format of files to be exported.
+    :param export_format: Desired format of files to be exported. (json, csv or parquet)
+    :param stringify_dict: Whether to dump Dictionary type objects
+        (such as JSON columns) as a string. Applies only to CSV/JSON export format.
     :param field_delimiter: The delimiter to be used for CSV files.
     :param null_marker: The null marker to be used for CSV files.
     :param gzip: Option to compress file for upload (does not apply to schemas).
@@ -71,21 +75,22 @@ class BaseSQLToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param upload_metadata: whether to upload the row count metadata as blob metadata
     :param exclude_columns: set of columns to exclude from transmission
     """
 
     template_fields: Sequence[str] = (
-        'sql',
-        'bucket',
-        'filename',
-        'schema_filename',
-        'schema',
-        'parameters',
-        'impersonation_chain',
+        "sql",
+        "bucket",
+        "filename",
+        "schema_filename",
+        "schema",
+        "parameters",
+        "impersonation_chain",
     )
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'sql'}
-    ui_color = '#a0e08c'
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "sql"}
+    ui_color = "#a0e08c"
 
     def __init__(
         self,
@@ -93,17 +98,19 @@ class BaseSQLToGCSOperator(BaseOperator):
         sql: str,
         bucket: str,
         filename: str,
-        schema_filename: Optional[str] = None,
+        schema_filename: str | None = None,
         approx_max_file_size_bytes: int = 1900000000,
-        export_format: str = 'json',
-        field_delimiter: str = ',',
-        null_marker: Optional[str] = None,
+        export_format: str = "json",
+        stringify_dict: bool = False,
+        field_delimiter: str = ",",
+        null_marker: str | None = None,
         gzip: bool = False,
-        schema: Optional[Union[str, list]] = None,
-        parameters: Optional[dict] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        schema: str | list | None = None,
+        parameters: dict | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        upload_metadata: bool = False,
         exclude_columns=None,
         **kwargs,
     ) -> None:
@@ -117,6 +124,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.schema_filename = schema_filename
         self.approx_max_file_size_bytes = approx_max_file_size_bytes
         self.export_format = export_format.lower()
+        self.stringify_dict = stringify_dict
         self.field_delimiter = field_delimiter
         self.null_marker = null_marker
         self.gzip = gzip
@@ -125,41 +133,66 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
+        self.upload_metadata = upload_metadata
         self.exclude_columns = exclude_columns
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info("Executing query")
         cursor = self.query()
 
         # If a schema is set, create a BQ schema JSON file.
         if self.schema_filename:
-            self.log.info('Writing local schema file')
+            self.log.info("Writing local schema file")
             schema_file = self._write_local_schema_file(cursor)
 
             # Flush file before uploading
-            schema_file['file_handle'].flush()
+            schema_file["file_handle"].flush()
 
-            self.log.info('Uploading schema file to GCS.')
+            self.log.info("Uploading schema file to GCS.")
             self._upload_to_gcs(schema_file)
-            schema_file['file_handle'].close()
+            schema_file["file_handle"].close()
 
         counter = 0
-        self.log.info('Writing local data files')
+        files = []
+        total_row_count = 0
+        total_files = 0
+        self.log.info("Writing local data files")
         for file_to_upload in self._write_local_data_files(cursor):
             # Flush file before uploading
-            file_to_upload['file_handle'].flush()
+            file_to_upload["file_handle"].flush()
 
-            self.log.info('Uploading chunk file #%d to GCS.', counter)
+            self.log.info("Uploading chunk file #%d to GCS.", counter)
             self._upload_to_gcs(file_to_upload)
 
-            self.log.info('Removing local file')
-            file_to_upload['file_handle'].close()
+            self.log.info("Removing local file")
+            file_to_upload["file_handle"].close()
+
+            # Metadata to be outputted to Xcom
+            total_row_count += file_to_upload["file_row_count"]
+            total_files += 1
+            files.append(
+                {
+                    "file_name": file_to_upload["file_name"],
+                    "file_mime_type": file_to_upload["file_mime_type"],
+                    "file_row_count": file_to_upload["file_row_count"],
+                }
+            )
+
             counter += 1
 
-    def convert_types(self, schema, col_type_dict, row, stringify_dict=False) -> list:
+        file_meta = {
+            "bucket": self.bucket,
+            "total_row_count": total_row_count,
+            "total_files": total_files,
+            "files": files,
+        }
+
+        return file_meta
+
+    def convert_types(self, schema, col_type_dict, row) -> list:
         """Convert values from DBAPI to output-friendly formats."""
         return [
-            self.convert_type(value, col_type_dict.get(name), stringify_dict=stringify_dict)
+            self.convert_type(value, col_type_dict.get(name), stringify_dict=self.stringify_dict)
             for name, value in zip(schema, row)
         ]
 
@@ -171,6 +204,8 @@ class BaseSQLToGCSOperator(BaseOperator):
             names in GCS, and values are file handles to local files that
             contain the data for the GCS objects.
         """
+        import os
+
         org_schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
         schema = [column for column in org_schema if column not in self.exclude_columns]
 
@@ -178,31 +213,33 @@ class BaseSQLToGCSOperator(BaseOperator):
         file_no = 0
 
         tmp_file_handle = NamedTemporaryFile(delete=True)
-        if self.export_format == 'csv':
-            file_mime_type = 'text/csv'
-        elif self.export_format == 'parquet':
-            file_mime_type = 'application/octet-stream'
+        if self.export_format == "csv":
+            file_mime_type = "text/csv"
+        elif self.export_format == "parquet":
+            file_mime_type = "application/octet-stream"
         else:
-            file_mime_type = 'application/json'
+            file_mime_type = "application/json"
         file_to_upload = {
-            'file_name': self.filename.format(file_no),
-            'file_handle': tmp_file_handle,
-            'file_mime_type': file_mime_type,
+            "file_name": self.filename.format(file_no),
+            "file_handle": tmp_file_handle,
+            "file_mime_type": file_mime_type,
+            "file_row_count": 0,
         }
 
-        if self.export_format == 'csv':
+        if self.export_format == "csv":
             csv_writer = self._configure_csv_file(tmp_file_handle, schema)
-        if self.export_format == 'parquet':
+        if self.export_format == "parquet":
             parquet_schema = self._convert_parquet_schema(cursor)
             parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
 
         for row in cursor:
-            if self.export_format == 'csv':
+            file_to_upload["file_row_count"] += 1
+            if self.export_format == "csv":
                 row = self.convert_types(schema, col_type_dict, row)
                 if self.null_marker is not None:
                     row = [value if value is not None else self.null_marker for value in row]
                 csv_writer.writerow(row)
-            elif self.export_format == 'parquet':
+            elif self.export_format == "parquet":
                 row = self.convert_types(schema, col_type_dict, row)
                 if self.null_marker is not None:
                     row = [value if value is not None else self.null_marker for value in row]
@@ -210,7 +247,7 @@ class BaseSQLToGCSOperator(BaseOperator):
                 tbl = pa.Table.from_pydict(row_pydic, parquet_schema)
                 parquet_writer.write_table(tbl)
             else:
-                row = self.convert_types(schema, col_type_dict, row, stringify_dict=False)
+                row = self.convert_types(schema, col_type_dict, row)
                 row_dict = dict(zip(schema, row))
 
                 tmp_file_handle.write(
@@ -218,34 +255,42 @@ class BaseSQLToGCSOperator(BaseOperator):
                 )
 
                 # Append newline to make dumps BigQuery compatible.
-                tmp_file_handle.write(b'\n')
+                tmp_file_handle.write(b"\n")
 
             # Stop if the file exceeds the file size limit.
-            if tmp_file_handle.tell() >= self.approx_max_file_size_bytes:
+            fppos = tmp_file_handle.tell()
+            tmp_file_handle.seek(0, os.SEEK_END)
+            file_size = tmp_file_handle.tell()
+            tmp_file_handle.seek(fppos, os.SEEK_SET)
+
+            if file_size >= self.approx_max_file_size_bytes:
                 file_no += 1
 
-                if self.export_format == 'parquet':
+                if self.export_format == "parquet":
                     parquet_writer.close()
                 yield file_to_upload
                 tmp_file_handle = NamedTemporaryFile(delete=True)
                 file_to_upload = {
-                    'file_name': self.filename.format(file_no),
-                    'file_handle': tmp_file_handle,
-                    'file_mime_type': file_mime_type,
+                    "file_name": self.filename.format(file_no),
+                    "file_handle": tmp_file_handle,
+                    "file_mime_type": file_mime_type,
+                    "file_row_count": 0,
                 }
-                if self.export_format == 'csv':
+                if self.export_format == "csv":
                     csv_writer = self._configure_csv_file(tmp_file_handle, schema)
-                if self.export_format == 'parquet':
+                if self.export_format == "parquet":
                     parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
-        if self.export_format == 'parquet':
+        if self.export_format == "parquet":
             parquet_writer.close()
-        yield file_to_upload
+        # Last file may have 0 rows, don't yield if empty
+        if file_to_upload["file_row_count"] > 0:
+            yield file_to_upload
 
     def _configure_csv_file(self, file_handle, schema):
         """Configure a csv writer with the file_handle and write schema
         as headers for the new file.
         """
-        csv_writer = csv.writer(file_handle, encoding='utf-8', delimiter=self.field_delimiter)
+        csv_writer = csv.writer(file_handle, encoding="utf-8", delimiter=self.field_delimiter)
         csv_writer.writerow(schema)
         return csv_writer
 
@@ -255,21 +300,21 @@ class BaseSQLToGCSOperator(BaseOperator):
 
     def _convert_parquet_schema(self, cursor):
         type_map = {
-            'INTEGER': pa.int64(),
-            'FLOAT': pa.float64(),
-            'NUMERIC': pa.float64(),
-            'BIGNUMERIC': pa.float64(),
-            'BOOL': pa.bool_(),
-            'STRING': pa.string(),
-            'BYTES': pa.binary(),
-            'DATE': pa.date32(),
-            'DATETIME': pa.date64(),
-            'TIMESTAMP': pa.timestamp('s'),
+            "INTEGER": pa.int64(),
+            "FLOAT": pa.float64(),
+            "NUMERIC": pa.float64(),
+            "BIGNUMERIC": pa.float64(),
+            "BOOL": pa.bool_(),
+            "STRING": pa.string(),
+            "BYTES": pa.binary(),
+            "DATE": pa.date32(),
+            "DATETIME": pa.date64(),
+            "TIMESTAMP": pa.timestamp("s"),
         }
 
         columns = [field[0] for field in cursor.description]
         bq_fields = [self.field_to_bigquery(field) for field in cursor.description]
-        bq_types = [bq_field.get('type') if bq_field is not None else None for bq_field in bq_fields]
+        bq_types = [bq_field.get("type") if bq_field is not None else None for bq_field in bq_fields]
         pq_types = [type_map.get(bq_type, pa.string()) for bq_type in bq_types]
         parquet_schema = pa.schema(zip(columns, pq_types))
         return parquet_schema
@@ -279,7 +324,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         """Execute DBAPI query."""
 
     @abc.abstractmethod
-    def field_to_bigquery(self, field) -> Dict[str, str]:
+    def field_to_bigquery(self, field) -> dict[str, str]:
         """Convert a DBAPI field to BigQuery schema format."""
 
     @abc.abstractmethod
@@ -294,16 +339,16 @@ class BaseSQLToGCSOperator(BaseOperator):
         elif isinstance(self.schema, list):
             schema = self.schema
         elif self.schema is not None:
-            self.log.warning('Using default schema due to unexpected type. Should be a string or list.')
+            self.log.warning("Using default schema due to unexpected type. Should be a string or list.")
 
         col_type_dict = {}
         try:
-            col_type_dict = {col['name']: col['type'] for col in schema}
+            col_type_dict = {col["name"]: col["type"] for col in schema}
         except KeyError:
             self.log.warning(
-                'Using default schema due to missing name or type. Please '
-                'refer to: https://cloud.google.com/bigquery/docs/schemas'
-                '#specifying_a_json_schema_file'
+                "Using default schema due to missing name or type. Please "
+                "refer to: https://cloud.google.com/bigquery/docs/schemas"
+                "#specifying_a_json_schema_file"
             )
         return col_type_dict
 
@@ -331,15 +376,15 @@ class BaseSQLToGCSOperator(BaseOperator):
         if isinstance(schema, list):
             schema = json.dumps(schema, sort_keys=True)
 
-        self.log.info('Using schema for %s', self.schema_filename)
+        self.log.info("Using schema for %s", self.schema_filename)
         self.log.debug("Current schema: %s", schema)
 
         tmp_schema_file_handle = NamedTemporaryFile(delete=True)
-        tmp_schema_file_handle.write(schema.encode('utf-8'))
+        tmp_schema_file_handle.write(schema.encode("utf-8"))
         schema_file_to_upload = {
-            'file_name': self.schema_filename,
-            'file_handle': tmp_schema_file_handle,
-            'file_mime_type': 'application/json',
+            "file_name": self.schema_filename,
+            "file_handle": tmp_schema_file_handle,
+            "file_mime_type": "application/json",
         }
         return schema_file_to_upload
 
@@ -350,10 +395,16 @@ class BaseSQLToGCSOperator(BaseOperator):
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
+        is_data_file = file_to_upload.get("file_name") != self.schema_filename
+        metadata = None
+        if is_data_file and self.upload_metadata:
+            metadata = {"row_count": file_to_upload["file_row_count"]}
+
         hook.upload(
             self.bucket,
-            file_to_upload.get('file_name'),
-            file_to_upload.get('file_handle').name,
-            mime_type=file_to_upload.get('file_mime_type'),
-            gzip=self.gzip if file_to_upload.get('file_name') != self.schema_filename else False,
+            file_to_upload.get("file_name"),
+            file_to_upload.get("file_handle").name,
+            mime_type=file_to_upload.get("file_mime_type"),
+            gzip=self.gzip if is_data_file else False,
+            metadata=metadata,
         )

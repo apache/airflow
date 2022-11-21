@@ -45,7 +45,7 @@ To publish a message to an Amazon SQS queue you can use the
 In the following example, the task ``publish_to_queue`` publishes a message containing
 the task instance and the execution date to a queue with a default name of ``Airflow-Example-Queue``.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sqs.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sqs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sqs]
@@ -62,7 +62,7 @@ Read messages from an Amazon SQS queue
 To read messages from an Amazon SQS queue until exhausted use the
 :class:`~airflow.providers.amazon.aws.sensors.sqs.SqsSensor`
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sqs.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sqs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_sqs]

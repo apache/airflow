@@ -15,14 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
-import unittest
+import os
 from unittest.mock import Mock, patch
 
 import pandas as pd
 import pytest
 from numpy import nan
+from pytest import param
 from requests import Session as request_session
 from simple_salesforce import Salesforce, api
 
@@ -31,8 +32,8 @@ from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
 from airflow.utils.session import create_session
 
 
-class TestSalesforceHook(unittest.TestCase):
-    def setUp(self):
+class TestSalesforceHook:
+    def setup(self):
         self.salesforce_hook = SalesforceHook(salesforce_conn_id="conn_id")
 
     def _insert_conn_db_entry(conn_id, conn_object):
@@ -62,14 +63,14 @@ class TestSalesforceHook(unittest.TestCase):
             conn_type="salesforce",
             login=None,
             password=None,
-            extra='''
+            extra="""
             {
-                "extra__salesforce__client_id": "my_client",
-                "extra__salesforce__domain": "test",
-                "extra__salesforce__security_token": "token",
-                "extra__salesforce__version": "42.0"
+                "client_id": "my_client",
+                "domain": "test",
+                "security_token": "token",
+                "version": "42.0"
             }
-            ''',
+            """,
         )
         TestSalesforceHook._insert_conn_db_entry(password_auth_conn.conn_id, password_auth_conn)
 
@@ -80,16 +81,16 @@ class TestSalesforceHook(unittest.TestCase):
         mock_salesforce.assert_called_once_with(
             username=password_auth_conn.login,
             password=password_auth_conn.password,
-            security_token=extras["extra__salesforce__security_token"],
-            domain=extras["extra__salesforce__domain"],
+            security_token=extras["security_token"],
+            domain=extras["domain"],
             session_id=None,
             instance=None,
             instance_url=None,
             organizationId=None,
-            version=extras["extra__salesforce__version"],
+            version=extras["version"],
             proxies=None,
             session=None,
-            client_id=extras["extra__salesforce__client_id"],
+            client_id=extras["client_id"],
             consumer_key=None,
             privatekey_file=None,
             privatekey=None,
@@ -109,14 +110,14 @@ class TestSalesforceHook(unittest.TestCase):
             conn_type="salesforce",
             login=None,
             password=None,
-            extra='''
+            extra="""
             {
-                "extra__salesforce__client_id": "my_client2",
-                "extra__salesforce__domain": "test",
-                "extra__salesforce__instance_url": "https://my.salesforce.com",
-                "extra__salesforce__version": "29.0"
+                "client_id": "my_client2",
+                "domain": "test",
+                "instance_url": "https://my.salesforce.com",
+                "version": "29.0"
             }
-            ''',
+            """,
         )
         TestSalesforceHook._insert_conn_db_entry(direct_access_conn.conn_id, direct_access_conn)
 
@@ -132,15 +133,15 @@ class TestSalesforceHook(unittest.TestCase):
             username=direct_access_conn.login,
             password=direct_access_conn.password,
             security_token=None,
-            domain=extras["extra__salesforce__domain"],
+            domain=extras["domain"],
             session_id=self.salesforce_hook.session_id,
             instance=None,
-            instance_url=extras["extra__salesforce__instance_url"],
+            instance_url=extras["instance_url"],
             organizationId=None,
-            version=extras["extra__salesforce__version"],
+            version=extras["version"],
             proxies=None,
             session=self.salesforce_hook.session,
-            client_id=extras["extra__salesforce__client_id"],
+            client_id=extras["client_id"],
             consumer_key=None,
             privatekey_file=None,
             privatekey=None,
@@ -160,15 +161,15 @@ class TestSalesforceHook(unittest.TestCase):
             conn_type="salesforce",
             login=None,
             password=None,
-            extra='''
+            extra="""
             {
-                "extra__salesforce__client_id": "my_client3",
-                "extra__salesforce__consumer_key": "consumer_key",
-                "extra__salesforce__domain": "login",
-                "extra__salesforce__private_key": "private_key",
-                "extra__salesforce__version": "34.0"
+                "client_id": "my_client3",
+                "consumer_key": "consumer_key",
+                "domain": "login",
+                "private_key": "private_key",
+                "version": "34.0"
             }
-            ''',
+            """,
         )
         TestSalesforceHook._insert_conn_db_entry(jwt_auth_conn.conn_id, jwt_auth_conn)
 
@@ -180,18 +181,18 @@ class TestSalesforceHook(unittest.TestCase):
             username=jwt_auth_conn.login,
             password=jwt_auth_conn.password,
             security_token=None,
-            domain=extras["extra__salesforce__domain"],
+            domain=extras["domain"],
             session_id=None,
             instance=None,
             instance_url=None,
             organizationId=None,
-            version=extras["extra__salesforce__version"],
+            version=extras["version"],
             proxies=None,
             session=None,
-            client_id=extras["extra__salesforce__client_id"],
-            consumer_key=extras["extra__salesforce__consumer_key"],
+            client_id=extras["client_id"],
+            consumer_key=extras["consumer_key"],
             privatekey_file=None,
-            privatekey=extras["extra__salesforce__private_key"],
+            privatekey=extras["private_key"],
         )
 
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
@@ -208,11 +209,11 @@ class TestSalesforceHook(unittest.TestCase):
             conn_type="salesforce",
             login="username",
             password="password",
-            extra='''
+            extra="""
             {
-                "extra__salesforce__organization_id": "my_organization"
+                "organization_id": "my_organization"
             }
-            ''',
+            """,
         )
         TestSalesforceHook._insert_conn_db_entry(ip_filtering_auth_conn.conn_id, ip_filtering_auth_conn)
 
@@ -228,7 +229,7 @@ class TestSalesforceHook(unittest.TestCase):
             session_id=None,
             instance=None,
             instance_url=None,
-            organizationId=extras["extra__salesforce__organization_id"],
+            organizationId=extras["organization_id"],
             version=api.DEFAULT_API_VERSION,
             proxies=None,
             session=None,
@@ -250,20 +251,20 @@ class TestSalesforceHook(unittest.TestCase):
             conn_type="salesforce",
             login=None,
             password=None,
-            extra='''
+            extra="""
             {
-                "extra__salesforce__client_id": "",
-                "extra__salesforce__consumer_key": "",
-                "extra__salesforce__domain": "",
-                "extra__salesforce__instance": "",
-                "extra__salesforce__instance_url": "",
-                "extra__salesforce__organization_id": "",
-                "extra__salesforce__private_key": "",
-                "extra__salesforce__private_key_file_path": "",
-                "extra__salesforce__proxies": "",
-                "extra__salesforce__security_token": ""
+                "client_id": "",
+                "consumer_key": "",
+                "domain": "",
+                "instance": "",
+                "instance_url": "",
+                "organization_id": "",
+                "private_key": "",
+                "private_key_file_path": "",
+                "proxies": "",
+                "security_token": ""
             }
-            ''',
+            """,
         )
         TestSalesforceHook._insert_conn_db_entry(default_to_none_conn.conn_id, default_to_none_conn)
 
@@ -451,3 +452,65 @@ class TestSalesforceHook(unittest.TestCase):
                 }
             ),
         )
+
+    @pytest.mark.parametrize(
+        "uri",
+        [
+            param(
+                "a://?extra__salesforce__security_token=token&extra__salesforce__domain=domain",
+                id="prefix",
+            ),
+            param("a://?security_token=token&domain=domain", id="no-prefix"),
+        ],
+    )
+    @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
+    def test_backcompat_prefix_works(self, mock_client, uri):
+        with patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}):
+            hook = SalesforceHook("my_conn")
+            hook.get_conn()
+            mock_client.assert_called_with(
+                client_id=None,
+                consumer_key=None,
+                domain="domain",
+                instance=None,
+                instance_url=None,
+                organizationId=None,
+                password=None,
+                privatekey=None,
+                privatekey_file=None,
+                proxies=None,
+                security_token="token",
+                session=None,
+                session_id=None,
+                username=None,
+                version="52.0",
+            )
+
+    @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
+    def test_backcompat_prefix_both_prefers_short(self, mock_client):
+        with patch.dict(
+            os.environ,
+            {
+                "AIRFLOW_CONN_MY_CONN": "a://?security_token=non-prefixed"
+                "&extra__salesforce__security_token=prefixed"
+            },
+        ):
+            hook = SalesforceHook("my_conn")
+            hook.get_conn()
+            mock_client.assert_called_with(
+                client_id=None,
+                consumer_key=None,
+                domain=None,
+                instance=None,
+                instance_url=None,
+                organizationId=None,
+                password=None,
+                privatekey=None,
+                privatekey_file=None,
+                proxies=None,
+                security_token="non-prefixed",
+                session=None,
+                session_id=None,
+                username=None,
+                version="52.0",
+            )

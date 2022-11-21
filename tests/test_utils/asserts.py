@@ -14,12 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import logging
 import re
 import traceback
 from collections import Counter
 from contextlib import contextmanager
-from typing import Optional
 
 from sqlalchemy import event
 
@@ -59,9 +60,9 @@ class CountQueries:
         stack = [
             f
             for f in traceback.extract_stack()
-            if 'sqlalchemy' not in f.filename
+            if "sqlalchemy" not in f.filename
             and __file__ != f.filename
-            and ('session.py' not in f.filename and f.name != 'wrapper')
+            and ("session.py" not in f.filename and f.name != "wrapper")
         ]
         stack_info = ">".join([f"{f.filename.rpartition('/')[-1]}:{f.name}:{f.lineno}" for f in stack][-5:])
         self.result[f"{stack_info}"] += 1
@@ -71,7 +72,7 @@ count_queries = CountQueries
 
 
 @contextmanager
-def assert_queries_count(expected_count: int, message_fmt: Optional[str] = None, margin: int = 0):
+def assert_queries_count(expected_count: int, message_fmt: str | None = None, margin: int = 0):
     """
     Asserts that the number of queries is as expected with the margin applied
     The margin is helpful in case of complex cases where we do not want to change it every time we
@@ -94,6 +95,6 @@ def assert_queries_count(expected_count: int, message_fmt: Optional[str] = None,
         message = message_fmt.format(current_count=count, expected_count=expected_count, margin=margin)
 
         for location, count in result.items():
-            message += f'\n\t{location}:\t{count}'
+            message += f"\n\t{location}:\t{count}"
 
         raise AssertionError(message)

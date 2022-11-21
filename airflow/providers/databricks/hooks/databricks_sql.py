@@ -14,22 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-import re
 from contextlib import closing
 from copy import copy
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Iterable, Mapping
 
 from databricks import sql  # type: ignore[attr-defined]
 from databricks.sql.client import Connection  # type: ignore[attr-defined]
 
-from airflow import __version__
 from airflow.exceptions import AirflowException
-from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
-LIST_SQL_ENDPOINTS_ENDPOINT = ('GET', 'api/2.0/sql/endpoints')
-USER_AGENT_STRING = f'airflow-{__version__}'
+LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
 
 
 class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
@@ -52,22 +50,24 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
     :param kwargs: Additional parameters internal to Databricks SQL Connector parameters
     """
 
-    hook_name = 'Databricks SQL'
+    hook_name = "Databricks SQL"
+    _test_connection_sql = "select 42"
 
     def __init__(
         self,
         databricks_conn_id: str = BaseDatabricksHook.default_conn_name,
-        http_path: Optional[str] = None,
-        sql_endpoint_name: Optional[str] = None,
-        session_configuration: Optional[Dict[str, str]] = None,
-        http_headers: Optional[List[Tuple[str, str]]] = None,
-        catalog: Optional[str] = None,
-        schema: Optional[str] = None,
+        http_path: str | None = None,
+        sql_endpoint_name: str | None = None,
+        session_configuration: dict[str, str] | None = None,
+        http_headers: list[tuple[str, str]] | None = None,
+        catalog: str | None = None,
+        schema: str | None = None,
+        caller: str = "DatabricksSqlHook",
         **kwargs,
     ) -> None:
-        super().__init__(databricks_conn_id)
+        super().__init__(databricks_conn_id, caller=caller)
         self._sql_conn = None
-        self._token: Optional[str] = None
+        self._token: str | None = None
         self._http_path = http_path
         self._sql_endpoint_name = sql_endpoint_name
         self.supports_autocommit = True
@@ -77,19 +77,19 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         self.schema = schema
         self.additional_params = kwargs
 
-    def _get_extra_config(self) -> Dict[str, Optional[Any]]:
+    def _get_extra_config(self) -> dict[str, Any | None]:
         extra_params = copy(self.databricks_conn.extra_dejson)
-        for arg in ['http_path', 'session_configuration'] + self.extra_parameters:
+        for arg in ["http_path", "session_configuration"] + self.extra_parameters:
             if arg in extra_params:
                 del extra_params[arg]
 
         return extra_params
 
-    def _get_sql_endpoint_by_name(self, endpoint_name) -> Dict[str, Any]:
+    def _get_sql_endpoint_by_name(self, endpoint_name) -> dict[str, Any]:
         result = self._do_api_call(LIST_SQL_ENDPOINTS_ENDPOINT)
-        if 'endpoints' not in result:
+        if "endpoints" not in result:
             raise AirflowException("Can't list Databricks SQL endpoints")
-        lst = [endpoint for endpoint in result['endpoints'] if endpoint['name'] == endpoint_name]
+        lst = [endpoint for endpoint in result["endpoints"] if endpoint["name"] == endpoint_name]
         if len(lst) == 0:
             raise AirflowException(f"Can't f Databricks SQL endpoint with name '{endpoint_name}'")
         return lst[0]
@@ -99,9 +99,9 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         if not self._http_path:
             if self._sql_endpoint_name:
                 endpoint = self._get_sql_endpoint_by_name(self._sql_endpoint_name)
-                self._http_path = endpoint['odbc_params']['path']
-            elif 'http_path' in self.databricks_conn.extra_dejson:
-                self._http_path = self.databricks_conn.extra_dejson['http_path']
+                self._http_path = endpoint["odbc_params"]["path"]
+            elif "http_path" in self.databricks_conn.extra_dejson:
+                self._http_path = self.databricks_conn.extra_dejson["http_path"]
             else:
                 raise AirflowException(
                     "http_path should be provided either explicitly, "
@@ -120,7 +120,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                 requires_init = False
 
         if not self.session_config:
-            self.session_config = self.databricks_conn.extra_dejson.get('session_configuration')
+            self.session_config = self.databricks_conn.extra_dejson.get("session_configuration")
 
         if not self._sql_conn or requires_init:
             if self._sql_conn:  # close already existing connection
@@ -133,25 +133,21 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                 catalog=self.catalog,
                 session_configuration=self.session_config,
                 http_headers=self.http_headers,
-                _user_agent_entry=USER_AGENT_STRING,
+                _user_agent_entry=self.user_agent_value,
                 **self._get_extra_config(),
                 **self.additional_params,
             )
         return self._sql_conn
 
-    @staticmethod
-    def maybe_split_sql_string(sql: str) -> List[str]:
-        """
-        Splits strings consisting of multiple SQL expressions into an
-        TODO: do we need something more sophisticated?
-
-        :param sql: SQL string potentially consisting of multiple expressions
-        :return: list of individual expressions
-        """
-        splits = [s.strip() for s in re.split(";\\s*\r?\n", sql) if s.strip() != ""]
-        return splits
-
-    def run(self, sql: Union[str, List[str]], autocommit=True, parameters=None, handler=None):
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = False,
+        parameters: Iterable | Mapping | None = None,
+        handler: Callable | None = None,
+        split_statements: bool = True,
+        return_last: bool = True,
+    ) -> tuple[str, Any] | list[tuple[str, Any]] | None:
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
@@ -163,49 +159,44 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             before executing the query.
         :param parameters: The parameters to render the SQL query with.
         :param handler: The result handler which is called with the result of each statement.
-        :return: query results.
+        :param split_statements: Whether to split a single SQL string into statements and run separately
+        :param return_last: Whether to return result for only last statement or for all after split
+        :return: return only result of the LAST SQL expression if handler was provided.
         """
+        scalar_return_last = isinstance(sql, str) and return_last
         if isinstance(sql, str):
-            sql = self.maybe_split_sql_string(sql)
+            if split_statements:
+                sql = self.split_sql_string(sql)
+            else:
+                sql = [self.strip_sql_string(sql)]
 
         if sql:
-            self.log.debug("Executing %d statements", len(sql))
+            self.log.debug("Executing following statements against Databricks DB: %s", list(sql))
         else:
             raise ValueError("List of SQL statements is empty")
 
-        conn = None
+        results = []
         for sql_statement in sql:
             # when using AAD tokens, it could expire if previous query run longer than token lifetime
-            conn = self.get_conn()
-            with closing(conn.cursor()) as cur:
-                self.log.info("Executing statement: '%s', parameters: '%s'", sql_statement, parameters)
-                if parameters:
-                    cur.execute(sql_statement, parameters)
-                else:
-                    cur.execute(sql_statement)
-                schema = cur.description
-                results = []
-                if handler is not None:
-                    cur = handler(cur)
-                for row in cur:
-                    self.log.debug("Statement results: %s", row)
-                    results.append(row)
+            with closing(self.get_conn()) as conn:
+                self.set_autocommit(conn, autocommit)
 
-                self.log.info("Rows affected: %s", cur.rowcount)
-        if conn:
-            conn.close()
+                with closing(conn.cursor()) as cur:
+                    self._run_command(cur, sql_statement, parameters)
+
+                    if handler is not None:
+                        result = handler(cur)
+                        schema = cur.description
+                        results.append((schema, result))
+
             self._sql_conn = None
 
-        # Return only result of the last SQL expression
-        return schema, results
-
-    def test_connection(self):
-        """Test the Databricks SQL connection by running a simple query."""
-        try:
-            self.run(sql="select 42")
-        except Exception as e:
-            return False, str(e)
-        return True, "Connection successfully checked"
+        if handler is None:
+            return None
+        elif scalar_return_last:
+            return results[-1]
+        else:
+            return results
 
     def bulk_dump(self, table, tmp_file):
         raise NotImplementedError()

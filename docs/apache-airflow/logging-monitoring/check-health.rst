@@ -28,12 +28,12 @@ For example, when running on Kubernetes, use `a Liveness probes <https://kuberne
 with :ref:`CLI checks <check-health/cli-checks-for-scheduler>` on the scheduler deployment to restart it when it fails.
 For the webserver, you can configure the readiness probe (``readinessProbe`` property) using :ref:`check-health/http-endpoint`.
 
-For an example for a Docker Compose environment, see the ``docker-compose.yaml`` file available in the :doc:`/start/docker`.
+For an example for a Docker Compose environment, see the ``docker-compose.yaml`` file available in the :doc:`/howto/docker-compose/index`.
 
 .. _check-health/http-endpoint:
 
-Health Check Endpoint
----------------------
+Webserver Health Check Endpoint
+-------------------------------
 
 To check the health status of your Airflow instance, you can simply access the endpoint
 ``/health``. It will return a JSON object in which a high-level glance is provided.
@@ -66,11 +66,25 @@ To check the health status of your Airflow instance, you can simply access the e
 Please keep in mind that the HTTP response code of ``/health`` endpoint **should not** be used to determine the health
 status of the application. The return code is only indicative of the state of the rest call (200 for success).
 
+Served by the web server, this health check endpoint is independent of the newer :ref:`Scheduler Health Check Server <check-health/scheduler-health-check-server>`, which optionally runs on each scheduler.
+
 .. note::
 
   For this check to work, at least one working web server is required. Suppose you use this check for scheduler
   monitoring, then in case of failure of the web server, you will lose the ability to monitor scheduler, which means
-  that it can be restarted even if it is in good condition. For greater confidence, consider using :ref:`CLI Check for Scheduler <check-health/cli-checks-for-scheduler>`.
+  that it can be restarted even if it is in good condition. For greater confidence, consider using :ref:`CLI Check for Scheduler <check-health/cli-checks-for-scheduler>` or  :ref:`Scheduler Health Check Server <check-health/scheduler-health-check-server>`.
+
+.. _check-health/scheduler-health-check-server:
+
+Scheduler Health Check Server
+-----------------------------
+
+In order to check scheduler health independent of the web server, Airflow optionally starts a small HTTP server
+in each scheduler to serve a scheduler ``\health`` endpoint. It returns status code ``200`` when the scheduler
+is healthy and status code ``503`` when the scheduler is unhealthy. To run this server in each scheduler, set
+``[scheduler]enable_health_check`` to ``True``. By default, it is ``False``. The server is running on the port
+specified by the ``[scheduler]scheduler_health_check_server_port`` option. By default, it is ``8974``. We are
+using `http.server.BaseHTTPRequestHandler <https://docs.python.org/3/library/http.server.html#http.server.BaseHTTPRequestHandler>`__ as a small server.
 
 .. _check-health/cli-checks-for-scheduler:
 

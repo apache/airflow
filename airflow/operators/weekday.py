@@ -15,9 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import warnings
-from typing import Iterable, Union
+from __future__ import annotations
 
+import warnings
+from typing import Iterable
+
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.operators.branch import BaseBranchOperator
 from airflow.utils import timezone
 from airflow.utils.context import Context
@@ -30,6 +33,40 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
     For more information on how to use this operator, take a look at the guide:
     :ref:`howto/operator:BranchDayOfWeekOperator`
 
+    **Example** (with single day): ::
+
+        from airflow.operators.empty import EmptyOperator
+
+        monday = EmptyOperator(task_id='monday')
+        other_day = EmptyOperator(task_id='other_day')
+
+        monday_check = DayOfWeekSensor(
+            task_id='monday_check',
+            week_day='Monday',
+            use_task_logical_date=True,
+            follow_task_ids_if_true='monday',
+            follow_task_ids_if_false='other_day',
+            dag=dag)
+        monday_check >> [monday, other_day]
+
+    **Example** (with :class:`~airflow.utils.weekday.WeekDay` enum): ::
+
+        # import WeekDay Enum
+        from airflow.utils.weekday import WeekDay
+        from airflow.operators.empty import EmptyOperator
+
+        workday = EmptyOperator(task_id='workday')
+        weekend = EmptyOperator(task_id='weekend')
+        weekend_check = BranchDayOfWeekOperator(
+            task_id='weekend_check',
+            week_day={WeekDay.SATURDAY, WeekDay.SUNDAY},
+            use_task_logical_date=True,
+            follow_task_ids_if_true='weekend',
+            follow_task_ids_if_false='workday',
+            dag=dag)
+        # add downstream dependencies as you would do with any branch operator
+        weekend_check >> [workday, weekend]
+
     :param follow_task_ids_if_true: task id or task ids to follow if criteria met
     :param follow_task_ids_if_false: task id or task ids to follow if criteria does not met
     :param week_day: Day of the week to check (full name). Optionally, a set
@@ -41,17 +78,20 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
             * ``{WeekDay.TUESDAY}``
             * ``{WeekDay.SATURDAY, WeekDay.SUNDAY}``
 
+        To use `WeekDay` enum, import it from `airflow.utils.weekday`
+
     :param use_task_logical_date: If ``True``, uses task's logical date to compare
         with is_today. Execution Date is Useful for backfilling.
         If ``False``, uses system's day of the week.
+    :param use_task_execution_day: deprecated parameter, same effect as `use_task_logical_date`
     """
 
     def __init__(
         self,
         *,
-        follow_task_ids_if_true: Union[str, Iterable[str]],
-        follow_task_ids_if_false: Union[str, Iterable[str]],
-        week_day: Union[str, Iterable[str]],
+        follow_task_ids_if_true: str | Iterable[str],
+        follow_task_ids_if_false: str | Iterable[str],
+        week_day: str | Iterable[str] | WeekDay | Iterable[WeekDay],
         use_task_logical_date: bool = False,
         use_task_execution_day: bool = False,
         **kwargs,
@@ -65,12 +105,12 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
             self.use_task_logical_date = use_task_execution_day
             warnings.warn(
                 "Parameter ``use_task_execution_day`` is deprecated. Use ``use_task_logical_date``.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
         self._week_day_num = WeekDay.validate_week_day(week_day)
 
-    def choose_branch(self, context: Context) -> Union[str, Iterable[str]]:
+    def choose_branch(self, context: Context) -> str | Iterable[str]:
         if self.use_task_logical_date:
             now = context["logical_date"]
         else:

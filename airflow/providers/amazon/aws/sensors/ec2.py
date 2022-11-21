@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.sensors.base import BaseSensorOperator
@@ -51,7 +51,7 @@ class EC2InstanceStateSensor(BaseSensorOperator):
         target_state: str,
         instance_id: str,
         aws_conn_id: str = "aws_default",
-        region_name: Optional[str] = None,
+        region_name: str | None = None,
         **kwargs,
     ):
         if target_state not in self.valid_states:
@@ -62,7 +62,7 @@ class EC2InstanceStateSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         instance_state = ec2_hook.get_instance_state(instance_id=self.instance_id)
         self.log.info("instance state: %s", instance_state)

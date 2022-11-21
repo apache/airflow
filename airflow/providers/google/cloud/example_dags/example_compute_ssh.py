@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -23,17 +24,16 @@ from airflow.providers.google.cloud.hooks.compute_ssh import ComputeEngineSSHHoo
 from airflow.providers.ssh.operators.ssh import SSHOperator
 
 # [START howto_operator_gce_args_common]
-GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
-GCE_ZONE = os.environ.get('GCE_ZONE', 'europe-west2-a')
-GCE_INSTANCE = os.environ.get('GCE_INSTANCE', 'target-instance')
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
+GCE_ZONE = os.environ.get("GCE_ZONE", "europe-west2-a")
+GCE_INSTANCE = os.environ.get("GCE_INSTANCE", "target-instance")
 # [END howto_operator_gce_args_common]
 
 with models.DAG(
-    'example_compute_ssh',
-    schedule_interval='@once',  # Override to match your needs
+    "example_compute_ssh",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # # [START howto_execute_command_on_remote1]
     os_login_without_iap_tunnel = SSHOperator(

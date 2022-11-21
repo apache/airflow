@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Drop ``KubeResourceVersion`` and ``KubeWorkerId``
 
 Revision ID: bef4f3d11e8b
@@ -23,18 +22,18 @@ Revises: e1a11ece99cc
 Create Date: 2020-09-22 18:45:28.011654
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-
-from airflow.compat.sqlalchemy import inspect
+from sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
-revision = 'bef4f3d11e8b'
-down_revision = 'e1a11ece99cc'
+revision = "bef4f3d11e8b"
+down_revision = "e1a11ece99cc"
 branch_labels = None
 depends_on = None
-airflow_version = '2.0.0'
+airflow_version = "2.0.0"
 
 
 WORKER_UUID_TABLE = "kube_worker_uuid"

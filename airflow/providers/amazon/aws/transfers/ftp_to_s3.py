@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -60,7 +62,7 @@ class FTPToS3Operator(BaseOperator):
         uploaded to the S3 bucket.
     """
 
-    template_fields: Sequence[str] = ('ftp_path', 's3_bucket', 's3_key', 'ftp_filenames', 's3_filenames')
+    template_fields: Sequence[str] = ("ftp_path", "s3_bucket", "s3_key", "ftp_filenames", "s3_filenames")
 
     def __init__(
         self,
@@ -68,14 +70,14 @@ class FTPToS3Operator(BaseOperator):
         ftp_path: str,
         s3_bucket: str,
         s3_key: str,
-        ftp_filenames: Optional[Union[str, List[str]]] = None,
-        s3_filenames: Optional[Union[str, List[str]]] = None,
-        ftp_conn_id: str = 'ftp_default',
-        aws_conn_id: str = 'aws_default',
+        ftp_filenames: str | list[str] | None = None,
+        s3_filenames: str | list[str] | None = None,
+        ftp_conn_id: str = "ftp_default",
+        aws_conn_id: str = "aws_default",
         replace: bool = False,
         encrypt: bool = False,
         gzip: bool = False,
-        acl_policy: Optional[str] = None,
+        acl_policy: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -90,8 +92,8 @@ class FTPToS3Operator(BaseOperator):
         self.encrypt = encrypt
         self.gzip = gzip
         self.acl_policy = acl_policy
-        self.s3_hook: Optional[S3Hook] = None
-        self.ftp_hook: Optional[FTPHook] = None
+        self.s3_hook: S3Hook | None = None
+        self.ftp_hook: FTPHook | None = None
 
     def __upload_to_s3_from_ftp(self, remote_filename, s3_file_key):
         with NamedTemporaryFile() as local_tmp_file:
@@ -108,35 +110,35 @@ class FTPToS3Operator(BaseOperator):
                 gzip=self.gzip,
                 acl_policy=self.acl_policy,
             )
-            self.log.info('File upload to %s', s3_file_key)
+            self.log.info("File upload to %s", s3_file_key)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.ftp_hook = FTPHook(ftp_conn_id=self.ftp_conn_id)
         self.s3_hook = S3Hook(self.aws_conn_id)
 
         if self.ftp_filenames:
             if isinstance(self.ftp_filenames, str):
-                self.log.info('Getting files in %s', self.ftp_path)
+                self.log.info("Getting files in %s", self.ftp_path)
 
                 list_dir = self.ftp_hook.list_directory(
                     path=self.ftp_path,
                 )
 
-                if self.ftp_filenames == '*':
+                if self.ftp_filenames == "*":
                     files = list_dir
                 else:
                     ftp_filename: str = self.ftp_filenames
                     files = list(filter(lambda f: ftp_filename in f, list_dir))
 
                 for file in files:
-                    self.log.info('Moving file %s', file)
+                    self.log.info("Moving file %s", file)
 
                     if self.s3_filenames and isinstance(self.s3_filenames, str):
                         filename = file.replace(self.ftp_filenames, self.s3_filenames)
                     else:
                         filename = file
 
-                    s3_file_key = f'{self.s3_key}{filename}'
+                    s3_file_key = f"{self.s3_key}{filename}"
                     self.__upload_to_s3_from_ftp(file, s3_file_key)
 
             else:

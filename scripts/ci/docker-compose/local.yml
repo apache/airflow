@@ -26,10 +26,7 @@ services:
     # or those that might be useful to see in the host as output of the
     # tests (such as logs)
     volumes:
-      - type: volume
-        source: mypy-cache-volume
-        target: /opt/airflow/.mypy_cache/
-        # START automatically generated volumes from NECESSARY_HOST_VOLUMES in docker_command_utils.py
+      # START automatically generated volumes from VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py
       - type: bind
         source: ../../../.bash_aliases
         target: /root/.bash_aliases
@@ -55,8 +52,8 @@ services:
         source: ../../../.rat-excludes
         target: /opt/airflow/.rat-excludes
       - type: bind
-        source: ../../../RELEASE_NOTES.rst
-        target: /opt/airflow/RELEASE_NOTES.rst
+        source: ../../../BREEZE.rst
+        target: /opt/airflow/BREEZE.rst
       - type: bind
         source: ../../../LICENSE
         target: /opt/airflow/LICENSE
@@ -66,6 +63,9 @@ services:
       - type: bind
         source: ../../../NOTICE
         target: /opt/airflow/NOTICE
+      - type: bind
+        source: ../../../RELEASE_NOTES.rst
+        target: /opt/airflow/RELEASE_NOTES.rst
       - type: bind
         source: ../../../airflow
         target: /opt/airflow/airflow
@@ -82,8 +82,14 @@ services:
         source: ../../../docs
         target: /opt/airflow/docs
       - type: bind
+        source: ../../../generated
+        target: /opt/airflow/generated
+      - type: bind
         source: ../../../hooks
         target: /opt/airflow/hooks
+      - type: bind
+        source: ../../../images
+        target: /opt/airflow/images
       - type: bind
         source: ../../../logs
         target: /root/airflow/logs
@@ -120,6 +126,4 @@ services:
       - type: bind
         source: ../../../metastore_browser
         target: /opt/airflow/metastore_browser
-        # END automatically generated volumes from NECESSARY_HOST_VOLUMES in docker_command_utils.py
-volumes:
-  mypy-cache-volume:
+        # END automatically generated volumes from VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py

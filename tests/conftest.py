@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import os
 import subprocess
@@ -26,13 +28,18 @@ import pytest
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
+from itsdangerous import URLSafeSerializer
+
 assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
 tests_directory = os.path.dirname(os.path.realpath(__file__))
 
 os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.path.join(tests_directory, "dags")
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
-os.environ["CREDENTIALS_DIR"] = os.environ.get('CREDENTIALS_DIR') or "/files/airflow-breeze-config/keys"
+os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/airflow-breeze-config/keys"
+
+from airflow import settings  # noqa: E402
+from airflow.models.tasklog import LogTemplate  # noqa: E402
 
 from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa isort:skip
     count_queries,
@@ -56,6 +63,28 @@ def reset_environment():
 
 
 @pytest.fixture()
+def secret_key() -> str:
+    """
+    Return secret key configured.
+    :return:
+    """
+    from airflow.configuration import conf
+
+    the_key = conf.get("webserver", "SECRET_KEY")
+    if the_key is None:
+        raise RuntimeError(
+            "The secret key SHOULD be configured as `[webserver] secret_key` in the "
+            "configuration/environment at this stage! "
+        )
+    return the_key
+
+
+@pytest.fixture()
+def url_safe_serializer(secret_key) -> URLSafeSerializer:
+    return URLSafeSerializer(secret_key)
+
+
+@pytest.fixture()
 def reset_db():
     """
     Resets Airflow db.
@@ -67,7 +96,7 @@ def reset_db():
     yield
 
 
-ALLOWED_TRACE_SQL_COLUMNS = ['num', 'time', 'trace', 'sql', 'parameters', 'count']
+ALLOWED_TRACE_SQL_COLUMNS = ["num", "time", "trace", "sql", "parameters", "count"]
 
 
 @pytest.fixture(autouse=True)
@@ -94,18 +123,18 @@ def trace_sql(request):
         return terminal_reporter.write_line(text)
 
     with ExitStack() as exit_stack:
-        if columns == ['num']:
+        if columns == ["num"]:
             # It is very unlikely that the user wants to display only numbers, but probably
             # the user just wants to count the queries.
             exit_stack.enter_context(count_queries(print_fn=pytest_print))
-        elif any(c for c in ['time', 'trace', 'sql', 'parameters']):
+        elif any(c for c in ["time", "trace", "sql", "parameters"]):
             exit_stack.enter_context(
                 trace_queries(
-                    display_num='num' in columns,
-                    display_time='time' in columns,
-                    display_trace='trace' in columns,
-                    display_sql='sql' in columns,
-                    display_parameters='parameters' in columns,
+                    display_num="num" in columns,
+                    display_time="time" in columns,
+                    display_trace="trace" in columns,
+                    display_sql="sql" in columns,
+                    display_parameters="parameters" in columns,
                     print_fn=pytest_print,
                 )
             )
@@ -166,10 +195,20 @@ def pytest_addoption(parser):
 
 
 def initial_db_init():
+    from flask import Flask
+
+    from airflow.configuration import conf
     from airflow.utils import db
+    from airflow.www.app import sync_appbuilder_roles
+    from airflow.www.extensions.init_appbuilder import init_appbuilder
 
     db.resetdb()
     db.bootstrap_dagbag()
+    # minimal app to add roles
+    flask_app = Flask(__name__)
+    flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
+    init_appbuilder(flask_app)
+    sync_appbuilder_roles(flask_app)
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -210,7 +249,7 @@ def initialize_airflow_tests(request):
         # Initialize kerberos
         kerberos = os.environ.get("KRB5_KTNAME")
         if kerberos:
-            subprocess.check_call(["kinit", "-kt", kerberos, 'bob@EXAMPLE.COM'])
+            subprocess.check_call(["kinit", "-kt", kerberos, "bob@EXAMPLE.COM"])
         else:
             print("Kerberos enabled! Please setup KRB5_KTNAME environment variable")
             sys.exit(1)
@@ -322,7 +361,7 @@ def skip_if_wrong_backend(marker, item):
 def skip_if_credential_file_missing(item):
     for marker in item.iter_markers(name="credential_file"):
         credential_file = marker.args[0]
-        credential_path = os.path.join(os.environ.get('CREDENTIALS_DIR'), credential_file)
+        credential_path = os.path.join(os.environ.get("CREDENTIALS_DIR"), credential_file)
         if not os.path.exists(credential_path):
             pytest.skip(f"The test requires credential file {credential_path}: {item}")
 
@@ -481,11 +520,13 @@ def dag_maker(request):
                 return
 
             dag.clear(session=self.session)
-            dag.sync_to_db(self.session)
+            dag.sync_to_db(processor_subdir=self.processor_subdir, session=self.session)
             self.dag_model = self.session.query(DagModel).get(dag.dag_id)
 
             if self.want_serialized:
-                self.serialized_model = SerializedDagModel(dag)
+                self.serialized_model = SerializedDagModel(
+                    dag, processor_subdir=self.dag_model.processor_subdir
+                )
                 self.session.merge(self.serialized_model)
                 serialized_dag = self._serialized_dag()
                 self.dagbag.bag_dag(serialized_dag, root_dag=serialized_dag)
@@ -541,7 +582,13 @@ def dag_maker(request):
             )
 
         def __call__(
-            self, dag_id='test_dag', serialized=want_serialized, fileloc=None, session=None, **kwargs
+            self,
+            dag_id="test_dag",
+            serialized=want_serialized,
+            fileloc=None,
+            processor_subdir=None,
+            session=None,
+            **kwargs,
         ):
             from airflow import settings
             from airflow.models import DAG
@@ -553,27 +600,29 @@ def dag_maker(request):
 
             self.kwargs = kwargs
             self.session = session
-            self.start_date = self.kwargs.get('start_date', None)
-            default_args = kwargs.get('default_args', None)
+            self.start_date = self.kwargs.get("start_date", None)
+            default_args = kwargs.get("default_args", None)
             if default_args and not self.start_date:
-                if 'start_date' in default_args:
-                    self.start_date = default_args.get('start_date')
+                if "start_date" in default_args:
+                    self.start_date = default_args.get("start_date")
             if not self.start_date:
 
-                if hasattr(request.module, 'DEFAULT_DATE'):
-                    self.start_date = getattr(request.module, 'DEFAULT_DATE')
+                if hasattr(request.module, "DEFAULT_DATE"):
+                    self.start_date = getattr(request.module, "DEFAULT_DATE")
                 else:
                     DEFAULT_DATE = timezone.datetime(2016, 1, 1)
                     self.start_date = DEFAULT_DATE
-            self.kwargs['start_date'] = self.start_date
+            self.kwargs["start_date"] = self.start_date
             self.dag = DAG(dag_id, **self.kwargs)
             self.dag.fileloc = fileloc or request.module.__file__
             self.want_serialized = serialized
+            self.processor_subdir = processor_subdir
 
             return self
 
         def cleanup(self):
             from airflow.models import DagModel, DagRun, TaskInstance, XCom
+            from airflow.models.dataset import DatasetEvent
             from airflow.models.serialized_dag import SerializedDagModel
             from airflow.models.taskmap import TaskMap
             from airflow.utils.retries import run_with_db_retries
@@ -584,7 +633,7 @@ def dag_maker(request):
                     if not dag_ids:
                         return
                     # To isolate problems here with problems from elsewhere on the session object
-                    self.session.flush()
+                    self.session.rollback()
 
                     self.session.query(SerializedDagModel).filter(
                         SerializedDagModel.dag_id.in_(dag_ids)
@@ -602,6 +651,9 @@ def dag_maker(request):
                         synchronize_session=False,
                     )
                     self.session.query(TaskMap).filter(TaskMap.dag_id.in_(dag_ids)).delete(
+                        synchronize_session=False,
+                    )
+                    self.session.query(DatasetEvent).filter(DatasetEvent.source_dag_id.in_(dag_ids)).delete(
                         synchronize_session=False,
                     )
                     self.session.commit()
@@ -639,12 +691,12 @@ def create_dummy_dag(dag_maker):
     from airflow.utils.types import DagRunType
 
     def create_dag(
-        dag_id='dag',
-        task_id='op1',
+        dag_id="dag",
+        task_id="op1",
         max_active_tis_per_dag=16,
-        pool='default_pool',
+        pool="default_pool",
         executor_config={},
-        trigger_rule='all_done',
+        trigger_rule="all_done",
         on_success_callback=None,
         on_execute_callback=None,
         on_failure_callback=None,
@@ -694,7 +746,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
             from airflow.utils import timezone
 
             execution_date = timezone.utcnow()
-        create_dummy_dag(with_dagrun_type=None, **kwargs)
+        _, task = create_dummy_dag(with_dagrun_type=None, **kwargs)
 
         dagrun_kwargs = {"execution_date": execution_date, "state": dagrun_state}
         if run_id is not None:
@@ -705,8 +757,10 @@ def create_task_instance(dag_maker, create_dummy_dag):
             dagrun_kwargs["data_interval"] = data_interval
         dagrun = dag_maker.create_dagrun(**dagrun_kwargs)
         (ti,) = dagrun.task_instances
+        ti.task = task
         ti.state = state
 
+        dag_maker.session.flush()
         return ti
 
     return maker
@@ -759,7 +813,7 @@ def get_test_dag():
         from airflow.models.dagbag import DagBag
         from airflow.models.serialized_dag import SerializedDagModel
 
-        dag_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'dags', f'{dag_id}.py')
+        dag_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), "dags", f"{dag_id}.py")
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
 
         dag = dagbag.get_dag(dag_id)
@@ -769,3 +823,32 @@ def get_test_dag():
         return dag
 
     return _get
+
+
+@pytest.fixture()
+def create_log_template(request):
+    session = settings.Session()
+
+    def _create_log_template(filename_template, elasticsearch_id=""):
+        log_template = LogTemplate(filename=filename_template, elasticsearch_id=elasticsearch_id)
+        session.add(log_template)
+        session.commit()
+
+        def _delete_log_template():
+            session.delete(log_template)
+            session.commit()
+
+        request.addfinalizer(_delete_log_template)
+
+    return _create_log_template
+
+
+@pytest.fixture()
+def reset_logging_config():
+    import logging.config
+
+    from airflow import settings
+    from airflow.utils.module_loading import import_string
+
+    logging_config = import_string(settings.LOGGING_CLASS_PATH)
+    logging.config.dictConfig(logging_config)

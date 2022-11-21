@@ -20,14 +20,35 @@
  */
 
 import '@testing-library/jest-dom';
+import axios from 'axios';
+import { setLogger } from 'react-query';
+
+// eslint-disable-next-line import/no-extraneous-dependencies
+import moment from 'moment-timezone';
+
+axios.defaults.adapter = require('axios/lib/adapters/http');
+
+axios.interceptors.response.use(
+  (res) => res.data || res,
+);
+
+setLogger({
+  log: console.log,
+  warn: console.warn,
+  // ✅ no more errors on the console
+  error: () => {},
+});
 
 // Mock global objects we use across the app
 global.stateColors = {
   deferred: 'mediumpurple',
   failed: 'red',
   queued: 'gray',
+  removed: 'lightgrey',
+  restarting: 'violet',
   running: 'lime',
   scheduled: 'tan',
+  shutdown: 'blue',
   skipped: 'hotpink',
   success: 'green',
   up_for_reschedule: 'turquoise',
@@ -36,3 +57,5 @@ global.stateColors = {
 };
 
 global.defaultDagRunDisplayNumber = 245;
+
+global.moment = moment;

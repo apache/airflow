@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """json_formatter module stores all related to ElasticSearch specific logger classes"""
+from __future__ import annotations
 
 import json
 import logging
@@ -27,7 +27,7 @@ from airflow.utils.helpers import merge_dicts
 class JSONFormatter(logging.Formatter):
     """JSONFormatter instances are used to convert a log record to json."""
 
-    def __init__(self, fmt=None, datefmt=None, style='%', json_fields=None, extras=None):
+    def __init__(self, fmt=None, datefmt=None, style="%", json_fields=None, extras=None):
         super().__init__(fmt, datefmt, style)
         if extras is None:
             extras = {}
@@ -37,7 +37,7 @@ class JSONFormatter(logging.Formatter):
         self.extras = extras
 
     def usesTime(self):
-        return self.json_fields.count('asctime') > 0
+        return self.json_fields.count("asctime") > 0
 
     def format(self, record):
         super().format(record)

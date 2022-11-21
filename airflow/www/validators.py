@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 from json import JSONDecodeError
@@ -44,8 +45,8 @@ class GreaterEqualThan(EqualTo):
 
         if field.data < other.data:
             message_args = {
-                'other_label': hasattr(other, 'label') and other.label.text or self.fieldname,
-                'other_name': self.fieldname,
+                "other_label": hasattr(other, "label") and other.label.text or self.fieldname,
+                "other_name": self.fieldname,
             }
             message = self.message
             if message is None:
@@ -73,5 +74,5 @@ class ValidJson:
             try:
                 json.loads(field.data)
             except JSONDecodeError as ex:
-                message = self.message or f'JSON Validation Error: {ex}'
+                message = self.message or f"JSON Validation Error: {ex}"
                 raise ValidationError(message=field.gettext(message.format(field.data)))

@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Client for all the API clients."""
+from __future__ import annotations
+
 import httpx
 
 
@@ -75,7 +77,7 @@ class Client:
 
     def get_lineage(self, dag_id: str, execution_date: str):
         """
-        Return the lineage information for the dag on this execution date
+        Return the lineage information for the dag on this execution date.
         :param dag_id:
         :param execution_date:
         :return:

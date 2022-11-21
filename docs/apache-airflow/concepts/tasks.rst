@@ -83,7 +83,6 @@ The possible states for a Task Instance are:
 * ``upstream_failed``: An upstream task failed and the :ref:`Trigger Rule <concepts:trigger-rules>` says we needed it
 * ``up_for_retry``: The task failed, but has retry attempts left and will be rescheduled.
 * ``up_for_reschedule``: The task is a :doc:`Sensor <sensors>` that is in ``reschedule`` mode
-* ``sensing``: The task is a :doc:`Smart Sensor <smart-sensors>`
 * ``deferred``: The task has been :doc:`deferred to a trigger <deferring>`
 * ``removed``: The task has vanished from the DAG since the run started
 
@@ -159,7 +158,7 @@ If you merely want to be notified if a task runs over but still let it run to co
 SLAs
 ----
 
-An SLA, or a Service Level Agreement, is an expectation for the maximum time a Task should take. If a task takes longer than this to run, it is then visible in the "SLA Misses" part of the user interface, as well as going out in an email of all tasks that missed their SLA.
+An SLA, or a Service Level Agreement, is an expectation for the maximum time a Task should be completed relative to the Dag Run start time. If a task takes longer than this to run, it is then visible in the "SLA Misses" part of the user interface, as well as going out in an email of all tasks that missed their SLA.
 
 Tasks over their SLA are not cancelled, though - they are allowed to run to completion. If you want to cancel a task after a certain runtime is reached, you want :ref:`concepts:timeouts` instead.
 
@@ -171,7 +170,7 @@ To read more about configuring the emails, see :doc:`/howto/email-config`.
 
 .. note::
 
-    Only scheduled tasks will be checked against SLA. For example, manually triggered tasks will not invoke an SLA miss. For more information on ``schedule_interval`` values see :doc:`DAG Run </dag-run>`.
+    Manually-triggered tasks and tasks in event-driven DAGs will not be checked for an SLA miss. For more information on DAG ``schedule`` values see :doc:`DAG Run </dag-run>`.
 
 .. _concepts:sla_miss_callback:
 

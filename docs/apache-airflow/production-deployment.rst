@@ -34,7 +34,7 @@ You can change the backend using the following config
 
 .. code-block:: ini
 
-    [core]
+    [database]
     sql_alchemy_conn = my_conn_string
 
 Once you have changed the backend, airflow needs to create all the tables required for operation.
@@ -118,7 +118,7 @@ To mitigate these issues, make sure you have a :doc:`health check </logging-moni
 Production Container Images
 ===========================
 
-We provide :doc:`a Docker Image (OCI) for Apache Airflow <docker-stack:index>` for use in a containerized environment. Consider using it to guarantee that software will always run the same no matter where it’s deployed.
+We provide :doc:`a Docker Image (OCI) for Apache Airflow <docker-stack:index>` for use in a containerized environment. Consider using it to guarantee that software will always run the same no matter where it's deployed.
 
 Helm Chart for Kubernetes
 =========================
@@ -149,7 +149,7 @@ a volume where the temporary token should be written by the ``airflow kerberos``
 In the Kubernetes environment, this can be realized by the concept of side-car, where both Kerberos
 token refresher and worker are part of the same Pod. Only the Kerberos side-car has access to
 Keytab secret and both containers in the same Pod share the volume, where temporary token is written by
-the side-care container and read by the worker container.
+the side-car container and read by the worker container.
 
 This concept is implemented in :doc:`the Helm Chart for Apache Airflow <helm-chart:index>`.
 

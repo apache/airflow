@@ -28,14 +28,63 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.2.0
+.....
+
+Latest change: 2022-10-31
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`7dd7400dd4 <https://github.com/apache/airflow/commit/7dd7400dd4588e063078986026e14ea606a55a76>`_  2022-10-31   ``Add template to livy operator documentation (#27404)``
+`f75582a8eb <https://github.com/apache/airflow/commit/f75582a8ebe989b342aa0a29e66a2df6e16d6848>`_  2022-10-31   ``Add Spark's 'appId' to xcom output (#27376)``
+`0c94eff950 <https://github.com/apache/airflow/commit/0c94eff95071c126f97e5f2a438a754ed29549d0>`_  2022-10-31   ``add template field renderer to livy operator (#27321)``
+`9ab1a6a3e7 <https://github.com/apache/airflow/commit/9ab1a6a3e70b32a3cddddf0adede5d2f3f7e29ea>`_  2022-10-27   ``Update old style typing (#26872)``
+`78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``
+`2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``
+`f8db64c35c <https://github.com/apache/airflow/commit/f8db64c35c8589840591021a48901577cff39c07>`_  2022-09-28   ``Update docs for September Provider's release (#26731)``
+`06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+=================================================================================================  ===========  ====================================================================================
+
+3.1.0
+.....
+
+Latest change: 2022-08-10
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`e5ac6c7cfb <https://github.com/apache/airflow/commit/e5ac6c7cfb189c33e3b247f7d5aec59fe5e89a00>`_  2022-08-10   ``Prepare docs for new providers release (August 2022) (#25618)``
+`7d3e799f7e <https://github.com/apache/airflow/commit/7d3e799f7e012d2d5c1fe24ce2bea01e68a5a193>`_  2022-08-07   ``Add auth_type to LivyHook (#25183)``
+`d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
+`0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
+`510a6bab45 <https://github.com/apache/airflow/commit/510a6bab4595cce8bd5b1447db957309d70f35d9>`_  2022-06-28   ``Remove 'hook-class-names' from provider.yaml (#24702)``
+=================================================================================================  ===========  ==================================================================
+
+3.0.0
+.....
+
+Latest change: 2022-06-09
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`dcdcf3a2b8 <https://github.com/apache/airflow/commit/dcdcf3a2b8054fa727efb4cd79d38d2c9c7e1bd5>`_  2022-06-09   ``Update release notes for RC2 release of Providers for May 2022 (#24307)``
+`717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
+`027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
+`5503603cde <https://github.com/apache/airflow/commit/5503603cded8613721ea56599667b5a309190b23>`_  2022-06-05   ``AIP-47 - Migrate livy DAGs to new design #22439 (#24208)``
+=================================================================================================  ===========  ==================================================================================
+
 2.2.3
 .....
 
-Latest change: 2022-03-30
+Latest change: 2022-04-07
 
 =================================================================================================  ===========  ==========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================
+`56ab82ed7a <https://github.com/apache/airflow/commit/56ab82ed7a5c179d024722ccc697b740b2b93b6a>`_  2022-04-07   ``Prepare mid-April provider documentation. (#22819)``
 `97cf76904a <https://github.com/apache/airflow/commit/97cf76904ac3de6e4f2adfa80afb2790e6413d36>`_  2022-03-30   ``Fix: Add extra headers to all livy API requests instead of only to post_batch (#22510)``
 =================================================================================================  ===========  ==========================================================================================
 

@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import logging
 import tempfile
 from unittest import mock
@@ -49,13 +51,11 @@ class TestGCSTaskHandler:
             yield td
 
     @pytest.fixture(autouse=True)
-    def gcs_task_handler(self, local_log_location):
-        self.remote_log_base = "gs://bucket/remote/log/location"
-        self.filename_template = "{try_number}.log"
+    def gcs_task_handler(self, create_log_template, local_log_location):
+        create_log_template("{try_number}.log")
         self.gcs_task_handler = GCSTaskHandler(
             base_log_folder=local_log_location,
-            gcs_log_folder=self.remote_log_base,
-            filename_template=self.filename_template,
+            gcs_log_folder="gs://bucket/remote/log/location",
         )
         yield self.gcs_task_handler
 
@@ -105,7 +105,7 @@ class TestGCSTaskHandler:
             log == "*** Unable to read remote log from gs://bucket/remote/log/location/1.log\n*** "
             f"Failed to connect\n\n*** Reading local file: {self.local_log_location}/1.log\n"
         )
-        assert metadata == {"end_of_log": True}
+        assert metadata == {"end_of_log": False, "log_pos": 31 + len(self.local_log_location)}
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )

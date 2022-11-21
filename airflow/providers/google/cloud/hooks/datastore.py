@@ -15,12 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains Google Datastore hook."""
-
+from __future__ import annotations
 
 import time
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Sequence
 
 from googleapiclient.discovery import Resource, build
 
@@ -40,9 +39,9 @@ class DatastoreHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        api_version: str = 'v1',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        api_version: str = "v1",
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -57,12 +56,11 @@ class DatastoreHook(GoogleBaseHook):
         Establishes a connection to the Google API.
 
         :return: a Google Cloud Datastore service object.
-        :rtype: Resource
         """
         if not self.connection:
             http_authorized = self._authorize()
             self.connection = build(
-                'datastore', self.api_version, http=http_authorized, cache_discovery=False
+                "datastore", self.api_version, http=http_authorized, cache_discovery=False
             )
 
         return self.connection
@@ -78,20 +76,19 @@ class DatastoreHook(GoogleBaseHook):
         :param partial_keys: a list of partial keys.
         :param project_id: Google Cloud project ID against which to make the request.
         :return: a list of full keys.
-        :rtype: list
         """
-        conn = self.get_conn()  # type: Any
+        conn = self.get_conn()
 
         resp = (
             conn.projects()
-            .allocateIds(projectId=project_id, body={'keys': partial_keys})
+            .allocateIds(projectId=project_id, body={"keys": partial_keys})
             .execute(num_retries=self.num_retries)
         )
 
-        return resp['keys']
+        return resp["keys"]
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def begin_transaction(self, project_id: str, transaction_options: Dict[str, Any]) -> str:
+    def begin_transaction(self, project_id: str, transaction_options: dict[str, Any]) -> str:
         """
         Begins a new transaction.
 
@@ -101,9 +98,8 @@ class DatastoreHook(GoogleBaseHook):
         :param project_id: Google Cloud project ID against which to make the request.
         :param transaction_options: Options for a new transaction.
         :return: a transaction handle.
-        :rtype: str
         """
-        conn = self.get_conn()  # type: Any
+        conn = self.get_conn()
 
         resp = (
             conn.projects()
@@ -111,7 +107,7 @@ class DatastoreHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
 
-        return resp['transaction']
+        return resp["transaction"]
 
     @GoogleBaseHook.fallback_to_default_project_id
     def commit(self, body: dict, project_id: str) -> dict:
@@ -124,9 +120,8 @@ class DatastoreHook(GoogleBaseHook):
         :param body: the body of the commit request.
         :param project_id: Google Cloud project ID against which to make the request.
         :return: the response body of the commit request.
-        :rtype: dict
         """
-        conn = self.get_conn()  # type: Any
+        conn = self.get_conn()
 
         resp = conn.projects().commit(projectId=project_id, body=body).execute(num_retries=self.num_retries)
 
@@ -137,8 +132,8 @@ class DatastoreHook(GoogleBaseHook):
         self,
         keys: list,
         project_id: str,
-        read_consistency: Optional[str] = None,
-        transaction: Optional[str] = None,
+        read_consistency: str | None = None,
+        transaction: str | None = None,
     ) -> dict:
         """
         Lookup some entities by key.
@@ -152,15 +147,14 @@ class DatastoreHook(GoogleBaseHook):
         :param transaction: the transaction to use, if any.
         :param project_id: Google Cloud project ID against which to make the request.
         :return: the response body of the lookup request.
-        :rtype: dict
         """
-        conn = self.get_conn()  # type: Any
+        conn = self.get_conn()
 
-        body = {'keys': keys}  # type: Dict[str, Any]
+        body: dict[str, Any] = {"keys": keys}
         if read_consistency:
-            body['readConsistency'] = read_consistency
+            body["readConsistency"] = read_consistency
         if transaction:
-            body['transaction'] = transaction
+            body["transaction"] = transaction
         resp = conn.projects().lookup(projectId=project_id, body=body).execute(num_retries=self.num_retries)
 
         return resp
@@ -178,7 +172,7 @@ class DatastoreHook(GoogleBaseHook):
         """
         conn: Any = self.get_conn()
 
-        conn.projects().rollback(projectId=project_id, body={'transaction': transaction}).execute(
+        conn.projects().rollback(projectId=project_id, body={"transaction": transaction}).execute(
             num_retries=self.num_retries
         )
 
@@ -193,13 +187,12 @@ class DatastoreHook(GoogleBaseHook):
         :param body: the body of the query request.
         :param project_id: Google Cloud project ID against which to make the request.
         :return: the batch of query results.
-        :rtype: dict
         """
-        conn = self.get_conn()  # type: Any
+        conn = self.get_conn()
 
         resp = conn.projects().runQuery(projectId=project_id, body=body).execute(num_retries=self.num_retries)
 
-        return resp['batch']
+        return resp["batch"]
 
     def get_operation(self, name: str) -> dict:
         """
@@ -210,7 +203,6 @@ class DatastoreHook(GoogleBaseHook):
 
         :param name: the name of the operation resource.
         :return: a resource operation instance.
-        :rtype: dict
         """
         conn: Any = self.get_conn()
 
@@ -227,30 +219,28 @@ class DatastoreHook(GoogleBaseHook):
 
         :param name: the name of the operation resource.
         :return: none if successful.
-        :rtype: dict
         """
-        conn = self.get_conn()  # type: Any
+        conn = self.get_conn()
 
         resp = conn.projects().operations().delete(name=name).execute(num_retries=self.num_retries)
 
         return resp
 
-    def poll_operation_until_done(self, name: str, polling_interval_in_seconds: float) -> Dict:
+    def poll_operation_until_done(self, name: str, polling_interval_in_seconds: float) -> dict:
         """
         Poll backup operation state until it's completed.
 
         :param name: the name of the operation resource
         :param polling_interval_in_seconds: The number of seconds to wait before calling another request.
         :return: a resource operation instance.
-        :rtype: dict
         """
         while True:
-            result: Dict = self.get_operation(name)
+            result: dict = self.get_operation(name)
 
-            state: str = result['metadata']['common']['state']
-            if state == 'PROCESSING':
+            state: str = result["metadata"]["common"]["state"]
+            if state == "PROCESSING":
                 self.log.info(
-                    'Operation is processing. Re-polling state in %s seconds', polling_interval_in_seconds
+                    "Operation is processing. Re-polling state in %s seconds", polling_interval_in_seconds
                 )
                 time.sleep(polling_interval_in_seconds)
             else:
@@ -261,9 +251,9 @@ class DatastoreHook(GoogleBaseHook):
         self,
         bucket: str,
         project_id: str,
-        namespace: Optional[str] = None,
-        entity_filter: Optional[dict] = None,
-        labels: Optional[Dict[str, str]] = None,
+        namespace: str | None = None,
+        entity_filter: dict | None = None,
+        labels: dict[str, str] | None = None,
     ) -> dict:
         """
         Export entities from Cloud Datastore to Cloud Storage for backup.
@@ -280,20 +270,19 @@ class DatastoreHook(GoogleBaseHook):
         :param labels: Client-assigned labels.
         :param project_id: Google Cloud project ID against which to make the request.
         :return: a resource operation instance.
-        :rtype: dict
         """
-        admin_conn = self.get_conn()  # type: Any
+        admin_conn = self.get_conn()
 
-        output_uri_prefix = 'gs://' + '/'.join(filter(None, [bucket, namespace]))  # type: str
+        output_url_prefix = f"gs://{'/'.join(filter(None, [bucket, namespace]))}"
         if not entity_filter:
             entity_filter = {}
         if not labels:
             labels = {}
         body = {
-            'outputUrlPrefix': output_uri_prefix,
-            'entityFilter': entity_filter,
-            'labels': labels,
-        }  # type: Dict
+            "outputUrlPrefix": output_url_prefix,
+            "entityFilter": entity_filter,
+            "labels": labels,
+        }
         resp = (
             admin_conn.projects()
             .export(projectId=project_id, body=body)
@@ -308,9 +297,9 @@ class DatastoreHook(GoogleBaseHook):
         bucket: str,
         file: str,
         project_id: str,
-        namespace: Optional[str] = None,
-        entity_filter: Optional[dict] = None,
-        labels: Optional[Union[dict, str]] = None,
+        namespace: str | None = None,
+        entity_filter: dict | None = None,
+        labels: dict | str | None = None,
     ) -> dict:
         """
         Import a backup from Cloud Storage to Cloud Datastore.
@@ -328,20 +317,19 @@ class DatastoreHook(GoogleBaseHook):
         :param labels: Client-assigned labels.
         :param project_id: Google Cloud project ID against which to make the request.
         :return: a resource operation instance.
-        :rtype: dict
         """
-        admin_conn = self.get_conn()  # type: Any
+        admin_conn = self.get_conn()
 
-        input_url = 'gs://' + '/'.join(filter(None, [bucket, namespace, file]))  # type: str
+        input_url = f"gs://{'/'.join(filter(None, [bucket, namespace, file]))}"
         if not entity_filter:
             entity_filter = {}
         if not labels:
             labels = {}
         body = {
-            'inputUrl': input_url,
-            'entityFilter': entity_filter,
-            'labels': labels,
-        }  # type: Dict
+            "inputUrl": input_url,
+            "entityFilter": entity_filter,
+            "labels": labels,
+        }
         resp = (
             admin_conn.projects()
             .import_(projectId=project_id, body=body)

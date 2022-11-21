@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Switch XCom table to use ``run_id`` and add ``map_index``.
 
 Revision ID: c306b5b5ae4a
 Revises: a3bcd0914482
 Create Date: 2022-01-19 03:20:35.329037
 """
+from __future__ import annotations
+
 from typing import Sequence
 
 from alembic import op
@@ -35,7 +36,7 @@ revision = "c306b5b5ae4a"
 down_revision = "a3bcd0914482"
 branch_labels = None
 depends_on = None
-airflow_version = '2.3.0'
+airflow_version = "2.3.0"
 
 
 metadata = MetaData()
@@ -167,8 +168,8 @@ def downgrade():
 
     op.drop_table("xcom")
     op.rename_table("__airflow_tmp_xcom", "xcom")
-    if conn.dialect.name == 'mssql':
-        constraints = get_mssql_table_constraints(conn, 'xcom')
-        pk, _ = constraints['PRIMARY KEY'].popitem()
-        op.drop_constraint(pk, 'xcom', type_='primary')
+    if conn.dialect.name == "mssql":
+        constraints = get_mssql_table_constraints(conn, "xcom")
+        pk, _ = constraints["PRIMARY KEY"].popitem()
+        op.drop_constraint(pk, "xcom", type_="primary")
         op.create_primary_key("pk_xcom", "xcom", ["dag_id", "task_id", "execution_date", "key"])

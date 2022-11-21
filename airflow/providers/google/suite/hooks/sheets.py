@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains a Google Sheets API hook"""
+from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Sequence
 
 from googleapiclient.discovery import build
 
@@ -49,10 +49,10 @@ class GSheetsHook(GoogleBaseHook):
 
     def __init__(
         self,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v4',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v4",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -69,11 +69,10 @@ class GSheetsHook(GoogleBaseHook):
         Retrieves connection to Google Sheets.
 
         :return: Google Sheets services object.
-        :rtype: Any
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build('sheets', self.api_version, http=http_authorized, cache_discovery=False)
+            self._conn = build("sheets", self.api_version, http=http_authorized, cache_discovery=False)
 
         return self._conn
 
@@ -81,9 +80,9 @@ class GSheetsHook(GoogleBaseHook):
         self,
         spreadsheet_id: str,
         range_: str,
-        major_dimension: str = 'DIMENSION_UNSPECIFIED',
-        value_render_option: str = 'FORMATTED_VALUE',
-        date_time_render_option: str = 'SERIAL_NUMBER',
+        major_dimension: str = "DIMENSION_UNSPECIFIED",
+        value_render_option: str = "FORMATTED_VALUE",
+        date_time_render_option: str = "SERIAL_NUMBER",
     ) -> list:
         """
         Gets values from Google Sheet from a single range
@@ -98,7 +97,6 @@ class GSheetsHook(GoogleBaseHook):
         :param date_time_render_option: Determines how dates should be rendered in the output.
             SERIAL_NUMBER or FORMATTED_STRING
         :return: An array of sheet values from the specified sheet.
-        :rtype: List
         """
         service = self.get_conn()
 
@@ -115,15 +113,15 @@ class GSheetsHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
 
-        return response['values']
+        return response.get("values", [])
 
     def batch_get_values(
         self,
         spreadsheet_id: str,
-        ranges: List,
-        major_dimension: str = 'DIMENSION_UNSPECIFIED',
-        value_render_option: str = 'FORMATTED_VALUE',
-        date_time_render_option: str = 'SERIAL_NUMBER',
+        ranges: list,
+        major_dimension: str = "DIMENSION_UNSPECIFIED",
+        value_render_option: str = "FORMATTED_VALUE",
+        date_time_render_option: str = "SERIAL_NUMBER",
     ) -> dict:
         """
         Gets values from Google Sheet from a list of ranges
@@ -138,7 +136,6 @@ class GSheetsHook(GoogleBaseHook):
         :param date_time_render_option: Determines how dates should be rendered in the output.
             SERIAL_NUMBER or FORMATTED_STRING
         :return: Google Sheets API response.
-        :rtype: Dict
         """
         service = self.get_conn()
 
@@ -161,12 +158,12 @@ class GSheetsHook(GoogleBaseHook):
         self,
         spreadsheet_id: str,
         range_: str,
-        values: List,
-        major_dimension: str = 'ROWS',
-        value_input_option: str = 'RAW',
+        values: list,
+        major_dimension: str = "ROWS",
+        value_input_option: str = "RAW",
         include_values_in_response: bool = False,
-        value_render_option: str = 'FORMATTED_VALUE',
-        date_time_render_option: str = 'SERIAL_NUMBER',
+        value_render_option: str = "FORMATTED_VALUE",
+        date_time_render_option: str = "SERIAL_NUMBER",
     ) -> dict:
         """
         Updates values from Google Sheet from a single range
@@ -186,7 +183,6 @@ class GSheetsHook(GoogleBaseHook):
         :param date_time_render_option: Determines how dates should be rendered in the output.
             SERIAL_NUMBER or FORMATTED_STRING
         :return: Google Sheets API response.
-        :rtype: Dict
         """
         service = self.get_conn()
         body = {"range": range_, "majorDimension": major_dimension, "values": values}
@@ -211,13 +207,13 @@ class GSheetsHook(GoogleBaseHook):
     def batch_update_values(
         self,
         spreadsheet_id: str,
-        ranges: List,
-        values: List,
-        major_dimension: str = 'ROWS',
-        value_input_option: str = 'RAW',
+        ranges: list,
+        values: list,
+        major_dimension: str = "ROWS",
+        value_input_option: str = "RAW",
         include_values_in_response: bool = False,
-        value_render_option: str = 'FORMATTED_VALUE',
-        date_time_render_option: str = 'SERIAL_NUMBER',
+        value_render_option: str = "FORMATTED_VALUE",
+        date_time_render_option: str = "SERIAL_NUMBER",
     ) -> dict:
         """
         Updates values from Google Sheet for multiple ranges
@@ -237,7 +233,6 @@ class GSheetsHook(GoogleBaseHook):
         :param date_time_render_option: Determines how dates should be rendered in the output.
             SERIAL_NUMBER or FORMATTED_STRING
         :return: Google Sheets API response.
-        :rtype: Dict
         """
         if len(ranges) != len(values):
             raise AirflowException(
@@ -270,13 +265,13 @@ class GSheetsHook(GoogleBaseHook):
         self,
         spreadsheet_id: str,
         range_: str,
-        values: List,
-        major_dimension: str = 'ROWS',
-        value_input_option: str = 'RAW',
-        insert_data_option: str = 'OVERWRITE',
+        values: list,
+        major_dimension: str = "ROWS",
+        value_input_option: str = "RAW",
+        insert_data_option: str = "OVERWRITE",
         include_values_in_response: bool = False,
-        value_render_option: str = 'FORMATTED_VALUE',
-        date_time_render_option: str = 'SERIAL_NUMBER',
+        value_render_option: str = "FORMATTED_VALUE",
+        date_time_render_option: str = "SERIAL_NUMBER",
     ) -> dict:
         """
         Append values from Google Sheet from a single range
@@ -298,7 +293,6 @@ class GSheetsHook(GoogleBaseHook):
         :param date_time_render_option: Determines how dates should be rendered in the output.
             SERIAL_NUMBER or FORMATTED_STRING
         :return: Google Sheets API response.
-        :rtype: Dict
         """
         service = self.get_conn()
         body = {"range": range_, "majorDimension": major_dimension, "values": values}
@@ -329,7 +323,6 @@ class GSheetsHook(GoogleBaseHook):
         :param spreadsheet_id: The Google Sheet ID to interact with
         :param range_: The A1 notation of the values to retrieve.
         :return: Google Sheets API response.
-        :rtype: Dict
         """
         service = self.get_conn()
 
@@ -350,7 +343,6 @@ class GSheetsHook(GoogleBaseHook):
         :param spreadsheet_id: The Google Sheet ID to interact with
         :param ranges: The A1 notation of the values to retrieve.
         :return: Google Sheets API response.
-        :rtype: Dict
         """
         service = self.get_conn()
         body = {"ranges": ranges}
@@ -379,7 +371,7 @@ class GSheetsHook(GoogleBaseHook):
         )
         return response
 
-    def get_sheet_titles(self, spreadsheet_id: str, sheet_filter: Optional[List[str]] = None):
+    def get_sheet_titles(self, spreadsheet_id: str, sheet_filter: list[str] | None = None):
         """
         Retrieves the sheet titles from a spreadsheet matching the given id and sheet filter.
 
@@ -392,15 +384,15 @@ class GSheetsHook(GoogleBaseHook):
 
         if sheet_filter:
             titles = [
-                sh['properties']['title']
-                for sh in response['sheets']
-                if sh['properties']['title'] in sheet_filter
+                sh["properties"]["title"]
+                for sh in response["sheets"]
+                if sh["properties"]["title"] in sheet_filter
             ]
         else:
-            titles = [sh['properties']['title'] for sh in response['sheets']]
+            titles = [sh["properties"]["title"] for sh in response["sheets"]]
         return titles
 
-    def create_spreadsheet(self, spreadsheet: Dict[str, Any]) -> Dict[str, Any]:
+    def create_spreadsheet(self, spreadsheet: dict[str, Any]) -> dict[str, Any]:
         """
         Creates a spreadsheet, returning the newly created spreadsheet.
 
@@ -408,10 +400,10 @@ class GSheetsHook(GoogleBaseHook):
             https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets#Spreadsheet
         :return: An spreadsheet object.
         """
-        self.log.info("Creating spreadsheet: %s", spreadsheet['properties']['title'])
+        self.log.info("Creating spreadsheet: %s", spreadsheet["properties"]["title"])
 
         response = (
             self.get_conn().spreadsheets().create(body=spreadsheet).execute(num_retries=self.num_retries)
         )
-        self.log.info("Spreadsheet: %s created", spreadsheet['properties']['title'])
+        self.log.info("Spreadsheet: %s created", spreadsheet["properties"]["title"])
         return response

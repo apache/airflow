@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Celery command"""
+"""Celery command."""
+from __future__ import annotations
 
+from contextlib import contextmanager
 from multiprocessing import Process
-from typing import Optional
 
 import daemon
 import psutil
@@ -39,10 +40,10 @@ WORKER_PROCESS_NAME = "worker"
 
 @cli_utils.action_cli
 def flower(args):
-    """Starts Flower, Celery monitoring tool"""
+    """Starts Flower, Celery monitoring tool."""
     options = [
         "flower",
-        conf.get('celery', 'BROKER_URL'),
+        conf.get("celery", "BROKER_URL"),
         f"--address={args.hostname}",
         f"--port={args.port}",
     ]
@@ -67,11 +68,15 @@ def flower(args):
             stderr=args.stderr,
             log=args.log_file,
         )
-        with open(stdout, "w+") as stdout, open(stderr, "w+") as stderr:
+        with open(stdout, "a") as stdout, open(stderr, "a") as stderr:
+            stdout.truncate(0)
+            stderr.truncate(0)
+
             ctx = daemon.DaemonContext(
                 pidfile=TimeoutPIDLockFile(pidfile, -1),
                 stdout=stdout,
                 stderr=stderr,
+                umask=int(settings.DAEMON_UMASK, 8),
             )
             with ctx:
                 celery_app.start(options)
@@ -79,27 +84,21 @@ def flower(args):
         celery_app.start(options)
 
 
-def _serve_logs(skip_serve_logs: bool = False) -> Optional[Process]:
-    """Starts serve_logs sub-process"""
+@contextmanager
+def _serve_logs(skip_serve_logs: bool = False):
+    """Starts serve_logs sub-process."""
+    sub_proc = None
     if skip_serve_logs is False:
         sub_proc = Process(target=serve_logs)
         sub_proc.start()
-        return sub_proc
-    return None
-
-
-def _run_worker(options, skip_serve_logs):
-    sub_proc = _serve_logs(skip_serve_logs)
-    try:
-        celery_app.worker_main(options)
-    finally:
-        if sub_proc:
-            sub_proc.terminate()
+    yield
+    if sub_proc:
+        sub_proc.terminate()
 
 
 @cli_utils.action_cli
 def worker(args):
-    """Starts Airflow Celery worker"""
+    """Starts Airflow Celery worker."""
     # Disable connection pool so that celery worker does not hold an unnecessary db connection
     settings.reconfigure_orm(disable_connection_pool=True)
     if not settings.validate_session():
@@ -120,7 +119,7 @@ def worker(args):
         log=args.log_file,
     )
 
-    if hasattr(celery_app.backend, 'ResultSession'):
+    if hasattr(celery_app.backend, "ResultSession"):
         # Pre-create the database tables now, otherwise SQLA via Celery has a
         # race condition where one of the subprocesses can die with "Table
         # already exists" error, because SQLA checks for which tables exist,
@@ -137,31 +136,31 @@ def worker(args):
             pass
 
     # backwards-compatible: https://github.com/apache/airflow/pull/21506#pullrequestreview-879893763
-    celery_log_level = conf.get('logging', 'CELERY_LOGGING_LEVEL')
+    celery_log_level = conf.get("logging", "CELERY_LOGGING_LEVEL")
     if not celery_log_level:
-        celery_log_level = conf.get('logging', 'LOGGING_LEVEL')
+        celery_log_level = conf.get("logging", "LOGGING_LEVEL")
     # Setup Celery worker
     options = [
-        'worker',
-        '-O',
-        'fair',
-        '--queues',
+        "worker",
+        "-O",
+        "fair",
+        "--queues",
         args.queues,
-        '--concurrency',
+        "--concurrency",
         args.concurrency,
-        '--hostname',
+        "--hostname",
         args.celery_hostname,
-        '--loglevel',
+        "--loglevel",
         celery_log_level,
-        '--pidfile',
+        "--pidfile",
         pid_file_path,
     ]
     if autoscale:
-        options.extend(['--autoscale', autoscale])
+        options.extend(["--autoscale", autoscale])
     if args.without_mingle:
-        options.append('--without-mingle')
+        options.append("--without-mingle")
     if args.without_gossip:
-        options.append('--without-gossip')
+        options.append("--without-gossip")
 
     if conf.has_option("celery", "pool"):
         pool = conf.get("celery", "pool")
@@ -171,32 +170,39 @@ def worker(args):
         # https://eventlet.net/doc/patching.html#monkey-patch
         # Otherwise task instances hang on the workers and are never
         # executed.
-        maybe_patch_concurrency(['-P', pool])
+        maybe_patch_concurrency(["-P", pool])
 
     if args.daemon:
         # Run Celery worker as daemon
         handle = setup_logging(log_file)
 
-        with open(stdout, 'w+') as stdout_handle, open(stderr, 'w+') as stderr_handle:
+        with open(stdout, "a") as stdout_handle, open(stderr, "a") as stderr_handle:
             if args.umask:
                 umask = args.umask
+            else:
+                umask = conf.get("celery", "worker_umask", fallback=settings.DAEMON_UMASK)
 
-            ctx = daemon.DaemonContext(
+            stdout_handle.truncate(0)
+            stderr_handle.truncate(0)
+
+            daemon_context = daemon.DaemonContext(
                 files_preserve=[handle],
                 umask=int(umask, 8),
                 stdout=stdout_handle,
                 stderr=stderr_handle,
             )
-            with ctx:
-                _run_worker(options=options, skip_serve_logs=skip_serve_logs)
+            with daemon_context, _serve_logs(skip_serve_logs):
+                celery_app.worker_main(options)
+
     else:
         # Run Celery worker in the same process
-        _run_worker(options=options, skip_serve_logs=skip_serve_logs)
+        with _serve_logs(skip_serve_logs):
+            celery_app.worker_main(options)
 
 
 @cli_utils.action_cli
 def stop_worker(args):
-    """Sends SIGTERM to Celery worker"""
+    """Sends SIGTERM to Celery worker."""
     # Read PID from file
     if args.pid:
         pid_file_path = args.pid

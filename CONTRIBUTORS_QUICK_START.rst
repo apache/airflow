@@ -50,11 +50,11 @@ Local machine development
 
 If you do not work with remote development environment, you need those prerequisites.
 
-1. Docker Community Edition
+1. Docker Community Edition (you can also use Colima, see instructions below)
 2. Docker Compose
 3. pyenv (you can also use pyenv-virtualenv or virtualenvwrapper)
 
-The below setup describe Ubuntu installation. It might be slightly different on different machines.
+The below setup describe `Ubuntu installation <https://docs.docker.com/engine/install/ubuntu/>`_. It might be slightly different on different machines.
 
 Docker Community Edition
 ------------------------
@@ -66,25 +66,24 @@ Docker Community Edition
   $ sudo apt-get update
 
   $ sudo apt-get install \
-      apt-transport-https \
       ca-certificates \
       curl \
-      gnupg-agent \
-      software-properties-common
+      gnupg \
+      lsb-release
 
-  $ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+  $ sudo mkdir -p /etc/apt/keyrings
+  $ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
-  $ sudo add-apt-repository \
-     "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-     $(lsb_release -cs) \
-     stable"
+  $ echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+    $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-2. Install Docker
+2. Install Docker Engine, containerd, and Docker Compose Plugin.
 
 .. code-block:: bash
 
   $ sudo apt-get update
-  $ sudo apt-get install docker-ce docker-ce-cli containerd.io
+  $ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
 3. Creating group for docker and adding current user to it.
 
@@ -100,6 +99,24 @@ Note : After adding user to docker group Logout and Login again for group member
 .. code-block:: bash
 
   $ docker run hello-world
+
+Colima
+------
+If you use Colima as your container runtimes engine, please follow the next steps:
+
+1. `Install buildx manually <https://https://github.com/docker/buildx#manual-download>`_ and follow it's instructions
+
+2. Link the Colima socket to the default socket path. Note that this may break other Docker servers.
+
+.. code-block:: bash
+
+  $ sudo ln -sf $HOME/.colima/default/docker.sock /var/run/docker.sock
+
+3. Change docker context to use default:
+
+.. code-block:: bash
+
+  $ docker context use default
 
 Docker Compose
 --------------
@@ -218,13 +235,13 @@ Setting up Breeze
 
 .. code-block:: bash
 
-  $ breeze setup-autocomplete
+  $ breeze setup autocomplete
 
 4. Initialize breeze environment with required python version and backend. This may take a while for first time.
 
 .. code-block:: bash
 
-  $ breeze --python 3.7 --backend mysql
+  $ breeze --python 3.8 --backend postgres
 
 .. note::
    If you encounter an error like "docker.credentials.errors.InitializationError:
@@ -272,7 +289,7 @@ Using Breeze
 ------------
 
 1. Starting breeze environment using ``breeze start-airflow`` starts Breeze environment with last configuration run(
-   In this case python and backend will be picked up from last execution ``breeze --python 3.8 --backend mysql``)
+   In this case python and backend will be picked up from last execution ``breeze --python 3.8 --backend postgres``)
    It also automatically starts webserver, backend and scheduler. It drops you in tmux with scheduler in bottom left
    and webserver in bottom right. Use ``[Ctrl + B] and Arrow keys`` to navigate.
 
@@ -301,7 +318,7 @@ Using Breeze
      * 26379 -> forwarded to Redis broker -> redis:6379
 
    Here are links to those services that you can use on host:
-     * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 pw: airflow
+     * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 (password: airflow)
      * Webserver: http://127.0.0.1:28080
      * Flower:    http://127.0.0.1:25555
      * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
@@ -324,7 +341,7 @@ Using Breeze
 
   .. code-block:: bash
 
-    $ breeze --python 3.8 --backend mysql
+    $ breeze --python 3.8 --backend postgres
 
   2. Open tmux
 
@@ -505,7 +522,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
 .. code-block:: bash
 
-  $ pre-commit run  --files airflow/decorators.py tests/utils/test_task_group.py
+  $ pre-commit run  --files airflow/utils/decorators.py tests/utils/test_task_group.py
 
 
 
@@ -515,7 +532,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
   $ pre-commit run black --files airflow/decorators.py tests/utils/test_task_group.py
     black...............................................................Passed
-  $ pre-commit run flake8 --files airflow/decorators.py tests/utils/test_task_group.py
+  $ pre-commit run run-flake8 --files airflow/decorators.py tests/utils/test_task_group.py
     Run flake8..........................................................Passed
 
 
@@ -612,8 +629,7 @@ All Tests are inside ./tests directory.
 
 .. code-block:: bash
 
-   $ breeze --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type All  tests
-
+   $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset testing tests --test-type All
 
 - Running specific type of test
 
@@ -623,7 +639,7 @@ All Tests are inside ./tests directory.
 
   .. code-block:: bash
 
-    $ breeze --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type Core
+    $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset testing tests --test-type Core
 
 
 - Running Integration test for specific test type
@@ -632,7 +648,7 @@ All Tests are inside ./tests directory.
 
   .. code-block:: bash
 
-   $ breeze --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type All --integration mongo
+   $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset testing tests --test-type All --integration mongo
 
 
 - For more information on Testing visit : |TESTING.rst|

@@ -15,23 +15,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import pendulum
 
 from airflow.models import DAG
 
-args = {'owner': 'airflow', 'retries': 3, 'start_date': pendulum.datetime(2022, 1, 1)}
+args = {"owner": "airflow", "retries": 3, "start_date": pendulum.datetime(2022, 1, 1)}
 
 tree_dag = DAG(
-    dag_id='test_tree_view',
+    dag_id="test_tree_view",
     default_args=args,
-    schedule_interval='0 0 * * *',
-    default_view='grid',
+    schedule="0 0 * * *",
+    default_view="grid",
 )
 
 graph_dag = DAG(
-    dag_id='test_graph_view',
+    dag_id="test_graph_view",
     default_args=args,
-    schedule_interval='0 0 * * *',
-    default_view='graph',
+    schedule="0 0 * * *",
+    default_view="graph",
 )

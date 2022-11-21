@@ -36,7 +36,7 @@ Put key
 Get, put, delete key or write_batch, create database with comparator or different options in LevelDB is performed with the
 :class:`~airflow.providers.google.leveldb.operators.leveldb.LevelDBOperator` operator.
 
-.. exampleinclude:: /../../airflow/providers/google/leveldb/example_dags/example_leveldb.py
+.. exampleinclude:: /../../tests/system/providers/google/leveldb/example_leveldb.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_leveldb_put_key]

@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that shows how to use DataFusion.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -88,8 +89,8 @@ PIPELINE = {
                         "filenameOnly": "false",
                         "recursive": "false",
                         "encrypted": "false",
-                        "schema": "{\"type\":\"record\",\"name\":\"textfile\",\"fields\":[{\"name\"\
-                            :\"offset\",\"type\":\"long\"},{\"name\":\"body\",\"type\":\"string\"}]}",
+                        "schema": '{"type":"record","name":"textfile","fields":[{"name"\
+                            :"offset","type":"long"},{"name":"body","type":"string"}]}',
                         "path": BUCKET_1_URI,
                         "referenceName": "foo_bucket",
                         "useConnection": "false",
@@ -98,8 +99,8 @@ PIPELINE = {
                         "fileEncoding": "UTF-8",
                     },
                 },
-                "outputSchema": "{\"type\":\"record\",\"name\":\"textfile\",\"fields\"\
-                    :[{\"name\":\"offset\",\"type\":\"long\"},{\"name\":\"body\",\"type\":\"string\"}]}",
+                "outputSchema": '{"type":"record","name":"textfile","fields"\
+                    :[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
                 "id": "GCS",
             },
             {
@@ -115,21 +116,21 @@ PIPELINE = {
                         "format": "json",
                         "serviceFilePath": "auto-detect",
                         "location": "us",
-                        "schema": "{\"type\":\"record\",\"name\":\"textfile\",\"fields\":[{\"name\"\
-                            :\"offset\",\"type\":\"long\"},{\"name\":\"body\",\"type\":\"string\"}]}",
+                        "schema": '{"type":"record","name":"textfile","fields":[{"name"\
+                            :"offset","type":"long"},{"name":"body","type":"string"}]}',
                         "referenceName": "bar",
                         "path": BUCKET_2_URI,
                         "serviceAccountType": "filePath",
                         "contentType": "application/octet-stream",
                     },
                 },
-                "outputSchema": "{\"type\":\"record\",\"name\":\"textfile\",\"fields\"\
-                    :[{\"name\":\"offset\",\"type\":\"long\"},{\"name\":\"body\",\"type\":\"string\"}]}",
+                "outputSchema": '{"type":"record","name":"textfile","fields"\
+                    :[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
                 "inputSchema": [
                     {
                         "name": "GCS",
-                        "schema": "{\"type\":\"record\",\"name\":\"textfile\",\"fields\":[{\"name\"\
-                            :\"offset\",\"type\":\"long\"},{\"name\":\"body\",\"type\":\"string\"}]}",
+                        "schema": '{"type":"record","name":"textfile","fields":[{"name"\
+                            :"offset","type":"long"},{"name":"body","type":"string"}]}',
                     }
                 ],
                 "id": "GCS2",
@@ -147,7 +148,6 @@ PIPELINE = {
 
 with models.DAG(
     "example_data_fusion",
-    schedule_interval='@once',  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:

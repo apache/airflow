@@ -32,7 +32,7 @@ In your Dag file, pass a list of tags you want to add to DAG object:
 
 .. code-block:: python
 
-  dag = DAG(dag_id="example_dag_tag", schedule_interval="0 0 * * *", tags=["example"])
+  dag = DAG(dag_id="example_dag_tag", schedule="0 0 * * *", tags=["example"])
 
 
 **Screenshot**:

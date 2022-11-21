@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Translate Hook."""
-from typing import List, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import Sequence
 
 from google.cloud.translate_v2 import Client
 
@@ -35,35 +37,34 @@ class CloudTranslateHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._client = None  # type: Optional[Client]
+        self._client: Client | None = None
 
     def get_conn(self) -> Client:
         """
         Retrieves connection to Cloud Translate
 
         :return: Google Cloud Translate client object.
-        :rtype: google.cloud.translate_v2.Client
         """
         if not self._client:
-            self._client = Client(credentials=self._get_credentials(), client_info=CLIENT_INFO)
+            self._client = Client(credentials=self.get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     @GoogleBaseHook.quota_retry()
     def translate(
         self,
-        values: Union[str, List[str]],
+        values: str | list[str],
         target_language: str,
-        format_: Optional[str] = None,
-        source_language: Optional[str] = None,
-        model: Optional[Union[str, List[str]]] = None,
+        format_: str | None = None,
+        source_language: str | None = None,
+        model: str | list[str] | None = None,
     ) -> dict:
         """Translate a string or list of strings.
 
@@ -79,7 +80,6 @@ class CloudTranslateHook(GoogleBaseHook):
                                 be translated.
         :param model: (Optional) The model used to translate the text, such
                       as ``'base'`` or ``'nmt'``.
-        :rtype: str or list
         :returns: A list of dictionaries for each queried value. Each
                   dictionary typically contains three keys (though not
                   all will be present in all cases)

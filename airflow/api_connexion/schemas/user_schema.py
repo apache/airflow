@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List, NamedTuple
+from __future__ import annotations
+
+from typing import NamedTuple
 
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
@@ -25,10 +27,10 @@ from airflow.www.fab_security.sqla.models import User
 
 
 class UserCollectionItemSchema(SQLAlchemySchema):
-    """user collection item schema"""
+    """user collection item schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = User
         dateformat = "iso"
@@ -41,26 +43,26 @@ class UserCollectionItemSchema(SQLAlchemySchema):
     last_login = auto_field(dump_only=True)
     login_count = auto_field(dump_only=True)
     fail_login_count = auto_field(dump_only=True)
-    roles = fields.List(fields.Nested(RoleSchema, only=('name',)))
+    roles = fields.List(fields.Nested(RoleSchema, only=("name",)))
     created_on = auto_field(validate=validate_istimezone, dump_only=True)
     changed_on = auto_field(validate=validate_istimezone, dump_only=True)
 
 
 class UserSchema(UserCollectionItemSchema):
-    """User schema"""
+    """User schema."""
 
     password = auto_field(load_only=True)
 
 
 class UserCollection(NamedTuple):
-    """User collection"""
+    """User collection."""
 
-    users: List[User]
+    users: list[User]
     total_entries: int
 
 
 class UserCollectionSchema(Schema):
-    """User collection schema"""
+    """User collection schema."""
 
     users = fields.List(fields.Nested(UserCollectionItemSchema))
     total_entries = fields.Int()

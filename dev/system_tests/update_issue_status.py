@@ -15,12 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import textwrap
 from pathlib import Path
-from typing import Optional, Tuple
 
 import rich_click as click
-from github import Github
+from github import Github, Issue
 from rich.console import Console
 
 console = Console(width=400, color_system="standard")
@@ -46,7 +47,7 @@ option_github_token = click.option(
         Can be generated with:
         https://github.com/settings/tokens/new?description=Write%20issues&scopes=repo"""
     ),
-    envvar='GITHUB_TOKEN',
+    envvar="GITHUB_TOKEN",
 )
 
 option_verbose = click.option(
@@ -72,7 +73,7 @@ option_repository = click.option(
 option_labels = click.option(
     "--labels",
     type=str,
-    default='AIP-47',
+    default="AIP-47",
     help="Label to filter the issues on (coma-separated)",
 )
 
@@ -86,7 +87,7 @@ option_start_from = click.option(
 )
 
 
-def process_paths_from_body(body: str, dry_run: bool, verbose: bool) -> Tuple[str, int, int, int, int]:
+def process_paths_from_body(body: str, dry_run: bool, verbose: bool) -> tuple[str, int, int, int, int]:
     count_re_added = 0
     count_completed = 0
     count_done = 0
@@ -96,7 +97,7 @@ def process_paths_from_body(body: str, dry_run: bool, verbose: bool) -> Tuple[st
         if line.startswith("- ["):
             if verbose:
                 console.print(line)
-            path = SOURCE_DIR_PATH / line[len("- [ ] ") :].strip().split(' ')[0]
+            path = SOURCE_DIR_PATH / line[len("- [ ] ") :].strip().split(" ")[0]
             if path.exists():
                 count_all += 1
                 prefix = ""
@@ -130,7 +131,7 @@ def process_paths_from_body(body: str, dry_run: bool, verbose: bool) -> Tuple[st
 @click.command()
 def update_issue_status(
     github_token: str,
-    max_issues: Optional[int],
+    max_issues: int | None,
     dry_run: bool,
     repository: str,
     start_from: int,
@@ -140,18 +141,26 @@ def update_issue_status(
     """Update status of the issues regarding the AIP-47 migration."""
     g = Github(github_token)
     repo = g.get_repo(repository)
-    issues = repo.get_issues(labels=labels.split(','))
+    issues = repo.get_issues(labels=labels.split(","), state="all")
     max_issues = max_issues if max_issues is not None else issues.totalCount
     total_re_added = 0
     total_completed = 0
     total_count_done = 0
     total_count_all = 0
     num_issues = 0
+    completed_open_issues: list[Issue.Issue] = []
+    completed_closed_issues: list[Issue.Issue] = []
+    not_completed_closed_issues: list[Issue.Issue] = []
+    not_completed_opened_issues: list[Issue.Issue] = []
+    per_issue_num_done: dict[int, int] = {}
+    per_issue_num_all: dict[int, int] = {}
     for issue in issues[start_from : start_from + max_issues]:
         console.print(f"[blue] {issue.id}: {issue.title}")
         new_body, count_re_added, count_completed, count_done, count_all = process_paths_from_body(
             issue.body, dry_run=dry_run, verbose=verbose
         )
+        if count_all == 0:
+            continue
         if count_re_added != 0 or count_completed != 0:
             if dry_run:
                 print(new_body)
@@ -168,16 +177,65 @@ def update_issue_status(
         total_completed += count_completed
         total_count_done += count_done
         total_count_all += count_all
+        per_issue_num_all[issue.id] = count_all
+        per_issue_num_done[issue.id] = count_done
+        if count_done == count_all:
+            if issue.state == "closed":
+                completed_closed_issues.append(issue)
+            else:
+                completed_open_issues.append(issue)
+        else:
+            if issue.state == "closed":
+                not_completed_closed_issues.append(issue)
+            else:
+                not_completed_opened_issues.append(issue)
         num_issues += 1
 
-    console.print()
-    console.print()
-    console.print(f"[green]Summary of ALL performed actions: for {num_issues} issues[/]")
+    console.print(f"[green]Summary of ALL actions: for {num_issues} issues[/]")
     console.print(f"   Re-added file number: {total_re_added}")
     console.print(f"   Completed file number: {total_completed}")
+    console.print()
+    console.print()
+    console.print(f"[green]Summary of ALL issues: for {num_issues} issues[/]")
     console.print(
-        f"   Done {total_count_done}/{total_count_all} = {(total_count_done * 100/ total_count_all):.2f}%"
+        f"   Completed and closed issues: {len(completed_closed_issues)}/{num_issues}: "
+        f"{len(completed_closed_issues) * 100/num_issues:.2f}%"
     )
+    console.print(
+        f"   Completed files {total_count_done}/{total_count_all} = "
+        f"{(total_count_done * 100/ total_count_all):.2f}%"
+    )
+    console.print()
+    if not_completed_closed_issues:
+        console.print("[yellow] Issues that are not completed and should be opened:[/]\n")
+        for issue in not_completed_closed_issues:
+            all = per_issue_num_all[issue.id]
+            done = per_issue_num_done[issue.id]
+            console.print(
+                rf" * [[yellow]{issue.title}[/]]({issue.html_url}): "
+                f"{done}/{all} : {done * 100 / all:.2f}%"
+            )
+        console.print()
+    if completed_open_issues:
+        console.print("[yellow] Issues that are completed and should be closed:[/]\n")
+        for issue in completed_open_issues:
+            console.print(rf" * [[yellow]{issue.title}[/]]({issue.html_url})")
+        console.print()
+    if not_completed_opened_issues:
+        console.print("[yellow] Issues that are not completed and are still opened:[/]\n")
+        for issue in not_completed_opened_issues:
+            all = per_issue_num_all[issue.id]
+            done = per_issue_num_done[issue.id]
+            console.print(
+                rf" * [[yellow]{issue.title}[/]]({issue.html_url}): "
+                f"{done}/{all} : {done * 100 / all:.2f}%"
+            )
+        console.print()
+    if completed_closed_issues:
+        console.print("[green] Issues that are completed and are already closed:[/]\n")
+        for issue in completed_closed_issues:
+            console.print(rf" * [[green]{issue.title}[/]]({issue.html_url})")
+        console.print()
     console.print()
 
 

@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 """
 This module contains various Google Cloud DLP operators
 which allow you to perform basic operations using
 Cloud DLP.
 """
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import AlreadyExists, InvalidArgument, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -45,6 +45,19 @@ from google.protobuf.json_format import MessageToDict
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
+from airflow.providers.google.cloud.links.data_loss_prevention import (
+    CloudDLPDeidentifyTemplateDetailsLink,
+    CloudDLPDeidentifyTemplatesListLink,
+    CloudDLPInfoTypeDetailsLink,
+    CloudDLPInfoTypesListLink,
+    CloudDLPInspectTemplateDetailsLink,
+    CloudDLPInspectTemplatesListLink,
+    CloudDLPJobDetailsLink,
+    CloudDLPJobsListLink,
+    CloudDLPJobTriggerDetailsLink,
+    CloudDLPJobTriggersListLink,
+    CloudDLPPossibleInfoTypesListLink,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -85,17 +98,18 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPJobDetailsLink(),)
 
     def __init__(
         self,
         *,
         dlp_job_id: str,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -107,7 +121,7 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -119,6 +133,15 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPJobDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                job_name=self.dlp_job_id,
+            )
 
 
 class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
@@ -153,7 +176,6 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -164,19 +186,20 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPDeidentifyTemplateDetailsLink(),)
 
     def __init__(
         self,
         *,
-        organization_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        deidentify_template: Optional[Union[Dict, DeidentifyTemplate]] = None,
-        template_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        organization_id: str | None = None,
+        project_id: str | None = None,
+        deidentify_template: dict | DeidentifyTemplate | None = None,
+        template_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -190,7 +213,7 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -216,8 +239,19 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
+        result = MessageToDict(template)
 
-        return MessageToDict(template)
+        project_id = self.project_id or hook.project_id
+        template_id = self.template_id or result["name"].split("/")[-1] if result["name"] else None
+        if project_id and template_id:
+            CloudDLPDeidentifyTemplateDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                template_name=template_id,
+            )
+
+        return result
 
 
 class CloudDLPCreateDLPJobOperator(BaseOperator):
@@ -252,7 +286,6 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.DlpJob
     """
 
     template_fields: Sequence[str] = (
@@ -263,20 +296,21 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPJobDetailsLink(),)
 
     def __init__(
         self,
         *,
-        project_id: Optional[str] = None,
-        inspect_job: Optional[Union[Dict, InspectJobConfig]] = None,
-        risk_job: Optional[Union[Dict, RiskAnalysisJobConfig]] = None,
-        job_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        inspect_job: dict | InspectJobConfig | None = None,
+        risk_job: dict | RiskAnalysisJobConfig | None = None,
+        job_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         wait_until_finished: bool = True,
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -291,7 +325,7 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -317,7 +351,19 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-        return MessageToDict(job)
+
+        result = MessageToDict(job)
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPJobDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                job_name=result["name"].split("/")[-1] if result["name"] else None,
+            )
+
+        return result
 
 
 class CloudDLPCreateInspectTemplateOperator(BaseOperator):
@@ -352,7 +398,6 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -363,19 +408,20 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPInspectTemplateDetailsLink(),)
 
     def __init__(
         self,
         *,
-        organization_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        inspect_template: Optional[InspectTemplate] = None,
-        template_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        organization_id: str | None = None,
+        project_id: str | None = None,
+        inspect_template: InspectTemplate | None = None,
+        template_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -389,7 +435,7 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -415,7 +461,20 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-        return MessageToDict(template)
+
+        result = MessageToDict(template)
+
+        template_id = self.template_id or result["name"].split("/")[-1] if result["name"] else None
+        project_id = self.project_id or hook.project_id
+        if project_id and template_id:
+            CloudDLPInspectTemplateDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                template_name=template_id,
+            )
+
+        return result
 
 
 class CloudDLPCreateJobTriggerOperator(BaseOperator):
@@ -448,7 +507,6 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.JobTrigger
     """
 
     template_fields: Sequence[str] = (
@@ -458,18 +516,19 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPJobTriggerDetailsLink(),)
 
     def __init__(
         self,
         *,
-        project_id: Optional[str] = None,
-        job_trigger: Optional[Union[Dict, JobTrigger]] = None,
-        trigger_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        job_trigger: dict | JobTrigger | None = None,
+        trigger_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -482,7 +541,7 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -508,7 +567,20 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-        return MessageToDict(trigger)
+
+        result = MessageToDict(trigger)
+
+        project_id = self.project_id or hook.project_id
+        trigger_name = result["name"].split("/")[-1] if result["name"] else None
+        if project_id:
+            CloudDLPJobTriggerDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                trigger_name=trigger_name,
+            )
+
+        return result
 
 
 class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
@@ -542,7 +614,6 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.StoredInfoType
     """
 
     template_fields: Sequence[str] = (
@@ -553,19 +624,20 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPInfoTypeDetailsLink(),)
 
     def __init__(
         self,
         *,
-        organization_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        config: Optional[StoredInfoTypeConfig] = None,
-        stored_info_type_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        organization_id: str | None = None,
+        project_id: str | None = None,
+        config: StoredInfoTypeConfig | None = None,
+        stored_info_type_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -579,7 +651,7 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -607,7 +679,22 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-        return MessageToDict(info)
+
+        result = MessageToDict(info)
+
+        project_id = self.project_id or hook.project_id
+        stored_info_type_id = (
+            self.stored_info_type_id or result["name"].split("/")[-1] if result["name"] else None
+        )
+        if project_id and stored_info_type_id:
+            CloudDLPInfoTypeDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                info_type_name=stored_info_type_id,
+            )
+
+        return result
 
 
 class CloudDLPDeidentifyContentOperator(BaseOperator):
@@ -649,7 +736,6 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.DeidentifyContentResponse
     """
 
     template_fields: Sequence[str] = (
@@ -666,17 +752,17 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
     def __init__(
         self,
         *,
-        project_id: Optional[str] = None,
-        deidentify_config: Optional[Union[Dict, DeidentifyConfig]] = None,
-        inspect_config: Optional[Union[Dict, InspectConfig]] = None,
-        item: Optional[Union[Dict, ContentItem]] = None,
-        inspect_template_name: Optional[str] = None,
-        deidentify_template_name: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        deidentify_config: dict | DeidentifyConfig | None = None,
+        inspect_config: dict | InspectConfig | None = None,
+        item: dict | ContentItem | None = None,
+        inspect_template_name: str | None = None,
+        deidentify_template_name: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -692,7 +778,7 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -749,18 +835,19 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPDeidentifyTemplatesListLink(),)
 
     def __init__(
         self,
         *,
         template_id: str,
-        organization_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        organization_id: str | None = None,
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -773,7 +860,7 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -787,6 +874,13 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
+            project_id = self.project_id or hook.project_id
+            if project_id:
+                CloudDLPDeidentifyTemplatesListLink.persist(
+                    context=context,
+                    task_instance=self,
+                    project_id=project_id,
+                )
         except NotFound:
             self.log.error("Template %s not found.", self.template_id)
 
@@ -800,7 +894,7 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudDLPDeleteDLPJobOperator`
 
-    :param dlp_job_id: The ID of the DLP job resource to be cancelled.
+    :param dlp_job_id: The ID of the DLP job resource to be deleted.
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
@@ -827,17 +921,18 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPJobsListLink(),)
 
     def __init__(
         self,
         *,
         dlp_job_id: str,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -849,7 +944,7 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -862,6 +957,15 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
+
+            project_id = self.project_id or hook.project_id
+            if project_id:
+                CloudDLPJobsListLink.persist(
+                    context=context,
+                    task_instance=self,
+                    project_id=project_id,
+                )
+
         except NotFound:
             self.log.error("Job %s id not found.", self.dlp_job_id)
 
@@ -904,18 +1008,19 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPInspectTemplatesListLink(),)
 
     def __init__(
         self,
         *,
         template_id: str,
-        organization_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        organization_id: str | None = None,
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -928,7 +1033,7 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -942,6 +1047,15 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
+
+            project_id = self.project_id or hook.project_id
+            if project_id:
+                CloudDLPInspectTemplatesListLink.persist(
+                    context=context,
+                    task_instance=self,
+                    project_id=project_id,
+                )
+
         except NotFound:
             self.log.error("Template %s not found", self.template_id)
 
@@ -981,17 +1095,18 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPJobTriggersListLink(),)
 
     def __init__(
         self,
         *,
         job_trigger_id: str,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1003,7 +1118,7 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1016,6 +1131,15 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
+
+            project_id = self.project_id or hook.project_id
+            if project_id:
+                CloudDLPJobTriggersListLink.persist(
+                    context=context,
+                    task_instance=self,
+                    project_id=project_id,
+                )
+
         except NotFound:
             self.log.error("Trigger %s not found", self.job_trigger_id)
 
@@ -1058,18 +1182,19 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPInfoTypesListLink(),)
 
     def __init__(
         self,
         *,
         stored_info_type_id: str,
-        organization_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        organization_id: str | None = None,
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1082,7 +1207,7 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1098,6 +1223,14 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
             )
         except NotFound:
             self.log.error("Stored info %s not found", self.stored_info_type_id)
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPInfoTypesListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
 
 
 class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
@@ -1130,7 +1263,6 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -1140,18 +1272,19 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPDeidentifyTemplateDetailsLink(),)
 
     def __init__(
         self,
         *,
         template_id: str,
-        organization_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        organization_id: str | None = None,
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1164,7 +1297,7 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1177,6 +1310,13 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPDeidentifyTemplateDetailsLink.persist(
+                context=context, task_instance=self, project_id=project_id, template_name=self.template_id
+            )
+
         return MessageToDict(template)
 
 
@@ -1208,7 +1348,6 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.DlpJob
     """
 
     template_fields: Sequence[str] = (
@@ -1217,17 +1356,18 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPJobDetailsLink(),)
 
     def __init__(
         self,
         *,
         dlp_job_id: str,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1239,7 +1379,7 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1251,6 +1391,16 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPJobDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                job_name=self.dlp_job_id,
+            )
+
         return MessageToDict(job)
 
 
@@ -1284,7 +1434,6 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -1294,18 +1443,19 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPInspectTemplateDetailsLink(),)
 
     def __init__(
         self,
         *,
         template_id: str,
-        organization_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        organization_id: str | None = None,
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1318,7 +1468,7 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1331,6 +1481,16 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPInspectTemplateDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                template_name=self.template_id,
+            )
+
         return MessageToDict(template)
 
 
@@ -1362,7 +1522,6 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.JobTrigger
     """
 
     template_fields: Sequence[str] = (
@@ -1371,17 +1530,18 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPJobTriggerDetailsLink(),)
 
     def __init__(
         self,
         *,
         job_trigger_id: str,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1393,7 +1553,7 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1405,6 +1565,16 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPJobTriggerDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                trigger_name=self.job_trigger_id,
+            )
+
         return MessageToDict(trigger)
 
 
@@ -1438,7 +1608,6 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.StoredInfoType
     """
 
     template_fields: Sequence[str] = (
@@ -1448,18 +1617,19 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPInfoTypeDetailsLink(),)
 
     def __init__(
         self,
         *,
         stored_info_type_id: str,
-        organization_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        organization_id: str | None = None,
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1472,7 +1642,7 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1485,6 +1655,16 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPInfoTypeDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                info_type_name=self.stored_info_type_id,
+            )
+
         return MessageToDict(info)
 
 
@@ -1521,7 +1701,6 @@ class CloudDLPInspectContentOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.tasks_v2.types.InspectContentResponse
     """
 
     template_fields: Sequence[str] = (
@@ -1536,15 +1715,15 @@ class CloudDLPInspectContentOperator(BaseOperator):
     def __init__(
         self,
         *,
-        project_id: Optional[str] = None,
-        inspect_config: Optional[Union[Dict, InspectConfig]] = None,
-        item: Optional[Union[Dict, ContentItem]] = None,
-        inspect_template_name: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        inspect_config: dict | InspectConfig | None = None,
+        item: dict | ContentItem | None = None,
+        inspect_template_name: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1558,7 +1737,7 @@ class CloudDLPInspectContentOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1608,7 +1787,6 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.dlp_v2.types.DeidentifyTemplate]
     """
 
     template_fields: Sequence[str] = (
@@ -1617,19 +1795,20 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPDeidentifyTemplatesListLink(),)
 
     def __init__(
         self,
         *,
-        organization_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        page_size: Optional[int] = None,
-        order_by: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        organization_id: str | None = None,
+        project_id: str | None = None,
+        page_size: int | None = None,
+        order_by: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1643,12 +1822,12 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        template = hook.list_deidentify_templates(
+        templates = hook.list_deidentify_templates(
             organization_id=self.organization_id,
             project_id=self.project_id,
             page_size=self.page_size,
@@ -1658,7 +1837,16 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
             metadata=self.metadata,
         )
         # the MessageToDict does not have the right type defined as possible to pass in constructor
-        return MessageToDict(template)  # type: ignore[arg-type]
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPDeidentifyTemplatesListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
+
+        return [MessageToDict(template) for template in templates]  # type: ignore[arg-type]
 
 
 class CloudDLPListDLPJobsOperator(BaseOperator):
@@ -1694,7 +1882,6 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.dlp_v2.types.DlpJob]
     """
 
     template_fields: Sequence[str] = (
@@ -1702,20 +1889,21 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPJobsListLink(),)
 
     def __init__(
         self,
         *,
-        project_id: Optional[str] = None,
-        results_filter: Optional[str] = None,
-        page_size: Optional[int] = None,
-        job_type: Optional[str] = None,
-        order_by: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        results_filter: str | None = None,
+        page_size: int | None = None,
+        job_type: str | None = None,
+        order_by: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1730,12 +1918,12 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        job = hook.list_dlp_jobs(
+        jobs = hook.list_dlp_jobs(
             project_id=self.project_id,
             results_filter=self.results_filter,
             page_size=self.page_size,
@@ -1745,8 +1933,17 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPJobsListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
+
         # the MessageToDict does not have the right type defined as possible to pass in constructor
-        return MessageToDict(job)  # type: ignore[arg-type]
+        return [MessageToDict(job) for job in jobs]  # type: ignore[arg-type]
 
 
 class CloudDLPListInfoTypesOperator(BaseOperator):
@@ -1777,7 +1974,6 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: ListInfoTypesResponse
     """
 
     template_fields: Sequence[str] = (
@@ -1785,20 +1981,23 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPPossibleInfoTypesListLink(),)
 
     def __init__(
         self,
         *,
-        language_code: Optional[str] = None,
-        results_filter: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        language_code: str | None = None,
+        results_filter: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        self.project_id = project_id
         self.language_code = language_code
         self.results_filter = results_filter
         self.retry = retry
@@ -1807,7 +2006,7 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1819,6 +2018,15 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPPossibleInfoTypesListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
+
         return MessageToDict(response)
 
 
@@ -1855,7 +2063,6 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.dlp_v2.types.InspectTemplate]
     """
 
     template_fields: Sequence[str] = (
@@ -1864,19 +2071,20 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPInspectTemplatesListLink(),)
 
     def __init__(
         self,
         *,
-        organization_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        page_size: Optional[int] = None,
-        order_by: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        organization_id: str | None = None,
+        project_id: str | None = None,
+        page_size: int | None = None,
+        order_by: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1890,7 +2098,7 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1904,6 +2112,15 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPInspectTemplatesListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
+
         return [MessageToDict(t) for t in templates]
 
 
@@ -1939,7 +2156,6 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.dlp_v2.types.JobTrigger]
     """
 
     template_fields: Sequence[str] = (
@@ -1947,19 +2163,20 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPJobTriggersListLink(),)
 
     def __init__(
         self,
         *,
-        project_id: Optional[str] = None,
-        page_size: Optional[int] = None,
-        order_by: Optional[str] = None,
-        results_filter: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        page_size: int | None = None,
+        order_by: str | None = None,
+        results_filter: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1973,7 +2190,7 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1987,6 +2204,15 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPJobTriggersListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
+
         return [MessageToDict(j) for j in jobs]
 
 
@@ -2023,7 +2249,6 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.dlp_v2.types.StoredInfoType]
     """
 
     template_fields: Sequence[str] = (
@@ -2032,19 +2257,20 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPInfoTypesListLink(),)
 
     def __init__(
         self,
         *,
-        organization_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        page_size: Optional[int] = None,
-        order_by: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        organization_id: str | None = None,
+        project_id: str | None = None,
+        page_size: int | None = None,
+        order_by: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -2058,7 +2284,7 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2072,6 +2298,15 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPInfoTypesListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
+
         return [MessageToDict(i) for i in infos]
 
 
@@ -2110,7 +2345,6 @@ class CloudDLPRedactImageOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.RedactImageResponse
     """
 
     template_fields: Sequence[str] = (
@@ -2126,18 +2360,16 @@ class CloudDLPRedactImageOperator(BaseOperator):
     def __init__(
         self,
         *,
-        project_id: Optional[str] = None,
-        inspect_config: Optional[Union[Dict, InspectConfig]] = None,
-        image_redaction_configs: Optional[
-            Union[List[dict], List[RedactImageRequest.ImageRedactionConfig]]
-        ] = None,
-        include_findings: Optional[bool] = None,
-        byte_item: Optional[Union[Dict, ByteContentItem]] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        inspect_config: dict | InspectConfig | None = None,
+        image_redaction_configs: None | (list[dict] | list[RedactImageRequest.ImageRedactionConfig]) = None,
+        include_findings: bool | None = None,
+        byte_item: dict | ByteContentItem | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -2152,7 +2384,7 @@ class CloudDLPRedactImageOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2206,7 +2438,6 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.ReidentifyContentResponse
     """
 
     template_fields: Sequence[str] = (
@@ -2223,17 +2454,17 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
     def __init__(
         self,
         *,
-        project_id: Optional[str] = None,
-        reidentify_config: Optional[Union[Dict, DeidentifyConfig]] = None,
-        inspect_config: Optional[Union[Dict, InspectConfig]] = None,
-        item: Optional[Union[Dict, ContentItem]] = None,
-        inspect_template_name: Optional[str] = None,
-        reidentify_template_name: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        reidentify_config: dict | DeidentifyConfig | None = None,
+        inspect_config: dict | InspectConfig | None = None,
+        item: dict | ContentItem | None = None,
+        inspect_template_name: str | None = None,
+        reidentify_template_name: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -2249,7 +2480,7 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2300,7 +2531,6 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -2312,20 +2542,21 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPDeidentifyTemplateDetailsLink(),)
 
     def __init__(
         self,
         *,
         template_id: str,
-        organization_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        deidentify_template: Optional[Union[Dict, DeidentifyTemplate]] = None,
-        update_mask: Optional[Union[Dict, FieldMask]] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        organization_id: str | None = None,
+        project_id: str | None = None,
+        deidentify_template: dict | DeidentifyTemplate | None = None,
+        update_mask: dict | FieldMask | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -2340,7 +2571,7 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2355,6 +2586,16 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPDeidentifyTemplateDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                template_name=self.template_id,
+            )
+
         return MessageToDict(template)
 
 
@@ -2390,7 +2631,6 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -2402,20 +2642,21 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPInspectTemplateDetailsLink(),)
 
     def __init__(
         self,
         *,
         template_id: str,
-        organization_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        inspect_template: Optional[Union[Dict, InspectTemplate]] = None,
-        update_mask: Optional[Union[Dict, FieldMask]] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        organization_id: str | None = None,
+        project_id: str | None = None,
+        inspect_template: dict | InspectTemplate | None = None,
+        update_mask: dict | FieldMask | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -2430,7 +2671,7 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2445,6 +2686,16 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPInspectTemplateDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                template_name=self.template_id,
+            )
+
         return MessageToDict(template)
 
 
@@ -2478,7 +2729,6 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -2489,19 +2739,20 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPJobTriggerDetailsLink(),)
 
     def __init__(
         self,
         *,
         job_trigger_id,
-        project_id: Optional[str] = None,
-        job_trigger: Optional[JobTrigger] = None,
-        update_mask: Optional[Union[Dict, FieldMask]] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        job_trigger: JobTrigger | None = None,
+        update_mask: dict | FieldMask | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -2515,7 +2766,7 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2529,6 +2780,16 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPJobTriggerDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                trigger_name=self.job_trigger_id,
+            )
+
         return MessageToDict(trigger)
 
 
@@ -2565,7 +2826,6 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.StoredInfoType
     """
 
     template_fields: Sequence[str] = (
@@ -2577,20 +2837,21 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDLPInfoTypeDetailsLink(),)
 
     def __init__(
         self,
         *,
         stored_info_type_id,
-        organization_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        config: Optional[Union[Dict, StoredInfoTypeConfig]] = None,
-        update_mask: Optional[Union[Dict, FieldMask]] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        organization_id: str | None = None,
+        project_id: str | None = None,
+        config: dict | StoredInfoTypeConfig | None = None,
+        update_mask: dict | FieldMask | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -2605,7 +2866,7 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2620,4 +2881,14 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudDLPInfoTypeDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                info_type_name=self.stored_info_type_id,
+            )
+
         return MessageToDict(info)

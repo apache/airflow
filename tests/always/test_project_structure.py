@@ -14,13 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import ast
 import glob
 import itertools
 import mmap
 import os
 import unittest
-from typing import Dict, Set
 
 import pytest
 
@@ -44,27 +45,19 @@ class TestProjectStructure(unittest.TestCase):
                 self.assert_file_contains(filename, "This module is deprecated.")
 
     def assert_file_not_contains(self, filename: str, pattern: str):
-        with open(filename, 'rb', 0) as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as content:
-            if content.find(bytes(pattern, 'utf-8')) != -1:
+        with open(filename, "rb", 0) as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as content:
+            if content.find(bytes(pattern, "utf-8")) != -1:
                 self.fail(f"File {filename} not contains pattern - {pattern}")
 
     def assert_file_contains(self, filename: str, pattern: str):
-        with open(filename, 'rb', 0) as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as content:
-            if content.find(bytes(pattern, 'utf-8')) == -1:
+        with open(filename, "rb", 0) as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as content:
+            if content.find(bytes(pattern, "utf-8")) == -1:
                 self.fail(f"File {filename} contains illegal pattern - {pattern}")
 
     def test_providers_modules_should_have_tests(self):
         """
         Assert every module in /airflow/providers has a corresponding test_ file in tests/airflow/providers.
         """
-        # Deprecated modules that don't have corresponded test
-        expected_missing_providers_modules = {
-            (
-                'airflow/providers/amazon/aws/hooks/aws_dynamodb.py',
-                'tests/providers/amazon/aws/hooks/test_aws_dynamodb.py',
-            )
-        }
-
         # TODO: Should we extend this test to cover other directories?
         modules_files = glob.glob(f"{ROOT_FOLDER}/airflow/providers/**/*.py", recursive=True)
 
@@ -98,44 +91,30 @@ class TestProjectStructure(unittest.TestCase):
         missing_tests_files = expected_test_files - expected_test_files.intersection(current_test_files)
 
         with self.subTest("Detect missing tests in providers module"):
-            expected_missing_test_modules = {pair[1] for pair in expected_missing_providers_modules}
-            missing_tests_files = missing_tests_files - set(expected_missing_test_modules)
             assert set() == missing_tests_files
-
-        with self.subTest("Verify removed deprecated module also removed from deprecated list"):
-            expected_missing_modules = {pair[0] for pair in expected_missing_providers_modules}
-            removed_deprecated_module = expected_missing_modules - modules_files
-            if removed_deprecated_module:
-                self.fail(
-                    "You've removed a deprecated module:\n"
-                    f"{removed_deprecated_module}"
-                    "\n"
-                    "Thank you very much.\n"
-                    "Can you remove it from the list of expected missing modules tests, please?"
-                )
 
 
 def get_imports_from_file(filepath: str):
     with open(filepath) as py_file:
         content = py_file.read()
     doc_node = ast.parse(content, filepath)
-    import_names: Set[str] = set()
+    import_names: set[str] = set()
     for current_node in ast.walk(doc_node):
         if not isinstance(current_node, (ast.Import, ast.ImportFrom)):
             continue
         for alias in current_node.names:
             name = alias.name
-            fullname = f'{current_node.module}.{name}' if isinstance(current_node, ast.ImportFrom) else name
+            fullname = f"{current_node.module}.{name}" if isinstance(current_node, ast.ImportFrom) else name
             import_names.add(fullname)
     return import_names
 
 
 def filepath_to_module(filepath: str):
     filepath = os.path.relpath(os.path.abspath(filepath), ROOT_FOLDER)
-    return filepath.replace("/", ".")[: -(len('.py'))]
+    return filepath.replace("/", ".")[: -(len(".py"))]
 
 
-def print_sorted(container: Set, indent: str = "    ") -> None:
+def print_sorted(container: set, indent: str = "    ") -> None:
     sorted_container = sorted(container)
     print(f"{indent}" + f"\n{indent}".join(sorted_container))
 
@@ -168,7 +147,7 @@ class ProjectStructureTest:
             content = py_file.read()
         doc_node = ast.parse(content, filepath)
         module = filepath_to_module(filepath)
-        results: Dict = {}
+        results: dict = {}
         for current_node in ast.walk(doc_node):
             if not isinstance(current_node, ast.ClassDef):
                 continue
@@ -183,13 +162,13 @@ class ExampleCoverageTest(ProjectStructureTest):
     """Checks that every operator is covered by example"""
 
     # Those operators are deprecated, so we do not need examples for them
-    DEPRECATED_CLASSES: Set = set()
+    DEPRECATED_CLASSES: set = set()
 
     # Those operators should not have examples as they are never used standalone (they are abstract)
-    BASE_CLASSES: Set = set()
+    BASE_CLASSES: set = set()
 
     # Please add the examples to those operators at the earliest convenience :)
-    MISSING_EXAMPLES_FOR_CLASSES: Set = set()
+    MISSING_EXAMPLES_FOR_CLASSES: set = set()
 
     def example_paths(self):
         """Override this method if your example dags are located elsewhere"""
@@ -234,10 +213,10 @@ class AssetsCoverageTest(ProjectStructureTest):
     """Checks that every operator have operator_extra_links attribute"""
 
     # These operators should not have assets
-    ASSETS_NOT_REQUIRED: Set = set()
+    ASSETS_NOT_REQUIRED: set = set()
 
     # Please add assets to following classes
-    MISSING_ASSETS_FOR_CLASSES: Set = set()
+    MISSING_ASSETS_FOR_CLASSES: set = set()
 
     def test_missing_assets(self):
         classes = self.list_of_classes()
@@ -272,146 +251,127 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
     CLASS_DIRS = ProjectStructureTest.CLASS_DIRS | {"operators/vertex_ai"}
 
     DEPRECATED_CLASSES = {
-        'airflow.providers.google.cloud.operators.cloud_storage_transfer_service'
-        '.CloudDataTransferServiceS3ToGCSOperator',
-        'airflow.providers.google.cloud.operators.cloud_storage_transfer_service'
-        '.CloudDataTransferServiceGCSToGCSOperator',
-        'airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHadoopJobOperator',
-        'airflow.providers.google.cloud.operators.dataproc.DataprocScaleClusterOperator',
-        'airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkJobOperator',
-        'airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkSqlJobOperator',
-        'airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHiveJobOperator',
-        'airflow.providers.google.cloud.operators.dataproc.DataprocSubmitPigJobOperator',
-        'airflow.providers.google.cloud.operators.dataproc.DataprocSubmitPySparkJobOperator',
-        'airflow.providers.google.cloud.operators.mlengine.MLEngineManageModelOperator',
-        'airflow.providers.google.cloud.operators.mlengine.MLEngineManageVersionOperator',
-        'airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator',
-        'airflow.providers.google.cloud.operators.bigquery.BigQueryPatchDatasetOperator',
-        'airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator',
-        'airflow.providers.google.cloud.operators.bigquery.BigQueryExecuteQueryOperator',
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service"
+        ".CloudDataTransferServiceS3ToGCSOperator",
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service"
+        ".CloudDataTransferServiceGCSToGCSOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHadoopJobOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocScaleClusterOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkJobOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkSqlJobOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHiveJobOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitPigJobOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitPySparkJobOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineManageModelOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineManageVersionOperator",
+        "airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator",
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryPatchDatasetOperator",
+        "airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator",
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryExecuteQueryOperator",
     }
 
     BASE_CLASSES = {
-        'airflow.providers.google.cloud.operators.compute.ComputeEngineBaseOperator',
-        'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLBaseOperator',
-        'airflow.providers.google.cloud.operators.dataproc.DataprocJobBaseOperator',
-        'airflow.providers.google.cloud.operators.vertex_ai.custom_job.CustomTrainingJobBaseOperator',
+        "airflow.providers.google.cloud.operators.compute.ComputeEngineBaseOperator",
+        "airflow.providers.google.cloud.operators.cloud_sql.CloudSQLBaseOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocJobBaseOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.custom_job.CustomTrainingJobBaseOperator",
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {
-        'airflow.providers.google.cloud.operators.mlengine.MLEngineTrainingCancelJobOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPGetStoredInfoTypeOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPReidentifyContentOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPCreateDeidentifyTemplateOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPCreateDLPJobOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPUpdateDeidentifyTemplateOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPGetDLPJobTriggerOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPListDeidentifyTemplatesOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPGetDeidentifyTemplateOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPListInspectTemplatesOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPListStoredInfoTypesOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPUpdateInspectTemplateOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteDLPJobOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPListJobTriggersOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPCancelDLPJobOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPGetDLPJobOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPGetInspectTemplateOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPListInfoTypesOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteDeidentifyTemplateOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPListDLPJobsOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPRedactImageOperator',
-        'airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraToGCSOperator',
-        'airflow.providers.google.cloud.transfers.adls_to_gcs.ADLSToGCSOperator',
-        'airflow.providers.google.cloud.transfers.bigquery_to_mysql.BigQueryToMySqlOperator',
-        'airflow.providers.google.cloud.transfers.sql_to_gcs.BaseSQLToGCSOperator',
-        'airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.GetEndpointOperator',
-        'airflow.providers.google.cloud.operators.vertex_ai.auto_ml.AutoMLTrainingJobBaseOperator',
-        'airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.UpdateEndpointOperator',
-        'airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.'
-        'GetBatchPredictionJobOperator',
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineTrainingCancelJobOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPRedactImageOperator",
+        "airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraToGCSOperator",
+        "airflow.providers.google.cloud.transfers.adls_to_gcs.ADLSToGCSOperator",
+        "airflow.providers.google.cloud.transfers.bigquery_to_mysql.BigQueryToMySqlOperator",
+        "airflow.providers.google.cloud.transfers.sql_to_gcs.BaseSQLToGCSOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.GetEndpointOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.auto_ml.AutoMLTrainingJobBaseOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.UpdateEndpointOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job."
+        "GetBatchPredictionJobOperator",
     }
 
     ASSETS_NOT_REQUIRED = {
-        'airflow.providers.google.cloud.operators.automl.AutoMLDeleteDatasetOperator',
-        'airflow.providers.google.cloud.operators.automl.AutoMLDeleteModelOperator',
-        'airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator',
-        'airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteDatasetOperator',
-        'airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteTableOperator',
-        'airflow.providers.google.cloud.operators.bigquery.BigQueryIntervalCheckOperator',
-        'airflow.providers.google.cloud.operators.bigquery.BigQueryValueCheckOperator',
-        'airflow.providers.google.cloud.operators.bigquery_dts.BigQueryDeleteDataTransferConfigOperator',
-        'airflow.providers.google.cloud.operators.bigtable.BigtableDeleteInstanceOperator',
-        'airflow.providers.google.cloud.operators.bigtable.BigtableDeleteTableOperator',
-        'airflow.providers.google.cloud.operators.cloud_build.CloudBuildDeleteBuildTriggerOperator',
-        'airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreDeleteInstanceOperator',
-        'airflow.providers.google.cloud.operators.cloud_memorystore.'
-        'CloudMemorystoreMemcachedDeleteInstanceOperator',
-        'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLBaseOperator',
-        'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLDeleteInstanceDatabaseOperator',
-        'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLDeleteInstanceOperator',
-        'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.'
-        'CloudDataTransferServiceDeleteJobOperator',
-        'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.'
-        'CloudDataTransferServiceGetOperationOperator',
-        'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.'
-        'CloudDataTransferServiceListOperationsOperator',
-        'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.'
-        'CloudDataTransferServicePauseOperationOperator',
-        'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.'
-        'CloudDataTransferServiceResumeOperationOperator',
-        'airflow.providers.google.cloud.operators.compute.ComputeEngineBaseOperator',
-        'airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryGroupOperator',
-        'airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryOperator',
-        'airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagOperator',
-        'airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagTemplateFieldOperator',
-        'airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagTemplateOperator',
-        'airflow.providers.google.cloud.operators.datafusion.CloudDataFusionDeleteInstanceOperator',
-        'airflow.providers.google.cloud.operators.datafusion.CloudDataFusionDeletePipelineOperator',
-        'airflow.providers.google.cloud.operators.dataproc.DataprocDeleteBatchOperator',
-        'airflow.providers.google.cloud.operators.dataproc.DataprocDeleteClusterOperator',
-        'airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDeleteBackupOperator',
-        'airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDeleteServiceOperator',
-        'airflow.providers.google.cloud.operators.datastore.CloudDatastoreBeginTransactionOperator',
-        'airflow.providers.google.cloud.operators.datastore.CloudDatastoreDeleteOperationOperator',
-        'airflow.providers.google.cloud.operators.datastore.CloudDatastoreGetOperationOperator',
-        'airflow.providers.google.cloud.operators.datastore.CloudDatastoreRollbackOperator',
-        'airflow.providers.google.cloud.operators.datastore.CloudDatastoreRunQueryOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPDeidentifyContentOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteDLPJobOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteDeidentifyTemplateOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteInspectTemplateOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteJobTriggerOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteStoredInfoTypeOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPInspectContentOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPRedactImageOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPReidentifyContentOperator',
-        'airflow.providers.google.cloud.operators.functions.CloudFunctionDeleteFunctionOperator',
-        'airflow.providers.google.cloud.operators.gcs.GCSDeleteBucketOperator',
-        'airflow.providers.google.cloud.operators.gcs.GCSDeleteObjectsOperator',
-        'airflow.providers.google.cloud.operators.kubernetes_engine.GKEDeleteClusterOperator',
-        'airflow.providers.google.cloud.operators.mlengine.MLEngineDeleteModelOperator',
-        'airflow.providers.google.cloud.operators.mlengine.MLEngineDeleteVersionOperator',
-        'airflow.providers.google.cloud.operators.pubsub.PubSubDeleteSubscriptionOperator',
-        'airflow.providers.google.cloud.operators.pubsub.PubSubDeleteTopicOperator',
-        'airflow.providers.google.cloud.operators.spanner.SpannerDeleteDatabaseInstanceOperator',
-        'airflow.providers.google.cloud.operators.spanner.SpannerDeleteInstanceOperator',
-        'airflow.providers.google.cloud.operators.stackdriver.StackdriverDeleteAlertOperator',
-        'airflow.providers.google.cloud.operators.stackdriver.StackdriverDeleteNotificationChannelOperator',
-        'airflow.providers.google.cloud.operators.tasks.CloudTasksQueueDeleteOperator',
-        'airflow.providers.google.cloud.operators.tasks.CloudTasksTaskDeleteOperator',
-        'airflow.providers.google.cloud.operators.translate.CloudTranslateTextOperator',
-        'airflow.providers.google.cloud.operators.translate_speech.CloudTranslateSpeechOperator',
-        'airflow.providers.google.cloud.operators.vision.CloudVisionDeleteProductOperator',
-        'airflow.providers.google.cloud.operators.vision.CloudVisionDeleteProductSetOperator',
-        'airflow.providers.google.cloud.operators.vision.CloudVisionDeleteReferenceImageOperator',
-        'airflow.providers.google.cloud.operators.workflows.WorkflowsDeleteWorkflowOperator',
-        'airflow.providers.google.marketing_platform.sensors.campaign_manager.'
-        'GoogleCampaignManagerReportSensor',
-        'airflow.providers.google.marketing_platform.sensors.display_video.'
-        'GoogleDisplayVideo360GetSDFDownloadOperationSensor',
-        'airflow.providers.google.marketing_platform.sensors.display_video.'
-        'GoogleDisplayVideo360ReportSensor',
-        'airflow.providers.google.marketing_platform.sensors.search_ads.GoogleSearchAdsReportSensor',
+        "airflow.providers.google.cloud.operators.automl.AutoMLDeleteDatasetOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLDeleteModelOperator",
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator",
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteDatasetOperator",
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteTableOperator",
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryIntervalCheckOperator",
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryValueCheckOperator",
+        "airflow.providers.google.cloud.operators.bigquery_dts.BigQueryDeleteDataTransferConfigOperator",
+        "airflow.providers.google.cloud.operators.bigtable.BigtableDeleteInstanceOperator",
+        "airflow.providers.google.cloud.operators.bigtable.BigtableDeleteTableOperator",
+        "airflow.providers.google.cloud.operators.cloud_build.CloudBuildDeleteBuildTriggerOperator",
+        "airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreDeleteInstanceOperator",
+        "airflow.providers.google.cloud.operators.cloud_memorystore."
+        "CloudMemorystoreMemcachedDeleteInstanceOperator",
+        "airflow.providers.google.cloud.operators.cloud_sql.CloudSQLBaseOperator",
+        "airflow.providers.google.cloud.operators.cloud_sql.CloudSQLDeleteInstanceDatabaseOperator",
+        "airflow.providers.google.cloud.operators.cloud_sql.CloudSQLDeleteInstanceOperator",
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceDeleteJobOperator",
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceGetOperationOperator",
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceListOperationsOperator",
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServicePauseOperationOperator",
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceResumeOperationOperator",
+        "airflow.providers.google.cloud.operators.compute.ComputeEngineBaseOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryGroupOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagTemplateFieldOperator",
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagTemplateOperator",
+        "airflow.providers.google.cloud.operators.datafusion.CloudDataFusionDeleteInstanceOperator",
+        "airflow.providers.google.cloud.operators.datafusion.CloudDataFusionDeletePipelineOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocDeleteBatchOperator",
+        "airflow.providers.google.cloud.operators.dataproc.DataprocDeleteClusterOperator",
+        "airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDeleteBackupOperator",
+        "airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDeleteServiceOperator",
+        "airflow.providers.google.cloud.operators.datastore.CloudDatastoreBeginTransactionOperator",
+        "airflow.providers.google.cloud.operators.datastore.CloudDatastoreDeleteOperationOperator",
+        "airflow.providers.google.cloud.operators.datastore.CloudDatastoreGetOperationOperator",
+        "airflow.providers.google.cloud.operators.datastore.CloudDatastoreRollbackOperator",
+        "airflow.providers.google.cloud.operators.datastore.CloudDatastoreRunQueryOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPDeidentifyContentOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteDLPJobOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteDeidentifyTemplateOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteInspectTemplateOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteJobTriggerOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteStoredInfoTypeOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPInspectContentOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPRedactImageOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPReidentifyContentOperator",
+        "airflow.providers.google.cloud.operators.functions.CloudFunctionDeleteFunctionOperator",
+        "airflow.providers.google.cloud.operators.gcs.GCSDeleteBucketOperator",
+        "airflow.providers.google.cloud.operators.gcs.GCSDeleteObjectsOperator",
+        "airflow.providers.google.cloud.operators.kubernetes_engine.GKEDeleteClusterOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineDeleteModelOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineDeleteVersionOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubDeleteSubscriptionOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubDeleteTopicOperator",
+        "airflow.providers.google.cloud.operators.spanner.SpannerDeleteDatabaseInstanceOperator",
+        "airflow.providers.google.cloud.operators.spanner.SpannerDeleteInstanceOperator",
+        "airflow.providers.google.cloud.operators.stackdriver.StackdriverDeleteAlertOperator",
+        "airflow.providers.google.cloud.operators.stackdriver.StackdriverDeleteNotificationChannelOperator",
+        "airflow.providers.google.cloud.operators.tasks.CloudTasksQueueDeleteOperator",
+        "airflow.providers.google.cloud.operators.tasks.CloudTasksTaskDeleteOperator",
+        "airflow.providers.google.cloud.operators.translate.CloudTranslateTextOperator",
+        "airflow.providers.google.cloud.operators.translate_speech.CloudTranslateSpeechOperator",
+        "airflow.providers.google.cloud.operators.vision.CloudVisionDeleteProductOperator",
+        "airflow.providers.google.cloud.operators.vision.CloudVisionDeleteProductSetOperator",
+        "airflow.providers.google.cloud.operators.vision.CloudVisionDeleteReferenceImageOperator",
+        "airflow.providers.google.cloud.operators.workflows.WorkflowsDeleteWorkflowOperator",
+        "airflow.providers.google.marketing_platform.sensors.campaign_manager."
+        "GoogleCampaignManagerReportSensor",
+        "airflow.providers.google.marketing_platform.sensors.display_video."
+        "GoogleDisplayVideo360GetSDFDownloadOperationSensor",
+        "airflow.providers.google.marketing_platform.sensors.display_video."
+        "GoogleDisplayVideo360ReportSensor",
+        "airflow.providers.google.marketing_platform.sensors.search_ads.GoogleSearchAdsReportSensor",
     }
 
     @pytest.mark.xfail(reason="We did not reach full coverage yet")
@@ -424,51 +384,24 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
     CLASS_DIRS = ProjectStructureTest.CLASS_DIRS
 
     BASE_CLASSES = {
-        'airflow.providers.amazon.aws.operators.rds.RdsBaseOperator',
-        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator',
-        'airflow.providers.amazon.aws.sensors.dms.DmsTaskBaseSensor',
-        'airflow.providers.amazon.aws.sensors.emr.EmrBaseSensor',
-        'airflow.providers.amazon.aws.sensors.rds.RdsBaseSensor',
-        'airflow.providers.amazon.aws.sensors.sagemaker.SageMakerBaseSensor',
+        "airflow.providers.amazon.aws.operators.rds.RdsBaseOperator",
+        "airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator",
+        "airflow.providers.amazon.aws.sensors.dms.DmsTaskBaseSensor",
+        "airflow.providers.amazon.aws.sensors.emr.EmrBaseSensor",
+        "airflow.providers.amazon.aws.sensors.rds.RdsBaseSensor",
+        "airflow.providers.amazon.aws.sensors.sagemaker.SageMakerBaseSensor",
+        "airflow.providers.amazon.aws.operators.appflow.AppflowBaseOperator",
+        "airflow.providers.amazon.aws.operators.ecs.EcsBaseOperator",
+        "airflow.providers.amazon.aws.sensors.ecs.EcsBaseSensor",
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {
-        # EMR legitimately missing, needs development
-        'airflow.providers.amazon.aws.operators.emr.EmrModifyClusterOperator',
-        'airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor',
         # S3 Exasol transfer difficult to test, see: https://github.com/apache/airflow/issues/22632
-        'airflow.providers.amazon.aws.transfers.exasol_to_s3.ExasolToS3Operator',
+        "airflow.providers.amazon.aws.transfers.exasol_to_s3.ExasolToS3Operator",
         # Glue Catalog sensor difficult to test
-        'airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor',
-    }
-
-    DEPRECATED_CLASSES = {
-        'airflow.providers.amazon.aws.operators.athena.AWSAthenaOperator',
-        'airflow.providers.amazon.aws.operators.batch.AwsBatchOperator',
-        'airflow.providers.amazon.aws.operators.datasync.AWSDataSyncOperator',
-        'airflow.providers.amazon.aws.operators.ecs.ECSOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSCreateClusterOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSCreateFargateProfileOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSCreateNodegroupOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSDeleteClusterOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSDeleteFargateProfileOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSDeleteNodegroupOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSPodOperator',
-        'airflow.providers.amazon.aws.operators.emr_containers.EMRContainerOperator',
-        'airflow.providers.amazon.aws.operators.glue.AwsGlueJobOperator',
-        'airflow.providers.amazon.aws.operators.glue_crawler.AwsGlueCrawlerOperator',
-        'airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator',
-        'airflow.providers.amazon.aws.sensors.eks.EKSClusterStateSensor',
-        'airflow.providers.amazon.aws.sensors.eks.EKSFargateProfileStateSensor',
-        'airflow.providers.amazon.aws.sensors.eks.EKSNodegroupStateSensor',
-        'airflow.providers.amazon.aws.sensors.emr_containers.EMRContainerSensor',
-        'airflow.providers.amazon.aws.sensors.glue.AwsGlueJobSensor',
-        'airflow.providers.amazon.aws.sensors.glue_catalog_partition.AwsGlueCatalogPartitionSensor',
-        'airflow.providers.amazon.aws.sensors.glue_crawler.AwsGlueCrawlerSensor',
-        'airflow.providers.amazon.aws.sensors.s3.S3KeySizeSensor',
-        'airflow.providers.amazon.aws.sensors.s3.S3PrefixSensor',
-        'airflow.providers.amazon.aws.sensors.sqs.SQSSensor',
-        'airflow.providers.amazon.aws.transfers.mysql_to_s3.MySQLToS3Operator',
+        "airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor",
+        # EMR Step sensor difficult to test, see: https://github.com/apache/airflow/pull/27286
+        "airflow.providers.amazon.aws.sensors.emr.EmrStepSensor",
     }
 
 
@@ -476,6 +409,9 @@ class TestElasticsearchProviderProjectStructure(ExampleCoverageTest):
     PROVIDER = "elasticsearch"
     CLASS_DIRS = {"hooks"}
     CLASS_SUFFIXES = ["Hook"]
+    DEPRECATED_CLASSES = {
+        "airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook",
+    }
 
 
 class TestDockerProviderProjectStructure(ExampleCoverageTest):

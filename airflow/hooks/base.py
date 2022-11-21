@@ -15,11 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Base class for all hooks"""
+"""Base class for all hooks."""
+from __future__ import annotations
+
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.typing_compat import Protocol
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -31,7 +34,9 @@ log = logging.getLogger(__name__)
 
 class BaseHook(LoggingMixin):
     """
-    Abstract base class for hooks, hooks are meant as an interface to
+    Abstract base class for hooks.
+
+    Hooks are meant as an interface to
     interact with external systems. MySqlHook, HiveHook, PigHook return
     object that can handle the connection and interaction to specific
     instances of these systems, and expose consistent methods to interact
@@ -39,7 +44,7 @@ class BaseHook(LoggingMixin):
     """
 
     @classmethod
-    def get_connections(cls, conn_id: str) -> List["Connection"]:
+    def get_connections(cls, conn_id: str) -> list[Connection]:
         """
         Get all connections as an iterable, given the connection id.
 
@@ -49,13 +54,13 @@ class BaseHook(LoggingMixin):
         warnings.warn(
             "`BaseHook.get_connections` method will be deprecated in the future."
             "Please use `BaseHook.get_connection` instead.",
-            PendingDeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return [cls.get_connection(conn_id)]
 
     @classmethod
-    def get_connection(cls, conn_id: str) -> "Connection":
+    def get_connection(cls, conn_id: str) -> Connection:
         """
         Get connection, given connection id.
 
@@ -69,7 +74,7 @@ class BaseHook(LoggingMixin):
         return conn
 
     @classmethod
-    def get_hook(cls, conn_id: str) -> "BaseHook":
+    def get_hook(cls, conn_id: str) -> BaseHook:
         """
         Returns default hook for this connection id.
 
@@ -86,11 +91,11 @@ class BaseHook(LoggingMixin):
         raise NotImplementedError()
 
     @classmethod
-    def get_connection_form_widgets(cls) -> Dict[str, Any]:
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         ...
 
     @classmethod
-    def get_ui_field_behaviour(cls) -> Dict[str, Any]:
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         ...
 
 
@@ -139,7 +144,7 @@ class DiscoverableHook(Protocol):
     hook_name: str
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """
         Returns dictionary of widgets to be added for the hook to handle extra values.
 
@@ -155,8 +160,10 @@ class DiscoverableHook(Protocol):
         ...
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """
+        Attributes of the UI field.
+
         Returns dictionary describing customizations to implement in javascript handling the
         connection form. Should be compliant with airflow/customized_form_field_behaviours.schema.json'
 

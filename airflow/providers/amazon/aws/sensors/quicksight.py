@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-import sys
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Sequence
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
@@ -26,11 +27,6 @@ from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 
 class QuickSightSensor(BaseSensorOperator):
@@ -50,6 +46,8 @@ class QuickSightSensor(BaseSensorOperator):
          maintained on each worker node).
     """
 
+    template_fields: Sequence[str] = ("data_set_id", "ingestion_id", "aws_conn_id")
+
     def __init__(
         self,
         *,
@@ -64,16 +62,15 @@ class QuickSightSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.success_status = "COMPLETED"
         self.errored_statuses = ("FAILED", "CANCELLED")
-        self.quicksight_hook: Optional[QuickSightHook] = None
-        self.sts_hook: Optional[StsHook] = None
+        self.quicksight_hook: QuickSightHook | None = None
+        self.sts_hook: StsHook | None = None
 
-    def poke(self, context: "Context"):
+    def poke(self, context: Context) -> bool:
         """
         Pokes until the QuickSight Ingestion has successfully finished.
 
         :param context: The task context during execution.
         :return: True if it COMPLETED and False if not.
-        :rtype: bool
         """
         quicksight_hook = self.get_quicksight_hook
         sts_hook = self.get_sts_hook

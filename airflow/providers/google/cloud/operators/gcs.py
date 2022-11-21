@@ -16,12 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Storage Bucket operator."""
+from __future__ import annotations
+
 import datetime
 import subprocess
 import sys
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 import pendulum
 
@@ -30,11 +32,11 @@ if TYPE_CHECKING:
 
 from google.api_core.exceptions import Conflict
 from google.cloud.exceptions import GoogleCloudError
-from pendulum.datetime import DateTime
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.common.links.storage import FileDetailsLink, StorageLink
 from airflow.utils import timezone
 
 
@@ -100,26 +102,27 @@ class GCSCreateBucketOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'bucket_name',
-        'storage_class',
-        'location',
-        'project_id',
-        'impersonation_chain',
+        "bucket_name",
+        "storage_class",
+        "location",
+        "project_id",
+        "impersonation_chain",
     )
-    ui_color = '#f0eee4'
+    ui_color = "#f0eee4"
+    operator_extra_links = (StorageLink(),)
 
     def __init__(
         self,
         *,
         bucket_name: str,
-        resource: Optional[Dict] = None,
-        storage_class: str = 'MULTI_REGIONAL',
-        location: str = 'US',
-        project_id: Optional[str] = None,
-        labels: Optional[Dict] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        resource: dict | None = None,
+        storage_class: str = "MULTI_REGIONAL",
+        location: str = "US",
+        project_id: str | None = None,
+        labels: dict | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -133,11 +136,17 @@ class GCSCreateBucketOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
+        )
+        StorageLink.persist(
+            context=context,
+            task_instance=self,
+            uri=self.bucket_name,
+            project_id=self.project_id or hook.project_id,
         )
         try:
             hook.create_bucket(
@@ -157,7 +166,7 @@ class GCSListObjectsOperator(BaseOperator):
     List all objects from the bucket with the given string prefix and delimiter in name.
 
     This operator returns a python list with the name of objects which can be used by
-     `xcom` in the downstream task.
+    XCom in the downstream task.
 
     :param bucket: The Google Cloud Storage bucket to find the objects. (templated)
     :param prefix: Prefix string which filters objects whose name begin with
@@ -192,23 +201,25 @@ class GCSListObjectsOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'bucket',
-        'prefix',
-        'delimiter',
-        'impersonation_chain',
+        "bucket",
+        "prefix",
+        "delimiter",
+        "impersonation_chain",
     )
 
-    ui_color = '#f0eee4'
+    ui_color = "#f0eee4"
+
+    operator_extra_links = (StorageLink(),)
 
     def __init__(
         self,
         *,
         bucket: str,
-        prefix: Optional[str] = None,
-        delimiter: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        prefix: str | None = None,
+        delimiter: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -219,7 +230,7 @@ class GCSListObjectsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: "Context") -> list:
+    def execute(self, context: Context) -> list:
 
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -228,10 +239,17 @@ class GCSListObjectsOperator(BaseOperator):
         )
 
         self.log.info(
-            'Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s',
+            "Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s",
             self.bucket,
             self.delimiter,
             self.prefix,
+        )
+
+        StorageLink.persist(
+            context=context,
+            task_instance=self,
+            uri=self.bucket,
+            project_id=hook.project_id,
         )
 
         return hook.list(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
@@ -263,21 +281,21 @@ class GCSDeleteObjectsOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'bucket_name',
-        'prefix',
-        'objects',
-        'impersonation_chain',
+        "bucket_name",
+        "prefix",
+        "objects",
+        "impersonation_chain",
     )
 
     def __init__(
         self,
         *,
         bucket_name: str,
-        objects: Optional[List[str]] = None,
-        prefix: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        objects: list[str] | None = None,
+        prefix: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
 
@@ -288,12 +306,15 @@ class GCSDeleteObjectsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-        if not objects and not prefix:
-            raise ValueError("Either object or prefix should be set. Both are None")
+        if objects is None and prefix is None:
+            err_message = "(Task {task_id}) Either object or prefix should be set. Both are None.".format(
+                **kwargs
+            )
+            raise ValueError(err_message)
 
         super().__init__(**kwargs)
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -339,13 +360,14 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
 
     # [START gcs_bucket_create_acl_template_fields]
     template_fields: Sequence[str] = (
-        'bucket',
-        'entity',
-        'role',
-        'user_project',
-        'impersonation_chain',
+        "bucket",
+        "entity",
+        "role",
+        "user_project",
+        "impersonation_chain",
     )
     # [END gcs_bucket_create_acl_template_fields]
+    operator_extra_links = (StorageLink(),)
 
     def __init__(
         self,
@@ -353,9 +375,9 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
         bucket: str,
         entity: str,
         role: str,
-        user_project: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        user_project: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -366,10 +388,16 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+        )
+        StorageLink.persist(
+            context=context,
+            task_instance=self,
+            uri=self.bucket,
+            project_id=hook.project_id,
         )
         hook.insert_bucket_acl(
             bucket_name=self.bucket, entity=self.entity, role=self.role, user_project=self.user_project
@@ -409,15 +437,16 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
 
     # [START gcs_object_create_acl_template_fields]
     template_fields: Sequence[str] = (
-        'bucket',
-        'object_name',
-        'entity',
-        'generation',
-        'role',
-        'user_project',
-        'impersonation_chain',
+        "bucket",
+        "object_name",
+        "entity",
+        "generation",
+        "role",
+        "user_project",
+        "impersonation_chain",
     )
     # [END gcs_object_create_acl_template_fields]
+    operator_extra_links = (FileDetailsLink(),)
 
     def __init__(
         self,
@@ -426,10 +455,10 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
         object_name: str,
         entity: str,
         role: str,
-        generation: Optional[int] = None,
-        user_project: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        generation: int | None = None,
+        user_project: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -442,10 +471,16 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+        )
+        FileDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            uri=f"{self.bucket}/{self.object_name}",
+            project_id=hook.project_id,
         )
         hook.insert_object_acl(
             bucket_name=self.bucket,
@@ -491,24 +526,25 @@ class GCSFileTransformOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'source_bucket',
-        'source_object',
-        'destination_bucket',
-        'destination_object',
-        'transform_script',
-        'impersonation_chain',
+        "source_bucket",
+        "source_object",
+        "destination_bucket",
+        "destination_object",
+        "transform_script",
+        "impersonation_chain",
     )
+    operator_extra_links = (FileDetailsLink(),)
 
     def __init__(
         self,
         *,
         source_bucket: str,
         source_object: str,
-        transform_script: Union[str, List[str]],
-        destination_bucket: Optional[str] = None,
-        destination_object: Optional[str] = None,
+        transform_script: str | list[str],
+        destination_bucket: str | None = None,
+        destination_object: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -522,7 +558,7 @@ class GCSFileTransformOperator(BaseOperator):
         self.output_encoding = sys.getdefaultencoding()
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
         with NamedTemporaryFile() as source_file, NamedTemporaryFile() as destination_file:
@@ -539,7 +575,7 @@ class GCSFileTransformOperator(BaseOperator):
             ) as process:
                 self.log.info("Process output:")
                 if process.stdout:
-                    for line in iter(process.stdout.readline, b''):
+                    for line in iter(process.stdout.readline, b""):
                         self.log.info(line.decode(self.output_encoding).rstrip())
 
                 process.wait()
@@ -549,6 +585,12 @@ class GCSFileTransformOperator(BaseOperator):
             self.log.info("Transformation succeeded. Output temporarily located at %s", destination_file.name)
 
             self.log.info("Uploading file to %s as %s", self.destination_bucket, self.destination_object)
+            FileDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                uri=f"{self.destination_bucket}/{self.destination_object}",
+                project_id=hook.project_id,
+            )
             hook.upload(
                 bucket_name=self.destination_bucket,
                 object_name=self.destination_object,
@@ -620,17 +662,18 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'source_bucket',
-        'source_prefix',
-        'destination_bucket',
-        'destination_prefix',
-        'transform_script',
-        'source_impersonation_chain',
-        'destination_impersonation_chain',
+        "source_bucket",
+        "source_prefix",
+        "destination_bucket",
+        "destination_prefix",
+        "transform_script",
+        "source_impersonation_chain",
+        "destination_impersonation_chain",
     )
+    operator_extra_links = (StorageLink(),)
 
     @staticmethod
-    def interpolate_prefix(prefix: str, dt: datetime.datetime) -> Optional[str]:
+    def interpolate_prefix(prefix: str, dt: datetime.datetime) -> str | None:
         """Interpolate prefix with datetime.
 
         :param prefix: The prefix to interpolate
@@ -648,13 +691,13 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
         destination_bucket: str,
         destination_prefix: str,
         destination_gcp_conn_id: str,
-        transform_script: Union[str, List[str]],
-        source_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        destination_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        chunk_size: Optional[int] = None,
-        download_continue_on_fail: Optional[bool] = False,
+        transform_script: str | list[str],
+        source_impersonation_chain: str | Sequence[str] | None = None,
+        destination_impersonation_chain: str | Sequence[str] | None = None,
+        chunk_size: int | None = None,
+        download_continue_on_fail: bool | None = False,
         download_num_attempts: int = 1,
-        upload_continue_on_fail: Optional[bool] = False,
+        upload_continue_on_fail: bool | None = False,
         upload_num_attempts: int = 1,
         **kwargs,
     ) -> None:
@@ -678,25 +721,28 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
         self.upload_continue_on_fail = upload_continue_on_fail
         self.upload_num_attempts = upload_num_attempts
 
-    def execute(self, context: "Context") -> List[str]:
+    def execute(self, context: Context) -> list[str]:
         # Define intervals and prefixes.
         try:
-            timespan_start = context["data_interval_start"]
-            timespan_end = context["data_interval_end"]
+            orig_start = context["data_interval_start"]
+            orig_end = context["data_interval_end"]
         except KeyError:
-            timespan_start = pendulum.instance(context["execution_date"])
+            orig_start = pendulum.instance(context["execution_date"])
             following_execution_date = context["dag"].following_schedule(context["execution_date"])
             if following_execution_date is None:
-                timespan_end = None
+                orig_end = None
             else:
-                timespan_end = pendulum.instance(following_execution_date)
+                orig_end = pendulum.instance(following_execution_date)
 
-        if timespan_end is None:  # Only possible in Airflow before 2.2.
-            self.log.warning("No following schedule found, setting timespan end to max %s", timespan_end)
-            timespan_end = DateTime.max
-        elif timespan_start >= timespan_end:  # Airflow 2.2 sets start == end for non-perodic schedules.
-            self.log.warning("DAG schedule not periodic, setting timespan end to max %s", timespan_end)
-            timespan_end = DateTime.max
+        timespan_start = orig_start
+        if orig_end is None:  # Only possible in Airflow before 2.2.
+            self.log.warning("No following schedule found, setting timespan end to max %s", orig_end)
+            timespan_end = pendulum.instance(datetime.datetime.max)
+        elif orig_start >= orig_end:  # Airflow 2.2 sets start == end for non-perodic schedules.
+            self.log.warning("DAG schedule not periodic, setting timespan end to max %s", orig_end)
+            timespan_end = pendulum.instance(datetime.datetime.max)
+        else:
+            timespan_end = orig_end
 
         timespan_start = timespan_start.in_timezone(timezone.utc)
         timespan_end = timespan_end.in_timezone(timezone.utc)
@@ -717,6 +763,12 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
         destination_hook = GCSHook(
             gcp_conn_id=self.destination_gcp_conn_id,
             impersonation_chain=self.destination_impersonation_chain,
+        )
+        StorageLink.persist(
+            context=context,
+            task_instance=self,
+            uri=self.destination_bucket,
+            project_id=destination_hook.project_id,
         )
 
         # Fetch list of files.
@@ -761,7 +813,7 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
             ) as process:
                 self.log.info("Process output:")
                 if process.stdout:
-                    for line in iter(process.stdout.readline, b''):
+                    for line in iter(process.stdout.readline, b""):
                         self.log.info(line.decode(self.output_encoding).rstrip())
 
                 process.wait()
@@ -824,7 +876,7 @@ class GCSDeleteBucketOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'bucket_name',
+        "bucket_name",
         "gcp_conn_id",
         "impersonation_chain",
     )
@@ -834,8 +886,8 @@ class GCSDeleteBucketOperator(BaseOperator):
         *,
         bucket_name: str,
         force: bool = True,
-        gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -845,7 +897,7 @@ class GCSDeleteBucketOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         hook.delete_bucket(bucket_name=self.bucket_name, force=self.force)
 
@@ -893,31 +945,32 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'source_bucket',
-        'destination_bucket',
-        'source_object',
-        'destination_object',
-        'recursive',
-        'delete_extra_files',
-        'allow_overwrite',
-        'gcp_conn_id',
-        'delegate_to',
-        'impersonation_chain',
+        "source_bucket",
+        "destination_bucket",
+        "source_object",
+        "destination_object",
+        "recursive",
+        "delete_extra_files",
+        "allow_overwrite",
+        "gcp_conn_id",
+        "delegate_to",
+        "impersonation_chain",
     )
+    operator_extra_links = (StorageLink(),)
 
     def __init__(
         self,
         *,
         source_bucket: str,
         destination_bucket: str,
-        source_object: Optional[str] = None,
-        destination_object: Optional[str] = None,
+        source_object: str | None = None,
+        destination_object: str | None = None,
         recursive: bool = True,
         delete_extra_files: bool = False,
         allow_overwrite: bool = False,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -932,11 +985,17 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
+        )
+        StorageLink.persist(
+            context=context,
+            task_instance=self,
+            uri=self._get_uri(self.destination_bucket, self.destination_object),
+            project_id=hook.project_id,
         )
         hook.sync(
             source_bucket=self.source_bucket,
@@ -947,3 +1006,8 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
             delete_extra_files=self.delete_extra_files,
             allow_overwrite=self.allow_overwrite,
         )
+
+    def _get_uri(self, gcs_bucket: str, gcs_object: str | None) -> str:
+        if gcs_object and gcs_object[-1] == "/":
+            gcs_object = gcs_object[:-1]
+        return f"{gcs_bucket}/{gcs_object}" if gcs_object else gcs_bucket

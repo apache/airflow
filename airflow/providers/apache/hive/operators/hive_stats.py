@@ -15,10 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import warnings
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -58,23 +60,23 @@ class HiveStatsCollectionOperator(BaseOperator):
         column.
     """
 
-    template_fields: Sequence[str] = ('table', 'partition', 'ds', 'dttm')
-    ui_color = '#aff7a6'
+    template_fields: Sequence[str] = ("table", "partition", "ds", "dttm")
+    ui_color = "#aff7a6"
 
     def __init__(
         self,
         *,
         table: str,
         partition: Any,
-        extra_exprs: Optional[Dict[str, Any]] = None,
-        excluded_columns: Optional[List[str]] = None,
-        assignment_func: Optional[Callable[[str, str], Optional[Dict[Any, Any]]]] = None,
-        metastore_conn_id: str = 'metastore_default',
-        presto_conn_id: str = 'presto_default',
-        mysql_conn_id: str = 'airflow_db',
+        extra_exprs: dict[str, Any] | None = None,
+        excluded_columns: list[str] | None = None,
+        assignment_func: Callable[[str, str], dict[Any, Any] | None] | None = None,
+        metastore_conn_id: str = "metastore_default",
+        presto_conn_id: str = "presto_default",
+        mysql_conn_id: str = "airflow_db",
         **kwargs: Any,
     ) -> None:
-        if 'col_blacklist' in kwargs:
+        if "col_blacklist" in kwargs:
             warnings.warn(
                 f"col_blacklist kwarg passed to {self.__class__.__name__} "
                 f"(task_id: {kwargs.get('task_id')}) is deprecated, "
@@ -82,44 +84,44 @@ class HiveStatsCollectionOperator(BaseOperator):
                 category=FutureWarning,
                 stacklevel=2,
             )
-            excluded_columns = kwargs.pop('col_blacklist')
+            excluded_columns = kwargs.pop("col_blacklist")
         super().__init__(**kwargs)
         self.table = table
         self.partition = partition
         self.extra_exprs = extra_exprs or {}
-        self.excluded_columns = excluded_columns or []  # type: List[str]
+        self.excluded_columns: list[str] = excluded_columns or []
         self.metastore_conn_id = metastore_conn_id
         self.presto_conn_id = presto_conn_id
         self.mysql_conn_id = mysql_conn_id
         self.assignment_func = assignment_func
-        self.ds = '{{ ds }}'
-        self.dttm = '{{ execution_date.isoformat() }}'
+        self.ds = "{{ ds }}"
+        self.dttm = "{{ execution_date.isoformat() }}"
 
-    def get_default_exprs(self, col: str, col_type: str) -> Dict[Any, Any]:
+    def get_default_exprs(self, col: str, col_type: str) -> dict[Any, Any]:
         """Get default expressions"""
         if col in self.excluded_columns:
             return {}
-        exp = {(col, 'non_null'): f"COUNT({col})"}
-        if col_type in ['double', 'int', 'bigint', 'float']:
-            exp[(col, 'sum')] = f'SUM({col})'
-            exp[(col, 'min')] = f'MIN({col})'
-            exp[(col, 'max')] = f'MAX({col})'
-            exp[(col, 'avg')] = f'AVG({col})'
-        elif col_type == 'boolean':
-            exp[(col, 'true')] = f'SUM(CASE WHEN {col} THEN 1 ELSE 0 END)'
-            exp[(col, 'false')] = f'SUM(CASE WHEN NOT {col} THEN 1 ELSE 0 END)'
-        elif col_type in ['string']:
-            exp[(col, 'len')] = f'SUM(CAST(LENGTH({col}) AS BIGINT))'
-            exp[(col, 'approx_distinct')] = f'APPROX_DISTINCT({col})'
+        exp = {(col, "non_null"): f"COUNT({col})"}
+        if col_type in {"double", "int", "bigint", "float"}:
+            exp[(col, "sum")] = f"SUM({col})"
+            exp[(col, "min")] = f"MIN({col})"
+            exp[(col, "max")] = f"MAX({col})"
+            exp[(col, "avg")] = f"AVG({col})"
+        elif col_type == "boolean":
+            exp[(col, "true")] = f"SUM(CASE WHEN {col} THEN 1 ELSE 0 END)"
+            exp[(col, "false")] = f"SUM(CASE WHEN NOT {col} THEN 1 ELSE 0 END)"
+        elif col_type == "string":
+            exp[(col, "len")] = f"SUM(CAST(LENGTH({col}) AS BIGINT))"
+            exp[(col, "approx_distinct")] = f"APPROX_DISTINCT({col})"
 
         return exp
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         metastore = HiveMetastoreHook(metastore_conn_id=self.metastore_conn_id)
         table = metastore.get_table(table_name=self.table)
         field_types = {col.name: col.type for col in table.sd.cols}
 
-        exprs: Any = {('', 'count'): 'COUNT(*)'}
+        exprs: Any = {("", "count"): "COUNT(*)"}
         for col, col_type in list(field_types.items()):
             if self.assignment_func:
                 assign_exprs = self.assignment_func(col, col_type)
@@ -130,15 +132,15 @@ class HiveStatsCollectionOperator(BaseOperator):
             exprs.update(assign_exprs)
         exprs.update(self.extra_exprs)
         exprs = OrderedDict(exprs)
-        exprs_str = ",\n        ".join(v + " AS " + k[0] + '__' + k[1] for k, v in exprs.items())
+        exprs_str = ",\n        ".join(f"{v} AS {k[0]}__{k[1]}" for k, v in exprs.items())
 
         where_clause_ = [f"{k} = '{v}'" for k, v in self.partition.items()]
         where_clause = " AND\n        ".join(where_clause_)
         sql = f"SELECT {exprs_str} FROM {self.table} WHERE {where_clause};"
 
         presto = PrestoHook(presto_conn_id=self.presto_conn_id)
-        self.log.info('Executing SQL check: %s', sql)
-        row = presto.get_first(hql=sql)
+        self.log.info("Executing SQL check: %s", sql)
+        row = presto.get_first(sql)
         self.log.info("Record: %s", row)
         if not row:
             raise AirflowException("The query returned None")
@@ -170,15 +172,15 @@ class HiveStatsCollectionOperator(BaseOperator):
             (self.ds, self.dttm, self.table, part_json) + (r[0][0], r[0][1], r[1]) for r in zip(exprs, row)
         ]
         mysql.insert_rows(
-            table='hive_stats',
+            table="hive_stats",
             rows=rows,
             target_fields=[
-                'ds',
-                'dttm',
-                'table_name',
-                'partition_repr',
-                'col',
-                'metric',
-                'value',
+                "ds",
+                "dttm",
+                "table_name",
+                "partition_repr",
+                "col",
+                "metric",
+                "value",
             ],
         )

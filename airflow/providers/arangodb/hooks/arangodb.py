@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module allows connecting to a ArangoDB."""
-from typing import Any, Dict, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from arango import AQLQueryExecuteError, ArangoClient as ArangoDBClient
 from arango.result import Result
@@ -35,10 +36,10 @@ class ArangoDBHook(BaseHook):
     :param arangodb_conn_id: Reference to :ref:`ArangoDB connection id <howto/connection:arangodb>`.
     """
 
-    conn_name_attr = 'arangodb_conn_id'
-    default_conn_name = 'arangodb_default'
-    conn_type = 'arangodb'
-    hook_name = 'ArangoDB'
+    conn_name_attr = "arangodb_conn_id"
+    default_conn_name = "arangodb_default"
+    conn_type = "arangodb"
+    hook_name = "ArangoDB"
 
     def __init__(self, arangodb_conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -48,7 +49,7 @@ class ArangoDBHook(BaseHook):
         self.password = None
         self.db_conn = None
         self.arangodb_conn_id = arangodb_conn_id
-        self.client: Optional[ArangoDBClient] = None
+        self.client: ArangoDBClient | None = None
         self.get_conn()
 
     def get_conn(self) -> ArangoDBClient:
@@ -90,7 +91,7 @@ class ArangoDBHook(BaseHook):
             self.db_conn.create_collection(name)
             return True
         else:
-            self.log.info('Collection already exists: %s', name)
+            self.log.info("Collection already exists: %s", name)
             return False
 
     def create_database(self, name):
@@ -98,7 +99,7 @@ class ArangoDBHook(BaseHook):
             self.db_conn.create_database(name)
             return True
         else:
-            self.log.info('Database already exists: %s', name)
+            self.log.info("Database already exists: %s", name)
             return False
 
     def create_graph(self, name):
@@ -106,24 +107,24 @@ class ArangoDBHook(BaseHook):
             self.db_conn.create_graph(name)
             return True
         else:
-            self.log.info('Graph already exists: %s', name)
+            self.log.info("Graph already exists: %s", name)
             return False
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         return {
-            "hidden_fields": ['port', 'extra'],
+            "hidden_fields": ["port", "extra"],
             "relabeling": {
-                'host': 'ArangoDB Host URL or  comma separated list of URLs (coordinators in a cluster)',
-                'schema': 'ArangoDB Database',
-                'login': 'ArangoDB Username',
-                'password': 'ArangoDB Password',
+                "host": "ArangoDB Host URL or  comma separated list of URLs (coordinators in a cluster)",
+                "schema": "ArangoDB Database",
+                "login": "ArangoDB Username",
+                "password": "ArangoDB Password",
             },
             "placeholders": {
-                'host': 'eg."http://127.0.0.1:8529" or "http://127.0.0.1:8529,http://127.0.0.1:8530"'
-                ' (coordinators in a cluster)',
-                'schema': '_system',
-                'login': 'root',
-                'password': 'password',
+                "host": 'eg."http://127.0.0.1:8529" or "http://127.0.0.1:8529,http://127.0.0.1:8530"'
+                " (coordinators in a cluster)",
+                "schema": "_system",
+                "login": "root",
+                "password": "password",
             },
         }

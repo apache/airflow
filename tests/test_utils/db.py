@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.triggerer_job import TriggererJob
 from airflow.models import (
@@ -35,10 +37,19 @@ from airflow.models import (
     XCom,
     errors,
 )
+from airflow.models.dag import DagOwnerAttributes
 from airflow.models.dagcode import DagCode
+from airflow.models.dagwarning import DagWarning
+from airflow.models.dataset import (
+    DagScheduleDatasetReference,
+    DatasetDagRunQueue,
+    DatasetEvent,
+    DatasetModel,
+    TaskOutletDatasetReference,
+)
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
-from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections
+from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
 from airflow.utils.session import create_session
 from airflow.www.fab_security.sqla.models import Permission, Resource, assoc_permission_role
 
@@ -51,10 +62,28 @@ def clear_db_runs():
         session.query(TaskInstance).delete()
 
 
+def clear_db_datasets():
+    with create_session() as session:
+        session.query(DatasetEvent).delete()
+        session.query(DatasetModel).delete()
+        session.query(DatasetDagRunQueue).delete()
+        session.query(DagScheduleDatasetReference).delete()
+        session.query(TaskOutletDatasetReference).delete()
+
+
 def clear_db_dags():
     with create_session() as session:
         session.query(DagTag).delete()
+        session.query(DagOwnerAttributes).delete()
         session.query(DagModel).delete()
+
+
+def drop_tables_with_prefix(prefix):
+    with create_session() as session:
+        metadata = reflect_tables(None, session)
+        for table_name, table in metadata.tables.items():
+            if table_name.startswith(prefix):
+                table.drop()
 
 
 def clear_db_serialized_dags():
@@ -109,6 +138,11 @@ def clear_rendered_ti_fields():
 def clear_db_import_errors():
     with create_session() as session:
         session.query(errors.ImportError).delete()
+
+
+def clear_db_dag_warnings():
+    with create_session() as session:
+        session.query(DagWarning).delete()
 
 
 def clear_db_xcom():

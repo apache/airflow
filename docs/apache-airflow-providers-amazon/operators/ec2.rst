@@ -38,7 +38,7 @@ Start an Amazon EC2 instance
 To start an Amazon EC2 instance you can use
 :class:`~airflow.providers.amazon.aws.operators.ec2.EC2StartInstanceOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ec2.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ec2.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_ec2_start_instance]
@@ -52,7 +52,7 @@ Stop an Amazon EC2 instance
 To stop an Amazon EC2 instance you can use
 :class:`~airflow.providers.amazon.aws.operators.ec2.EC2StopInstanceOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ec2.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ec2.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_ec2_stop_instance]
@@ -69,7 +69,7 @@ Wait on an Amazon EC2 instance state
 To check the state of an Amazon EC2 instance and wait until it reaches the target state you can use
 :class:`~airflow.providers.amazon.aws.sensors.ec2.EC2InstanceStateSensor`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ec2.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ec2.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_ec2_instance_state]

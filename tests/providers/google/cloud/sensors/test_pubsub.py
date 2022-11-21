@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
-from typing import Any, Dict, List
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -26,9 +27,9 @@ from google.cloud.pubsub_v1.types import ReceivedMessage
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor
 
-TASK_ID = 'test-task-id'
-TEST_PROJECT = 'test-project'
-TEST_SUBSCRIPTION = 'test-subscription'
+TASK_ID = "test-task-id"
+TEST_PROJECT = "test-project"
+TEST_SUBSCRIPTION = "test-subscription"
 
 
 class TestPubSubPullSensor(unittest.TestCase):
@@ -37,7 +38,7 @@ class TestPubSubPullSensor(unittest.TestCase):
             ReceivedMessage(
                 ack_id=f"{i}",
                 message={
-                    "data": f'Message {i}'.encode(),
+                    "data": f"Message {i}".encode(),
                     "attributes": {"type": "generated message"},
                 },
             )
@@ -47,7 +48,7 @@ class TestPubSubPullSensor(unittest.TestCase):
     def _generate_dicts(self, count):
         return [ReceivedMessage.to_dict(m) for m in self._generate_messages(count)]
 
-    @mock.patch('airflow.providers.google.cloud.sensors.pubsub.PubSubHook')
+    @mock.patch("airflow.providers.google.cloud.sensors.pubsub.PubSubHook")
     def test_poke_no_messages(self, mock_hook):
         operator = PubSubPullSensor(
             task_id=TASK_ID,
@@ -58,7 +59,7 @@ class TestPubSubPullSensor(unittest.TestCase):
         mock_hook.return_value.pull.return_value = []
         assert operator.poke({}) is False
 
-    @mock.patch('airflow.providers.google.cloud.sensors.pubsub.PubSubHook')
+    @mock.patch("airflow.providers.google.cloud.sensors.pubsub.PubSubHook")
     def test_poke_with_ack_messages(self, mock_hook):
         operator = PubSubPullSensor(
             task_id=TASK_ID,
@@ -78,7 +79,7 @@ class TestPubSubPullSensor(unittest.TestCase):
             messages=generated_messages,
         )
 
-    @mock.patch('airflow.providers.google.cloud.sensors.pubsub.PubSubHook')
+    @mock.patch("airflow.providers.google.cloud.sensors.pubsub.PubSubHook")
     def test_execute(self, mock_hook):
         operator = PubSubPullSensor(
             task_id=TASK_ID,
@@ -97,7 +98,7 @@ class TestPubSubPullSensor(unittest.TestCase):
         )
         assert generated_dicts == response
 
-    @mock.patch('airflow.providers.google.cloud.sensors.pubsub.PubSubHook')
+    @mock.patch("airflow.providers.google.cloud.sensors.pubsub.PubSubHook")
     def test_execute_timeout(self, mock_hook):
         operator = PubSubPullSensor(
             task_id=TASK_ID,
@@ -118,14 +119,14 @@ class TestPubSubPullSensor(unittest.TestCase):
                 return_immediately=False,
             )
 
-    @mock.patch('airflow.providers.google.cloud.sensors.pubsub.PubSubHook')
+    @mock.patch("airflow.providers.google.cloud.sensors.pubsub.PubSubHook")
     def test_execute_with_messages_callback(self, mock_hook):
         generated_messages = self._generate_messages(5)
-        messages_callback_return_value = 'asdfg'
+        messages_callback_return_value = "asdfg"
 
         def messages_callback(
-            pulled_messages: List[ReceivedMessage],
-            context: Dict[str, Any],
+            pulled_messages: list[ReceivedMessage],
+            context: dict[str, Any],
         ):
             assert pulled_messages == generated_messages
 

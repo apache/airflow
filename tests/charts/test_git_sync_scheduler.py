@@ -14,15 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
+from __future__ import annotations
 
 import jmespath
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class GitSyncSchedulerTest(unittest.TestCase):
+class TestGitSyncSchedulerTest:
     def test_should_add_dags_volume(self):
         docs = render_chart(
             values={"dags": {"gitSync": {"enabled": True}}},
@@ -131,6 +130,24 @@ class GitSyncSchedulerTest(unittest.TestCase):
             "secret": {"secretName": "ssh-secret", "defaultMode": 288},
         } in jmespath.search("spec.template.spec.volumes", docs[0])
 
+    def test_validate_sshkeysecret_not_added_when_persistence_is_enabled(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "containerName": "git-sync-test",
+                        "sshKeySecret": "ssh-secret",
+                        "knownHosts": None,
+                        "branch": "test-branch",
+                    },
+                    "persistence": {"enabled": True},
+                }
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert "git-sync-ssh-key" not in jmespath.search("spec.template.spec.volumes[].name", docs[0])
+
     def test_should_set_username_and_pass_env_variables(self):
         docs = render_chart(
             values={
@@ -208,7 +225,7 @@ class GitSyncSchedulerTest(unittest.TestCase):
         assert {"name": "test-volume", "emptyDir": {}} in jmespath.search(
             "spec.template.spec.volumes", docs[0]
         )
-        assert {'mountPath': '/git', 'name': 'dags'} in jmespath.search(
+        assert {"mountPath": "/git", "name": "dags"} in jmespath.search(
             "spec.template.spec.containers[1].volumeMounts", docs[0]
         )
         assert {"name": "test-volume", "mountPath": "/opt/test"} in jmespath.search(
@@ -239,8 +256,8 @@ class GitSyncSchedulerTest(unittest.TestCase):
                     "gitSync": {
                         "enabled": True,
                         "resources": {
-                            "limits": {"cpu": "200m", 'memory': "128Mi"},
-                            "requests": {"cpu": "300m", 'memory': "169Mi"},
+                            "limits": {"cpu": "200m", "memory": "128Mi"},
+                            "requests": {"cpu": "300m", "memory": "169Mi"},
                         },
                     },
                 },

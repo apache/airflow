@@ -33,15 +33,15 @@
         Hostname by providing a path to a callable, which will resolve the hostname.
         The format is "package.function".
 
-        For example, default value "socket.getfqdn" means that result from getfqdn() of "socket"
-        package will be used as hostname.
+        For example, default value "airflow.utils.net.getfqdn" means that result from patched
+        version of socket.getfqdn() - see https://github.com/python/cpython/issues/49254.
 
         No argument should be required in the function specified.
         If using IP address as hostname is preferred, use value ``airflow.utils.net.get_host_ip_address``
       version_added: ~
       type: string
       example: ~
-      default: "socket.getfqdn"
+      default: "airflow.utils.net.getfqdn"
     - name: default_timezone
       description: |
         Default timezone in case supplied date times are naive
@@ -253,7 +253,7 @@
       description: |
           The number of seconds each task is going to wait by default between retries. Can be overridden at
           dag or task level.
-      version_added: 2.3.2
+      version_added: 2.4.0
       type: integer
       example: ~
       default: "300"
@@ -374,6 +374,31 @@
       example: ~
       default: "1024"
 
+    - name: daemon_umask
+      description: |
+        The default umask to use for process when run in daemon mode (scheduler, worker,  etc.)
+
+        This controls the file-creation mode mask which determines the initial value of file permission bits
+        for newly created files.
+
+        This value is treated as an octal-integer.
+      version_added: 2.3.4
+      type: string
+      default: "0o077"
+      example: ~
+    - name: dataset_manager_class
+      description: Class to use as dataset manager.
+      version_added: 2.4.0
+      type: string
+      default: ~
+      example: 'airflow.datasets.manager.DatasetManager'
+    - name: dataset_manager_kwargs
+      description: Kwargs to supply to dataset manager.
+      version_added: 2.4.0
+      type: string
+      default: ~
+      example: '{"some_param": "some_value"}'
+
 - name: database
   description: ~
   options:
@@ -405,7 +430,8 @@
       default: "utf-8"
     - name: sql_engine_collation_for_ids
       description: |
-        Collation for ``dag_id``, ``task_id``, ``key`` columns in case they have different encoding.
+        Collation for ``dag_id``, ``task_id``, ``key``, ``external_executor_id`` columns
+        in case they have different encoding.
         By default this collation is the same as the database collation, however for ``mysql`` and ``mariadb``
         the default is ``utf8mb3_bin`` so that the index sizes of our index keys will not exceed
         the maximum size of allowed index when collation is set to ``utf8mb4`` variant
@@ -459,7 +485,7 @@
         Check connection at the start of each connection pool checkout.
         Typically, this is a simple statement like "SELECT 1".
         More information here:
-        https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
+        https://docs.sqlalchemy.org/en/14/core/pooling.html#disconnect-handling-pessimistic
       version_added: 2.3.0
       type: string
       example: ~
@@ -477,7 +503,7 @@
         Import path for connect args in SqlAlchemy. Defaults to an empty dict.
         This is useful when you want to configure db engine args that SqlAlchemy won't parse
         in connection string.
-        See https://docs.sqlalchemy.org/en/13/core/engines.html#sqlalchemy.create_engine.params.connect_args
+        See https://docs.sqlalchemy.org/en/14/core/engines.html#sqlalchemy.create_engine.params.connect_args
       version_added: 2.3.0
       type: string
       example: ~
@@ -633,6 +659,27 @@
       type: string
       example: ~
       default: "%%(asctime)s %%(levelname)s - %%(message)s"
+    - name: dag_processor_log_target
+      description: Where to send dag parser logs. If "file",
+        logs are sent to log files defined by child_process_log_directory.
+      version_added: 2.4.0
+      type: string
+      example: ~
+      default: "file"
+    - name: dag_processor_log_format
+      description: |
+        Format of Dag Processor Log line
+      version_added: 2.4.0
+      type: string
+      example: ~
+      default: "[%%(asctime)s] [SOURCE:DAG_PROCESSOR]
+        {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
+    - name: log_formatter_class
+      description: ~
+      version_added: 2.3.4
+      type: string
+      example: ~
+      default: "airflow.utils.log.timezone_aware.TimezoneAware"
     - name: task_log_prefix_template
       description: |
         Specify prefix pattern like mentioned below with stream handler TaskHandlerWithCustomFormatter
@@ -1165,7 +1212,9 @@
       default: ""
     - name: expose_config
       description: |
-        Expose the configuration file in the web server
+        Expose the configuration file in the web server. Set to "non-sensitive-only" to show all values
+        except those that have security implications. "True" shows all values. "False" hides the
+        configuration completely.
       version_added: ~
       type: string
       example: ~
@@ -1183,7 +1232,7 @@
       version_added: 1.10.8
       type: string
       example: ~
-      default: "True"
+      default: "False"
     - name: dag_default_view
       description: |
         Default DAG view. Valid values are: ``grid``, ``graph``, ``duration``, ``gantt``, ``landing_times``
@@ -1645,15 +1694,6 @@
       type: boolean
       example: ~
       default: "true"
-    - name: worker_umask
-      description: |
-        Umask that will be used when starting workers with the ``airflow celery worker``
-        in daemon mode. This control the file-creation mode mask which determines the initial
-        value of file permission bits for newly created files.
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "0o077"
     - name: broker_url
       description: |
         The Celery broker URL. Celery supports RabbitMQ, Redis and experimentally
@@ -1670,12 +1710,13 @@
         or insert it into a database (depending of the backend)
         This status is used by the scheduler to update the state of the task
         The use of a database is highly recommended
+        When not specified, sql_alchemy_conn with a db+ scheme prefix will be used
         http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-result-backend-settings
       version_added: ~
       type: string
       sensitive: true
-      example: ~
-      default: "db+postgresql://postgres:airflow@postgres/airflow"
+      example: "db+postgresql://postgres:airflow@postgres/airflow"
+      default: ~
     - name: flower_host
       description: |
         Celery Flower is a sweet UI for Celery. Airflow has a shortcut to start
@@ -1943,6 +1984,22 @@
       type: string
       example: ~
       default: "30"
+    - name: enable_health_check
+      description: |
+        When you start a scheduler, airflow starts a tiny web server
+        subprocess to serve a health check if this is set to True
+      version_added: 2.4.0
+      type: boolean
+      example: ~
+      default: "False"
+    - name: scheduler_health_check_server_port
+      description: |
+        When you start a scheduler, airflow starts a tiny web server
+        subprocess to serve a health check on this port
+      version_added: 2.4.0
+      type: string
+      example: ~
+      default: "8974"
     - name: orphaned_tasks_check_interval
       description: |
         How often (in seconds) should the scheduler check for orphaned tasks and SchedulerJobs
@@ -2081,6 +2138,14 @@
       type: integer
       example: ~
       default: "20"
+    - name: dag_stale_not_seen_duration
+      description: |
+        Only applicable if `[scheduler]standalone_dag_processor` is true.
+        Time in seconds after which dags, which were not updated by Dag Processor are deactivated.
+      version_added: 2.4.0
+      type: integer
+      example: ~
+      default: "600"
     - name: use_job_schedule
       description: |
         Turn off scheduler use of cron intervals by setting this to False.
@@ -2097,12 +2162,6 @@
       type: string
       example: ~
       default: "False"
-    - name: dependency_detector
-      description: DAG dependency detector class to use
-      version_added: 2.1.0
-      type: string
-      example: ~
-      default: "airflow.serialization.serialized_objects.DependencyDetector"
     - name: trigger_timeout_check_interval
       description: |
         How often to check for expired trigger requests that have not run yet.
@@ -2252,7 +2311,7 @@
       type: string
       example: ~
       default: "True"
-- name: kubernetes
+- name: kubernetes_executor
   description: ~
   options:
     - name: pod_template_file
@@ -2445,36 +2504,3 @@
       type: float
       example: ~
       default: "604800"
-- name: smart_sensor
-  description: ~
-  options:
-    - name: use_smart_sensor
-      description: |
-        When `use_smart_sensor` is True, Airflow redirects multiple qualified sensor tasks to
-        smart sensor task.
-      version_added: 2.0.0
-      type: boolean
-      example: ~
-      default: "False"
-    - name: shard_code_upper_limit
-      description: |
-        `shard_code_upper_limit` is the upper limit of `shard_code` value. The `shard_code` is generated
-        by `hashcode % shard_code_upper_limit`.
-      version_added: 2.0.0
-      type: integer
-      example: ~
-      default: "10000"
-    - name: shards
-      description: |
-        The number of running smart sensor processes for each service.
-      version_added: 2.0.0
-      type: integer
-      example: ~
-      default: "5"
-    - name: sensors_enabled
-      description: |
-        comma separated sensor classes support in smart_sensor.
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "NamedHivePartitionSensor"

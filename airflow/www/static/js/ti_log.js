@@ -33,7 +33,7 @@ const ANIMATION_SPEED = parseInt(getMetaValue('animation_speed'), 10);
 const TOTAL_ATTEMPTS = parseInt(getMetaValue('total_attempts'), 10);
 
 function recurse(delay = DELAY) {
-  return new Promise((resolve) => setTimeout(resolve, delay));
+  return new Promise((resolve) => { setTimeout(resolve, delay); });
 }
 
 // Enable auto tailing only when users scroll down to the bottom
@@ -103,6 +103,7 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
       // Detect urls and log timestamps
       const urlRegex = /http(s)?:\/\/[\w.-]+(\.?:[\w.-]+)*([/?#][\w\-._~:/?#[\]@!$&'()*+,;=.%]+)?/g;
       const dateRegex = /\d{4}[./-]\d{2}[./-]\d{2} \d{2}:\d{2}:\d{2},\d{3}/g;
+      const iso8601Regex = /\d{4}[./-]\d{2}[./-]\d{2}T\d{2}:\d{2}:\d{2}.\d{3}[+-]\d{4}/g;
 
       res.message.forEach((item) => {
         const logBlockElementId = `try-${tryNumber}-${item[0]}`;
@@ -120,8 +121,9 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
         const escapedMessage = escapeHtml(item[1]);
         const linkifiedMessage = escapedMessage
           .replace(urlRegex, (url) => `<a href="${url}" target="_blank">${url}</a>`)
-          .replaceAll(dateRegex, (date) => `<time datetime="${date}+00:00" data-with-tz="true">${formatDateTime(`${date}+00:00`)}</time>`);
-        logBlock.innerHTML += `${linkifiedMessage}\n`;
+          .replaceAll(dateRegex, (date) => `<time datetime="${date}+00:00" data-with-tz="true">${formatDateTime(`${date}+00:00`)}</time>`)
+          .replaceAll(iso8601Regex, (date) => `<time datetime="${date}" data-with-tz="true">${formatDateTime(`${date}`)}</time>`);
+        logBlock.innerHTML += `${linkifiedMessage}`;
       });
 
       // Auto scroll window to the end if current window location is near the end.
@@ -134,9 +136,7 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
       document.getElementById(`loading-${tryNumber}`).style.display = 'none';
       return;
     }
-    recurse().then(() => autoTailingLog(
-      tryNumber, res.metadata, autoTailing,
-    ));
+    recurse().then(() => autoTailingLog(tryNumber, res.metadata, autoTailing));
   });
 }
 

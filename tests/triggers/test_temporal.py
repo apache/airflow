@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import asyncio
 import datetime
@@ -31,7 +32,7 @@ def test_input_validation():
     Tests that the DateTimeTrigger validates input to moment arg, it should only accept datetime.
     """
     with pytest.raises(TypeError, match="Expected datetime.datetime type for moment. Got <class 'str'>"):
-        DateTimeTrigger('2012-01-01T03:03:03+00:00')
+        DateTimeTrigger("2012-01-01T03:03:03+00:00")
 
 
 def test_datetime_trigger_serialization():

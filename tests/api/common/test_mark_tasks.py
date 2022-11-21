@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 from typing import Callable
@@ -57,10 +58,10 @@ class TestMarkTasks:
     @pytest.fixture(scope="class", autouse=True, name="create_dags")
     @classmethod
     def create_dags(cls, dagbag):
-        cls.dag1 = dagbag.get_dag('miscellaneous_test_dag')
-        cls.dag2 = dagbag.get_dag('example_subdag_operator')
-        cls.dag3 = dagbag.get_dag('example_trigger_target_dag')
-        cls.dag4 = dagbag.get_dag('test_mapped_classic')
+        cls.dag1 = dagbag.get_dag("miscellaneous_test_dag")
+        cls.dag2 = dagbag.get_dag("example_subdag_operator")
+        cls.dag3 = dagbag.get_dag("example_trigger_target_dag")
+        cls.dag4 = dagbag.get_dag("test_mapped_classic")
         cls.execution_dates = [timezone.datetime(2022, 1, 1), timezone.datetime(2022, 1, 2)]
         start_date3 = cls.dag3.start_date
         cls.dag3_execution_dates = [
@@ -466,20 +467,20 @@ class TestMarkTasks:
 
 class TestMarkDAGRun:
     INITIAL_TASK_STATES = {
-        'runme_0': State.SUCCESS,
-        'runme_1': State.SKIPPED,
-        'runme_2': State.UP_FOR_RETRY,
-        'also_run_this': State.QUEUED,
-        'run_after_loop': State.RUNNING,
-        'run_this_last': State.FAILED,
+        "runme_0": State.SUCCESS,
+        "runme_1": State.SKIPPED,
+        "runme_2": State.UP_FOR_RETRY,
+        "also_run_this": State.QUEUED,
+        "run_after_loop": State.RUNNING,
+        "run_this_last": State.FAILED,
     }
 
     @classmethod
     def setup_class(cls):
         dagbag = models.DagBag(include_examples=True, read_dags_from_db=False)
-        cls.dag1 = dagbag.dags['miscellaneous_test_dag']
+        cls.dag1 = dagbag.dags["miscellaneous_test_dag"]
         cls.dag1.sync_to_db()
-        cls.dag2 = dagbag.dags['example_subdag_operator']
+        cls.dag2 = dagbag.dags["example_subdag_operator"]
         cls.dag2.sync_to_db()
         cls.execution_dates = [
             timezone.datetime(2022, 1, 1),
@@ -539,7 +540,11 @@ class TestMarkDAGRun:
 
     def _create_test_dag_run(self, state, date):
         return self.dag1.create_dagrun(
-            run_type=DagRunType.MANUAL, state=state, start_date=date, execution_date=date
+            run_type=DagRunType.MANUAL,
+            state=state,
+            start_date=date,
+            execution_date=date,
+            data_interval=(date, date),
         )
 
     def _verify_dag_run_state(self, dag, date, state):
@@ -590,7 +595,7 @@ class TestMarkDAGRun:
         expected = self._get_num_tasks_with_non_completed_state()
         assert len(altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.FAILED)
-        assert dr.get_task_instance('run_after_loop').state == State.FAILED
+        assert dr.get_task_instance("run_after_loop").state == State.FAILED
         self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
 
     @pytest.mark.parametrize(
@@ -637,7 +642,7 @@ class TestMarkDAGRun:
         expected = self._get_num_tasks_with_non_completed_state()
         assert len(altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.FAILED)
-        assert dr.get_task_instance('run_after_loop').state == State.FAILED
+        assert dr.get_task_instance("run_after_loop").state == State.FAILED
         self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
 
     @pytest.mark.parametrize(
@@ -685,7 +690,7 @@ class TestMarkDAGRun:
         expected = self._get_num_tasks_with_non_completed_state()
         assert len(altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.FAILED)
-        assert dr.get_task_instance('run_after_loop').state == State.FAILED
+        assert dr.get_task_instance("run_after_loop").state == State.FAILED
         self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
 
     @pytest.mark.parametrize(
@@ -747,18 +752,21 @@ class TestMarkDAGRun:
             run_type=DagRunType.MANUAL,
             state=State.FAILED,
             execution_date=self.execution_dates[0],
+            data_interval=(self.execution_dates[0], self.execution_dates[0]),
             session=session,
         )
         dr2 = self.dag2.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.FAILED,
             execution_date=self.execution_dates[1],
+            data_interval=(self.execution_dates[1], self.execution_dates[1]),
             session=session,
         )
         self.dag2.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=self.execution_dates[2],
+            data_interval=(self.execution_dates[2], self.execution_dates[2]),
             session=session,
         )
 
@@ -804,11 +812,11 @@ class TestMarkDAGRun:
         # This will throw ValueError since dag.last_dagrun is None
         # need to be 0 does not exist.
         with pytest.raises(ValueError):
-            set_dag_run_state_to_success(dag=self.dag2, run_id='dag_run_id_that_does_not_exist')
+            set_dag_run_state_to_success(dag=self.dag2, run_id="dag_run_id_that_does_not_exist")
         # DagRun does not exist
         # This will throw ValueError since dag.last_dagrun does not exist
         with pytest.raises(ValueError):
-            set_dag_run_state_to_success(dag=self.dag2, run_id='dag_run_id_that_does_not_exist')
+            set_dag_run_state_to_success(dag=self.dag2, run_id="dag_run_id_that_does_not_exist")
 
     def test_set_dag_run_state_to_failed_no_running_tasks(self):
         """

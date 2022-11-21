@@ -19,6 +19,7 @@
 
 {% extends base_template %}
 {% from 'appbuilder/loading_dots.html' import loading_dots %}
+{% from 'airflow/dataset_next_run_modal.html' import dataset_next_run_modal %}
 {% from 'airflow/_messages.html' import show_message %}
 
 {%- macro sortable_column(display_name, attribute_name) -%}
@@ -68,6 +69,8 @@
   <meta name="dag_stats_url" content="{{ url_for('Airflow.dag_stats') }}">
   <meta name="task_stats_url" content="{{ url_for('Airflow.task_stats') }}">
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id='__DAG_ID__') }}">
+  <meta name="datasets_url" content="{{ url_for('Airflow.datasets') }}">
+  <meta name="next_run_datasets_url" content="{{ url_for('Airflow.next_run_datasets', dag_id='__DAG_ID__') }}">
 {% endblock %}
 
 {% block head_css %}
@@ -203,7 +206,7 @@
           </th>
           <th style="width:180px;">{{ sortable_column("Next Run", "next_dagrun") }}
             <span class="material-icons text-muted js-tooltip" aria-hidden="true"
-                  title="Expected Date/Time of the next Dag Run.">info</span>
+                  title="Expected date/time of the next DAG Run, or for dataset triggered DAGs, how many datasets have been updated since the last DAG Run.">info</span>
           </th>
           <th>Recent Tasks
             <span class="material-icons text-muted js-tooltip" aria-hidden="true"
@@ -254,14 +257,18 @@
             <td>
               {% for owner in dag.owners.split(",") %}
                 <a class="label label-default"
+                 {% if owner_links and owner.strip() in owner_links.get(dag.dag_id, {}) %}
+                   href="{{ owner_links[dag.dag_id].get(owner.strip()) }}" target="_blank"
+                 {% else %}
                    href="?search={{ owner | trim }}"
+                 {% endif %}
                    style="margin: 3px 6px 3px 0;">
                   {{ owner | trim }}
                 </a>
               {% endfor %}
             </td>
             <td style="padding:0; width:130px;">
-              {{ loading_dots(classes='js-loading-dag-stats text-muted') }}
+              {{ loading_dots(classes='js-loading-dag-run-stats text-muted') }}
               <svg height="10" width="10" id="dag-run-{{ dag.safe_dag_id }}" style="display: block;"></svg>
             </td>
             <td>
@@ -288,7 +295,36 @@
                     info
                   </span>
             </td>
-            <td class="text-nowrap">
+            <td class="text-nowrap {{ 'js-dataset-triggered' if dag.dag_id in dataset_triggered_next_run_info }}">
+              {% if dag.dag_id in dataset_triggered_next_run_info %}
+                {%- with ds_info = dataset_triggered_next_run_info[dag.dag_id] -%}
+                  <span
+                    data-dag-id="{{ dag.dag_id }}"
+                    class="js-tooltip js-next-dataset-run-tooltip"
+                    title="Click to see dataset details."
+                    data-html="true"
+                    data-uri="{{ ds_info.uri }}"
+                  >
+                    <div
+                      class="label label-default next-dataset-triggered"
+                      data-dag-id="{{ dag.dag_id }}"
+                      data-uri="{{ ds_info.uri }}"
+                      data-summary="
+                      {%- if ds_info.total == 1 -%}
+                      On {{ ds_info.uri }}
+                      {%- else -%}
+                      {{ ds_info.ready }} of {{ ds_info.total }} datasets updated
+                      {%- endif -%}"
+                    >
+                      {% if ds_info.total == 1 -%}
+                        On {{ ds_info.uri[0:40] + '…' if ds_info.uri and ds_info.uri|length > 40 else ds_info.uri|default('', true) }}
+                      {%- else -%}
+                      {{ ds_info.ready }} of {{ ds_info.total }} datasets updated
+                      {%- endif %}
+                    </div>
+                  </span>
+                {%- endwith -%}
+              {% endif %}
               {% if dag.next_dagrun is not none %}
                 <time datetime="{{ dag.next_dagrun }}">{{ dag.next_dagrun }}</time>
               {% endif %}
@@ -306,8 +342,8 @@
               {% endif %}
             </td>
             <td style="padding:0; width:323px; height:10px;">
-              {{ loading_dots(classes='js-loading-task-stats text-muted') }}
-              <svg height="10" width="10" id='task-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
+              {{ loading_dots(classes='js-loading-task-instance-stats text-muted') }}
+              <svg height="10" width="10" id='task-instance-{{ dag.safe_dag_id }}' style="display: block;"></svg>
             </td>
             <td class="text-center">
               <div class="btn-group">
@@ -405,6 +441,8 @@
     <div class="tooltip-arrow"></div>
     <div class="tooltip-inner"></div>
   </div>
+  <!-- Modal for dataset-triggered next run -->
+  {{ dataset_next_run_modal(id='dataset-next-run-modal') }}
 {% endblock %}
 
 {% block tail %}

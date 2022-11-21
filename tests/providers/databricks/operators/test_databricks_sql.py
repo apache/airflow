@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -25,19 +26,20 @@ import pytest
 from databricks.sql.types import Row
 
 from airflow import AirflowException
+from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.operators.databricks_sql import (
     DatabricksCopyIntoOperator,
     DatabricksSqlOperator,
 )
 
-DATE = '2017-04-20'
-TASK_ID = 'databricks-sql-operator'
-DEFAULT_CONN_ID = 'databricks_default'
-COPY_FILE_LOCATION = 's3://my-bucket/jsonData'
+DATE = "2017-04-20"
+TASK_ID = "databricks-sql-operator"
+DEFAULT_CONN_ID = "databricks_default"
+COPY_FILE_LOCATION = "s3://my-bucket/jsonData"
 
 
 class TestDatabricksSqlOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook')
+    @mock.patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook")
     def test_exec_success(self, db_mock_class):
         """
         Test the execute function in case where SQL query was successful.
@@ -45,13 +47,13 @@ class TestDatabricksSqlOperator(unittest.TestCase):
         sql = "select * from dummy"
         op = DatabricksSqlOperator(task_id=TASK_ID, sql=sql, do_xcom_push=True)
         db_mock = db_mock_class.return_value
-        mock_schema = [('id',), ('value',)]
-        mock_results = [Row(id=1, value='value1')]
-        db_mock.run.return_value = (mock_schema, mock_results)
+        mock_schema = [("id",), ("value",)]
+        mock_results = [Row(id=1, value="value1")]
+        db_mock.run.return_value = [(mock_schema, mock_results)]
 
         results = op.execute(None)
 
-        assert results == mock_results
+        assert results[0][1] == mock_results
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
             http_path=None,
@@ -60,10 +62,18 @@ class TestDatabricksSqlOperator(unittest.TestCase):
             http_headers=None,
             catalog=None,
             schema=None,
+            caller="DatabricksSqlOperator",
         )
-        db_mock.run.assert_called_once_with(sql, parameters=None)
+        db_mock.run.assert_called_once_with(
+            sql=sql,
+            parameters=None,
+            handler=fetch_all_handler,
+            autocommit=False,
+            return_last=True,
+            split_statements=False,
+        )
 
-    @mock.patch('airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook')
+    @mock.patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook")
     def test_exec_write_file(self, db_mock_class):
         """
         Test the execute function in case where SQL query was successful and data is written as CSV
@@ -72,9 +82,9 @@ class TestDatabricksSqlOperator(unittest.TestCase):
         tempfile_path = tempfile.mkstemp()[1]
         op = DatabricksSqlOperator(task_id=TASK_ID, sql=sql, output_path=tempfile_path)
         db_mock = db_mock_class.return_value
-        mock_schema = [('id',), ('value',)]
-        mock_results = [Row(id=1, value='value1')]
-        db_mock.run.return_value = (mock_schema, mock_results)
+        mock_schema = [("id",), ("value",)]
+        mock_results = [Row(id=1, value="value1")]
+        db_mock.run.return_value = [(mock_schema, mock_results)]
 
         try:
             op.execute(None)
@@ -91,18 +101,26 @@ class TestDatabricksSqlOperator(unittest.TestCase):
             http_headers=None,
             catalog=None,
             schema=None,
+            caller="DatabricksSqlOperator",
         )
-        db_mock.run.assert_called_once_with(sql, parameters=None)
+        db_mock.run.assert_called_once_with(
+            sql=sql,
+            parameters=None,
+            handler=fetch_all_handler,
+            autocommit=False,
+            return_last=True,
+            split_statements=False,
+        )
 
 
 class TestDatabricksSqlCopyIntoOperator(unittest.TestCase):
     def test_copy_with_files(self):
         op = DatabricksCopyIntoOperator(
             file_location=COPY_FILE_LOCATION,
-            file_format='JSON',
-            table_name='test',
-            files=['file1', 'file2', 'file3'],
-            format_options={'dateFormat': 'yyyy-MM-dd'},
+            file_format="JSON",
+            table_name="test",
+            files=["file1", "file2", "file3"],
+            format_options={"dateFormat": "yyyy-MM-dd"},
             task_id=TASK_ID,
         )
         assert (
@@ -119,12 +137,12 @@ FORMAT_OPTIONS ('dateFormat' = 'yyyy-MM-dd')
         expression = "col1, col2"
         op = DatabricksCopyIntoOperator(
             file_location=COPY_FILE_LOCATION,
-            file_format='CSV',
-            table_name='test',
+            file_format="CSV",
+            table_name="test",
             task_id=TASK_ID,
-            pattern='folder1/file_[a-g].csv',
+            pattern="folder1/file_[a-g].csv",
             expression_list=expression,
-            format_options={'header': 'true'},
+            format_options={"header": "true"},
             force_copy=True,
         )
         assert (
@@ -142,11 +160,11 @@ COPY_OPTIONS ('force' = 'true')
         expression = "col1, col2"
         op = DatabricksCopyIntoOperator(
             file_location=COPY_FILE_LOCATION,
-            file_format='CSV',
-            table_name='test',
+            file_format="CSV",
+            table_name="test",
             task_id=TASK_ID,
             expression_list=expression,
-            credential={'AZURE_SAS_TOKEN': 'abc'},
+            credential={"AZURE_SAS_TOKEN": "abc"},
         )
         assert (
             op._create_sql_query()
@@ -160,12 +178,12 @@ FILEFORMAT = CSV
         expression = "col1, col2"
         op = DatabricksCopyIntoOperator(
             file_location=COPY_FILE_LOCATION,
-            file_format='CSV',
-            table_name='test',
+            file_format="CSV",
+            table_name="test",
             task_id=TASK_ID,
             expression_list=expression,
-            storage_credential='abc',
-            credential={'AZURE_SAS_TOKEN': 'abc'},
+            storage_credential="abc",
+            credential={"AZURE_SAS_TOKEN": "abc"},
         )
         assert (
             op._create_sql_query()
@@ -178,10 +196,10 @@ FILEFORMAT = CSV
     def test_copy_with_encryption(self):
         op = DatabricksCopyIntoOperator(
             file_location=COPY_FILE_LOCATION,
-            file_format='CSV',
-            table_name='test',
+            file_format="CSV",
+            table_name="test",
             task_id=TASK_ID,
-            encryption={'TYPE': 'AWS_SSE_C', 'MASTER_KEY': 'abc'},
+            encryption={"TYPE": "AWS_SSE_C", "MASTER_KEY": "abc"},
         )
         assert (
             op._create_sql_query()
@@ -194,11 +212,11 @@ FILEFORMAT = CSV
     def test_copy_with_encryption_and_credential(self):
         op = DatabricksCopyIntoOperator(
             file_location=COPY_FILE_LOCATION,
-            file_format='CSV',
-            table_name='test',
+            file_format="CSV",
+            table_name="test",
             task_id=TASK_ID,
-            encryption={'TYPE': 'AWS_SSE_C', 'MASTER_KEY': 'abc'},
-            credential={'AZURE_SAS_TOKEN': 'abc'},
+            encryption={"TYPE": "AWS_SSE_C", "MASTER_KEY": "abc"},
+            credential={"AZURE_SAS_TOKEN": "abc"},
         )
         assert (
             op._create_sql_query()
@@ -212,8 +230,8 @@ FILEFORMAT = CSV
     def test_copy_with_validate_all(self):
         op = DatabricksCopyIntoOperator(
             file_location=COPY_FILE_LOCATION,
-            file_format='JSON',
-            table_name='test',
+            file_format="JSON",
+            table_name="test",
             task_id=TASK_ID,
             validate=True,
         )
@@ -229,8 +247,8 @@ VALIDATE ALL
     def test_copy_with_validate_N_rows(self):
         op = DatabricksCopyIntoOperator(
             file_location=COPY_FILE_LOCATION,
-            file_format='JSON',
-            table_name='test',
+            file_format="JSON",
+            table_name="test",
             task_id=TASK_ID,
             validate=10,
         )
@@ -249,9 +267,9 @@ VALIDATE 10 ROWS
             DatabricksCopyIntoOperator(
                 task_id=TASK_ID,
                 file_location=COPY_FILE_LOCATION,
-                file_format='JSON',
-                table_name='test',
-                files=['file1', 'file2', 'file3'],
+                file_format="JSON",
+                table_name="test",
+                files=["file1", "file2", "file3"],
                 pattern="abc",
             )
 
@@ -261,8 +279,8 @@ VALIDATE 10 ROWS
             DatabricksCopyIntoOperator(
                 task_id=TASK_ID,
                 file_location=COPY_FILE_LOCATION,
-                file_format='JSON',
-                table_name='',
+                file_format="JSON",
+                table_name="",
             )
 
     def test_incorrect_params_emtpy_location(self):
@@ -271,17 +289,17 @@ VALIDATE 10 ROWS
             DatabricksCopyIntoOperator(
                 task_id=TASK_ID,
                 file_location="",
-                file_format='JSON',
-                table_name='abc',
+                file_format="JSON",
+                table_name="abc",
             )
 
     def test_incorrect_params_wrong_format(self):
-        file_format = 'JSONL'
+        file_format = "JSONL"
         exception_message = f"file_format '{file_format}' isn't supported"
         with pytest.raises(AirflowException, match=exception_message):
             DatabricksCopyIntoOperator(
                 task_id=TASK_ID,
                 file_location=COPY_FILE_LOCATION,
                 file_format=file_format,
-                table_name='abc',
+                table_name="abc",
             )

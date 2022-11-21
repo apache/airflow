@@ -16,8 +16,73 @@
     under the License.
 
 
+.. NOTE TO CONTRIBUTORS:
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+   and you want to add an explanation to the users on how they are supposed to deal with them.
+   The changelog is updated and maintained semi-automatically by release manager.
+
 Changelog
 ---------
+
+4.0.0
+.....
+
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The ``spark-binary`` connection extra could be set to any binary, but with 4.0.0 version only two values
+are allowed for it ``spark-submit`` and ``spark2-submit``.
+
+The ``spark-home`` connection extra is not allowed any more - the binary should be available on the
+PATH in order to use SparkSubmitHook and SparkSubmitOperator.
+
+* ``Remove custom spark home and custom binaries for spark (#27646)``
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add documentation for July 2022 Provider's release (#25030)``
+   * ``Enable string normalization in python formatting - providers (#27205)``
+   * ``Update docs for September Provider's release (#26731)``
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+   * ``Prepare docs for new providers release (August 2022) (#25618)``
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add typing for airflow/configuration.py (#23716)``
+* ``Fix backwards-compatibility introduced by fixing mypy problems (#24230)``
+
+Misc
+~~~~
+
+* ``AIP-47 - Migrate spark DAGs to new design #22439 (#24210)``
+* ``chore: Refactoring and Cleaning Apache Providers (#24219)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
 
 2.1.3
 .....

@@ -135,12 +135,14 @@ User interface
 Airflow also allows the developer to control how the operator shows up in the DAG UI.
 Override ``ui_color`` to change the background color of the operator in UI.
 Override ``ui_fgcolor`` to change the color of the label.
+Override ``custom_operator_name`` to change the displayed name to something other than the classname.
 
 .. code-block:: python
 
         class HelloOperator(BaseOperator):
             ui_color = "#ff0000"
             ui_fgcolor = "#000000"
+            custom_operator_name = "Howdy"
             # ...
 
 Templating
@@ -169,9 +171,7 @@ You can use the template as follows:
 .. code-block:: python
 
         with dag:
-            hello_task = HelloOperator(
-                task_id="task_id_1", dag=dag, name="{{ task_instance.task_id }}"
-            )
+            hello_task = HelloOperator(task_id="task_id_1", dag=dag, name="{{ task_instance.task_id }}")
 
 In this example, Jinja looks for the ``name`` parameter and substitutes ``{{ task_instance.task_id }}`` with
 ``task_id_1``.

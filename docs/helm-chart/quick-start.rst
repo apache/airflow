@@ -29,7 +29,7 @@ We recommend testing with Kubernetes 1.20+, example:
 
    kind create cluster --image kindest/node:v1.21.1
 
-Confirm it’s up:
+Confirm it's up:
 
 .. code-block:: bash
 

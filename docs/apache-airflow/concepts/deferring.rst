@@ -82,6 +82,12 @@ You are free to set ``method_name`` to ``execute`` if you want your Operator to 
 
 Here's a basic example of how a sensor might trigger deferral::
 
+    from datetime import timedelta
+
+    from airflow.sensors.base import BaseSensorOperator
+    from airflow.triggers.temporal import TimeDeltaTrigger
+
+
     class WaitOneHourSensor(BaseSensorOperator):
         def execute(self, context):
             self.defer(trigger=TimeDeltaTrigger(timedelta(hours=1)), method_name="execute_complete")
@@ -122,6 +128,12 @@ There's also some design constraints to be aware of:
 Here's the structure of a basic Trigger::
 
 
+    import asyncio
+
+    from airflow.triggers.base import BaseTrigger, TriggerEvent
+    from airflow.utils import timezone
+
+
     class DateTimeTrigger(BaseTrigger):
 
         def __init__(self, moment):
@@ -159,9 +171,3 @@ Airflow tries to only run triggers in one place at once, and maintains a heartbe
 This means it's possible, but unlikely, for triggers to run in multiple places at once; this is designed into the Trigger contract, however, and entirely expected. Airflow will de-duplicate events fired when a trigger is running in multiple places simultaneously, so this process should be transparent to your Operators.
 
 Note that every extra ``triggerer`` you run will result in an extra persistent connection to your database.
-
-
-Smart Sensors
--------------
-
-Deferrable Operators supersede :doc:`Smart Sensors <smart-sensors>`. They do solve fundamentally the same problem; Smart Sensors, however, only work for certain Sensor workload styles, have no redundancy, and require a custom DAG to run at all times.

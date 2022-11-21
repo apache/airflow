@@ -1,6 +1,3 @@
-breeze export-ignore
-breeze-legacy export-ignore
-breeze-complete export-ignore
 clients export-ignore
 clients export-ignore
 dev export-ignore
@@ -16,8 +13,6 @@ tests export-ignore
 Dockerfile.ci export-ignore
 
 ISSUE_TRIAGE_PROCESS.rst export-ignore
-PULL_REQUEST_WORKFLOW.rst export-ignore
-SELECTIVE_CHECKS.md export-ignore
 STATIC_CODE_CHECKS.rst export-ignore
 TESTING.rst export-ignore
 LOCAL_VIRTUALENV.rst export-ignore

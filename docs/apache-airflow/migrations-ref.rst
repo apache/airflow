@@ -18,7 +18,19 @@
 Reference for Database Migrations
 '''''''''''''''''''''''''''''''''
 
-Here's the list of all the Database Migrations that are executed via when you run ``airflow db upgrade``:
+Here's the list of all the Database Migrations that are executed via when you run ``airflow db upgrade``.
+
+.. warning::
+
+   Those migration details are mostly used here to make the users aware when and what kind of migrations
+   will be executed during migrations between specific Airflow versions. The intention here is that the
+   "DB conscious" users might perform an analysis on the migrations and draw conclusions about the impact
+   of the migrations on their Airflow database. Those users might also want to take a look at the
+   :doc:`database-erd-ref` document to understand how the internal DB of Airflow structure looks like.
+   However you should be aware that the structure is internal and you should not access the DB directly
+   to retrieve or modify any data - you should use :doc:`stable-rest-api-ref` to do that instead.
+
+
 
  .. This table is automatically updated by pre-commit by ``scripts/ci/pre_commit/pre_commit_migration_reference.py``
  .. All table elements are scraped from migration files
@@ -27,11 +39,34 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | Revision ID                     | Revises ID        | Airflow Version   | Description                                                  |
 +=================================+===================+===================+==============================================================+
-| ``3c94c427fdf6`` (head)         | ``1de7bc13c950``  | ``2.3.2``         | Add cascade to dag_tag foreign key                           |
+| ``65a852f26899`` (head)         | ``ee8d93fcc81e``  | ``2.5.0``         | Add user comment to task_instance and dag_run.               |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``ee8d93fcc81e``                | ``e07f49787c9d``  | ``2.5.0``         | Add updated_at column to DagRun and TaskInstance             |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``e07f49787c9d``                | ``b0d31815b5a6``  | ``2.4.3``         | Add case-insensitive unique constraint for username          |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``b0d31815b5a6``                | ``ecb43d2a1842``  | ``2.4.2``         | Add missing auto-increment to columns on FAB tables          |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``ecb43d2a1842``                | ``1486deb605b4``  | ``2.4.0``         | Add processor_subdir column to DagModel, SerializedDagModel  |
+|                                 |                   |                   | and CallbackRequest tables.                                  |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``1486deb605b4``                | ``f4ff391becb5``  | ``2.4.0``         | add dag_owner_attributes table                               |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``f4ff391becb5``                | ``0038cd0c28b4``  | ``2.4.0``         | Remove smart sensors                                         |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``0038cd0c28b4``                | ``44b7034f6bdc``  | ``2.4.0``         | Add Dataset model                                            |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``44b7034f6bdc``                | ``424117c37d18``  | ``2.4.0``         | compare types between ORM and DB.                            |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``424117c37d18``                | ``f5fcbda3e651``  | ``2.4.0``         | Add DagWarning model                                         |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``f5fcbda3e651``                | ``3c94c427fdf6``  | ``2.3.3``         | Add indexes for CASCADE deletes on task_instance             |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``3c94c427fdf6``                | ``1de7bc13c950``  | ``2.3.2``         | Add cascade to dag_tag foreign key                           |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``1de7bc13c950``                | ``b1b348e02d07``  | ``2.3.1``         | Add index for ``event`` column in ``log`` table.             |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
-| ``b1b348e02d07``                | ``75d5ed6c2b43``  | ``2.3.0``         | Update dag.default_view to grid                              |
+| ``b1b348e02d07``                | ``75d5ed6c2b43``  | ``2.3.0``         | Update dag.default_view to grid.                             |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``75d5ed6c2b43``                | ``909884dea523``  | ``2.3.0``         | Add map_index to Log.                                        |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
@@ -172,7 +207,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``004c1210f153``                | ``939bb1e647c8``  | ``1.10.4``        | Increase queue name size limit                               |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
-| ``74effc47d867``                | ``6e96a59344a4``  | ``1.10.5``        | change datetime to datetime2(6) on MSSQL tables              |
+| ``74effc47d867``                | ``6e96a59344a4``  | ``1.10.5``        | change datetime to datetime2(6) on MSSQL tables.             |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``b3b105409875``                | ``d38e04c12aa2``  | ``1.10.7``        | Add ``root_dag_id`` to ``DAG``                               |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
@@ -189,7 +224,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``41f5f12752f8``                | ``03bc53e68815``  | ``1.10.2``        | Add superuser field                                          |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
-| ``03bc53e68815`` (merge_point)  | ``0a2a5b66e19d``, | ``1.10.2``        | Merge migrations Heads                                       |
+| ``03bc53e68815`` (merge_point)  | ``0a2a5b66e19d``, | ``1.10.2``        | Merge migrations Heads.                                      |
 |                                 | ``bf00311e1990``  |                   |                                                              |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``0a2a5b66e19d``                | ``9635ae0956e7``  | ``1.10.2``        | Add ``task_reschedule`` table                                |

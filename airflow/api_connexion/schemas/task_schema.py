@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 from marshmallow import Schema, fields
 
@@ -30,9 +31,10 @@ from airflow.models.operator import Operator
 
 
 class TaskSchema(Schema):
-    """Task schema"""
+    """Task schema."""
 
     class_ref = fields.Method("_get_class_reference", dump_only=True)
+    operator_name = fields.Method("_get_operator_name", dump_only=True)
     task_id = fields.String(dump_only=True)
     owner = fields.String(dump_only=True)
     start_date = fields.DateTime(dump_only=True)
@@ -57,29 +59,32 @@ class TaskSchema(Schema):
     template_fields = fields.List(fields.String(), dump_only=True)
     sub_dag = fields.Nested(DAGSchema, dump_only=True)
     downstream_task_ids = fields.List(fields.String(), dump_only=True)
-    params = fields.Method('get_params', dump_only=True)
+    params = fields.Method("get_params", dump_only=True)
     is_mapped = fields.Boolean(dump_only=True)
 
     def _get_class_reference(self, obj):
         result = ClassReferenceSchema().dump(obj)
         return result.data if hasattr(result, "data") else result
 
+    def _get_operator_name(self, obj):
+        return obj.operator_name
+
     @staticmethod
     def get_params(obj):
-        """Get the Params defined in a Task"""
+        """Get the Params defined in a Task."""
         params = obj.params
         return {k: v.dump() for k, v in params.items()}
 
 
 class TaskCollection(NamedTuple):
-    """List of Tasks with metadata"""
+    """List of Tasks with metadata."""
 
-    tasks: List[Operator]
+    tasks: list[Operator]
     total_entries: int
 
 
 class TaskCollectionSchema(Schema):
-    """Schema for TaskCollection"""
+    """Schema for TaskCollection."""
 
     tasks = fields.List(fields.Nested(TaskSchema))
     total_entries = fields.Int()

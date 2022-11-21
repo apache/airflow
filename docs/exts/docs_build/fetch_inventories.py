@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import concurrent
 import concurrent.futures
@@ -23,7 +24,7 @@ import shutil
 import sys
 import traceback
 from itertools import repeat
-from typing import Iterator, List, Tuple
+from typing import Iterator
 
 import requests
 import urllib3.exceptions
@@ -35,16 +36,16 @@ from docs.exts.docs_build.third_party_inventories import THIRD_PARTY_INDEXES
 
 CURRENT_DIR = os.path.dirname(__file__)
 ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir, os.pardir))
-DOCS_DIR = os.path.join(ROOT_DIR, 'docs')
-CACHE_DIR = os.path.join(DOCS_DIR, '_inventory_cache')
-EXPIRATION_DATE_PATH = os.path.join(DOCS_DIR, '_inventory_cache', "expiration-date")
+DOCS_DIR = os.path.join(ROOT_DIR, "docs")
+CACHE_DIR = os.path.join(DOCS_DIR, "_inventory_cache")
+EXPIRATION_DATE_PATH = os.path.join(DOCS_DIR, "_inventory_cache", "expiration-date")
 
 S3_DOC_URL = "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com"
 S3_DOC_URL_VERSIONED = S3_DOC_URL + "/docs/{package_name}/latest/objects.inv"
 S3_DOC_URL_NON_VERSIONED = S3_DOC_URL + "/docs/{package_name}/objects.inv"
 
 
-def _fetch_file(session: requests.Session, package_name: str, url: str, path: str) -> Tuple[str, bool]:
+def _fetch_file(session: requests.Session, package_name: str, url: str, path: str) -> tuple[str, bool]:
     """
     Download a file and returns status information as a tuple with package
     name and success status(bool value).
@@ -61,7 +62,7 @@ def _fetch_file(session: requests.Session, package_name: str, url: str, path: st
         return package_name, False
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'wb') as f:
+    with open(path, "wb") as f:
         response.raw.decode_content = True
         shutil.copyfileobj(response.raw, f)
     print(f"Fetched inventory: {url}")
@@ -78,37 +79,37 @@ def _is_outdated(path: str):
 def fetch_inventories():
     """Fetch all inventories for Airflow documentation packages and store in cache."""
     os.makedirs(os.path.dirname(CACHE_DIR), exist_ok=True)
-    to_download: List[Tuple[str, str, str]] = []
+    to_download: list[tuple[str, str, str]] = []
 
     for pkg_name in get_available_providers_packages():
         to_download.append(
             (
                 pkg_name,
                 S3_DOC_URL_VERSIONED.format(package_name=pkg_name),
-                f'{CACHE_DIR}/{pkg_name}/objects.inv',
+                f"{CACHE_DIR}/{pkg_name}/objects.inv",
             )
         )
-    for pkg_name in ['apache-airflow', 'helm-chart']:
+    for pkg_name in ["apache-airflow", "helm-chart"]:
         to_download.append(
             (
                 pkg_name,
                 S3_DOC_URL_VERSIONED.format(package_name=pkg_name),
-                f'{CACHE_DIR}/{pkg_name}/objects.inv',
+                f"{CACHE_DIR}/{pkg_name}/objects.inv",
             )
         )
-    for pkg_name in ['apache-airflow-providers', 'docker-stack']:
+    for pkg_name in ["apache-airflow-providers", "docker-stack"]:
         to_download.append(
             (
                 pkg_name,
                 S3_DOC_URL_NON_VERSIONED.format(package_name=pkg_name),
-                f'{CACHE_DIR}/{pkg_name}/objects.inv',
+                f"{CACHE_DIR}/{pkg_name}/objects.inv",
             )
         )
     to_download.extend(
         (
             pkg_name,
             f"{doc_url}/objects.inv",
-            f'{CACHE_DIR}/{pkg_name}/objects.inv',
+            f"{CACHE_DIR}/{pkg_name}/objects.inv",
         )
         for pkg_name, doc_url in THIRD_PARTY_INDEXES.items()
     )
@@ -121,7 +122,7 @@ def fetch_inventories():
     print(f"To download {len(to_download)} inventorie(s)")
 
     with requests.Session() as session, concurrent.futures.ThreadPoolExecutor(DEFAULT_POOLSIZE) as pool:
-        download_results: Iterator[Tuple[str, bool]] = pool.map(
+        download_results: Iterator[tuple[str, bool]] = pool.map(
             _fetch_file,
             repeat(session, len(to_download)),
             (pkg_name for pkg_name, _, _ in to_download),

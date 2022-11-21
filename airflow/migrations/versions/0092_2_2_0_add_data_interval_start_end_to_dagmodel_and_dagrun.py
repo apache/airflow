@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add data_interval_[start|end] to DagModel and DagRun.
 
 Revision ID: 142555e44c17
@@ -23,6 +22,7 @@ Revises: 54bebd308c5f
 Create Date: 2021-06-09 08:28:02.089817
 
 """
+from __future__ import annotations
 
 from alembic import op
 from sqlalchemy import Column
@@ -34,7 +34,7 @@ revision = "142555e44c17"
 down_revision = "54bebd308c5f"
 branch_labels = None
 depends_on = None
-airflow_version = '2.2.0'
+airflow_version = "2.2.0"
 
 
 def upgrade():

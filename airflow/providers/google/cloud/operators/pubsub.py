@@ -22,7 +22,9 @@ This module contains Google PubSub operators.
 
     MessageStoragePolicy
 """
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -38,6 +40,7 @@ from google.cloud.pubsub_v1.types import (
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
+from airflow.providers.google.cloud.links.pubsub import PubSubSubscriptionLink, PubSubTopicLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -90,7 +93,7 @@ class PubSubCreateTopicOperator(BaseOperator):
         of Google Cloud regions where messages published to
         the topic may be stored. If not present, then no constraints
         are in effect.
-        Union[Dict, google.cloud.pubsub_v1.types.MessageStoragePolicy]
+        Union[dict, google.cloud.pubsub_v1.types.MessageStoragePolicy]
     :param kms_key_name: The resource name of the Cloud KMS CryptoKey
         to be used to protect access to messages published on this topic.
         The expected format is
@@ -112,27 +115,28 @@ class PubSubCreateTopicOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'topic',
-        'impersonation_chain',
+        "project_id",
+        "topic",
+        "impersonation_chain",
     )
-    ui_color = '#0273d4'
+    ui_color = "#0273d4"
+    operator_extra_links = (PubSubTopicLink(),)
 
     def __init__(
         self,
         *,
         topic: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         fail_if_exists: bool = False,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        message_storage_policy: Union[Dict, MessageStoragePolicy] = None,
-        kms_key_name: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        labels: dict[str, str] | None = None,
+        message_storage_policy: dict | MessageStoragePolicy = None,
+        kms_key_name: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
 
@@ -150,7 +154,7 @@ class PubSubCreateTopicOperator(BaseOperator):
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -170,6 +174,12 @@ class PubSubCreateTopicOperator(BaseOperator):
             metadata=self.metadata,
         )
         self.log.info("Created topic %s", self.topic)
+        PubSubTopicLink.persist(
+            context=context,
+            task_instance=self,
+            topic_id=self.topic,
+            project_id=self.project_id or hook.project_id,
+        )
 
 
 class PubSubCreateSubscriptionOperator(BaseOperator):
@@ -265,7 +275,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         in which they are received by the Pub/Sub system. Otherwise, they may be
         delivered in any order.
     :param expiration_policy: A policy that specifies the conditions for this
-        subscription’s expiration. A subscription is considered active as long as any
+        subscription's expiration. A subscription is considered active as long as any
         connected subscriber is successfully consuming messages from the subscription or
         is issuing operations on the subscription. If expiration_policy is not set,
         a default policy with ttl of 31 days will be used. The minimum allowed value for
@@ -298,38 +308,39 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'topic',
-        'subscription',
-        'subscription_project_id',
-        'impersonation_chain',
+        "project_id",
+        "topic",
+        "subscription",
+        "subscription_project_id",
+        "impersonation_chain",
     )
-    ui_color = '#0273d4'
+    ui_color = "#0273d4"
+    operator_extra_links = (PubSubSubscriptionLink(),)
 
     def __init__(
         self,
         *,
         topic: str,
-        project_id: Optional[str] = None,
-        subscription: Optional[str] = None,
-        subscription_project_id: Optional[str] = None,
+        project_id: str | None = None,
+        subscription: str | None = None,
+        subscription_project_id: str | None = None,
         ack_deadline_secs: int = 10,
         fail_if_exists: bool = False,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        push_config: Optional[Union[Dict, PushConfig]] = None,
-        retain_acked_messages: Optional[bool] = None,
-        message_retention_duration: Optional[Union[Dict, Duration]] = None,
-        labels: Optional[Dict[str, str]] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        push_config: dict | PushConfig | None = None,
+        retain_acked_messages: bool | None = None,
+        message_retention_duration: dict | Duration | None = None,
+        labels: dict[str, str] | None = None,
         enable_message_ordering: bool = False,
-        expiration_policy: Optional[Union[Dict, ExpirationPolicy]] = None,
-        filter_: Optional[str] = None,
-        dead_letter_policy: Optional[Union[Dict, DeadLetterPolicy]] = None,
-        retry_policy: Optional[Union[Dict, RetryPolicy]] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        expiration_policy: dict | ExpirationPolicy | None = None,
+        filter_: str | None = None,
+        dead_letter_policy: dict | DeadLetterPolicy | None = None,
+        retry_policy: dict | RetryPolicy | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -355,7 +366,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -385,6 +396,12 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         )
 
         self.log.info("Created subscription for topic %s", self.topic)
+        PubSubSubscriptionLink.persist(
+            context=context,
+            task_instance=self,
+            subscription_id=self.subscription or result,  # result returns subscription name
+            project_id=self.project_id or hook.project_id,
+        )
         return result
 
 
@@ -440,24 +457,24 @@ class PubSubDeleteTopicOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'topic',
-        'impersonation_chain',
+        "project_id",
+        "topic",
+        "impersonation_chain",
     )
-    ui_color = '#cb4335'
+    ui_color = "#cb4335"
 
     def __init__(
         self,
         *,
         topic: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         fail_if_not_exists: bool = False,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -471,7 +488,7 @@ class PubSubDeleteTopicOperator(BaseOperator):
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -544,24 +561,24 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'subscription',
-        'impersonation_chain',
+        "project_id",
+        "subscription",
+        "impersonation_chain",
     )
-    ui_color = '#cb4335'
+    ui_color = "#cb4335"
 
     def __init__(
         self,
         *,
         subscription: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         fail_if_not_exists: bool = False,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -575,7 +592,7 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -652,22 +669,22 @@ class PubSubPublishMessageOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'topic',
-        'messages',
-        'impersonation_chain',
+        "project_id",
+        "topic",
+        "messages",
+        "impersonation_chain",
     )
-    ui_color = '#0273d4'
+    ui_color = "#0273d4"
 
     def __init__(
         self,
         *,
         topic: str,
-        messages: List,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        messages: list,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -678,7 +695,7 @@ class PubSubPublishMessageOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -738,9 +755,9 @@ class PubSubPullOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'subscription',
-        'impersonation_chain',
+        "project_id",
+        "subscription",
+        "impersonation_chain",
     )
 
     def __init__(
@@ -750,10 +767,10 @@ class PubSubPullOperator(BaseOperator):
         subscription: str,
         max_messages: int = 5,
         ack_messages: bool = False,
-        messages_callback: Optional[Callable[[List[ReceivedMessage], "Context"], Any]] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -766,7 +783,7 @@ class PubSubPullOperator(BaseOperator):
         self.messages_callback = messages_callback
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> list:
+    def execute(self, context: Context) -> list:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -795,8 +812,8 @@ class PubSubPullOperator(BaseOperator):
 
     def _default_message_callback(
         self,
-        pulled_messages: List[ReceivedMessage],
-        context: "Context",
+        pulled_messages: list[ReceivedMessage],
+        context: Context,
     ) -> list:
         """
         This method can be overridden by subclasses or by `messages_callback` constructor argument.

@@ -1,6 +1,7 @@
 # Note: these patterns are applied to single files or directories, not full paths
 # coverage/* will ignore any coverage dir, but airflow/www/static/coverage/* will match nothing
 
+.git-blame-ignore-revs
 .github/*
 .gitignore
 .gitattributes
@@ -77,6 +78,7 @@ flake8_diff.sh
 coverage*.xml
 _sources/*
 
+robots.txt
 rat-results.txt
 apache-airflow-.*\+source.tar.gz.*
 apache-airflow-.*\+bin.tar.gz.*
@@ -113,11 +115,18 @@ chart/values.schema.json
 chart/Chart.lock
 chart/values_schema.schema.json
 
-# A simplistic Robots.txt
-airflow/www/static/robots.txt
-
 # Generated autocomplete files
-dev/breeze/autocomplete/*
+./dev/breeze/autocomplete/*
 
 # Newsfragments are snippets that will be, eventually, consumed into RELEASE_NOTES
 newsfragments/*
+
+# Dev stuff
+tests/*
+scripts/*
+images/*
+dev/*
+chart/*.iml
+
+# Sha files
+.*sha256

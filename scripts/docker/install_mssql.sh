@@ -21,8 +21,6 @@ set -euo pipefail
 
 COLOR_BLUE=$'\e[34m'
 readonly COLOR_BLUE
-COLOR_YELLOW=$'\e[33m'
-readonly COLOR_YELLOW
 COLOR_RESET=$'\e[0m'
 readonly COLOR_RESET
 
@@ -40,19 +38,8 @@ function install_mssql_client() {
     local distro
     local version
     distro=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
-    version_name=$(lsb_release -cs | tr '[:upper:]' '[:lower:]')
     version=$(lsb_release -rs)
-    local driver
-    if [[ ${version_name} == "buster" ]]; then
-        driver=msodbcsql17
-    elif [[ ${version_name} == "bullseye" ]]; then
-        driver=msodbcsql18
-    else
-        echo
-        echo "${COLOR_YELLOW}Only Buster or Bullseye are supported. Skipping MSSQL installation${COLOR_RESET}"
-        echo
-        return
-    fi
+    local driver=msodbcsql18
     curl --silent https://packages.microsoft.com/keys/microsoft.asc | apt-key add - >/dev/null 2>&1
     curl --silent "https://packages.microsoft.com/config/${distro}/${version}/prod.list" > \
         /etc/apt/sources.list.d/mssql-release.list

@@ -15,19 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import sys
-import warnings
-from typing import TYPE_CHECKING
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 
@@ -48,12 +43,13 @@ class GlueCrawlerOperator(BaseOperator):
     :param wait_for_completion: Whether or not wait for crawl execution completion. (default: True)
     """
 
-    ui_color = '#ededed'
+    template_fields: Sequence[str] = ("config",)
+    ui_color = "#ededed"
 
     def __init__(
         self,
         config,
-        aws_conn_id='aws_default',
+        aws_conn_id="aws_default",
         poll_interval: int = 5,
         wait_for_completion: bool = True,
         **kwargs,
@@ -69,13 +65,13 @@ class GlueCrawlerOperator(BaseOperator):
         """Create and return an GlueCrawlerHook."""
         return GlueCrawlerHook(self.aws_conn_id)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """
         Executes AWS Glue Crawler from Airflow
 
         :return: the name of the current glue crawler.
         """
-        crawler_name = self.config['Name']
+        crawler_name = self.config["Name"]
         if self.hook.has_crawler(crawler_name):
             self.hook.update_crawler(**self.config)
         else:
@@ -88,19 +84,3 @@ class GlueCrawlerOperator(BaseOperator):
             self.hook.wait_for_crawler_completion(crawler_name=crawler_name, poll_interval=self.poll_interval)
 
         return crawler_name
-
-
-class AwsGlueCrawlerOperator(GlueCrawlerOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.glue_crawler.GlueCrawlerOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.operators.glue_crawler.GlueCrawlerOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

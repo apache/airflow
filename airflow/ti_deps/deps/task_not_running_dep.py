@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Contains the TaskNotRunningDep."""
+from __future__ import annotations
 
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
@@ -40,4 +41,4 @@ class TaskNotRunningDep(BaseTIDep):
             yield self._passing_status(reason="Task is not in running state.")
             return
 
-        yield self._failing_status(reason='Task is in the running state')
+        yield self._failing_status(reason="Task is in the running state")

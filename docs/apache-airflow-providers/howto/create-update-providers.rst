@@ -130,7 +130,6 @@ Some steps for documentation occurs automatically by ``pre-commit`` see `Install
       │       └── operators/
       │           └── <NEW_PROVIDER>.rst
       └── providers/
-          ├── dependencies.json
           └── <NEW_PROVIDER>/
               ├── provider.yaml
               └── CHANGELOG.rst
@@ -138,8 +137,7 @@ Some steps for documentation occurs automatically by ``pre-commit`` see `Install
 
 Files automatically updated by pre-commit:
 
-- ``airflow/providers/dependencies.json``
-- ``INSTALL``
+- ``INSTALL`` in provider
 
 Files automatically created when the provider is released:
 
@@ -168,26 +166,8 @@ lowercase in the second block.
     nobr
     nodash
 
-Add your provider dependencies into **PROVIDER_REQUIREMENTS** variable in ``setup.py``. If your provider doesn't have
-any dependency add a empty list.
-
-  .. code-block:: python
-
-      PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
-          # ...
-          "microsoft.winrm": winrm,
-          "mongo": mongo,
-          "mysql": mysql,
-          "neo4j": neo4j,
-          "<NEW_PROVIDER>": [],
-          "odbc": odbc,
-          # ...
-      }
-
-In the ``CONTRIBUTING.rst`` adds:
-
-- your provider name in the list in the **Extras** section
-- your provider dependencies in the **Provider Packages** section table, only if your provider has external dependencies.
+Add your provider dependencies into ``provider.yaml`` under ``dependencies`` key..
+If your provider doesn't have any dependency add a empty list.
 
 In the ``docs/apache-airflow-providers-<NEW_PROVIDER>/connections.rst``:
 
@@ -281,8 +261,8 @@ main Airflow documentation that involves some steps with the providers is also w
 
   .. code-block:: bash
 
-    ./breeze build-docs --package-filter apache-airflow-providers-<NEW_PROVIDER>
-    ./breeze build-docs --package-filter apache-airflow
+    breeze build-docs --package-filter apache-airflow-providers-<NEW_PROVIDER>
+    breeze build-docs --package-filter apache-airflow
 
 Optional provider features
 --------------------------
@@ -303,11 +283,11 @@ missing in provider dependencies.
 In Airflow 2.3, new exception :class:`~airflow.exceptions.OptionalProviderFeatureException` has been
 introduced and Providers can use the exception to signal that the ImportError (or any other error) should
 be ignored by Airflow ProvidersManager. However this Exception is only available in Airflow 2.3 so if
-providers would like to remain compatible with Airflow 2.1 and 2.2, they should continue throwing
+providers would like to remain compatible with 2.2, they should continue throwing
 the ImportError exception.
 
 Example code (from Plyvel Hook, part of the Google Provider) explains how such conditional error handling
-should be implemented to keep compatibility with Airflow 2.1 and 2.2
+should be implemented to keep compatibility with 2.2
 
   .. code-block:: python
 
@@ -347,9 +327,9 @@ this (note the ``if ti_key is not None:`` condition).
 
     def get_link(
         self,
-        operator,
-        dttm: Optional[datetime] = None,
-        ti_key: Optional["TaskInstanceKey"] = None,
+        operator: BaseOperator,
+        dttm: datetime | None = None,
+        ti_key: "TaskInstanceKey" | None = None,
     ):
         if ti_key is not None:
             job_ids = XCom.get_value(key="job_id", ti_key=ti_key)
@@ -369,8 +349,8 @@ this (note the ``if ti_key is not None:`` condition).
         return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id)
 
 
-Having sensors return XOM values
---------------------------------
+Having sensors return XCOM values
+---------------------------------
 In Airflow 2.3, sensor operators will be able to return XCOM values. This is achieved by returning an instance of the ``PokeReturnValue`` object at the end of the ``poke()`` method:
 
   .. code-block:: python

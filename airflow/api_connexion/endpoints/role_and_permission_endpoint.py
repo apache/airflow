@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import List, Optional, Tuple
+from http import HTTPStatus
 
 from connexion import NoContent
-from flask import current_app, request
+from flask import request
 from marshmallow import ValidationError
 from sqlalchemy import asc, desc, func
 
@@ -34,13 +35,14 @@ from airflow.api_connexion.schemas.role_and_permission_schema import (
 )
 from airflow.api_connexion.types import APIResponse, UpdateMask
 from airflow.security import permissions
+from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.www.fab_security.sqla.models import Action, Role
 from airflow.www.security import AirflowSecurityManager
 
 
-def _check_action_and_resource(sm: AirflowSecurityManager, perms: List[Tuple[str, str]]) -> None:
+def _check_action_and_resource(sm: AirflowSecurityManager, perms: list[tuple[str, str]]) -> None:
     """
-    Checks if the action or resource exists and raise 400 if not
+    Checks if the action or resource exists and otherwise raise 400.
 
     This function is intended for use in the REST API because it raise 400
     """
@@ -53,8 +55,8 @@ def _check_action_and_resource(sm: AirflowSecurityManager, perms: List[Tuple[str
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE)])
 def get_role(*, role_name: str) -> APIResponse:
-    """Get role"""
-    ab_security_manager = current_app.appbuilder.sm
+    """Get role."""
+    ab_security_manager = get_airflow_app().appbuilder.sm
     role = ab_security_manager.find_role(name=role_name)
     if not role:
         raise NotFound(title="Role not found", detail=f"Role with name {role_name!r} was not found")
@@ -63,9 +65,9 @@ def get_role(*, role_name: str) -> APIResponse:
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE)])
 @format_parameters({"limit": check_limit})
-def get_roles(*, order_by: str = "name", limit: int, offset: Optional[int] = None) -> APIResponse:
-    """Get roles"""
-    appbuilder = current_app.appbuilder
+def get_roles(*, order_by: str = "name", limit: int, offset: int | None = None) -> APIResponse:
+    """Get roles."""
+    appbuilder = get_airflow_app().appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(Role.id)).scalar()
     direction = desc if order_by.startswith("-") else asc
@@ -86,10 +88,10 @@ def get_roles(*, order_by: str = "name", limit: int, offset: Optional[int] = Non
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_ACTION)])
-@format_parameters({'limit': check_limit})
-def get_permissions(*, limit: int, offset: Optional[int] = None) -> APIResponse:
-    """Get permissions"""
-    session = current_app.appbuilder.get_session
+@format_parameters({"limit": check_limit})
+def get_permissions(*, limit: int, offset: int | None = None) -> APIResponse:
+    """Get permissions."""
+    session = get_airflow_app().appbuilder.get_session
     total_entries = session.query(func.count(Action.id)).scalar()
     query = session.query(Action)
     actions = query.offset(offset).limit(limit).all()
@@ -98,19 +100,19 @@ def get_permissions(*, limit: int, offset: Optional[int] = None) -> APIResponse:
 
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_ROLE)])
 def delete_role(*, role_name: str) -> APIResponse:
-    """Delete a role"""
-    ab_security_manager = current_app.appbuilder.sm
+    """Delete a role."""
+    ab_security_manager = get_airflow_app().appbuilder.sm
     role = ab_security_manager.find_role(name=role_name)
     if not role:
         raise NotFound(title="Role not found", detail=f"Role with name {role_name!r} was not found")
     ab_security_manager.delete_role(role_name=role_name)
-    return NoContent, 204
+    return NoContent, HTTPStatus.NO_CONTENT
 
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE)])
 def patch_role(*, role_name: str, update_mask: UpdateMask = None) -> APIResponse:
-    """Update a role"""
-    appbuilder = current_app.appbuilder
+    """Update a role."""
+    appbuilder = get_airflow_app().appbuilder
     security_manager = appbuilder.sm
     body = request.json
     try:
@@ -127,7 +129,7 @@ def patch_role(*, role_name: str, update_mask: UpdateMask = None) -> APIResponse
             if field in data and not field == "permissions":
                 data_[field] = data[field]
             elif field == "actions":
-                data_["permissions"] = data['permissions']
+                data_["permissions"] = data["permissions"]
             else:
                 raise BadRequest(detail=f"'{field}' in update_mask is unknown")
         data = data_
@@ -143,17 +145,17 @@ def patch_role(*, role_name: str, update_mask: UpdateMask = None) -> APIResponse
 
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ROLE)])
 def post_role() -> APIResponse:
-    """Create a new role"""
-    appbuilder = current_app.appbuilder
+    """Create a new role."""
+    appbuilder = get_airflow_app().appbuilder
     security_manager = appbuilder.sm
     body = request.json
     try:
         data = role_schema.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
-    role = security_manager.find_role(name=data['name'])
+    role = security_manager.find_role(name=data["name"])
     if not role:
-        perms = [(item['action']['name'], item['resource']['name']) for item in data['permissions'] if item]
+        perms = [(item["action"]["name"], item["resource"]["name"]) for item in data["permissions"] if item]
         _check_action_and_resource(security_manager, perms)
         security_manager.bulk_sync_roles([{"role": data["name"], "perms": perms}])
         return role_schema.dump(role)

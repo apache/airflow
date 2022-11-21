@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from airflow.decorators import task
 from airflow.models.dag import DAG
@@ -105,4 +106,4 @@ class TestDockerDecorator:
                 do_run()
 
         assert len(dag.task_ids) == 21
-        assert dag.task_ids[-1] == 'do_run__20'
+        assert dag.task_ids[-1] == "do_run__20"

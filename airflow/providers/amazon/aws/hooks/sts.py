@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -33,9 +34,8 @@ class StsHook(AwsBaseHook):
 
     def get_account_number(self) -> str:
         """Get the account Number"""
-
         try:
-            return self.get_conn().get_caller_identity()['Account']
+            return self.get_conn().get_caller_identity()["Account"]
         except Exception as general_error:
             self.log.error("Failed to get the AWS Account Number, error: %s", general_error)
             raise

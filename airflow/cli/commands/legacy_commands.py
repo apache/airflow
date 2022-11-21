@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from argparse import ArgumentError
 
@@ -49,7 +50,7 @@ COMMAND_MAP = {
 
 
 def check_legacy_command(action, value):
-    """Checks command value and raise error if value is in removed command"""
+    """Checks command value and raise error if value is in removed command."""
     new_command = COMMAND_MAP.get(value)
     if new_command is not None:
         msg = f"`airflow {value}` command, has been removed, please use `airflow {new_command}`"

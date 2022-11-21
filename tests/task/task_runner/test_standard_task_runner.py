@@ -15,10 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import logging
 import os
 import time
 from logging.config import dictConfig
+from pathlib import Path
 from unittest import mock
 
 import psutil
@@ -36,26 +39,26 @@ from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from tests.test_utils.db import clear_db_runs
 
-TEST_DAG_FOLDER = os.environ['AIRFLOW__CORE__DAGS_FOLDER']
+TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
-TASK_FORMAT = '{{%(filename)s:%(lineno)d}} %(levelname)s - %(message)s'
+TASK_FORMAT = "{{%(filename)s:%(lineno)d}} %(levelname)s - %(message)s"
 
 LOGGING_CONFIG = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'airflow.task': {'format': TASK_FORMAT},
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "airflow.task": {"format": TASK_FORMAT},
     },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'airflow.task',
-            'stream': 'ext://sys.stdout',
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "airflow.task",
+            "stream": "ext://sys.stdout",
         },
     },
-    'loggers': {'airflow': {'handlers': ['console'], 'level': 'INFO', 'propagate': True}},
+    "loggers": {"airflow": {"handlers": ["console"], "level": "INFO", "propagate": True}},
 }
 
 
@@ -70,7 +73,7 @@ class TestStandardTaskRunner:
         clear_db_runs()
         dictConfig(LOGGING_CONFIG)
         yield
-        airflow_logger = logging.getLogger('airflow')
+        airflow_logger = logging.getLogger("airflow")
         airflow_logger.handlers = []
         clear_db_runs()
         dictConfig(DEFAULT_LOGGING_CONFIG)
@@ -80,12 +83,12 @@ class TestStandardTaskRunner:
         local_task_job.task_instance = mock.MagicMock()
         local_task_job.task_instance.run_as_user = None
         local_task_job.task_instance.command_as_list.return_value = [
-            'airflow',
-            'tasks',
-            'run',
-            'test_on_kill',
-            'task1',
-            '2016-01-01',
+            "airflow",
+            "tasks",
+            "run",
+            "test_on_kill",
+            "task1",
+            "2016-01-01",
         ]
 
         runner = StandardTaskRunner(local_task_job)
@@ -111,14 +114,16 @@ class TestStandardTaskRunner:
     def test_start_and_terminate_run_as_user(self):
         local_task_job = mock.Mock()
         local_task_job.task_instance = mock.MagicMock()
+        local_task_job.task_instance.task_id = "task_id"
+        local_task_job.task_instance.dag_id = "dag_id"
         local_task_job.task_instance.run_as_user = getuser()
         local_task_job.task_instance.command_as_list.return_value = [
-            'airflow',
-            'tasks',
-            'test',
-            'test_on_kill',
-            'task1',
-            '2016-01-01',
+            "airflow",
+            "tasks",
+            "test",
+            "test_on_kill",
+            "task1",
+            "2016-01-01",
         ]
 
         runner = StandardTaskRunner(local_task_job)
@@ -148,14 +153,16 @@ class TestStandardTaskRunner:
         # Set up mock task
         local_task_job = mock.Mock()
         local_task_job.task_instance = mock.MagicMock()
+        local_task_job.task_instance.task_id = "task_id"
+        local_task_job.task_instance.dag_id = "dag_id"
         local_task_job.task_instance.run_as_user = getuser()
         local_task_job.task_instance.command_as_list.return_value = [
-            'airflow',
-            'tasks',
-            'test',
-            'test_on_kill',
-            'task1',
-            '2016-01-01',
+            "airflow",
+            "tasks",
+            "test",
+            "test_on_kill",
+            "task1",
+            "2016-01-01",
         ]
 
         # Kick off the runner
@@ -196,8 +203,8 @@ class TestStandardTaskRunner:
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,
         )
-        dag = dagbag.dags.get('test_on_kill')
-        task = dag.get_task('task1')
+        dag = dagbag.dags.get("test_on_kill")
+        task = dag.get_task("task1")
 
         with create_session() as session:
             dag.create_dagrun(
@@ -232,7 +239,7 @@ class TestStandardTaskRunner:
                     time.sleep(0.01)
             logging.info("Task started. Give the task some time to settle")
             time.sleep(3)
-            logging.info(f"Terminating processes {processes} belonging to {runner_pgid} group")
+            logging.info("Terminating processes %s belonging to %s group", processes, runner_pgid)
             runner.terminate()
             session.close()  # explicitly close as `create_session`s commit will blow up otherwise
 
@@ -252,9 +259,60 @@ class TestStandardTaskRunner:
         for process in processes:
             assert not psutil.pid_exists(process.pid), f"{process} is still alive"
 
+    def test_parsing_context(self):
+        context_file = Path("/tmp/airflow_parsing_context")
+        try:
+            context_file.unlink()
+        except FileNotFoundError:
+            pass
+        dagbag = DagBag(
+            dag_folder=TEST_DAG_FOLDER,
+            include_examples=False,
+        )
+        dag = dagbag.dags.get("test_parsing_context")
+        task = dag.get_task("task1")
+
+        with create_session() as session:
+            dag.create_dagrun(
+                run_id="test",
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                state=State.RUNNING,
+                start_date=DEFAULT_DATE,
+                session=session,
+            )
+            ti = TaskInstance(task=task, run_id="test")
+            job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+            session.commit()
+            ti.refresh_from_task(task)
+
+            runner = StandardTaskRunner(job1)
+            runner.start()
+
+            # Wait until process sets its pgid to be equal to pid
+            with timeout(seconds=1):
+                while True:
+                    runner_pgid = os.getpgid(runner.process.pid)
+                    if runner_pgid == runner.process.pid:
+                        break
+                    time.sleep(0.01)
+
+            assert runner_pgid > 0
+            assert runner_pgid != os.getpgid(0), "Task should be in a different process group to us"
+            processes = list(self._procs_in_pgroup(runner_pgid))
+            psutil.wait_procs([runner.process])
+            session.close()
+        for process in processes:
+            assert not psutil.pid_exists(process.pid), f"{process} is still alive"
+        assert runner.return_code() == 0
+        text = context_file.read_text()
+        assert (
+            text == "_AIRFLOW_PARSING_CONTEXT_DAG_ID=test_parsing_context\n"
+            "_AIRFLOW_PARSING_CONTEXT_TASK_ID=task1\n"
+        )
+
     @staticmethod
     def _procs_in_pgroup(pgid):
-        for proc in psutil.process_iter(attrs=['pid', 'name']):
+        for proc in psutil.process_iter(attrs=["pid", "name"]):
             try:
                 if os.getpgid(proc.pid) == pgid and proc.pid != 0:
                     yield proc

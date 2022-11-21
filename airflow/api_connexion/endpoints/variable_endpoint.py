@@ -14,39 +14,52 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional
+from __future__ import annotations
 
-from flask import Response, request
+from http import HTTPStatus
+
+from flask import Response
 from marshmallow import ValidationError
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
+from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.variable_schema import variable_collection_schema, variable_schema
 from airflow.api_connexion.types import UpdateMask
 from airflow.models import Variable
 from airflow.security import permissions
+from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.www.decorators import action_logging
+
+RESOURCE_EVENT_PREFIX = "variable"
 
 
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE)])
+@action_logging(
+    event=action_event_from_permission(
+        prefix=RESOURCE_EVENT_PREFIX,
+        permission=permissions.ACTION_CAN_DELETE,
+    ),
+)
 def delete_variable(*, variable_key: str) -> Response:
-    """Delete variable"""
+    """Delete variable."""
     if Variable.delete(variable_key) == 0:
         raise NotFound("Variable not found")
-    return Response(status=204)
+    return Response(status=HTTPStatus.NO_CONTENT)
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
-def get_variable(*, variable_key: str) -> Response:
-    """Get a variables by key"""
-    try:
-        var = Variable.get(variable_key)
-    except KeyError:
+@provide_session
+def get_variable(*, variable_key: str, session: Session = NEW_SESSION) -> Response:
+    """Get a variable by key."""
+    var = session.query(Variable).filter(Variable.key == variable_key)
+    if not var.count():
         raise NotFound("Variable not found")
-    return variable_schema.dump({"key": variable_key, "val": var})
+    return variable_schema.dump(var.first())
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
@@ -54,15 +67,15 @@ def get_variable(*, variable_key: str) -> Response:
 @provide_session
 def get_variables(
     *,
-    limit: Optional[int],
+    limit: int | None,
     order_by: str = "id",
-    offset: Optional[int] = None,
+    offset: int | None = None,
     session: Session = NEW_SESSION,
 ) -> Response:
-    """Get all variable values"""
+    """Get all variable values."""
     total_entries = session.query(func.count(Variable.id)).scalar()
     to_replace = {"value": "val"}
-    allowed_filter_attrs = ['value', 'key', 'id']
+    allowed_filter_attrs = ["value", "key", "id"]
     query = session.query(Variable)
     query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
     variables = query.offset(offset).limit(limit).all()
@@ -75,10 +88,16 @@ def get_variables(
 
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE)])
+@action_logging(
+    event=action_event_from_permission(
+        prefix=RESOURCE_EVENT_PREFIX,
+        permission=permissions.ACTION_CAN_EDIT,
+    ),
+)
 def patch_variable(*, variable_key: str, update_mask: UpdateMask = None) -> Response:
-    """Update a variable by key"""
+    """Update a variable by key."""
     try:
-        data = variable_schema.load(request.json)
+        data = variable_schema.load(get_json_request_dict())
     except ValidationError as err:
         raise BadRequest("Invalid Variable schema", detail=str(err.messages))
 
@@ -96,10 +115,16 @@ def patch_variable(*, variable_key: str, update_mask: UpdateMask = None) -> Resp
 
 
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)])
+@action_logging(
+    event=action_event_from_permission(
+        prefix=RESOURCE_EVENT_PREFIX,
+        permission=permissions.ACTION_CAN_CREATE,
+    ),
+)
 def post_variables() -> Response:
-    """Create a variable"""
+    """Create a variable."""
     try:
-        data = variable_schema.load(request.json)
+        data = variable_schema.load(get_json_request_dict())
 
     except ValidationError as err:
         raise BadRequest("Invalid Variable schema", detail=str(err.messages))

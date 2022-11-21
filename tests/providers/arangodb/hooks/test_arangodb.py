@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from unittest.mock import Mock, patch
@@ -30,12 +31,12 @@ class TestArangoDBHook(unittest.TestCase):
         super().setUp()
         db.merge_conn(
             Connection(
-                conn_id='arangodb_default',
-                conn_type='arangodb',
-                host='http://127.0.0.1:8529',
-                login='root',
-                password='password',
-                schema='_system',
+                conn_id="arangodb_default",
+                conn_type="arangodb",
+                host="http://127.0.0.1:8529",
+                login="root",
+                password="password",
+                schema="_system",
             )
         )
 
@@ -47,10 +48,10 @@ class TestArangoDBHook(unittest.TestCase):
     def test_get_conn(self, arango_mock):
         arangodb_hook = ArangoDBHook()
 
-        assert arangodb_hook.hosts == ['http://127.0.0.1:8529']
-        assert arangodb_hook.username == 'root'
-        assert arangodb_hook.password == 'password'
-        assert arangodb_hook.database == '_system'
+        assert arangodb_hook.hosts == ["http://127.0.0.1:8529"]
+        assert arangodb_hook.username == "root"
+        assert arangodb_hook.password == "password"
+        assert arangodb_hook.database == "_system"
         assert arangodb_hook.client is not None
         assert arango_mock.called
         assert isinstance(arangodb_hook.client, Mock)
