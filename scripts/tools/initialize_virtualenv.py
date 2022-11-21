@@ -157,7 +157,7 @@ def main():
             print('export CPPFLAGS="-I/usr/local/opt/openssl/include"')
         else:
             print(
-                "sudo apt install build-essential python3-dev libsqlite3-dev openssl"
+                "sudo apt install build-essential python3-dev libsqlite3-dev openssl "
                 "sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql"
             )
         sys.exit(4)
