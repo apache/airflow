@@ -33,7 +33,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from airflow import settings
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils import cli_action_loggers
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
@@ -212,9 +211,7 @@ def _search_for_dag_file(val: str | None) -> str | None:
     return None
 
 
-def get_dag(
-    subdir: str | None, dag_id: str, include_examples=conf.getboolean("core", "LOAD_EXAMPLES")
-) -> DAG:
+def get_dag(subdir: str | None, dag_id: str) -> DAG:
     """
     Returns DAG of a given dag_id
 
@@ -225,11 +222,11 @@ def get_dag(
     from airflow.models import DagBag
 
     first_path = process_subdir(subdir)
-    dagbag = DagBag(first_path, include_examples=include_examples)
+    dagbag = DagBag(first_path)
     if dag_id not in dagbag.dags:
         fallback_path = _search_for_dag_file(subdir) or settings.DAGS_FOLDER
         logger.warning("Dag %r not found in path %s; trying path %s", dag_id, first_path, fallback_path)
-        dagbag = DagBag(dag_folder=fallback_path, include_examples=include_examples)
+        dagbag = DagBag(dag_folder=fallback_path)
         if dag_id not in dagbag.dags:
             raise AirflowException(
                 f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
