@@ -39,7 +39,8 @@ def waiter(
 ) -> None:
     """
     Will call get_state_callable until it reaches the desired_state or the failure_states.
-        It will also time out if it waits longer than countdown seconds.
+    It will also time out if it waits longer than countdown seconds.
+
     :param get_state_callable: A callable to run until it returns True
     :param get_state_args: Arguments to pass to get_state_callable
     :param parse_response: Dictionary keys to extract state from response of get_state_callable
