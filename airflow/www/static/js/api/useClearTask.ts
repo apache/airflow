@@ -28,11 +28,12 @@ const csrfToken = getMetaValue('csrf_token');
 const clearUrl = getMetaValue('clear_url');
 
 export default function useClearTask({
-  dagId, runId, taskId, executionDate,
+  dagId, runId, taskId, executionDate, isGroup,
 }: { dagId: string,
   runId: string,
   taskId: string,
-  executionDate: string }) {
+  executionDate: string,
+  isGroup: boolean }) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
@@ -53,7 +54,6 @@ export default function useClearTask({
         csrf_token: csrfToken,
         dag_id: dagId,
         dag_run_id: runId,
-        task_id: taskId,
         confirmed,
         execution_date: executionDate,
         past,
@@ -63,6 +63,12 @@ export default function useClearTask({
         recursive,
         only_failed: failed,
       });
+
+      if (isGroup) {
+        params.append('group_id', taskId);
+      } else {
+        params.append('task_id', taskId);
+      }
 
       mapIndexes.forEach((mi: number) => {
         params.append('map_index', mi.toString());

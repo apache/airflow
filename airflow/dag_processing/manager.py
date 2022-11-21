@@ -1144,7 +1144,7 @@ class DagFileProcessorManager(LoggingMixin):
                 )
                 Stats.decr("dag_processing.processes")
                 Stats.incr("dag_processing.processor_timeouts")
-                # TODO: Remove after Airflow 2.0
+                # Deprecated; may be removed in a future Airflow release.
                 Stats.incr("dag_file_processor_timeouts")
                 processor.kill()
 
