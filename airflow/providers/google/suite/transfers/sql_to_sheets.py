@@ -102,8 +102,7 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
             yield item_list
 
     def _get_data(self):
-        hook = self.get_db_hook()
-        with closing(hook.get_conn()) as conn, closing(conn.cursor()) as cur:
+        with closing(self.db_hook.get_conn()) as conn, closing(conn.cursor()) as cur:
             self.log.info("Executing query")
             cur.execute(self.sql, self.parameters or ())
 

@@ -42,8 +42,8 @@ class TestSnowflakeOperator:
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
-    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
-    def test_snowflake_operator(self, mock_get_db_hook):
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperatordb_hook")
+    def test_snowflake_operator(self, mock_hook):
         sql = """
         CREATE TABLE IF NOT EXISTS test_airflow (
             dummy VARCHAR(50)
@@ -63,13 +63,13 @@ class TestSnowflakeOperator:
     ],
 )
 class TestSnowflakeCheckOperators:
-    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
-    def test_get_db_hook(
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.db_hook")
+    def test_db_hook(
         self,
-        mock_get_db_hook,
+        mock_db_hook,
         operator_class,
         kwargs,
     ):
         operator = operator_class(task_id="snowflake_check", snowflake_conn_id="snowflake_default", **kwargs)
-        operator.get_db_hook()
-        mock_get_db_hook.assert_called_once()
+        operator.db_hook()
+        mock_db_hook.assert_called_once()

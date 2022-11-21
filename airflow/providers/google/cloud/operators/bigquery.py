@@ -28,6 +28,7 @@ from google.api_core.exceptions import Conflict
 from google.api_core.retry import Retry
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
@@ -108,7 +109,8 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
 
 
 class _BigQueryDbHookMixin:
-    def get_db_hook(self: BigQueryCheckOperator) -> BigQueryHook:  # type:ignore[misc]
+    @cached_property
+    def db_hook(self: BigQueryCheckOperator) -> BigQueryHook:  # type:ignore[misc]
         """Get BigQuery DB Hook"""
         return BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -589,10 +591,9 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
 
     def execute(self, context=None):
         """Perform checks on the given columns."""
-        hook = self.get_db_hook()
         failed_tests = []
 
-        job = self._submit_job(hook, job_id="")
+        job = self._submit_job(self.db_hook, job_id="")
         context["ti"].xcom_push(key="job_id", value=job.job_id)
         records = job.result().to_dataframe()
 
@@ -701,8 +702,7 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
 
     def execute(self, context=None):
         """Execute the given checks on the table."""
-        hook = self.get_db_hook()
-        job = self._submit_job(hook, job_id="")
+        job = self._submit_job(self.db_hook, job_id="")
         context["ti"].xcom_push(key="job_id", value=job.job_id)
         records = job.result().to_dataframe()
 

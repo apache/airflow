@@ -26,8 +26,8 @@ from airflow.providers.oracle.operators.oracle import OracleOperator, OracleStor
 
 
 class TestOracleOperator:
-    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
-    def test_execute(self, mock_get_db_hook):
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.db_hook")
+    def test_execute(self, mock_hook):
         sql = "SELECT * FROM test_table"
         oracle_conn_id = "oracle_default"
         parameters = {"parameter": "value"}
@@ -44,7 +44,7 @@ class TestOracleOperator:
                 task_id=task_id,
             )
         operator.execute(context=context)
-        mock_get_db_hook.return_value.run.assert_called_once_with(
+        mock_hook.run.assert_called_once_with(
             sql=sql,
             autocommit=autocommit,
             parameters=parameters,

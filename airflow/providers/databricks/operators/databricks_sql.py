@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from databricks.sql.utils import ParamEscaper
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
@@ -106,19 +107,9 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
         self.catalog = catalog
         self.schema = schema
 
-    def get_db_hook(self) -> DatabricksSqlHook:
-        hook_params = {
-            "http_path": self.http_path,
-            "session_configuration": self.session_configuration,
-            "sql_endpoint_name": self.sql_endpoint_name,
-            "http_headers": self.http_headers,
-            "catalog": self.catalog,
-            "schema": self.schema,
-            "caller": "DatabricksSqlOperator",
-            **self.client_parameters,
-            **self.hook_params,
-        }
-        return DatabricksSqlHook(self.databricks_conn_id, **hook_params)
+    @cached_property
+    def db_hook(self) -> DatabricksSqlHook:
+        return DatabricksSqlHook(self.databricks_conn_id, **self.hook_params)
 
     def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
         if not self._output_path:

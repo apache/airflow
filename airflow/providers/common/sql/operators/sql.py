@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import ast
 import re
+import warnings
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
 
 from airflow.compat.functools import cached_property
@@ -112,9 +113,9 @@ class BaseSQLOperator(BaseOperator):
     """
     This is a base class for generic SQL Operator to get a DB Hook
 
-    The provided method is .get_db_hook(). The default behavior will try to
+    The provided method is .db_hook cached property. The default behavior will try to
     retrieve the DB hook based on connection type.
-    You can customize the behavior by overriding the .get_db_hook() method.
+    You can customize the behavior by overriding the .db_hook cached property.
 
     :param conn_id: reference to a specific database
     """
@@ -135,7 +136,7 @@ class BaseSQLOperator(BaseOperator):
         self.retry_on_failure = retry_on_failure
 
     @cached_property
-    def _hook(self):
+    def db_hook(self):
         """Get DB Hook based on connection type"""
         self.log.debug("Get connection for %s", self.conn_id)
         conn = BaseHook.get_connection(self.conn_id)
@@ -171,12 +172,13 @@ class BaseSQLOperator(BaseOperator):
         return hook
 
     def get_db_hook(self) -> DbApiHook:
-        """
-        Get the database hook for the connection.
-
-        :return: the database hook object.
-        """
-        return self._hook
+        """Get the database hook for the connection."""
+        warnings.warn(
+            "This method is deprecated. Please use `db_hook` cached property directly.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.db_hook
 
     def _raise_exception(self, exception_string: str) -> NoReturn:
         if self.retry_on_failure:
@@ -251,8 +253,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 
     def execute(self, context):
         self.log.info("Executing: %s", self.sql)
-        hook = self.get_db_hook()
-        output = hook.run(
+        output = self.db_hook.run(
             sql=self.sql,
             autocommit=self.autocommit,
             parameters=self.parameters,
@@ -264,8 +265,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             # For simplicity, we pass always list as input to _process_output, regardless if
             # single query results are going to be returned, and we return the first element
             # of the list in this case from the (always) list returned by _process_output
-            return self._process_output([output], hook.descriptions)[-1]
-        return self._process_output(output, hook.descriptions)
+            return self._process_output([output], self.db_hook.descriptions)[-1]
+        return self._process_output(output, self.db_hook.descriptions)
 
     def prepare_template(self) -> None:
         """Parse template file for attribute parameters."""
@@ -368,8 +369,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         self.sql = f"SELECT col_name, check_type, check_result FROM ({checks_sql}) AS check_columns"
 
     def execute(self, context: Context):
-        hook = self.get_db_hook()
-        records = hook.get_records(self.sql)
+        records = self.db_hook.get_records(self.sql)
 
         if not records:
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
@@ -576,8 +576,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         self.sql = f"SELECT check_name, check_result FROM ({self._generate_sql_query()}) AS check_table"
 
     def execute(self, context: Context):
-        hook = self.get_db_hook()
-        records = hook.get_records(self.sql)
+        records = self.db_hook.get_records(self.sql)
 
         if not records:
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
@@ -681,7 +680,7 @@ class SQLCheckOperator(BaseSQLOperator):
 
     def execute(self, context: Context):
         self.log.info("Executing SQL check: %s", self.sql)
-        records = self.get_db_hook().get_first(self.sql, self.parameters)
+        records = self.db_hook.get_first(self.sql, self.parameters)
 
         self.log.info("Record: %s", records)
         if not records:
@@ -732,7 +731,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
 
     def execute(self, context: Context):
         self.log.info("Executing SQL check: %s", self.sql)
-        records = self.get_db_hook().get_first(self.sql)
+        records = self.db_hook.get_first(self.sql)
 
         if not records:
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
@@ -853,12 +852,11 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         self.sql2 = sqlt + "'{{ macros.ds_add(ds, " + str(self.days_back) + ") }}'"
 
     def execute(self, context: Context):
-        hook = self.get_db_hook()
         self.log.info("Using ratio formula: %s", self.ratio_formula)
         self.log.info("Executing SQL check: %s", self.sql2)
-        row2 = hook.get_first(self.sql2)
+        row2 = self.db_hook.get_first(self.sql2)
         self.log.info("Executing SQL check: %s", self.sql1)
-        row1 = hook.get_first(self.sql1)
+        row1 = self.db_hook.get_first(self.sql1)
 
         if not row2:
             self._raise_exception(f"The following query returned zero rows: {self.sql2}")
@@ -957,20 +955,19 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
         self.max_threshold = _convert_to_float_if_possible(max_threshold)
 
     def execute(self, context: Context):
-        hook = self.get_db_hook()
-        result = hook.get_first(self.sql)[0]
+        result = self.db_hook.get_first(self.sql)[0]
         if not result:
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
 
         if isinstance(self.min_threshold, float):
             lower_bound = self.min_threshold
         else:
-            lower_bound = hook.get_first(self.min_threshold)[0]
+            lower_bound = self.db_hook.get_first(self.min_threshold)[0]
 
         if isinstance(self.max_threshold, float):
             upper_bound = self.max_threshold
         else:
-            upper_bound = hook.get_first(self.max_threshold)[0]
+            upper_bound = self.db_hook.get_first(self.max_threshold)[0]
 
         meta_data = {
             "result": result,
@@ -1053,7 +1050,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
             self.parameters,
             self.conn_id,
         )
-        record = self.get_db_hook().get_first(self.sql, self.parameters)
+        record = self.db_hook.get_first(self.sql, self.parameters)
         if not record:
             raise AirflowException(
                 "No rows returned from sql query. Operator expected True or False return value."

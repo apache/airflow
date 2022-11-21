@@ -64,7 +64,7 @@ class TestQuboleCheckMixin:
         hook = operator.get_hook()
         assert hook.context == context
 
-    @mock.patch.object(_QuboleCheckOperatorMixin, "get_db_hook")
+    @mock.patch.object(_QuboleCheckOperatorMixin, "db_hook")
     @mock.patch.object(_QuboleCheckOperatorMixin, "get_hook")
     def test_get_db_hook(
         self, mock_get_hook, mock_get_db_hook, operator_class, kwargs, parent_check_operator

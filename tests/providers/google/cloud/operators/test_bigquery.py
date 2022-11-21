@@ -789,16 +789,16 @@ class TestBigQueryGetDatasetTablesOperator(unittest.TestCase):
     ],
 )
 class TestBigQueryCheckOperators:
-    @mock.patch("airflow.providers.google.cloud.operators.bigquery._BigQueryDbHookMixin.get_db_hook")
-    def test_get_db_hook(
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery._BigQueryDbHookMixin.db_hook")
+    def test_db_hook(
         self,
-        mock_get_db_hook,
+        mock_db_hook,
         operator_class,
         kwargs,
     ):
         operator = operator_class(task_id=TASK_ID, gcp_conn_id="google_cloud_default", **kwargs)
-        operator.get_db_hook()
-        mock_get_db_hook.assert_called_once()
+        operator.db_hook
+        mock_db_hook.assert_called_once()
 
 
 class TestBigQueryUpsertTableOperator(unittest.TestCase):

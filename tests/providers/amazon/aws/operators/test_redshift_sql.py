@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import unittest
 from unittest import mock
-from unittest.mock import MagicMock
 
 from parameterized import parameterized
 
@@ -28,18 +27,14 @@ from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 
 class TestRedshiftSQLOperator(unittest.TestCase):
     @parameterized.expand([(True, ("a", "b")), (False, ("c", "d"))])
-    @mock.patch("airflow.providers.amazon.aws.operators.redshift_sql.RedshiftSQLOperator.get_db_hook")
-    def test_redshift_operator(self, test_autocommit, test_parameters, mock_get_hook):
-        hook = MagicMock()
-        mock_run = hook.run
-        mock_get_hook.return_value = hook
-        sql = MagicMock()
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.db_hook")
+    def test_redshift_operator(self, test_autocommit, test_parameters, mock_hook):
         operator = RedshiftSQLOperator(
-            task_id="test", sql=sql, autocommit=test_autocommit, parameters=test_parameters
+            task_id="test", sql="SELECT 1", autocommit=test_autocommit, parameters=test_parameters
         )
         operator.execute(None)
-        mock_run.assert_called_once_with(
-            sql=sql,
+        mock_hook.run.assert_called_once_with(
+            sql="SELECT 1",
             autocommit=test_autocommit,
             parameters=test_parameters,
             handler=fetch_all_handler,
