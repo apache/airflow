@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-11-18T11:01:10Z
+# This constraints file was automatically generated on 2022-11-21T07:39:19Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -70,11 +70,11 @@ connexion==2.14.1
 cron-descriptor==1.2.32
 croniter==1.3.7
 cryptography==36.0.2
-dask==2022.11.0
+dask==2022.11.1
 decorator==5.1.1
 dill==0.3.2
 distlib==0.3.6
-distributed==2022.11.0
+distributed==2022.11.1
 dnspython==2.2.1
 docutils==0.19
 email-validator==1.3.0
@@ -92,9 +92,9 @@ graphviz==0.20.1
 greenlet==2.0.1
 gssapi==1.8.2
 gunicorn==20.1.0
-h11==0.12.0
-httpcore==0.15.0
-httpx==0.23.0
+h11==0.14.0
+httpcore==0.16.1
+httpx==0.23.1
 humanize==4.4.0
 idna==3.4
 inflection==0.5.1
@@ -117,7 +117,7 @@ mdit-py-plugins==0.3.1
 mdurl==0.1.2
 msgpack==1.0.4
 multidict==6.0.2
-numpy==1.23.4
+numpy==1.23.5
 oauthlib==3.2.2
 packaging==21.3
 pandas==1.5.1
@@ -145,7 +145,7 @@ python-daemon==2.3.2
 python-dateutil==2.8.2
 python-ldap==3.4.3
 python-nvd3==0.15.0
-python-slugify==6.1.2
+python-slugify==7.0.0
 pytz==2022.6
 pytzdata==2020.1
 requests-kerberos==0.14.0
@@ -164,7 +164,7 @@ swagger-ui-bundle==0.0.9
 tabulate==0.9.0
 tblib==1.7.0
 tenacity==8.1.0
-termcolor==2.1.0
+termcolor==2.1.1
 text-unidecode==1.3
 thrift-sasl==0.4.3
 thrift==0.16.0
