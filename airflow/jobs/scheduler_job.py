@@ -784,7 +784,6 @@ class SchedulerJob(BaseJob):
     @provide_session
     def _update_dag_run_state_for_paused_dags(self, session: Session = NEW_SESSION) -> None:
         try:
-            dag = None
             paused_runs = (
                 session.query(DagRun)
                 .join(DagRun.dag_model)
@@ -796,13 +795,11 @@ class SchedulerJob(BaseJob):
                 )
                 .having(DagRun.last_scheduling_decision <= func.max(TaskInstance.updated_at))
                 .group_by(DagRun)
-                .order_by(DagRun.dag_id)
             )
             for dag_run in paused_runs:
-                if dag is None or dag.dag_id != dag_run.dag_id:
-                    dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
-                    if dag is None:
-                        continue
+                dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
+                if dag is None:
+                    continue
 
                 dag_run.dag = dag
                 _, callback_to_run = dag_run.update_state(execute_callbacks=False, session=session)
