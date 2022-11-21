@@ -1123,7 +1123,7 @@ class TestBigQueryInsertJobOperator:
 def test_bigquery_insert_job_operator_async(mock_hook):
     """
     Asserts that a task is deferred and a BigQueryInsertJobTrigger will be fired
-    when the BigQueryInsertJobAsyncOperator is executed.
+    when the BigQueryInsertJobOperator is executed with deferrable=True.
     """
     job_id = "123456"
     hash_ = "hash"
@@ -1370,7 +1370,7 @@ def test_execute_force_rerun_async(mock_hook):
 def test_bigquery_check_operator_async(mock_hook):
     """
     Asserts that a task is deferred and a BigQueryCheckTrigger will be fired
-    when the BigQueryCheckAsyncOperator is executed.
+    when the BigQueryCheckOperator is executed with deferrable=True.
     """
     job_id = "123456"
     hash_ = "hash"
@@ -1495,7 +1495,7 @@ def test_bigquery_interval_check_operator_execute_failure():
 def test_bigquery_interval_check_operator_async(mock_hook):
     """
     Asserts that a task is deferred and a BigQueryIntervalCheckTrigger will be fired
-    when the BigQueryIntervalCheckAsyncOperator is executed.
+    when the BigQueryIntervalCheckOperator is executed with deferrable=True.
     """
     job_id = "123456"
     hash_ = "hash"
@@ -1523,7 +1523,7 @@ def test_bigquery_interval_check_operator_async(mock_hook):
 def test_bigquery_get_data_operator_async_with_selected_fields(mock_hook):
     """
     Asserts that a task is deferred and a BigQuerygetDataTrigger will be fired
-    when the BigQueryGetDataAsyncOperator is executed.
+    when the BigQueryGetDataOperator is executed with deferrable=True.
     """
     job_id = "123456"
     hash_ = "hash"
@@ -1550,7 +1550,7 @@ def test_bigquery_get_data_operator_async_with_selected_fields(mock_hook):
 def test_bigquery_get_data_operator_async_without_selected_fields(mock_hook):
     """
     Asserts that a task is deferred and a BigQueryGetDataTrigger will be fired
-    when the BigQueryGetDataAsyncOperator is executed.
+    when the BigQueryGetDataOperator is executed with deferrable=True.
     """
     job_id = "123456"
     hash_ = "hash"
