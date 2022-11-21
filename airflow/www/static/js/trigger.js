@@ -26,7 +26,7 @@ const minHeight = 300;
 const maxHeight = window.innerHeight - 450;
 const height = maxHeight > minHeight ? maxHeight : minHeight;
 
-const editor = CodeMirror.fromTextArea(textArea, {
+CodeMirror.fromTextArea(textArea, {
   lineNumbers: true,
   mode: {
     name: 'javascript',
@@ -59,7 +59,7 @@ function loadRecentConfigs() {
 
   configsToLoad.forEach((config) => {
     const opt = document.createElement('option');
-    opt.value = config[0];
+    [opt.value] = config;
     opt.innerHTML = config[0].replaceAll('"', '&quot;');
     recentConfigList.appendChild(opt);
   });
