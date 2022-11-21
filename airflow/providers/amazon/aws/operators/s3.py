@@ -758,3 +758,36 @@ class S3ListPrefixesOperator(BaseOperator):
         )
 
         return hook.list_prefixes(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
+
+class S3GetObejectOperator(BaseOperator):
+    """
+    Get object from `key-path` as string.
+
+    Returns a boto3.s3.Object
+    :param s3_key: the path to the key
+    :param s3_bucket: the name of the bucket
+    :return: the key object from the bucket
+    :rtype: boto3.s3.Object
+
+    """
+
+    template_fields: Sequence[str] = ('s3_bucket', 's3_key')
+    ui_color = '#ffd700'
+
+    def __init__(
+            self,
+            *,
+            s3_bucket: str,
+            s3_key: str,
+            aws_conn_id: str = 'aws_default',
+            **kwargs,
+    ):
+        super().__init__(**kwargs)
+
+        self.s3_bucket = s3_bucket
+        self.s3_key = s3_key
+        self.aws_conn_id = aws_conn_id
+
+    def execute(self, context: Context):
+        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
+        return s3_hook.get_key(key=self.s3_key, bucket_name=self.s3_bucket)
