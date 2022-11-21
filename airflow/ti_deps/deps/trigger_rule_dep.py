@@ -56,12 +56,12 @@ class _UpstreamTIStates(NamedTuple):
         task = ti.task
         counter = Counter(ti.state for ti in finished_tis if ti.task_id in task.upstream_task_ids)
         return _UpstreamTIStates(
-            counter.get(TaskInstanceState.SUCCESS, 0),
-            counter.get(TaskInstanceState.SKIPPED, 0),
-            counter.get(TaskInstanceState.FAILED, 0),
-            counter.get(TaskInstanceState.UPSTREAM_FAILED, 0),
-            counter.get(TaskInstanceState.REMOVED, 0),
-            sum(counter.values()),
+            success=counter.get(TaskInstanceState.SUCCESS, 0),
+            skipped=counter.get(TaskInstanceState.SKIPPED, 0),
+            failed=counter.get(TaskInstanceState.FAILED, 0),
+            upstream_failed=counter.get(TaskInstanceState.UPSTREAM_FAILED, 0),
+            removed=counter.get(TaskInstanceState.REMOVED, 0),
+            done=sum(counter.values()),
         )
 
 
