@@ -47,14 +47,13 @@ class _UpstreamTIStates(NamedTuple):
     done: int
 
     @classmethod
-    def calculate(cls, ti: TaskInstance, finished_tis: list[TaskInstance]) -> _UpstreamTIStates:
+    def calculate(cls, finished_upstreams: Iterator[TaskInstance]) -> _UpstreamTIStates:
         """Calculate states for a task instance.
 
         :param ti: the ti that we want to calculate deps for
         :param finished_tis: all the finished tasks of the dag_run
         """
-        task = ti.task
-        counter = Counter(ti.state for ti in finished_tis if ti.task_id in task.upstream_task_ids)
+        counter = Counter(ti.state for ti in finished_upstreams)
         return _UpstreamTIStates(
             success=counter.get(TaskInstanceState.SUCCESS, 0),
             skipped=counter.get(TaskInstanceState.SKIPPED, 0),
@@ -93,7 +92,7 @@ class TriggerRuleDep(BaseTIDep):
         yield from self._evaluate_trigger_rule(ti=ti, dep_context=dep_context, session=session)
 
     @staticmethod
-    def _count_upstreams(ti: TaskInstance, *, session: Session):
+    def _count_upstreams(ti: TaskInstance, *, session: Session) -> int:
         from airflow.models.taskinstance import TaskInstance
 
         # Optimization: Don't need to hit the database if no upstreams are mapped.
@@ -129,8 +128,14 @@ class TriggerRuleDep(BaseTIDep):
         :param dep_context: The current dependency context.
         :param session: Database session.
         """
-        finished_tis = dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
-        upstream_states = _UpstreamTIStates.calculate(ti, finished_tis)
+        task = ti.task
+        trigger_rule = task.trigger_rule
+
+        upstream_states = _UpstreamTIStates.calculate(
+            finished_ti
+            for finished_ti in dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
+            if finished_ti.task_id in task.upstream_task_ids
+        )
 
         success = upstream_states.success
         skipped = upstream_states.skipped
@@ -139,8 +144,6 @@ class TriggerRuleDep(BaseTIDep):
         removed = upstream_states.removed
         done = upstream_states.done
 
-        task = ti.task
-        trigger_rule = task.trigger_rule
         upstream = self._count_upstreams(ti, session=session)
         upstream_done = done >= upstream
 
