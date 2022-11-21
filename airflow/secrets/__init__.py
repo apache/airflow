@@ -22,7 +22,7 @@ The following sources are available:
 
 * Environment variables
 * Metastore database
-* AWS SSM Parameter store
+* Local Filesystem Secrets Backend
 """
 from __future__ import annotations
 
