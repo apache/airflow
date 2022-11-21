@@ -1318,7 +1318,7 @@ class Airflow(AirflowBaseView):
     )
     @action_logging
     @provide_session
-    def rendered_k8s(self, session: Session = NEW_SESSION):
+    def rendered_k8s(self, *, session: Session = NEW_SESSION):
         """Get rendered k8s yaml."""
         if not settings.IS_K8S_OR_K8SCELERY_EXECUTOR:
             abort(404)
@@ -3360,7 +3360,7 @@ class Airflow(AirflowBaseView):
     )
     @action_logging
     @provide_session
-    def extra_links(self, session: Session = NEW_SESSION):
+    def extra_links(self, *, session: Session = NEW_SESSION):
         """
         A restful endpoint that returns external links for a given Operator
 
