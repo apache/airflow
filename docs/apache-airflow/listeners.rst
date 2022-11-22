@@ -21,21 +21,40 @@ Listeners
 Airflow gives you an option to be notified of events happening in Airflow
 by writing listeners. Listeners are powered by `pluggy <https://pluggy.readthedocs.io/en/stable/>`__
 
+Right now Airflow exposes few types of events.
+
+Lifecycle events
+^^^^^^^^^^^^^^^^
+Those events - ``on_starting`` and ``before_stopping`` allow you to react to
+lifecycle to an Airflow ``Job``, like  ``SchedulerJob`` or ``BackfillJob``.
+
+TaskInstance state change events
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Those events - ``on_task_instance_running``, ``on_task_instance_success`` and ``on_task_instance_failed``
+once ``TaskInstance`` state changes to one of the respective states. This generally happens on ``LocalTaskJob``.
+
+DagRun state change events
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+Those events - ``on_dag_run_running``, ``on_dag_run_success`` and ``on_dag_run_failed``
+once ``DagRun`` state changes to one of the respective states. This generally happens on ``SchedulerJob`` or ``BackfillJob``.
+
+Usage
+=====
+
+To create a listener you will need to derive the import
+``airflow.listeners.hookimpl`` and implement the ``hookimpls`` for
+events you want to be notified at.
+
+Their specification is defined as ``hookspec`` in ``airflow/listeners/spec`` directory.
+Your implementation needs to accept the same named parameters as defined in hookspec, or Pluggy will complain about your plugin.
+On the other hand, you don't need to implement every method - it's perfectly fine to have a listener that implements just one method, or any subset of methods.
+
+To include listener in your Airflow installation, include it as a part of an :doc:`Airflow Plugin </plugins>`
+
 Listener API is meant to be called across all dags, and all operators - in contrast to methods like
 ``on_success_callback``, ``pre_execute`` and related family which are meant to provide callbacks
 for particular dag authors, or operator creators. There is no possibility to listen on events generated
 by particular dag.
 
-To include listener in your Airflow installation, include it as a part of an :doc:`Airflow Plugin </plugins>`
 
 |experimental|
-
-Interface
----------
-
-To create a listener you will need to derive the
-create python module, import ``airflow.listeners.hookimpl`` and implement the ``hookimpls`` for
-events you want to be notified at.
-
-Right now Airflow exposes TaskInstance state change events.
-Their specification is defined as ``hookspec`` in ``airflow/listeners/spec.py`` file.

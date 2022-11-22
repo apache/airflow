@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import sys
 from unittest.mock import ANY, Mock, patch
 
 from pytest import raises
@@ -25,9 +26,11 @@ from sqlalchemy.exc import OperationalError
 
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
+from airflow.listeners.listener import get_listener_manager
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from tests.listeners import lifecycle_listener
 from tests.test_utils.config import conf_vars
 
 
@@ -58,6 +61,28 @@ class TestBaseJob:
 
         assert job.state == State.SUCCESS
         assert job.end_date is not None
+
+    def test_base_job_respects_plugin_hooks(self):
+
+        import sys
+
+        job = MockJob(lambda: sys.exit(0))
+        job.run()
+
+        assert job.state == State.SUCCESS
+        assert job.end_date is not None
+
+    def test_base_job_respects_plugin_lifecycle(self, dag_maker):
+        """
+        Test if DagRun is successful, and if Success callbacks is defined, it is sent to DagFileProcessor.
+        """
+        get_listener_manager().add_listener(lifecycle_listener)
+
+        job = MockJob(lambda: sys.exit(0))
+        job.run()
+
+        assert lifecycle_listener.started_component is job
+        assert lifecycle_listener.stopped_component is job
 
     def test_state_failed(self):
         def abort():
