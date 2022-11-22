@@ -293,8 +293,14 @@ class SelectiveChecks:
 
     @cached_property
     def full_tests_needed(self) -> bool:
+        if not self._commit_ref:
+            get_console().print("[warning]Running everything as commit is missing[/]")
+            return True
         if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
             get_console().print(f"[warning]Full tests needed because event is {self._github_event}[/]")
+            return True
+        if len(self._matching_files(FileGroupForCi.ENVIRONMENT_FILES, CI_FILE_GROUP_MATCHES)) > 0:
+            get_console().print("[warning]Running everything because env files changed[/]")
             return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
             get_console().print(
@@ -308,7 +314,7 @@ class SelectiveChecks:
     def python_versions(self) -> list[str]:
         return (
             CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
-            if self._run_everything or self.full_tests_needed
+            if self.full_tests_needed
             else [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
         )
 
@@ -320,7 +326,7 @@ class SelectiveChecks:
     def all_python_versions(self) -> list[str]:
         return (
             ALL_PYTHON_MAJOR_MINOR_VERSIONS
-            if self._run_everything or self.full_tests_needed
+            if self.full_tests_needed
             else [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
         )
 
@@ -433,21 +439,8 @@ class SelectiveChecks:
             get_console().print(f"[warning]{match_group} did not match any file.[/]")
         return matched_files
 
-    @cached_property
-    def _run_everything(self) -> bool:
-        if not self._commit_ref:
-            get_console().print("[warning]Running everything as commit is missing[/]")
-            return True
-        if self.full_tests_needed:
-            get_console().print("[warning]Running everything as full tests are needed[/]")
-            return True
-        if len(self._matching_files(FileGroupForCi.ENVIRONMENT_FILES, CI_FILE_GROUP_MATCHES)) > 0:
-            get_console().print("[warning]Running everything because env files changed[/]")
-            return True
-        return False
-
     def _should_be_run(self, source_area: FileGroupForCi) -> bool:
-        if self._run_everything:
+        if self.full_tests_needed:
             get_console().print(f"[warning]{source_area} enabled because we are running everything[/]")
             return True
         matched_files = self._matching_files(source_area, CI_FILE_GROUP_MATCHES)
@@ -558,7 +551,7 @@ class SelectiveChecks:
     def test_types(self) -> str:
         if not self.run_tests:
             return ""
-        if self._run_everything:
+        if self.full_tests_needed:
             current_test_types = set(all_selective_test_types())
         else:
             current_test_types = set(self._get_test_types_to_run())

@@ -368,7 +368,7 @@ def task_run(args, dag=None):
         print(f"Loading pickle id: {args.pickle}")
         dag = get_dag_by_pickle(args.pickle)
     elif not dag:
-        dag = get_dag(args.subdir, args.dag_id, include_examples=False)
+        dag = get_dag(args.subdir, args.dag_id)
     else:
         # Use DAG from parameter
         pass
