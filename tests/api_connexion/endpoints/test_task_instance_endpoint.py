@@ -158,7 +158,7 @@ class TestTaskInstanceEndpoint:
                 session.add(dr)
             ti = TaskInstance(task=tasks[i], **self.ti_init)
             ti.dag_run = dr
-            ti.note = "placeholder-note"
+            ti.notes = "placeholder-note"
 
             for key, value in self.ti_extras.items():
                 setattr(ti, key, value)

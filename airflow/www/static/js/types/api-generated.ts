@@ -98,7 +98,7 @@ export interface paths {
      *
      * *New in version 2.5.0*
      */
-    patch: operations["set_task_instance_note"];
+    patch: operations["set_task_instance_notes"];
     parameters: {
       path: {
         /** The DAG ID. */
@@ -116,7 +116,7 @@ export interface paths {
      *
      * *New in version 2.5.0*
      */
-    patch: operations["set_mapped_task_instance_note"];
+    patch: operations["set_mapped_task_instance_notes"];
     parameters: {
       path: {
         /** The DAG ID. */
@@ -2643,7 +2643,7 @@ export interface operations {
    *
    * *New in version 2.5.0*
    */
-  set_task_instance_note: {
+  set_task_instance_notes: {
     parameters: {
       path: {
         /** The DAG ID. */
@@ -2678,7 +2678,7 @@ export interface operations {
    *
    * *New in version 2.5.0*
    */
-  set_mapped_task_instance_note: {
+  set_mapped_task_instance_notes: {
     parameters: {
       path: {
         /** The DAG ID. */
@@ -4509,8 +4509,8 @@ export type GetDagVariables = CamelCasedPropertiesDeep<operations['get_dag']['pa
 export type DeleteDagVariables = CamelCasedPropertiesDeep<operations['delete_dag']['parameters']['path']>;
 export type PatchDagVariables = CamelCasedPropertiesDeep<operations['patch_dag']['parameters']['path'] & operations['patch_dag']['parameters']['query'] & operations['patch_dag']['requestBody']['content']['application/json']>;
 export type PostClearTaskInstancesVariables = CamelCasedPropertiesDeep<operations['post_clear_task_instances']['parameters']['path'] & operations['post_clear_task_instances']['requestBody']['content']['application/json']>;
-export type SetTaskInstanceNotesVariables = CamelCasedPropertiesDeep<operations['set_task_instance_note']['parameters']['path'] & operations['set_task_instance_note']['requestBody']['content']['application/json']>;
-export type SetMappedTaskInstanceNotesVariables = CamelCasedPropertiesDeep<operations['set_mapped_task_instance_note']['parameters']['path'] & operations['set_mapped_task_instance_note']['requestBody']['content']['application/json']>;
+export type SetTaskInstanceNotesVariables = CamelCasedPropertiesDeep<operations['set_task_instance_notes']['parameters']['path'] & operations['set_task_instance_notes']['requestBody']['content']['application/json']>;
+export type SetMappedTaskInstanceNotesVariables = CamelCasedPropertiesDeep<operations['set_mapped_task_instance_notes']['parameters']['path'] & operations['set_mapped_task_instance_notes']['requestBody']['content']['application/json']>;
 export type PostSetTaskInstancesStateVariables = CamelCasedPropertiesDeep<operations['post_set_task_instances_state']['parameters']['path'] & operations['post_set_task_instances_state']['requestBody']['content']['application/json']>;
 export type GetDagRunsVariables = CamelCasedPropertiesDeep<operations['get_dag_runs']['parameters']['path'] & operations['get_dag_runs']['parameters']['query']>;
 export type PostDagRunVariables = CamelCasedPropertiesDeep<operations['post_dag_run']['parameters']['path'] & operations['post_dag_run']['requestBody']['content']['application/json']>;

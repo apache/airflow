@@ -263,7 +263,7 @@ def dag_to_grid(dag, dag_runs, session):
             TaskInstance.task_id,
             TaskInstance.run_id,
             TaskInstance.state,
-            func.min(TaskNote.content).label("note"),
+            func.min(TaskNote.content).label("notes"),
             func.count(sqla.func.coalesce(TaskInstance.state, sqla.literal("no_status"))).label(
                 "state_count"
             ),

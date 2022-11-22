@@ -428,7 +428,7 @@ class TaskInstance(Base, LoggingMixin):
     rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy="noload", uselist=False)
     execution_date = association_proxy("dag_run", "execution_date")
     task_note = relationship("TaskNote", back_populates="task_instance", uselist=False)
-    note = association_proxy("task_note", "content", creator=_creator_note)
+    notes = association_proxy("task_note", "content", creator=_creator_note)
     task: Operator  # Not always set...
 
     def __init__(

@@ -598,7 +598,7 @@ paths:
 
         *New in version 2.5.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
-      operationId: set_task_instance_note
+      operationId: set_task_instance_notes
       tags: [DAG]
       requestBody:
         description: Parameters of set Task Instance note.
@@ -638,7 +638,7 @@ paths:
 
         *New in version 2.5.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
-      operationId: set_mapped_task_instance_note
+      operationId: set_mapped_task_instance_notes
       tags: [DAG]
       requestBody:
         description: Parameters of set Task Instance note.
@@ -3249,10 +3249,10 @@ components:
         triggerer_job:
           $ref: '#/components/schemas/Job'
           nullable: true
-        note:
+        notes:
           type: string
           description: |
-            Note about the TaskInstance.
+            Contains manually entered notes by the user about the TaskInstance.
 
             *New in version 2.5.0*
           nullable: true
@@ -4174,9 +4174,9 @@ components:
     SetTaskInstanceNote:
       type: object
       required:
-        - note
+        - notes
       properties:
-        note:
+        notes:
           description: The custom note to set for this Task Instance.
           type: string
 

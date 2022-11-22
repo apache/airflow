@@ -25,8 +25,8 @@ import useErrorToast from 'src/utils/useErrorToast';
 
 import type { API } from 'src/types';
 
-const setTaskInstancesNotesURI = getMetaValue('set_task_instance_note');
-const setMappedTaskInstancesNotesURI = getMetaValue('set_mapped_task_instance_note');
+const setTaskInstancesNotesURI = getMetaValue('set_task_instance_notes');
+const setMappedTaskInstancesNotesURI = getMetaValue('set_mapped_task_instance_notes');
 
 interface Props {
   dagId: string;
@@ -53,7 +53,7 @@ export default function useSetTaskInstanceNotes({
     (notes: string | null) => axios.patch<AxiosResponse, API.TaskInstance>(url, { notes }),
     {
       onSuccess: async (data) => {
-        const note = data.notes ?? null;
+        const notes = data.notes ?? null;
 
         const updateMappedInstancesResult = (oldMappedInstances?: API.TaskInstanceCollection) => {
           if (!oldMappedInstances) {
