@@ -383,12 +383,12 @@ def check_docker_host_environment_variable():
 
 
 @overload
-def check_if_buildx_plugin_installed(exit_on_error: Literal[True]) -> NoReturn:
+def check_if_buildx_plugin_installed(exit_on_missing: Literal[True]) -> NoReturn:
     pass
 
 
 @overload
-def check_if_buildx_plugin_installed(exit_on_error: Literal[False]) -> bool:
+def check_if_buildx_plugin_installed(exit_on_missing: Literal[False]) -> bool:
     pass
 
 
@@ -397,11 +397,12 @@ def check_if_buildx_plugin_installed() -> bool:
     pass
 
 
-def check_if_buildx_plugin_installed(exit_on_error: bool = False) -> bool | NoReturn:
+def check_if_buildx_plugin_installed(exit_on_missing: bool = False) -> bool | NoReturn:
     """
     Checks if buildx plugin is locally available.
 
-
+    :param exit_on_missing: If set to true, then when the buildx is missing, display installation instructions
+        and exit with status code 1.
     :return True if the buildx plugin is installed.
         If :param:`exit_on_error` is `True` and buildx then the program exits with return code 1
     """
@@ -414,7 +415,7 @@ def check_if_buildx_plugin_installed(exit_on_error: bool = False) -> bool | NoRe
         check=False,
     )
     is_installed = docker_buildx_version_result.returncode == 0
-    if exit_on_error:
+    if exit_on_missing:
         colima_sock = next((p for p in COLIMA_SOCK_PATHS if p.exists()), None)
         if colima_sock:
             help_url = (
@@ -750,7 +751,7 @@ def get_env_variables_for_docker_commands(params: ShellParams | BuildCiParams) -
 
 def perform_environment_checks():
     check_docker_host_environment_variable()
-    check_if_buildx_plugin_installed(exit_on_error=True)
+    check_if_buildx_plugin_installed(exit_on_missing=True)
     check_docker_is_running()
     check_docker_version()
     check_docker_compose_version()

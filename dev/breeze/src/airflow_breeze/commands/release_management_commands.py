@@ -582,7 +582,7 @@ def release_prod_images(
             get_console().print(
                 "[info]Also tagging the images with latest tags as this is release version.[/]"
             )
-    check_if_buildx_plugin_installed(exit_on_error=True)
+    check_if_buildx_plugin_installed(exit_on_missing=True)
     result_inspect_builder = run_command(["docker", "buildx", "inspect", "airflow_cache"], check=False)
     if result_inspect_builder.returncode != 0:
         get_console().print("[error]Airflow Cache builder must be configured to release the images[/]")
