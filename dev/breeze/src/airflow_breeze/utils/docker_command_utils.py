@@ -21,8 +21,12 @@ import os
 import re
 import sys
 from copy import deepcopy
+from pathlib import Path
 from random import randint
 from subprocess import CalledProcessError, CompletedProcess
+from typing import NoReturn, overload
+
+from typing_extensions import Literal
 
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -57,12 +61,7 @@ from airflow_breeze.global_constants import (
     WEBSERVER_HOST_PORT,
 )
 from airflow_breeze.utils.console import Output, get_console
-from airflow_breeze.utils.run_utils import (
-    RunCommandResult,
-    check_if_buildx_plugin_installed,
-    commit_sha,
-    run_command,
-)
+from airflow_breeze.utils.run_utils import RunCommandResult, commit_sha, run_command
 
 # Those are volumes that are mounted when MOUNT_SELECTED is chosen (which is the default when
 # entering Breeze. MOUNT_SELECTED prevents to mount the files that you can have accidentally added
@@ -106,6 +105,13 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("chart", "/opt/airflow/chart"),
     ("metastore_browser", "/opt/airflow/metastore_browser"),
 ]
+
+COLIMA_SOCK_PATHS = [
+    Path("~/.colima/default/docker.sock").expanduser(),
+    Path("~/.colima/docker.sock").expanduser(),
+]
+DOCKER_COMMON_SOCK_PATH = Path("/var/run/docker.sock")
+DOCKER_ALTERNATIVE_SOCK_PATH = Path("~/.docker/run/docker.sock")
 
 
 def get_extra_docker_flags(mount_sources: str, include_mypy_volume: bool = False) -> list[str]:
@@ -356,6 +362,72 @@ def check_docker_context():
             f'{expected_docker_context}"[/]'
         )
         sys.exit(1)
+
+
+def check_docker_host_environment_variable():
+    """
+    Checks whether DOCKER_HOST environment variable is need to be set.
+    """
+    colima_sock = next((p for p in COLIMA_SOCK_PATHS if p.exists()), None)
+
+    if "DOCKER_HOST" in os.environ:
+        # If environment variable is explicit defined, do nothing
+        pass
+    elif colima_sock and not DOCKER_COMMON_SOCK_PATH.exists():
+        os.environ["DOCKER_HOST"] = f"unix://{colima_sock.absolute()}"
+    elif DOCKER_ALTERNATIVE_SOCK_PATH.exists() and not DOCKER_COMMON_SOCK_PATH.exists():
+        os.environ["DOCKER_HOST"] = f"unix://{DOCKER_ALTERNATIVE_SOCK_PATH.absolute()}"
+    else:
+        # By default, do nothing
+        pass
+
+
+@overload
+def check_if_buildx_plugin_installed(exit_on_error: Literal[True]) -> NoReturn:
+    pass
+
+
+@overload
+def check_if_buildx_plugin_installed(exit_on_error: Literal[False]) -> bool:
+    pass
+
+
+@overload
+def check_if_buildx_plugin_installed() -> bool:
+    pass
+
+
+def check_if_buildx_plugin_installed(exit_on_error: bool = False) -> bool | NoReturn:
+    """
+    Checks if buildx plugin is locally available.
+
+
+    :return True if the buildx plugin is installed.
+        If :param:`exit_on_error` is `True` and buildx then the program exits with return code 1
+    """
+    check_buildx = ["docker", "buildx", "version"]
+    docker_buildx_version_result = run_command(
+        check_buildx,
+        no_output_dump_on_exception=True,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    is_installed = docker_buildx_version_result.returncode == 0
+    if exit_on_error:
+        colima_sock = next((p for p in COLIMA_SOCK_PATHS if p.exists()), None)
+        if colima_sock:
+            help_url = (
+                "https://github.com/abiosoft/colima/blob/main/docs/"
+                "FAQ.md#docker-plugins-are-missing-buildx-scan"
+            )
+        else:
+            help_url = "https://docs.docker.com/buildx/working-with-buildx/"
+        get_console().print(
+            f"[error]The docker buildx plugin are missing.[/]\n[warning]To install, follow: {help_url}[/]"
+        )
+        sys.exit(1)
+    return is_installed
 
 
 def get_env_variable_value(arg_name: str, params: CommonBuildParams | ShellParams):
@@ -677,6 +749,8 @@ def get_env_variables_for_docker_commands(params: ShellParams | BuildCiParams) -
 
 
 def perform_environment_checks():
+    check_docker_host_environment_variable()
+    check_if_buildx_plugin_installed(exit_on_error=True)
     check_docker_is_running()
     check_docker_version()
     check_docker_compose_version()

@@ -39,11 +39,27 @@ are described in `CONTRIBUTING.rst <CONTRIBUTING.rst#integration-test-developmen
 Prerequisites
 =============
 
-Docker Desktop
---------------
+Container runtime engine
+------------------------
+
+We recommend using Docker Desktop, but if that's not possible you can also use `Colima <https://github.com/abiosoft/colima>`__.
+
+Breeze tries to locate alternative container runtime socket by checking the following paths in order and then
+sets the appropriate ``DOCKER_HOST`` environment variable:
+
+    - path ``~/.colima/default/docker.sock`` - for Colima v0.4.0 or newer;
+    - path ``~/.colima/docker.sock`` - for Colima v0.3.4 or older;
+    - path '`~/.docker/run/docker.sock`' - if ``/var/run/docker.sock`` path is not exists. This address an issue specific
+      to Docker Desktop 4.13.0 (released in late October 2022). For technical details, see also
+      `docker/for-mac#6529 <https://github.com/docker/for-mac/issues/6529>`_.
+
+    To override this, set the ``DOCKER_HOST`` environment variable explicit.
+
+Docker Desktop (recommended)
+****************************
 
 - **Version**: Install the latest stable `Docker Desktop <https://docs.docker.com/get-docker/>`_
-  and add make sure it is in your PATH. ``Breeze`` detects if you are using version that is too
+  and add make sure it is in your ``PATH``. ``Breeze`` detects if you are using version that is too
   old and warns you to upgrade.
 - **Permissions**: Configure to run the ``docker`` commands directly and not only via root user.
   Your user should be in the ``docker`` group.
@@ -66,14 +82,15 @@ Here is an example configuration with more than 200GB disk space for Docker:
              alt="Disk space MacOS">
     </div>
 
+Calima
+******
 
-- **Docker is not running** - even if it is running with Docker Desktop. This is an issue
-  specific to Docker Desktop 4.13.0 (released in late October 2022). Please upgrade Docker
-  Desktop to 4.13.1 or later to resolve the issue. For technical details, see also
-  `docker/for-mac#6529 <https://github.com/docker/for-mac/issues/6529>`_.
+- **Version**: Install the latest stable `Calima <https://github.com/abiosoft/colima/blob/main/docs/INSTALL.md>`_
+  and add make sure it is in your ``PATH``.
+- **buildx plugin**: it is not pre-installed so you have to install it manually. For details, see:
+  `FAQ - Installing Buildx <https://github.com/abiosoft/colima/blob/main/docs/FAQ.md#installing-buildx>`_
+  in Colima documentation.
 
-Note: If you use Colima, please follow instructions at: `Contributors Quick Start Guide <https://github.com/apache/airflow/blob/main
-/CONTRIBUTORS_QUICK_START.rst>`__
 
 Docker Compose
 --------------

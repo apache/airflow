@@ -64,6 +64,7 @@ from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
+    check_if_buildx_plugin_installed,
     get_env_variables_for_docker_commands,
     get_extra_docker_flags,
     perform_environment_checks,
@@ -581,15 +582,7 @@ def release_prod_images(
             get_console().print(
                 "[info]Also tagging the images with latest tags as this is release version.[/]"
             )
-    result_docker_buildx = run_command(
-        ["docker", "buildx", "version"],
-        check=False,
-    )
-    if result_docker_buildx.returncode != 0:
-        get_console().print("[error]Docker buildx plugin must be installed to release the images[/]")
-        get_console().print()
-        get_console().print("See https://docs.docker.com/buildx/working-with-buildx/ for installation info.")
-        sys.exit(1)
+    check_if_buildx_plugin_installed(exit_on_error=True)
     result_inspect_builder = run_command(["docker", "buildx", "inspect", "airflow_cache"], check=False)
     if result_inspect_builder.returncode != 0:
         get_console().print("[error]Airflow Cache builder must be configured to release the images[/]")

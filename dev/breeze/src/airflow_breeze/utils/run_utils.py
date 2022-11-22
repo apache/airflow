@@ -324,25 +324,6 @@ def is_repo_rebased(repo: str, branch: str):
     return rebased
 
 
-def check_if_buildx_plugin_installed() -> bool:
-    """
-    Checks if buildx plugin is locally available.
-
-    :return True if the buildx plugin is installed.
-    """
-    check_buildx = ["docker", "buildx", "version"]
-    docker_buildx_version_result = run_command(
-        check_buildx,
-        no_output_dump_on_exception=True,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if docker_buildx_version_result.returncode == 0:
-        return True
-    return False
-
-
 @lru_cache(maxsize=None)
 def commit_sha():
     """Returns commit SHA of current repo. Cached for various usages."""

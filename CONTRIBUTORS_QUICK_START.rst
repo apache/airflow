@@ -50,7 +50,7 @@ Local machine development
 
 If you do not work with remote development environment, you need those prerequisites.
 
-1. Docker Community Edition (you can also use Colima, see instructions below)
+1. Container runtime: Docker Community Edition (recommended), Colima.
 2. Docker Compose
 3. pyenv (you can also use pyenv-virtualenv or virtualenvwrapper)
 
@@ -58,6 +58,8 @@ The below setup describe `Ubuntu installation <https://docs.docker.com/engine/in
 
 Docker Community Edition
 ------------------------
+
+If you want to use Docker as your container runtimes engine, please follow the next steps:
 
 1. Installing required packages for Docker and setting up docker repo
 
@@ -102,17 +104,13 @@ Note : After adding user to docker group Logout and Login again for group member
 
 Colima
 ------
-If you use Colima as your container runtimes engine, please follow the next steps:
+If you want to use Colima as your container runtimes engine, please follow the next steps:
 
-1. `Install buildx manually <https://https://github.com/docker/buildx#manual-download>`_ and follow it's instructions
+1. `Install Calima <https://github.com/abiosoft/colima/blob/main/docs/INSTALL.md>`__
 
-2. Link the Colima socket to the default socket path. Note that this may break other Docker servers.
+2. `Install buildx manually <https://github.com/abiosoft/colima/blob/main/docs/FAQ.md#installing-buildx>`_.
 
-.. code-block:: bash
-
-  $ sudo ln -sf $HOME/.colima/default/docker.sock /var/run/docker.sock
-
-3. Change docker context to use default:
+4. Change docker context to use default:
 
 .. code-block:: bash
 
