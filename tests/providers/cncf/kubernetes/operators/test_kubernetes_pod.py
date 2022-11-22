@@ -938,7 +938,6 @@ class TestKubernetesPodOperator:
         """If we aren't deleting pods and have an exception, mark it so we don't reattach to it"""
         k = KubernetesPodOperator(
             task_id="task",
-            is_delete_operator_pod=False,
         )
         self.await_pod_mock.side_effect = AirflowException("oops")
         context = create_context(k)
