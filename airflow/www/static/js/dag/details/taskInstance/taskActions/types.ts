@@ -24,5 +24,6 @@ export interface CommonActionProps {
   taskId: TaskInstance['taskId'],
   dagId: Dag['id'],
   executionDate: DagRun['executionDate'],
-  mapIndexes: number[]
+  mapIndexes: number[],
+  isGroup?: boolean;
 }
