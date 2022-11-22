@@ -5343,7 +5343,7 @@
                             },
                             "examples": [
                                 {
-                                    "name": "GIT_SYNC_TIMEOUT",
+                                    "name": "GIT_SYNC_SYNC_TIMEOUT",
                                     "value": "60"
                                 }
                             ]
