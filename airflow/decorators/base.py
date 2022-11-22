@@ -286,12 +286,25 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
 
     function: Callable[FParams, FReturn] = attr.ib(validator=attr.validators.is_callable())
     operator_class: type[OperatorSubclass]
-    multiple_outputs: bool = attr.ib(default=False)
+    multiple_outputs: bool = attr.ib()
     kwargs: dict[str, Any] = attr.ib(factory=dict)
 
     decorator_name: str = attr.ib(repr=False, default="task")
 
     _airflow_is_task_decorator: ClassVar[bool] = True
+
+    @multiple_outputs.default
+    def _infer_multiple_outputs(self):
+        try:
+            return_type = typing_extensions.get_type_hints(self.function).get("return", Any)
+        except TypeError:  # Can't evaluate return type.
+            return False
+        ttype = getattr(return_type, "__origin__", return_type)
+        if ttype == dict or ttype == Dict:
+            raise AttributeError(
+                "multiple_outputs was not set and will not implicitly unroll dict for return values"
+            )
+        return ttype == dict or ttype == Dict
 
     def __attrs_post_init__(self):
         if "self" in self.function_signature.parameters:

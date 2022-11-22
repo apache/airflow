@@ -94,19 +94,14 @@ class TestAirflowTaskDecorator:
             "Dict[str, int]",
         ],
     )
-    def test_infer_multiple_outputs_using_dict_typing(self, resolve, annotation):
-        @task_decorator
-        def identity_dict(x: int, y: int) -> resolve(annotation):
-            return {"x": x, "y": y}
+    def test_infer_multiple_outputs_using_dict_typing_raises(self, resolve, annotation):
+        with pytest.raises(AttributeError) as e:
 
-        assert identity_dict(5, 5).operator.multiple_outputs is True
+            @task_decorator()
+            def identity_dict(x: int, y: int) -> resolve(annotation):
+                return {"x": x, "y": y}
 
-        # Check invoking ``@task_decorator.__call__()`` yields the correct inference.
-        @task_decorator()
-        def identity_dict_with_decorator_call(x: int, y: int) -> resolve(annotation):
-            return {"x": x, "y": y}
-
-        assert identity_dict_with_decorator_call(5, 5).operator.multiple_outputs is True
+        assert "not implicitly unroll" in str(e.value)
 
     def test_infer_multiple_outputs_using_other_typing(self):
         @task_decorator
