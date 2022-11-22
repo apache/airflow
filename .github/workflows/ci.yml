@@ -699,6 +699,9 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
+      - name: "Prepare provider documentation"
+        run: breeze release-management prepare-provider-documentation
+        if: matrix.package-format == 'wheel'
       - name: "Prepare provider packages: ${{matrix.package-format}}"
         run: breeze release-management prepare-provider-packages --version-suffix-for-pypi dev0
       - name: "Prepare airflow package: ${{matrix.package-format}}"
