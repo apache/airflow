@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-11-21T22:23:51Z
+# This constraints file was automatically generated on 2022-11-22T03:01:28Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -237,7 +237,7 @@ greenlet==2.0.1
 grpc-google-iam-v1==0.12.4
 grpcio-gcp==0.2.2
 grpcio-status==1.48.2
-grpcio==1.50.0
+grpcio==1.51.0
 gssapi==1.8.2
 gunicorn==20.1.0
 h11==0.14.0
@@ -263,7 +263,7 @@ isodate==0.6.1
 isort==5.10.1
 itsdangerous==2.1.2
 jaraco.classes==3.2.3
-jedi==0.18.1
+jedi==0.18.2
 jeepney==0.8.0
 jira==3.4.1
 jmespath==0.10.0
