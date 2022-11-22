@@ -298,7 +298,7 @@ def dag_to_grid(dag, dag_runs, session):
                     "start_date": task_instance.start_date,
                     "end_date": task_instance.end_date,
                     "try_number": try_count,
-                    "notes": task_instance.task_note.content,
+                    "notes": "hello",
                 }
 
             def _mapped_summary(ti_summaries):
@@ -5228,7 +5228,6 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "start_date",
         "end_date",
         "duration",
-        "task_note.content",
         "job_id",
         "hostname",
         "unixname",
@@ -5260,7 +5259,6 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "operator",
         "start_date",
         "end_date",
-        "note",
         "hostname",
         "priority_weight",
         "queue",
@@ -5277,7 +5275,6 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "start_date",
         "end_date",
         "state",
-        "task_note.content",
     ]
 
     add_exclude_columns = ["next_method", "next_kwargs", "trigger_id"]
