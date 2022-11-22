@@ -46,7 +46,6 @@ from botocore.credentials import ReadOnlyCredentials
 from dateutil.tz import tzlocal
 from slugify import slugify
 
-from airflow import __version__ as airflow_version
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowNotFoundException
@@ -418,10 +417,14 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     @classmethod
     def _get_provider_version(cls) -> str:
         """Checks the Providers Manager for the package version."""
-        manager = ProvidersManager()
-        provider_name = manager.hooks[cls.conn_type].package_name  # type: ignore[union-attr]
-        provider = manager.providers[provider_name]
-        return provider.version
+        try:
+            manager = ProvidersManager()
+            hook = manager.hooks[cls.conn_type]
+            provider = manager.providers[hook.package_name]
+            return provider.version
+        except Exception:
+            # Under no condition should an error here ever cause an issue for the user.
+            return "Unknown"
 
     @staticmethod
     def _find_class_name(target_function_name: str) -> str:
@@ -451,22 +454,39 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
                 return self._get_caller("poke")
             return caller
         except Exception:
-            # While it is generally considered poor form to catch "Exception", under
-            # no condition should an error here ever cause an issue for the user.
+            # Under no condition should an error here ever cause an issue for the user.
             return "Unknown"
 
     @staticmethod
-    def _generate_dag_key():
-        dag_id = os.getenv("AIRFLOW_CTX_DAG_ID", "default_dag_id")
-        # The Object Identifier (OID) namespace is used to salt the dag_id value.
-        # That salted value is used to generate a SHA-1 hash which, by definition,
-        # can not (reasonably) be reversed.  No personal data can be inferred or
-        # extracted from the resulting UUID.
-        return str(uuid.uuid5(uuid.NAMESPACE_OID, dag_id))
+    def _generate_dag_key() -> str:
+        """
+        The Object Identifier (OID) namespace is used to salt the dag_id value.
+        That salted value is used to generate a SHA-1 hash which, by definition,
+        can not (reasonably) be reversed.  No personal data can be inferred or
+        extracted from the resulting UUID.
+        """
+        try:
+            dag_id = os.getenv("AIRFLOW_CTX_DAG_ID")
+            return str(uuid.uuid5(uuid.NAMESPACE_OID, dag_id))
+        except Exception:
+            # Under no condition should an error here ever cause an issue for the user.
+            return "00000000-0000-5000-0000-000000000000"
+
+    @staticmethod
+    def _get_airflow_version() -> str:
+        """Fetch and return the current Airflow version."""
+        try:
+            # This can be a circular import under specific configurations.
+            # Importing locally to either avoid or catch it if it does happen.
+            from airflow import __version__ as airflow_version
+            return airflow_version
+        except Exception:
+            # Under no condition should an error here ever cause an issue for the user.
+            return "Unknown"
 
     def _generate_user_agent_extra_field(self, existing_user_agent_extra: str) -> str:
         user_agent_extra_values = [
-            f"Airflow/{airflow_version}",
+            f"Airflow/{self._get_airflow_version()}",
             f"AmPP/{self._get_provider_version()}",
             f"Caller/{self._get_caller()}",
             f"DagRunKey/{self._generate_dag_key()}",
