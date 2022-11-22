@@ -31,7 +31,7 @@ def get_health() -> APIResponse:
     latest_scheduler_heartbeat = None
     latest_triggerer_heartbeat = None
     scheduler_status = UNHEALTHY
-    triggerer_status = None
+    triggerer_status = UNHEALTHY
     try:
         scheduler_job = SchedulerJob.most_recent_job()
 
@@ -48,8 +48,8 @@ def get_health() -> APIResponse:
             latest_triggerer_heartbeat = triggerer_job.latest_heartbeat.isoformat()
             if triggerer_job.is_alive():
                 triggerer_status = HEALTHY
-            else:
-                triggerer_status = UNHEALTHY
+        else:
+            triggerer_status = None
     except Exception:
         metadatabase_status = UNHEALTHY
 
